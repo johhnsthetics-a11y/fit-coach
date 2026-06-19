@@ -121,7 +121,73 @@ const foodDatabase = [
   { name: 'Hipercalórico', category: 'Suplementos', calories: 390, protein: 25, carbs: 60, fat: 5, fiber: 2, sodium: 120 },
 ]
 
-const foodCategories = [...new Set(foodDatabase.map((food) => food.category))]
+const expandedFoodDatabase = [
+  ['Whey Protein Concentrado', 'Suplementos', 402, 80, 8, 6, 0, 180, ['whey', 'whey concentrado']],
+  ['Whey Protein Isolado', 'Suplementos', 370, 90, 2, 1, 0, 160, ['whey isolado']],
+  ['Caseína', 'Suplementos', 365, 82, 8, 2, 0, 180, ['caseina']],
+  ['Aveia em Flocos', 'Carboidratos', 394, 13.9, 66.6, 8.5, 9.1, 5, ['aveia', 'flocos de aveia']],
+  ['Granola Tradicional', 'Carboidratos', 471, 10, 64, 20, 7, 80, ['granola']],
+  ['Arroz Integral Cozido', 'Carboidratos', 124, 2.6, 25.8, 1, 2.7, 1, ['arroz integral']],
+  ['Arroz Parboilizado Cozido', 'Carboidratos', 123, 2.6, 26, 0.4, 0.9, 1, ['arroz parboilizado']],
+  ['Batata Inglesa Cozida', 'Carboidratos', 87, 1.9, 20.1, 0.1, 1.8, 4, ['batata inglesa', 'batata cozida']],
+  ['Mandioca Cozida', 'Carboidratos', 125, 0.6, 30.1, 0.3, 1.6, 1, ['mandioca', 'aipim', 'macaxeira']],
+  ['Inhame Cozido', 'Carboidratos', 118, 1.5, 27.9, 0.2, 4.1, 9, ['inhame']],
+  ['Quinoa Cozida', 'Carboidratos', 120, 4.4, 21.3, 1.9, 2.8, 7, ['quinoa']],
+  ['Pão Integral', 'Carboidratos', 247, 13, 41, 4.2, 7, 490, ['pao integral']],
+  ['Pão de Forma', 'Carboidratos', 265, 9, 49, 3.2, 2.7, 491, ['pao de forma']],
+  ['Pão de Queijo', 'Carboidratos', 363, 5.1, 34.2, 22.7, 0.6, 773, ['pao de queijo']],
+  ['Cereal de Milho', 'Carboidratos', 357, 7.5, 84, 0.4, 3, 729, ['sucrilhos', 'cereal matinal']],
+  ['Patinho Grelhado', 'Carnes', 219, 35.9, 0, 7.3, 0, 60, ['patinho', 'carne patinho']],
+  ['Acém Cozido', 'Carnes', 215, 26.7, 0, 11.9, 0, 58, ['acem']],
+  ['Músculo Cozido', 'Carnes', 194, 31.2, 0, 6.7, 0, 66, ['musculo bovino', 'musculo']],
+  ['Carne Moída Magra', 'Carnes', 212, 26, 0, 12, 0, 66, ['carne moida']],
+  ['Lombo Suíno Assado', 'Carnes', 210, 29, 0, 9, 0, 62, ['lombo suino', 'lombo de porco']],
+  ['Peito de Frango Desfiado', 'Carnes', 163, 31, 0, 3.5, 0, 73, ['frango desfiado', 'frango cozido']],
+  ['Coxa de Frango sem Pele', 'Carnes', 209, 26, 0, 10.9, 0, 90, ['coxa de frango']],
+  ['Tilápia Grelhada', 'Peixes', 128, 26.2, 0, 2.7, 0, 56, ['tilapia', 'file de tilapia']],
+  ['Salmão Grelhado', 'Peixes', 206, 22.1, 0, 12.4, 0, 61, ['salmao']],
+  ['Merluza Cozida', 'Peixes', 121, 26, 0, 1.6, 0, 70, ['merluza']],
+  ['Omelete Simples', 'Ovos', 154, 10.6, 0.7, 11.7, 0, 155, ['omelete']],
+  ['Iogurte Grego Natural', 'Laticínios', 97, 9, 3.9, 5, 0, 36, ['iogurte grego']],
+  ['Iogurte Proteico', 'Laticínios', 68, 10, 5, 0.8, 0, 55, ['iogurte protein']],
+  ['Queijo Minas Frescal', 'Laticínios', 264, 17.4, 3.2, 20.2, 0, 450, ['queijo minas']],
+  ['Ricota', 'Laticínios', 174, 11.3, 3, 13, 0, 84, []],
+  ['Requeijão Light', 'Laticínios', 180, 10, 6, 13, 0, 560, ['requeijao light']],
+  ['Feijão Branco Cozido', 'Leguminosas', 139, 9.7, 25.1, 0.4, 6.3, 5, ['feijao branco']],
+  ['Ervilha Cozida', 'Leguminosas', 84, 5.4, 15, 0.4, 5.5, 3, ['ervilha']],
+  ['Soja Cozida', 'Leguminosas', 173, 16.6, 9.9, 9, 6, 1, ['soja']],
+  ['Laranja', 'Frutas', 47, 0.9, 11.8, 0.1, 2.4, 0, []],
+  ['Pera', 'Frutas', 57, 0.4, 15.2, 0.1, 3.1, 1, []],
+  ['Uva', 'Frutas', 69, 0.7, 18.1, 0.2, 0.9, 2, []],
+  ['Manga', 'Frutas', 60, 0.8, 15, 0.4, 1.6, 1, []],
+  ['Abacaxi', 'Frutas', 50, 0.5, 13.1, 0.1, 1.4, 1, []],
+  ['Melancia', 'Frutas', 30, 0.6, 7.6, 0.2, 0.4, 1, []],
+  ['Kiwi', 'Frutas', 61, 1.1, 14.7, 0.5, 3, 3, []],
+  ['Açaí sem Açúcar', 'Frutas', 70, 1, 6, 5, 2.6, 7, ['acai', 'polpa de acai']],
+  ['Brócolis Cozido', 'Vegetais', 35, 2.4, 7.2, 0.4, 3.3, 41, ['brocolis']],
+  ['Couve Cozida', 'Vegetais', 36, 2.5, 7.3, 0.5, 2.6, 30, ['couve']],
+  ['Espinafre Cozido', 'Vegetais', 23, 3, 3.8, 0.3, 2.4, 70, ['espinafre']],
+  ['Alface', 'Vegetais', 15, 1.4, 2.9, 0.2, 1.3, 28, []],
+  ['Tomate', 'Vegetais', 18, 0.9, 3.9, 0.2, 1.2, 5, []],
+  ['Couve-flor Cozida', 'Vegetais', 25, 1.9, 5, 0.3, 2, 30, ['couve flor']],
+  ['Pasta de Amendoim Integral', 'Oleaginosas', 588, 25, 20, 50, 6, 17, ['pasta de amendoim']],
+  ['Amendoim Torrado', 'Oleaginosas', 606, 22.5, 18.7, 54, 7.8, 6, ['amendoim']],
+  ['Amêndoas', 'Oleaginosas', 579, 21.2, 21.6, 49.9, 12.5, 1, ['amendoas']],
+  ['Castanha-do-Pará', 'Oleaginosas', 659, 14.3, 11.7, 67.1, 7.5, 3, ['castanha do para']],
+  ['Chia', 'Sementes', 486, 16.5, 42.1, 30.7, 34.4, 16, []],
+  ['Linhaça', 'Sementes', 534, 18.3, 28.9, 42.2, 27.3, 30, ['linhaca']],
+  ['Mel', 'Açúcares', 304, 0.3, 82.4, 0, 0.2, 4, []],
+  ['Chocolate 70% Cacau', 'Doces', 598, 7.8, 45.9, 42.6, 10.9, 20, ['chocolate 70', 'chocolate amargo']],
+  ['Café sem Açúcar', 'Bebidas', 2, 0.1, 0, 0, 0, 2, ['cafe preto', 'cafe sem acucar', 'cafe']],
+  ['Água de Coco', 'Bebidas', 19, 0.7, 3.7, 0.2, 1.1, 105, ['agua de coco']],
+  ['Suco de Laranja Natural', 'Bebidas', 45, 0.7, 10.4, 0.2, 0.2, 1, ['suco de laranja']],
+].map(([name, category, calories, protein, carbs, fat, fiber, sodium, aliases]) => ({
+  name, category, calories, protein, carbs, fat, fiber, sodium, aliases,
+}))
+
+foodDatabase.push(...expandedFoodDatabase)
+
+const foodCategories = [...new Set([...foodDatabase.map((food) => food.category), 'Preparações'])]
 
 const foodEstimateRules = [
   { keywords: ['whey', 'proteina em po', 'protein'], category: 'Suplementos', macros: { calories: 400, protein: 78, carbs: 8, fat: 6, fiber: 0, sodium: 180 } },
@@ -134,6 +200,15 @@ const foodEstimateRules = [
   { keywords: ['banana prata', 'banana nanica'], category: 'Frutas', macros: { calories: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6, sodium: 1 } },
   { keywords: ['pasta de amendoim', 'amendoim'], category: 'Oleaginosas', macros: { calories: 588, protein: 25, carbs: 20, fat: 50, fiber: 6, sodium: 17 } },
   { keywords: ['granola'], category: 'Carboidratos', macros: { calories: 471, protein: 10, carbs: 64, fat: 20, fiber: 7, sodium: 80 } },
+  { keywords: ['omelete'], category: 'Ovos', macros: { calories: 154, protein: 10.6, carbs: 0.7, fat: 11.7, fiber: 0, sodium: 155 } },
+  { keywords: ['hamburguer caseiro'], category: 'Carnes', macros: { calories: 250, protein: 26, carbs: 2, fat: 15, fiber: 0, sodium: 280 } },
+  { keywords: ['frango empanado'], category: 'Carnes', macros: { calories: 260, protein: 25, carbs: 12, fat: 12, fiber: 0.8, sodium: 420 } },
+  { keywords: ['arroz com frango', 'galinhada'], category: 'Preparações', macros: { calories: 170, protein: 10, carbs: 22, fat: 4.5, fiber: 1.2, sodium: 210 } },
+  { keywords: ['feijoada'], category: 'Preparações', macros: { calories: 146, protein: 8.7, carbs: 11.6, fat: 7.1, fiber: 5.1, sodium: 340 } },
+  { keywords: ['lasanha'], category: 'Preparações', macros: { calories: 170, protein: 9, carbs: 16, fat: 8, fiber: 1.2, sodium: 400 } },
+  { keywords: ['pizza'], category: 'Preparações', macros: { calories: 266, protein: 11, carbs: 33, fat: 10, fiber: 2.3, sodium: 600 } },
+  { keywords: ['sanduiche natural'], category: 'Preparações', macros: { calories: 210, protein: 14, carbs: 25, fat: 6, fiber: 2.5, sodium: 390 } },
+  { keywords: ['vitamina de banana'], category: 'Bebidas', macros: { calories: 105, protein: 3.2, carbs: 19, fat: 2.2, fiber: 1.2, sodium: 35 } },
 ]
 
 function createInitialData() {
@@ -1942,7 +2017,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-      <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
+      <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action={`${foodDatabase.length}+ alimentos`}>
         <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
       </Panel>
 
@@ -2051,6 +2126,12 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
+      <div className="rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
+        <p className="font-black text-emerald-100">Assistente inteligente de alimentos</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">
+          Digite o alimento e a quantidade. O FIT COACH procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
+        </p>
+      </div>
       <Select
         label="Aluno"
         name="studentId"
@@ -2173,18 +2254,22 @@ function NutritionPlanList({ plans, selectedStudent }) {
 }
 
 function NutritionFoodItem({ item, totals, onChange, onRemove }) {
-  const recognizedFood = findFoodByName(item.foodName)
+  const recognition = recognizeFood(item.foodName)
+  const recognizedFood = recognition.food
   const manualMode = item.mode === 'manual'
   const estimatedFood = !recognizedFood ? estimateFoodMacros(item.foodName, item.category) : null
+  const intelligence = recognizedFood
+    ? { label: recognition.matchType === 'exact' ? 'Encontrado na base' : 'Reconhecido por nome semelhante', confidence: recognition.confidence }
+    : { label: estimatedFood?._source === 'rule' ? 'Estimativa inteligente' : 'Estimativa pela categoria', confidence: estimatedFood?._confidence ?? 0.45 }
 
   function setFoodName(value) {
-    const recognized = findFoodByName(value)
+    const recognized = recognizeFood(value).food
     const estimate = recognized ? null : estimateFoodMacros(value, item.category)
     onChange({
       ...item,
       foodName: value,
       category: recognized?.category ?? estimate?.category ?? item.category,
-      mode: recognized ? 'database' : 'manual',
+      mode: recognized ? 'database' : 'estimated',
       customMacros: recognized ? undefined : estimate ?? item.customMacros ?? emptyMacros(),
     })
   }
@@ -2193,7 +2278,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
     const estimate = estimateFoodMacros(item.foodName, item.category)
     onChange({
       ...item,
-      mode: 'manual',
+      mode: 'estimated',
       category: estimate.category ?? item.category,
       customMacros: estimate,
     })
@@ -2225,7 +2310,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
             value={item.foodName}
             list="food-options"
             onChange={(event) => setFoodName(event.target.value)}
-            placeholder="Digite ou escolha um alimento"
+            placeholder="Ex.: tilápia grelhada, aveia ou feijoada"
             className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
           />
         </label>
@@ -2242,20 +2327,24 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
       <div className="mt-3 flex flex-col gap-2 rounded-md border border-emerald-300/20 bg-emerald-300/5 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-200">
-            {recognizedFood ? 'Reconhecido automaticamente' : estimatedFood ? 'Estimado pela inteligência local' : manualMode ? 'Manual' : 'Aguardando alimento'}
+            {manualMode ? 'Ajustado manualmente' : intelligence.label}
           </p>
           <p className="mt-1 text-sm font-black text-emerald-50">
             {Math.round(totals.calories)} kcal | P {roundMacro(totals.protein)}g | C {roundMacro(totals.carbs)}g | G {roundMacro(totals.fat)}g
           </p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Valores para {Number(item.grams) || 0}g · confiança {Math.round(intelligence.confidence * 100)}%
+            {recognizedFood && normalizeText(recognizedFood.name) !== normalizeText(item.foodName) ? ` · referência: ${recognizedFood.name}` : ''}
+          </p>
         </div>
         {estimatedFood && !recognizedFood ? (
           <button type="button" onClick={applyEstimate} className="rounded-md border border-amber-300/40 px-3 py-2 text-xs font-black text-amber-100">
-            Reestimar
+            Atualizar estimativa
           </button>
         ) : null}
         {!recognizedFood ? (
           <span className="text-xs leading-5 text-amber-200">
-            Não encontrei na base. Preencha os macros por 100g abaixo.
+            Alimento novo: revise a estimativa ou ajuste os valores por 100g.
           </span>
         ) : null}
       </div>
@@ -2269,6 +2358,15 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
           <InlineInput label="Fibra/100g" value={item.customMacros?.fiber ?? 0} onChange={(value) => setManualMacro('fiber', value)} />
           <InlineInput label="Sódio/100g" value={item.customMacros?.sodium ?? 0} onChange={(value) => setManualMacro('sodium', value)} />
         </div>
+      ) : null}
+      {recognizedFood && !manualMode ? (
+        <button
+          type="button"
+          onClick={() => onChange({ ...item, mode: 'manual', customMacros: { ...recognizedFood } })}
+          className="mt-3 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300"
+        >
+          Ajustar macros manualmente
+        </button>
       ) : null}
     </div>
   )
@@ -3647,26 +3745,62 @@ function normalizeNutritionItem(item, changedField) {
 }
 
 function findFoodByName(name) {
-  const normalizedName = normalizeText(name)
-  if (!normalizedName) return null
+  return recognizeFood(name).food
+}
 
-  return foodDatabase.find((food) => normalizeText(food.name) === normalizedName)
-    ?? foodDatabase.find((food) => normalizeText(food.name).includes(normalizedName) || normalizedName.includes(normalizeText(food.name)))
-    ?? null
+function recognizeFood(name) {
+  const normalizedName = normalizeText(name)
+  if (!normalizedName) return { food: null, confidence: 0, matchType: 'none' }
+
+  const candidates = foodDatabase.map((food) => ({
+    food,
+    names: [food.name, ...(food.aliases ?? [])].map(normalizeText),
+  }))
+  const exact = candidates.find((candidate) => candidate.names.includes(normalizedName))
+  if (exact) return { food: exact.food, confidence: 1, matchType: 'exact' }
+
+  const contained = candidates
+    .map((candidate) => {
+      const matchingName = candidate.names
+        .filter((candidateName) => candidateName.length >= 4)
+        .sort((a, b) => b.length - a.length)
+        .find((candidateName) => normalizedName.includes(candidateName) || candidateName.includes(normalizedName))
+      return { ...candidate, matchingName }
+    })
+    .filter((candidate) => candidate.matchingName)
+    .sort((a, b) => b.matchingName.length - a.matchingName.length)[0]
+
+  if (contained) return { food: contained.food, confidence: 0.9, matchType: 'similar' }
+
+  const inputTokens = meaningfulFoodTokens(normalizedName)
+  const ranked = candidates
+    .map((candidate) => {
+      const score = Math.max(...candidate.names.map((candidateName) => {
+        const candidateTokens = meaningfulFoodTokens(candidateName)
+        const overlap = candidateTokens.filter((token) => inputTokens.includes(token)).length
+        return overlap / Math.max(inputTokens.length, candidateTokens.length, 1)
+      }))
+      return { food: candidate.food, score }
+    })
+    .sort((a, b) => b.score - a.score)[0]
+
+  return ranked?.score >= 0.58
+    ? { food: ranked.food, confidence: Math.min(0.85, ranked.score), matchType: 'similar' }
+    : { food: null, confidence: ranked?.score ?? 0, matchType: 'none' }
 }
 
 function estimateFoodMacros(name, category) {
   const normalizedName = normalizeText(name)
-  if (!normalizedName) return { ...emptyMacros(), category }
+  if (!normalizedName) return { ...emptyMacros(), category, _confidence: 0, _source: 'empty' }
 
-  const keywordEstimate = foodEstimateRules.find((rule) => rule.keywords.some((keyword) => normalizedName.includes(keyword)))
+  const keywordEstimate = foodEstimateRules.find((rule) => rule.keywords.some((keyword) => normalizedName.includes(normalizeText(keyword))))
 
   if (keywordEstimate) {
-    return { ...keywordEstimate.macros, category: keywordEstimate.category ?? category }
+    return { ...keywordEstimate.macros, category: keywordEstimate.category ?? category, _confidence: 0.82, _source: 'rule' }
   }
 
   const categoryFoods = foodDatabase.filter((food) => food.category === category)
-  if (!categoryFoods.length) return { ...emptyMacros(), category }
+  if (!categoryFoods.length) return { ...emptyMacros(), category, _confidence: 0.25, _source: 'unknown' }
 
   const average = sumMacros(categoryFoods)
   const divisor = categoryFoods.length
@@ -3679,7 +3813,16 @@ function estimateFoodMacros(name, category) {
     fiber: roundMacro(average.fiber / divisor),
     sodium: roundMacro(average.sodium / divisor),
     category,
+    _confidence: 0.45,
+    _source: 'category',
   }
+}
+
+function meaningfulFoodTokens(value) {
+  const ignored = new Set(['de', 'da', 'do', 'com', 'sem', 'em', 'e', 'cozido', 'cozida', 'grelhado', 'grelhada', 'assado', 'assada'])
+  return normalizeText(value)
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 2 && !ignored.has(token))
 }
 
 function normalizeText(value) {
