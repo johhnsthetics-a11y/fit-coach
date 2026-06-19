@@ -883,9 +883,9 @@ export default function App() {
   const viewTitle = navItems.find((item) => item.id === activeView)?.label ?? 'Visão geral'
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-zinc-950 text-zinc-100">
-      <div className="grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="border-b border-white/10 bg-zinc-950/95 p-3 sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+    <div className="app-shell min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 text-zinc-100">
+      <div className="grid min-h-screen min-w-0 max-w-full lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="min-w-0 max-w-full border-b border-white/10 bg-zinc-950/95 p-3 sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="flex items-center justify-between gap-3 lg:block">
             <BrandLockup
               subtitle={`por ${data.coachSettings?.brandName || data.coachSettings?.publicName || data.user.name}`}
@@ -901,19 +901,19 @@ export default function App() {
             {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
           </div>
 
-          <nav className="scrollbar-soft mt-4 flex gap-2 overflow-x-auto pb-1 lg:mt-6 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0">
+          <nav className="mt-4 grid min-w-0 grid-cols-3 gap-2 lg:mt-6 lg:grid-cols-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
-                className={`flex min-h-11 min-w-[172px] shrink-0 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition lg:min-w-0 ${
+                className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-1 py-2 text-center text-[11px] font-semibold transition sm:min-h-11 sm:flex-row sm:justify-start sm:gap-2 sm:px-3 sm:text-left sm:text-sm lg:gap-3 ${
                   activeView === item.id
                     ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="grid h-7 w-7 place-items-center rounded bg-zinc-950/10 text-xs font-black">{item.icon}</span>
-                <span className="flex-1">{item.label}</span>
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-zinc-950/10 text-xs font-black">{item.icon}</span>
+                <span className="min-w-0 max-w-full break-words leading-tight sm:flex-1">{item.label}</span>
                 {item.id === 'notificacoes' && totalAlertCount > 0 ? (
                   <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
                 ) : null}
@@ -922,8 +922,8 @@ export default function App() {
           </nav>
         </aside>
 
-        <main className="min-w-0 px-3 py-4 sm:px-5 sm:py-6 xl:px-8">
-          <div className="mx-auto max-w-[1440px]">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 xl:px-8">
+          <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
               <div className="mb-3 flex items-center gap-2">
@@ -2664,8 +2664,8 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-4 text-zinc-100 sm:p-6">
-      <div className="mx-auto max-w-6xl">
+    <div className="app-shell min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 p-3 text-zinc-100 sm:p-6">
+      <div className="mx-auto min-w-0 max-w-6xl">
         <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/10 pb-5">
           <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
         </div>
