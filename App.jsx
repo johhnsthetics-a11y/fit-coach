@@ -2064,7 +2064,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       return {
         ...meal,
         items: meal.items.map((item, currentItemIndex) => (
-          currentItemIndex === itemIndex ? normalizeNutritionItem(nextItem) : item
+          currentItemIndex === itemIndex ? nextItem : item
         )),
       }
     }))
@@ -2254,17 +2254,22 @@ function NutritionPlanList({ plans, selectedStudent }) {
 }
 
 function NutritionFoodItem({ item, totals, onChange, onRemove }) {
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [searchEdited, setSearchEdited] = useState(false)
   const recognition = recognizeFood(item.foodName)
-  const recognizedFood = recognition.food
+  const recognizedFood = item.mode === 'database' ? recognition.food : findExactFood(item.foodName)
   const manualMode = item.mode === 'manual'
   const estimatedFood = !recognizedFood ? estimateFoodMacros(item.foodName, item.category) : null
+  const foodSuggestions = getFoodSuggestions(searchEdited ? item.foodName : '', item.category)
   const intelligence = recognizedFood
     ? { label: recognition.matchType === 'exact' ? 'Encontrado na base' : 'Reconhecido por nome semelhante', confidence: recognition.confidence }
     : { label: estimatedFood?._source === 'rule' ? 'Estimativa inteligente' : 'Estimativa pela categoria', confidence: estimatedFood?._confidence ?? 0.45 }
 
   function setFoodName(value) {
-    const recognized = recognizeFood(value).food
+    const recognized = findExactFood(value)
     const estimate = recognized ? null : estimateFoodMacros(value, item.category)
+    setSearchEdited(true)
+    setSuggestionsOpen(true)
     onChange({
       ...item,
       foodName: value,
@@ -2272,6 +2277,18 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
       mode: recognized ? 'database' : 'estimated',
       customMacros: recognized ? undefined : estimate ?? item.customMacros ?? emptyMacros(),
     })
+  }
+
+  function selectFood(food) {
+    onChange({
+      ...item,
+      foodName: food.name,
+      category: food.category,
+      mode: 'database',
+      customMacros: undefined,
+    })
+    setSearchEdited(false)
+    setSuggestionsOpen(false)
   }
 
   function applyEstimate() {
@@ -2302,27 +2319,61 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
           label="Tipo"
           value={item.category}
           options={foodCategories}
-          onChange={(value) => onChange({ ...item, category: value, foodName: foodDatabase.find((food) => food.category === value)?.name ?? item.foodName, mode: 'database' })}
+          onChange={(value) => {
+            const firstFood = getFoodSuggestions('', value)[0]
+            onChange({ ...item, category: value, foodName: firstFood?.name ?? '', mode: firstFood ? 'database' : 'estimated', customMacros: undefined })
+            setSearchEdited(false)
+            setSuggestionsOpen(true)
+          }}
         />
-        <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+        <label className="relative grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
           Alimento
           <input
             value={item.foodName}
-            list="food-options"
             onChange={(event) => setFoodName(event.target.value)}
+            onFocus={(event) => {
+              event.currentTarget.select()
+              setSearchEdited(false)
+              setSuggestionsOpen(true)
+            }}
+            onBlur={() => window.setTimeout(() => setSuggestionsOpen(false), 120)}
             placeholder="Ex.: tilápia grelhada, aveia ou feijoada"
+            autoComplete="off"
             className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
           />
+          {suggestionsOpen ? (
+            <div className="scrollbar-soft max-h-72 overflow-y-auto rounded-md border border-white/10 bg-zinc-900 p-1 normal-case tracking-normal shadow-2xl">
+              <p className="px-3 py-2 text-xs font-bold text-emerald-300">
+                {searchEdited && item.foodName.trim() ? 'Resultados da busca' : `Mais usados em ${item.category}`}
+              </p>
+              {foodSuggestions.length ? foodSuggestions.map((food) => (
+                <button
+                  key={`${food.category}-${food.name}`}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectFood(food)}
+                  className="flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left hover:bg-white/[0.06]"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-zinc-100">{food.name}</span>
+                    <span className="block text-xs text-zinc-500">{food.category}</span>
+                  </span>
+                  <span className="shrink-0 text-xs font-black text-emerald-200">{Math.round(food.calories)} kcal</span>
+                </button>
+              )) : (
+                <div className="px-3 py-3">
+                  <p className="text-sm font-bold text-amber-200">Alimento novo</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">Continue digitando livremente. Os macros serão estimados e poderão ser ajustados abaixo.</p>
+                </div>
+              )}
+            </div>
+          ) : null}
         </label>
         <InlineInput label="Gramas" value={item.grams} onChange={(value) => onChange({ ...item, grams: Number(value) || 0 })} />
         <button type="button" onClick={onRemove} className="self-end rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">
           Remover
         </button>
       </div>
-
-      <datalist id="food-options">
-        {foodDatabase.map((food) => <option key={`${food.category}-${food.name}`} value={food.name} />)}
-      </datalist>
 
       <div className="mt-3 flex flex-col gap-2 rounded-md border border-emerald-300/20 bg-emerald-300/5 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -3707,7 +3758,7 @@ function calculateMealMacros(meal) {
 }
 
 function calculateFoodItemMacros(item) {
-  const food = item.mode === 'manual' ? null : findFoodByName(item.foodName)
+  const food = !item.mode || item.mode === 'database' ? findFoodByName(item.foodName) : null
   const source = food ?? item.customMacros
   const multiplier = Number(item.grams || 0) / 100
 
@@ -3746,6 +3797,42 @@ function normalizeNutritionItem(item, changedField) {
 
 function findFoodByName(name) {
   return recognizeFood(name).food
+}
+
+function findExactFood(name) {
+  const normalizedName = normalizeText(name)
+  if (!normalizedName) return null
+
+  return foodDatabase.find((food) => (
+    [food.name, ...(food.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalizedName)
+  )) ?? null
+}
+
+function getFoodSuggestions(query, category) {
+  const normalizedQuery = normalizeText(query)
+  const commonFoods = [
+    'Arroz Branco', 'Peito de Frango', 'Ovo Inteiro', 'Aveia em Flocos',
+    'Banana', 'Batata Doce', 'Patinho Grelhado', 'Feijão Carioca',
+    'Pão Integral', 'Iogurte Natural', 'Tilápia Grelhada', 'Whey Protein Concentrado',
+  ]
+
+  return foodDatabase
+    .filter((food) => {
+      if (!normalizedQuery) return food.category === category
+      return [food.name, ...(food.aliases ?? [])]
+        .some((candidate) => normalizeText(candidate).includes(normalizedQuery))
+    })
+    .sort((a, b) => {
+      const aCommon = commonFoods.indexOf(a.name)
+      const bCommon = commonFoods.indexOf(b.name)
+      if (aCommon >= 0 || bCommon >= 0) {
+        if (aCommon < 0) return 1
+        if (bCommon < 0) return -1
+        return aCommon - bCommon
+      }
+      return a.name.localeCompare(b.name, 'pt-BR')
+    })
+    .slice(0, normalizedQuery ? 14 : 10)
 }
 
 function recognizeFood(name) {
