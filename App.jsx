@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import fitCoachLogo from './fit-coach-logo.png'
 import {
   Area,
   AreaChart,
@@ -3420,7 +3421,7 @@ function BrandLockup({ subtitle = '', dark = false, large = false }) {
       title={subtitle}
     >
       <img
-        src="/assets/fit-coach-logo.png"
+        src={fitCoachLogo}
         alt="FIT COACH"
         className="h-auto w-full rounded-[4px] bg-[#05070d] object-contain"
       />
