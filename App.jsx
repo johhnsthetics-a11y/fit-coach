@@ -958,9 +958,9 @@ export default function App() {
   const viewTitle = navItems.find((item) => item.id === activeView)?.label ?? 'Visão geral'
 
   return (
-    <div className="app-shell min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 text-zinc-100">
+    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
       <div className="grid min-h-screen min-w-0 max-w-full lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="min-w-0 max-w-full border-b border-white/10 bg-zinc-950/95 p-3 sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <aside className="min-w-0 max-w-full border-b border-white/10 bg-zinc-950/80 p-3 backdrop-blur-xl sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className="flex items-center justify-between gap-3 lg:block">
             <BrandLockup
               subtitle={`por ${data.coachSettings?.brandName || data.coachSettings?.publicName || data.user.name}`}
@@ -970,9 +970,9 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-4 rounded-md border border-emerald-400/40 bg-emerald-400/10 p-3 lg:mt-5">
+          <div className="mt-4 rounded-md border border-blue-500/40 bg-blue-500/10 p-3 lg:mt-5">
             <p className="text-xs text-zinc-400">Status da base</p>
-            <p className="text-sm font-bold text-emerald-200">{remoteStatus}</p>
+            <p className="text-sm font-bold text-blue-200">{remoteStatus}</p>
             {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
           </div>
 
@@ -983,7 +983,7 @@ export default function App() {
                 onClick={() => setActiveView(item.id)}
                 className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-1 py-2 text-center text-[11px] font-semibold transition sm:min-h-11 sm:flex-row sm:justify-start sm:gap-2 sm:px-3 sm:text-left sm:text-sm lg:gap-3 ${
                   activeView === item.id
-                    ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
+                    ? 'border-blue-500 bg-blue-500 text-zinc-950'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
@@ -1002,8 +1002,8 @@ export default function App() {
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
               <div className="mb-3 flex items-center gap-2">
-                <span className="h-1.5 w-8 bg-emerald-400" />
-                <p className="text-xs font-black uppercase text-emerald-300">FIT COACH / Central do coach</p>
+                <span className="h-1.5 w-8 bg-blue-500" />
+                <p className="text-xs font-black uppercase text-blue-300">FIT COACH / Central do coach</p>
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
@@ -1166,8 +1166,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
   }
 
   return (
-    <div className="grid min-h-screen bg-zinc-950 text-zinc-100 lg:grid-cols-[minmax(300px,0.85fr)_minmax(420px,1.15fr)]">
-      <section className="hidden border-r border-white/10 bg-emerald-400 p-10 text-zinc-950 lg:flex lg:flex-col lg:justify-between">
+    <div className="fit-gradient-bg grid min-h-screen text-zinc-100 lg:grid-cols-[minmax(300px,0.85fr)_minmax(420px,1.15fr)]">
+      <section className="hidden border-r border-white/10 bg-blue-600/25 p-10 text-zinc-50 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
         <BrandLockup dark large subtitle="Gestao profissional de acompanhamento" />
         <div className="max-w-md">
           <p className="text-sm font-black uppercase">Treino. Nutrição. Evolução.</p>
@@ -1187,35 +1187,35 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <div className="mb-7 lg:hidden">
           <BrandLockup subtitle="Plataforma profissional" />
         </div>
-        <p className="text-xs font-black uppercase text-emerald-300">Acesso seguro</p>
+        <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
         <h1 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Criar conta' : 'Entrar no painel'}</h1>
         <p className="mt-2 text-sm leading-6 text-zinc-400">
           Coach entra com email e senha. Aluno entra com codigo de convite.
         </p>
         <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
           <p className="text-xs font-bold text-zinc-400">Status</p>
-          <p className="mt-1 text-sm font-bold text-emerald-200">{remoteStatus}</p>
+          <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
           {remoteError ? <p className="mt-2 break-words text-sm leading-6 text-amber-200">{remoteError}</p> : null}
         </div>
         <div className="mt-5 grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => setMode('signin')}
-            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'signin' ? 'border-emerald-400 bg-emerald-400 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
+            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'signin' ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
           >
             Entrar
           </button>
           <button
             type="button"
             onClick={() => setMode('signup')}
-            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'signup' ? 'border-emerald-400 bg-emerald-400 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
+            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'signup' ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
           >
             Criar conta
           </button>
           <button
             type="button"
             onClick={() => setMode('student')}
-            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'student' ? 'border-emerald-400 bg-emerald-400 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
+            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'student' ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
           >
             Aluno
           </button>
@@ -1232,7 +1232,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             </>
           )}
         </div>
-        <button className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+        <button className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           {loading ? 'Processando...' : mode === 'student' ? 'Acessar área do aluno' : mode === 'signup' ? 'Criar conta' : 'Entrar'}
         </button>
         {mode === 'signup' ? (
@@ -1261,9 +1261,9 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
               <button
                 key={number}
                 onClick={() => setActiveView(view)}
-                className="flex w-full items-start gap-4 rounded-md border border-white/10 bg-white/[0.03] p-4 text-left hover:border-emerald-300/40"
+                className="flex w-full items-start gap-4 rounded-md border border-white/10 bg-white/[0.03] p-4 text-left hover:border-blue-300/40"
               >
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-emerald-400 font-black text-zinc-950">{number}</span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-blue-500 font-black text-zinc-950">{number}</span>
                 <span>
                   <span className="block font-black">{title}</span>
                   <span className="mt-1 block text-sm leading-6 text-zinc-400">{description}</span>
@@ -1274,13 +1274,13 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
         </Panel>
 
         <Panel title="Conta pronta para iniciar" action="Ambiente limpo">
-          <div className="rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-            <p className="font-black text-emerald-200">Nenhum dado demonstrativo</p>
+          <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+            <p className="font-black text-blue-200">Nenhum dado demonstrativo</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               Sua conta esta vazia e preparada para receber somente alunos reais da sua operacao.
             </p>
           </div>
-          <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+          <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
             Cadastrar primeiro aluno
           </button>
         </Panel>
@@ -1301,7 +1301,7 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
               <XAxis dataKey="label" stroke="#a1a1aa" />
               <YAxis stroke="#a1a1aa" />
               <Tooltip contentStyle={tooltipStyle} />
-              <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#34d399" strokeWidth={3} />
+              <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#3b82f6" strokeWidth={3} />
               <Line type="monotone" dataKey="gordura" name="Gordura (%)" stroke="#fbbf24" strokeWidth={3} />
             </LineChart>
           </ChartWrap>
@@ -1312,7 +1312,7 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
 
       <Panel title="Aluno em foco" action={selectedStudent?.status ?? 'Sem aluno'}>
         {selectedStudent ? <StudentSnapshot student={selectedStudent} /> : <Empty text="Cadastre seu primeiro aluno." />}
-        <button onClick={() => setActiveView('alunos')} className="mt-5 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+        <button onClick={() => setActiveView('alunos')} className="mt-5 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           Abrir alunos
         </button>
       </Panel>
@@ -1416,10 +1416,10 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
             </div>
             <Field label="Local ou link" name="location" defaultValue="Online" />
             <TextArea label="Observacoes" name="notes" defaultValue="Revisar progresso, aderencia e proximos ajustes." />
-            <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+            <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
               {saving ? 'Salvando...' : 'Agendar compromisso'}
             </button>
-            {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
+            {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
           </form>
         ) : (
           <Empty text="Cadastre um aluno antes de criar compromissos." />
@@ -1434,7 +1434,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               onClick={() => setFilter(option)}
               className={`shrink-0 rounded-md border px-3 py-2 text-xs font-black ${
                 filter === option
-                  ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
+                  ? 'border-blue-500 bg-blue-500 text-zinc-950'
                   : 'border-white/10 bg-white/[0.03] text-zinc-300'
               }`}
             >
@@ -1459,7 +1459,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
                       </div>
                       <h4 className="mt-3 text-lg font-black">{appointment.title}</h4>
                       <p className="mt-1 text-sm text-zinc-300">{student?.name ?? 'Aluno'}</p>
-                      <p className="mt-2 text-sm font-bold text-emerald-200">{formatFullDateTime(appointment.startsAt)}</p>
+                      <p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(appointment.startsAt)}</p>
                       <p className="mt-1 text-sm text-zinc-400">{appointment.durationMinutes} min - {appointment.location || 'Sem local'}</p>
                       {appointment.notes ? <p className="mt-3 text-sm leading-6 text-zinc-400">{appointment.notes}</p> : null}
                     </div>
@@ -1467,11 +1467,11 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
                     {!['Concluido', 'Cancelado'].includes(appointment.status) ? (
                       <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-1">
                         {appointment.status !== 'Confirmado' ? (
-                          <button onClick={() => onUpdateStatus(appointment.id, 'Confirmado')} className="rounded-md border border-emerald-300/30 px-3 py-2 text-xs font-black text-emerald-200">
+                          <button onClick={() => onUpdateStatus(appointment.id, 'Confirmado')} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-200">
                             Confirmar
                           </button>
                         ) : null}
-                        <button onClick={() => onUpdateStatus(appointment.id, 'Concluido')} className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">
+                        <button onClick={() => onUpdateStatus(appointment.id, 'Concluido')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950">
                           Concluir
                         </button>
                         <button onClick={() => onUpdateStatus(appointment.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200">
@@ -1498,7 +1498,7 @@ function Students({ students, selectedStudent, setSelectedStudentId, onSave }) {
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_1.15fr]">
       <Panel title="Carteira de alunos" action={`${students.length} perfis`}>
-        <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+        <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           Novo aluno
         </button>
         <div className="space-y-3">
@@ -1507,7 +1507,7 @@ function Students({ students, selectedStudent, setSelectedStudentId, onSave }) {
               key={student.id}
               onClick={() => setSelectedStudentId(student.id)}
               className={`w-full rounded-md border p-4 text-left transition ${
-                selectedStudent?.id === student.id ? 'border-emerald-400 bg-emerald-400/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
+                selectedStudent?.id === student.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -1518,7 +1518,7 @@ function Students({ students, selectedStudent, setSelectedStudentId, onSave }) {
                 <Badge tone={student.risk}>{student.risk}</Badge>
               </div>
               <div className="mt-4 h-2 rounded bg-zinc-800">
-                <div className="h-2 rounded bg-emerald-400" style={{ width: `${student.adherence}%` }} />
+                <div className="h-2 rounded bg-blue-500" style={{ width: `${student.adherence}%` }} />
               </div>
             </button>
           ))}
@@ -1606,7 +1606,7 @@ function StudentForm({ student, onSave, onCancel }) {
       </div>
       <TextArea label="Última observação" name="lastMessage" defaultValue={student.lastMessage} />
       <div className="flex flex-wrap gap-3">
-        <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">Salvar aluno</button>
+        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">Salvar aluno</button>
         <button type="button" onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Cancelar
         </button>
@@ -1659,7 +1659,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
                   name="studentId"
                   value={studentId}
                   onChange={(event) => setStudentId(event.target.value)}
-                  className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+                  className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
                 >
                   {students.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
@@ -1681,7 +1681,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
                 <Field label="FC repouso" name="restingHeartRate" type="number" required={false} />
               </div>
               <TextArea label="Parecer do coach" name="notes" defaultValue="Registrar evolucao, pontos de atencao e proximo objetivo." />
-              <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+              <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
                 {saving ? 'Salvando...' : 'Salvar avaliacao'}
               </button>
             </form>
@@ -1753,13 +1753,13 @@ function AssessmentProgress({ assessments, student, detailed = false }) {
             <XAxis dataKey="label" stroke="#a1a1aa" />
             <YAxis stroke="#a1a1aa" />
             <Tooltip contentStyle={tooltipStyle} />
-            <Line type="monotone" dataKey="peso" name="Peso" stroke="#34d399" strokeWidth={3} />
+            <Line type="monotone" dataKey="peso" name="Peso" stroke="#3b82f6" strokeWidth={3} />
             <Line type="monotone" dataKey="gordura" name="Gordura" stroke="#fbbf24" strokeWidth={3} />
           </LineChart>
         </ChartWrap>
       ) : null}
-      <div className="rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-        <p className="text-xs font-black uppercase tracking-normal text-emerald-200">Leitura da evolucao</p>
+      <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+        <p className="text-xs font-black uppercase tracking-normal text-blue-200">Leitura da evolucao</p>
         <p className="mt-2 text-sm leading-6 text-zinc-200">{insight}</p>
       </div>
     </div>
@@ -1897,12 +1897,12 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
         <button type="button" onClick={addExercise} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Adicionar exercicio
         </button>
-        <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           {saving ? 'Salvando...' : 'Salvar treino'}
         </button>
       </div>
       {message ? (
-        <p className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-200">
+        <p className="rounded-md border border-blue-300/30 bg-blue-300/10 p-3 text-sm font-bold text-blue-200">
           {message}
         </p>
       ) : null}
@@ -1930,7 +1930,7 @@ function WorkoutList({ workouts, fallbackTitle }) {
               <p className="mt-1 text-sm text-zinc-400">{workout.focus}</p>
               {workout.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
             </div>
-            <span className="rounded border border-emerald-300/40 bg-emerald-300/10 px-2 py-1 text-xs font-black text-emerald-200">
+            <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
               Ativo
             </span>
           </div>
@@ -1967,7 +1967,7 @@ function WorkoutLogList({ logs }) {
               </p>
               {log.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{log.notes}</p> : null}
             </div>
-            <span className="rounded border border-emerald-300/40 bg-emerald-300/10 px-2 py-1 text-xs font-black text-emerald-200">
+            <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
               Feito
             </span>
           </div>
@@ -2001,13 +2001,13 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 grid gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/5 p-4">
+    <form onSubmit={handleSubmit} className="mt-4 grid gap-3 rounded-md border border-blue-300/20 bg-blue-300/5 p-4">
       <Select label="Esforço percebido" name="effort" defaultValue="Moderado" options={['Leve', 'Moderado', 'Forte', 'Muito forte']} />
       <TextArea label="Observação do treino" name="notes" defaultValue="Carga usada, dificuldade, dor, energia ou algo importante." />
-      <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+      <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
         {saving ? 'Salvando...' : 'Marcar treino como concluído'}
       </button>
-      {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
+      {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
     </form>
   )
 }
@@ -2126,8 +2126,8 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
-      <div className="rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-        <p className="font-black text-emerald-100">Assistente inteligente de alimentos</p>
+      <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+        <p className="font-black text-blue-100">Assistente inteligente de alimentos</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
           Digite o alimento e a quantidade. O FIT COACH procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
         </p>
@@ -2192,12 +2192,12 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
         <button type="button" onClick={addMeal} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Adicionar refeição
         </button>
-        <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           {saving ? 'Salvando...' : 'Salvar dieta'}
         </button>
       </div>
       {message ? (
-        <p className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-200">
+        <p className="rounded-md border border-blue-300/30 bg-blue-300/10 p-3 text-sm font-bold text-blue-200">
           {message}
         </p>
       ) : null}
@@ -2228,7 +2228,7 @@ function NutritionPlanList({ plans, selectedStudent }) {
               <p className="mt-1 text-sm text-zinc-400">{plan.calories} | {plan.protein}</p>
               {plan.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p> : null}
             </div>
-            <span className="rounded border border-emerald-300/40 bg-emerald-300/10 px-2 py-1 text-xs font-black text-emerald-200">
+            <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
               Ativa
             </span>
           </div>
@@ -2240,7 +2240,7 @@ function NutritionPlanList({ plans, selectedStudent }) {
                     <h5 className="font-black">{meal.time ? `${meal.time} - ` : ''}{meal.name}</h5>
                     <p className="mt-1 text-sm leading-6 text-zinc-400">{meal.foods}</p>
                   </div>
-                  <span className="w-fit shrink-0 rounded border border-emerald-300/30 bg-emerald-300/10 px-2 py-1 text-xs font-black text-emerald-200">
+                  <span className="w-fit shrink-0 rounded border border-blue-300/30 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
                     {meal.macros || 'Macros'}
                   </span>
                 </div>
@@ -2339,11 +2339,11 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
             onBlur={() => window.setTimeout(() => setSuggestionsOpen(false), 120)}
             placeholder="Ex.: tilápia grelhada, aveia ou feijoada"
             autoComplete="off"
-            className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+            className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
           {suggestionsOpen ? (
             <div className="scrollbar-soft max-h-72 overflow-y-auto rounded-md border border-white/10 bg-zinc-900 p-1 normal-case tracking-normal shadow-2xl">
-              <p className="px-3 py-2 text-xs font-bold text-emerald-300">
+              <p className="px-3 py-2 text-xs font-bold text-blue-300">
                 {searchEdited && item.foodName.trim() ? 'Resultados da busca' : `Mais usados em ${item.category}`}
               </p>
               {foodSuggestions.length ? foodSuggestions.map((food) => (
@@ -2358,7 +2358,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
                     <span className="block truncate text-sm font-bold text-zinc-100">{food.name}</span>
                     <span className="block text-xs text-zinc-500">{food.category}</span>
                   </span>
-                  <span className="shrink-0 text-xs font-black text-emerald-200">{Math.round(food.calories)} kcal</span>
+                  <span className="shrink-0 text-xs font-black text-blue-200">{Math.round(food.calories)} kcal</span>
                 </button>
               )) : (
                 <div className="px-3 py-3">
@@ -2375,12 +2375,12 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
         </button>
       </div>
 
-      <div className="mt-3 flex flex-col gap-2 rounded-md border border-emerald-300/20 bg-emerald-300/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-3 flex flex-col gap-2 rounded-md border border-blue-300/20 bg-blue-300/5 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-200">
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-200">
             {manualMode ? 'Ajustado manualmente' : intelligence.label}
           </p>
-          <p className="mt-1 text-sm font-black text-emerald-50">
+          <p className="mt-1 text-sm font-black text-blue-50">
             {Math.round(totals.calories)} kcal | P {roundMacro(totals.protein)}g | C {roundMacro(totals.carbs)}g | G {roundMacro(totals.fat)}g
           </p>
           <p className="mt-1 text-xs text-zinc-400">
@@ -2523,8 +2523,8 @@ function StudentPortalPreview({
           <Info label="Próximo check-in" value={student.nextCheckin} />
         </div>
 
-        <div className="mt-5 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4">
-          <p className="text-sm font-black text-emerald-200">{coachSettings?.publicName || 'Mensagem do coach'}</p>
+        <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
+          <p className="text-sm font-black text-blue-200">{coachSettings?.publicName || 'Mensagem do coach'}</p>
           <p className="mt-2 text-sm leading-6 text-zinc-300">
             {coachSettings?.welcomeMessage || 'Mantenha o plano de hoje, registre seu treino e envie o check-in se notar mudanca relevante em peso, fome ou sono.'}
           </p>
@@ -2539,7 +2539,7 @@ function StudentPortalPreview({
                   Gere um codigo para o aluno acessar a area dele pela tela inicial.
                 </p>
               </div>
-              <button onClick={generateInvite} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+              <button onClick={generateInvite} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
                 {creatingInvite ? 'Gerando...' : 'Gerar convite'}
               </button>
             </div>
@@ -2580,7 +2580,7 @@ function StudentPortalPreview({
                   <div>
                     <h4 className="font-black">{appointment.title}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{appointment.type} - {appointment.durationMinutes} min</p>
-                    <p className="mt-2 text-sm font-bold text-emerald-200">{formatFullDateTime(appointment.startsAt)}</p>
+                    <p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(appointment.startsAt)}</p>
                     <p className="mt-1 text-sm text-zinc-400">{appointment.location || 'Local a confirmar'}</p>
                   </div>
                   <Badge tone={appointment.status === 'Agendado' ? 'Medio' : 'Baixo'}>{appointment.status}</Badge>
@@ -2602,7 +2602,7 @@ function StudentPortalPreview({
                   <div>
                     <h4 className="font-black">{invoice.planName}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{invoice.description || 'Mensalidade do acompanhamento'}</p>
-                    <p className="mt-2 text-lg font-black text-emerald-200">{formatCurrency(invoice.amount)}</p>
+                    <p className="mt-2 text-lg font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
                     <p className="mt-1 text-sm text-zinc-400">Vencimento: {formatDate(invoice.dueDate)}</p>
                   </div>
                   <InvoiceStatus status={invoice.status} />
@@ -2714,7 +2714,7 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
               key={message.id}
               className={`rounded-md border p-4 ${
                 message.sender === 'student'
-                  ? 'ml-auto max-w-[92%] border-emerald-300/30 bg-emerald-300/10'
+                  ? 'ml-auto max-w-[92%] border-blue-300/30 bg-blue-300/10'
                   : 'mr-auto max-w-[92%] border-white/10 bg-white/[0.04]'
               }`}
             >
@@ -2734,9 +2734,9 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
           onChange={(event) => setDraft(event.target.value)}
           rows={3}
           placeholder="Responder ao coach..."
-          className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+          className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
         />
-        <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           {sending ? 'Enviando...' : 'Enviar resposta'}
         </button>
       </form>
@@ -2754,7 +2754,7 @@ function StudentConsent({ access, onAccept, onExit, error }) {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-zinc-950 p-4 text-zinc-100">
+    <div className="fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
       <div className="w-full max-w-2xl rounded-md border border-white/10 bg-zinc-900 p-5 shadow-2xl shadow-black/30 sm:p-7">
         <BrandLockup subtitle={`por ${access.coachSettings?.brandName || access.coachSettings?.publicName || 'seu treinador'}`} />
         <div className="mt-7 h-px bg-white/10" />
@@ -2782,7 +2782,7 @@ function StudentConsent({ access, onAccept, onExit, error }) {
         {error ? <p className="mt-4 text-sm font-bold text-amber-200">{error}</p> : null}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button onClick={handleAccept} className="flex-1 rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+          <button onClick={handleAccept} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
             {accepting ? 'Registrando...' : 'Aceitar e continuar'}
           </button>
           <button onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
@@ -2813,14 +2813,14 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
   }
 
   return (
-    <div className="app-shell min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 p-3 text-zinc-100 sm:p-6">
+    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden p-3 text-zinc-100 sm:p-6">
       <div className="mx-auto min-w-0 max-w-6xl">
         <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/10 pb-5">
           <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
         </div>
         <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-sm font-semibold text-emerald-300">Área do aluno</p>
+            <p className="text-sm font-semibold text-blue-300">Área do aluno</p>
             <h1 className="mt-1 text-3xl font-black sm:text-4xl">{student.name}</h1>
             <p className="mt-2 text-sm text-zinc-400">{student.goal}</p>
           </div>
@@ -2905,7 +2905,7 @@ function CheckinForm({ students, onAddCheckin }) {
         <input type="file" accept="image/*" onChange={handlePhoto} className="rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-300" />
       </label>
       {photo ? <img src={photo} alt="Previa" className="h-44 rounded-md object-cover" /> : null}
-      <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">Salvar check-in</button>
+      <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">Salvar check-in</button>
     </form>
   )
 }
@@ -2968,7 +2968,7 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                 <Field label="Vencimento" name="dueDate" type="date" defaultValue={getDefaultDueDate()} />
               </div>
               <Field label="Descricao" name="description" defaultValue="Mensalidade do acompanhamento" />
-              <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+              <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
                 {saving ? 'Gerando...' : 'Gerar cobranca'}
               </button>
             </form>
@@ -2984,7 +2984,7 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                     <h4 className="font-black">{plan.name}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{plan.features}</p>
                   </div>
-                  <span className="text-lg font-black text-emerald-300">{plan.price}</span>
+                  <span className="text-lg font-black text-blue-300">{plan.price}</span>
                 </div>
               </div>
             ))}
@@ -2999,7 +2999,7 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                 onClick={() => setFilter(option)}
                 className={`shrink-0 rounded-md border px-3 py-2 text-xs font-black ${
                   filter === option
-                    ? 'border-emerald-400 bg-emerald-400 text-zinc-950'
+                    ? 'border-blue-500 bg-blue-500 text-zinc-950'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300'
                 }`}
               >
@@ -3022,14 +3022,14 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                         </div>
                         <h4 className="mt-3 font-black">{student?.name ?? 'Aluno'}</h4>
                         <p className="mt-1 text-sm text-zinc-400">{invoice.description}</p>
-                        <p className="mt-3 text-xl font-black text-emerald-200">{formatCurrency(invoice.amount)}</p>
+                        <p className="mt-3 text-xl font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
                         <p className="mt-1 text-sm text-zinc-400">Vence em {formatDate(invoice.dueDate)}</p>
                         {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)} via {invoice.paymentMethod || 'nao informado'}</p> : null}
                       </div>
 
                       {!['Pago', 'Cancelado'].includes(invoice.status) ? (
                         <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-1">
-                          <button onClick={() => onUpdateInvoiceStatus(invoice.id, 'Pago', 'Pix')} className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">
+                          <button onClick={() => onUpdateInvoiceStatus(invoice.id, 'Pago', 'Pix')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950">
                             Marcar pago
                           </button>
                           <button onClick={() => onUpdateInvoiceStatus(invoice.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200">
@@ -3053,7 +3053,7 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
 
 function InvoiceStatus({ status }) {
   const className = status === 'Pago'
-    ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200'
+    ? 'border-blue-300/40 bg-blue-300/10 text-blue-200'
     : status === 'Atrasado'
       ? 'border-rose-300/40 bg-rose-300/10 text-rose-200'
       : status === 'Cancelado'
@@ -3079,7 +3079,7 @@ function PaymentStatus({ status }) {
   return (
     <span className={`rounded border px-2 py-1 text-xs font-black ${
       paid
-        ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200'
+        ? 'border-blue-300/40 bg-blue-300/10 text-blue-200'
         : 'border-amber-300/40 bg-amber-300/10 text-amber-200'
     }`}>
       {paid ? 'Pago' : 'Pendente'}
@@ -3090,7 +3090,7 @@ function PaymentStatus({ status }) {
 function Notifications({ notifications, onReadAll }) {
   return (
     <Panel title="Central de notificações" action={`${notifications.filter((item) => !item.read).length} não lidas`}>
-      <button onClick={onReadAll} className="mb-4 rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+      <button onClick={onReadAll} className="mb-4 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
         Marcar tudo como lido
       </button>
       <div className="grid gap-3 md:grid-cols-2">
@@ -3123,7 +3123,7 @@ function SmartNotifications({ notifications, smartAlerts, onReadAll, onOpenView 
       </Panel>
 
       <Panel title="Central de notificacoes" action={`${unread} nao lidas`}>
-        <button onClick={onReadAll} className="mb-4 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 sm:w-auto">
+        <button onClick={onReadAll} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 sm:w-auto">
           Marcar tudo como lido
         </button>
         <div className="grid gap-3">
@@ -3147,7 +3147,7 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
   const toneClass = {
     Alto: 'border-rose-300/40 bg-rose-300/10 text-rose-100',
     Medio: 'border-amber-300/40 bg-amber-300/10 text-amber-100',
-    Baixo: 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100',
+    Baixo: 'border-blue-300/30 bg-blue-300/10 text-blue-100',
   }[alert.priority] ?? 'border-white/10 bg-white/[0.03] text-zinc-100'
 
   return (
@@ -3231,20 +3231,20 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             />
           </div>
           <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
-          <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+          <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
             {saving ? 'Salvando...' : 'Salvar configuracoes'}
           </button>
-          {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
+          {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
         </form>
       </Panel>
 
       <div className="grid gap-4 lg:gap-6">
         <Panel title="Como o aluno ve" action="Previa">
-          <p className="text-xs font-bold uppercase tracking-normal text-emerald-300">Acompanhamento online</p>
+          <p className="text-xs font-bold uppercase tracking-normal text-blue-300">Acompanhamento online</p>
           <h3 className="mt-2 text-3xl font-black">{current.brandName}</h3>
           <p className="mt-2 text-sm text-zinc-400">{current.publicName}{current.cref ? ` - ${current.cref}` : ''}</p>
-          <div className="mt-5 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-            <p className="text-sm font-black text-emerald-200">Mensagem do treinador</p>
+          <div className="mt-5 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+            <p className="text-sm font-black text-blue-200">Mensagem do treinador</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">{current.welcomeMessage}</p>
           </div>
           <div className="mt-4 grid gap-2 text-sm text-zinc-400">
@@ -3258,7 +3258,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             {readiness.map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.03] p-3">
                 <span className="text-sm font-bold">{item.label}</span>
-                <span className={`text-xs font-black ${item.ready ? 'text-emerald-300' : 'text-amber-300'}`}>
+                <span className={`text-xs font-black ${item.ready ? 'text-blue-300' : 'text-amber-300'}`}>
                   {item.ready ? 'Pronto' : 'Pendente'}
                 </span>
               </div>
@@ -3312,7 +3312,7 @@ function Messages({ tone, students, messages, onSendMessage }) {
                 onClick={() => setSelectedStudentId(student.id)}
                 className={`w-full rounded-md border p-4 text-left transition ${
                   String(selectedStudent?.id) === String(student.id)
-                    ? 'border-emerald-400 bg-emerald-400/10'
+                    ? 'border-blue-500 bg-blue-500/10'
                     : 'border-white/10 bg-white/[0.03] hover:border-white/25'
                 }`}
               >
@@ -3330,10 +3330,10 @@ function Messages({ tone, students, messages, onSendMessage }) {
       </Panel>
 
       <Panel title={selectedStudent ? `Mensagem para ${selectedStudent.name}` : 'Mensagem'} action={tone}>
-        <div className="mb-4 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-          <p className="text-xs font-black uppercase tracking-normal text-emerald-200">Resposta sugerida</p>
+        <div className="mb-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+          <p className="text-xs font-black uppercase tracking-normal text-blue-200">Resposta sugerida</p>
           <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
-          <button onClick={() => setDraft(suggestion)} className="mt-3 rounded-md border border-emerald-300/30 px-3 py-2 text-xs font-black text-emerald-100">
+          <button onClick={() => setDraft(suggestion)} className="mt-3 rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
             Usar sugestao
           </button>
         </div>
@@ -3345,7 +3345,7 @@ function Messages({ tone, students, messages, onSendMessage }) {
                 key={message.id}
                 className={`rounded-md border p-4 ${
                   message.sender === 'coach'
-                    ? 'ml-auto max-w-[92%] border-emerald-300/30 bg-emerald-300/10'
+                    ? 'ml-auto max-w-[92%] border-blue-300/30 bg-blue-300/10'
                     : 'mr-auto max-w-[92%] border-white/10 bg-white/[0.04]'
                 }`}
               >
@@ -3365,9 +3365,9 @@ function Messages({ tone, students, messages, onSendMessage }) {
             onChange={(event) => setDraft(event.target.value)}
             rows={4}
             placeholder="Escreva a mensagem para o aluno..."
-            className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+            className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
-          <button className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+          <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
             {sending ? 'Enviando...' : 'Enviar mensagem'}
           </button>
         </form>
@@ -3412,23 +3412,18 @@ function ChartWrap({ children }) {
 }
 
 function BrandLockup({ subtitle = '', dark = false, large = false }) {
-  const foreground = dark ? 'text-zinc-950' : 'text-zinc-50'
-  const accent = dark ? 'bg-zinc-950 text-emerald-300' : 'bg-emerald-400 text-zinc-950'
-  const secondary = dark ? 'text-zinc-950/65' : 'text-zinc-500'
-
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className={`grid shrink-0 place-items-center rounded-md font-black ${accent} ${large ? 'h-14 w-14 text-lg' : 'h-11 w-11 text-sm'}`}>
-        FC
-      </span>
-      <span className="min-w-0">
-        <span className={`block whitespace-nowrap font-black leading-none ${foreground} ${large ? 'text-3xl' : 'text-xl'}`}>
-          FIT <span className={dark ? 'text-zinc-950/65' : 'text-emerald-400'}>COACH</span>
-        </span>
-        {subtitle ? (
-          <span className={`mt-1 block truncate text-xs font-bold ${secondary}`}>{subtitle}</span>
-        ) : null}
-      </span>
+    <div
+      className={`grid shrink-0 place-items-center overflow-hidden rounded-md bg-gradient-to-r from-blue-600 via-violet-500 to-red-500 p-[2px] shadow-2xl shadow-black/40 ${
+        large ? 'w-64 max-w-full' : 'w-32 max-w-[46vw] sm:w-40 lg:w-44'
+      }`}
+      title={subtitle}
+    >
+      <img
+        src="/assets/fit-coach-logo.png"
+        alt="FIT COACH"
+        className="h-auto w-full rounded-[4px] bg-[#05070d] object-contain"
+      />
     </div>
   )
 }
@@ -3438,7 +3433,7 @@ function Metric({ label, value, detail }) {
     <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
       <p className="text-sm text-zinc-400">{label}</p>
       <h3 className="mt-2 break-words text-2xl font-black sm:mt-3 sm:text-3xl">{value}</h3>
-      <p className="mt-2 text-xs font-semibold text-emerald-300">{detail}</p>
+      <p className="mt-2 text-xs font-semibold text-blue-300">{detail}</p>
     </div>
   )
 }
@@ -3466,7 +3461,7 @@ function StudentSnapshot({ student }) {
         <Badge tone={student.risk}>{student.risk}</Badge>
       </div>
       <div className="mt-5 h-2 rounded bg-zinc-800">
-        <div className="h-2 rounded bg-emerald-400" style={{ width: `${student.adherence}%` }} />
+        <div className="h-2 rounded bg-blue-500" style={{ width: `${student.adherence}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-xs text-zinc-400">
         <span>Aderência</span>
@@ -3510,7 +3505,7 @@ function Field({ label, name, type = 'text', defaultValue = '', required = true 
         step={type === 'number' ? 'any' : undefined}
         defaultValue={defaultValue}
         required={required}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
   )
@@ -3523,7 +3518,7 @@ function InlineInput({ label, value, onChange }) {
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
   )
@@ -3536,7 +3531,7 @@ function InlineSelect({ label, value, options, onChange }) {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       >
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
@@ -3551,7 +3546,7 @@ function Select({ label, name, defaultValue, options }) {
       <select
         name={name}
         defaultValue={defaultValue}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       >
         {options.map((option) => {
           const value = typeof option === 'string' ? option : option.value
@@ -3571,7 +3566,7 @@ function TextArea({ label, name, defaultValue = '' }) {
         name={name}
         defaultValue={defaultValue}
         rows={4}
-        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
   )
@@ -4083,7 +4078,7 @@ function Badge({ tone, children }) {
       ? 'border-red-300/40 bg-red-400/10 text-red-200'
       : tone === 'Medio'
         ? 'border-amber-300/40 bg-amber-300/10 text-amber-200'
-        : 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200'
+        : 'border-blue-300/40 bg-blue-300/10 text-blue-200'
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{children}</span>
 }
