@@ -1259,95 +1259,286 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
   const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const page = document.getElementById('sales-page')
+    if (!page) return undefined
+
+    page.classList.add('sales-motion-ready')
+    const revealItems = [...page.querySelectorAll('[data-reveal]')]
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+          observer.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' })
+
+    revealItems.forEach((item) => observer.observe(item))
+
+    let frame = 0
+    function updateScrollEffects() {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const scrollable = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1)
+        const progress = Math.min(window.scrollY / scrollable, 1)
+        page.style.setProperty('--sales-progress', progress)
+        page.style.setProperty('--sales-scroll', `${Math.min(window.scrollY, 900)}px`)
+      })
+    }
+
+    updateScrollEffects()
+    window.addEventListener('scroll', updateScrollEffects, { passive: true })
+    window.addEventListener('resize', updateScrollEffects)
+
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', updateScrollEffects)
+      window.removeEventListener('resize', updateScrollEffects)
+    }
+  }, [])
+
+  function openAccess(nextMode) {
+    setMode(nextMode)
+    window.setTimeout(() => document.getElementById('acesso')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     setLoading(true)
-    const formData = new FormData(event.currentTarget)
-    if (mode === 'student') {
-      await onStudentAccess(formData.get('inviteCode')?.toString() || '')
-    } else {
-      await onLogin(formData)
+    try {
+      const formData = new FormData(event.currentTarget)
+      if (mode === 'student') {
+        await onStudentAccess(formData.get('inviteCode')?.toString() || '')
+      } else {
+        await onLogin(formData)
+      }
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
-    <div className="fit-gradient-bg grid min-h-screen text-zinc-100 lg:grid-cols-[minmax(300px,0.85fr)_minmax(420px,1.15fr)]">
-      <section className="hidden border-r border-white/10 bg-blue-600/25 p-10 text-zinc-50 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
-        <BrandLockup dark large subtitle="Gestao profissional de acompanhamento" />
-        <div className="max-w-md">
-          <p className="text-sm font-black uppercase">Treino. Nutrição. Evolução.</p>
-          <h2 className="mt-4 text-4xl font-black leading-tight">
-            Toda a operação do coach em um só lugar.
-          </h2>
-          <div className="mt-8 grid grid-cols-3 gap-3 border-t border-white/20 pt-5 text-sm font-black">
-            <span>ALUNOS</span>
-            <span>GESTÃO</span>
-            <span>RESULTADOS</span>
+    <div id="sales-page" className="sales-page fit-gradient-bg min-h-screen text-zinc-100">
+      <div className="sales-progress" aria-hidden="true" />
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#05070d]/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-2 sm:px-6">
+          <BrandLockup compact subtitle="FIT COACH" />
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => openAccess('student')} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 sm:px-4 sm:text-sm">
+              Sou aluno
+            </button>
+            <button type="button" onClick={() => openAccess('signin')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-white sm:px-4 sm:text-sm">
+              Entrar
+            </button>
           </div>
         </div>
-      </section>
+      </header>
 
-      <div className="grid place-items-center p-4 sm:p-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-md border border-white/10 bg-zinc-950/85 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
-        <div className="mb-7 lg:hidden">
-          <BrandLockup subtitle="Plataforma profissional" />
+      <main>
+        <section className="mx-auto grid min-h-[calc(100vh-68px)] max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.72fr)] lg:px-10 lg:py-14">
+          <div className="min-w-0" data-reveal>
+            <p className="text-sm font-black uppercase text-blue-200">Gestão profissional para personal trainers</p>
+            <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+              Mais alunos acompanhados. Mais organização. Mais valor no seu serviço.
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
+              Centralize treinos, nutrição, check-ins, avaliações, agenda, pagamentos e comunicação em uma experiência profissional para você e seus alunos.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button type="button" onClick={() => openAccess('signup')} className="rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-white">
+                Criar minha conta
+              </button>
+              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100">
+                Conhecer a plataforma
+              </button>
+            </div>
+            <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
+              <SalesStat value="1 painel" label="operação centralizada" />
+              <SalesStat value="12 áreas" label="gestão completa" />
+              <SalesStat value="2 portais" label="coach e aluno" />
+            </div>
+            <div className="sales-dashboard-motion mt-8">
+              <SalesDashboardPreview />
+            </div>
+          </div>
+
+          <form id="acesso" data-reveal onSubmit={handleSubmit} className="w-full rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7 lg:sticky lg:top-24">
+            <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
+            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : 'Entrar no painel'}</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Coach acessa com email e senha. Aluno utiliza o código enviado pelo treinador.
+            </p>
+            <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold text-zinc-400">Sistema</p>
+                <span className="h-2 w-2 rounded bg-blue-400" />
+              </div>
+              <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
+              {remoteError ? <p className="mt-2 break-words text-sm leading-6 text-amber-200">{remoteError}</p> : null}
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {[
+                ['signin', 'Coach'],
+                ['signup', 'Criar conta'],
+                ['student', 'Aluno'],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMode(id)}
+                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-blue-500 bg-blue-500 text-white' : 'border-white/10 text-zinc-300'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-6 space-y-4">
+              <input type="hidden" name="mode" value={mode} />
+              {mode === 'student' ? (
+                <Field label="Código de acesso" name="inviteCode" defaultValue="" />
+              ) : (
+                <>
+                  {mode === 'signup' ? <Field label="Nome profissional" name="name" defaultValue="" /> : null}
+                  <Field label="Email" name="email" type="email" defaultValue="" />
+                  <Field label="Senha" name="password" type="password" defaultValue="" />
+                </>
+              )}
+            </div>
+            <button className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white">
+              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta profissional' : 'Entrar'}
+            </button>
+            {mode === 'signup' ? (
+              <p className="mt-4 text-xs leading-5 text-zinc-500">
+                Se a confirmação por email estiver ativa, confirme sua conta antes do primeiro acesso.
+              </p>
+            ) : null}
+          </form>
+        </section>
+
+        <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-14 backdrop-blur-xl sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-3xl" data-reveal>
+              <p className="text-sm font-black uppercase text-red-300">Sua operação em outro nível</p>
+              <h2 className="mt-3 text-3xl font-black sm:text-4xl">Tudo que o coach precisa para entregar acompanhamento premium</h2>
+              <p className="mt-4 leading-7 text-zinc-400">Menos ferramentas espalhadas, menos tarefas manuais e uma experiência mais clara para cada aluno.</p>
+            </div>
+            <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                ['01', 'Alunos e anamnese', 'Cadastro, código automático, anamnese inicial e histórico centralizado.'],
+                ['02', 'Treinos completos', 'Prescrição por exercício, séries, repetições, cargas e registro de conclusão.'],
+                ['03', 'Nutrição inteligente', 'Planos alimentares, busca de alimentos e cálculo automático de macronutrientes.'],
+                ['04', 'Evolução visual', 'Avaliações, medidas, fotos, gráficos e leitura clara do progresso.'],
+                ['05', 'Agenda e comunicação', 'Compromissos, mensagens e notificações para manter o acompanhamento ativo.'],
+                ['06', 'Financeiro organizado', 'Planos, cobranças, vencimentos e situação de pagamento de cada aluno.'],
+              ].map(([number, title, description], index) => (
+                <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
+                  <span className="text-xs font-black text-blue-300">{number}</span>
+                  <h3 className="mt-3 text-lg font-black">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+            <div data-reveal>
+              <p className="text-sm font-black uppercase text-blue-300">Experiência do aluno</p>
+              <h2 className="mt-3 text-3xl font-black sm:text-4xl">Seu serviço continua sendo seu. A percepção se torna muito maior.</h2>
+              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças e falar com o coach.</p>
+              <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-md bg-red-500 px-5 py-3 text-sm font-black text-white">
+                Profissionalizar meu acompanhamento
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ['Primeiro acesso', 'Código individual, consentimento e anamnese guiada.'],
+                ['Rotina diária', 'Treino e alimentação sempre disponíveis no celular.'],
+                ['Prestação de contas', 'Check-ins, fotos e conclusão de treinos registrados.'],
+                ['Proximidade', 'Mensagens, agenda e orientações em um só ambiente.'],
+              ].map(([title, text], index) => (
+                <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card rounded-md border border-white/10 bg-zinc-950/70 p-5">
+                  <h3 className="font-black text-violet-200">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/75 py-14">
+          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6" data-reveal>
+            <p className="text-sm font-black uppercase text-blue-300">FIT COACH</p>
+            <h2 className="mt-3 text-3xl font-black sm:text-4xl">Sua metodologia merece uma plataforma à altura.</h2>
+            <p className="mx-auto mt-4 max-w-2xl leading-7 text-zinc-400">Comece organizando sua carteira atual e evolua o sistema junto com a sua operação.</p>
+            <button type="button" onClick={() => openAccess('signup')} className="mt-7 rounded-md bg-blue-500 px-6 py-3 text-sm font-black text-white">
+              Criar minha conta
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-white/10 bg-[#05070d] px-4 py-6 text-center text-xs text-zinc-500">
+        FIT COACH · Gestão profissional de acompanhamento
+      </footer>
+    </div>
+  )
+}
+
+function SalesStat({ value, label }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-lg font-black text-white sm:text-xl">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-zinc-400">{label}</p>
+    </div>
+  )
+}
+
+function SalesDashboardPreview() {
+  return (
+    <div className="overflow-hidden rounded-md border border-white/10 bg-zinc-950/90 shadow-2xl shadow-black/40">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div>
+          <p className="text-xs font-black text-blue-300">CENTRAL DO COACH</p>
+          <p className="mt-1 text-sm font-black">Visão geral da operação</p>
         </div>
-        <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
-        <h1 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Criar conta' : 'Entrar no painel'}</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">
-          Coach entra com email e senha. Aluno entra com codigo de convite.
-        </p>
-        <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-xs font-bold text-zinc-400">Status</p>
-          <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
-          {remoteError ? <p className="mt-2 break-words text-sm leading-6 text-amber-200">{remoteError}</p> : null}
-        </div>
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => setMode('signin')}
-            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'signin' ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('signup')}
-            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'signup' ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
-          >
-            Criar conta
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('student')}
-            className={`rounded-md border px-4 py-2 text-sm font-black ${mode === 'student' ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
-          >
-            Aluno
-          </button>
-        </div>
-        <div className="mt-6 space-y-4">
-          <input type="hidden" name="mode" value={mode} />
-          {mode === 'student' ? (
-            <Field label="Código de convite" name="inviteCode" defaultValue="" />
-          ) : (
-            <>
-              {mode === 'signup' ? <Field label="Nome do coach" name="name" defaultValue="" /> : null}
-              <Field label="Email" name="email" type="email" defaultValue="" />
-              <Field label="Senha" name="password" type="password" defaultValue="" />
-            </>
-          )}
-        </div>
-        <button className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-          {loading ? 'Processando...' : mode === 'student' ? 'Acessar área do aluno' : mode === 'signup' ? 'Criar conta' : 'Entrar'}
-        </button>
-        {mode === 'signup' ? (
-          <p className="mt-4 text-xs leading-5 text-zinc-500">
-            Se a Supabase pedir confirmacao por email, confirme na caixa de entrada e depois use Entrar.
-          </p>
-        ) : null}
-      </form>
+        <span className="rounded border border-blue-300/30 bg-blue-300/10 px-2 py-1 text-xs font-bold text-blue-200">Online</span>
       </div>
+      <div className="grid gap-3 p-4 sm:grid-cols-3">
+        <SalesPreviewMetric label="Alunos ativos" value="28" />
+        <SalesPreviewMetric label="Aderência média" value="87%" />
+        <SalesPreviewMetric label="Check-ins" value="12" />
+      </div>
+      <div className="grid gap-3 border-t border-white/10 p-4 sm:grid-cols-[1.25fr_0.75fr]">
+        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-bold text-zinc-500">EVOLUÇÃO DA CARTEIRA</p>
+          <div className="mt-5 flex h-24 items-end gap-2">
+            {[38, 52, 46, 68, 62, 82, 92].map((height, index) => (
+              <span key={index} className={`flex-1 rounded-t ${index > 4 ? 'bg-red-400' : 'bg-blue-500'}`} style={{ height: `${height}%` }} />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
+          {['Treino publicado', 'Anamnese recebida', 'Pagamento confirmado'].map((text, index) => (
+            <div key={text} className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3">
+              <span className={`h-2 w-2 shrink-0 rounded ${index === 1 ? 'bg-red-400' : 'bg-blue-400'}`} />
+              <span className="text-xs font-bold text-zinc-300">{text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SalesPreviewMetric({ label, value }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
+      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="mt-2 text-xl font-black">{value}</p>
     </div>
   )
 }
