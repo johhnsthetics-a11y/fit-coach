@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import fitCoachLogo from './fit-coach-logo.png'
 import {
   Area,
   AreaChart,
@@ -33,6 +32,7 @@ import {
   setSupabaseSession,
   signInCoach,
   signUpCoach,
+  submitRemoteStudentAnamnesis,
   supabaseEnabled,
   updateRemoteAppointmentStatus,
   updateRemoteInvoiceStatus,
@@ -226,6 +226,8 @@ function createInitialData() {
     appointments: [],
     invoices: [],
     assessments: [],
+    invites: [],
+    anamneses: [],
     coachSettings: null,
   }
 }
@@ -265,6 +267,8 @@ function useStoredData() {
           appointments: remoteData.appointments ?? [],
           invoices: remoteData.invoices ?? [],
           assessments: remoteData.assessments ?? [],
+          invites: remoteData.invites ?? [],
+          anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings ?? current.coachSettings,
         }))
         setRemoteStatus('Supabase conectado')
@@ -489,13 +493,25 @@ export default function App() {
 
   async function saveStudent(student) {
     const studentId = student.id || Date.now()
+    const isNewStudent = !student.id
     let savedStudent = { ...student, id: studentId }
+    let createdInvite = null
 
     if (supabaseEnabled) {
       try {
         savedStudent = await saveRemoteStudent(student, data.user?.id)
-        setRemoteStatus('Supabase conectado')
-        setRemoteError('')
+        if (isNewStudent) {
+          try {
+            createdInvite = await createRemoteStudentInvite(savedStudent.id, data.user?.id)
+          } catch (inviteError) {
+            setRemoteStatus('Aluno salvo, mas o código não foi gerado')
+            setRemoteError(inviteError.message)
+          }
+        }
+        if (createdInvite || !isNewStudent) {
+          setRemoteStatus('Supabase conectado')
+          setRemoteError('')
+        }
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar aluno')
         savedStudent = { ...student, id: studentId }
@@ -511,13 +527,20 @@ export default function App() {
       return {
         ...current,
         students,
+        invites: createdInvite ? [createdInvite, ...(current.invites ?? [])] : current.invites ?? [],
         notifications: [
-          { id: Date.now() + 1, title: exists ? 'Aluno atualizado' : 'Aluno cadastrado', body: student.name, read: false },
+          {
+            id: Date.now() + 1,
+            title: exists ? 'Aluno atualizado' : 'Aluno cadastrado',
+            body: createdInvite ? `${student.name} - código ${createdInvite.code}` : student.name,
+            read: false,
+          },
           ...current.notifications,
         ],
       }
     })
     setSelectedStudentId(savedStudent.id)
+    return { student: savedStudent, invite: createdInvite }
   }
 
   async function addCheckin(checkin) {
@@ -909,6 +932,20 @@ export default function App() {
     }
   }
 
+  async function submitStudentAnamnesis(answers) {
+    if (!studentAccess?.invite?.code) return
+
+    try {
+      const access = await submitRemoteStudentAnamnesis(studentAccess.invite.code, answers)
+      setStudentAccess(access)
+      setRemoteStatus('Anamnese enviada ao coach')
+      setRemoteError('')
+    } catch (error) {
+      handleRemoteError(error, 'Erro ao enviar anamnese')
+      throw error
+    }
+  }
+
   function exitStudentAccess() {
     setStudentAccess(null)
   }
@@ -919,6 +956,17 @@ export default function App() {
         <StudentConsent
           access={studentAccess}
           onAccept={acceptStudentConsent}
+          onExit={exitStudentAccess}
+          error={remoteError}
+        />
+      )
+    }
+
+    if (!studentAccess.anamnesisCompleted) {
+      return (
+        <StudentAnamnesis
+          access={studentAccess}
+          onSubmit={submitStudentAnamnesis}
           onExit={exitStudentAccess}
           error={remoteError}
         />
@@ -1055,6 +1103,8 @@ export default function App() {
             {activeView === 'alunos' && (
               <Students
                 students={data.students}
+                invites={data.invites ?? []}
+                anamneses={data.anamneses ?? []}
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentId}
                 onSave={saveStudent}
@@ -1175,7 +1225,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           <h2 className="mt-4 text-4xl font-black leading-tight">
             Toda a operação do coach em um só lugar.
           </h2>
-          <div className="mt-8 grid grid-cols-3 gap-3 border-t border-zinc-950/20 pt-5 text-sm font-black">
+          <div className="mt-8 grid grid-cols-3 gap-3 border-t border-white/20 pt-5 text-sm font-black">
             <span>ALUNOS</span>
             <span>GESTÃO</span>
             <span>RESULTADOS</span>
@@ -1184,7 +1234,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
       </section>
 
       <div className="grid place-items-center p-4 sm:p-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-md border border-white/10 bg-zinc-900 p-5 shadow-2xl shadow-black/30 sm:p-7">
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-md border border-white/10 bg-zinc-950/85 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
         <div className="mb-7 lg:hidden">
           <BrandLockup subtitle="Plataforma profissional" />
         </div>
@@ -1493,8 +1543,13 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, selectedStudent, setSelectedStudentId, onSave }) {
+function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave }) {
   const [editing, setEditing] = useState(null)
+  const [savedInvite, setSavedInvite] = useState(null)
+  const selectedInvite = savedInvite?.studentId === selectedStudent?.id
+    ? savedInvite
+    : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
+  const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_1.15fr]">
@@ -1531,8 +1586,9 @@ function Students({ students, selectedStudent, setSelectedStudentId, onSave }) {
           <StudentForm
             student={editing}
             onCancel={() => setEditing(null)}
-            onSave={(student) => {
-              onSave(student)
+            onSave={async (student) => {
+              const result = await onSave(student)
+              if (result?.invite) setSavedInvite(result.invite)
               setEditing(null)
             }}
           />
@@ -1546,6 +1602,20 @@ function Students({ students, selectedStudent, setSelectedStudentId, onSave }) {
               <Info label="Plano" value={selectedStudent.plan} />
               <Info label="Pagamento" value={selectedStudent.payment} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
+            </div>
+            <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">Código de acesso do aluno</p>
+              {selectedInvite ? (
+                <>
+                  <p className="mt-2 select-all text-2xl font-black text-white">{selectedInvite.code}</p>
+                  <p className="mt-2 text-sm text-zinc-300">O aluno usa este código na opção “Aluno” da tela de entrada.</p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-amber-200">Código ainda não disponível. Abra a Área do aluno para gerar um convite.</p>
+              )}
+            </div>
+            <div className="mt-5">
+              <StudentAnamnesisSummary anamnesis={selectedAnamnesis} />
             </div>
             <button onClick={() => setEditing(selectedStudent)} className="mt-5 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
               Editar aluno
@@ -2795,6 +2865,136 @@ function StudentConsent({ access, onAccept, onExit, error }) {
   )
 }
 
+function StudentAnamnesis({ access, onSubmit, onExit, error }) {
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    const form = new FormData(event.currentTarget)
+
+    try {
+      await onSubmit({
+        birthDate: form.get('birthDate')?.toString() || '',
+        occupation: form.get('occupation')?.toString() || '',
+        trainingExperience: form.get('trainingExperience')?.toString() || '',
+        trainingFrequency: form.get('trainingFrequency')?.toString() || '',
+        primaryGoal: form.get('primaryGoal')?.toString() || '',
+        injuries: form.get('injuries')?.toString() || '',
+        healthConditions: form.get('healthConditions')?.toString() || '',
+        medications: form.get('medications')?.toString() || '',
+        surgeries: form.get('surgeries')?.toString() || '',
+        pain: form.get('pain')?.toString() || '',
+        sleepHours: form.get('sleepHours')?.toString() || '',
+        sleepQuality: form.get('sleepQuality')?.toString() || '',
+        stressLevel: form.get('stressLevel')?.toString() || '',
+        waterIntake: form.get('waterIntake')?.toString() || '',
+        foodRestrictions: form.get('foodRestrictions')?.toString() || '',
+        routine: form.get('routine')?.toString() || '',
+        observations: form.get('observations')?.toString() || '',
+        emergencyContact: form.get('emergencyContact')?.toString() || '',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="app-shell fit-gradient-bg min-h-screen p-3 text-zinc-100 sm:p-6">
+      <form onSubmit={handleSubmit} className="mx-auto grid max-w-4xl gap-5 rounded-md border border-white/10 bg-zinc-950/85 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
+        <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-300">Primeiro acesso</p>
+            <h1 className="mt-2 text-2xl font-black sm:text-3xl">Anamnese de {access.student.name}</h1>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Estas informações serão enviadas com segurança ao seu coach para personalizar treino e alimentação.</p>
+          </div>
+          <BrandLockup subtitle="FIT COACH" />
+        </div>
+
+        <section className="grid gap-4">
+          <h2 className="font-black text-blue-200">Perfil e objetivo</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Data de nascimento" name="birthDate" type="date" />
+            <Field label="Profissão" name="occupation" />
+            <Select label="Experiência com treino" name="trainingExperience" defaultValue="Iniciante" options={['Nunca treinei', 'Iniciante', 'Intermediário', 'Avançado']} />
+            <Select label="Frequência disponível" name="trainingFrequency" defaultValue="3 vezes por semana" options={['1 vez por semana', '2 vezes por semana', '3 vezes por semana', '4 vezes por semana', '5 vezes por semana', '6 ou mais vezes']} />
+          </div>
+          <TextArea label="Objetivo principal e resultado esperado" name="primaryGoal" defaultValue="" />
+        </section>
+
+        <section className="grid gap-4 border-t border-white/10 pt-5">
+          <h2 className="font-black text-red-200">Saúde e segurança</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextArea label="Lesões atuais ou anteriores" name="injuries" defaultValue="Nenhuma" />
+            <TextArea label="Doenças ou condições de saúde" name="healthConditions" defaultValue="Nenhuma" />
+            <TextArea label="Medicamentos em uso" name="medications" defaultValue="Nenhum" />
+            <TextArea label="Cirurgias realizadas" name="surgeries" defaultValue="Nenhuma" />
+          </div>
+          <TextArea label="Dores, limitações ou exercícios que causam desconforto" name="pain" defaultValue="Nenhuma" />
+          <Field label="Contato de emergência" name="emergencyContact" />
+        </section>
+
+        <section className="grid gap-4 border-t border-white/10 pt-5">
+          <h2 className="font-black text-violet-200">Rotina e hábitos</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Field label="Horas de sono" name="sleepHours" />
+            <Select label="Qualidade do sono" name="sleepQuality" defaultValue="Regular" options={['Ruim', 'Regular', 'Boa', 'Excelente']} />
+            <Select label="Nível de estresse" name="stressLevel" defaultValue="Moderado" options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
+            <Field label="Água por dia" name="waterIntake" defaultValue="2 litros" />
+          </div>
+          <TextArea label="Restrições, alergias ou preferências alimentares" name="foodRestrictions" defaultValue="Nenhuma" />
+          <TextArea label="Como é sua rotina diária?" name="routine" defaultValue="" />
+          <TextArea label="Outras informações importantes" name="observations" defaultValue="" />
+        </section>
+
+        {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white">
+            {saving ? 'Enviando anamnese...' : 'Enviar anamnese ao coach'}
+          </button>
+          <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">Sair</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function StudentAnamnesisSummary({ anamnesis }) {
+  if (!anamnesis) {
+    return (
+      <div className="rounded-md border border-amber-300/30 bg-amber-300/10 p-4">
+        <p className="font-black text-amber-100">Anamnese pendente</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">O aluno preencherá a anamnese no primeiro acesso após aceitar o consentimento.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-md border border-violet-300/30 bg-violet-300/10 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-black text-violet-100">Anamnese recebida</p>
+          <p className="mt-1 text-xs text-zinc-400">{formatDateTime(anamnesis.submittedAt)}</p>
+        </div>
+        <Badge tone="Baixo">Completa</Badge>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Info label="Objetivo" value={anamnesis.primaryGoal || '-'} />
+        <Info label="Experiência" value={`${anamnesis.trainingExperience || '-'} · ${anamnesis.trainingFrequency || '-'}`} />
+        <Info label="Lesões e dores" value={[anamnesis.injuries, anamnesis.pain].filter(Boolean).join(' | ') || 'Nenhuma'} />
+        <Info label="Condições e medicamentos" value={[anamnesis.healthConditions, anamnesis.medications].filter(Boolean).join(' | ') || 'Nenhum'} />
+        <Info label="Sono e estresse" value={`${anamnesis.sleepHours || '-'} · sono ${anamnesis.sleepQuality || '-'} · estresse ${anamnesis.stressLevel || '-'}`} />
+        <Info label="Alimentação" value={anamnesis.foodRestrictions || 'Nenhuma restrição'} />
+      </div>
+      <div className="mt-3 grid gap-3">
+        <Row title="Rotina" meta={anamnesis.routine || 'Não informada'} badge={anamnesis.occupation || 'Aluno'} />
+        <Row title="Observações" meta={anamnesis.observations || 'Sem observações adicionais'} badge="Relato" />
+        <Row title="Contato de emergência" meta={anamnesis.emergencyContact || 'Não informado'} badge="Segurança" />
+      </div>
+    </div>
+  )
+}
+
 function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
@@ -3421,7 +3621,7 @@ function BrandLockup({ subtitle = '', dark = false, large = false }) {
       title={subtitle}
     >
       <img
-        src={fitCoachLogo}
+        src="/assets/fit-coach-logo.png"
         alt="FIT COACH"
         className="h-auto w-full rounded-[4px] bg-[#05070d] object-contain"
       />

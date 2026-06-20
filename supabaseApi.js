@@ -103,7 +103,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -116,6 +116,8 @@ export async function loadRemoteData() {
     request('invoices?select=*&order=due_date.desc').catch(() => []),
     request('assessments?select=*&order=assessed_at.desc').catch(() => []),
     request('coach_settings?select=*&limit=1').catch(() => []),
+    request('student_invites?select=*&order=created_at.desc').catch(() => []),
+    request('student_anamneses?select=*&order=submitted_at.desc').catch(() => []),
   ])
 
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
@@ -133,6 +135,8 @@ export async function loadRemoteData() {
     invoices: invoices.map(fromInvoiceRow),
     assessments: assessments.map(fromAssessmentRow),
     coachSettings: coachSettings[0] ? fromCoachSettingsRow(coachSettings[0]) : null,
+    invites: invites.map(fromInviteRow),
+    anamneses: anamneses.map(fromAnamnesisRow),
   }
 }
 
@@ -268,6 +272,9 @@ export async function loadRemoteStudentByInvite(code) {
 
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
 
+  const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code }).catch(() => null)
+  const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
+
   return {
     invite: fromInviteRow(invite),
     student: fromStudentRow(payload.student),
@@ -281,6 +288,8 @@ export async function loadRemoteStudentByInvite(code) {
     invoices: (payload.invoices ?? []).map(fromInvoiceRow),
     assessments: (payload.assessments ?? []).map(fromAssessmentRow),
     coachSettings: payload.coach_settings ? fromCoachSettingsRow(payload.coach_settings) : null,
+    anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
+    anamnesisCompleted: Boolean(anamnesis?.id),
   }
 }
 
@@ -288,6 +297,32 @@ export async function acceptRemoteStudentConsent(code) {
   await rpcRequest('accept_student_consent', {
     invite_code: code,
     consent_version_value: '1.0',
+  })
+
+  return loadRemoteStudentByInvite(code)
+}
+
+export async function submitRemoteStudentAnamnesis(code, answers) {
+  await rpcRequest('submit_student_anamnesis', {
+    invite_code: code,
+    birth_date_value: answers.birthDate || null,
+    occupation_value: answers.occupation,
+    training_experience_value: answers.trainingExperience,
+    training_frequency_value: answers.trainingFrequency,
+    primary_goal_value: answers.primaryGoal,
+    injuries_value: answers.injuries,
+    health_conditions_value: answers.healthConditions,
+    medications_value: answers.medications,
+    surgeries_value: answers.surgeries,
+    pain_value: answers.pain,
+    sleep_hours_value: answers.sleepHours,
+    sleep_quality_value: answers.sleepQuality,
+    stress_level_value: answers.stressLevel,
+    water_intake_value: answers.waterIntake,
+    food_restrictions_value: answers.foodRestrictions,
+    routine_value: answers.routine,
+    observations_value: answers.observations,
+    emergency_contact_value: answers.emergencyContact,
   })
 
   return loadRemoteStudentByInvite(code)
@@ -704,6 +739,34 @@ function fromInviteRow(row) {
     code: row.code,
     status: row.status,
     expiresAt: row.expires_at,
+  }
+}
+
+function fromAnamnesisRow(row) {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    studentId: row.student_id,
+    inviteId: row.invite_id,
+    birthDate: row.birth_date ?? '',
+    occupation: row.occupation ?? '',
+    trainingExperience: row.training_experience ?? '',
+    trainingFrequency: row.training_frequency ?? '',
+    primaryGoal: row.primary_goal ?? '',
+    injuries: row.injuries ?? '',
+    healthConditions: row.health_conditions ?? '',
+    medications: row.medications ?? '',
+    surgeries: row.surgeries ?? '',
+    pain: row.pain ?? '',
+    sleepHours: row.sleep_hours ?? '',
+    sleepQuality: row.sleep_quality ?? '',
+    stressLevel: row.stress_level ?? '',
+    waterIntake: row.water_intake ?? '',
+    foodRestrictions: row.food_restrictions ?? '',
+    routine: row.routine ?? '',
+    observations: row.observations ?? '',
+    emergencyContact: row.emergency_contact ?? '',
+    submittedAt: row.submitted_at ?? row.created_at,
   }
 }
 
