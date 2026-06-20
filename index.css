@@ -19,7 +19,9 @@ body {
   max-width: 100%;
   min-width: 0;
   overflow-x: hidden;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  font-kerning: normal;
   background: #05070d;
 }
 
@@ -139,7 +141,104 @@ textarea {
 .sales-page {
   --sales-progress: 0;
   --sales-scroll: 0px;
+  --fitness-lime: #10b981;
+  --fitness-lime-soft: #a7f3d0;
+  --fitness-violet: #047857;
+  --fitness-steel: #94a3b8;
+  --fitness-coal: #070909;
   scroll-behavior: smooth;
+  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.sales-page.fit-gradient-bg {
+  background-color: var(--fitness-coal);
+  background-image:
+    linear-gradient(145deg, rgba(5, 150, 105, 0.42) 0%, #0c1814 20%, #070909 48%, #0a1210 72%, rgba(4, 120, 87, 0.38) 100%);
+}
+
+.sales-page .text-blue-100,
+.sales-page .text-blue-200,
+.sales-page .text-blue-300,
+.sales-page .text-blue-400 {
+  color: var(--fitness-lime-soft);
+}
+
+.sales-page .bg-blue-400,
+.sales-page .bg-blue-500 {
+  background-color: var(--fitness-lime);
+}
+
+.sales-page .border-blue-300\/25,
+.sales-page .border-blue-300\/30,
+.sales-page .border-blue-300\/35,
+.sales-page .border-blue-500 {
+  border-color: rgba(52, 211, 153, 0.38);
+}
+
+.sales-page .bg-blue-300\/10,
+.sales-page .bg-blue-500\/\[0\.06\] {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.sales-page button.bg-blue-500 {
+  color: #090d06;
+}
+
+.sales-page .bg-red-400,
+.sales-page .bg-red-500 {
+  background-color: var(--fitness-violet);
+}
+
+.sales-page .text-red-200,
+.sales-page .text-red-300 {
+  color: #c4b5fd;
+}
+
+.sales-page .from-blue-500,
+.sales-page .from-blue-600 {
+  --tw-gradient-from: #10b981 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(16 185 129 / 0) var(--tw-gradient-to-position);
+}
+
+.sales-page .via-violet-500 {
+  --tw-gradient-via: #059669 var(--tw-gradient-via-position);
+}
+
+.sales-page .to-red-500 {
+  --tw-gradient-to: #047857 var(--tw-gradient-to-position);
+}
+
+.sales-page h1,
+.sales-page h2,
+.sales-page h3,
+.sales-page h4 {
+  font-family: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.sales-page h1 {
+  font-weight: 720;
+}
+
+.sales-page p {
+  letter-spacing: 0;
+}
+
+.sales-page .font-black {
+  font-weight: 700;
+}
+
+.sales-page button {
+  letter-spacing: 0;
+}
+
+.sales-page input,
+.sales-page select,
+.sales-page textarea {
+  font-family: inherit;
 }
 
 .sales-progress {
@@ -150,8 +249,8 @@ textarea {
   width: calc(var(--sales-progress) * 100%);
   height: 3px;
   pointer-events: none;
-  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 50%, #ef4444 100%);
-  box-shadow: 0 0 18px rgba(59, 130, 246, 0.6);
+  background: linear-gradient(90deg, #34d399 0%, #10b981 52%, #047857 100%);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.42);
 }
 
 .sales-motion-ready [data-reveal] {
@@ -188,15 +287,15 @@ textarea {
 }
 
 .sales-section-blue::before {
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.45), transparent);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.34), transparent);
 }
 
 .sales-section-red::before {
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.25), transparent);
+  background: linear-gradient(180deg, rgba(4, 120, 87, 0.3), transparent);
 }
 
 .sales-section-final::before {
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(124, 58, 237, 0.14), rgba(239, 68, 68, 0.28));
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.22), rgba(16, 185, 129, 0.16), rgba(4, 120, 87, 0.25));
 }
 
 .sales-feature-card {
@@ -209,9 +308,107 @@ textarea {
 
 .sales-feature-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(147, 197, 253, 0.38);
+  border-color: rgba(52, 211, 153, 0.4);
   background-color: rgba(255, 255, 255, 0.065);
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+}
+
+.interactive-surface {
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  position: relative;
+  overflow: hidden;
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  transition:
+    transform 180ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+  touch-action: manipulation;
+}
+
+.interactive-surface::after {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(52, 211, 153, 0.14), transparent 34%);
+  transition: opacity 200ms ease;
+}
+
+.interactive-surface:hover::after,
+.interactive-surface.is-pressed::after {
+  opacity: 1;
+}
+
+.interactive-surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+.interactive-surface.is-pressed {
+  transform: perspective(900px) scale(0.985);
+  border-color: rgba(16, 185, 129, 0.52);
+}
+
+.sales-motion-ready [data-reveal].is-visible.interactive-surface {
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.sales-faq summary {
+  list-style: none;
+}
+
+.sales-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.sales-faq-icon {
+  transition: transform 220ms ease, color 220ms ease;
+}
+
+.sales-faq[open] {
+  border-color: rgba(52, 211, 153, 0.36);
+  background-color: rgba(9, 9, 11, 0.92);
+}
+
+.sales-faq[open] .sales-faq-icon {
+  transform: rotate(45deg);
+  color: #34d399;
+}
+
+.revenue-range {
+  height: 5px;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  border-radius: 999px;
+  outline: none;
+  background: linear-gradient(90deg, #34d399, #10b981, #047857);
+}
+
+.revenue-range::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  appearance: none;
+  border: 3px solid #f8fafc;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.revenue-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 3px solid #f8fafc;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 @media (max-width: 639px) {
@@ -226,6 +423,15 @@ textarea {
 
   .sales-feature-card:hover {
     transform: none;
+  }
+
+  .interactive-surface,
+  .sales-motion-ready [data-reveal].is-visible.interactive-surface {
+    transform: none;
+  }
+
+  .interactive-surface.is-pressed {
+    transform: scale(0.985);
   }
 }
 

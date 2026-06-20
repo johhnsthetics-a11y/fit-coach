@@ -248,6 +248,15 @@ export async function markRemoteNotificationsRead() {
 }
 
 export async function createRemoteStudentInvite(studentId, coachId) {
+  const now = encodeURIComponent(new Date().toISOString())
+  const activeInvites = await request(
+    `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(coachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
+  )
+
+  if (activeInvites[0]) {
+    return fromInviteRow(activeInvites[0])
+  }
+
   const code = createInviteCode()
   const rows = await request('student_invites', {
     method: 'POST',

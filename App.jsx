@@ -233,11 +233,23 @@ function createInitialData() {
   }
 }
 
+function normalizeStoredData(value) {
+  const initial = createInitialData()
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return initial
+
+  return Object.fromEntries(
+    Object.entries({ ...initial, ...value }).map(([key, item]) => [
+      key,
+      Array.isArray(initial[key]) ? (Array.isArray(item) ? item : []) : item,
+    ]),
+  )
+}
+
 function useStoredData() {
   const [data, setData] = useState(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) : createInitialData()
+      return saved ? normalizeStoredData(JSON.parse(saved)) : createInitialData()
     } catch {
       return createInitialData()
     }
@@ -294,7 +306,7 @@ function useStoredData() {
               .catch(() => {
                 if (!active) return
                 setSupabaseSession('')
-                setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], coachSettings: null }))
+                setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
                 setRemoteStatus('Sessao expirada')
                 setRemoteError('Sua sessao expirou. Entre novamente para continuar.')
               })
@@ -302,7 +314,7 @@ function useStoredData() {
           }
 
           setSupabaseSession('')
-          setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], coachSettings: null }))
+          setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
           setRemoteStatus('Sessão expirada')
           setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
           return
@@ -330,6 +342,7 @@ export default function App() {
   const [tone, setTone] = useState('Firme')
   const [studentAccess, setStudentAccess] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
     () => data.students.find((student) => student.id === selectedStudentId) ?? data.students[0],
@@ -420,15 +433,17 @@ export default function App() {
           appointments: remoteData.appointments ?? [],
           invoices: remoteData.invoices ?? [],
           assessments: remoteData.assessments ?? [],
+          invites: remoteData.invites ?? [],
+          anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings,
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
-        return
+        return true
       } catch (error) {
         setRemoteStatus('Erro no login')
         setRemoteError(error.message)
-        return
+        return false
       }
     }
 
@@ -440,11 +455,31 @@ export default function App() {
         ...current.notifications,
       ],
     }))
+    return true
   }
 
   function logout() {
     setSupabaseSession('')
-    setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], coachSettings: null }))
+    setStudentAccess(null)
+    setSelectedStudentId(null)
+    setData((current) => ({
+      ...current,
+      user: null,
+      session: null,
+      students: [],
+      checkins: [],
+      notifications: [],
+      workouts: [],
+      nutritionPlans: [],
+      workoutLogs: [],
+      messages: [],
+      appointments: [],
+      invoices: [],
+      assessments: [],
+      invites: [],
+      anamneses: [],
+      coachSettings: null,
+    }))
   }
 
   async function refreshStoredSession(successStatus = 'Sessao renovada') {
@@ -477,7 +512,7 @@ export default function App() {
             setSupabaseSession('')
             setRemoteStatus('Sessao expirada')
             setRemoteError('Sua sessao expirou. Entre novamente para continuar.')
-            setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], coachSettings: null }))
+            setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
           })
         return
       }
@@ -485,7 +520,7 @@ export default function App() {
       setSupabaseSession('')
       setRemoteStatus('Sessão expirada')
       setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
-      setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], coachSettings: null }))
+      setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
       return
     }
 
@@ -516,7 +551,7 @@ export default function App() {
         }
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar aluno')
-        savedStudent = { ...student, id: studentId }
+        throw error
       }
     }
 
@@ -935,8 +970,10 @@ export default function App() {
       setStudentAccess(access)
       setRemoteStatus('Convite carregado')
       setRemoteError('')
+      return true
     } catch (error) {
       handleRemoteError(error, 'Erro no convite')
+      return false
     }
   }
 
@@ -969,6 +1006,17 @@ export default function App() {
 
   function exitStudentAccess() {
     setStudentAccess(null)
+  }
+
+  if (salesPreview) {
+    return (
+      <LoginScreen
+        onLogin={login}
+        onStudentAccess={enterStudentByInvite}
+        remoteStatus={remoteStatus}
+        remoteError={remoteError}
+      />
+    )
   }
 
   if (studentAccess) {
@@ -1258,6 +1306,18 @@ export default function App() {
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
   const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
+  const [revenueScenario, setRevenueScenario] = useState({
+    students: 20,
+    monthlyPrice: 250,
+    additionalStudents: 6,
+    priceIncrease: 30,
+  })
+  const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
+  const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
+  const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
+  const projectedRevenue = projectedStudents * projectedPrice
+  const projectedIncrease = projectedRevenue - currentRevenue
+  const projectedPercent = currentRevenue ? Math.round((projectedIncrease / currentRevenue) * 100) : 0
 
   useEffect(() => {
     const page = document.getElementById('sales-page')
@@ -1265,6 +1325,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
 
     page.classList.add('sales-motion-ready')
     const revealItems = [...page.querySelectorAll('[data-reveal]')]
+    const interactiveItems = [...page.querySelectorAll('.sales-feature-card, .sales-interactive, .sales-faq')]
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -1275,6 +1336,39 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
     }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' })
 
     revealItems.forEach((item) => observer.observe(item))
+
+    function moveSurface(event) {
+      if (window.matchMedia('(pointer: coarse)').matches) return
+      const surface = event.currentTarget
+      const rect = surface.getBoundingClientRect()
+      const x = (event.clientX - rect.left) / rect.width
+      const y = (event.clientY - rect.top) / rect.height
+      surface.style.setProperty('--pointer-x', `${x * 100}%`)
+      surface.style.setProperty('--pointer-y', `${y * 100}%`)
+      surface.style.setProperty('--tilt-x', `${(0.5 - y) * 3}deg`)
+      surface.style.setProperty('--tilt-y', `${(x - 0.5) * 3}deg`)
+    }
+
+    function resetSurface(event) {
+      const surface = event.currentTarget
+      surface.style.setProperty('--tilt-x', '0deg')
+      surface.style.setProperty('--tilt-y', '0deg')
+      surface.classList.remove('is-pressed')
+    }
+
+    function pressSurface(event) {
+      const surface = event.currentTarget
+      surface.classList.add('is-pressed')
+      window.setTimeout(() => surface.classList.remove('is-pressed'), 220)
+    }
+
+    interactiveItems.forEach((item) => {
+      item.classList.add('interactive-surface')
+      item.addEventListener('pointermove', moveSurface)
+      item.addEventListener('pointerleave', resetSurface)
+      item.addEventListener('pointerdown', pressSurface)
+      item.addEventListener('pointerup', resetSurface)
+    })
 
     let frame = 0
     function updateScrollEffects() {
@@ -1293,6 +1387,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
 
     return () => {
       observer.disconnect()
+      interactiveItems.forEach((item) => {
+        item.removeEventListener('pointermove', moveSurface)
+        item.removeEventListener('pointerleave', resetSurface)
+        item.removeEventListener('pointerdown', pressSurface)
+        item.removeEventListener('pointerup', resetSurface)
+      })
       cancelAnimationFrame(frame)
       window.removeEventListener('scroll', updateScrollEffects)
       window.removeEventListener('resize', updateScrollEffects)
@@ -1304,16 +1404,22 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
     window.setTimeout(() => document.getElementById('acesso')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
   }
 
+  function leaveSalesPreview() {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('preview')) return
+    url.searchParams.delete('preview')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     setLoading(true)
     try {
       const formData = new FormData(event.currentTarget)
-      if (mode === 'student') {
-        await onStudentAccess(formData.get('inviteCode')?.toString() || '')
-      } else {
-        await onLogin(formData)
-      }
+      const success = mode === 'student'
+        ? await onStudentAccess(formData.get('inviteCode')?.toString() || '')
+        : await onLogin(formData)
+      if (success) leaveSalesPreview()
     } finally {
       setLoading(false)
     }
@@ -1339,8 +1445,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
       <main>
         <section className="mx-auto grid min-h-[calc(100vh-68px)] max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.72fr)] lg:px-10 lg:py-14">
           <div className="min-w-0" data-reveal>
-            <p className="text-sm font-black uppercase text-blue-200">Gestão profissional para personal trainers</p>
-            <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight sm:text-5xl lg:text-6xl">
+            <p className="text-sm font-semibold uppercase text-blue-200">Gestão profissional para personal trainers</p>
+            <h1 className="mt-4 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.5rem]">
               Mais alunos acompanhados. Mais organização. Mais valor no seu serviço.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
@@ -1364,7 +1470,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             </div>
           </div>
 
-          <form id="acesso" data-reveal onSubmit={handleSubmit} className="w-full rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7 lg:sticky lg:top-24">
+          <form id="acesso" data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7 lg:sticky lg:top-24">
             <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
             <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
@@ -1420,8 +1526,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-14 backdrop-blur-xl sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-black uppercase text-red-300">Sua operação em outro nível</p>
-              <h2 className="mt-3 text-3xl font-black sm:text-4xl">Tudo que o coach precisa para entregar acompanhamento premium</h2>
+              <p className="text-sm font-semibold uppercase text-violet-300">Sua operação em outro nível</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Tudo que o coach precisa para entregar acompanhamento premium</h2>
               <p className="mt-4 leading-7 text-zinc-400">Menos ferramentas espalhadas, menos tarefas manuais e uma experiência mais clara para cada aluno.</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1443,13 +1549,71 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
+        <section className="sales-section mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
+            <div data-reveal className="lg:sticky lg:top-28">
+              <p className="text-sm font-semibold uppercase text-amber-200">O custo da desorganização</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu acompanhamento pode ser excelente e ainda parecer improvisado.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">
+                Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e tem dificuldade para demonstrar tudo que entrega.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {[
+                ['Planilhas e mensagens espalhadas', 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', 'Uma ficha central por aluno'],
+                ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos e pagamentos organizados'],
+                ['Aluno sem clareza do processo', 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', 'Portal próprio e rotina guiada'],
+                ['Decisões sem histórico completo', 'Sem fotos, medidas, aderência e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
+              ].map(([title, problem, solution], index) => (
+                <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div>
+                    <h3 className="font-black">{title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">{problem}</p>
+                  </div>
+                  <span className="w-fit rounded border border-blue-300/30 bg-blue-300/10 px-3 py-2 text-xs font-black text-blue-100">{solution}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section sales-section-red border-y border-white/10 bg-zinc-950/75 py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-3xl" data-reveal>
+              <p className="text-sm font-semibold uppercase text-violet-300">Antes e depois</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.</h2>
+            </div>
+            <div className="mt-9 overflow-hidden rounded-md border border-white/10 bg-[#05070d]/85" data-reveal>
+              <div className="grid grid-cols-[0.8fr_1fr_1fr] border-b border-white/10 bg-white/[0.04] text-xs font-black uppercase sm:grid-cols-[1fr_1.15fr_1.15fr] sm:text-sm">
+                <div className="p-3 sm:p-4">Rotina</div>
+                <div className="border-l border-white/10 p-3 text-zinc-400 sm:p-4">Sem plataforma</div>
+                <div className="border-l border-white/10 p-3 text-blue-200 sm:p-4">Com FIT COACH</div>
+              </div>
+              {[
+                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e anamnese'],
+                ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
+                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
+                ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
+                ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
+                ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
+              ].map(([item, before, after]) => (
+                <div key={item} className="grid grid-cols-[0.8fr_1fr_1fr] border-b border-white/10 text-xs last:border-b-0 sm:grid-cols-[1fr_1.15fr_1.15fr] sm:text-sm">
+                  <div className="p-3 font-black sm:p-4">{item}</div>
+                  <div className="border-l border-white/10 p-3 text-zinc-500 sm:p-4">{before}</div>
+                  <div className="border-l border-white/10 bg-blue-500/[0.06] p-3 font-bold text-zinc-200 sm:p-4">{after}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-blue-300">Experiência do aluno</p>
-              <h2 className="mt-3 text-3xl font-black sm:text-4xl">Seu serviço continua sendo seu. A percepção se torna muito maior.</h2>
+              <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu serviço continua sendo seu. A percepção se torna muito maior.</h2>
               <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças e falar com o coach.</p>
-              <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-md bg-red-500 px-5 py-3 text-sm font-black text-white">
+              <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-md bg-violet-600 px-5 py-3 text-sm font-black text-white">
                 Profissionalizar meu acompanhamento
               </button>
             </div>
@@ -1469,10 +1633,157 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
+        <section className="sales-section border-y border-white/10 bg-[#05070d]/70 py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <div data-reveal>
+                <p className="text-sm font-semibold uppercase text-blue-300">Comece sem complicação</p>
+                <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Você não precisa organizar toda a sua operação de uma vez.</h2>
+                <p className="mt-4 leading-7 text-zinc-400">A implantação pode acontecer aluno por aluno, mantendo seu atendimento atual enquanto a base profissional é construída.</p>
+              </div>
+              <div className="grid gap-3">
+                {[
+                  ['1', 'Configure seu perfil', 'Nome profissional, marca e informações do coach.'],
+                  ['2', 'Cadastre um aluno', 'O sistema gera o acesso e solicita a anamnese inicial.'],
+                  ['3', 'Publique o acompanhamento', 'Adicione treino, alimentação, agenda e cobrança.'],
+                  ['4', 'Acompanhe e evolua', 'Use check-ins, mensagens e avaliações para ajustar o plano.'],
+                ].map(([number, title, text], index) => (
+                  <div key={number} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="flex gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-gradient-to-br from-emerald-300 via-emerald-500 to-emerald-800 text-sm font-black text-white">{number}</span>
+                    <div>
+                      <h3 className="font-black">{title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-zinc-400">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+            <div data-reveal>
+              <p className="text-sm font-semibold uppercase text-blue-300">Potencial de faturamento</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
+              <p className="mt-4 leading-7 text-zinc-300">
+                O FIT COACH reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
+              </p>
+              <div className="mt-6 grid gap-3">
+                {[
+                  ['Mais capacidade', 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.'],
+                  ['Maior valor percebido', 'Um portal completo torna visível tudo que existe dentro do acompanhamento.'],
+                  ['Mais retenção', 'Rotina, check-ins e evolução ajudam o aluno a permanecer conectado ao processo.'],
+                  ['Receita previsível', 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.'],
+                ].map(([title, text], index) => (
+                  <div key={title} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="flex gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
+                    <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded ${index % 2 ? 'bg-emerald-700' : 'bg-emerald-400'}`} />
+                    <div>
+                      <h3 className="font-black">{title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-zinc-400">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div data-reveal className="sales-interactive rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
+              <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase text-violet-200">Simulador de cenário</p>
+                  <h3 className="mt-2 text-2xl font-black">Quanto sua operação pode movimentar?</h3>
+                </div>
+                <span className="text-xs text-zinc-500">Estimativa, não garantia de resultado</span>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <RevenueControl
+                  label="Alunos atuais"
+                  value={revenueScenario.students}
+                  min={1}
+                  max={150}
+                  suffix=""
+                  onChange={(value) => setRevenueScenario((current) => ({ ...current, students: value }))}
+                />
+                <RevenueControl
+                  label="Mensalidade atual"
+                  value={revenueScenario.monthlyPrice}
+                  min={50}
+                  max={1500}
+                  step={10}
+                  prefix="R$ "
+                  onChange={(value) => setRevenueScenario((current) => ({ ...current, monthlyPrice: value }))}
+                />
+                <RevenueControl
+                  label="Novos alunos possíveis"
+                  value={revenueScenario.additionalStudents}
+                  min={0}
+                  max={50}
+                  suffix=""
+                  onChange={(value) => setRevenueScenario((current) => ({ ...current, additionalStudents: value }))}
+                />
+                <RevenueControl
+                  label="Valorização por aluno"
+                  value={revenueScenario.priceIncrease}
+                  min={0}
+                  max={500}
+                  step={10}
+                  prefix="R$ "
+                  onChange={(value) => setRevenueScenario((current) => ({ ...current, priceIncrease: value }))}
+                />
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <RevenueResult label="Faturamento atual" value={formatCurrency(currentRevenue)} />
+                <RevenueResult label="Cenário projetado" value={formatCurrency(projectedRevenue)} highlight />
+                <RevenueResult label="Potencial adicional" value={`+${formatCurrency(projectedIncrease)}`} accent />
+              </div>
+
+              <div className="mt-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+                <p className="text-sm font-black text-blue-100">
+                  Neste cenário: {projectedStudents} alunos a {formatCurrency(projectedPrice)} por mês.
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Isso representa um potencial de {projectedPercent}% sobre o faturamento atual. O resultado real depende da sua oferta, mercado, aquisição, retenção e execução.
+                </p>
+              </div>
+
+              <button type="button" onClick={() => openAccess('signup')} className="mt-5 w-full rounded-md bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800 px-5 py-3 text-sm font-black text-white">
+                Estruturar minha operação para crescer
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="text-center" data-reveal>
+            <p className="text-sm font-semibold uppercase text-violet-200">Dúvidas antes de começar</p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o FIT COACH</h2>
+          </div>
+          <div className="mt-9 grid gap-3">
+            {[
+              ['Meus alunos precisam instalar alguma coisa?', 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.'],
+              ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O FIT COACH organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
+              ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
+              ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
+              ['E se eu trabalhar de um jeito diferente?', 'O sistema reúne as funções centrais do acompanhamento e continuará evoluindo. Treinos, alimentação, check-ins e comunicação podem ser ajustados à sua metodologia.'],
+              ['Os dados de saúde do aluno ficam misturados com conversas?', 'Não. Anamnese, avaliações, fotos e registros ficam vinculados ao aluno, com acesso controlado pelo fluxo do coach e do convite individual.'],
+            ].map(([question, answer], index) => (
+              <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
+                <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
+                  <span>{question}</span>
+                  <span className="sales-faq-icon text-xl text-blue-300">+</span>
+                </summary>
+                <p className="border-t border-white/10 px-4 py-4 text-sm leading-6 text-zinc-400 sm:px-5">{answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         <section className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/75 py-14">
           <div className="mx-auto max-w-4xl px-4 text-center sm:px-6" data-reveal>
-            <p className="text-sm font-black uppercase text-blue-300">FIT COACH</p>
-            <h2 className="mt-3 text-3xl font-black sm:text-4xl">Sua metodologia merece uma plataforma à altura.</h2>
+            <p className="text-sm font-semibold uppercase text-blue-300">FIT COACH</p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Sua metodologia merece uma plataforma à altura.</h2>
             <p className="mx-auto mt-4 max-w-2xl leading-7 text-zinc-400">Comece organizando sua carteira atual e evolua o sistema junto com a sua operação.</p>
             <button type="button" onClick={() => openAccess('signup')} className="mt-7 rounded-md bg-blue-500 px-6 py-3 text-sm font-black text-white">
               Criar minha conta
@@ -1517,14 +1828,14 @@ function SalesDashboardPreview() {
           <p className="text-xs font-bold text-zinc-500">EVOLUÇÃO DA CARTEIRA</p>
           <div className="mt-5 flex h-24 items-end gap-2">
             {[38, 52, 46, 68, 62, 82, 92].map((height, index) => (
-              <span key={index} className={`flex-1 rounded-t ${index > 4 ? 'bg-red-400' : 'bg-blue-500'}`} style={{ height: `${height}%` }} />
+              <span key={index} className={`flex-1 rounded-t ${index > 4 ? 'bg-emerald-700' : 'bg-emerald-400'}`} style={{ height: `${height}%` }} />
             ))}
           </div>
         </div>
         <div className="space-y-2">
           {['Treino publicado', 'Anamnese recebida', 'Pagamento confirmado'].map((text, index) => (
             <div key={text} className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3">
-              <span className={`h-2 w-2 shrink-0 rounded ${index === 1 ? 'bg-red-400' : 'bg-blue-400'}`} />
+              <span className={`h-2 w-2 shrink-0 rounded ${index === 1 ? 'bg-emerald-700' : 'bg-emerald-400'}`} />
               <span className="text-xs font-bold text-zinc-300">{text}</span>
             </div>
           ))}
@@ -1539,6 +1850,42 @@ function SalesPreviewMetric({ label, value }) {
     <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
       <p className="text-xs text-zinc-500">{label}</p>
       <p className="mt-2 text-xl font-black">{value}</p>
+    </div>
+  )
+}
+
+function RevenueControl({ label, value, min, max, step = 1, prefix = '', suffix = '', onChange }) {
+  return (
+    <label className="grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
+      <span className="flex items-center justify-between gap-3">
+        <span className="text-sm font-bold text-zinc-300">{label}</span>
+        <span className="text-sm font-black text-white">{prefix}{value}{suffix}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="revenue-range"
+      />
+    </label>
+  )
+}
+
+function RevenueResult({ label, value, highlight = false, accent = false }) {
+  const tone = highlight
+    ? 'border-blue-300/35 bg-blue-300/10'
+    : accent
+      ? 'border-emerald-300/35 bg-emerald-300/10'
+      : 'border-white/10 bg-white/[0.035]'
+
+  return (
+    <div className={`rounded-md border p-4 ${tone}`}>
+      <p className="text-xs font-bold text-zinc-400">{label}</p>
+      <p className="mt-2 break-words text-xl font-black text-white">{value}</p>
+      <p className="mt-1 text-xs text-zinc-500">por mês</p>
     </div>
   )
 }
@@ -3178,6 +3525,8 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
         observations: form.get('observations')?.toString() || '',
         emergencyContact: form.get('emergencyContact')?.toString() || '',
       })
+    } catch {
+      // The parent displays the Supabase error without leaving an unhandled promise.
     } finally {
       setSaving(false)
     }
@@ -3233,7 +3582,7 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
 
         {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white">
+          <button disabled={saving} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60">
             {saving ? 'Enviando anamnese...' : 'Enviar anamnese ao coach'}
           </button>
           <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">Sair</button>
