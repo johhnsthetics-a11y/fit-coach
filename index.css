@@ -24,9 +24,34 @@ body {
 }
 
 .fit-gradient-bg {
-  background:
-    linear-gradient(125deg, rgba(29, 78, 216, 0.78) 0%, rgba(7, 10, 20, 0.96) 38%, rgba(7, 10, 20, 0.98) 58%, rgba(185, 28, 28, 0.72) 100%);
+  background-color: #05070d;
+  background-image:
+    linear-gradient(155deg, #1d4ed8 0%, #111a38 22%, #05070d 47%, #1b0d18 72%, #b91c1c 100%);
   background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+@media (min-width: 640px) {
+  .fit-gradient-bg {
+    background-image:
+      linear-gradient(140deg, #1d4ed8 0%, #111a38 20%, #05070d 43%, #05070d 58%, #28101c 78%, #b91c1c 100%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .fit-gradient-bg {
+    background-image:
+      linear-gradient(110deg, #1e40af 0%, #172554 14%, #080b14 31%, #05070d 50%, #160b12 69%, #7f1d1d 86%, #b91c1c 100%);
+  }
+}
+
+@media (min-width: 1600px) {
+  .fit-gradient-bg {
+    background-image:
+      linear-gradient(105deg, #1e3a8a 0%, #1d4ed8 10%, #0b1021 25%, #05070d 42%, #05070d 58%, #1f0b13 75%, #b91c1c 90%, #7f1d1d 100%);
+  }
 }
 
 #root {

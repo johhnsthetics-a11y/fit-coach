@@ -305,24 +305,7 @@ export async function acceptRemoteStudentConsent(code) {
 export async function submitRemoteStudentAnamnesis(code, answers) {
   await rpcRequest('submit_student_anamnesis', {
     invite_code: code,
-    birth_date_value: answers.birthDate || null,
-    occupation_value: answers.occupation,
-    training_experience_value: answers.trainingExperience,
-    training_frequency_value: answers.trainingFrequency,
-    primary_goal_value: answers.primaryGoal,
-    injuries_value: answers.injuries,
-    health_conditions_value: answers.healthConditions,
-    medications_value: answers.medications,
-    surgeries_value: answers.surgeries,
-    pain_value: answers.pain,
-    sleep_hours_value: answers.sleepHours,
-    sleep_quality_value: answers.sleepQuality,
-    stress_level_value: answers.stressLevel,
-    water_intake_value: answers.waterIntake,
-    food_restrictions_value: answers.foodRestrictions,
-    routine_value: answers.routine,
-    observations_value: answers.observations,
-    emergency_contact_value: answers.emergencyContact,
+    answers,
   })
 
   return loadRemoteStudentByInvite(code)

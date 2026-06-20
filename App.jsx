@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import fitCoachLogo from './fit-coach-logo.png'
 import {
   Area,
   AreaChart,
@@ -328,6 +329,7 @@ export default function App() {
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [tone, setTone] = useState('Firme')
   const [studentAccess, setStudentAccess] = useState(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const selectedStudent = useMemo(
     () => data.students.find((student) => student.id === selectedStudentId) ?? data.students[0],
@@ -541,6 +543,25 @@ export default function App() {
     })
     setSelectedStudentId(savedStudent.id)
     return { student: savedStudent, invite: createdInvite }
+  }
+
+  async function generateStudentInvite(studentId) {
+    try {
+      const createdInvite = await createRemoteStudentInvite(studentId, data.user?.id)
+      setData((current) => ({
+        ...current,
+        invites: [
+          createdInvite,
+          ...(current.invites ?? []).filter((invite) => String(invite.studentId) !== String(studentId)),
+        ],
+      }))
+      setRemoteStatus('Código do aluno gerado')
+      setRemoteError('')
+      return createdInvite
+    } catch (error) {
+      handleRemoteError(error, 'Erro ao gerar código do aluno')
+      throw error
+    }
   }
 
   async function addCheckin(checkin) {
@@ -1008,29 +1029,59 @@ export default function App() {
 
   return (
     <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
-      <div className="grid min-h-screen min-w-0 max-w-full lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="min-w-0 max-w-full border-b border-white/10 bg-zinc-950/80 p-3 backdrop-blur-xl sm:p-4 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
+        <BrandLockup compact subtitle="FIT COACH" />
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Abrir menu"
+          className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-2xl text-white"
+        >
+          ☰
+        </button>
+      </div>
+
+      {mobileMenuOpen ? (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
+        />
+      ) : null}
+
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col border-r border-white/10 bg-zinc-950/95 p-4 backdrop-blur-xl transition-transform duration-200 lg:translate-x-0 ${
+        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
             <BrandLockup
               subtitle={`por ${data.coachSettings?.brandName || data.coachSettings?.publicName || data.user.name}`}
             />
-            <button onClick={logout} className="rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-zinc-300">
-              Sair
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Fechar menu"
+              className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-xl text-zinc-300 lg:hidden"
+            >
+              ×
             </button>
           </div>
 
-          <div className="mt-4 rounded-md border border-blue-500/40 bg-blue-500/10 p-3 lg:mt-5">
+          <div className="mt-4 rounded-md border border-blue-500/40 bg-blue-500/10 p-3">
             <p className="text-xs text-zinc-400">Status da base</p>
             <p className="text-sm font-bold text-blue-200">{remoteStatus}</p>
             {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
           </div>
 
-          <nav className="mt-4 grid min-w-0 grid-cols-3 gap-2 lg:mt-6 lg:grid-cols-1">
+          <nav className="scrollbar-soft mt-4 grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-y-auto pr-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id)}
-                className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md border px-1 py-2 text-center text-[11px] font-semibold transition sm:min-h-11 sm:flex-row sm:justify-start sm:gap-2 sm:px-3 sm:text-left sm:text-sm lg:gap-3 ${
+                onClick={() => {
+                  setActiveView(item.id)
+                  setMobileMenuOpen(false)
+                }}
+                className={`flex min-h-11 min-w-0 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${
                   activeView === item.id
                     ? 'border-blue-500 bg-blue-500 text-zinc-950'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
@@ -1044,9 +1095,13 @@ export default function App() {
               </button>
             ))}
           </nav>
-        </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 xl:px-8">
+          <button onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-3 text-sm font-bold text-zinc-300">
+            Sair
+          </button>
+      </aside>
+
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[286px] xl:px-8">
           <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -1108,6 +1163,7 @@ export default function App() {
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentId}
                 onSave={saveStudent}
+                onGenerateInvite={generateStudentInvite}
               />
             )}
             {activeView === 'avaliacoes' && (
@@ -1195,7 +1251,6 @@ export default function App() {
           </div>
           </div>
         </main>
-      </div>
     </div>
   )
 }
@@ -1543,9 +1598,11 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave }) {
+function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
+  const [generatingCode, setGeneratingCode] = useState(false)
+  const [inviteError, setInviteError] = useState('')
   const selectedInvite = savedInvite?.studentId === selectedStudent?.id
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
@@ -1611,7 +1668,29 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
                   <p className="mt-2 text-sm text-zinc-300">O aluno usa este código na opção “Aluno” da tela de entrada.</p>
                 </>
               ) : (
-                <p className="mt-2 text-sm text-amber-200">Código ainda não disponível. Abra a Área do aluno para gerar um convite.</p>
+                <>
+                  <p className="mt-2 text-sm text-amber-200">Código ainda não disponível.</p>
+                  <button
+                    type="button"
+                    disabled={generatingCode}
+                    onClick={async () => {
+                      setGeneratingCode(true)
+                      setInviteError('')
+                      try {
+                        const invite = await onGenerateInvite(selectedStudent.id)
+                        setSavedInvite(invite)
+                      } catch (error) {
+                        setInviteError(error.message)
+                      } finally {
+                        setGeneratingCode(false)
+                      }
+                    }}
+                    className="mt-3 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white disabled:opacity-60"
+                  >
+                    {generatingCode ? 'Gerando código...' : 'Gerar código agora'}
+                  </button>
+                  {inviteError ? <p className="mt-2 text-sm text-red-200">{inviteError}</p> : null}
+                </>
               )}
             </div>
             <div className="mt-5">
@@ -1630,29 +1709,40 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
 }
 
 function StudentForm({ student, onSave, onCancel }) {
-  function handleSubmit(event) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    onSave({
-      ...student,
-      name: form.get('name').toString(),
-      email: form.get('email').toString(),
-      phone: form.get('phone').toString(),
-      goal: form.get('goal').toString(),
-      phase: form.get('phase').toString(),
-      status: form.get('status').toString(),
-      plan: form.get('plan').toString(),
-      payment: form.get('payment').toString(),
-      adherence: Number(form.get('adherence')),
-      risk: form.get('risk').toString(),
-      nextCheckin: form.get('nextCheckin').toString(),
-      weight: form.get('weight').toString(),
-      bodyFat: form.get('bodyFat').toString(),
-      calories: form.get('calories').toString(),
-      protein: form.get('protein').toString(),
-      workout: form.get('workout').toString(),
-      lastMessage: form.get('lastMessage').toString(),
-    })
+    setSaving(true)
+    setError('')
+    try {
+      await onSave({
+        ...student,
+        name: form.get('name').toString(),
+        email: form.get('email').toString(),
+        phone: form.get('phone').toString(),
+        goal: form.get('goal').toString(),
+        phase: form.get('phase').toString(),
+        status: form.get('status').toString(),
+        plan: form.get('plan').toString(),
+        payment: form.get('payment').toString(),
+        adherence: Number(form.get('adherence')),
+        risk: form.get('risk').toString(),
+        nextCheckin: form.get('nextCheckin').toString(),
+        weight: form.get('weight').toString(),
+        bodyFat: form.get('bodyFat').toString(),
+        calories: form.get('calories').toString(),
+        protein: form.get('protein').toString(),
+        workout: form.get('workout').toString(),
+        lastMessage: form.get('lastMessage').toString(),
+      })
+    } catch (saveError) {
+      setError(saveError.message || 'Não foi possível salvar o aluno.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -1676,8 +1766,11 @@ function StudentForm({ student, onSave, onCancel }) {
         <Field label="Treino atual" name="workout" defaultValue={student.workout} />
       </div>
       <TextArea label="Última observação" name="lastMessage" defaultValue={student.lastMessage} />
+      {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
       <div className="flex flex-wrap gap-3">
-        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">Salvar aluno</button>
+        <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white disabled:opacity-60">
+          {saving ? 'Salvando...' : 'Salvar aluno'}
+        </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Cancelar
         </button>
@@ -3612,16 +3705,16 @@ function ChartWrap({ children }) {
   )
 }
 
-function BrandLockup({ subtitle = '', dark = false, large = false }) {
+function BrandLockup({ subtitle = '', large = false, compact = false }) {
   return (
     <div
       className={`grid shrink-0 place-items-center overflow-hidden rounded-md bg-gradient-to-r from-blue-600 via-violet-500 to-red-500 p-[2px] shadow-2xl shadow-black/40 ${
-        large ? 'w-64 max-w-full' : 'w-32 max-w-[46vw] sm:w-40 lg:w-44'
+        large ? 'w-64 max-w-full' : compact ? 'w-20' : 'w-32 max-w-[46vw] sm:w-40 lg:w-44'
       }`}
       title={subtitle}
     >
       <img
-        src="/assets/fit-coach-logo.png"
+        src={fitCoachLogo}
         alt="FIT COACH"
         className="h-auto w-full rounded-[4px] bg-[#05070d] object-contain"
       />
