@@ -4,9 +4,9 @@
 
 Para a base que já está funcionando, execute somente:
 
-- `supabase_aluno_transferido.sql`
+- `supabase_cpf_aluno.sql`
 
-Em uma instalação nova, o arquivo `supabase_pre_lancamento.sql` já inclui essa atualização.
+Em uma instalação nova, o arquivo `supabase_pre_lancamento.sql` já inclui as atualizações de aluno transferido e CPF.
 
 Depois confira no Table Editor se `workout_exercises` possui:
 

@@ -5,7 +5,8 @@ alter table if exists public.workout_exercises
   add column if not exists video_url text;
 
 alter table if exists public.students
-  add column if not exists require_anamnesis boolean not null default true;
+  add column if not exists require_anamnesis boolean not null default true,
+  add column if not exists cpf text;
 
 insert into storage.buckets (id, name, public)
 values ('checkin-photos', 'checkin-photos', false)

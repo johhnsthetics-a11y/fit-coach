@@ -1354,7 +1354,7 @@ export default function App() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[304px] lg:max-w-none lg:translate-x-0 lg:p-5 xl:w-[328px] ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[320px] lg:max-w-none lg:translate-x-0 lg:p-4 xl:w-[344px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -1371,17 +1371,17 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-5 rounded-md border border-blue-500/40 bg-blue-500/10 p-4">
+          <div className="mt-4 rounded-md border border-blue-500/40 bg-blue-500/10 p-3">
             <p className="text-[11px] font-black uppercase text-zinc-400">Status da operação</p>
             <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
             {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
           </div>
 
-          <div className="mb-2 mt-5 flex items-center justify-between px-1">
+          <div className="mb-2 mt-4 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
             <span className="text-[10px] font-bold text-zinc-600">{navItems.length} áreas</span>
           </div>
-          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-2 overflow-y-auto pr-1">
+          <nav className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-2 overflow-hidden lg:grid-cols-2 lg:gap-1.5">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -1391,14 +1391,14 @@ export default function App() {
                   setActiveView(item.id)
                   setMobileMenuOpen(false)
                 }}
-                className={`flex min-h-12 min-w-0 items-center gap-3 rounded-md border px-3 py-2.5 text-left text-sm font-semibold transition lg:px-4 ${
+                className={`flex min-h-11 min-w-0 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition lg:gap-2 lg:px-2.5 lg:py-1.5 ${
                   activeView === item.id
                     ? 'border-blue-500 bg-blue-500 text-zinc-950 shadow-lg shadow-emerald-950/20'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-zinc-950/10 text-xs font-black">{item.icon}</span>
-                <span className="min-w-0 max-w-full break-words leading-tight sm:flex-1 lg:text-[15px]">{item.label}</span>
+                <span className="min-w-0 max-w-full break-words text-[13px] leading-tight sm:flex-1">{item.label}</span>
                 {item.id === 'notificacoes' && totalAlertCount > 0 ? (
                   <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
                 ) : null}
@@ -1406,12 +1406,12 @@ export default function App() {
             ))}
           </nav>
 
-          <button type="button" onClick={logout} className="mt-4 w-full rounded-md border border-white/10 px-3 py-3 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
+          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
             Sair
           </button>
       </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[304px] lg:px-6 xl:ml-[328px] xl:px-8">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[320px] lg:w-[calc(100%-320px)] lg:px-5 xl:ml-[344px] xl:w-[calc(100%-344px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -1442,7 +1442,7 @@ export default function App() {
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Alunos ativos" value={data.students.length} detail={`${paidStudents} com plano pago`} />
-            <Metric label="Aderência média" value={`${averageAdherence}%`} detail="treino + dieta" />
+            <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
             <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
             <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
           </section>
@@ -1939,7 +1939,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 ['Planilhas e mensagens espalhadas', 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', 'Uma ficha central por aluno'],
                 ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos e pagamentos organizados'],
                 ['Aluno sem clareza do processo', 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', 'Portal próprio e rotina guiada'],
-                ['Decisões sem histórico completo', 'Sem fotos, medidas, aderência e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
+                ['Decisões sem histórico completo', 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
               ].map(([title, problem, solution], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div>
@@ -2259,7 +2259,7 @@ function SalesDashboardPreview() {
       </div>
       <div className="grid gap-3 p-4 sm:grid-cols-3">
         <SalesPreviewMetric label="Alunos ativos" value="28" />
-        <SalesPreviewMetric label="Aderência média" value="87%" />
+        <SalesPreviewMetric label="Constância média" value="87%" />
         <SalesPreviewMetric label="Check-ins" value="12" />
       </div>
       <div className="border-t border-white/10 p-4">
@@ -2567,7 +2567,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               />
             </div>
             <Field label="Local ou link" name="location" defaultValue="Online" />
-            <TextArea label="Observações" name="notes" defaultValue="Revisar progresso, aderência e próximos ajustes." />
+            <TextArea label="Observações" name="notes" defaultValue="Revisar progresso, constância e próximos ajustes." />
             <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
               {saving ? 'Salvando...' : 'Agendar compromisso'}
             </button>
@@ -2674,7 +2674,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-black">{student.name}</h3>
-                  <p className="mt-1 text-sm text-zinc-400">{student.goal}</p>
+                  <p className="mt-1 text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
                 </div>
                 <Badge tone={student.risk}>{student.risk}</Badge>
               </div>
@@ -2703,7 +2703,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Info label="E-mail" value={selectedStudent.email} />
               <Info label="Telefone" value={selectedStudent.phone} />
-              <Info label="Peso atual" value={selectedStudent.weight} />
+              <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'Não informado'} />
               <Info label="Plano" value={selectedStudent.plan} />
               <Info label="Pagamento" value={selectedStudent.payment} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
@@ -2787,6 +2787,11 @@ function StudentForm({ student, onSave, onCancel }) {
   async function handleSubmit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
+    const cpf = form.get('cpf')?.toString().trim() || ''
+    if (cpf && cpf.replace(/\D/g, '').length !== 11) {
+      setError('Confira o CPF: ele deve ter 11 números.')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -2795,20 +2800,9 @@ function StudentForm({ student, onSave, onCancel }) {
         name: form.get('name').toString(),
         email: form.get('email').toString(),
         phone: form.get('phone').toString(),
-        goal: form.get('goal').toString(),
-        phase: form.get('phase').toString(),
-        status: form.get('status').toString(),
+        cpf: cpf.replace(/\D/g, ''),
         plan: form.get('plan').toString(),
         payment: form.get('payment').toString(),
-        adherence: Number(form.get('adherence')),
-        risk: form.get('risk').toString(),
-        nextCheckin: form.get('nextCheckin').toString(),
-        weight: form.get('weight').toString(),
-        bodyFat: form.get('bodyFat').toString(),
-        calories: form.get('calories').toString(),
-        protein: form.get('protein').toString(),
-        workout: form.get('workout').toString(),
-        lastMessage: form.get('lastMessage').toString(),
         requireAnamnesis: !continuingStudent,
       })
     } catch (saveError) {
@@ -2840,7 +2834,7 @@ function StudentForm({ student, onSave, onCancel }) {
       </label>
       {continuingStudent ? (
         <div className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50">
-          Preencha abaixo o ponto atual do acompanhamento, principalmente fase, peso, aderência, próximo check-in, treino e última observação.
+          Depois do cadastro, registre treino, alimentação, avaliações e próximos acompanhamentos nas áreas correspondentes.
         </div>
       ) : (
         <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4 text-sm leading-6 text-blue-50">
@@ -2848,24 +2842,13 @@ function StudentForm({ student, onSave, onCancel }) {
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Nome" name="name" defaultValue={student.name} />
-        <Field label="E-mail" name="email" defaultValue={student.email} />
-        <Field label="Telefone" name="phone" defaultValue={student.phone} />
-        <Field label="Objetivo" name="goal" defaultValue={student.goal} />
-        <Field label="Fase" name="phase" defaultValue={student.phase} />
-        <Select label="Status" name="status" defaultValue={student.status} options={['Em dia', 'Atrasado', 'Atencao']} />
+        <Field label="Nome completo" name="name" defaultValue={student.name} autoComplete="name" />
+        <Field label="E-mail" name="email" type="email" defaultValue={student.email} autoComplete="email" />
+        <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
+        <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
         <Select label="Plano" name="plan" defaultValue={student.plan} options={plans.map((plan) => plan.name)} />
         <Select label="Pagamento" name="payment" defaultValue={student.payment} options={['Pago', 'Pendente']} />
-        <Field label="Aderência" name="adherence" type="number" defaultValue={student.adherence} />
-        <Select label="Risco" name="risk" defaultValue={student.risk} options={['Baixo', 'Medio', 'Alto']} />
-        <Field label="Próximo check-in" name="nextCheckin" defaultValue={student.nextCheckin} />
-        <Field label="Peso" name="weight" defaultValue={student.weight} />
-        <Field label="Gordura corporal" name="bodyFat" defaultValue={student.bodyFat} />
-        <Field label="Calorias" name="calories" defaultValue={student.calories} />
-        <Field label="Proteína" name="protein" defaultValue={student.protein} />
-        <Field label="Treino atual" name="workout" defaultValue={student.workout} />
       </div>
-      <TextArea label="Última observação" name="lastMessage" defaultValue={student.lastMessage} />
       {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
@@ -5016,7 +4999,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         whatsapp: form.get('whatsapp')?.toString().trim() || '',
         supportEmail: form.get('supportEmail')?.toString().trim() || '',
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
-        timezone: form.get('timezone')?.toString() || 'America/Sao_Paulo',
+        timezone: current.timezone,
       })
       setMessage('Configurações profissionais atualizadas.')
     } catch (saveError) {
@@ -5044,17 +5027,6 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             <Field label="CREF ou registro" name="cref" defaultValue={current.cref} required={false} />
             <Field label="WhatsApp" name="whatsapp" defaultValue={current.whatsapp} required={false} />
             <Field label="E-mail de suporte" name="supportEmail" type="email" defaultValue={current.supportEmail} />
-            <Select
-              label="Fuso horário"
-              name="timezone"
-              defaultValue={current.timezone}
-              options={[
-                { label: 'Brasília', value: 'America/Sao_Paulo' },
-                { label: 'Manaus', value: 'America/Manaus' },
-                { label: 'Fortaleza', value: 'America/Fortaleza' },
-                { label: 'Rio Branco', value: 'America/Rio_Branco' },
-              ]}
-            />
           </div>
           <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
@@ -5224,20 +5196,21 @@ function createBlankStudent() {
     name: '',
     email: '',
     phone: '',
-    goal: 'Hipertrofia',
-    phase: 'Inicio',
+    cpf: '',
+    goal: '',
+    phase: 'Cadastro',
     status: 'Em dia',
     plan: 'Essential',
     payment: 'Pendente',
-    adherence: 80,
+    adherence: 0,
     risk: 'Baixo',
-    nextCheckin: 'Sexta, 08:00',
-    weight: '80 kg',
-    bodyFat: '15%',
-    calories: '2.400 kcal',
-    protein: '160 g',
-    workout: 'Full body',
-    lastMessage: 'Novo aluno cadastrado.',
+    nextCheckin: '',
+    weight: '',
+    bodyFat: '',
+    calories: '',
+    protein: '',
+    workout: '',
+    lastMessage: 'Cadastro concluído. Acompanhamento aguardando configuração.',
     requireAnamnesis: true,
   }
 }
@@ -5301,7 +5274,7 @@ function StudentSnapshot({ student }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-2xl font-black">{student.name}</h3>
-          <p className="mt-1 text-sm text-zinc-400">{student.goal}</p>
+                  <p className="mt-1 text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
         </div>
         <Badge tone={student.risk}>{student.risk}</Badge>
       </div>
@@ -5309,7 +5282,7 @@ function StudentSnapshot({ student }) {
         <div className="h-2 rounded bg-blue-500" style={{ width: `${student.adherence}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-xs text-zinc-400">
-        <span>Aderência</span>
+        <span>Constância</span>
         <span>{student.adherence}%</span>
       </div>
       <p className="mt-5 rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">{student.lastMessage}</p>
@@ -5340,7 +5313,17 @@ function Info({ label, value }) {
   )
 }
 
-function Field({ label, name, type = 'text', defaultValue = '', required = true }) {
+function Field({
+  label,
+  name,
+  type = 'text',
+  defaultValue = '',
+  required = true,
+  inputMode,
+  autoComplete,
+  maxLength,
+  placeholder,
+}) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
@@ -5350,6 +5333,10 @@ function Field({ label, name, type = 'text', defaultValue = '', required = true 
         step={type === 'number' ? 'any' : undefined}
         defaultValue={defaultValue}
         required={required}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        maxLength={maxLength}
+        placeholder={placeholder}
         className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
@@ -5445,7 +5432,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         type: 'Acompanhamento',
         priority: student.risk === 'Alto' || adherence < 70 ? 'Alto' : 'Medio',
         title: `${student.name} precisa de atenção`,
-        body: `Status ${formatUiText(student.status)}, risco ${formatUiText(student.risk)} e aderência de ${adherence || 0}%.`,
+        body: `Status ${formatUiText(student.status)}, risco ${formatUiText(student.risk)} e constância de ${adherence || 0}%.`,
         action: 'Abrir alunos',
         view: 'alunos',
       })
@@ -5560,7 +5547,7 @@ function buildMessageSuggestion(student, tone) {
 
   const base = {
     Firme: `Recebi, ${student.name}. Vamos manter o plano sem improvisar: siga a meta de ${student.protein}, registre o treino ${student.workout} e me envie o check-in no prazo ${student.nextCheckin}.`,
-    Tecnico: `Boa, ${student.name}. Pelo objetivo de ${student.goal}, vou acompanhar aderência, peso e resposta ao treino. Mantenha ${student.calories}, ${student.protein} e detalhe fome, sono e desempenho no próximo check-in.`,
+    Tecnico: `Boa, ${student.name}. Pelo objetivo de ${student.goal}, vou acompanhar constância, peso e resposta ao treino. Mantenha ${student.calories}, ${student.protein} e detalhe fome, sono e desempenho no próximo check-in.`,
     Motivador: `Perfeito, ${student.name}. Continue no processo: cada check-in ajuda a ajustar melhor o plano. Hoje, foque em cumprir o treino ${student.workout}, atingir a proteína e me avisar sobre qualquer dificuldade.`,
   }
 
@@ -5824,6 +5811,12 @@ function formatCurrency(value) {
   }).format(Number.isFinite(amount) ? amount : 0)
 }
 
+function formatCpf(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 11)
+  if (digits.length !== 11) return value || ''
+  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+}
+
 function formatNumber(value) {
   if (value === null || value === undefined || value === '') return '-'
   const number = Number(value)
@@ -5872,7 +5865,7 @@ function buildAssessmentInsight(first, latest) {
   if (first.waistCm && latest.waistCm) parts.push(`cintura ${describeChange(waistChange, 'cm')}`)
 
   return parts.length
-    ? `Desde a primeira avaliação: ${parts.join(', ')}. Use a tendência junto do desempenho e da aderência para decidir o próximo ajuste.`
+    ? `Desde a primeira avaliação: ${parts.join(', ')}. Use a tendência junto do desempenho e da constância para decidir o próximo ajuste.`
     : 'As avaliações existem, mas ainda faltam medidas equivalentes para gerar um comparativo.'
 }
 

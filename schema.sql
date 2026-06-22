@@ -14,6 +14,7 @@ create table if not exists students (
   name text not null,
   email text,
   phone text,
+  cpf text,
   goal text,
   phase text,
   status text default 'Em dia',
@@ -28,6 +29,7 @@ create table if not exists students (
   workout text,
   next_checkin text,
   last_message text,
+  require_anamnesis boolean not null default true,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
