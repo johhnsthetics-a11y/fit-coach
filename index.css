@@ -26,9 +26,9 @@ body {
 }
 
 .fit-gradient-bg {
-  background-color: #05070d;
+  background-color: #070a09;
   background-image:
-    linear-gradient(155deg, #1d4ed8 0%, #111a38 22%, #05070d 47%, #1b0d18 72%, #b91c1c 100%);
+    linear-gradient(155deg, #065f46 0%, #10231d 22%, #070a09 48%, #0a100e 72%, #064e3b 100%);
   background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
@@ -38,21 +38,21 @@ body {
 @media (min-width: 640px) {
   .fit-gradient-bg {
     background-image:
-      linear-gradient(140deg, #1d4ed8 0%, #111a38 20%, #05070d 43%, #05070d 58%, #28101c 78%, #b91c1c 100%);
+      linear-gradient(140deg, #047857 0%, #10231d 20%, #070a09 43%, #070a09 62%, #0b1713 80%, #065f46 100%);
   }
 }
 
 @media (min-width: 1024px) {
   .fit-gradient-bg {
     background-image:
-      linear-gradient(110deg, #1e40af 0%, #172554 14%, #080b14 31%, #05070d 50%, #160b12 69%, #7f1d1d 86%, #b91c1c 100%);
+      linear-gradient(110deg, #065f46 0%, #064e3b 14%, #0b1713 31%, #070a09 52%, #0a100e 72%, #064e3b 88%, #047857 100%);
   }
 }
 
 @media (min-width: 1600px) {
   .fit-gradient-bg {
     background-image:
-      linear-gradient(105deg, #1e3a8a 0%, #1d4ed8 10%, #0b1021 25%, #05070d 42%, #05070d 58%, #1f0b13 75%, #b91c1c 90%, #7f1d1d 100%);
+      linear-gradient(105deg, #064e3b 0%, #047857 10%, #10231d 25%, #070a09 43%, #070a09 60%, #0b1713 76%, #065f46 91%, #064e3b 100%);
   }
 }
 
@@ -65,6 +65,21 @@ body {
 
 button {
   font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 2px;
 }
 
 input,
@@ -102,9 +117,33 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.workout-builder details summary {
+  min-height: 44px;
+  list-style: none;
+}
+
+.workout-builder details summary::-webkit-details-marker {
+  display: none;
+}
+
+.workout-builder a,
+.workout-builder button {
+  touch-action: manipulation;
+}
+
 @media (max-width: 639px) {
   .app-shell {
     font-size: 15px;
+  }
+
+  .app-shell button,
+  .app-shell input,
+  .app-shell select {
+    min-height: 44px;
+  }
+
+  .workout-builder textarea {
+    min-height: 96px;
   }
 
   .app-shell .recharts-wrapper,
@@ -115,7 +154,7 @@ textarea {
 
 .scrollbar-soft {
   scrollbar-width: thin;
-  scrollbar-color: rgba(59, 130, 246, 0.55) rgba(255, 255, 255, 0.06);
+  scrollbar-color: rgba(16, 185, 129, 0.55) rgba(255, 255, 255, 0.06);
 }
 
 .scrollbar-soft::-webkit-scrollbar {
@@ -129,13 +168,45 @@ textarea {
 }
 
 .scrollbar-soft::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.55);
+  background: rgba(16, 185, 129, 0.55);
   border-radius: 999px;
 }
 
 ::selection {
-  background: #3b82f6;
+  background: #10b981;
   color: #09090b;
+}
+
+.app-shell .text-blue-100,
+.app-shell .text-blue-200,
+.app-shell .text-blue-300,
+.app-shell .text-blue-400 {
+  color: #a7f3d0;
+}
+
+.app-shell .bg-blue-400,
+.app-shell .bg-blue-500,
+.app-shell .bg-blue-600 {
+  background-color: #10b981;
+}
+
+.app-shell .border-blue-300\/20,
+.app-shell .border-blue-300\/25,
+.app-shell .border-blue-300\/30,
+.app-shell .border-blue-300\/35,
+.app-shell .border-blue-300\/40,
+.app-shell .border-blue-500 {
+  border-color: rgba(52, 211, 153, 0.38);
+}
+
+.app-shell .bg-blue-300\/5,
+.app-shell .bg-blue-300\/10,
+.app-shell .bg-blue-500\/10 {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.app-shell .focus\:border-blue-500:focus {
+  border-color: #10b981;
 }
 
 .sales-page {
@@ -143,7 +214,7 @@ textarea {
   --sales-scroll: 0px;
   --fitness-lime: #10b981;
   --fitness-lime-soft: #a7f3d0;
-  --fitness-violet: #047857;
+  --fitness-deep-emerald: #047857;
   --fitness-steel: #94a3b8;
   --fitness-coal: #070909;
   scroll-behavior: smooth;
@@ -187,22 +258,18 @@ textarea {
 
 .sales-page .bg-red-400,
 .sales-page .bg-red-500 {
-  background-color: var(--fitness-violet);
+  background-color: var(--fitness-deep-emerald);
 }
 
 .sales-page .text-red-200,
 .sales-page .text-red-300 {
-  color: #c4b5fd;
+  color: #a7f3d0;
 }
 
 .sales-page .from-blue-500,
 .sales-page .from-blue-600 {
   --tw-gradient-from: #10b981 var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(16 185 129 / 0) var(--tw-gradient-to-position);
-}
-
-.sales-page .via-violet-500 {
-  --tw-gradient-via: #059669 var(--tw-gradient-via-position);
 }
 
 .sales-page .to-red-500 {
@@ -232,7 +299,13 @@ textarea {
 }
 
 .sales-page button {
+  min-height: 44px;
   letter-spacing: 0;
+}
+
+.sales-page #acesso,
+.sales-page #recursos {
+  scroll-margin-top: 84px;
 }
 
 .sales-page input,
@@ -412,6 +485,23 @@ textarea {
 }
 
 @media (max-width: 639px) {
+  .sales-page h1 {
+    font-size: 2.15rem;
+    line-height: 1.12;
+  }
+
+  .sales-page h2 {
+    line-height: 1.18;
+  }
+
+  .sales-page section {
+    min-width: 0;
+  }
+
+  .sales-page header .fit-brand-lockup {
+    max-width: 76px;
+  }
+
   .sales-motion-ready [data-reveal] {
     transform: translateY(18px);
     transition-duration: 560ms;

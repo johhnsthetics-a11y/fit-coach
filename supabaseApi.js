@@ -3,11 +3,76 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
 
 let sessionToken = ''
+const REQUEST_TIMEOUT_MS = 25000
 
 export const supabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY)
 
 export function setSupabaseSession(token) {
   sessionToken = token || ''
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('A conexão demorou demais. Verifique sua internet e tente novamente.')
+    }
+    if (error instanceof TypeError || /failed to fetch|network/i.test(error?.message || '')) {
+      throw new Error('Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.')
+    }
+    throw new Error(error?.message || 'Falha de conexão com o servidor.')
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
+
+function serviceError(status, rawText) {
+  let payload = {}
+  try {
+    payload = JSON.parse(rawText)
+  } catch {
+    payload = {}
+  }
+
+  const code = payload.code || ''
+  const original = payload.message || payload.msg || rawText || 'Erro ao acessar Supabase'
+  const normalized = original.toLowerCase()
+
+  if (code === 'PGRST303' || normalized.includes('jwt expired')) {
+    return new Error('Sua sessão expirou. Entre novamente para continuar. (PGRST303)')
+  }
+  if (code === '42501' || normalized.includes('row-level security')) {
+    return new Error('O banco bloqueou esta operação por falta de permissão. Verifique as políticas de segurança do Supabase. (42501)')
+  }
+  if (code === 'PGRST202' || normalized.includes('could not find the function')) {
+    return new Error('Uma função necessária ainda não foi instalada no Supabase. Execute o SQL correspondente e tente novamente. (PGRST202)')
+  }
+  if (code === 'PGRST204' || normalized.includes('could not find the') && normalized.includes('column')) {
+    return new Error('O banco ainda não possui um campo necessário para esta função. Execute a atualização SQL mais recente. (PGRST204)')
+  }
+  if (status === 429 || normalized.includes('rate limit')) {
+    return new Error('Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.')
+  }
+  if (normalized.includes('invalid login credentials')) {
+    return new Error('E-mail ou senha incorretos.')
+  }
+  if (normalized.includes('email not confirmed')) {
+    return new Error('Confirme seu e-mail antes de entrar.')
+  }
+  if (normalized.includes('user already registered')) {
+    return new Error('Este e-mail já possui uma conta. Use a opção Entrar.')
+  }
+  if (normalized.includes('password should be at least')) {
+    return new Error('A senha precisa ter pelo menos 6 caracteres.')
+  }
+  if (status >= 500) {
+    return new Error('O serviço está temporariamente indisponível. Tente novamente em alguns instantes.')
+  }
+
+  return new Error(`${original}${code ? ` (${code})` : ''}`)
 }
 
 function authHeaders(extra = {}) {
@@ -20,10 +85,10 @@ function authHeaders(extra = {}) {
 
 async function request(path, options = {}) {
   if (!supabaseEnabled) {
-    throw new Error('Supabase nao configurado')
+    throw new Error('Supabase não configurado')
   }
 
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
       ...authHeaders({ 'Content-Type': 'application/json' }),
@@ -34,7 +99,7 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const message = await response.text()
-    throw new Error(`${response.status}: ${message || 'Erro ao acessar Supabase'}`)
+    throw serviceError(response.status, message)
   }
 
   if (response.status === 204) return null
@@ -42,7 +107,11 @@ async function request(path, options = {}) {
 }
 
 async function authRequest(path, body) {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+  if (!supabaseEnabled) {
+    throw new Error('Supabase não configurado')
+  }
+
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/${path}`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
@@ -51,7 +120,7 @@ async function authRequest(path, body) {
   const payload = await response.json().catch(() => ({}))
 
   if (!response.ok) {
-    throw new Error(payload.msg || payload.message || 'Erro de autenticacao')
+    throw serviceError(response.status, JSON.stringify(payload))
   }
 
   return payload
@@ -72,7 +141,7 @@ export async function signUpCoach({ name, email, password }) {
   })
 
   if (!payload.access_token) {
-    throw new Error('Conta criada. Confirme o email na sua caixa de entrada e depois entre com email e senha.')
+    throw new Error('Conta criada. Confirme o e-mail na sua caixa de entrada e depois entre com e-mail e senha.')
   }
 
   setSupabaseSession(payload.access_token)
@@ -89,9 +158,50 @@ export async function signInCoach({ email, password }) {
   return toSession(payload)
 }
 
+export async function signOutCoach(accessToken) {
+  if (!supabaseEnabled || !accessToken) return
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  if (!response.ok && response.status !== 401) {
+    const message = await response.text()
+    throw serviceError(response.status, message)
+  }
+}
+
+export async function requestCoachPasswordReset(email) {
+  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  await authRequest(`recover?redirect_to=${encodeURIComponent(redirectTo)}`, { email })
+}
+
+export async function updateRecoveredPassword(accessToken, password) {
+  if (!supabaseEnabled) {
+    throw new Error('Supabase não configurado')
+  }
+
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password }),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw serviceError(response.status, message)
+  }
+}
+
 export async function refreshCoachSession(refreshToken) {
   if (!refreshToken) {
-    throw new Error('Sessao sem token de renovacao')
+    throw new Error('Sessão sem token de renovação')
   }
 
   const payload = await authRequest('token?grant_type=refresh_token', {
@@ -108,16 +218,16 @@ export async function loadRemoteData() {
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
     request('notifications?select=*&order=created_at.desc'),
-    request('workouts?select=*,workout_exercises(*)&order=created_at.desc').catch(() => []),
-    request('nutrition_plans?select=*,nutrition_meals(*)&order=created_at.desc').catch(() => []),
-    request('workout_logs?select=*&order=completed_at.desc').catch(() => []),
-    request('messages?select=*&order=created_at.desc').catch(() => []),
-    request('appointments?select=*&order=starts_at.asc').catch(() => []),
-    request('invoices?select=*&order=due_date.desc').catch(() => []),
-    request('assessments?select=*&order=assessed_at.desc').catch(() => []),
-    request('coach_settings?select=*&limit=1').catch(() => []),
-    request('student_invites?select=*&order=created_at.desc').catch(() => []),
-    request('student_anamneses?select=*&order=submitted_at.desc').catch(() => []),
+    request('workouts?select=*,workout_exercises(*)&order=created_at.desc'),
+    request('nutrition_plans?select=*,nutrition_meals(*)&order=created_at.desc'),
+    request('workout_logs?select=*&order=completed_at.desc'),
+    request('messages?select=*&order=created_at.desc'),
+    request('appointments?select=*&order=starts_at.asc'),
+    request('invoices?select=*&order=due_date.desc'),
+    request('assessments?select=*&order=assessed_at.desc'),
+    request('coach_settings?select=*&limit=1'),
+    request('student_invites?select=*&order=created_at.desc'),
+    request('student_anamneses?select=*&order=submitted_at.desc'),
   ])
 
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
@@ -162,6 +272,30 @@ export async function saveRemoteStudent(student, coachId) {
   return fromStudentRow(rows[0])
 }
 
+export async function deleteRemoteStudent(studentId) {
+  if (!isUuid(studentId)) return
+  const checkins = await request(
+    `checkins?student_id=eq.${studentId}&select=checkin_photos(storage_url)`,
+  )
+  const photoPaths = checkins.flatMap((checkin) => (
+    (checkin.checkin_photos ?? []).map((photo) => photo.storage_url).filter(Boolean)
+  ))
+
+  if (photoPaths.length) {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
+      method: 'DELETE',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ prefixes: photoPaths }),
+    })
+    if (!response.ok) {
+      const message = await response.text()
+      throw serviceError(response.status, message || 'Erro ao excluir fotos do aluno')
+    }
+  }
+
+  await request(`students?id=eq.${studentId}`, { method: 'DELETE' })
+}
+
 export async function saveRemoteCheckin(checkin) {
   const result = checkin.inviteCode
     ? await rpcRequest('submit_student_checkin', {
@@ -178,41 +312,51 @@ export async function saveRemoteCheckin(checkin) {
     })
   const saved = Array.isArray(result) ? result[0] : result
 
-  const photoPath = checkin.photoFile
-    ? await uploadCheckinPhoto(checkin.photoFile, saved.id, checkin.inviteCode)
-    : checkin.photo
+  let photoPath = checkin.photo
+  let uploadWarning = ''
+  try {
+    photoPath = checkin.photoFile
+      ? await uploadCheckinPhoto(checkin.photoFile, saved.id, checkin.inviteCode)
+      : checkin.photo
 
-  if (photoPath) {
-    if (checkin.inviteCode) {
-      await rpcRequest('attach_student_checkin_photo', {
-        invite_code: checkin.inviteCode,
-        selected_checkin_id: saved.id,
-        photo_url: photoPath,
-      })
-    } else {
-      await request('checkin_photos', {
-        method: 'POST',
-        body: JSON.stringify({
-          checkin_id: saved.id,
-          storage_url: photoPath,
-          label: 'Foto enviada no app',
-        }),
-      })
+    if (photoPath) {
+      if (checkin.inviteCode) {
+        await rpcRequest('attach_student_checkin_photo', {
+          invite_code: checkin.inviteCode,
+          selected_checkin_id: saved.id,
+          photo_url: photoPath,
+        })
+      } else {
+        await request('checkin_photos', {
+          method: 'POST',
+          body: JSON.stringify({
+            checkin_id: saved.id,
+            storage_url: photoPath,
+            label: 'Foto enviada no app',
+          }),
+        })
+      }
     }
+  } catch (error) {
+    photoPath = ''
+    uploadWarning = `O check-in foi salvo, mas a foto não foi enviada: ${error?.message || 'erro desconhecido'}`
   }
 
   const signedPhoto = photoPath ? await signCheckinPhoto(photoPath) : ''
-  return fromCheckinRow({
-    ...saved,
-    checkin_photos: photoPath ? [{ storage_url: photoPath, signed_url: signedPhoto }] : [],
-  })
+  return {
+    ...fromCheckinRow({
+      ...saved,
+      checkin_photos: photoPath ? [{ storage_url: photoPath, signed_url: signedPhoto }] : [],
+    }),
+    uploadWarning,
+  }
 }
 
 async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
   const extension = file.name?.split('.').pop() || 'jpg'
   const prefix = inviteCode ? `${inviteCode}/` : ''
   const safeName = `${prefix}${checkinId}/${Date.now()}.${extension}`.replace(/\s+/g, '-')
-  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}/${safeName}`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}/${safeName}`, {
     method: 'POST',
     headers: authHeaders({
       'Content-Type': file.type || 'application/octet-stream',
@@ -223,7 +367,7 @@ async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
 
   if (!response.ok) {
     const message = await response.text()
-    throw new Error(`${response.status}: ${message || 'Erro ao enviar foto'}`)
+    throw serviceError(response.status, message || 'Erro ao enviar foto')
   }
 
   return safeName
@@ -276,12 +420,12 @@ export async function loadRemoteStudentByInvite(code) {
   const invite = payload?.invite
 
   if (!invite || !payload?.student) {
-    throw new Error('Convite nao encontrado ou expirado')
+    throw new Error('Convite não encontrado ou expirado')
   }
 
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
 
-  const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code }).catch(() => null)
+  const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
 
   return {
@@ -341,17 +485,36 @@ export async function saveRemoteWorkout(workout, coachId) {
     reps: exercise.reps,
     load: exercise.load,
     rest: exercise.rest,
+    muscle_group: exercise.muscleGroup || null,
+    equipment: exercise.equipment || null,
+    instructions: exercise.instructions || null,
+    video_url: exercise.videoUrl || null,
     order_index: index,
   }))
 
-  const exerciseRows = exercises.length
-    ? await request('workout_exercises', {
-      method: 'POST',
-      body: JSON.stringify(exercises),
-    })
-    : []
+  let exerciseRows = []
+  try {
+    if (exercises.length) {
+      exerciseRows = await request('workout_exercises', {
+        method: 'POST',
+        body: JSON.stringify(exercises),
+      })
+    }
+  } catch (error) {
+    await request(`workouts?id=eq.${savedWorkout.id}`, { method: 'DELETE' }).catch(() => null)
+    throw error
+  }
 
   return fromWorkoutRow({ ...savedWorkout, workout_exercises: exerciseRows })
+}
+
+export async function archiveRemoteWorkout(workoutId) {
+  if (!isUuid(workoutId)) return null
+  const rows = await request(`workouts?id=eq.${workoutId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active: false }),
+  })
+  return rows[0] ? fromWorkoutRow(rows[0]) : null
 }
 
 export async function saveRemoteNutritionPlan(plan, coachId) {
@@ -378,14 +541,29 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
     order_index: index,
   }))
 
-  const mealRows = meals.length
-    ? await request('nutrition_meals', {
-      method: 'POST',
-      body: JSON.stringify(meals),
-    })
-    : []
+  let mealRows = []
+  try {
+    mealRows = meals.length
+      ? await request('nutrition_meals', {
+        method: 'POST',
+        body: JSON.stringify(meals),
+      })
+      : []
+  } catch (error) {
+    await request(`nutrition_plans?id=eq.${savedPlan.id}`, { method: 'DELETE' }).catch(() => null)
+    throw error
+  }
 
   return fromNutritionPlanRow({ ...savedPlan, nutrition_meals: mealRows })
+}
+
+export async function archiveRemoteNutritionPlan(planId) {
+  if (!isUuid(planId)) return null
+  const rows = await request(`nutrition_plans?id=eq.${planId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ active: false }),
+  })
+  return rows[0] ? fromNutritionPlanRow(rows[0]) : null
 }
 
 export async function saveRemoteWorkoutLog(log) {
@@ -436,6 +614,14 @@ export async function saveRemoteMessage(message) {
   })
 
   return fromMessageRow(rows[0])
+}
+
+export async function markRemoteStudentMessagesRead(studentId) {
+  if (!isUuid(studentId)) return
+  await request(`messages?student_id=eq.${studentId}&sender=eq.student&read=eq.false`, {
+    method: 'PATCH',
+    body: JSON.stringify({ read: true }),
+  })
 }
 
 export async function saveRemoteAppointment(appointment, coachId) {
@@ -664,7 +850,7 @@ async function signCheckinPhoto(storageValue) {
   const path = extractStoragePath(storageValue)
   if (!path) return ''
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${SUPABASE_URL}/storage/v1/object/sign/${PHOTO_BUCKET}/${encodeStoragePath(path)}`,
     {
       method: 'POST',
@@ -675,7 +861,7 @@ async function signCheckinPhoto(storageValue) {
 
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(payload.message || 'Erro ao acessar foto protegida')
+    throw serviceError(response.status, JSON.stringify(payload))
   }
 
   const signedPath = payload.signedURL || payload.signedUrl || ''
@@ -781,6 +967,10 @@ function fromWorkoutRow(row) {
         reps: exercise.reps ?? '',
         load: exercise.load ?? '',
         rest: exercise.rest ?? '',
+        muscleGroup: exercise.muscle_group ?? '',
+        equipment: exercise.equipment ?? '',
+        instructions: exercise.instructions ?? '',
+        videoUrl: exercise.video_url ?? '',
       })),
   }
 }

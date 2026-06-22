@@ -1,24 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import {
   acceptRemoteStudentConsent,
+  archiveRemoteNutritionPlan,
+  archiveRemoteWorkout,
   createRemoteStudentInvite,
+  deleteRemoteStudent,
   loadRemoteData,
   loadRemoteStudentByInvite,
+  markRemoteStudentMessagesRead,
   markRemoteNotificationsRead,
+  requestCoachPasswordReset,
   refreshCoachSession,
   saveRemoteAppointment,
   saveRemoteAssessment,
@@ -32,21 +24,27 @@ import {
   saveRemoteWorkoutLog,
   setSupabaseSession,
   signInCoach,
+  signOutCoach,
   signUpCoach,
   submitRemoteStudentAnamnesis,
   supabaseEnabled,
   updateRemoteAppointmentStatus,
   updateRemoteInvoiceStatus,
   updateRemotePayment,
+  updateRecoveredPassword,
   upsertRemoteUser,
 } from './supabaseApi'
 
+const AssessmentChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.AssessmentChart })))
+const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.RevenueChart })))
+
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
+const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 
 const plans = [
   { name: 'Essential', price: 'R$ 197', features: 'Treino, dieta e 1 check-in semanal' },
-  { name: 'Performance', price: 'R$ 347', features: 'Ajustes semanais, suporte e analise de videos' },
-  { name: 'Elite', price: 'R$ 597', features: 'Acompanhamento premium, chamadas e revisoes completas' },
+  { name: 'Performance', price: 'R$ 347', features: 'Ajustes semanais, suporte e análise de vídeos' },
+  { name: 'Elite', price: 'R$ 597', features: 'Acompanhamento premium, chamadas e revisões completas' },
 ]
 
 const navItems = [
@@ -66,15 +64,43 @@ const navItems = [
 
 const workoutPlan = [
   { day: 'Segunda', focus: 'Upper A', items: 'Supino, remada, desenvolvimento', status: 'Publicado' },
-  { day: 'Terca', focus: 'Cardio Z2', items: '35 min esteira + mobilidade', status: 'Publicado' },
+  { day: 'Terça', focus: 'Cardio Z2', items: '35 min de esteira + mobilidade', status: 'Publicado' },
   { day: 'Quarta', focus: 'Lower A', items: 'Agachamento, stiff, panturrilha', status: 'Revisar carga' },
   { day: 'Quinta', focus: 'Descanso ativo', items: 'Passos, alongamento, sono', status: 'Publicado' },
 ]
 
+const exerciseLibrary = [
+  { name: 'Supino reto com barra', group: 'Peitoral', equipment: 'Barra e banco', cues: 'Pés firmes, escápulas apoiadas e barra descendo com controle até a linha média do peito.', aliases: ['supino reto', 'bench press'] },
+  { name: 'Supino inclinado com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Mantenha o peito aberto, antebraços alinhados e evite perder a posição dos ombros.', aliases: ['supino inclinado'] },
+  { name: 'Crucifixo com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Cotovelos levemente flexionados e amplitude controlada sem forçar a articulação do ombro.', aliases: ['crucifixo'] },
+  { name: 'Flexão de braços', group: 'Peitoral', equipment: 'Peso corporal', cues: 'Corpo alinhado, abdômen ativo e cotovelos acompanhando a linha natural dos ombros.', aliases: ['flexao', 'flexão'] },
+  { name: 'Puxada frontal', group: 'Costas', equipment: 'Polia alta', cues: 'Inicie deprimindo as escápulas e puxe a barra em direção à parte superior do peito.', aliases: ['puxada alta', 'pulley frente'] },
+  { name: 'Remada baixa', group: 'Costas', equipment: 'Polia baixa', cues: 'Tronco estável, peito aberto e cotovelos conduzindo o movimento para trás.', aliases: ['remada sentada'] },
+  { name: 'Remada curvada com barra', group: 'Costas', equipment: 'Barra', cues: 'Quadril para trás, coluna neutra e barra aproximando-se do abdômen sem balanço.', aliases: ['remada curvada'] },
+  { name: 'Barra fixa', group: 'Costas', equipment: 'Barra fixa', cues: 'Evite impulso, mantenha o tronco firme e conduza o peito em direção à barra.', aliases: ['pull up', 'barra'] },
+  { name: 'Desenvolvimento com halteres', group: 'Ombros', equipment: 'Halteres', cues: 'Abdômen ativo, punhos alinhados e subida sem compensar com a lombar.', aliases: ['desenvolvimento', 'shoulder press'] },
+  { name: 'Elevação lateral', group: 'Ombros', equipment: 'Halteres', cues: 'Eleve pelos cotovelos até a linha dos ombros, sem embalo e com carga controlada.', aliases: ['elevacao lateral'] },
+  { name: 'Rosca direta', group: 'Bíceps', equipment: 'Barra', cues: 'Cotovelos próximos ao tronco e movimento sem inclinar o corpo para gerar impulso.', aliases: ['rosca barra'] },
+  { name: 'Rosca alternada', group: 'Bíceps', equipment: 'Halteres', cues: 'Mantenha o braço estável e controle completamente a fase de descida.', aliases: ['rosca com halteres'] },
+  { name: 'Tríceps na polia', group: 'Tríceps', equipment: 'Polia', cues: 'Cotovelos fixos, ombros baixos e extensão completa sem movimentar o tronco.', aliases: ['triceps pulley', 'tríceps pulley'] },
+  { name: 'Tríceps francês', group: 'Tríceps', equipment: 'Halter', cues: 'Mantenha os cotovelos apontados à frente e evite compensação lombar.', aliases: ['triceps frances'] },
+  { name: 'Agachamento livre', group: 'Quadríceps e glúteos', equipment: 'Barra', cues: 'Pés firmes, joelhos acompanhando a direção dos pés e coluna neutra durante toda a amplitude.', aliases: ['agachamento', 'back squat'] },
+  { name: 'Leg press 45°', group: 'Quadríceps e glúteos', equipment: 'Leg press', cues: 'Lombar apoiada, joelhos alinhados e descida apenas até manter a pelve estável.', aliases: ['leg press'] },
+  { name: 'Cadeira extensora', group: 'Quadríceps', equipment: 'Máquina', cues: 'Ajuste o eixo ao joelho, estabilize o quadril e controle a descida.', aliases: ['extensora'] },
+  { name: 'Mesa flexora', group: 'Posteriores de coxa', equipment: 'Máquina', cues: 'Quadril apoiado, abdômen ativo e flexão sem tirar o tronco do banco.', aliases: ['flexora deitada'] },
+  { name: 'Stiff com barra', group: 'Posteriores e glúteos', equipment: 'Barra', cues: 'Empurre o quadril para trás, mantenha a barra próxima às pernas e preserve a coluna neutra.', aliases: ['stiff', 'romeno'] },
+  { name: 'Levantamento terra', group: 'Posteriores e costas', equipment: 'Barra', cues: 'Barra próxima ao corpo, tronco firme e força aplicada pelo chão sem arredondar a coluna.', aliases: ['terra', 'deadlift'] },
+  { name: 'Afundo com halteres', group: 'Quadríceps e glúteos', equipment: 'Halteres', cues: 'Passo estável, tronco organizado e joelho dianteiro acompanhando a ponta do pé.', aliases: ['afundo', 'passada'] },
+  { name: 'Elevação pélvica', group: 'Glúteos', equipment: 'Banco e barra', cues: 'Queixo levemente recolhido, costelas baixas e extensão do quadril sem hiperestender a lombar.', aliases: ['hip thrust'] },
+  { name: 'Panturrilha em pé', group: 'Panturrilhas', equipment: 'Máquina ou peso corporal', cues: 'Use amplitude completa, pause no topo e controle a descida sem quicar.', aliases: ['panturrilha'] },
+  { name: 'Prancha abdominal', group: 'Core', equipment: 'Peso corporal', cues: 'Contraia glúteos e abdômen, mantendo cabeça, tronco e quadril alinhados.', aliases: ['prancha'] },
+  { name: 'Abdominal crunch', group: 'Core', equipment: 'Peso corporal', cues: 'Aproxime costelas e pelve sem puxar a cabeça e retorne de forma controlada.', aliases: ['abdominal'] },
+]
+
 const mealPlan = [
-  { meal: 'Cafe da manha', foods: 'Ovos, aveia, banana, cafe', macros: '42P / 74C / 18G' },
-  { meal: 'Almoco', foods: 'Arroz, frango, feijao, salada', macros: '58P / 96C / 16G' },
-  { meal: 'Pre treino', foods: 'Iogurte, mel, granola', macros: '26P / 61C / 8G' },
+  { meal: 'Café da manhã', foods: 'Ovos, aveia, banana, café', macros: '42P / 74C / 18G' },
+  { meal: 'Almoço', foods: 'Arroz, frango, feijão, salada', macros: '58P / 96C / 16G' },
+  { meal: 'Pré-treino', foods: 'Iogurte, mel, granola', macros: '26P / 61C / 8G' },
   { meal: 'Jantar', foods: 'Patinho, batata, legumes', macros: '52P / 68C / 14G' },
 ]
 
@@ -245,17 +271,50 @@ function normalizeStoredData(value) {
   )
 }
 
+function mergeRecords(current = [], loaded = []) {
+  const records = new Map()
+  const combined = [...loaded, ...current]
+  combined.forEach((item, index) => {
+    const key = item?.id ? String(item.id) : `item-${index}-${item?.createdAt || item?.completedAt || ''}`
+    records.set(key, item)
+  })
+  return [...records.values()]
+}
+
+function prepareDataForStorage(data) {
+  if (supabaseEnabled) {
+    return {
+      ...createInitialData(),
+      user: data.user ?? null,
+      session: data.session ?? null,
+      coachSettings: data.coachSettings ?? null,
+    }
+  }
+
+  return {
+    ...data,
+    checkins: (data.checkins ?? []).map(({ photoFile, ...checkin }) => ({
+      ...checkin,
+      photo: typeof checkin.photo === 'string' && checkin.photo.startsWith('data:') ? '' : checkin.photo,
+    })),
+  }
+}
+
 function useStoredData() {
   const [data, setData] = useState(() => {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY)
-      return saved ? normalizeStoredData(JSON.parse(saved)) : createInitialData()
+      return saved ? normalizeStoredData(prepareDataForStorage(JSON.parse(saved))) : createInitialData()
     } catch {
       return createInitialData()
     }
   })
-  const [remoteStatus, setRemoteStatus] = useState(supabaseEnabled ? 'Conectando Supabase' : 'Banco local')
-  const [remoteError, setRemoteError] = useState('')
+  const [remoteStatus, setRemoteStatus] = useState(
+    supabaseEnabled ? 'Conectando Supabase' : productionWithoutSupabase ? 'Configuração pendente' : 'Banco local',
+  )
+  const [remoteError, setRemoteError] = useState(
+    productionWithoutSupabase ? 'As variáveis do Supabase ainda não foram configuradas nesta publicação.' : '',
+  )
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token) return
@@ -300,15 +359,15 @@ function useStoredData() {
                   session: nextSession,
                   user: current.user ?? nextSession.user,
                 }))
-                setRemoteStatus('Sessao renovada')
+                setRemoteStatus('Sessão renovada')
                 setRemoteError('')
               })
               .catch(() => {
                 if (!active) return
                 setSupabaseSession('')
                 setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
-                setRemoteStatus('Sessao expirada')
-                setRemoteError('Sua sessao expirou. Entre novamente para continuar.')
+                setRemoteStatus('Sessão expirada')
+                setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
               })
             return
           }
@@ -329,7 +388,12 @@ function useStoredData() {
   }, [data.session?.access_token, data.session?.refresh_token])
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prepareDataForStorage(data)))
+    } catch {
+      setRemoteStatus('Armazenamento do navegador cheio')
+      setRemoteError('Alguns dados temporários não puderam ser mantidos neste navegador. Seus registros salvos no Supabase continuam seguros.')
+    }
   }, [data])
 
   return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError]
@@ -341,6 +405,7 @@ export default function App() {
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [tone, setTone] = useState('Firme')
   const [studentAccess, setStudentAccess] = useState(null)
+  const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
@@ -380,6 +445,19 @@ export default function App() {
   }, [data.session?.access_token])
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [activeView])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [mobileMenuOpen])
+
+  useEffect(() => {
     if (!supabaseEnabled || !data.session?.refresh_token) return undefined
 
     const expiresAt = data.session.expires_at
@@ -387,7 +465,7 @@ export default function App() {
       : Date.now() + 45 * 60 * 1000
     const refreshDelay = Math.max(expiresAt - Date.now() - 60 * 1000, 30 * 1000)
     const timer = window.setTimeout(() => {
-      refreshStoredSession('Sessao renovada automaticamente')
+      refreshStoredSession('Sessão renovada automaticamente')
     }, refreshDelay)
 
     return () => window.clearTimeout(timer)
@@ -407,6 +485,24 @@ export default function App() {
     const password = formData.get('password')?.toString() || ''
     const mode = formData.get('mode')?.toString() || 'signin'
     const user = { name, email, role: 'Coach principal' }
+
+    if (productionWithoutSupabase) {
+      setRemoteStatus('Configuração pendente')
+      setRemoteError('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Cloudflare antes de liberar o acesso.')
+      return false
+    }
+
+    if (mode === 'forgot') {
+      try {
+        await requestCoachPasswordReset(email)
+        setRemoteStatus('E-mail de recuperação enviado')
+        setRemoteError('Abra o link recebido no e-mail para cadastrar uma nova senha.')
+      } catch (error) {
+        setRemoteStatus('Erro na recuperação de senha')
+        setRemoteError(error.message)
+      }
+      return false
+    }
 
     let savedUser = user
     let session = null
@@ -441,6 +537,7 @@ export default function App() {
         setRemoteError('')
         return true
       } catch (error) {
+        setSupabaseSession('')
         setRemoteStatus('Erro no login')
         setRemoteError(error.message)
         return false
@@ -459,6 +556,10 @@ export default function App() {
   }
 
   function logout() {
+    const accessToken = data.session?.access_token
+    if (accessToken) {
+      signOutCoach(accessToken).catch(() => {})
+    }
     setSupabaseSession('')
     setStudentAccess(null)
     setSelectedStudentId(null)
@@ -482,9 +583,9 @@ export default function App() {
     }))
   }
 
-  async function refreshStoredSession(successStatus = 'Sessao renovada') {
+  async function refreshStoredSession(successStatus = 'Sessão renovada') {
     if (!data.session?.refresh_token) {
-      throw new Error('Sessao expirada')
+      throw new Error('Sessão expirada')
     }
 
     const nextSession = await refreshCoachSession(data.session.refresh_token)
@@ -504,14 +605,14 @@ export default function App() {
 
     if (message.includes('JWT expired') || message.includes('PGRST303')) {
       if (data.session?.refresh_token) {
-        refreshStoredSession('Sessao renovada')
+        refreshStoredSession('Sessão renovada')
           .then(() => {
-            setRemoteError('Sessao renovada. Tente a acao novamente.')
+            setRemoteError('Sessão renovada. Tente a ação novamente.')
           })
           .catch(() => {
             setSupabaseSession('')
-            setRemoteStatus('Sessao expirada')
-            setRemoteError('Sua sessao expirou. Entre novamente para continuar.')
+            setRemoteStatus('Sessão expirada')
+            setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
             setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
           })
         return
@@ -599,6 +700,41 @@ export default function App() {
     }
   }
 
+  async function deleteStudent(studentId) {
+    if (supabaseEnabled) {
+      try {
+        await deleteRemoteStudent(studentId)
+        setRemoteStatus('Aluno excluído')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao excluir aluno')
+        throw error
+      }
+    }
+
+    const belongsToStudent = (item) => String(item.studentId) === String(studentId)
+    setData((current) => ({
+      ...current,
+      students: current.students.filter((student) => String(student.id) !== String(studentId)),
+      checkins: current.checkins.filter((item) => !belongsToStudent(item)),
+      workouts: current.workouts.filter((item) => !belongsToStudent(item)),
+      nutritionPlans: current.nutritionPlans.filter((item) => !belongsToStudent(item)),
+      workoutLogs: current.workoutLogs.filter((item) => !belongsToStudent(item)),
+      messages: current.messages.filter((item) => !belongsToStudent(item)),
+      appointments: current.appointments.filter((item) => !belongsToStudent(item)),
+      invoices: current.invoices.filter((item) => !belongsToStudent(item)),
+      assessments: current.assessments.filter((item) => !belongsToStudent(item)),
+      invites: current.invites.filter((item) => !belongsToStudent(item)),
+      anamneses: current.anamneses.filter((item) => !belongsToStudent(item)),
+      notifications: [
+        { id: Date.now(), title: 'Aluno excluído', body: 'O perfil e os registros vinculados foram removidos.', read: false },
+        ...current.notifications,
+      ],
+    }))
+    const remainingStudents = data.students.filter((student) => String(student.id) !== String(studentId))
+    setSelectedStudentId(remainingStudents[0]?.id ?? null)
+  }
+
   async function addCheckin(checkin) {
     const { photoFile, ...localCheckin } = checkin
     let savedCheckin = { ...localCheckin, id: Date.now() }
@@ -606,11 +742,16 @@ export default function App() {
     if (supabaseEnabled) {
       try {
         savedCheckin = await saveRemoteCheckin(checkin)
-        setRemoteStatus('Supabase conectado')
-        setRemoteError('')
+        if (savedCheckin.uploadWarning) {
+          setRemoteStatus('Check-in salvo sem a foto')
+          setRemoteError(savedCheckin.uploadWarning)
+        } else {
+          setRemoteStatus('Supabase conectado')
+          setRemoteError('')
+        }
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar check-in')
-        savedCheckin = { ...checkin, id: Date.now() }
+        throw error
       }
     }
 
@@ -622,6 +763,7 @@ export default function App() {
         ...current.notifications,
       ],
     }))
+    return savedCheckin
   }
 
   async function updatePayment(studentId, payment) {
@@ -632,6 +774,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao atualizar pagamento')
+        return false
       }
     }
 
@@ -643,6 +786,7 @@ export default function App() {
         ...current.notifications,
       ],
     }))
+    return true
   }
 
   async function markNotificationsRead() {
@@ -653,6 +797,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao atualizar notificações')
+        return false
       }
     }
 
@@ -660,10 +805,11 @@ export default function App() {
       ...current,
       notifications: current.notifications.map((item) => ({ ...item, read: true })),
     }))
+    return true
   }
 
   async function saveWorkout(workout) {
-    let savedWorkout = { ...workout, id: Date.now() }
+    let savedWorkout = { ...workout, id: Date.now(), active: true }
 
     if (supabaseEnabled) {
       try {
@@ -672,6 +818,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar treino')
+        throw error
       }
     }
 
@@ -683,8 +830,28 @@ export default function App() {
     return savedWorkout
   }
 
+  async function archiveWorkout(workoutId) {
+    if (supabaseEnabled) {
+      try {
+        await archiveRemoteWorkout(workoutId)
+        setRemoteStatus('Treino arquivado')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao arquivar treino')
+        return false
+      }
+    }
+    setData((current) => ({
+      ...current,
+      workouts: current.workouts.map((workout) => (
+        String(workout.id) === String(workoutId) ? { ...workout, active: false } : workout
+      )),
+    }))
+    return true
+  }
+
   async function saveNutritionPlan(plan) {
-    let savedPlan = { ...plan, id: Date.now() }
+    let savedPlan = { ...plan, id: Date.now(), active: true }
 
     if (supabaseEnabled) {
       try {
@@ -693,6 +860,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar dieta')
+        throw error
       }
     }
 
@@ -702,6 +870,26 @@ export default function App() {
     }))
 
     return savedPlan
+  }
+
+  async function archiveNutritionPlan(planId) {
+    if (supabaseEnabled) {
+      try {
+        await archiveRemoteNutritionPlan(planId)
+        setRemoteStatus('Dieta arquivada')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao arquivar dieta')
+        return false
+      }
+    }
+    setData((current) => ({
+      ...current,
+      nutritionPlans: current.nutritionPlans.map((plan) => (
+        String(plan.id) === String(planId) ? { ...plan, active: false } : plan
+      )),
+    }))
+    return true
   }
 
   async function completeWorkout(log) {
@@ -714,6 +902,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao concluir treino')
+        throw error
       }
     }
 
@@ -740,6 +929,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar compromisso')
+        throw error
       }
     }
 
@@ -764,6 +954,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao atualizar agenda')
+        return false
       }
     }
 
@@ -775,6 +966,7 @@ export default function App() {
           : appointment
       )),
     }))
+    return true
   }
 
   async function saveInvoice(invoice) {
@@ -790,10 +982,11 @@ export default function App() {
     if (supabaseEnabled) {
       try {
         savedInvoice = await saveRemoteInvoice(invoice, data.user?.id)
-        setRemoteStatus('Cobranca criada')
+        setRemoteStatus('Cobrança criada')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao criar cobranca')
+        handleRemoteError(error, 'Erro ao criar cobrança')
+        throw error
       }
     }
 
@@ -801,7 +994,7 @@ export default function App() {
       ...current,
       invoices: [savedInvoice, ...(current.invoices ?? [])],
       notifications: [
-        { id: Date.now() + 1, title: 'Nova cobranca', body: `${savedInvoice.planName} - ${formatCurrency(savedInvoice.amount)}`, read: false },
+        { id: Date.now() + 1, title: 'Nova cobrança', body: `${savedInvoice.planName} - ${formatCurrency(savedInvoice.amount)}`, read: false },
         ...current.notifications,
       ],
     }))
@@ -820,10 +1013,11 @@ export default function App() {
     if (supabaseEnabled) {
       try {
         savedAssessment = await saveRemoteAssessment(assessment, data.user?.id)
-        setRemoteStatus('Avaliacao salva')
+        setRemoteStatus('Avaliação salva')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao salvar avaliacao')
+        handleRemoteError(error, 'Erro ao salvar avaliação')
+        throw error
       }
     }
 
@@ -840,7 +1034,7 @@ export default function App() {
           : student
       )),
       notifications: [
-        { id: Date.now() + 1, title: 'Avaliacao registrada', body: `Peso ${formatNumber(savedAssessment.weightKg)} kg`, read: false },
+        { id: Date.now() + 1, title: 'Avaliação registrada', body: `Peso ${formatNumber(savedAssessment.weightKg)} kg`, read: false },
         ...current.notifications,
       ],
     }))
@@ -854,10 +1048,11 @@ export default function App() {
     if (supabaseEnabled) {
       try {
         savedSettings = await saveRemoteCoachSettings(settings, data.user?.id)
-        setRemoteStatus('Configuracoes salvas')
+        setRemoteStatus('Configurações salvas')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao salvar configuracoes')
+        handleRemoteError(error, 'Erro ao salvar configurações')
+        throw error
       }
     }
 
@@ -891,14 +1086,23 @@ export default function App() {
 
   async function updateInvoiceStatus(invoiceId, status, paymentMethod = '') {
     let savedInvoice = null
+    let paymentSyncError = null
 
     if (supabaseEnabled) {
       try {
         savedInvoice = await updateRemoteInvoiceStatus(invoiceId, status, paymentMethod)
-        setRemoteStatus('Cobranca atualizada')
+        if (status === 'Pago' && savedInvoice?.studentId) {
+          try {
+            await updateRemotePayment(savedInvoice.studentId, 'Pago')
+          } catch (error) {
+            paymentSyncError = error
+          }
+        }
+        setRemoteStatus('Cobrança atualizada')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao atualizar cobranca')
+        handleRemoteError(error, 'Erro ao atualizar cobrança')
+        return false
       }
     }
 
@@ -923,6 +1127,11 @@ export default function App() {
         )),
       }
     })
+    if (paymentSyncError) {
+      handleRemoteError(paymentSyncError, 'Cobrança paga, mas o status do aluno não foi sincronizado')
+      return 'partial'
+    }
+    return true
   }
 
   async function sendMessage(message) {
@@ -942,6 +1151,7 @@ export default function App() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar mensagem')
+        throw error
       }
     }
 
@@ -962,6 +1172,27 @@ export default function App() {
     }))
 
     return savedMessage
+  }
+
+  async function markStudentMessagesRead(studentId) {
+    if (supabaseEnabled) {
+      try {
+        await markRemoteStudentMessagesRead(studentId)
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao atualizar mensagens')
+        return false
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      messages: (current.messages ?? []).map((message) => (
+        String(message.studentId) === String(studentId) && message.sender === 'student'
+          ? { ...message, read: true }
+          : message
+      )),
+    }))
+    return true
   }
 
   async function enterStudentByInvite(code) {
@@ -1008,6 +1239,21 @@ export default function App() {
     setStudentAccess(null)
   }
 
+  async function finishPasswordRecovery(password) {
+    await updateRecoveredPassword(recoveryAccessToken, password)
+    setRecoveryAccessToken('')
+    const url = new URL(window.location.href)
+    const recoveryParams = ['type', 'access_token', 'refresh_token', 'expires_in', 'expires_at', 'token_type']
+    recoveryParams.forEach((key) => url.searchParams.delete(key))
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`)
+    setRemoteStatus('Senha atualizada')
+    setRemoteError('Entre com seu e-mail e a nova senha.')
+  }
+
+  if (recoveryAccessToken) {
+    return <PasswordRecovery onSave={finishPasswordRecovery} />
+  }
+
   if (salesPreview) {
     return (
       <LoginScreen
@@ -1048,8 +1294,8 @@ export default function App() {
         checkins={data.checkins}
         workouts={studentAccess.workouts ?? []}
         nutritionPlans={studentAccess.nutritionPlans ?? []}
-        workoutLogs={data.workoutLogs?.length ? data.workoutLogs : studentAccess.workoutLogs ?? []}
-        messages={data.messages?.length ? data.messages : studentAccess.messages ?? []}
+        workoutLogs={mergeRecords(data.workoutLogs, studentAccess.workoutLogs)}
+        messages={mergeRecords(data.messages, studentAccess.messages)}
         appointments={studentAccess.appointments ?? []}
         invoices={studentAccess.invoices ?? []}
         assessments={studentAccess.assessments ?? []}
@@ -1071,6 +1317,10 @@ export default function App() {
         remoteError={remoteError}
       />
     )
+  }
+
+  if (supabaseEnabled && remoteStatus === 'Conectando Supabase') {
+    return <AppLoading />
   }
 
   const viewTitle = navItems.find((item) => item.id === activeView)?.label ?? 'Visão geral'
@@ -1125,6 +1375,8 @@ export default function App() {
             {navItems.map((item) => (
               <button
                 key={item.id}
+                type="button"
+                aria-current={activeView === item.id ? 'page' : undefined}
                 onClick={() => {
                   setActiveView(item.id)
                   setMobileMenuOpen(false)
@@ -1144,7 +1396,7 @@ export default function App() {
             ))}
           </nav>
 
-          <button onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-3 text-sm font-bold text-zinc-300">
+          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-3 text-sm font-bold text-zinc-300">
             Sair
           </button>
       </aside>
@@ -1159,7 +1411,7 @@ export default function App() {
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-                Gerencie alunos, prescricoes, evolucao, agenda, comunicacao e financeiro em um unico lugar.
+                Gerencie alunos, prescrições, evolução, agenda, comunicação e financeiro em um único lugar.
               </p>
             </div>
 
@@ -1172,7 +1424,7 @@ export default function App() {
                     tone === item ? 'border-amber-300 bg-amber-300 text-zinc-950' : 'border-white/10 bg-white/[0.04] text-zinc-300'
                   }`}
                 >
-                  {item}
+                  {formatUiText(item)}
                 </button>
               ))}
             </div>
@@ -1212,6 +1464,7 @@ export default function App() {
                 setSelectedStudentId={setSelectedStudentId}
                 onSave={saveStudent}
                 onGenerateInvite={generateStudentInvite}
+                onDelete={deleteStudent}
               />
             )}
             {activeView === 'avaliacoes' && (
@@ -1229,6 +1482,7 @@ export default function App() {
                 workouts={data.workouts ?? []}
                 workoutLogs={data.workoutLogs ?? []}
                 onSaveWorkout={saveWorkout}
+                onArchiveWorkout={archiveWorkout}
               />
             )}
             {activeView === 'nutricao' && (
@@ -1237,6 +1491,7 @@ export default function App() {
                 students={data.students}
                 nutritionPlans={data.nutritionPlans ?? []}
                 onSaveNutritionPlan={saveNutritionPlan}
+                onArchiveNutritionPlan={archiveNutritionPlan}
               />
             )}
             {activeView === 'checkins' && (
@@ -1265,6 +1520,7 @@ export default function App() {
                 students={data.students}
                 messages={data.messages ?? []}
                 onSendMessage={sendMessage}
+                onMarkRead={markStudentMessagesRead}
               />
             )}
             {activeView === 'aluno-app' && (
@@ -1300,6 +1556,83 @@ export default function App() {
           </div>
         </main>
     </div>
+  )
+}
+
+function AppLoading() {
+  return (
+    <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
+      <section className="w-full max-w-sm rounded-md border border-white/10 bg-zinc-950/85 p-6 text-center shadow-2xl shadow-black/30">
+        <div className="flex justify-center">
+          <BrandLockup large subtitle="FIT COACH" />
+        </div>
+        <div className="mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
+          <span className="block h-full w-1/2 animate-pulse rounded bg-emerald-400" />
+        </div>
+        <p className="mt-4 text-sm font-bold text-emerald-100">Carregando sua operação...</p>
+        <p className="mt-2 text-xs leading-5 text-zinc-500">Sincronizando alunos, prescrições e agenda.</p>
+      </section>
+    </main>
+  )
+}
+
+function getRecoveryAccessToken() {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const query = new URLSearchParams(window.location.search)
+  const type = hash.get('type') || query.get('type')
+  if (type !== 'recovery') return ''
+  return hash.get('access_token') || query.get('access_token') || ''
+}
+
+function PasswordRecovery({ onSave }) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const password = form.get('password')?.toString() || ''
+    const confirmation = form.get('confirmation')?.toString() || ''
+
+    if (password.length < 6) {
+      setError('A senha precisa ter pelo menos 6 caracteres.')
+      return
+    }
+    if (password !== confirmation) {
+      setError('As senhas informadas não são iguais.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(password)
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível atualizar a senha.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 sm:p-7">
+        <div className="flex justify-center">
+          <BrandLockup subtitle="FIT COACH" />
+        </div>
+        <p className="mt-6 text-xs font-black uppercase text-emerald-300">Recuperação de acesso</p>
+        <h1 className="mt-2 text-2xl font-black">Cadastre sua nova senha</h1>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Use pelo menos 6 caracteres e evite senhas utilizadas em outros serviços.</p>
+        <div className="mt-5 grid gap-4">
+          <Field label="Nova senha" name="password" type="password" defaultValue="" />
+          <Field label="Confirmar nova senha" name="confirmation" type="password" defaultValue="" />
+        </div>
+        {error ? <p className="mt-4 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+        <button disabled={saving} className="mt-5 w-full rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+          {saving ? 'Atualizando...' : 'Salvar nova senha'}
+        </button>
+      </form>
+    </main>
   )
 }
 
@@ -1435,7 +1768,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <button type="button" onClick={() => openAccess('student')} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 sm:px-4 sm:text-sm">
               Sou aluno
             </button>
-            <button type="button" onClick={() => openAccess('signin')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-white sm:px-4 sm:text-sm">
+            <button type="button" onClick={() => openAccess('signin')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950 sm:px-4 sm:text-sm">
               Entrar
             </button>
           </div>
@@ -1443,23 +1776,24 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
       </header>
 
       <main>
-        <section className="mx-auto grid min-h-[calc(100vh-68px)] max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.72fr)] lg:px-10 lg:py-14">
+        <section className="mx-auto grid max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100vh-68px)] lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.72fr)] lg:px-10 lg:py-14">
           <div className="min-w-0" data-reveal>
             <p className="text-sm font-semibold uppercase text-blue-200">Gestão profissional para personal trainers</p>
             <h1 className="mt-4 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.5rem]">
-              Mais alunos acompanhados. Mais organização. Mais valor no seu serviço.
+              Transforme seu acompanhamento em uma operação profissional, clara e escalável.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-              Centralize treinos, nutrição, check-ins, avaliações, agenda, pagamentos e comunicação em uma experiência profissional para você e seus alunos.
+              O FIT COACH reúne treinos, nutrição, evolução, agenda, pagamentos e comunicação para você atender melhor, demonstrar mais valor e crescer sem depender de planilhas espalhadas.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <button type="button" onClick={() => openAccess('signup')} className="rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-white">
-                Criar minha conta
+              <button type="button" onClick={() => openAccess('signup')} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
+                Profissionalizar meu acompanhamento
               </button>
-              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100">
-                Conhecer a plataforma
+              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
+                Ver como funciona
               </button>
             </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">Acesso pelo navegador, implantação gradual e portal individual para cada aluno.</p>
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
               <SalesStat value="1 painel" label="operação centralizada" />
               <SalesStat value="12 áreas" label="gestão completa" />
@@ -1472,9 +1806,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
 
           <form id="acesso" data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7 lg:sticky lg:top-24">
             <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
-            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : 'Entrar no painel'}</h2>
+            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Coach acessa com email e senha. Aluno utiliza o código enviado pelo treinador.
+              {mode === 'forgot'
+                ? 'Enviaremos um link seguro para o e-mail cadastrado.'
+                : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'}
             </p>
             <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
               <div className="flex items-center justify-between gap-3">
@@ -1494,7 +1830,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   key={id}
                   type="button"
                   onClick={() => setMode(id)}
-                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-blue-500 bg-blue-500 text-white' : 'border-white/10 text-zinc-300'}`}
+                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
                 >
                   {label}
                 </button>
@@ -1504,36 +1840,66 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <input type="hidden" name="mode" value={mode} />
               {mode === 'student' ? (
                 <Field label="Código de acesso" name="inviteCode" defaultValue="" />
+              ) : mode === 'forgot' ? (
+                <Field label="E-mail cadastrado" name="email" type="email" defaultValue="" />
               ) : (
                 <>
                   {mode === 'signup' ? <Field label="Nome profissional" name="name" defaultValue="" /> : null}
-                  <Field label="Email" name="email" type="email" defaultValue="" />
+                  <Field label="E-mail" name="email" type="email" defaultValue="" />
                   <Field label="Senha" name="password" type="password" defaultValue="" />
                 </>
               )}
             </div>
-            <button className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white">
-              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta profissional' : 'Entrar'}
+            <button disabled={loading} className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta profissional' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
             </button>
+            {mode === 'signin' ? (
+              <button type="button" onClick={() => setMode('forgot')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-emerald-200">
+                Esqueci minha senha
+              </button>
+            ) : null}
+            {mode === 'forgot' ? (
+              <button type="button" onClick={() => setMode('signin')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-zinc-400">
+                Voltar para o login
+              </button>
+            ) : null}
             {mode === 'signup' ? (
               <p className="mt-4 text-xs leading-5 text-zinc-500">
-                Se a confirmação por email estiver ativa, confirme sua conta antes do primeiro acesso.
+                Se a confirmação por e-mail estiver ativa, confirme sua conta antes do primeiro acesso.
               </p>
             ) : null}
           </form>
         </section>
 
+        <section className="border-y border-white/10 bg-zinc-950/80">
+          <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
+            {[
+              ['Sem instalação', 'Coach e aluno acessam diretamente pelo navegador.'],
+              ['Comece aos poucos', 'Migre primeiro os alunos ativos, sem parar sua rotina.'],
+              ['Dados por aluno', 'Histórico, anamnese e evolução permanecem organizados.'],
+            ].map(([title, text]) => (
+              <div key={title} className="flex gap-3">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
+                <div>
+                  <p className="text-sm font-black text-emerald-100">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-14 backdrop-blur-xl sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-violet-300">Sua operação em outro nível</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Uma estrutura para toda a operação</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Tudo que o coach precisa para entregar acompanhamento premium</h2>
               <p className="mt-4 leading-7 text-zinc-400">Menos ferramentas espalhadas, menos tarefas manuais e uma experiência mais clara para cada aluno.</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 ['01', 'Alunos e anamnese', 'Cadastro, código automático, anamnese inicial e histórico centralizado.'],
-                ['02', 'Treinos completos', 'Prescrição por exercício, séries, repetições, cargas e registro de conclusão.'],
+                ['02', 'Treinos com execução guiada', 'Prescrição por exercício, séries, cargas, orientações e acesso ao vídeo do movimento.'],
                 ['03', 'Nutrição inteligente', 'Planos alimentares, busca de alimentos e cálculo automático de macronutrientes.'],
                 ['04', 'Evolução visual', 'Avaliações, medidas, fotos, gráficos e leitura clara do progresso.'],
                 ['05', 'Agenda e comunicação', 'Compromissos, mensagens e notificações para manter o acompanhamento ativo.'],
@@ -1552,7 +1918,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <section className="sales-section mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal className="lg:sticky lg:top-28">
-              <p className="text-sm font-semibold uppercase text-amber-200">O custo da desorganização</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">O custo da desorganização</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu acompanhamento pode ser excelente e ainda parecer improvisado.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
                 Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e tem dificuldade para demonstrar tudo que entrega.
@@ -1580,10 +1946,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <section className="sales-section sales-section-red border-y border-white/10 bg-zinc-950/75 py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-violet-300">Antes e depois</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Antes e depois</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.</h2>
             </div>
-            <div className="mt-9 overflow-hidden rounded-md border border-white/10 bg-[#05070d]/85" data-reveal>
+            <div className="mt-9 hidden overflow-hidden rounded-md border border-white/10 bg-[#05070d]/85 sm:block" data-reveal>
               <div className="grid grid-cols-[0.8fr_1fr_1fr] border-b border-white/10 bg-white/[0.04] text-xs font-black uppercase sm:grid-cols-[1fr_1.15fr_1.15fr] sm:text-sm">
                 <div className="p-3 sm:p-4">Rotina</div>
                 <div className="border-l border-white/10 p-3 text-zinc-400 sm:p-4">Sem plataforma</div>
@@ -1604,6 +1970,24 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 </div>
               ))}
             </div>
+            <div className="mt-7 grid gap-3 sm:hidden">
+              {[
+                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e anamnese'],
+                ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
+                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
+                ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
+                ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
+                ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
+              ].map(([item, before, after]) => (
+                <div key={item} className="rounded-md border border-white/10 bg-[#05070d]/85 p-4">
+                  <p className="font-black text-white">{item}</p>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    <p className="rounded bg-white/[0.04] p-3 text-zinc-500"><strong className="text-zinc-400">Antes:</strong> {before}</p>
+                    <p className="rounded border border-emerald-300/20 bg-emerald-400/10 p-3 text-zinc-200"><strong className="text-emerald-200">Com FIT COACH:</strong> {after}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -1613,7 +1997,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu serviço continua sendo seu. A percepção se torna muito maior.</h2>
               <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças e falar com o coach.</p>
-              <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-md bg-violet-600 px-5 py-3 text-sm font-black text-white">
+              <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
                 Profissionalizar meu acompanhamento
               </button>
             </div>
@@ -1625,7 +2009,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 ['Proximidade', 'Mensagens, agenda e orientações em um só ambiente.'],
               ].map(([title, text], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card rounded-md border border-white/10 bg-zinc-950/70 p-5">
-                  <h3 className="font-black text-violet-200">{title}</h3>
+                  <h3 className="font-black text-emerald-200">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
                 </div>
               ))}
@@ -1690,7 +2074,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <div data-reveal className="sales-interactive rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
               <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase text-violet-200">Simulador de cenário</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">Simulador de cenário</p>
                   <h3 className="mt-2 text-2xl font-black">Quanto sua operação pode movimentar?</h3>
                 </div>
                 <span className="text-xs text-zinc-500">Estimativa, não garantia de resultado</span>
@@ -1755,9 +2139,43 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
+        <section className="sales-section border-y border-white/10 bg-zinc-950/70 py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="max-w-3xl" data-reveal>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Feito para a rotina real do coach</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Uma boa plataforma precisa se adaptar ao seu método, não substituir sua identidade.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.</p>
+            </div>
+            <div className="mt-8 grid gap-4 lg:grid-cols-2">
+              <div data-reveal className="rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
+                <p className="text-xs font-black uppercase text-emerald-300">O FIT COACH faz sentido para você que</p>
+                <div className="mt-4 grid gap-3">
+                  {[
+                    'Atende alunos online, presencialmente ou de forma híbrida.',
+                    'Quer reduzir tarefas repetitivas sem perder proximidade.',
+                    'Precisa organizar treino, dieta, evolução e financeiro.',
+                    'Deseja aumentar o valor percebido do acompanhamento.',
+                  ].map((item) => <ObjectionPoint key={item} text={item} positive />)}
+                </div>
+              </div>
+              <div data-reveal className="rounded-md border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+                <p className="text-xs font-black uppercase text-zinc-400">O sistema não promete atalhos</p>
+                <div className="mt-4 grid gap-3">
+                  {[
+                    'Não substitui sua análise e sua responsabilidade profissional.',
+                    'Não garante faturamento sem posicionamento e execução.',
+                    'Não obriga você a migrar todos os alunos de uma vez.',
+                    'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
+                  ].map((item) => <ObjectionPoint key={item} text={item} />)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="sales-section mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
           <div className="text-center" data-reveal>
-            <p className="text-sm font-semibold uppercase text-violet-200">Dúvidas antes de começar</p>
+            <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
             <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o FIT COACH</h2>
           </div>
           <div className="mt-9 grid gap-3">
@@ -1768,6 +2186,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
               ['E se eu trabalhar de um jeito diferente?', 'O sistema reúne as funções centrais do acompanhamento e continuará evoluindo. Treinos, alimentação, check-ins e comunicação podem ser ajustados à sua metodologia.'],
               ['Os dados de saúde do aluno ficam misturados com conversas?', 'Não. Anamnese, avaliações, fotos e registros ficam vinculados ao aluno, com acesso controlado pelo fluxo do coach e do convite individual.'],
+              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o FIT COACH por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
+              ['A plataforma substitui meu atendimento pessoal?', 'Não. Ela organiza a operação para que seu tempo seja usado em análise, estratégia e relacionamento, em vez de procurar informações espalhadas.'],
             ].map(([question, answer], index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
@@ -1785,7 +2205,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <p className="text-sm font-semibold uppercase text-blue-300">FIT COACH</p>
             <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Sua metodologia merece uma plataforma à altura.</h2>
             <p className="mx-auto mt-4 max-w-2xl leading-7 text-zinc-400">Comece organizando sua carteira atual e evolua o sistema junto com a sua operação.</p>
-            <button type="button" onClick={() => openAccess('signup')} className="mt-7 rounded-md bg-blue-500 px-6 py-3 text-sm font-black text-white">
+            <button type="button" onClick={() => openAccess('signup')} className="mt-7 rounded-md bg-blue-500 px-6 py-3 text-sm font-black text-zinc-950">
               Criar minha conta
             </button>
           </div>
@@ -1804,6 +2224,15 @@ function SalesStat({ value, label }) {
     <div className="min-w-0">
       <p className="text-lg font-black text-white sm:text-xl">{value}</p>
       <p className="mt-1 text-xs leading-5 text-zinc-400">{label}</p>
+    </div>
+  )
+}
+
+function ObjectionPoint({ text, positive = false }) {
+  return (
+    <div className="flex gap-3 text-sm leading-6 text-zinc-300">
+      <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${positive ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
+      <p>{text}</p>
     </div>
   )
 }
@@ -1894,12 +2323,12 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
   if (!selectedStudent) {
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Comece sua operacao" action="Primeiros passos">
+        <Panel title="Comece sua operação" action="Primeiros passos">
           <div className="grid gap-3">
             {[
               ['1', 'Configure sua identidade', 'Preencha marca, nome profissional, CREF e WhatsApp.', 'configuracoes'],
               ['2', 'Cadastre o primeiro aluno', 'Registre objetivo, plano, contato e dados iniciais.', 'alunos'],
-              ['3', 'Monte o acompanhamento', 'Crie treino, dieta, avaliacao, agenda e cobranca.', 'treinos'],
+              ['3', 'Monte o acompanhamento', 'Crie treino, dieta, avaliação, agenda e cobrança.', 'treinos'],
               ['4', 'Envie o convite', 'Teste o portal do aluno e o consentimento de dados.', 'aluno-app'],
             ].map(([number, title, description, view]) => (
               <button
@@ -1921,7 +2350,7 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
           <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
             <p className="font-black text-blue-200">Nenhum dado demonstrativo</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Sua conta esta vazia e preparada para receber somente alunos reais da sua operacao.
+              Sua conta está vazia e preparada para receber somente alunos reais da sua operação.
             </p>
           </div>
           <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
@@ -1937,20 +2366,13 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.4fr_1fr]">
-      <Panel title="Evolucao corporal" action={`${assessmentData.length} avaliacoes`}>
+      <Panel title="Evolução corporal" action={`${assessmentData.length} avaliações`}>
         {assessmentData.length ? (
-          <ChartWrap>
-            <LineChart data={assessmentData} margin={{ left: -18, right: 8, top: 10 }}>
-              <CartesianGrid stroke="#27272a" strokeDasharray="4 4" />
-              <XAxis dataKey="label" stroke="#a1a1aa" />
-              <YAxis stroke="#a1a1aa" />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#3b82f6" strokeWidth={3} />
-              <Line type="monotone" dataKey="gordura" name="Gordura (%)" stroke="#fbbf24" strokeWidth={3} />
-            </LineChart>
-          </ChartWrap>
+          <Suspense fallback={<ChartLoading />}>
+            <AssessmentChart data={assessmentData} weightLabel="Peso (kg)" bodyFatLabel="Gordura (%)" />
+          </Suspense>
         ) : (
-          <Empty text="Registre avaliacoes para visualizar a evolucao real do aluno." />
+          <Empty text="Registre avaliações para visualizar a evolução real do aluno." />
         )}
       </Panel>
 
@@ -1963,17 +2385,11 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
 
       <Panel title="Receita recebida" action="Dados financeiros">
         {revenueChartData.length ? (
-          <ChartWrap>
-            <AreaChart data={revenueChartData} margin={{ left: -18, right: 8, top: 10 }}>
-              <CartesianGrid stroke="#27272a" strokeDasharray="4 4" />
-              <XAxis dataKey="month" stroke="#a1a1aa" />
-              <YAxis stroke="#a1a1aa" />
-              <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatCurrency(value)} />
-              <Area type="monotone" dataKey="receita" stroke="#60a5fa" fill="#1d4ed8" fillOpacity={0.35} />
-            </AreaChart>
-          </ChartWrap>
+          <Suspense fallback={<ChartLoading />}>
+            <RevenueChart data={revenueChartData} />
+          </Suspense>
         ) : (
-          <Empty text="Marque cobrancas como pagas para formar o grafico de receita." />
+          <Empty text="Marque cobranças como pagas para formar o gráfico de receita." />
         )}
       </Panel>
 
@@ -1996,6 +2412,8 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   const [filter, setFilter] = useState('Proximos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [updatingId, setUpdatingId] = useState('')
   const now = new Date()
   const visibleAppointments = appointments
     .filter((appointment) => {
@@ -2009,25 +2427,43 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const startsAtValue = form.get('startsAt')?.toString()
     if (!startsAtValue) return
 
     setSaving(true)
     setMessage('')
-    await onSaveAppointment({
-      studentId: form.get('studentId').toString(),
-      title: form.get('title').toString(),
-      type: form.get('type').toString(),
-      startsAt: new Date(startsAtValue).toISOString(),
-      durationMinutes: Number(form.get('durationMinutes')),
-      status: 'Agendado',
-      location: form.get('location').toString(),
-      notes: form.get('notes').toString(),
-    })
-    event.currentTarget.reset()
-    setSaving(false)
-    setMessage('Compromisso adicionado na agenda.')
+    setError('')
+    try {
+      await onSaveAppointment({
+        studentId: form.get('studentId')?.toString() || '',
+        title: form.get('title')?.toString() || 'Acompanhamento',
+        type: form.get('type')?.toString() || 'Consulta',
+        startsAt: new Date(startsAtValue).toISOString(),
+        durationMinutes: Number(form.get('durationMinutes')),
+        status: 'Agendado',
+        location: form.get('location')?.toString() || '',
+        notes: form.get('notes')?.toString() || '',
+      })
+      formElement.reset()
+      setMessage('Compromisso adicionado na agenda.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar o compromisso.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleStatus(appointmentId, status) {
+    setUpdatingId(String(appointmentId))
+    setError('')
+    try {
+      const updated = await onUpdateStatus(appointmentId, status)
+      if (!updated) setError('Não foi possível atualizar este compromisso.')
+    } finally {
+      setUpdatingId('')
+    }
   }
 
   return (
@@ -2041,13 +2477,13 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               options={students.map((student) => ({ label: student.name, value: student.id }))}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Titulo" name="title" defaultValue="Acompanhamento" />
+              <Field label="Título" name="title" defaultValue="Acompanhamento" />
               <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliacao', 'Check-in', 'Chamada', 'Outro']} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Data e horario" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
+              <Field label="Data e horário" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
               <Select
-                label="Duracao"
+                label="Duração"
                 name="durationMinutes"
                 defaultValue="30"
                 options={[
@@ -2059,11 +2495,12 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               />
             </div>
             <Field label="Local ou link" name="location" defaultValue="Online" />
-            <TextArea label="Observacoes" name="notes" defaultValue="Revisar progresso, aderencia e proximos ajustes." />
-            <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+            <TextArea label="Observações" name="notes" defaultValue="Revisar progresso, aderência e próximos ajustes." />
+            <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
               {saving ? 'Salvando...' : 'Agendar compromisso'}
             </button>
             {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+            {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
           </form>
         ) : (
           <Empty text="Cadastre um aluno antes de criar compromissos." />
@@ -2082,7 +2519,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
                   : 'border-white/10 bg-white/[0.03] text-zinc-300'
               }`}
             >
-              {option}
+              {formatUiText(option)}
             </button>
           ))}
         </div>
@@ -2099,7 +2536,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
                         <Badge tone={appointment.status === 'Cancelado' ? 'Alto' : appointment.status === 'Agendado' ? 'Medio' : 'Baixo'}>
                           {appointment.status}
                         </Badge>
-                        <span className="text-xs font-bold text-zinc-500">{appointment.type}</span>
+                        <span className="text-xs font-bold text-zinc-500">{formatUiText(appointment.type)}</span>
                       </div>
                       <h4 className="mt-3 text-lg font-black">{appointment.title}</h4>
                       <p className="mt-1 text-sm text-zinc-300">{student?.name ?? 'Aluno'}</p>
@@ -2111,14 +2548,14 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
                     {!['Concluido', 'Cancelado'].includes(appointment.status) ? (
                       <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-1">
                         {appointment.status !== 'Confirmado' ? (
-                          <button onClick={() => onUpdateStatus(appointment.id, 'Confirmado')} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-200">
+                          <button disabled={updatingId === String(appointment.id)} onClick={() => handleStatus(appointment.id, 'Confirmado')} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-200 disabled:opacity-50">
                             Confirmar
                           </button>
                         ) : null}
-                        <button onClick={() => onUpdateStatus(appointment.id, 'Concluido')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950">
+                        <button disabled={updatingId === String(appointment.id)} onClick={() => handleStatus(appointment.id, 'Concluido')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">
                           Concluir
                         </button>
-                        <button onClick={() => onUpdateStatus(appointment.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200">
+                        <button disabled={updatingId === String(appointment.id)} onClick={() => handleStatus(appointment.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200 disabled:opacity-50">
                           Cancelar
                         </button>
                       </div>
@@ -2136,11 +2573,12 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite }) {
+function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
   const [inviteError, setInviteError] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const selectedInvite = savedInvite?.studentId === selectedStudent?.id
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
@@ -2176,7 +2614,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
         </div>
       </Panel>
 
-      <Panel title="Ficha e edicao" action={selectedStudent?.phase ?? 'Novo'}>
+      <Panel title="Ficha e edição" action={selectedStudent?.phase ?? 'Novo'}>
         {editing ? (
           <StudentForm
             student={editing}
@@ -2191,7 +2629,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
           <>
             <StudentSnapshot student={selectedStudent} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Info label="Email" value={selectedStudent.email} />
+              <Info label="E-mail" value={selectedStudent.email} />
               <Info label="Telefone" value={selectedStudent.phone} />
               <Info label="Peso atual" value={selectedStudent.weight} />
               <Info label="Plano" value={selectedStudent.plan} />
@@ -2223,7 +2661,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
                         setGeneratingCode(false)
                       }
                     }}
-                    className="mt-3 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white disabled:opacity-60"
+                    className="mt-3 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60"
                   >
                     {generatingCode ? 'Gerando código...' : 'Gerar código agora'}
                   </button>
@@ -2234,9 +2672,32 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
             <div className="mt-5">
               <StudentAnamnesisSummary anamnesis={selectedAnamnesis} />
             </div>
-            <button onClick={() => setEditing(selectedStudent)} className="mt-5 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-              Editar aluno
-            </button>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+                Editar aluno
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={async () => {
+                  const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
+                  if (!confirmed) return
+                  setDeleting(true)
+                  setInviteError('')
+                  try {
+                    await onDelete(selectedStudent.id)
+                    setSavedInvite(null)
+                  } catch (error) {
+                    setInviteError(error?.message || 'Não foi possível excluir o aluno.')
+                  } finally {
+                    setDeleting(false)
+                  }
+                }}
+                className="w-full rounded-md border border-rose-300/30 px-4 py-3 text-sm font-black text-rose-200 disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo...' : 'Excluir aluno'}
+              </button>
+            </div>
           </>
         ) : (
           <Empty text="Nenhum aluno selecionado." />
@@ -2287,7 +2748,7 @@ function StudentForm({ student, onSave, onCancel }) {
     <form onSubmit={handleSubmit} className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome" name="name" defaultValue={student.name} />
-        <Field label="Email" name="email" defaultValue={student.email} />
+        <Field label="E-mail" name="email" defaultValue={student.email} />
         <Field label="Telefone" name="phone" defaultValue={student.phone} />
         <Field label="Objetivo" name="goal" defaultValue={student.goal} />
         <Field label="Fase" name="phase" defaultValue={student.phase} />
@@ -2305,8 +2766,8 @@ function StudentForm({ student, onSave, onCancel }) {
       </div>
       <TextArea label="Última observação" name="lastMessage" defaultValue={student.lastMessage} />
       {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
-      <div className="flex flex-wrap gap-3">
-        <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white disabled:opacity-60">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar aluno'}
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -2320,6 +2781,8 @@ function StudentForm({ student, onSave, onCancel }) {
 function Assessments({ students, selectedStudent, assessments, onSaveAssessment }) {
   const [studentId, setStudentId] = useState(selectedStudent?.id ?? students[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const student = students.find((item) => String(item.id) === String(studentId)) ?? selectedStudent
   const studentAssessments = assessments
     .filter((assessment) => String(assessment.studentId) === String(student?.id))
@@ -2330,29 +2793,37 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     setSaving(true)
-    await onSaveAssessment({
-      studentId: form.get('studentId').toString(),
-      assessedAt: form.get('assessedAt').toString(),
-      weightKg: form.get('weightKg').toString(),
-      heightCm: form.get('heightCm').toString(),
-      bodyFatPercent: form.get('bodyFatPercent').toString(),
-      waistCm: form.get('waistCm').toString(),
-      abdomenCm: form.get('abdomenCm').toString(),
-      hipCm: form.get('hipCm').toString(),
-      chestCm: form.get('chestCm').toString(),
-      armCm: form.get('armCm').toString(),
-      thighCm: form.get('thighCm').toString(),
-      calfCm: form.get('calfCm').toString(),
-      restingHeartRate: form.get('restingHeartRate').toString(),
-      notes: form.get('notes').toString(),
-    })
-    setSaving(false)
+    setMessage('')
+    setError('')
+    try {
+      await onSaveAssessment({
+        studentId: form.get('studentId')?.toString() || '',
+        assessedAt: form.get('assessedAt')?.toString() || new Date().toISOString().slice(0, 10),
+        weightKg: form.get('weightKg')?.toString() || '',
+        heightCm: form.get('heightCm')?.toString() || '',
+        bodyFatPercent: form.get('bodyFatPercent')?.toString() || '',
+        waistCm: form.get('waistCm')?.toString() || '',
+        abdomenCm: form.get('abdomenCm')?.toString() || '',
+        hipCm: form.get('hipCm')?.toString() || '',
+        chestCm: form.get('chestCm')?.toString() || '',
+        armCm: form.get('armCm')?.toString() || '',
+        thighCm: form.get('thighCm')?.toString() || '',
+        calfCm: form.get('calfCm')?.toString() || '',
+        restingHeartRate: form.get('restingHeartRate')?.toString() || '',
+        notes: form.get('notes')?.toString() || '',
+      })
+      setMessage('Avaliação registrada com sucesso.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar a avaliação.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
     <div className="grid gap-4 lg:gap-6">
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="Nova avaliacao" action="Medidas corporais">
+        <Panel title="Nova avaliação" action="Medidas corporais">
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
               <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -2367,7 +2838,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
                 </select>
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Data da avaliacao" name="assessedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                <Field label="Data da avaliação" name="assessedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
                 <Field label="Peso (kg)" name="weightKg" type="number" defaultValue={parseMetric(student?.weight)} />
                 <Field label="Altura (cm)" name="heightCm" type="number" defaultValue="175" />
                 <Field label="Gordura corporal (%)" name="bodyFatPercent" type="number" defaultValue={parseMetric(student?.bodyFat)} required={false} />
@@ -2377,27 +2848,29 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
                 <Field label="Abdomen (cm)" name="abdomenCm" type="number" required={false} />
                 <Field label="Quadril (cm)" name="hipCm" type="number" required={false} />
                 <Field label="Peitoral (cm)" name="chestCm" type="number" required={false} />
-                <Field label="Braco (cm)" name="armCm" type="number" required={false} />
+                <Field label="Braço (cm)" name="armCm" type="number" required={false} />
                 <Field label="Coxa (cm)" name="thighCm" type="number" required={false} />
                 <Field label="Panturrilha (cm)" name="calfCm" type="number" required={false} />
                 <Field label="FC repouso" name="restingHeartRate" type="number" required={false} />
               </div>
-              <TextArea label="Parecer do coach" name="notes" defaultValue="Registrar evolucao, pontos de atencao e proximo objetivo." />
-              <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-                {saving ? 'Salvando...' : 'Salvar avaliacao'}
+              <TextArea label="Parecer do coach" name="notes" defaultValue="Registrar evolução, pontos de atenção e próximo objetivo." />
+              <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                {saving ? 'Salvando...' : 'Salvar avaliação'}
               </button>
+              {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+              {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
             </form>
           ) : (
-            <Empty text="Cadastre um aluno antes de registrar avaliacoes." />
+            <Empty text="Cadastre um aluno antes de registrar avaliações." />
           )}
         </Panel>
 
-        <Panel title={`Evolucao - ${student?.name ?? 'Aluno'}`} action={`${studentAssessments.length} registros`}>
+        <Panel title={`Evolução - ${student?.name ?? 'Aluno'}`} action={`${studentAssessments.length} registros`}>
           <AssessmentProgress assessments={studentAssessments} student={student} detailed />
         </Panel>
       </div>
 
-      <Panel title="Historico de avaliacoes" action="Comparativo">
+      <Panel title="Histórico de avaliações" action="Comparativo">
         <div className="grid gap-3 lg:grid-cols-2">
           {studentAssessments.length ? (
             studentAssessments.map((assessment, index) => (
@@ -2408,7 +2881,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
               />
             ))
           ) : (
-            <Empty text="Nenhuma avaliacao registrada para este aluno." />
+            <Empty text="Nenhuma avaliação registrada para este aluno." />
           )}
         </div>
       </Panel>
@@ -2432,7 +2905,7 @@ function AssessmentProgress({ assessments, student, detailed = false }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <Info label="Peso atual" value={student?.weight ?? '-'} />
         <Info label="Gordura corporal" value={student?.bodyFat ?? '-'} />
-        <Empty text="A evolucao detalhada aparecera depois da primeira avaliacao." />
+        <Empty text="A evolução detalhada aparecerá depois da primeira avaliação." />
       </div>
     )
   }
@@ -2449,19 +2922,12 @@ function AssessmentProgress({ assessments, student, detailed = false }) {
         <Info label="IMC" value={bmi ? formatNumber(bmi) : '-'} />
       </div>
       {detailed && chartData.length > 1 ? (
-        <ChartWrap>
-          <LineChart data={chartData} margin={{ left: -18, right: 8, top: 10 }}>
-            <CartesianGrid stroke="#27272a" strokeDasharray="4 4" />
-            <XAxis dataKey="label" stroke="#a1a1aa" />
-            <YAxis stroke="#a1a1aa" />
-            <Tooltip contentStyle={tooltipStyle} />
-            <Line type="monotone" dataKey="peso" name="Peso" stroke="#3b82f6" strokeWidth={3} />
-            <Line type="monotone" dataKey="gordura" name="Gordura" stroke="#fbbf24" strokeWidth={3} />
-          </LineChart>
-        </ChartWrap>
+        <Suspense fallback={<ChartLoading />}>
+          <AssessmentChart data={chartData} />
+        </Suspense>
       ) : null}
       <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
-        <p className="text-xs font-black uppercase tracking-normal text-blue-200">Leitura da evolucao</p>
+        <p className="text-xs font-black uppercase tracking-normal text-blue-200">Leitura da evolução</p>
         <p className="mt-2 text-sm leading-6 text-zinc-200">{insight}</p>
       </div>
     </div>
@@ -2481,7 +2947,7 @@ function AssessmentCard({ assessment, previous }) {
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <AssessmentValue label="Gordura" value={assessment.bodyFatPercent} suffix="%" previous={previous?.bodyFatPercent} />
         <AssessmentValue label="Cintura" value={assessment.waistCm} suffix=" cm" previous={previous?.waistCm} />
-        <AssessmentValue label="Braco" value={assessment.armCm} suffix=" cm" previous={previous?.armCm} />
+        <AssessmentValue label="Braço" value={assessment.armCm} suffix=" cm" previous={previous?.armCm} />
         <AssessmentValue label="Coxa" value={assessment.thighCm} suffix=" cm" previous={previous?.thighCm} />
       </div>
     </div>
@@ -2502,18 +2968,24 @@ function AssessmentValue({ label, value, suffix, previous }) {
   )
 }
 
-function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWorkout }) {
-  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(selectedStudent?.id))
+function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWorkout, onArchiveWorkout }) {
+  const studentWorkouts = workouts.filter((workout) => (
+    String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
+  ))
   const studentLogs = workoutLogs.filter((log) => String(log.studentId) === String(selectedStudent?.id))
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
       <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
-        <WorkoutForm students={students} selectedStudent={selectedStudent} onSaveWorkout={onSaveWorkout} />
+        {students.length ? (
+          <WorkoutForm students={students} selectedStudent={selectedStudent} onSaveWorkout={onSaveWorkout} />
+        ) : (
+          <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
+        )}
       </Panel>
 
       <Panel title="Treinos prescritos" action={`${studentWorkouts.length} ativos`}>
-        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} />
+        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} onArchive={onArchiveWorkout} />
       </Panel>
 
       <Panel title="Histórico de execução" action={`${studentLogs.length} registros`}>
@@ -2525,12 +2997,13 @@ function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWork
 
 function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
   const [exercises, setExercises] = useState([
-    { name: 'Supino reto', sets: '4', reps: '8-10', load: 'RPE 8', rest: '90s' },
-    { name: 'Remada baixa', sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' },
-    { name: 'Desenvolvimento', sets: '3', reps: '8-10', load: 'RPE 7', rest: '75s' },
+    createExerciseDraft('Supino reto com barra', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '90s' }),
+    createExerciseDraft('Remada baixa', { sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' }),
+    createExerciseDraft('Desenvolvimento com halteres', { sets: '3', reps: '8-10', load: 'RPE 7', rest: '75s' }),
   ])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
   function updateExercise(index, field, value) {
     setExercises((current) => current.map((exercise, itemIndex) => (
@@ -2538,8 +3011,22 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
     )))
   }
 
-  function addExercise() {
-    setExercises((current) => [...current, { name: '', sets: '3', reps: '10', load: '', rest: '60s' }])
+  function updateExerciseName(index, value) {
+    const profile = findExerciseProfile(value)
+    setExercises((current) => current.map((exercise, itemIndex) => {
+      if (itemIndex !== index) return exercise
+      return {
+        ...exercise,
+        name: value,
+        muscleGroup: profile?.group ?? exercise.muscleGroup,
+        equipment: profile?.equipment ?? exercise.equipment,
+        instructions: profile?.cues ?? exercise.instructions,
+      }
+    }))
+  }
+
+  function addExercise(name = '') {
+    setExercises((current) => [...current, createExerciseDraft(name)])
   }
 
   function removeExercise(index) {
@@ -2550,18 +3037,34 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const filledExercises = exercises.filter((exercise) => exercise.name.trim())
+    const studentId = form.get('studentId')?.toString() || ''
+
+    if (!studentId) {
+      setError('Selecione um aluno antes de salvar o treino.')
+      return
+    }
+    if (!filledExercises.length) {
+      setError('Adicione pelo menos um exercício ao treino.')
+      return
+    }
 
     setSaving(true)
     setMessage('')
-    await onSaveWorkout({
-      studentId: form.get('studentId').toString(),
-      title: form.get('title').toString(),
-      focus: form.get('focus').toString(),
-      notes: form.get('notes').toString(),
-      exercises: filledExercises,
-    })
-    setSaving(false)
-    setMessage('Treino salvo e adicionado na lista.')
+    setError('')
+    try {
+      await onSaveWorkout({
+        studentId,
+        title: form.get('title')?.toString() || 'Treino',
+        focus: form.get('focus')?.toString() || '',
+        notes: form.get('notes')?.toString() || '',
+        exercises: filledExercises.map(enrichExercise),
+      })
+      setMessage('Treino salvo e liberado para o aluno.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar o treino.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -2578,28 +3081,92 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
       </div>
       <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." />
 
+      <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-emerald-100">Biblioteca rápida</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">Escolha um movimento comum ou digite livremente no campo de exercício.</p>
+          </div>
+          <span className="w-fit rounded border border-emerald-300/20 px-2 py-1 text-xs font-bold text-emerald-200">{exerciseLibrary.length} exercícios</span>
+        </div>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-soft">
+          {exerciseLibrary.slice(0, 10).map((exercise) => (
+            <button
+              key={exercise.name}
+              type="button"
+              onClick={() => addExercise(exercise.name)}
+              className="shrink-0 rounded-md border border-white/10 bg-zinc-950/70 px-3 py-2 text-xs font-bold text-zinc-200"
+            >
+              + {exercise.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <datalist id="exercise-library-options">
+        {exerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
+      </datalist>
+
       <div className="space-y-3">
         {exercises.map((exercise, index) => (
-          <div key={index} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-            <div className="grid gap-3 lg:grid-cols-[1.4fr_0.6fr_0.6fr_0.8fr_0.6fr_auto]">
-              <InlineInput label="Exercício" value={exercise.name} onChange={(value) => updateExercise(index, 'name', value)} />
-              <InlineInput label="Series" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
-              <InlineInput label="Reps" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
-              <InlineInput label="Carga" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
-              <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
-              <button type="button" onClick={() => removeExercise(index)} className="self-end rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">
+          <div key={index} className="min-w-0 rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup || 'Grupo muscular identificado pelo nome'}</p>
+              </div>
+              <button type="button" onClick={() => removeExercise(index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300">
                 Remover
               </button>
             </div>
+
+            <div className="grid gap-3 lg:grid-cols-[1.35fr_0.85fr]">
+              <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                Nome do exercício
+                <input
+                  list="exercise-library-options"
+                  value={exercise.name}
+                  onChange={(event) => updateExerciseName(index, event.target.value)}
+                  placeholder="Digite ou escolha um exercício"
+                  className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+                />
+              </label>
+              <InlineInput label="Grupo muscular" value={exercise.muscleGroup ?? ''} onChange={(value) => updateExercise(index, 'muscleGroup', value)} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
+              <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
+              <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
+              <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
+              <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
+            </div>
+
+            <details className="mt-4 rounded-md border border-white/10 bg-zinc-950/55">
+              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação e vídeo de execução</summary>
+              <div className="grid gap-3 border-t border-white/10 p-3">
+                <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                  Orientações técnicas
+                  <textarea
+                    value={exercise.instructions ?? ''}
+                    onChange={(event) => updateExercise(index, 'instructions', event.target.value)}
+                    rows={3}
+                    className="min-w-0 resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case leading-6 tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+                  />
+                </label>
+                <InlineInput label="Link de vídeo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
+                <ExerciseVideoAction exercise={exercise} compact />
+              </div>
+            </details>
           </div>
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={addExercise} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-          Adicionar exercicio
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+          Adicionar exercício personalizado
         </button>
-        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+        <button disabled={saving} className="rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar treino'}
         </button>
       </div>
@@ -2608,11 +3175,28 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
           {message}
         </p>
       ) : null}
+      {error ? (
+        <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">
+          {error}
+        </p>
+      ) : null}
     </form>
   )
 }
 
-function WorkoutList({ workouts, fallbackTitle }) {
+function WorkoutList({ workouts, fallbackTitle, onArchive }) {
+  const [archivingId, setArchivingId] = useState('')
+
+  async function handleArchive(workout) {
+    if (!window.confirm(`Arquivar o treino “${workout.title}”? Ele deixará de aparecer para o aluno.`)) return
+    setArchivingId(String(workout.id))
+    try {
+      await onArchive(workout.id)
+    } finally {
+      setArchivingId('')
+    }
+  }
+
   if (!workouts.length) {
     return (
       <div className="space-y-3">
@@ -2626,29 +3210,181 @@ function WorkoutList({ workouts, fallbackTitle }) {
     <div className="space-y-4">
       {workouts.map((workout) => (
         <div key={workout.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 className="text-lg font-black">{workout.title}</h4>
               <p className="mt-1 text-sm text-zinc-400">{workout.focus}</p>
               {workout.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
             </div>
-            <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
-              Ativo
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
+                Ativo
+              </span>
+              {onArchive ? (
+                <button disabled={archivingId === String(workout.id)} type="button" onClick={() => handleArchive(workout)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 disabled:opacity-50">
+                  {archivingId === String(workout.id) ? 'Arquivando...' : 'Arquivar'}
+                </button>
+              ) : null}
+            </div>
           </div>
-          <div className="mt-4 space-y-2">
-            {workout.exercises.map((exercise) => (
-              <Row
-                key={exercise.id ?? exercise.name}
-                title={exercise.name}
-                meta={`${exercise.sets} series x ${exercise.reps} reps | carga: ${exercise.load || '-'} | descanso: ${exercise.rest || '-'}`}
-                badge="Exercício"
-              />
-            ))}
+          <div className="mt-4 grid gap-3">
+            {workout.exercises.map((exercise, index) => {
+              const enriched = enrichExercise(exercise)
+              return (
+                <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-md border border-white/10 bg-zinc-950/55 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                      <h5 className="mt-1 text-base font-black text-white">{enriched.name}</h5>
+                      <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                      <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
+                      <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
+                      <ExerciseMetric label="Carga" value={enriched.load || '-'} />
+                      <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
+                    </div>
+                  </div>
+                  {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
+                  <div className="mt-3">
+                    <ExerciseVideoAction exercise={enriched} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       ))}
     </div>
+  )
+}
+
+function findExerciseProfile(value) {
+  const normalized = normalizeText(value)
+  if (!normalized) return null
+
+  const exact = exerciseLibrary.find((exercise) => (
+    [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalized)
+  ))
+  if (exact) return exact
+
+  if (normalized.length < 4) return null
+  return exerciseLibrary.find((exercise) => (
+    [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => {
+      const normalizedCandidate = normalizeText(candidate)
+      return normalizedCandidate.includes(normalized) || normalized.includes(normalizedCandidate)
+    })
+  )) ?? null
+}
+
+function createExerciseDraft(name = '', overrides = {}) {
+  const profile = findExerciseProfile(name)
+  return {
+    name,
+    sets: '3',
+    reps: '10',
+    load: '',
+    rest: '60s',
+    muscleGroup: profile?.group ?? '',
+    equipment: profile?.equipment ?? '',
+    instructions: profile?.cues ?? '',
+    videoUrl: '',
+    ...overrides,
+  }
+}
+
+function enrichExercise(exercise) {
+  const profile = findExerciseProfile(exercise.name)
+  return {
+    ...exercise,
+    muscleGroup: exercise.muscleGroup || profile?.group || '',
+    equipment: exercise.equipment || profile?.equipment || '',
+    instructions: exercise.instructions || profile?.cues || '',
+    videoUrl: exercise.videoUrl || '',
+  }
+}
+
+function getExerciseVideoUrl(exercise) {
+  const customUrl = safeExternalUrl(exercise.videoUrl)
+  if (customUrl) return customUrl
+  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+}
+
+function safeExternalUrl(value) {
+  if (!value?.trim()) return ''
+  try {
+    const url = new URL(value.trim())
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
+function getVideoEmbedUrl(value) {
+  const safeValue = safeExternalUrl(value)
+  if (!safeValue) return ''
+  try {
+    const url = new URL(safeValue)
+    if (url.hostname.includes('youtu.be')) {
+      const id = url.pathname.split('/').filter(Boolean)[0]
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : ''
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const id = url.searchParams.get('v') || url.pathname.split('/').filter(Boolean).pop()
+      return id && id !== 'results' ? `https://www.youtube-nocookie.com/embed/${id}` : ''
+    }
+    if (url.hostname.includes('vimeo.com')) {
+      const id = url.pathname.split('/').filter(Boolean).pop()
+      return id ? `https://player.vimeo.com/video/${id}` : ''
+    }
+  } catch {
+    return ''
+  }
+  return ''
+}
+
+function ExerciseMetric({ label, value }) {
+  return (
+    <div className="min-w-[68px] rounded border border-white/10 bg-white/[0.035] p-2">
+      <p className="text-[10px] font-bold uppercase text-zinc-500">{label}</p>
+      <p className="mt-1 break-words font-black text-zinc-200">{value}</p>
+    </div>
+  )
+}
+
+function ExerciseVideoAction({ exercise, compact = false }) {
+  const videoUrl = getExerciseVideoUrl(exercise)
+  const embedUrl = getVideoEmbedUrl(exercise.videoUrl)
+  const hasCustomVideo = Boolean(safeExternalUrl(exercise.videoUrl))
+
+  if (embedUrl && !compact) {
+    return (
+      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Assistir vídeo de execução</summary>
+        <div className="aspect-video border-t border-white/10 bg-black">
+          <iframe
+            src={embedUrl}
+            title={`Execução de ${exercise.name}`}
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="h-full w-full"
+          />
+        </div>
+      </details>
+    )
+  }
+
+  return (
+    <a
+      href={videoUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
+    >
+      {hasCustomVideo ? 'Abrir vídeo indicado pelo coach' : 'Ver vídeo de execução'}
+    </a>
   )
 }
 
@@ -2682,49 +3418,64 @@ function WorkoutLogList({ logs }) {
 function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
 
     setSaving(true)
     setMessage('')
-    await onCompleteWorkout({
-      coachId: workout.coachId,
-      studentId: student.id,
-      workoutId: workout.id,
-      title: workout.title,
-      effort: form.get('effort').toString(),
-      notes: form.get('notes').toString(),
-    })
-    setSaving(false)
-    setMessage('Treino marcado como concluído.')
-    event.currentTarget.reset()
+    setError('')
+    try {
+      await onCompleteWorkout({
+        coachId: workout.coachId,
+        studentId: student.id,
+        workoutId: workout.id,
+        title: workout.title,
+        effort: form.get('effort')?.toString() || 'Moderado',
+        notes: form.get('notes')?.toString() || '',
+      })
+      setMessage('Treino marcado como concluído.')
+      formElement.reset()
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível concluir o treino.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 grid gap-3 rounded-md border border-blue-300/20 bg-blue-300/5 p-4">
       <Select label="Esforço percebido" name="effort" defaultValue="Moderado" options={['Leve', 'Moderado', 'Forte', 'Muito forte']} />
       <TextArea label="Observação do treino" name="notes" defaultValue="Carga usada, dificuldade, dor, energia ou algo importante." />
-      <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+      <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando...' : 'Marcar treino como concluído'}
       </button>
       {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+      {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
     </form>
   )
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan }) {
-  const studentPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(selectedStudent?.id))
+function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan, onArchiveNutritionPlan }) {
+  const studentPlans = nutritionPlans.filter((plan) => (
+    String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
+  ))
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action={`${foodDatabase.length}+ alimentos`}>
-        <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
+        {students.length ? (
+          <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
+        ) : (
+          <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
+        )}
       </Panel>
 
       <Panel title="Dietas prescritas" action={`${studentPlans.length} ativas`}>
-        <NutritionPlanList plans={studentPlans} selectedStudent={selectedStudent} />
+        <NutritionPlanList plans={studentPlans} selectedStudent={selectedStudent} onArchive={onArchiveNutritionPlan} />
       </Panel>
     </div>
   )
@@ -2738,6 +3489,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   ])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const planTotals = sumMacros(meals.map(calculateMealMacros))
 
   function updateMeal(index, field, value) {
@@ -2814,16 +3566,23 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
 
     setSaving(true)
     setMessage('')
-    await onSaveNutritionPlan({
-      studentId: form.get('studentId').toString(),
-      title: form.get('title').toString(),
-      calories: `${Math.round(planTotals.calories)} kcal`,
-      protein: `${roundMacro(planTotals.protein)} g`,
-      notes: form.get('notes').toString(),
-      meals: filledMeals,
-    })
-    setSaving(false)
-    setMessage('Dieta salva com macros calculados automaticamente.')
+    setError('')
+    try {
+      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeição com alimentos e quantidades válidas.')
+      await onSaveNutritionPlan({
+        studentId: form.get('studentId')?.toString() || '',
+        title: form.get('title')?.toString() || 'Plano alimentar',
+        calories: `${Math.round(planTotals.calories)} kcal`,
+        protein: `${roundMacro(planTotals.protein)} g`,
+        notes: form.get('notes')?.toString() || '',
+        meals: filledMeals,
+      })
+      setMessage('Dieta salva com macros calculados automaticamente.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar a dieta.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -2894,7 +3653,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
         <button type="button" onClick={addMeal} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Adicionar refeição
         </button>
-        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+        <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar dieta'}
         </button>
       </div>
@@ -2903,11 +3662,28 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
           {message}
         </p>
       ) : null}
+      {error ? (
+        <p className="rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">
+          {error}
+        </p>
+      ) : null}
     </form>
   )
 }
 
-function NutritionPlanList({ plans, selectedStudent }) {
+function NutritionPlanList({ plans, selectedStudent, onArchive }) {
+  const [archivingId, setArchivingId] = useState('')
+
+  async function handleArchive(plan) {
+    if (!window.confirm(`Arquivar a dieta “${plan.title}”? Ela deixará de aparecer para o aluno.`)) return
+    setArchivingId(String(plan.id))
+    try {
+      await onArchive(plan.id)
+    } finally {
+      setArchivingId('')
+    }
+  }
+
   if (!plans.length) {
     return (
       <div className="space-y-3">
@@ -2924,15 +3700,22 @@ function NutritionPlanList({ plans, selectedStudent }) {
     <div className="space-y-4">
       {plans.map((plan) => (
         <div key={plan.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h4 className="text-lg font-black">{plan.title}</h4>
               <p className="mt-1 text-sm text-zinc-400">{plan.calories} | {plan.protein}</p>
               {plan.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p> : null}
             </div>
-            <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
-              Ativa
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
+                Ativa
+              </span>
+              {onArchive ? (
+                <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 disabled:opacity-50">
+                  {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="mt-4 space-y-2">
             {plan.meals.map((meal) => (
@@ -3129,7 +3912,11 @@ function Checkins({ checkins, students, onAddCheckin }) {
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <Panel title="Novo check-in" action="Upload local">
-        <CheckinForm students={students} onAddCheckin={onAddCheckin} />
+        {students.length ? (
+          <CheckinForm students={students} onAddCheckin={onAddCheckin} />
+        ) : (
+          <Empty text="Cadastre um aluno antes de registrar check-ins." />
+        )}
       </Panel>
 
       <Panel title="Histórico de check-ins" action={`${checkins.length} registros`}>
@@ -3176,9 +3963,13 @@ function StudentPortalPreview({
   onRemoteError,
   canGenerateInvite = true,
 }) {
-  const studentCheckins = checkins.filter((item) => item.studentId === student?.id)
-  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id))
-  const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id))
+  const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
+  const studentWorkouts = workouts.filter((workout) => (
+    String(workout.studentId) === String(student?.id) && workout.active !== false
+  ))
+  const studentNutritionPlans = nutritionPlans.filter((plan) => (
+    String(plan.studentId) === String(student?.id) && plan.active !== false
+  ))
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
   const studentAppointments = appointments
@@ -3199,7 +3990,7 @@ function StudentPortalPreview({
   const inviteUrl = invite ? `${window.location.origin}${window.location.pathname}?invite=${invite.code}` : ''
 
   if (!student) {
-    return <Empty text="Cadastre ou selecione um aluno para visualizar a area do aluno." />
+    return <Empty text="Cadastre ou selecione um aluno para visualizar a área do aluno." />
   }
 
   async function generateInvite() {
@@ -3212,13 +4003,14 @@ function StudentPortalPreview({
     } catch (error) {
       onRemoteStatus('Erro ao criar convite')
       onRemoteError(error.message)
+    } finally {
+      setCreatingInvite(false)
     }
-    setCreatingInvite(false)
   }
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <Panel title={`Portal do aluno - ${student.name}`} action="Previa do app">
+      <Panel title={`Portal do aluno - ${student.name}`} action="Prévia do app">
         <div className="grid gap-4 md:grid-cols-3">
           <Info label="Objetivo" value={student.goal} />
           <Info label="Treino atual" value={student.workout} />
@@ -3238,7 +4030,7 @@ function StudentPortalPreview({
               <div>
                 <p className="text-sm font-black">Convite do aluno</p>
                 <p className="mt-1 text-sm text-zinc-400">
-                  Gere um codigo para o aluno acessar a area dele pela tela inicial.
+                  Gere um código para o aluno acessar a área dele pela tela inicial.
                 </p>
               </div>
               <button onClick={generateInvite} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
@@ -3253,7 +4045,7 @@ function StudentPortalPreview({
                 <p className="mt-2 select-all break-all rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-100">
                   {inviteUrl}
                 </p>
-                <p className="mt-2 text-sm text-zinc-300">Envie o link ou o codigo para o aluno.</p>
+                <p className="mt-2 text-sm text-zinc-300">Envie o link ou o código para o aluno.</p>
               </div>
             ) : null}
           </div>
@@ -3273,7 +4065,7 @@ function StudentPortalPreview({
         />
       </Panel>
 
-      <Panel title="Proximos compromissos" action={`${studentAppointments.length} agendados`}>
+      <Panel title="Próximos compromissos" action={`${studentAppointments.length} agendados`}>
         <div className="grid gap-3">
           {studentAppointments.length ? (
             studentAppointments.slice(0, 4).map((appointment) => (
@@ -3295,7 +4087,7 @@ function StudentPortalPreview({
         </div>
       </Panel>
 
-      <Panel title="Financeiro" action={`${studentInvoices.length} cobrancas`}>
+      <Panel title="Financeiro" action={`${studentInvoices.length} cobranças`}>
         <div className="grid gap-3">
           {studentInvoices.length ? (
             studentInvoices.slice(0, 4).map((invoice) => (
@@ -3312,7 +4104,7 @@ function StudentPortalPreview({
               </div>
             ))
           ) : (
-            <Empty text="Nenhuma cobranca registrada." />
+            <Empty text="Nenhuma cobrança registrada." />
           )}
         </div>
       </Panel>
@@ -3387,6 +4179,7 @@ function StudentPortalPreview({
 function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const orderedMessages = messages
     .slice()
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
@@ -3397,14 +4190,20 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
     if (!body || !onSendMessage) return
 
     setSending(true)
-    await onSendMessage({
-      coachId,
-      studentId: student.id,
-      sender: 'student',
-      body,
-    })
-    setDraft('')
-    setSending(false)
+    setError('')
+    try {
+      await onSendMessage({
+        coachId,
+        studentId: student.id,
+        sender: 'student',
+        body,
+      })
+      setDraft('')
+    } catch (sendError) {
+      setError(sendError?.message || 'Não foi possível enviar a mensagem.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -3438,9 +4237,10 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
           placeholder="Responder ao coach..."
           className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
         />
-        <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+        <button disabled={sending || !draft.trim()} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
           {sending ? 'Enviando...' : 'Enviar resposta'}
         </button>
+        {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
       </form>
     </div>
   )
@@ -3451,8 +4251,11 @@ function StudentConsent({ access, onAccept, onExit, error }) {
 
   async function handleAccept() {
     setAccepting(true)
-    await onAccept()
-    setAccepting(false)
+    try {
+      await onAccept()
+    } finally {
+      setAccepting(false)
+    }
   }
 
   return (
@@ -3462,15 +4265,15 @@ function StudentConsent({ access, onAccept, onExit, error }) {
         <div className="mt-7 h-px bg-white/10" />
         <h1 className="mt-2 text-3xl font-black">Consentimento de dados</h1>
         <p className="mt-2 text-sm leading-6 text-zinc-400">
-          Ola, {access.student.name}. Antes de acessar seu acompanhamento, precisamos registrar sua autorizacao.
+          Olá, {access.student.name}. Antes de acessar seu acompanhamento, precisamos registrar sua autorização.
         </p>
 
         <div className="mt-6 grid gap-3">
           {[
-            'Dados de cadastro, treinos, dieta e comunicacao.',
-            'Peso, medidas corporais, fotos e informacoes de saude fornecidas por voce.',
+            'Dados de cadastro, treinos, dieta e comunicação.',
+            'Peso, medidas corporais, fotos e informações de saúde fornecidas por você.',
             'Uso dos dados exclusivamente para acompanhamento pelo seu treinador.',
-            'Possibilidade de solicitar correcao ou exclusao dos seus dados ao treinador.',
+            'Possibilidade de solicitar correção ou exclusão dos seus dados ao treinador.',
           ].map((text) => (
             <div key={text} className="rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">
               {text}
@@ -3479,12 +4282,12 @@ function StudentConsent({ access, onAccept, onExit, error }) {
         </div>
 
         <p className="mt-5 text-xs leading-5 text-zinc-500">
-          Ao continuar, voce confirma que leu e aceita o tratamento dessas informacoes para a prestacao do acompanhamento contratado.
+          Ao continuar, você confirma que leu e aceita o tratamento dessas informações para a prestação do acompanhamento contratado.
         </p>
         {error ? <p className="mt-4 text-sm font-bold text-amber-200">{error}</p> : null}
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <button onClick={handleAccept} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+          <button disabled={accepting} onClick={handleAccept} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {accepting ? 'Registrando...' : 'Aceitar e continuar'}
           </button>
           <button onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
@@ -3568,7 +4371,7 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
         </section>
 
         <section className="grid gap-4 border-t border-white/10 pt-5">
-          <h2 className="font-black text-violet-200">Rotina e hábitos</h2>
+          <h2 className="font-black text-emerald-200">Rotina e hábitos</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Horas de sono" name="sleepHours" />
             <Select label="Qualidade do sono" name="sleepQuality" defaultValue="Regular" options={['Ruim', 'Regular', 'Boa', 'Excelente']} />
@@ -3582,7 +4385,7 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
 
         {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
         <div className="flex flex-col gap-3 sm:flex-row">
-          <button disabled={saving} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60">
+          <button disabled={saving} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {saving ? 'Enviando anamnese...' : 'Enviar anamnese ao coach'}
           </button>
           <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">Sair</button>
@@ -3603,10 +4406,10 @@ function StudentAnamnesisSummary({ anamnesis }) {
   }
 
   return (
-    <div className="rounded-md border border-violet-300/30 bg-violet-300/10 p-4">
+    <div className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-black text-violet-100">Anamnese recebida</p>
+          <p className="font-black text-emerald-100">Anamnese recebida</p>
           <p className="mt-1 text-xs text-zinc-400">{formatDateTime(anamnesis.submittedAt)}</p>
         </div>
         <Badge tone="Baixo">Completa</Badge>
@@ -3631,7 +4434,7 @@ function StudentAnamnesisSummary({ anamnesis }) {
 function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
-  const studentCheckins = freshCheckins.length ? freshCheckins : access.checkins ?? []
+  const studentCheckins = mergeRecords(freshCheckins, access.checkins)
   const inviteCode = access.invite.code
 
   function addStudentCheckin(checkin) {
@@ -3691,32 +4494,61 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
 function CheckinForm({ students, onAddCheckin }) {
   const [photo, setPhoto] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [warning, setWarning] = useState('')
+  const [error, setError] = useState('')
 
   function handlePhoto(event) {
     const file = event.target.files?.[0]
     if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Selecione um arquivo de imagem válido.')
+      event.target.value = ''
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('A foto deve ter no máximo 8 MB.')
+      event.target.value = ''
+      return
+    }
+    setError('')
     setPhotoFile(file)
     const reader = new FileReader()
     reader.onload = () => setPhoto(reader.result.toString())
+    reader.onerror = () => setError('Não foi possível ler esta imagem.')
     reader.readAsDataURL(file)
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    onAddCheckin({
-      studentId: form.get('studentId').toString(),
-      type: form.get('type').toString(),
-      due: form.get('due').toString(),
-      state: form.get('state').toString(),
-      weight: form.get('weight').toString(),
-      note: form.get('note').toString(),
-      photo,
-      photoFile,
-    })
-    event.currentTarget.reset()
-    setPhoto('')
-    setPhotoFile(null)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
+    setSaving(true)
+    setMessage('')
+    setWarning('')
+    setError('')
+    try {
+      const savedCheckin = await onAddCheckin({
+        studentId: form.get('studentId')?.toString() || '',
+        type: form.get('type')?.toString() || 'Check-in',
+        due: form.get('due')?.toString() || 'Hoje',
+        state: form.get('state')?.toString() || 'Recebido',
+        weight: form.get('weight')?.toString() || '',
+        note: form.get('note')?.toString() || '',
+        photo,
+        photoFile,
+      })
+      formElement.reset()
+      setPhoto('')
+      setPhotoFile(null)
+      setMessage('Check-in salvo com sucesso.')
+      if (savedCheckin?.uploadWarning) setWarning(savedCheckin.uploadWarning)
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar o check-in.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -3738,8 +4570,13 @@ function CheckinForm({ students, onAddCheckin }) {
         Foto do check-in
         <input type="file" accept="image/*" onChange={handlePhoto} className="rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-300" />
       </label>
-      {photo ? <img src={photo} alt="Previa" className="h-44 rounded-md object-cover" /> : null}
-      <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">Salvar check-in</button>
+      {photo ? <img src={photo} alt="Prévia" className="h-44 rounded-md object-cover" /> : null}
+      <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+        {saving ? 'Salvando...' : 'Salvar check-in'}
+      </button>
+      {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+      {warning ? <p className="text-sm font-bold text-amber-200">{warning}</p> : null}
+      {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
     </form>
   )
 }
@@ -3747,6 +4584,9 @@ function CheckinForm({ students, onAddCheckin }) {
 function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
   const [filter, setFilter] = useState('Todos')
   const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [updatingId, setUpdatingId] = useState('')
   const paidTotal = invoices
     .filter((invoice) => invoice.status === 'Pago')
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
@@ -3762,25 +4602,53 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const student = students.find((item) => String(item.id) === String(form.get('studentId')))
-    const selectedPlan = plans.find((plan) => plan.name === form.get('planName'))
+    const amount = Number(form.get('amount'))
 
     setSaving(true)
-    await onSaveInvoice({
-      studentId: form.get('studentId').toString(),
-      planName: form.get('planName').toString(),
-      description: form.get('description').toString(),
-      amount: Number(form.get('amount')),
-      dueDate: form.get('dueDate').toString(),
-      status: 'Pendente',
-      paymentMethod: '',
-    })
-    if (student?.payment === 'Pago') {
-      await onUpdatePayment(student.id, 'Pendente')
+    setMessage('')
+    setError('')
+    try {
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Informe um valor de cobrança maior que zero.')
+      await onSaveInvoice({
+        studentId: form.get('studentId')?.toString() || '',
+        planName: form.get('planName')?.toString() || 'Essential',
+        description: form.get('description')?.toString() || 'Mensalidade do acompanhamento',
+        amount,
+        dueDate: form.get('dueDate')?.toString() || '',
+        status: 'Pendente',
+        paymentMethod: '',
+      })
+      if (student?.payment === 'Pago') {
+        const paymentUpdated = await onUpdatePayment(student.id, 'Pendente')
+        if (!paymentUpdated) {
+          setError('A cobrança foi criada, mas o status financeiro do aluno não pôde ser atualizado.')
+        }
+      }
+      formElement.reset()
+      setMessage('Cobrança criada com sucesso.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível criar a cobrança.')
+    } finally {
+      setSaving(false)
     }
-    event.currentTarget.reset()
-    setSaving(false)
+  }
+
+  async function handleInvoiceStatus(invoiceId, status, paymentMethod = '') {
+    setUpdatingId(String(invoiceId))
+    setError('')
+    try {
+      const updated = await onUpdateInvoiceStatus(invoiceId, status, paymentMethod)
+      if (updated === 'partial') {
+        setError('A cobrança foi atualizada, mas o status financeiro do aluno não pôde ser sincronizado.')
+      } else if (!updated) {
+        setError('Não foi possível atualizar esta cobrança.')
+      }
+    } finally {
+      setUpdatingId('')
+    }
   }
 
   return (
@@ -3788,11 +4656,11 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
       <section className="grid gap-3 sm:grid-cols-3">
         <Metric label="Recebido" value={formatCurrency(paidTotal)} detail={`${invoices.filter((item) => item.status === 'Pago').length} pagamentos`} />
         <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
-        <Metric label="Em atraso" value={overdueCount} detail="cobrancas vencidas" />
+        <Metric label="Em atraso" value={overdueCount} detail="cobranças vencidas" />
       </section>
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <Panel title="Gerar cobranca" action="Financeiro">
+        <Panel title="Gerar cobrança" action="Financeiro">
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
               <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
@@ -3801,13 +4669,15 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                 <Field label="Valor (R$)" name="amount" type="number" defaultValue="197" />
                 <Field label="Vencimento" name="dueDate" type="date" defaultValue={getDefaultDueDate()} />
               </div>
-              <Field label="Descricao" name="description" defaultValue="Mensalidade do acompanhamento" />
-              <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-                {saving ? 'Gerando...' : 'Gerar cobranca'}
+              <Field label="Descrição" name="description" defaultValue="Mensalidade do acompanhamento" />
+              <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                {saving ? 'Gerando...' : 'Gerar cobrança'}
               </button>
+              {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+              {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
             </form>
           ) : (
-            <Empty text="Cadastre um aluno antes de gerar cobrancas." />
+            <Empty text="Cadastre um aluno antes de gerar cobranças." />
           )}
 
           <div className="mt-5 grid gap-3">
@@ -3825,7 +4695,7 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
           </div>
         </Panel>
 
-        <Panel title="Historico de cobrancas" action={`${visibleInvoices.length} registros`}>
+        <Panel title="Histórico de cobranças" action={`${visibleInvoices.length} registros`}>
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {['Todos', 'Pendente', 'Pago', 'Atrasado', 'Cancelado'].map((option) => (
               <button
@@ -3858,15 +4728,15 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                         <p className="mt-1 text-sm text-zinc-400">{invoice.description}</p>
                         <p className="mt-3 text-xl font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
                         <p className="mt-1 text-sm text-zinc-400">Vence em {formatDate(invoice.dueDate)}</p>
-                        {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)} via {invoice.paymentMethod || 'nao informado'}</p> : null}
+                        {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)} via {invoice.paymentMethod || 'não informado'}</p> : null}
                       </div>
 
                       {!['Pago', 'Cancelado'].includes(invoice.status) ? (
                         <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-1">
-                          <button onClick={() => onUpdateInvoiceStatus(invoice.id, 'Pago', 'Pix')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950">
-                            Marcar pago
+                          <button disabled={updatingId === String(invoice.id)} onClick={() => handleInvoiceStatus(invoice.id, 'Pago')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">
+                            Marcar como pago
                           </button>
-                          <button onClick={() => onUpdateInvoiceStatus(invoice.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200">
+                          <button disabled={updatingId === String(invoice.id)} onClick={() => handleInvoiceStatus(invoice.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200 disabled:opacity-50">
                             Cancelar
                           </button>
                         </div>
@@ -3876,7 +4746,7 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
                 )
               })
             ) : (
-              <Empty text="Nenhuma cobranca encontrada neste filtro." />
+              <Empty text="Nenhuma cobrança encontrada neste filtro." />
             )}
           </div>
         </Panel>
@@ -3951,12 +4821,12 @@ function SmartNotifications({ notifications, smartAlerts, onReadAll, onOpenView 
               <SmartAlertCard key={alert.id} alert={alert} onOpen={() => onOpenView(alert.view)} />
             ))
           ) : (
-            <Empty text="Tudo em ordem com pagamentos, check-ins e prescricoes." />
+            <Empty text="Tudo em ordem com pagamentos, check-ins e prescrições." />
           )}
         </div>
       </Panel>
 
-      <Panel title="Central de notificacoes" action={`${unread} nao lidas`}>
+      <Panel title="Central de notificações" action={`${unread} não lidas`}>
         <button onClick={onReadAll} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 sm:w-auto">
           Marcar tudo como lido
         </button>
@@ -3969,7 +4839,7 @@ function SmartNotifications({ notifications, smartAlerts, onReadAll, onOpenView 
               </div>
             ))
           ) : (
-            <Empty text="Nenhuma notificacao registrada ainda." />
+            <Empty text="Nenhuma notificação registrada ainda." />
           )}
         </div>
       </Panel>
@@ -3989,8 +4859,8 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded bg-zinc-950/30 px-2 py-1 text-[11px] font-black uppercase tracking-normal">{alert.type}</span>
-            <span className="text-xs font-black">{alert.priority}</span>
+            <span className="rounded bg-zinc-950/30 px-2 py-1 text-[11px] font-black uppercase tracking-normal">{formatUiText(alert.type)}</span>
+            <span className="text-xs font-black">{formatUiText(alert.priority)}</span>
           </div>
           <h4 className="mt-3 font-black text-zinc-50">{alert.title}</h4>
           <p className="mt-2 text-sm leading-6 text-zinc-300">{alert.body}</p>
@@ -4006,13 +4876,14 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
 function CoachSettings({ user, settings, onSave, onExport }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const current = {
     brandName: settings?.brandName || 'FitCoach',
     publicName: settings?.publicName || user?.name || '',
     cref: settings?.cref || '',
     whatsapp: settings?.whatsapp || '',
     supportEmail: settings?.supportEmail || user?.email || '',
-    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como voce esta evoluindo.',
+    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
   }
 
@@ -4021,17 +4892,23 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     const form = new FormData(event.currentTarget)
     setSaving(true)
     setMessage('')
-    await onSave({
-      brandName: form.get('brandName').toString().trim(),
-      publicName: form.get('publicName').toString().trim(),
-      cref: form.get('cref').toString().trim(),
-      whatsapp: form.get('whatsapp').toString().trim(),
-      supportEmail: form.get('supportEmail').toString().trim(),
-      welcomeMessage: form.get('welcomeMessage').toString().trim(),
-      timezone: form.get('timezone').toString(),
-    })
-    setSaving(false)
-    setMessage('Configuracoes profissionais atualizadas.')
+    setError('')
+    try {
+      await onSave({
+        brandName: form.get('brandName')?.toString().trim() || 'FIT COACH',
+        publicName: form.get('publicName')?.toString().trim() || '',
+        cref: form.get('cref')?.toString().trim() || '',
+        whatsapp: form.get('whatsapp')?.toString().trim() || '',
+        supportEmail: form.get('supportEmail')?.toString().trim() || '',
+        welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
+        timezone: form.get('timezone')?.toString() || 'America/Sao_Paulo',
+      })
+      setMessage('Configurações profissionais atualizadas.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar as configurações.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const readiness = [
@@ -4048,16 +4925,16 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome da marca" name="brandName" defaultValue={current.brandName} />
-            <Field label="Nome publico" name="publicName" defaultValue={current.publicName} />
+            <Field label="Nome público" name="publicName" defaultValue={current.publicName} />
             <Field label="CREF ou registro" name="cref" defaultValue={current.cref} required={false} />
             <Field label="WhatsApp" name="whatsapp" defaultValue={current.whatsapp} required={false} />
-            <Field label="Email de suporte" name="supportEmail" type="email" defaultValue={current.supportEmail} />
+            <Field label="E-mail de suporte" name="supportEmail" type="email" defaultValue={current.supportEmail} />
             <Select
-              label="Fuso horario"
+              label="Fuso horário"
               name="timezone"
               defaultValue={current.timezone}
               options={[
-                { label: 'Brasilia', value: 'America/Sao_Paulo' },
+                { label: 'Brasília', value: 'America/Sao_Paulo' },
                 { label: 'Manaus', value: 'America/Manaus' },
                 { label: 'Fortaleza', value: 'America/Fortaleza' },
                 { label: 'Rio Branco', value: 'America/Rio_Branco' },
@@ -4065,15 +4942,16 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             />
           </div>
           <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
-          <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-            {saving ? 'Salvando...' : 'Salvar configuracoes'}
+          <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+            {saving ? 'Salvando...' : 'Salvar configurações'}
           </button>
           {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+          {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
         </form>
       </Panel>
 
       <div className="grid gap-4 lg:gap-6">
-        <Panel title="Como o aluno ve" action="Previa">
+        <Panel title="Como o aluno vê" action="Prévia">
           <p className="text-xs font-bold uppercase tracking-normal text-blue-300">Acompanhamento online</p>
           <h3 className="mt-2 text-3xl font-black">{current.brandName}</h3>
           <p className="mt-2 text-sm text-zinc-400">{current.publicName}{current.cref ? ` - ${current.cref}` : ''}</p>
@@ -4082,12 +4960,12 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             <p className="mt-2 text-sm leading-6 text-zinc-200">{current.welcomeMessage}</p>
           </div>
           <div className="mt-4 grid gap-2 text-sm text-zinc-400">
-            <p>{current.whatsapp || 'WhatsApp ainda nao informado'}</p>
+            <p>{current.whatsapp || 'WhatsApp ainda não informado'}</p>
             <p>{current.supportEmail}</p>
           </div>
         </Panel>
 
-        <Panel title="Prontidao da conta" action={`${readiness.filter((item) => item.ready).length}/${readiness.length}`}>
+        <Panel title="Prontidão da conta" action={`${readiness.filter((item) => item.ready).length}/${readiness.length}`}>
           <div className="grid gap-2">
             {readiness.map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.03] p-3">
@@ -4107,16 +4985,24 @@ function CoachSettings({ user, settings, onSave, onExport }) {
   )
 }
 
-function Messages({ tone, students, messages, onSendMessage }) {
+function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
   const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const selectedStudent = students.find((student) => String(student.id) === String(selectedStudentId)) ?? students[0]
   const studentMessages = messages
     .filter((message) => String(message.studentId) === String(selectedStudent?.id))
     .slice()
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
   const suggestion = buildMessageSuggestion(selectedStudent, tone)
+  const unreadForSelected = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
+
+  useEffect(() => {
+    if (selectedStudent?.id && unreadForSelected > 0) {
+      onMarkRead(selectedStudent.id)
+    }
+  }, [selectedStudent?.id, unreadForSelected])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -4124,13 +5010,19 @@ function Messages({ tone, students, messages, onSendMessage }) {
     if (!body || !selectedStudent) return
 
     setSending(true)
-    await onSendMessage({
-      studentId: selectedStudent.id,
-      sender: 'coach',
-      body,
-    })
-    setDraft('')
-    setSending(false)
+    setError('')
+    try {
+      await onSendMessage({
+        studentId: selectedStudent.id,
+        sender: 'coach',
+        body,
+      })
+      setDraft('')
+    } catch (sendError) {
+      setError(sendError?.message || 'Não foi possível enviar a mensagem.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -4201,9 +5093,10 @@ function Messages({ tone, students, messages, onSendMessage }) {
             placeholder="Escreva a mensagem para o aluno..."
             className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
-          <button className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+          <button disabled={sending || !draft.trim() || !selectedStudent} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
             {sending ? 'Enviando...' : 'Enviar mensagem'}
           </button>
+          {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
         </form>
       </Panel>
     </div>
@@ -4233,14 +5126,10 @@ function createBlankStudent() {
   }
 }
 
-const tooltipStyle = { background: '#18181b', border: '1px solid #3f3f46', color: '#f4f4f5' }
-
-function ChartWrap({ children }) {
+function ChartLoading() {
   return (
-    <div className="h-64 min-w-0 sm:h-72">
-      <ResponsiveContainer width="100%" height="100%">
-        {children}
-      </ResponsiveContainer>
+    <div className="grid h-64 min-w-0 place-items-center rounded-md border border-white/10 bg-white/[0.025] sm:h-72">
+      <p className="text-sm font-bold text-zinc-500">Carregando gráfico...</p>
     </div>
   )
 }
@@ -4248,7 +5137,7 @@ function ChartWrap({ children }) {
 function BrandLockup({ subtitle = '', large = false, compact = false }) {
   return (
     <div
-      className={`grid shrink-0 place-items-center overflow-hidden rounded-md bg-gradient-to-r from-blue-600 via-violet-500 to-red-500 p-[2px] shadow-2xl shadow-black/40 ${
+      className={`fit-brand-lockup grid shrink-0 place-items-center overflow-hidden rounded-md bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800 p-[2px] shadow-2xl shadow-black/40 ${
         large ? 'w-64 max-w-full' : compact ? 'w-20' : 'w-32 max-w-[46vw] sm:w-40 lg:w-44'
       }`}
       title={subtitle}
@@ -4277,7 +5166,7 @@ function Panel({ title, action, children }) {
     <section className="min-w-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900/70 p-4 shadow-2xl shadow-black/20 sm:p-5">
       <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <h3 className="text-base font-black sm:text-lg">{title}</h3>
-        <span className="w-fit rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-bold text-zinc-300">{action}</span>
+        <span className="w-fit rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
       </div>
       {children}
     </section>
@@ -4314,7 +5203,7 @@ function Row({ title, meta, badge }) {
           <h4 className="font-bold">{title}</h4>
           <p className="mt-1 text-sm leading-5 text-zinc-400">{meta}</p>
         </div>
-        <span className="w-fit shrink-0 rounded border border-white/10 px-2 py-1 text-xs font-bold text-zinc-300">{badge}</span>
+        <span className="w-fit shrink-0 rounded border border-white/10 px-2 py-1 text-xs font-bold text-zinc-300">{formatUiText(badge)}</span>
       </div>
     </div>
   )
@@ -4385,7 +5274,7 @@ function Select({ label, name, defaultValue, options }) {
         {options.map((option) => {
           const value = typeof option === 'string' ? option : option.value
           const labelText = typeof option === 'string' ? option : option.label
-          return <option key={value} value={value}>{labelText}</option>
+          return <option key={value} value={value}>{formatUiText(labelText)}</option>
         })}
       </select>
     </label>
@@ -4412,8 +5301,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
 
   students.forEach((student) => {
     const studentId = String(student.id)
-    const hasWorkout = workouts.some((workout) => String(workout.studentId) === studentId)
-    const hasNutrition = nutritionPlans.some((plan) => String(plan.studentId) === studentId)
+    const hasWorkout = workouts.some((workout) => String(workout.studentId) === studentId && workout.active !== false)
+    const hasNutrition = nutritionPlans.some((plan) => String(plan.studentId) === studentId && plan.active !== false)
     const adherence = Number(student.adherence || 0)
 
     if (student.payment === 'Pendente') {
@@ -4421,8 +5310,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `payment-${student.id}`,
         type: 'Financeiro',
         priority: 'Alto',
-        title: `${student.name} esta com pagamento pendente`,
-        body: `${student.plan} precisa de acompanhamento para evitar atraso de renovacao.`,
+        title: `${student.name} está com pagamento pendente`,
+        body: `${student.plan} precisa de acompanhamento para evitar atraso de renovação.`,
         action: 'Abrir pagamentos',
         view: 'pagamentos',
       })
@@ -4433,8 +5322,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `risk-${student.id}`,
         type: 'Acompanhamento',
         priority: student.risk === 'Alto' || adherence < 70 ? 'Alto' : 'Medio',
-        title: `${student.name} precisa de atencao`,
-        body: `Status ${student.status}, risco ${student.risk} e aderencia de ${adherence || 0}%.`,
+        title: `${student.name} precisa de atenção`,
+        body: `Status ${formatUiText(student.status)}, risco ${formatUiText(student.risk)} e aderência de ${adherence || 0}%.`,
         action: 'Abrir alunos',
         view: 'alunos',
       })
@@ -4445,8 +5334,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `workout-${student.id}`,
         type: 'Treino',
         priority: 'Medio',
-        title: `${student.name} ainda nao tem treino salvo`,
-        body: 'Prescreva um treino para liberar o plano na area do aluno.',
+        title: `${student.name} ainda não tem treino salvo`,
+        body: 'Prescreva um treino para liberar o plano na área do aluno.',
         action: 'Abrir treinos',
         view: 'treinos',
       })
@@ -4455,11 +5344,11 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     if (!hasNutrition) {
       alerts.push({
         id: `nutrition-${student.id}`,
-        type: 'Nutricao',
+        type: 'Nutrição',
         priority: 'Medio',
-        title: `${student.name} ainda nao tem dieta salva`,
+        title: `${student.name} ainda não tem dieta salva`,
         body: 'Crie uma dieta com macros calculados para acompanhar a meta do aluno.',
-        action: 'Abrir nutricao',
+        action: 'Abrir nutrição',
         view: 'nutricao',
       })
     }
@@ -4476,11 +5365,11 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `assessment-${student.id}`,
         type: 'Avaliacao',
         priority: latestAssessment ? 'Medio' : 'Alto',
-        title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda nao tem avaliacao`,
+        title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda não tem avaliação`,
         body: latestAssessment
-          ? `Ultima avaliacao em ${formatDate(latestAssessment.assessedAt)}.`
-          : 'Registre as medidas iniciais para criar uma linha de evolucao.',
-        action: 'Abrir avaliacoes',
+          ? `Última avaliação em ${formatDate(latestAssessment.assessedAt)}.`
+          : 'Registre as medidas iniciais para criar uma linha de evolução.',
+        action: 'Abrir avaliações',
         view: 'avaliacoes',
       })
     }
@@ -4494,8 +5383,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `checkin-${checkin.id}`,
         type: 'Check-in',
         priority: checkin.state === 'Critico' ? 'Alto' : 'Medio',
-        title: `${student?.name ?? 'Aluno'} tem check-in ${String(checkin.state).toLowerCase()}`,
-        body: `${checkin.type} - ${checkin.due}. ${checkin.note || 'Revise o retorno e registre o proximo ajuste.'}`,
+        title: `${student?.name ?? 'Aluno'} tem check-in ${formatUiText(String(checkin.state)).toLowerCase()}`,
+        body: `${checkin.type} - ${checkin.due}. ${checkin.note || 'Revise o retorno e registre o próximo ajuste.'}`,
         action: 'Abrir check-ins',
         view: 'checkins',
       })
@@ -4517,7 +5406,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         type: 'Agenda',
         priority: appointment.status === 'Confirmado' ? 'Baixo' : 'Medio',
         title: `${appointment.title} com ${student?.name ?? 'aluno'}`,
-        body: `${formatDateTime(appointment.startsAt)} - ${appointment.location || 'Local nao informado'}.`,
+        body: `${formatDateTime(appointment.startsAt)} - ${appointment.location || 'Local não informado'}.`,
         action: 'Abrir agenda',
         view: 'agenda',
       })
@@ -4532,7 +5421,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `invoice-${invoice.id}`,
         type: 'Financeiro',
         priority: 'Alto',
-        title: `${student?.name ?? 'Aluno'} tem cobranca atrasada`,
+        title: `${student?.name ?? 'Aluno'} tem cobrança atrasada`,
         body: `${formatCurrency(invoice.amount)} venceu em ${formatDate(invoice.dueDate)}.`,
         action: 'Abrir pagamentos',
         view: 'pagamentos',
@@ -4549,8 +5438,8 @@ function buildMessageSuggestion(student, tone) {
 
   const base = {
     Firme: `Recebi, ${student.name}. Vamos manter o plano sem improvisar: siga a meta de ${student.protein}, registre o treino ${student.workout} e me envie o check-in no prazo ${student.nextCheckin}.`,
-    Tecnico: `Boa, ${student.name}. Pelo objetivo de ${student.goal}, vou acompanhar aderencia, peso e resposta ao treino. Mantenha ${student.calories}, ${student.protein} e detalhe fome, sono e performance no proximo check-in.`,
-    Motivador: `Perfeito, ${student.name}. Continua no processo: cada check-in ajuda a ajustar melhor o plano. Hoje foca em cumprir o treino ${student.workout}, bater a proteina e me avisar qualquer dificuldade.`,
+    Tecnico: `Boa, ${student.name}. Pelo objetivo de ${student.goal}, vou acompanhar aderência, peso e resposta ao treino. Mantenha ${student.calories}, ${student.protein} e detalhe fome, sono e desempenho no próximo check-in.`,
+    Motivador: `Perfeito, ${student.name}. Continue no processo: cada check-in ajuda a ajustar melhor o plano. Hoje, foque em cumprir o treino ${student.workout}, atingir a proteína e me avisar sobre qualquer dificuldade.`,
   }
 
   return base[tone] ?? base.Firme
@@ -4774,17 +5663,21 @@ function roundMacro(value) {
 
 function formatDateTime(value) {
   if (!value) return 'Sem data'
+  const date = parseDisplayDate(value)
+  if (!date) return 'Data inválida'
 
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function formatFullDateTime(value) {
-  if (!value) return 'Data nao informada'
+  if (!value) return 'Data não informada'
+  const date = parseDisplayDate(value)
+  if (!date) return 'Data inválida'
 
   return new Intl.DateTimeFormat('pt-BR', {
     weekday: 'short',
@@ -4792,32 +5685,41 @@ function formatFullDateTime(value) {
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function formatDate(value) {
   if (!value) return 'Sem data'
-
-  const normalized = String(value).length === 10 ? `${value}T12:00:00` : value
-  return new Intl.DateTimeFormat('pt-BR').format(new Date(normalized))
+  const date = parseDisplayDate(value, true)
+  return date ? new Intl.DateTimeFormat('pt-BR').format(date) : 'Data inválida'
 }
 
 function formatCurrency(value) {
+  const amount = Number(value)
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(Number(value || 0))
+  }).format(Number.isFinite(amount) ? amount : 0)
 }
 
 function formatNumber(value) {
   if (value === null || value === undefined || value === '') return '-'
-  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Number(value))
+  const number = Number(value)
+  return Number.isFinite(number)
+    ? new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(number)
+    : '-'
 }
 
 function formatShortDate(value) {
   if (!value) return ''
-  const normalized = String(value).length === 10 ? `${value}T12:00:00` : value
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(new Date(normalized))
+  const date = parseDisplayDate(value, true)
+  return date ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(date) : ''
+}
+
+function parseDisplayDate(value, dateOnlyAtNoon = false) {
+  const normalized = dateOnlyAtNoon && String(value).length === 10 ? `${value}T12:00:00` : value
+  const date = new Date(normalized)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 function parseMetric(value) {
@@ -4833,9 +5735,9 @@ function calculateBmi(weightKg, heightCm) {
 }
 
 function buildAssessmentInsight(first, latest) {
-  if (!first || !latest) return 'Registre novas avaliacoes para formar uma leitura comparativa.'
+  if (!first || !latest) return 'Registre novas avaliações para formar uma leitura comparativa.'
   if (String(first.id) === String(latest.id)) {
-    return 'Avaliacao inicial registrada. Ela sera a base para os proximos comparativos.'
+    return 'Avaliação inicial registrada. Ela será a base para os próximos comparativos.'
   }
 
   const weightChange = Number(latest.weightKg || 0) - Number(first.weightKg || 0)
@@ -4848,8 +5750,8 @@ function buildAssessmentInsight(first, latest) {
   if (first.waistCm && latest.waistCm) parts.push(`cintura ${describeChange(waistChange, 'cm')}`)
 
   return parts.length
-    ? `Desde a primeira avaliacao: ${parts.join(', ')}. Use a tendencia junto da performance e aderencia para decidir o proximo ajuste.`
-    : 'As avaliacoes existem, mas ainda faltam medidas equivalentes para gerar um comparativo.'
+    ? `Desde a primeira avaliação: ${parts.join(', ')}. Use a tendência junto do desempenho e da aderência para decidir o próximo ajuste.`
+    : 'As avaliações existem, mas ainda faltam medidas equivalentes para gerar um comparativo.'
 }
 
 function describeChange(value, unit) {
@@ -4906,6 +5808,24 @@ function getDefaultDueDate() {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }
 
+function formatUiText(value) {
+  if (typeof value !== 'string') return value
+  const labels = {
+    Tecnico: 'Técnico',
+    Medio: 'Médio',
+    Critico: 'Crítico',
+    Atencao: 'Atenção',
+    Concluido: 'Concluído',
+    Proximos: 'Próximos',
+    Concluidos: 'Concluídos',
+    Avaliacao: 'Avaliação',
+    Inicio: 'Início',
+    Previa: 'Prévia',
+    Configuracoes: 'Configurações',
+  }
+  return labels[value] ?? value
+}
+
 function Badge({ tone, children }) {
   const className =
     tone === 'Alto'
@@ -4914,5 +5834,5 @@ function Badge({ tone, children }) {
         ? 'border-amber-300/40 bg-amber-300/10 text-amber-200'
         : 'border-blue-300/40 bg-blue-300/10 text-blue-200'
 
-  return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{children}</span>
+  return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }

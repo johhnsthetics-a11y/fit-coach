@@ -1,48 +1,64 @@
-# FitCoach - Checklist de lancamento
+# FIT COACH - Checklist final
 
-## Supabase
+## 1. Supabase
 
-1. Execute todos os arquivos SQL entregues, incluindo:
-   - `supabase_coach_settings.sql`
-   - `supabase_student_portal_secure.sql`
-   Execute exatamente nessa ordem.
-2. Em Authentication > URL Configuration, configure a URL publicada.
-3. Mantenha apenas a chave publica `anon` no frontend.
-4. Nunca publique a `service_role`.
+Para a base que já está funcionando, execute somente:
 
-## Primeira configuracao
+- `supabase_pre_lancamento.sql`
 
-1. Entre como treinador.
-2. Abra Configuracoes e preencha marca, nome profissional, CREF, WhatsApp e email.
-3. Cadastre um aluno real de teste.
-4. Crie treino, dieta, avaliacao, cobranca e compromisso.
-5. Gere um convite e teste em uma janela anonima.
-6. Aceite o consentimento do aluno.
-7. Envie check-in, mensagem e conclusao de treino pelo portal do aluno.
+Depois confira no Table Editor se `workout_exercises` possui:
 
-## Publicacao
+- `muscle_group`
+- `equipment`
+- `instructions`
+- `video_url`
 
-O projeto esta preparado para Vercel ou Netlify.
+Em Authentication > URL Configuration:
 
-Variaveis obrigatorias:
+- defina a URL publicada como Site URL;
+- adicione a mesma URL em Redirect URLs;
+- mantenha também a URL local durante os testes.
+
+Não publique chaves `service_role`. No frontend use apenas:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-Comandos:
+## 2. GitHub e Cloudflare
 
-- Desenvolvimento: `npm run dev`
-- Build: `npm run build`
-- Previa: `npm run preview`
+Suba todo o conteúdo do pacote final, mantendo a pasta `src`.
 
-## Operacao inicial
+Configuração:
 
-Comece com um grupo pequeno de treinadores e alunos. Valide diariamente:
+- Build command: `pnpm run build`
+- Deploy command: `pnpm dlx wrangler@4 deploy`
+- Output directory: `dist`
 
-- novos cadastros;
-- convites;
-- uploads de check-in;
-- mensagens;
-- cobrancas;
-- agenda;
-- avaliacoes e graficos.
+Cadastre no Cloudflare as duas variáveis do Supabase e execute um novo deploy.
+
+## 3. Teste antes de convidar treinadores
+
+1. Crie uma conta de coach.
+2. Preencha Configurações.
+3. Cadastre um aluno e confirme o código.
+4. Entre como aluno em janela anônima.
+5. Aceite o consentimento e envie a anamnese.
+6. Crie treino com vídeo, dieta, avaliação, compromisso e cobrança.
+7. Envie check-in com foto e mensagem pelo portal do aluno.
+8. Marque a cobrança como paga e confirme o status após recarregar.
+9. Arquive o treino e a dieta de teste e confirme que saíram do portal do aluno.
+10. Teste o fluxo “Esqueci minha senha”.
+11. Recarregue as duas telas e confirme que os dados continuam salvos.
+12. Teste no celular e no desktop.
+13. Exclua o aluno de teste ao terminar.
+
+## 4. Operação inicial
+
+Comece com poucos coaches e alunos reais. Acompanhe diariamente:
+
+- falhas de login;
+- convites expirados;
+- fotos não enviadas;
+- cobranças vencidas;
+- mensagens sem resposta;
+- check-ins pendentes.
