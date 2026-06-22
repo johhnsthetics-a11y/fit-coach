@@ -117,6 +117,27 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.app-shell button,
+.app-shell a,
+.app-shell span,
+.app-shell td,
+.app-shell th,
+.app-shell summary {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.app-shell div {
+  min-width: 0;
+}
+
+.app-shell button,
+.app-shell a {
+  white-space: normal;
+}
+
 .workout-builder details summary {
   min-height: 44px;
   list-style: none;

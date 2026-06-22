@@ -55,11 +55,12 @@ const navItems = [
   { id: 'treinos', label: 'Treinos', icon: '05' },
   { id: 'nutricao', label: 'Nutrição', icon: '06' },
   { id: 'checkins', label: 'Check-ins', icon: '07' },
-  { id: 'pagamentos', label: 'Planos e pagamentos', icon: '08' },
+  { id: 'pagamentos', label: 'Recebimentos', icon: '08' },
   { id: 'notificacoes', label: 'Notificações', icon: '09' },
   { id: 'mensagens', label: 'Mensagens', icon: '10' },
   { id: 'aluno-app', label: 'Área do aluno', icon: '11' },
   { id: 'configuracoes', label: 'Configurações', icon: '12' },
+  { id: 'assinatura', label: 'Minha assinatura', icon: '13' },
 ]
 
 const workoutPlan = [
@@ -1381,7 +1382,7 @@ export default function App() {
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
             <span className="text-[10px] font-bold text-zinc-600">{navItems.length} áreas</span>
           </div>
-          <nav className="grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-2 overflow-hidden lg:grid-cols-2 lg:gap-1.5">
+          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-1.5 overflow-y-auto pr-1 lg:overflow-hidden lg:pr-0">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -1391,14 +1392,14 @@ export default function App() {
                   setActiveView(item.id)
                   setMobileMenuOpen(false)
                 }}
-                className={`flex min-h-11 min-w-0 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition lg:gap-2 lg:px-2.5 lg:py-1.5 ${
+                className={`flex min-h-9 min-w-0 items-center gap-2.5 rounded-md border px-3 py-1.5 text-left text-sm font-semibold transition ${
                   activeView === item.id
                     ? 'border-blue-500 bg-blue-500 text-zinc-950 shadow-lg shadow-emerald-950/20'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-zinc-950/10 text-xs font-black">{item.icon}</span>
-                <span className="min-w-0 max-w-full break-words text-[13px] leading-tight sm:flex-1">{item.label}</span>
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-zinc-950/10 text-[11px] font-black">{item.icon}</span>
+                <span className="min-w-0 flex-1 break-words text-[13px] leading-tight">{item.label}</span>
                 {item.id === 'notificacoes' && totalAlertCount > 0 ? (
                   <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
                 ) : null}
@@ -1514,6 +1515,12 @@ export default function App() {
                 onSaveInvoice={saveInvoice}
                 onUpdateInvoiceStatus={updateInvoiceStatus}
                 onUpdatePayment={updatePayment}
+              />
+            )}
+            {activeView === 'assinatura' && (
+              <CoachSubscription
+                students={data.students}
+                invoices={data.invoices ?? []}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -1806,11 +1813,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <p className="mt-3 text-xs leading-5 text-zinc-500">Acesso pelo navegador, implantação gradual e portal individual para cada aluno.</p>
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
               <SalesStat value="1 painel" label="operação centralizada" />
-              <SalesStat value="12 áreas" label="gestão completa" />
+              <SalesStat value="13 áreas" label="gestão completa" />
               <SalesStat value="2 portais" label="coach e aluno" />
-            </div>
-            <div className="sales-dashboard-motion mt-8">
-              <SalesDashboardPreview />
             </div>
           </div>
 
@@ -1899,7 +1903,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-14 backdrop-blur-xl sm:py-20">
+        <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Uma estrutura para toda a operação</p>
@@ -1925,7 +1929,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal className="lg:sticky lg:top-28">
               <p className="text-sm font-semibold uppercase text-emerald-300">O custo da desorganização</p>
@@ -1953,55 +1957,33 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section sales-section-red border-y border-white/10 bg-zinc-950/75 py-14 sm:py-20">
+        <section className="sales-section sales-section-red border-y border-white/10 bg-zinc-950/75 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Antes e depois</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.</h2>
             </div>
-            <div className="mt-9 hidden overflow-hidden rounded-md border border-white/10 bg-[#05070d]/85 sm:block" data-reveal>
-              <div className="grid grid-cols-[0.8fr_1fr_1fr] border-b border-white/10 bg-white/[0.04] text-xs font-black uppercase sm:grid-cols-[1fr_1.15fr_1.15fr] sm:text-sm">
-                <div className="p-3 sm:p-4">Rotina</div>
-                <div className="border-l border-white/10 p-3 text-zinc-400 sm:p-4">Sem plataforma</div>
-                <div className="border-l border-white/10 p-3 text-blue-200 sm:p-4">Com FIT COACH</div>
-              </div>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e anamnese opcional'],
+                ['Cadastro', 'Formulários e mensagens soltas', 'Código, consentimento e continuidade'],
                 ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
                 ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
                 ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
                 ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
                 ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
               ].map(([item, before, after]) => (
-                <div key={item} className="grid grid-cols-[0.8fr_1fr_1fr] border-b border-white/10 text-xs last:border-b-0 sm:grid-cols-[1fr_1.15fr_1.15fr] sm:text-sm">
-                  <div className="p-3 font-black sm:p-4">{item}</div>
-                  <div className="border-l border-white/10 p-3 text-zinc-500 sm:p-4">{before}</div>
-                  <div className="border-l border-white/10 bg-blue-500/[0.06] p-3 font-bold text-zinc-200 sm:p-4">{after}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-7 grid gap-3 sm:hidden">
-              {[
-                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e continuidade'],
-                ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
-                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
-                ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
-                ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
-                ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
-              ].map(([item, before, after]) => (
-                <div key={item} className="rounded-md border border-white/10 bg-[#05070d]/85 p-4">
-                  <p className="font-black text-white">{item}</p>
-                  <div className="mt-3 grid gap-2 text-sm">
-                    <p className="rounded bg-white/[0.04] p-3 text-zinc-500"><strong className="text-zinc-400">Antes:</strong> {before}</p>
-                    <p className="rounded border border-emerald-300/20 bg-emerald-400/10 p-3 text-zinc-200"><strong className="text-emerald-200">Com FIT COACH:</strong> {after}</p>
-                  </div>
+                <div key={item} data-reveal className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-[#05070d]/85 p-4">
+                  <p className="text-xs font-black uppercase text-cyan-300">{item}</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-500"><strong className="text-zinc-400">Antes:</strong> {before}</p>
+                  <div className="my-3 h-px bg-white/10" />
+                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">Com FIT COACH:</strong> {after}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <section className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
@@ -2027,35 +2009,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section border-y border-white/10 bg-[#05070d]/70 py-14 sm:py-20">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
-              <div data-reveal>
-                <p className="text-sm font-semibold uppercase text-blue-300">Comece sem complicação</p>
-                <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Você não precisa organizar toda a sua operação de uma vez.</h2>
-                <p className="mt-4 leading-7 text-zinc-400">A implantação pode acontecer aluno por aluno, mantendo seu atendimento atual enquanto a base profissional é construída.</p>
-              </div>
-              <div className="grid gap-3">
-                {[
-                  ['1', 'Configure seu perfil', 'Nome profissional, marca e informações do coach.'],
-                  ['2', 'Cadastre um aluno', 'O sistema gera o acesso e solicita a anamnese apenas quando necessário.'],
-                  ['3', 'Publique o acompanhamento', 'Adicione treino, alimentação, agenda e cobrança.'],
-                  ['4', 'Acompanhe e evolua', 'Use check-ins, mensagens e avaliações para ajustar o plano.'],
-                ].map(([number, title, text], index) => (
-                  <div key={number} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="flex gap-4 rounded-md border border-white/10 bg-white/[0.035] p-4">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-gradient-to-br from-emerald-300 via-emerald-500 to-emerald-800 text-sm font-black text-white">{number}</span>
-                    <div>
-                      <h3 className="font-black">{title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-zinc-400">{text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <section className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-blue-300">Potencial de faturamento</p>
@@ -2149,7 +2103,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section border-y border-white/10 bg-zinc-950/70 py-14 sm:py-20">
+        <section className="sales-section border-y border-white/10 bg-zinc-950/70 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Feito para a rotina real do coach</p>
@@ -2183,7 +2137,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-20">
+        <section className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center" data-reveal>
             <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
             <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o FIT COACH</h2>
@@ -2194,10 +2148,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O FIT COACH organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
               ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
               ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
-              ['E se eu trabalhar de um jeito diferente?', 'O sistema reúne as funções centrais do acompanhamento e continuará evoluindo. Treinos, alimentação, check-ins e comunicação podem ser ajustados à sua metodologia.'],
-              ['Os dados de saúde do aluno ficam misturados com conversas?', 'Não. Anamnese, avaliações, fotos e registros ficam vinculados ao aluno, com acesso controlado pelo fluxo do coach e do convite individual.'],
               ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o FIT COACH por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
-              ['A plataforma substitui meu atendimento pessoal?', 'Não. Ela organiza a operação para que seu tempo seja usado em análise, estratégia e relacionamento, em vez de procurar informações espalhadas.'],
+              ['Como funciona o valor depois do primeiro mês?', 'Após o primeiro mês promocional, a assinatura passa para R$ 49,90 mais 2% sobre o valor mensal dos planos dos alunos ativos cadastrados. O resumo fica visível antes do fechamento.'],
             ].map(([question, answer], index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
@@ -2210,14 +2162,53 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/75 py-14">
-          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6" data-reveal>
-            <p className="text-sm font-semibold uppercase text-blue-300">FIT COACH</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Sua metodologia merece uma plataforma à altura.</h2>
-            <p className="mx-auto mt-4 max-w-2xl leading-7 text-zinc-400">Comece organizando sua carteira atual e evolua o sistema junto com a sua operação.</p>
-            <button type="button" onClick={() => openAccess('signup')} className="mt-7 rounded-md bg-blue-500 px-6 py-3 text-sm font-black text-zinc-950">
-              Criar minha conta
-            </button>
+        <section className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/80 py-10 sm:py-14">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6" data-reveal>
+            <div className="overflow-hidden rounded-md border border-emerald-300/25 bg-[#070b0a] shadow-2xl shadow-black/40">
+              <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+                <div className="min-w-0">
+                  <span className="inline-flex rounded border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase text-emerald-200">
+                    Condição especial de entrada
+                  </span>
+                  <h2 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">Comece a profissionalizar sua operação por apenas R$ 9,90.</h2>
+                  <p className="mt-4 max-w-2xl leading-7 text-zinc-300">
+                    No primeiro mês, você acessa toda a estrutura do FIT COACH com <strong className="text-white">isenção total da taxa de manutenção</strong>. Organize seus alunos, entregue uma experiência melhor e valide o ganho na rotina antes do próximo ciclo.
+                  </p>
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    {[
+                      ['R$ 9,90', 'primeiro mês completo'],
+                      ['0% de taxa', 'manutenção totalmente isenta'],
+                      ['Acesso completo', 'coach e portal do aluno'],
+                    ].map(([value, label]) => (
+                      <div key={label} className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-4">
+                        <p className="break-words text-xl font-black text-white">{value}</p>
+                        <p className="mt-1 text-xs leading-5 text-zinc-500">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="min-w-0 rounded-md border border-cyan-300/20 bg-cyan-400/[0.05] p-5 sm:p-6">
+                  <p className="text-xs font-black uppercase text-cyan-200">Depois do primeiro mês</p>
+                  <div className="mt-4 flex flex-wrap items-end gap-2">
+                    <span className="text-4xl font-black text-white">R$ 49,90</span>
+                    <span className="pb-1 text-sm font-bold text-zinc-400">por mês</span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-zinc-300">
+                    Mais 2% sobre o valor mensal do plano de cada aluno ativo cadastrado. Você acompanha a composição antes do fechamento, aluno por aluno.
+                  </p>
+                  <div className="mt-5 grid gap-3">
+                    <ObjectionPoint text="Comece com sua carteira atual, sem migrar tudo de uma vez." positive />
+                    <ObjectionPoint text="Cobrança proporcional ao tamanho da sua operação." positive />
+                    <ObjectionPoint text="Resumo transparente antes do pagamento." positive />
+                  </div>
+                  <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950">
+                    Quero começar por R$ 9,90
+                  </button>
+                  <p className="mt-3 text-center text-xs leading-5 text-zinc-500">Crie sua conta e comece a estruturar seus primeiros alunos.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -2243,114 +2234,6 @@ function ObjectionPoint({ text, positive = false }) {
     <div className="flex gap-3 text-sm leading-6 text-zinc-300">
       <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${positive ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
       <p>{text}</p>
-    </div>
-  )
-}
-
-function SalesDashboardPreview() {
-  return (
-    <div className="overflow-hidden rounded-md border border-white/10 bg-zinc-950/90 shadow-2xl shadow-black/40">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div>
-          <p className="text-xs font-black text-blue-300">CENTRAL DO COACH</p>
-          <p className="mt-1 text-sm font-black">Visão geral da operação</p>
-        </div>
-        <span className="rounded border border-blue-300/30 bg-blue-300/10 px-2 py-1 text-xs font-bold text-blue-200">Online</span>
-      </div>
-      <div className="grid gap-3 p-4 sm:grid-cols-3">
-        <SalesPreviewMetric label="Alunos ativos" value="28" />
-        <SalesPreviewMetric label="Constância média" value="87%" />
-        <SalesPreviewMetric label="Check-ins" value="12" />
-      </div>
-      <div className="border-t border-white/10 p-4">
-        <div className="overflow-hidden rounded-md border border-cyan-300/20 bg-zinc-950/55">
-          <div className="flex flex-col gap-4 border-b border-white/10 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
-            <div className="max-w-xl">
-              <p className="text-xs font-black uppercase text-cyan-300">Evolução da carteira ativa</p>
-              <h4 className="mt-2 text-lg font-black text-white">Crescimento organizado, mês após mês.</h4>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">Acompanhe quantos alunos continuam ativos e identifique se sua operação está crescendo com consistência.</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <div className="text-left sm:text-right">
-                <p className="text-2xl font-black text-white">28 alunos</p>
-                <p className="text-xs text-zinc-500">carteira atual</p>
-              </div>
-              <span className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-sm font-black text-emerald-200">+47%</span>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-5">
-            <div className="relative h-44 sm:h-52" aria-label="Gráfico ilustrativo da evolução de 19 para 28 alunos ativos em seis meses">
-              <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-white/10" />
-              <div className="pointer-events-none absolute inset-x-0 top-1/3 border-t border-dashed border-white/10" />
-              <div className="pointer-events-none absolute inset-x-0 top-2/3 border-t border-dashed border-white/10" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-6 border-t border-white/15" />
-              <div className="absolute inset-x-0 bottom-0 top-0 flex items-end gap-2 sm:gap-3">
-                {[
-                  ['Jan', 19, 52],
-                  ['Fev', 20, 57],
-                  ['Mar', 22, 64],
-                  ['Abr', 24, 72],
-                  ['Mai', 25, 79],
-                  ['Jun', 27, 89],
-                  ['Jul', 28, 96],
-                ].map(([month, students, height], index) => (
-                  <div key={month} className="group flex h-full min-w-0 flex-1 flex-col justify-end">
-                    <div className="relative flex min-h-0 flex-1 items-end">
-                      <div
-                        className={`relative w-full rounded-t-sm border transition duration-300 group-hover:brightness-125 ${
-                          index === 6
-                            ? 'border-emerald-300/50 bg-gradient-to-t from-emerald-700 to-emerald-300'
-                            : 'border-cyan-300/25 bg-gradient-to-t from-cyan-900 to-cyan-400'
-                        }`}
-                        style={{ height: `${height}%` }}
-                      >
-                        <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black ${
-                          index === 6 ? 'text-emerald-200' : 'text-zinc-400'
-                        }`}>{students}</span>
-                      </div>
-                    </div>
-                    <span className={`h-6 pt-2 text-center text-[10px] font-bold uppercase ${
-                      index === 6 ? 'text-emerald-200' : 'text-zinc-600'
-                    }`}>{month}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-2 rounded-md border border-cyan-300/15 bg-cyan-400/[0.05] p-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-5 text-zinc-300"><strong className="text-white">Leitura do período:</strong> a carteira avançou de 19 para 28 alunos ativos, mantendo uma trajetória contínua.</p>
-              <span className="shrink-0 text-xs font-black text-cyan-200">+9 alunos ativos</span>
-            </div>
-
-            <div className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-3">
-            {[
-              ['Mais capacidade', 'Atenda uma carteira maior com informações centralizadas.', 'bg-cyan-400'],
-              ['Mais retenção', 'Identifique falta de adesão antes que o aluno desista.', 'bg-emerald-400'],
-              ['Mais previsibilidade', 'Acompanhe renovações e pagamentos no momento certo.', 'bg-amber-300'],
-            ].map(([title, text, color]) => (
-              <div key={title} className="flex gap-3">
-                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded ${color}`} />
-                <div>
-                  <p className="text-xs font-black text-zinc-200">{title}</p>
-                  <p className="mt-1 text-[11px] leading-5 text-zinc-500">{text}</p>
-                </div>
-              </div>
-            ))}
-            </div>
-            <p className="mt-4 text-[10px] leading-4 text-zinc-600">Cenário ilustrativo. Resultados reais dependem da estratégia, retenção e execução de cada profissional.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SalesPreviewMetric({ label, value }) {
-  return (
-    <div className="rounded-md border border-white/10 bg-white/[0.04] p-3">
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="mt-2 text-xl font-black">{value}</p>
     </div>
   )
 }
@@ -4679,6 +4562,189 @@ function CheckinForm({ students, onAddCheckin }) {
   )
 }
 
+function CoachSubscription({ students, invoices }) {
+  const [showDetails, setShowDetails] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const billingCheckoutUrl = import.meta.env.VITE_FITCOACH_BILLING_URL || ''
+  const activeStudents = students.filter((student) => student.status !== 'Inativo')
+  const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan), 0)
+  const now = new Date()
+  const receivedThisMonth = invoices
+    .filter((invoice) => {
+      if (invoice.status !== 'Pago') return false
+      const paidDate = new Date(invoice.paidAt || invoice.dueDate)
+      return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
+    })
+    .reduce((total, invoice) => total + Number(invoice.amount || 0), 0)
+  const maintenanceFee = estimatedRevenue * 0.02
+  const firstMonthTotal = 9.9
+  const regularTotal = 49.9 + maintenanceFee
+  const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
+  const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
+  const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
+  const closingDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const studentBreakdown = activeStudents.map((student) => {
+    const monthlyValue = getPlanMonthlyPrice(student.plan)
+    return {
+      ...student,
+      monthlyValue,
+      maintenanceValue: monthlyValue * 0.02,
+    }
+  })
+
+  async function copyBillingSummary() {
+    const summary = [
+      'Resumo da assinatura FIT COACH',
+      `Alunos ativos: ${activeStudents.length}`,
+      `Receita estimada da carteira: ${formatCurrency(estimatedRevenue)}`,
+      `Mensalidade regular: ${formatCurrency(49.9)}`,
+      `Taxa de manutenção (2%): ${formatCurrency(maintenanceFee)}`,
+      `Total regular estimado: ${formatCurrency(regularTotal)}`,
+    ].join('\n')
+
+    try {
+      await navigator.clipboard.writeText(summary)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="grid min-w-0 gap-4 lg:gap-6">
+      <section className="overflow-hidden rounded-md border border-emerald-300/25 bg-zinc-950/75 shadow-2xl shadow-black/25">
+        <div className="grid gap-5 border-b border-white/10 p-4 sm:p-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-emerald-300">Sua assinatura FIT COACH</p>
+            <h3 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">Uma estrutura profissional que cresce junto com sua carteira.</h3>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+              Você começa por apenas <strong className="text-emerald-200">R$ 9,90 no primeiro mês</strong>, com isenção total da taxa de manutenção. Depois, a mensalidade é de R$ 49,90 mais 2% sobre o valor dos planos dos alunos ativos cadastrados.
+            </p>
+          </div>
+          <div className="min-w-0 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
+            <p className="text-xs font-black uppercase text-emerald-200">Primeiro fechamento</p>
+            <p className="mt-2 break-words text-4xl font-black text-white">{formatCurrency(firstMonthTotal)}</p>
+            <p className="mt-2 text-xs leading-5 text-emerald-100">Taxa de manutenção totalmente isenta neste ciclo.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+          <SubscriptionMetric label="Alunos ativos" value={activeStudents.length} detail="incluídos no cálculo" tone="cyan" />
+          <SubscriptionMetric label="Receita estimada" value={formatCurrency(estimatedRevenue)} detail="valor mensal da carteira" tone="emerald" />
+          <SubscriptionMetric label="Recebido no mês" value={formatCurrency(receivedThisMonth)} detail="cobranças marcadas como pagas" tone="amber" />
+          <SubscriptionMetric label="Você mantém" value={formatCurrency(retainedRevenue)} detail="após a cobrança regular estimada" tone="emerald" />
+        </div>
+      </section>
+
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <Panel title="Composição da cobrança" action={`Fecha em ${formatDate(closingDate.toISOString())}`}>
+          <div className="grid gap-3">
+            <BillingLine label="Mensalidade do primeiro mês" value={formatCurrency(9.9)} note="Condição especial de entrada" />
+            <BillingLine label="Taxa no primeiro mês" value={formatCurrency(0)} note={`Isenção de ${formatCurrency(maintenanceFee)} neste ciclo`} />
+            <BillingLine label="Mensalidade após o primeiro mês" value={formatCurrency(49.9)} note="Valor fixo mensal" />
+            <BillingLine label="Taxa nos meses seguintes" value={formatCurrency(maintenanceFee)} note={`2% sobre ${formatCurrency(estimatedRevenue)} em planos ativos`} />
+            <div className="mt-1 rounded-md border border-emerald-300/30 bg-emerald-400/10 p-4">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-200">Próximos fechamentos</p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-400">Mensalidade regular somada à taxa da carteira ativa.</p>
+                </div>
+                <p className="break-words text-3xl font-black text-white">{formatCurrency(regularTotal)}</p>
+              </div>
+            </div>
+          </div>
+          <button type="button" onClick={() => setShowDetails((current) => !current)} className="mt-4 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+            {showDetails ? 'Ocultar alunos considerados' : 'Ver alunos considerados'}
+          </button>
+          {showDetails ? (
+            <div className="mt-3 grid gap-2">
+              {studentBreakdown.length ? studentBreakdown.map((student) => (
+                <div key={student.id} className="flex min-w-0 flex-col gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-black text-zinc-200">{student.name}</p>
+                    <p className="mt-1 break-words text-xs text-zinc-500">{student.plan} · mensalidade de {formatCurrency(student.monthlyValue)}</p>
+                  </div>
+                  <div className="shrink-0 text-left sm:text-right">
+                    <p className="text-xs text-zinc-500">Taxa de 2%</p>
+                    <p className="mt-1 text-sm font-black text-cyan-200">{formatCurrency(student.maintenanceValue)}</p>
+                  </div>
+                </div>
+              )) : <Empty text="Cadastre alunos e selecione os planos para calcular a taxa." />}
+            </div>
+          ) : null}
+        </Panel>
+
+        <div className="grid min-w-0 gap-4">
+          <Panel title="O investimento em perspectiva" action="Valor percebido">
+            <div className="rounded-md border border-cyan-300/20 bg-cyan-400/[0.05] p-4">
+              <p className="text-xs font-black uppercase text-cyan-200">Custo sobre a receita</p>
+              <p className="mt-2 text-4xl font-black text-white">{costShare.toFixed(1).replace('.', ',')}%</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                No cenário atual, o custo regular estimado representa apenas essa parcela da receita mensal da carteira.
+              </p>
+            </div>
+            <div className="mt-3 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
+              <p className="text-xs font-black uppercase text-emerald-200">Receita comparada à assinatura</p>
+              <p className="mt-2 text-3xl font-black text-white">{returnMultiple.toFixed(1).replace('.', ',')}x</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Sua carteira estimada é maior que o custo da plataforma. Organização, retenção e percepção de valor ajudam a proteger esse resultado.
+              </p>
+            </div>
+          </Panel>
+
+          <Panel title="Pagamento da assinatura" action="Transparente">
+            <p className="text-sm leading-6 text-zinc-400">
+              O fechamento considera os alunos ativos e os planos cadastrados até o último dia do mês. Antes da cobrança, você verá o resumo completo.
+            </p>
+            {billingCheckoutUrl ? (
+              <a href={billingCheckoutUrl} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 w-full items-center justify-center rounded-md bg-emerald-500 px-4 py-3 text-center text-sm font-black text-zinc-950">
+                Ir para pagamento seguro
+              </a>
+            ) : (
+              <button type="button" disabled className="mt-4 w-full rounded-md bg-zinc-800 px-4 py-3 text-sm font-black text-zinc-500">
+                Checkout seguro em configuração
+              </button>
+            )}
+            <button type="button" onClick={copyBillingSummary} className="mt-3 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+              {copied ? 'Resumo copiado' : 'Copiar resumo da cobrança'}
+            </button>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">A cobrança real será calculada novamente no servidor antes do pagamento, evitando alterações indevidas no valor.</p>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SubscriptionMetric({ label, value, detail, tone }) {
+  const toneClass = {
+    cyan: 'border-cyan-300/20 bg-cyan-400/[0.05] text-cyan-200',
+    emerald: 'border-emerald-300/20 bg-emerald-400/[0.06] text-emerald-200',
+    amber: 'border-amber-300/20 bg-amber-300/[0.06] text-amber-200',
+  }[tone] || 'border-white/10 bg-white/[0.03] text-zinc-200'
+
+  return (
+    <div className={`min-w-0 rounded-md border p-4 ${toneClass}`}>
+      <p className="text-xs font-black uppercase">{label}</p>
+      <p className="mt-2 break-words text-2xl font-black text-white">{value}</p>
+      <p className="mt-2 text-xs leading-5 text-zinc-500">{detail}</p>
+    </div>
+  )
+}
+
+function BillingLine({ label, value, note }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2 rounded-md border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="break-words text-sm font-black text-zinc-200">{label}</p>
+        <p className="mt-1 break-words text-xs text-zinc-500">{note}</p>
+      </div>
+      <p className="shrink-0 text-lg font-black text-white">{value}</p>
+    </div>
+  )
+}
+
 function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
   const [filter, setFilter] = useState('Todos')
   const [saving, setSaving] = useState(false)
@@ -5261,7 +5327,7 @@ function Panel({ title, action, children }) {
     <section className="min-w-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900/70 p-4 shadow-2xl shadow-black/20 sm:p-5">
       <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <h3 className="text-base font-black sm:text-lg">{title}</h3>
-        <span className="w-fit rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
+        <span className="max-w-full break-words rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold leading-5 text-zinc-300">{formatUiText(action)}</span>
       </div>
       {children}
     </section>
@@ -5298,7 +5364,7 @@ function Row({ title, meta, badge }) {
           <h4 className="font-bold">{title}</h4>
           <p className="mt-1 text-sm leading-5 text-zinc-400">{meta}</p>
         </div>
-        <span className="w-fit shrink-0 rounded border border-white/10 px-2 py-1 text-xs font-bold text-zinc-300">{formatUiText(badge)}</span>
+        <span className="max-w-full break-words rounded border border-white/10 px-2 py-1 text-right text-xs font-bold leading-5 text-zinc-300 sm:shrink-0">{formatUiText(badge)}</span>
       </div>
     </div>
   )
@@ -5809,6 +5875,14 @@ function formatCurrency(value) {
     style: 'currency',
     currency: 'BRL',
   }).format(Number.isFinite(amount) ? amount : 0)
+}
+
+function getPlanMonthlyPrice(planName) {
+  const plan = plans.find((item) => item.name === planName)
+  if (!plan) return 0
+  const normalized = plan.price.replace(/[^\d,]/g, '').replace(',', '.')
+  const value = Number(normalized)
+  return Number.isFinite(value) ? value : 0
 }
 
 function formatCpf(value) {

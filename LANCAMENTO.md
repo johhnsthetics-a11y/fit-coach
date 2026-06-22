@@ -38,6 +38,18 @@ Configuração:
 
 Cadastre no Cloudflare as duas variáveis do Supabase e execute um novo deploy.
 
+Quando o checkout da assinatura estiver pronto, cadastre também:
+
+- `VITE_FITCOACH_BILLING_URL`
+
+O valor final deve ser recalculado no servidor do checkout antes da cobrança. A tela do app apresenta uma estimativa transparente, mas não deve ser usada como única fonte para debitar o treinador.
+
+Regra comercial configurada no app:
+
+- primeiro mês: `R$ 9,90`, com taxa de manutenção totalmente isenta;
+- meses seguintes: `R$ 49,90` mais `2%` sobre o valor mensal dos planos dos alunos ativos cadastrados;
+- o fechamento deve apresentar o cálculo por aluno antes do pagamento.
+
 ## 3. Teste antes de convidar treinadores
 
 1. Crie uma conta de coach.
