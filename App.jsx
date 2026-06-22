@@ -450,10 +450,16 @@ export default function App() {
 
   useEffect(() => {
     if (!mobileMenuOpen) return undefined
+    const desktopMedia = window.matchMedia('(min-width: 1024px)')
+    const handleDesktopChange = (event) => {
+      if (event.matches) setMobileMenuOpen(false)
+    }
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    desktopMedia.addEventListener('change', handleDesktopChange)
     return () => {
       document.body.style.overflow = previousOverflow
+      desktopMedia.removeEventListener('change', handleDesktopChange)
     }
   }, [mobileMenuOpen])
 
@@ -1277,7 +1283,7 @@ export default function App() {
       )
     }
 
-    if (!studentAccess.anamnesisCompleted) {
+    if (studentAccess.anamnesisRequired !== false && !studentAccess.anamnesisCompleted) {
       return (
         <StudentAnamnesis
           access={studentAccess}
@@ -1348,7 +1354,7 @@ export default function App() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col border-r border-white/10 bg-zinc-950/95 p-4 backdrop-blur-xl transition-transform duration-200 lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[304px] lg:max-w-none lg:translate-x-0 lg:p-5 xl:w-[328px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -1365,13 +1371,17 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-4 rounded-md border border-blue-500/40 bg-blue-500/10 p-3">
-            <p className="text-xs text-zinc-400">Status da base</p>
-            <p className="text-sm font-bold text-blue-200">{remoteStatus}</p>
+          <div className="mt-5 rounded-md border border-blue-500/40 bg-blue-500/10 p-4">
+            <p className="text-[11px] font-black uppercase text-zinc-400">Status da operação</p>
+            <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
             {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
           </div>
 
-          <nav className="scrollbar-soft mt-4 grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-y-auto pr-1">
+          <div className="mb-2 mt-5 flex items-center justify-between px-1">
+            <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
+            <span className="text-[10px] font-bold text-zinc-600">{navItems.length} áreas</span>
+          </div>
+          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-2 overflow-y-auto pr-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -1381,14 +1391,14 @@ export default function App() {
                   setActiveView(item.id)
                   setMobileMenuOpen(false)
                 }}
-                className={`flex min-h-11 min-w-0 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${
+                className={`flex min-h-12 min-w-0 items-center gap-3 rounded-md border px-3 py-2.5 text-left text-sm font-semibold transition lg:px-4 ${
                   activeView === item.id
-                    ? 'border-blue-500 bg-blue-500 text-zinc-950'
+                    ? 'border-blue-500 bg-blue-500 text-zinc-950 shadow-lg shadow-emerald-950/20'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-zinc-950/10 text-xs font-black">{item.icon}</span>
-                <span className="min-w-0 max-w-full break-words leading-tight sm:flex-1">{item.label}</span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-zinc-950/10 text-xs font-black">{item.icon}</span>
+                <span className="min-w-0 max-w-full break-words leading-tight sm:flex-1 lg:text-[15px]">{item.label}</span>
                 {item.id === 'notificacoes' && totalAlertCount > 0 ? (
                   <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
                 ) : null}
@@ -1396,12 +1406,12 @@ export default function App() {
             ))}
           </nav>
 
-          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-3 text-sm font-bold text-zinc-300">
+          <button type="button" onClick={logout} className="mt-4 w-full rounded-md border border-white/10 px-3 py-3 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
             Sair
           </button>
       </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[286px] xl:px-8">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[304px] lg:px-6 xl:ml-[328px] xl:px-8">
           <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -1898,7 +1908,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['01', 'Alunos e anamnese', 'Cadastro, código automático, anamnese inicial e histórico centralizado.'],
+                ['01', 'Alunos e anamnese', 'Cadastro, código automático, anamnese quando necessária e histórico centralizado.'],
                 ['02', 'Treinos com execução guiada', 'Prescrição por exercício, séries, cargas, orientações e acesso ao vídeo do movimento.'],
                 ['03', 'Nutrição inteligente', 'Planos alimentares, busca de alimentos e cálculo automático de macronutrientes.'],
                 ['04', 'Evolução visual', 'Avaliações, medidas, fotos, gráficos e leitura clara do progresso.'],
@@ -1956,7 +1966,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 <div className="border-l border-white/10 p-3 text-blue-200 sm:p-4">Com FIT COACH</div>
               </div>
               {[
-                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e anamnese'],
+                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e anamnese opcional'],
                 ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
                 ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
                 ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
@@ -1972,7 +1982,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             </div>
             <div className="mt-7 grid gap-3 sm:hidden">
               {[
-                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e anamnese'],
+                ['Cadastro', 'Formulário ou mensagens', 'Código, consentimento e continuidade'],
                 ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
                 ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
                 ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
@@ -2028,7 +2038,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <div className="grid gap-3">
                 {[
                   ['1', 'Configure seu perfil', 'Nome profissional, marca e informações do coach.'],
-                  ['2', 'Cadastre um aluno', 'O sistema gera o acesso e solicita a anamnese inicial.'],
+                  ['2', 'Cadastre um aluno', 'O sistema gera o acesso e solicita a anamnese apenas quando necessário.'],
                   ['3', 'Publique o acompanhamento', 'Adicione treino, alimentação, agenda e cobrança.'],
                   ['4', 'Acompanhe e evolua', 'Use check-ins, mensagens e avaliações para ajustar o plano.'],
                 ].map(([number, title, text], index) => (
@@ -2252,22 +2262,84 @@ function SalesDashboardPreview() {
         <SalesPreviewMetric label="Aderência média" value="87%" />
         <SalesPreviewMetric label="Check-ins" value="12" />
       </div>
-      <div className="grid gap-3 border-t border-white/10 p-4 sm:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-bold text-zinc-500">EVOLUÇÃO DA CARTEIRA</p>
-          <div className="mt-5 flex h-24 items-end gap-2">
-            {[38, 52, 46, 68, 62, 82, 92].map((height, index) => (
-              <span key={index} className={`flex-1 rounded-t ${index > 4 ? 'bg-emerald-700' : 'bg-emerald-400'}`} style={{ height: `${height}%` }} />
-            ))}
-          </div>
-        </div>
-        <div className="space-y-2">
-          {['Treino publicado', 'Anamnese recebida', 'Pagamento confirmado'].map((text, index) => (
-            <div key={text} className="flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3">
-              <span className={`h-2 w-2 shrink-0 rounded ${index === 1 ? 'bg-emerald-700' : 'bg-emerald-400'}`} />
-              <span className="text-xs font-bold text-zinc-300">{text}</span>
+      <div className="border-t border-white/10 p-4">
+        <div className="overflow-hidden rounded-md border border-cyan-300/20 bg-zinc-950/55">
+          <div className="flex flex-col gap-4 border-b border-white/10 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+            <div className="max-w-xl">
+              <p className="text-xs font-black uppercase text-cyan-300">Evolução da carteira ativa</p>
+              <h4 className="mt-2 text-lg font-black text-white">Crescimento organizado, mês após mês.</h4>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">Acompanhe quantos alunos continuam ativos e identifique se sua operação está crescendo com consistência.</p>
             </div>
-          ))}
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="text-left sm:text-right">
+                <p className="text-2xl font-black text-white">28 alunos</p>
+                <p className="text-xs text-zinc-500">carteira atual</p>
+              </div>
+              <span className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-sm font-black text-emerald-200">+47%</span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <div className="relative h-44 sm:h-52" aria-label="Gráfico ilustrativo da evolução de 19 para 28 alunos ativos em seis meses">
+              <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-white/10" />
+              <div className="pointer-events-none absolute inset-x-0 top-1/3 border-t border-dashed border-white/10" />
+              <div className="pointer-events-none absolute inset-x-0 top-2/3 border-t border-dashed border-white/10" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-6 border-t border-white/15" />
+              <div className="absolute inset-x-0 bottom-0 top-0 flex items-end gap-2 sm:gap-3">
+                {[
+                  ['Jan', 19, 52],
+                  ['Fev', 20, 57],
+                  ['Mar', 22, 64],
+                  ['Abr', 24, 72],
+                  ['Mai', 25, 79],
+                  ['Jun', 27, 89],
+                  ['Jul', 28, 96],
+                ].map(([month, students, height], index) => (
+                  <div key={month} className="group flex h-full min-w-0 flex-1 flex-col justify-end">
+                    <div className="relative flex min-h-0 flex-1 items-end">
+                      <div
+                        className={`relative w-full rounded-t-sm border transition duration-300 group-hover:brightness-125 ${
+                          index === 6
+                            ? 'border-emerald-300/50 bg-gradient-to-t from-emerald-700 to-emerald-300'
+                            : 'border-cyan-300/25 bg-gradient-to-t from-cyan-900 to-cyan-400'
+                        }`}
+                        style={{ height: `${height}%` }}
+                      >
+                        <span className={`absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black ${
+                          index === 6 ? 'text-emerald-200' : 'text-zinc-400'
+                        }`}>{students}</span>
+                      </div>
+                    </div>
+                    <span className={`h-6 pt-2 text-center text-[10px] font-bold uppercase ${
+                      index === 6 ? 'text-emerald-200' : 'text-zinc-600'
+                    }`}>{month}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 rounded-md border border-cyan-300/15 bg-cyan-400/[0.05] p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-zinc-300"><strong className="text-white">Leitura do período:</strong> a carteira avançou de 19 para 28 alunos ativos, mantendo uma trajetória contínua.</p>
+              <span className="shrink-0 text-xs font-black text-cyan-200">+9 alunos ativos</span>
+            </div>
+
+            <div className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-3">
+            {[
+              ['Mais capacidade', 'Atenda uma carteira maior com informações centralizadas.', 'bg-cyan-400'],
+              ['Mais retenção', 'Identifique falta de adesão antes que o aluno desista.', 'bg-emerald-400'],
+              ['Mais previsibilidade', 'Acompanhe renovações e pagamentos no momento certo.', 'bg-amber-300'],
+            ].map(([title, text, color]) => (
+              <div key={title} className="flex gap-3">
+                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded ${color}`} />
+                <div>
+                  <p className="text-xs font-black text-zinc-200">{title}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-zinc-500">{text}</p>
+                </div>
+              </div>
+            ))}
+            </div>
+            <p className="mt-4 text-[10px] leading-4 text-zinc-600">Cenário ilustrativo. Resultados reais dependem da estratégia, retenção e execução de cada profissional.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -2670,7 +2742,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
               )}
             </div>
             <div className="mt-5">
-              <StudentAnamnesisSummary anamnesis={selectedAnamnesis} />
+              <StudentAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -2710,6 +2782,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
 function StudentForm({ student, onSave, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [continuingStudent, setContinuingStudent] = useState(student.requireAnamnesis === false)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -2736,6 +2809,7 @@ function StudentForm({ student, onSave, onCancel }) {
         protein: form.get('protein').toString(),
         workout: form.get('workout').toString(),
         lastMessage: form.get('lastMessage').toString(),
+        requireAnamnesis: !continuingStudent,
       })
     } catch (saveError) {
       setError(saveError.message || 'Não foi possível salvar o aluno.')
@@ -2746,6 +2820,33 @@ function StudentForm({ student, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
+      <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-4 transition ${
+        continuingStudent
+          ? 'border-emerald-300/40 bg-emerald-300/10'
+          : 'border-white/10 bg-white/[0.03] hover:border-white/25'
+      }`}>
+        <input
+          type="checkbox"
+          checked={continuingStudent}
+          onChange={(event) => setContinuingStudent(event.target.checked)}
+          className="mt-1 h-5 w-5 shrink-0 accent-emerald-500"
+        />
+        <span className="min-w-0">
+          <span className="block font-black text-zinc-100">Aluno já acompanhado</span>
+          <span className="mt-1 block text-sm leading-6 text-zinc-400">
+            Use para transferir um aluno atual para o FIT COACH. Ele aceitará o consentimento e entrará direto no portal, sem preencher uma nova anamnese.
+          </span>
+        </span>
+      </label>
+      {continuingStudent ? (
+        <div className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50">
+          Preencha abaixo o ponto atual do acompanhamento, principalmente fase, peso, aderência, próximo check-in, treino e última observação.
+        </div>
+      ) : (
+        <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4 text-sm leading-6 text-blue-50">
+          Como este é um aluno novo, a anamnese será solicitada no primeiro acesso após o consentimento.
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome" name="name" defaultValue={student.name} />
         <Field label="E-mail" name="email" defaultValue={student.email} />
@@ -4395,8 +4496,22 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
   )
 }
 
-function StudentAnamnesisSummary({ anamnesis }) {
+function StudentAnamnesisSummary({ anamnesis, student }) {
   if (!anamnesis) {
+    if (student?.requireAnamnesis === false) {
+      return (
+        <div className="rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-black text-blue-100">Aluno transferido</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-300">Anamnese dispensada pelo coach. O acompanhamento continua a partir dos dados atuais cadastrados.</p>
+            </div>
+            <Badge tone="Baixo">Liberado</Badge>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="rounded-md border border-amber-300/30 bg-amber-300/10 p-4">
         <p className="font-black text-amber-100">Anamnese pendente</p>
@@ -5123,6 +5238,7 @@ function createBlankStudent() {
     protein: '160 g',
     workout: 'Full body',
     lastMessage: 'Novo aluno cadastrado.',
+    requireAnamnesis: true,
   }
 }
 
@@ -5137,15 +5253,21 @@ function ChartLoading() {
 function BrandLockup({ subtitle = '', large = false, compact = false }) {
   return (
     <div
-      className={`fit-brand-lockup grid shrink-0 place-items-center overflow-hidden rounded-md bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800 p-[2px] shadow-2xl shadow-black/40 ${
-        large ? 'w-64 max-w-full' : compact ? 'w-20' : 'w-32 max-w-[46vw] sm:w-40 lg:w-44'
+      className={`fit-brand-lockup grid aspect-[400/71] shrink-0 place-items-center ${
+        large
+          ? 'w-[min(88vw,34rem)]'
+          : compact
+            ? 'w-32 sm:w-36'
+            : 'w-48 max-w-[72vw] sm:w-56 lg:w-64'
       }`}
       title={subtitle}
     >
       <img
         src={fitCoachLogo}
-        alt="FIT COACH"
-        className="h-auto w-full rounded-[4px] bg-[#05070d] object-contain"
+        alt="FIT COACH PRO"
+        className="h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.48)]"
+        decoding="async"
+        draggable="false"
       />
     </div>
   )

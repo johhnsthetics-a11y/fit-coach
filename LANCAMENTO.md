@@ -4,7 +4,9 @@
 
 Para a base que já está funcionando, execute somente:
 
-- `supabase_pre_lancamento.sql`
+- `supabase_aluno_transferido.sql`
+
+Em uma instalação nova, o arquivo `supabase_pre_lancamento.sql` já inclui essa atualização.
 
 Depois confira no Table Editor se `workout_exercises` possui:
 
@@ -40,17 +42,19 @@ Cadastre no Cloudflare as duas variáveis do Supabase e execute um novo deploy.
 
 1. Crie uma conta de coach.
 2. Preencha Configurações.
-3. Cadastre um aluno e confirme o código.
+3. Cadastre um aluno novo e confirme o código.
 4. Entre como aluno em janela anônima.
 5. Aceite o consentimento e envie a anamnese.
-6. Crie treino com vídeo, dieta, avaliação, compromisso e cobrança.
-7. Envie check-in com foto e mensagem pelo portal do aluno.
-8. Marque a cobrança como paga e confirme o status após recarregar.
-9. Arquive o treino e a dieta de teste e confirme que saíram do portal do aluno.
-10. Teste o fluxo “Esqueci minha senha”.
-11. Recarregue as duas telas e confirme que os dados continuam salvos.
-12. Teste no celular e no desktop.
-13. Exclua o aluno de teste ao terminar.
+6. Cadastre outro aluno marcando “Aluno já acompanhado”.
+7. Confirme que ele aceita o consentimento e entra direto no portal sem nova anamnese.
+8. Crie treino com vídeo, dieta, avaliação, compromisso e cobrança.
+9. Envie check-in com foto e mensagem pelo portal do aluno.
+10. Marque a cobrança como paga e confirme o status após recarregar.
+11. Arquive o treino e a dieta de teste e confirme que saíram do portal do aluno.
+12. Teste o fluxo “Esqueci minha senha”.
+13. Recarregue as duas telas e confirme que os dados continuam salvos.
+14. Teste no celular e no desktop.
+15. Exclua os alunos de teste ao terminar.
 
 ## 4. Operação inicial
 

@@ -442,6 +442,7 @@ export async function loadRemoteStudentByInvite(code) {
     assessments: (payload.assessments ?? []).map(fromAssessmentRow),
     coachSettings: payload.coach_settings ? fromCoachSettingsRow(payload.coach_settings) : null,
     anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
+    anamnesisRequired: payload.student.require_anamnesis !== false,
     anamnesisCompleted: Boolean(anamnesis?.id),
   }
 }
@@ -793,6 +794,7 @@ function fromStudentRow(row) {
     protein: row.protein ?? '',
     workout: row.workout ?? '',
     lastMessage: row.last_message ?? '',
+    requireAnamnesis: row.require_anamnesis !== false,
   }
 }
 
@@ -816,6 +818,7 @@ function toStudentRow(student, coachId) {
     protein: student.protein,
     workout: student.workout,
     last_message: student.lastMessage,
+    require_anamnesis: student.requireAnamnesis !== false,
   }
 }
 
