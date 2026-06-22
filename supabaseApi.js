@@ -106,6 +106,17 @@ async function request(path, options = {}) {
   return response.json()
 }
 
+async function optionalTableRequest(path) {
+  try {
+    return await request(path)
+  } catch (error) {
+    if (/PGRST205|relation .* does not exist|table .* not found/i.test(error?.message || '')) {
+      return []
+    }
+    throw error
+  }
+}
+
 async function authRequest(path, body) {
   if (!supabaseEnabled) {
     throw new Error('Supabase não configurado')
@@ -213,7 +224,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -228,6 +239,7 @@ export async function loadRemoteData() {
     request('coach_settings?select=*&limit=1'),
     request('student_invites?select=*&order=created_at.desc'),
     request('student_anamneses?select=*&order=submitted_at.desc'),
+    optionalTableRequest('coach_subscriptions?select=*&limit=1'),
   ])
 
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
@@ -247,6 +259,7 @@ export async function loadRemoteData() {
     coachSettings: coachSettings[0] ? fromCoachSettingsRow(coachSettings[0]) : null,
     invites: invites.map(fromInviteRow),
     anamneses: anamneses.map(fromAnamnesisRow),
+    coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
   }
 }
 
@@ -762,6 +775,21 @@ function fromUserRow(row) {
     name: row.name,
     email: row.email,
     role: row.role ?? 'Coach principal',
+    createdAt: row.created_at,
+  }
+}
+
+function fromCoachSubscriptionRow(row) {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    status: row.status ?? 'trial',
+    startedAt: row.started_at,
+    firstBillingAt: row.first_billing_at,
+    nextBillingAt: row.next_billing_at,
+    firstMonthPrice: Number(row.first_month_price_cents ?? 990) / 100,
+    regularPrice: Number(row.regular_price_cents ?? 4990) / 100,
+    maintenanceRate: Number(row.maintenance_rate ?? 0.02),
   }
 }
 

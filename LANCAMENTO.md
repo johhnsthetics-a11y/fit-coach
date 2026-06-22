@@ -2,11 +2,12 @@
 
 ## 1. Supabase
 
-Para a base que já está funcionando, execute somente:
+Para a base que já está funcionando, execute:
 
 - `supabase_cpf_aluno.sql`
+- `supabase_assinatura_coach.sql`
 
-Em uma instalação nova, o arquivo `supabase_pre_lancamento.sql` já inclui as atualizações de aluno transferido e CPF.
+Em uma instalação nova, o arquivo `supabase_pre_lancamento.sql` já inclui aluno transferido, CPF e ciclo individual da assinatura.
 
 Depois confira no Table Editor se `workout_exercises` possui:
 

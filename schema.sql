@@ -8,6 +8,20 @@ create table if not exists users (
   created_at timestamptz default now()
 );
 
+create table if not exists coach_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  coach_id uuid not null unique references users(id) on delete cascade,
+  status text not null default 'trial',
+  started_at timestamptz not null default now(),
+  first_billing_at timestamptz not null default (now() + interval '1 month'),
+  next_billing_at timestamptz not null default (now() + interval '1 month'),
+  first_month_price_cents integer not null default 990,
+  regular_price_cents integer not null default 4990,
+  maintenance_rate numeric(6,5) not null default 0.02,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists students (
   id uuid primary key default gen_random_uuid(),
   coach_id uuid references users(id) on delete cascade,

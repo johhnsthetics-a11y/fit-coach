@@ -257,6 +257,7 @@ function createInitialData() {
     invites: [],
     anamneses: [],
     coachSettings: null,
+    coachSubscription: null,
   }
 }
 
@@ -343,6 +344,7 @@ function useStoredData() {
           invites: remoteData.invites ?? [],
           anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings ?? current.coachSettings,
+          coachSubscription: remoteData.coachSubscription ?? current.coachSubscription,
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
@@ -366,7 +368,7 @@ function useStoredData() {
               .catch(() => {
                 if (!active) return
                 setSupabaseSession('')
-                setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
+                setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
                 setRemoteStatus('Sessão expirada')
                 setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
               })
@@ -374,7 +376,7 @@ function useStoredData() {
           }
 
           setSupabaseSession('')
-          setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
+          setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
           setRemoteStatus('Sessão expirada')
           setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
           return
@@ -408,6 +410,7 @@ export default function App() {
   const [studentAccess, setStudentAccess] = useState(null)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [billingClock, setBillingClock] = useState(Date.now())
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
@@ -438,12 +441,18 @@ export default function App() {
     [data.students, data.checkins, data.workouts, data.nutritionPlans, data.appointments, data.invoices, data.assessments],
   )
   const totalAlertCount = unreadCount + smartAlerts.length
+  const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
 
   useEffect(() => {
     if (data.session?.access_token) {
       setSupabaseSession(data.session.access_token)
     }
   }, [data.session?.access_token])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setBillingClock(Date.now()), 60 * 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -539,6 +548,7 @@ export default function App() {
           invites: remoteData.invites ?? [],
           anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings,
+          coachSubscription: remoteData.coachSubscription,
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
@@ -587,6 +597,7 @@ export default function App() {
       invites: [],
       anamneses: [],
       coachSettings: null,
+      coachSubscription: null,
     }))
   }
 
@@ -620,7 +631,7 @@ export default function App() {
             setSupabaseSession('')
             setRemoteStatus('Sessão expirada')
             setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
-            setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
+            setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
           })
         return
       }
@@ -628,7 +639,7 @@ export default function App() {
       setSupabaseSession('')
       setRemoteStatus('Sessão expirada')
       setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
-      setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null }))
+      setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
       return
     }
 
@@ -1427,6 +1438,14 @@ export default function App() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2 xl:mt-0">
+              <button
+                type="button"
+                onClick={() => setActiveView('assinatura')}
+                className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
+              >
+                <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
+                <span className="mt-0.5 block">{coachBillingCycle.daysRemaining} {coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
+              </button>
               {['Firme', 'Tecnico', 'Motivador'].map((item) => (
                 <button
                   key={item}
@@ -1521,6 +1540,8 @@ export default function App() {
               <CoachSubscription
                 students={data.students}
                 invoices={data.invoices ?? []}
+                subscription={data.coachSubscription}
+                userCreatedAt={data.user?.createdAt}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -2165,47 +2186,52 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <section className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/80 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6" data-reveal>
             <div className="overflow-hidden rounded-md border border-emerald-300/25 bg-[#070b0a] shadow-2xl shadow-black/40">
-              <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-                <div className="min-w-0">
-                  <span className="inline-flex rounded border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-xs font-black uppercase text-emerald-200">
-                    Condição especial de entrada
+              <div className="grid gap-5 p-5 sm:p-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-stretch">
+                <div className="min-w-0 rounded-md border border-emerald-300/30 bg-gradient-to-br from-emerald-400/15 via-emerald-950/10 to-transparent p-5 sm:p-7">
+                  <span className="inline-flex rounded bg-emerald-400 px-3 py-2 text-xs font-black uppercase text-zinc-950">
+                    Oferta de lançamento
                   </span>
-                  <h2 className="mt-5 text-3xl font-bold leading-tight sm:text-4xl">Comece a profissionalizar sua operação por apenas R$ 9,90.</h2>
+                  <p className="mt-5 text-sm font-black uppercase text-emerald-200">Seu primeiro mês completo por</p>
+                  <div className="mt-2 flex flex-wrap items-end gap-3">
+                    <span className="text-6xl font-black leading-none text-white sm:text-7xl">R$ 9,90</span>
+                    <span className="pb-1 text-sm font-bold text-zinc-400">pagamento único no primeiro ciclo</span>
+                  </div>
+                  <h2 className="mt-6 max-w-3xl text-2xl font-bold leading-tight sm:text-3xl">Comece pequeno no investimento e grande na experiência entregue aos seus alunos.</h2>
                   <p className="mt-4 max-w-2xl leading-7 text-zinc-300">
-                    No primeiro mês, você acessa toda a estrutura do FIT COACH com <strong className="text-white">isenção total da taxa de manutenção</strong>. Organize seus alunos, entregue uma experiência melhor e valide o ganho na rotina antes do próximo ciclo.
+                    Acesse toda a estrutura do FIT COACH com <strong className="text-emerald-100">isenção total da taxa de manutenção</strong>. Use o primeiro mês para organizar sua carteira e perceber o ganho na rotina.
                   </p>
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     {[
-                      ['R$ 9,90', 'primeiro mês completo'],
-                      ['0% de taxa', 'manutenção totalmente isenta'],
-                      ['Acesso completo', 'coach e portal do aluno'],
+                      ['0% de taxa', 'isenção total no primeiro mês'],
+                      ['Sem limite inicial', 'cadastre sua carteira ativa'],
+                      ['Acesso completo', 'painel do coach e portal do aluno'],
                     ].map(([value, label]) => (
                       <div key={label} className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-4">
-                        <p className="break-words text-xl font-black text-white">{value}</p>
+                        <p className="break-words text-lg font-black text-emerald-100">{value}</p>
                         <p className="mt-1 text-xs leading-5 text-zinc-500">{label}</p>
                       </div>
                     ))}
                   </div>
+                  <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-400 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/30 sm:w-auto">
+                    Garantir meu primeiro mês por R$ 9,90
+                  </button>
+                  <p className="mt-3 text-xs leading-5 text-zinc-500">Crie sua conta agora. O período começa individualmente após a ativação do seu painel.</p>
                 </div>
 
-                <div className="min-w-0 rounded-md border border-cyan-300/20 bg-cyan-400/[0.05] p-5 sm:p-6">
-                  <p className="text-xs font-black uppercase text-cyan-200">Depois do primeiro mês</p>
+                <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+                  <p className="text-xs font-black uppercase text-zinc-500">Transparência nos próximos ciclos</p>
                   <div className="mt-4 flex flex-wrap items-end gap-2">
-                    <span className="text-4xl font-black text-white">R$ 49,90</span>
+                    <span className="text-2xl font-black text-zinc-200">R$ 49,90</span>
                     <span className="pb-1 text-sm font-bold text-zinc-400">por mês</span>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-zinc-300">
+                  <p className="mt-3 text-sm leading-6 text-zinc-500">
                     Mais 2% sobre o valor mensal do plano de cada aluno ativo cadastrado. Você acompanha a composição antes do fechamento, aluno por aluno.
                   </p>
-                  <div className="mt-5 grid gap-3">
-                    <ObjectionPoint text="Comece com sua carteira atual, sem migrar tudo de uma vez." positive />
-                    <ObjectionPoint text="Cobrança proporcional ao tamanho da sua operação." positive />
-                    <ObjectionPoint text="Resumo transparente antes do pagamento." positive />
+                  <div className="mt-5 grid gap-3 border-t border-white/10 pt-5">
+                    <ObjectionPoint text="Cobrança proporcional ao tamanho da operação." />
+                    <ObjectionPoint text="Cálculo detalhado por aluno." />
+                    <ObjectionPoint text="Resumo disponível antes do pagamento." />
                   </div>
-                  <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950">
-                    Quero começar por R$ 9,90
-                  </button>
-                  <p className="mt-3 text-center text-xs leading-5 text-zinc-500">Crie sua conta e comece a estruturar seus primeiros alunos.</p>
                 </div>
               </div>
             </div>
@@ -4562,9 +4588,10 @@ function CheckinForm({ students, onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students, invoices }) {
+function CoachSubscription({ students, invoices, subscription, userCreatedAt }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [currentTime, setCurrentTime] = useState(Date.now())
   const billingCheckoutUrl = import.meta.env.VITE_FITCOACH_BILLING_URL || ''
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan), 0)
@@ -4576,29 +4603,39 @@ function CoachSubscription({ students, invoices }) {
       return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
     })
     .reduce((total, invoice) => total + Number(invoice.amount || 0), 0)
-  const maintenanceFee = estimatedRevenue * 0.02
-  const firstMonthTotal = 9.9
-  const regularTotal = 49.9 + maintenanceFee
+  const billingCycle = getCoachBillingCycle(subscription, userCreatedAt, currentTime)
+  const firstMonthPrice = subscription?.firstMonthPrice ?? 9.9
+  const regularPrice = subscription?.regularPrice ?? 49.9
+  const maintenanceRate = subscription?.maintenanceRate ?? 0.02
+  const maintenanceFee = estimatedRevenue * maintenanceRate
+  const firstMonthTotal = firstMonthPrice
+  const regularTotal = regularPrice + maintenanceFee
+  const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
   const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
   const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
-  const closingDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const closingDate = new Date(billingCycle.nextBillingAt)
   const studentBreakdown = activeStudents.map((student) => {
     const monthlyValue = getPlanMonthlyPrice(student.plan)
     return {
       ...student,
       monthlyValue,
-      maintenanceValue: monthlyValue * 0.02,
+      maintenanceValue: monthlyValue * maintenanceRate,
     }
   })
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(Date.now()), 60 * 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   async function copyBillingSummary() {
     const summary = [
       'Resumo da assinatura FIT COACH',
       `Alunos ativos: ${activeStudents.length}`,
       `Receita estimada da carteira: ${formatCurrency(estimatedRevenue)}`,
-      `Mensalidade regular: ${formatCurrency(49.9)}`,
-      `Taxa de manutenção (2%): ${formatCurrency(maintenanceFee)}`,
+      `Mensalidade regular: ${formatCurrency(regularPrice)}`,
+      `Taxa de manutenção (${formatPercent(maintenanceRate)}): ${formatCurrency(maintenanceFee)}`,
       `Total regular estimado: ${formatCurrency(regularTotal)}`,
     ].join('\n')
 
@@ -4619,13 +4656,22 @@ function CoachSubscription({ students, invoices }) {
             <p className="text-xs font-black uppercase text-emerald-300">Sua assinatura FIT COACH</p>
             <h3 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">Uma estrutura profissional que cresce junto com sua carteira.</h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              Você começa por apenas <strong className="text-emerald-200">R$ 9,90 no primeiro mês</strong>, com isenção total da taxa de manutenção. Depois, a mensalidade é de R$ 49,90 mais 2% sobre o valor dos planos dos alunos ativos cadastrados.
+              Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>, com isenção total da taxa de manutenção. Depois, a mensalidade é de {formatCurrency(regularPrice)} mais {formatPercent(maintenanceRate)} sobre o valor dos planos dos alunos ativos cadastrados.
             </p>
           </div>
           <div className="min-w-0 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Primeiro fechamento</p>
-            <p className="mt-2 break-words text-4xl font-black text-white">{formatCurrency(firstMonthTotal)}</p>
-            <p className="mt-2 text-xs leading-5 text-emerald-100">Taxa de manutenção totalmente isenta neste ciclo.</p>
+            <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro fechamento' : 'Próximo fechamento'}</p>
+            <p className="mt-2 break-words text-4xl font-black text-white">{formatCurrency(currentBillingTotal)}</p>
+            <p className="mt-2 text-xs leading-5 text-emerald-100">
+              {billingCycle.isPromotional
+                ? 'Taxa de manutenção totalmente isenta neste ciclo.'
+                : `${formatCurrency(regularPrice)} + ${formatCurrency(maintenanceFee)} de manutenção estimada.`}
+            </p>
+            <div className="mt-4 border-t border-emerald-300/20 pt-4">
+              <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança em</p>
+              <p className="mt-1 text-2xl font-black text-white">{billingCycle.daysRemaining} {billingCycle.daysRemaining === 1 ? 'dia' : 'dias'}</p>
+              <p className="mt-1 text-xs text-zinc-400">{formatFullDateTime(billingCycle.nextBillingAt)}</p>
+            </div>
           </div>
         </div>
 
@@ -4640,10 +4686,10 @@ function CoachSubscription({ students, invoices }) {
       <div className="grid min-w-0 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <Panel title="Composição da cobrança" action={`Fecha em ${formatDate(closingDate.toISOString())}`}>
           <div className="grid gap-3">
-            <BillingLine label="Mensalidade do primeiro mês" value={formatCurrency(9.9)} note="Condição especial de entrada" />
+            <BillingLine label="Mensalidade do primeiro mês" value={formatCurrency(firstMonthPrice)} note="Condição especial de entrada" />
             <BillingLine label="Taxa no primeiro mês" value={formatCurrency(0)} note={`Isenção de ${formatCurrency(maintenanceFee)} neste ciclo`} />
-            <BillingLine label="Mensalidade após o primeiro mês" value={formatCurrency(49.9)} note="Valor fixo mensal" />
-            <BillingLine label="Taxa nos meses seguintes" value={formatCurrency(maintenanceFee)} note={`2% sobre ${formatCurrency(estimatedRevenue)} em planos ativos`} />
+            <BillingLine label="Mensalidade após o primeiro mês" value={formatCurrency(regularPrice)} note="Valor fixo mensal" />
+            <BillingLine label="Taxa nos meses seguintes" value={formatCurrency(maintenanceFee)} note={`${formatPercent(maintenanceRate)} sobre ${formatCurrency(estimatedRevenue)} em planos ativos`} />
             <div className="mt-1 rounded-md border border-emerald-300/30 bg-emerald-400/10 p-4">
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
@@ -5883,6 +5929,49 @@ function getPlanMonthlyPrice(planName) {
   const normalized = plan.price.replace(/[^\d,]/g, '').replace(',', '.')
   const value = Number(normalized)
   return Number.isFinite(value) ? value : 0
+}
+
+function formatPercent(value) {
+  const percentage = Number(value || 0) * 100
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(percentage)}%`
+}
+
+function getCoachBillingCycle(subscription, userCreatedAt, referenceTime = Date.now()) {
+  const reference = new Date(referenceTime)
+  const fallbackStart = parseValidDate(userCreatedAt) ?? reference
+  const startedAt = parseValidDate(subscription?.startedAt) ?? fallbackStart
+  const firstBillingAt = parseValidDate(subscription?.firstBillingAt) ?? addCalendarMonth(startedAt)
+  const storedBillingAt = parseValidDate(subscription?.nextBillingAt)
+  let nextBillingAt = storedBillingAt ?? firstBillingAt
+
+  while (nextBillingAt.getTime() <= reference.getTime()) {
+    nextBillingAt = addCalendarMonth(nextBillingAt)
+  }
+
+  const millisecondsRemaining = Math.max(nextBillingAt.getTime() - reference.getTime(), 0)
+  return {
+    startedAt: startedAt.toISOString(),
+    nextBillingAt: nextBillingAt.toISOString(),
+    daysRemaining: Math.max(1, Math.ceil(millisecondsRemaining / (24 * 60 * 60 * 1000))),
+    isPromotional: reference.getTime() < firstBillingAt.getTime() && (subscription?.status ?? 'trial') === 'trial',
+  }
+}
+
+function parseValidDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function addCalendarMonth(value) {
+  const source = new Date(value)
+  const day = source.getDate()
+  const result = new Date(source)
+  result.setDate(1)
+  result.setMonth(result.getMonth() + 1)
+  const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()
+  result.setDate(Math.min(day, lastDay))
+  return result
 }
 
 function formatCpf(value) {
