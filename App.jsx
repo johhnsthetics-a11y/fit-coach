@@ -4565,47 +4565,188 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
   }
 
   return (
-    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden p-3 text-zinc-100 sm:p-6">
-      <div className="mx-auto min-w-0 max-w-6xl">
-        <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/10 pb-5">
-          <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
-        </div>
-        <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-semibold text-blue-300">Área do aluno</p>
-            <h1 className="mt-1 text-3xl font-black sm:text-4xl">{student.name}</h1>
-            <p className="mt-2 text-sm text-zinc-400">{student.goal}</p>
-          </div>
-          <button onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-            Sair
-          </button>
-        </header>
+    <StudentMobileApp
+      student={student}
+      checkins={studentCheckins}
+      workouts={workouts}
+      nutritionPlans={nutritionPlans}
+      workoutLogs={workoutLogs}
+      messages={messages}
+      appointments={appointments}
+      invoices={invoices}
+      assessments={assessments}
+      coachSettings={coachSettings}
+      coachId={access.invite.coachId}
+      onCompleteWorkout={completeStudentWorkout}
+      onAddCheckin={addStudentCheckin}
+      onSendMessage={sendStudentMessage}
+      onExit={onExit}
+    />
+  )
+}
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onExit }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
+  const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
+  const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
+  const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
+  const studentAppointments = appointments
+    .filter((appointment) => String(appointment.studentId) === String(student?.id))
+    .filter((appointment) => !['Concluido', 'Cancelado'].includes(appointment.status))
+    .slice()
+    .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
+  const studentInvoices = invoices
+    .filter((invoice) => String(invoice.studentId) === String(student?.id))
+    .slice()
+    .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
+  const studentAssessments = assessments
+    .filter((assessment) => String(assessment.studentId) === String(student?.id))
+    .slice()
+    .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
+  const nextWorkout = studentWorkouts[0]
+  const nextAppointment = studentAppointments[0]
+  const pendingInvoice = studentInvoices.find((invoice) => invoice.status !== 'Pago')
+  const navItems = [
+    ['inicio', 'Início'], ['treino', 'Treino'], ['dieta', 'Dieta'], ['checkin', 'Check-in'],
+    ['mensagens', 'Mensagens'], ['agenda', 'Agenda'], ['financeiro', 'Financeiro'], ['progresso', 'Progresso'],
+  ]
 
-        <StudentPortalPreview
-          student={student}
-          students={[student]}
-          checkins={studentCheckins}
-          workouts={workouts}
-          nutritionPlans={nutritionPlans}
-          workoutLogs={workoutLogs}
-          messages={messages}
-          appointments={appointments}
-          invoices={invoices}
-          assessments={assessments}
-          coachSettings={coachSettings}
-          onCompleteWorkout={completeStudentWorkout}
-          onAddCheckin={addStudentCheckin}
-          onSendMessage={sendStudentMessage}
-          coachId={access.invite.coachId}
-          onRemoteStatus={() => {}}
-          onRemoteError={() => {}}
-          canGenerateInvite={false}
-        />
+  function goToSection(id) {
+    document.getElementById(`student-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setMenuOpen(false)
+  }
+
+  return (
+    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/92 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl sm:px-5 lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 bg-white/[0.04]">
+            <span className="grid gap-1.5"><span className="block h-0.5 w-5 rounded bg-zinc-100" /><span className="block h-0.5 w-5 rounded bg-zinc-100" /><span className="block h-0.5 w-5 rounded bg-zinc-100" /></span>
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-black uppercase text-emerald-300">FIT COACH</p>
+            <p className="truncate text-sm font-black">{student.name}</p>
+          </div>
+          <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Sair</button>
+        </div>
+      </header>
+
+      {menuOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <nav className="relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <BrandLockup compact subtitle="FIT COACH" />
+              <button type="button" onClick={() => setMenuOpen(false)} className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-xl text-zinc-200">×</button>
+            </div>
+            <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
+              <p className="text-xs font-black uppercase text-emerald-200">Aluno</p>
+              <p className="mt-1 text-lg font-black">{student.name}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {navItems.map(([id, label]) => (
+                <button key={id} type="button" onClick={() => goToSection(id)} className="flex min-h-11 items-center justify-between rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-left text-sm font-black text-zinc-100">
+                  {label}<span className="text-zinc-500">›</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+        </div>
+      ) : null}
+
+      <div className="mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
+        <aside className="hidden lg:sticky lg:top-5 lg:block lg:self-start">
+          <div className="rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
+            <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
+            <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
+              <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
+              <p className="mt-1 text-lg font-black">{student.name}</p>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => goToSection(id)} className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-left text-sm font-bold text-zinc-200 hover:border-emerald-300/35">{label}</button>)}
+            </div>
+            <button type="button" onClick={onExit} className="mt-4 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
+          </div>
+        </aside>
+
+        <main className="min-w-0 space-y-4">
+          <section id="student-inicio" className="scroll-mt-24 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
+            <div className="p-4 sm:p-5">
+              <p className="text-xs font-black uppercase text-emerald-300">Meu acompanhamento</p>
+              <h1 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">{student.name}</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <StudentStatusCard label="Treino" value={nextWorkout?.title || student.workout || 'Aguardando'} detail={nextWorkout?.focus || 'Plano atual'} />
+                <StudentStatusCard label="Dieta" value={studentNutritionPlans[0]?.calories || student.calories || 'Aguardando'} detail={studentNutritionPlans[0]?.title || 'Plano alimentar'} />
+                <StudentStatusCard label="Check-in" value={student.nextCheckin || 'Hoje'} detail={`${checkins.length} enviados`} />
+              </div>
+            </div>
+            <div className="border-t border-white/10 bg-white/[0.025] p-4">
+              <p className="text-sm font-black text-blue-200">{coachSettings?.publicName || 'Mensagem do coach'}</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">{coachSettings?.welcomeMessage || 'Mantenha o plano de hoje, registre seu treino e envie o check-in se notar mudança relevante em peso, fome ou sono.'}</p>
+            </div>
+          </section>
+
+          <div className="scrollbar-soft -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0 lg:hidden">
+            {navItems.slice(1, 6).map(([id, label]) => <button key={id} type="button" onClick={() => goToSection(id)} className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-zinc-100">{label}</button>)}
+          </div>
+
+          <StudentAppSection id="treino" title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
+            {studentWorkouts.length ? <><WorkoutList workouts={studentWorkouts.slice(0, 2)} fallbackTitle={student.workout} />{onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={onCompleteWorkout} /> : null}</> : <Empty text="Seu treino ainda não foi liberado pelo coach." />}
+          </StudentAppSection>
+
+          <StudentAppSection id="dieta" title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
+            {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
+          </StudentAppSection>
+
+          <StudentAppSection id="checkin" title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} /></StudentAppSection>
+          <StudentAppSection id="mensagens" title="Mensagens" action={`${studentMessages.length} registros`}><StudentMessagePanel student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} /></StudentAppSection>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <StudentAppSection id="agenda" title="Agenda" action={`${studentAppointments.length} próximos`}>
+              {nextAppointment ? <div className="rounded-md border border-white/10 bg-white/[0.035] p-4"><h4 className="font-black">{nextAppointment.title}</h4><p className="mt-1 text-sm text-zinc-400">{nextAppointment.type} - {nextAppointment.durationMinutes} min</p><p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(nextAppointment.startsAt)}</p><p className="mt-1 text-sm text-zinc-400">{nextAppointment.location || 'Local a confirmar'}</p></div> : <Empty text="Nenhum compromisso futuro agendado." />}
+            </StudentAppSection>
+
+            <StudentAppSection id="financeiro" title="Financeiro" action={pendingInvoice ? 'Pendente' : 'Em dia'}>
+              {pendingInvoice ? <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4"><h4 className="font-black">{pendingInvoice.planName}</h4><p className="mt-1 text-sm text-zinc-400">{pendingInvoice.description || 'Mensalidade do acompanhamento'}</p><p className="mt-2 text-2xl font-black text-amber-100">{formatCurrency(pendingInvoice.amount)}</p><p className="mt-1 text-sm text-zinc-400">Vencimento: {formatDate(pendingInvoice.dueDate)}</p></div> : <Empty text="Nenhuma cobrança pendente." />}
+            </StudentAppSection>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <StudentAppSection id="progresso" title="Progresso" action={`${checkins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} /></StudentAppSection>
+            <StudentAppSection id="historico" title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
+              <WorkoutLogList logs={studentWorkoutLogs} />
+              {checkins.length ? <div className="mt-4 space-y-3">{checkins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
+            </StudentAppSection>
+          </div>
+        </main>
       </div>
     </div>
   )
 }
 
+function StudentAppSection({ id, title, action, children }) {
+  return (
+    <section id={`student-${id}`} className="scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <h2 className="text-lg font-black">{title}</h2>
+        <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function StudentStatusCard({ label, value, detail }) {
+  return (
+    <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-3">
+      <p className="text-[11px] font-black uppercase text-zinc-500">{label}</p>
+      <p className="mt-1 truncate text-base font-black text-white">{value || '-'}</p>
+      <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">{detail || '-'}</p>
+    </div>
+  )
+}
 function CheckinForm({ students, onAddCheckin }) {
   const [photo, setPhoto] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
