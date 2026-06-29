@@ -4607,7 +4607,10 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('treino')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
+  const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0)
   const [workoutClock, setWorkoutClock] = useState(Date.now())
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [appInstalled, setAppInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
@@ -4623,7 +4626,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
   const nextWorkout = studentWorkouts[0]
   const nextAppointment = studentAppointments[0]
-  const workoutSeconds = workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0
+  const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const navItems = [
     ['treino', 'Treino', '01'],
     ['dieta', 'Dieta', '02'],
@@ -4642,6 +4645,25 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     return () => window.clearInterval(timer)
   }, [workoutStartedAt])
 
+  useEffect(() => {
+    function handleBeforeInstallPrompt(event) {
+      event.preventDefault()
+      setInstallPrompt(event)
+    }
+
+    function handleInstalled() {
+      setAppInstalled(true)
+      setInstallPrompt(null)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleInstalled)
+    }
+  }, [])
+
   function openTab(id) {
     setActiveTab(id)
     setMenuOpen(false)
@@ -4650,11 +4672,19 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
 
   function toggleWorkoutTimer() {
     if (workoutStartedAt) {
+      setWorkoutElapsedSeconds((current) => current + Math.floor((Date.now() - workoutStartedAt) / 1000))
       setWorkoutStartedAt(null)
       return
     }
     setWorkoutStartedAt(Date.now())
     setWorkoutClock(Date.now())
+  }
+
+  async function installStudentApp() {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    await installPrompt.userChoice.catch(() => null)
+    setInstallPrompt(null)
   }
 
   function renderActiveContent() {
@@ -4730,6 +4760,9 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
             <p className="truncate text-xs font-black uppercase text-emerald-300">{activeTitle}</p>
             <p className="truncate text-sm font-black">{student.name}</p>
           </div>
+          {!appInstalled && installPrompt ? (
+            <button type="button" onClick={installStudentApp} className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">Instalar</button>
+          ) : null}
           <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Sair</button>
         </div>
       </header>
@@ -4753,7 +4786,18 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                   <span>{icon} · {label}</span><span className="text-zinc-500">›</span>
                 </button>
               ))}
-            </div>
+            </div>            {!appInstalled ? (
+              <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
+                <p className="text-xs font-black uppercase text-blue-200">Acesso rápido</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-300">Adicione o FIT COACH na tela inicial para abrir sem digitar o código toda hora.</p>
+                {installPrompt ? (
+                  <button type="button" onClick={installStudentApp} className="mt-3 w-full rounded-md bg-emerald-400 px-3 py-2.5 text-xs font-black text-zinc-950">Adicionar no celular</button>
+                ) : (
+                  <p className="mt-3 text-xs leading-5 text-zinc-400">No iPhone: toque em compartilhar e depois em Adicionar à Tela de Início.</p>
+                )}
+              </div>
+            ) : null}
+
           </nav>
         </div>
       ) : null}
@@ -4770,6 +4814,17 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => openTab(id)} className={`rounded-md border px-3 py-2 text-left text-sm font-bold ${activeTab === id ? 'border-emerald-300/40 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-200 hover:border-emerald-300/35'}`}>{label}</button>)}
             </div>
             <button type="button" onClick={onExit} className="mt-4 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
+            {!appInstalled ? (
+              <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
+                <p className="text-xs font-black uppercase text-blue-200">Instalar no celular</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">O aluno abre pelo ícone e continua com o acesso salvo.</p>
+                {installPrompt ? (
+                  <button type="button" onClick={installStudentApp} className="mt-3 w-full rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">Adicionar app</button>
+                ) : (
+                  <p className="mt-3 text-xs leading-5 text-zinc-500">No iPhone, use compartilhar e Adicionar à Tela de Início.</p>
+                )}
+              </div>
+            ) : null}
           </div>
         </aside>
 
@@ -4779,6 +4834,21 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <p className="text-xs font-black uppercase text-emerald-300">FIT COACH</p>
               <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
               <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
+              {!appInstalled ? (
+                <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase text-blue-200">Acesso salvo no celular</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-300">Entre uma vez, adicione na tela inicial e abra como aplicativo.</p>
+                    </div>
+                    {installPrompt ? (
+                      <button type="button" onClick={installStudentApp} className="rounded-md bg-emerald-400 px-4 py-2.5 text-xs font-black text-zinc-950">Adicionar</button>
+                    ) : (
+                      <p className="max-w-xs text-xs leading-5 text-zinc-400">No iPhone: compartilhar &gt; Adicionar à Tela de Início.</p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
           {renderActiveContent()}
