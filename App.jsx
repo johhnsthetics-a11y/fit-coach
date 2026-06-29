@@ -299,6 +299,10 @@ function prepareDataForStorage(data) {
       ...checkin,
       photo: typeof checkin.photo === 'string' && checkin.photo.startsWith('data:') ? '' : checkin.photo,
     })),
+    workouts: (data.workouts ?? []).map((workout) => ({
+      ...workout,
+      exercises: (workout.exercises ?? []).map(({ videoFile, ...exercise }) => exercise),
+    })),
   }
 }
 
@@ -833,7 +837,7 @@ export default function App() {
       try {
         savedWorkout = await saveRemoteWorkout(workout, data.user?.id)
         setRemoteStatus('Treino salvo')
-        setRemoteError('')
+        setRemoteError(savedWorkout.uploadWarning || '')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar treino')
         throw error
@@ -1353,7 +1357,7 @@ export default function App() {
           aria-label="Abrir menu"
           className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-2xl text-white"
         >
-          ☰
+          â˜°
         </button>
       </div>
 
@@ -1366,7 +1370,7 @@ export default function App() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[320px] lg:max-w-none lg:translate-x-0 lg:p-4 xl:w-[344px] ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[300px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[320px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -1383,17 +1387,17 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-4 rounded-md border border-blue-500/40 bg-blue-500/10 p-3">
+          <div className="mt-3 rounded-md border border-blue-500/40 bg-blue-500/10 p-2.5 lg:p-2">
             <p className="text-[11px] font-black uppercase text-zinc-400">Status da operação</p>
             <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
             {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
           </div>
 
-          <div className="mb-2 mt-4 flex items-center justify-between px-1">
+          <div className="mb-2 mt-3 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
             <span className="text-[10px] font-bold text-zinc-600">{navItems.length} áreas</span>
           </div>
-          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-1.5 overflow-y-auto pr-1 lg:overflow-hidden lg:pr-0">
+          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-1.5 overflow-y-auto pr-1 lg:grid-cols-2 lg:gap-1.5 lg:overflow-hidden lg:pr-0">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -1403,14 +1407,14 @@ export default function App() {
                   setActiveView(item.id)
                   setMobileMenuOpen(false)
                 }}
-                className={`flex min-h-9 min-w-0 items-center gap-2.5 rounded-md border px-3 py-1.5 text-left text-sm font-semibold transition ${
+                className={`flex min-h-9 min-w-0 items-center gap-2.5 rounded-md border px-3 py-1.5 text-left text-sm font-semibold transition lg:min-h-[46px] lg:flex-col lg:items-start lg:justify-center lg:gap-1 lg:px-2 lg:py-2 ${
                   activeView === item.id
                     ? 'border-blue-500 bg-blue-500 text-zinc-950 shadow-lg shadow-emerald-950/20'
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-zinc-950/10 text-[11px] font-black">{item.icon}</span>
-                <span className="min-w-0 flex-1 break-words text-[13px] leading-tight">{item.label}</span>
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-zinc-950/10 text-[11px] font-black lg:h-5 lg:w-5 lg:text-[9px]">{item.icon}</span>
+                <span className="min-w-0 flex-1 break-words text-[13px] leading-tight lg:text-[11px]">{item.label}</span>
                 {item.id === 'notificacoes' && totalAlertCount > 0 ? (
                   <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
                 ) : null}
@@ -1418,12 +1422,12 @@ export default function App() {
             ))}
           </nav>
 
-          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
+          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04] lg:mt-2 lg:py-2">
             Sair
           </button>
       </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[320px] lg:w-[calc(100%-320px)] lg:px-5 xl:ml-[344px] xl:w-[calc(100%-344px)] xl:px-7">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[300px] lg:w-[calc(100%-300px)] lg:px-5 xl:ml-[320px] xl:w-[calc(100%-320px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -3022,6 +3026,12 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
     setExercises((current) => [...current, createExerciseDraft(name)])
   }
 
+  function updateExerciseVideoFile(index, file) {
+    setExercises((current) => current.map((exercise, itemIndex) => (
+      itemIndex === index ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '' } : exercise
+    )))
+  }
+
   function removeExercise(index) {
     setExercises((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }
@@ -3147,8 +3157,22 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
                     className="min-w-0 resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case leading-6 tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
                   />
                 </label>
-                <InlineInput label="Link de vídeo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
-                <ExerciseVideoAction exercise={exercise} compact />
+                <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+                  <InlineInput label="Link de vídeo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
+                  <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Upload do vídeo do coach
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime,video/*"
+                      onChange={(event) => updateExerciseVideoFile(index, event.target.files?.[0] || null)}
+                      className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950"
+                    />
+                    <span className="text-[11px] normal-case leading-4 tracking-normal text-zinc-500">
+                      {exercise.videoFileName || 'Opcional. Se não enviar, o app mostra a imagem técnica do movimento.'}
+                    </span>
+                  </label>
+                </div>
+                <ExerciseMedia exercise={exercise} compact />
               </div>
             </details>
           </div>
@@ -3240,7 +3264,7 @@ function WorkoutList({ workouts, fallbackTitle, onArchive }) {
                   </div>
                   {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
                   <div className="mt-3">
-                    <ExerciseVideoAction exercise={enriched} />
+                    <ExerciseMedia exercise={enriched} />
                   </div>
                 </div>
               )
@@ -3282,6 +3306,8 @@ function createExerciseDraft(name = '', overrides = {}) {
     equipment: profile?.equipment ?? '',
     instructions: profile?.cues ?? '',
     videoUrl: '',
+    videoFile: null,
+    videoFileName: '',
     ...overrides,
   }
 }
@@ -3294,14 +3320,9 @@ function enrichExercise(exercise) {
     equipment: exercise.equipment || profile?.equipment || '',
     instructions: exercise.instructions || profile?.cues || '',
     videoUrl: exercise.videoUrl || '',
+    videoFile: exercise.videoFile || null,
+    videoFileName: exercise.videoFileName || '',
   }
-}
-
-function getExerciseVideoUrl(exercise) {
-  const customUrl = safeExternalUrl(exercise.videoUrl)
-  if (customUrl) return customUrl
-  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
 }
 
 function safeExternalUrl(value) {
@@ -3312,6 +3333,13 @@ function safeExternalUrl(value) {
   } catch {
     return ''
   }
+}
+
+function getExerciseVideoUrl(exercise) {
+  const customUrl = safeExternalUrl(exercise.videoUrl)
+  if (customUrl) return customUrl
+  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
 }
 
 function getVideoEmbedUrl(value) {
@@ -3337,6 +3365,17 @@ function getVideoEmbedUrl(value) {
   return ''
 }
 
+function isDirectVideoUrl(value) {
+  const safeValue = safeExternalUrl(value)
+  if (!safeValue) return false
+  try {
+    const url = new URL(safeValue)
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url.pathname) || url.pathname.includes('/storage/v1/object/public/workout-videos/')
+  } catch {
+    return false
+  }
+}
+
 function ExerciseMetric({ label, value }) {
   return (
     <div className="min-w-[68px] rounded border border-white/10 bg-white/[0.035] p-2">
@@ -3346,10 +3385,24 @@ function ExerciseMetric({ label, value }) {
   )
 }
 
-function ExerciseVideoAction({ exercise, compact = false }) {
-  const videoUrl = getExerciseVideoUrl(exercise)
+function ExerciseMedia({ exercise, compact = false }) {
+  const videoUrl = safeExternalUrl(exercise.videoUrl)
   const embedUrl = getVideoEmbedUrl(exercise.videoUrl)
-  const hasCustomVideo = Boolean(safeExternalUrl(exercise.videoUrl))
+  const hasCustomVideo = Boolean(videoUrl)
+
+  if (videoUrl && isDirectVideoUrl(videoUrl) && !compact) {
+    return (
+      <div className="overflow-hidden rounded-md border border-emerald-300/20 bg-black">
+        <video
+          src={videoUrl}
+          controls
+          preload="metadata"
+          playsInline
+          className="aspect-video h-full w-full bg-black object-contain"
+        />
+      </div>
+    )
+  }
 
   if (embedUrl && !compact) {
     return (
@@ -3369,14 +3422,27 @@ function ExerciseVideoAction({ exercise, compact = false }) {
     )
   }
 
+  if (hasCustomVideo) {
+    return (
+      <a
+        href={videoUrl}
+        target="_blank"
+        rel="noreferrer"
+        className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
+      >
+        Abrir vídeo indicado pelo coach
+      </a>
+    )
+  }
+
   return (
     <a
-      href={videoUrl}
+      href={getExerciseVideoUrl(exercise)}
       target="_blank"
       rel="noreferrer"
       className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
     >
-      {hasCustomVideo ? 'Abrir vídeo indicado pelo coach' : 'Ver vídeo de execução'}
+      Buscar vídeo de execução no YouTube
     </a>
   )
 }
@@ -3551,7 +3617,13 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
           time: meal.time,
           foods: meal.items
             .filter((item) => item.foodName && Number(item.grams) > 0)
-            .map((item) => `${item.foodName} (${item.grams}g)`)
+            .map((item) => {
+              const alternatives = getEquivalentSubstitutions(item)
+              const suffix = alternatives.length
+                ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
+                : ''
+              return `${item.foodName} (${item.grams}g)${suffix}`
+            })
             .join(', '),
           macros: formatMacroSummary(totals),
         }
@@ -3739,6 +3811,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
   const manualMode = item.mode === 'manual'
   const estimatedFood = !recognizedFood ? estimateFoodMacros(item.foodName, item.category) : null
   const foodSuggestions = getFoodSuggestions(searchEdited ? item.foodName : '', item.category)
+  const substitutions = getEquivalentSubstitutions(item)
   const intelligence = recognizedFood
     ? { label: recognition.matchType === 'exact' ? 'Encontrado na base' : 'Reconhecido por nome semelhante', confidence: recognition.confidence }
     : { label: estimatedFood?._source === 'rule' ? 'Estimativa inteligente' : 'Estimativa pela categoria', confidence: estimatedFood?._confidence ?? 0.45 }
@@ -3897,6 +3970,38 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
           Ajustar macros manualmente
         </button>
       ) : null}
+      <div className="mt-3 rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Substituições equivalentes</p>
+          <span className="text-[11px] font-bold text-zinc-500">mantendo o plano próximo dos mesmos macros</span>
+        </div>
+        {substitutions.length ? (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {substitutions.map((option) => (
+              <button
+                key={`${option.name}-${option.grams}`}
+                type="button"
+                onClick={() => onChange({
+                  ...item,
+                  foodName: option.name,
+                  category: option.category,
+                  grams: option.grams,
+                  mode: 'database',
+                  customMacros: undefined,
+                })}
+                className="rounded-md border border-white/10 bg-zinc-950/60 p-3 text-left transition hover:border-emerald-300/40 hover:bg-emerald-400/10"
+              >
+                <span className="block text-sm font-black text-zinc-100">{option.name}</span>
+                <span className="mt-1 block text-xs leading-5 text-zinc-400">
+                  {option.grams}g | {Math.round(option.macros.calories)} kcal | P {roundMacro(option.macros.protein)}g | C {roundMacro(option.macros.carbs)}g | G {roundMacro(option.macros.fat)}g
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs leading-5 text-zinc-500">Digite um alimento e quantidade para o app sugerir substituições.</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -3913,29 +4018,32 @@ function Checkins({ checkins, students, onAddCheckin }) {
       </Panel>
 
       <Panel title="Histórico de check-ins" action={`${checkins.length} registros`}>
-        <div className="grid gap-3">
-          {checkins.map((item) => {
-            const student = students.find((studentItem) => studentItem.id === item.studentId)
-            return (
-              <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h4 className="font-bold">{student?.name ?? 'Aluno'}</h4>
-                    <p className="mt-1 text-sm text-zinc-400">{item.type} - {item.due} - {item.weight}</p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p>
+        {checkins.length ? (
+          <div className="grid gap-3">
+            {checkins.map((item) => {
+              const student = students.find((studentItem) => studentItem.id === item.studentId)
+              return (
+                <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold">{student?.name ?? 'Aluno'}</h4>
+                      <p className="mt-1 text-sm text-zinc-400">{item.type} - {item.due} - {item.weight}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p>
+                    </div>
+                    <Badge tone={item.state === 'Critico' ? 'Alto' : 'Baixo'}>{item.state}</Badge>
                   </div>
-                  <Badge tone={item.state === 'Critico' ? 'Alto' : 'Baixo'}>{item.state}</Badge>
+                  {item.photo ? <img src={item.photo} alt="Check-in" className="mt-4 h-44 w-full rounded-md object-cover" /> : null}
                 </div>
-                {item.photo ? <img src={item.photo} alt="Check-in" className="mt-4 h-44 w-full rounded-md object-cover" /> : null}
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        ) : (
+          <Empty text="Nenhum check-in registrado ainda." />
+        )}
       </Panel>
     </div>
   )
 }
-
 function StudentPortalPreview({
   student,
   students,
@@ -5343,7 +5451,7 @@ function BrandLockup({ subtitle = '', large = false, compact = false }) {
           ? 'w-[min(88vw,34rem)]'
           : compact
             ? 'w-32 sm:w-36'
-            : 'w-48 max-w-[72vw] sm:w-56 lg:w-64'
+            : 'w-48 max-w-[72vw] sm:w-56 lg:w-48 xl:w-56'
       }`}
       title={subtitle}
     >
@@ -5711,6 +5819,51 @@ function calculateFoodItemMacros(item) {
     fiber: Number(source.fiber || 0) * multiplier,
     sodium: Number(source.sodium || 0) * multiplier,
   }
+}
+
+function getEquivalentSubstitutions(item) {
+  const grams = Number(item.grams || 0)
+  const sourceFood = findFoodByName(item.foodName)
+  const sourceMacros = calculateFoodItemMacros(item)
+  if (!grams || !sourceMacros.calories) return []
+
+  const sourceCategory = sourceFood?.category || item.category
+  const currentName = normalizeText(item.foodName)
+  const targetMacro = getDominantMacro(sourceMacros)
+
+  return foodDatabase
+    .filter((food) => food.category === sourceCategory)
+    .filter((food) => normalizeText(food.name) !== currentName)
+    .map((food) => {
+      const baseValue = Number(food[targetMacro] || food.calories || 0)
+      const targetValue = Number(sourceMacros[targetMacro] || sourceMacros.calories || 0)
+      const calculatedGrams = baseValue > 0 ? Math.round((targetValue / baseValue) * 100) : grams
+      const safeGrams = Math.max(20, Math.min(500, calculatedGrams || grams))
+      const macros = calculateFoodItemMacros({ foodName: food.name, category: food.category, grams: safeGrams, mode: 'database' })
+      const score = Math.abs(macros.calories - sourceMacros.calories)
+        + Math.abs(macros.protein - sourceMacros.protein) * 9
+        + Math.abs(macros.carbs - sourceMacros.carbs) * 4
+        + Math.abs(macros.fat - sourceMacros.fat) * 4
+
+      return {
+        name: food.name,
+        category: food.category,
+        grams: safeGrams,
+        macros,
+        score,
+      }
+    })
+    .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name, 'pt-BR'))
+    .slice(0, 2)
+}
+
+function getDominantMacro(macros) {
+  const protein = Number(macros.protein || 0) * 4
+  const carbs = Number(macros.carbs || 0) * 4
+  const fat = Number(macros.fat || 0) * 9
+  if (protein >= carbs && protein >= fat) return 'protein'
+  if (fat >= protein && fat >= carbs) return 'fat'
+  return 'carbs'
 }
 
 function normalizeNutritionItem(item, changedField) {

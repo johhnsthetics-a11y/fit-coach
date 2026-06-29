@@ -1,6 +1,7 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
+const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 
 let sessionToken = ''
 const REQUEST_TIMEOUT_MS = 25000
@@ -386,6 +387,36 @@ async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
   return safeName
 }
 
+async function uploadWorkoutVideo(file, workoutId, exerciseIndex) {
+  if (!file) return ''
+  if (!file.type?.startsWith('video/')) {
+    throw new Error('Envie um arquivo de vídeo válido para o exercício.')
+  }
+
+  const maxSize = 120 * 1024 * 1024
+  if (file.size > maxSize) {
+    throw new Error('O vídeo do exercício precisa ter até 120 MB.')
+  }
+
+  const extension = file.name?.split('.').pop() || 'mp4'
+  const safeName = `${workoutId}/${String(exerciseIndex + 1).padStart(2, '0')}-${Date.now()}.${extension}`.replace(/\s+/g, '-')
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${WORKOUT_VIDEO_BUCKET}/${safeName}`, {
+    method: 'POST',
+    headers: authHeaders({
+      'Content-Type': file.type || 'video/mp4',
+      'x-upsert': 'true',
+    }),
+    body: file,
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw serviceError(response.status, message || 'Erro ao enviar vídeo do exercício')
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/${WORKOUT_VIDEO_BUCKET}/${safeName}`
+}
+
 export async function updateRemotePayment(studentId, payment) {
   if (!isUuid(studentId)) return null
 
@@ -491,23 +522,34 @@ export async function saveRemoteWorkout(workout, coachId) {
     }),
   })
 
-  const savedWorkout = workoutRows[0]
-  const exercises = workout.exercises.map((exercise, index) => ({
-    workout_id: savedWorkout.id,
-    name: exercise.name,
-    sets: exercise.sets,
-    reps: exercise.reps,
-    load: exercise.load,
-    rest: exercise.rest,
-    muscle_group: exercise.muscleGroup || null,
-    equipment: exercise.equipment || null,
-    instructions: exercise.instructions || null,
-    video_url: exercise.videoUrl || null,
-    order_index: index,
-  }))
-
   let exerciseRows = []
+  const uploadWarnings = []
   try {
+    const exercises = await Promise.all(workout.exercises.map(async (exercise, index) => {
+      let uploadedVideoUrl = ''
+      if (exercise.videoFile) {
+        try {
+          uploadedVideoUrl = await uploadWorkoutVideo(exercise.videoFile, workoutRows[0].id, index)
+        } catch (error) {
+          uploadWarnings.push(`${exercise.name || `Exercício ${index + 1}`}: ${error?.message || 'vídeo não enviado'}`)
+        }
+      }
+
+      return {
+        workout_id: workoutRows[0].id,
+        name: exercise.name,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        load: exercise.load,
+        rest: exercise.rest,
+        muscle_group: exercise.muscleGroup || null,
+        equipment: exercise.equipment || null,
+        instructions: exercise.instructions || null,
+        video_url: uploadedVideoUrl || exercise.videoUrl || null,
+        order_index: index,
+      }
+    }))
+
     if (exercises.length) {
       exerciseRows = await request('workout_exercises', {
         method: 'POST',
@@ -515,11 +557,16 @@ export async function saveRemoteWorkout(workout, coachId) {
       })
     }
   } catch (error) {
-    await request(`workouts?id=eq.${savedWorkout.id}`, { method: 'DELETE' }).catch(() => null)
+    await request(`workouts?id=eq.${workoutRows[0].id}`, { method: 'DELETE' }).catch(() => null)
     throw error
   }
 
-  return fromWorkoutRow({ ...savedWorkout, workout_exercises: exerciseRows })
+  return {
+    ...fromWorkoutRow({ ...workoutRows[0], workout_exercises: exerciseRows }),
+    uploadWarning: uploadWarnings.length
+      ? `O treino foi salvo, mas alguns vídeos não foram enviados: ${uploadWarnings.join('; ')}`
+      : '',
+  }
 }
 
 export async function archiveRemoteWorkout(workoutId) {

@@ -17,6 +17,10 @@ create table if not exists workout_exercises (
   reps text,
   load text,
   rest text,
+  muscle_group text,
+  equipment text,
+  instructions text,
+  video_url text,
   order_index integer default 0,
   created_at timestamptz default now()
 );
