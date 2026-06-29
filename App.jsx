@@ -39,6 +39,7 @@ const AssessmentChart = lazy(() => import('./CoachCharts').then((module) => ({ d
 const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.RevenueChart })))
 
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
+const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 
 const plans = [
@@ -497,6 +498,15 @@ export default function App() {
 
     enterStudentByInvite(inviteCode)
     window.history.replaceState({}, '', window.location.pathname)
+  }, [studentAccess])
+
+  useEffect(() => {
+    if (studentAccess || !supabaseEnabled) return
+
+    const savedCode = window.localStorage.getItem(STUDENT_ACCESS_KEY)
+    if (!savedCode) return
+
+    enterStudentByInvite(savedCode, { silent: true })
   }, [studentAccess])
 
   async function login(formData) {
@@ -1217,14 +1227,20 @@ export default function App() {
     return true
   }
 
-  async function enterStudentByInvite(code) {
+  async function enterStudentByInvite(code, options = {}) {
+    const cleanCode = code.trim()
+    if (!cleanCode) return false
+
     try {
-      const access = await loadRemoteStudentByInvite(code.trim())
+      const access = await loadRemoteStudentByInvite(cleanCode)
       setStudentAccess(access)
+      window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || cleanCode)
       setRemoteStatus('Convite carregado')
       setRemoteError('')
       return true
     } catch (error) {
+      window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+      if (options.silent) return false
       handleRemoteError(error, 'Erro no convite')
       return false
     }
@@ -1236,6 +1252,7 @@ export default function App() {
     try {
       const access = await acceptRemoteStudentConsent(studentAccess.invite.code)
       setStudentAccess(access)
+      window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
       setRemoteStatus('Consentimento registrado')
       setRemoteError('')
     } catch (error) {
@@ -1249,6 +1266,7 @@ export default function App() {
     try {
       const access = await submitRemoteStudentAnamnesis(studentAccess.invite.code, answers)
       setStudentAccess(access)
+      window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
       setRemoteStatus('Anamnese enviada ao coach')
       setRemoteError('')
     } catch (error) {
@@ -1259,6 +1277,7 @@ export default function App() {
 
   function exitStudentAccess() {
     setStudentAccess(null)
+    window.localStorage.removeItem(STUDENT_ACCESS_KEY)
   }
 
   async function finishPasswordRecovery(password) {
@@ -4610,6 +4629,12 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     ['inicio', 'Início'], ['treino', 'Treino'], ['dieta', 'Dieta'], ['checkin', 'Check-in'],
     ['mensagens', 'Mensagens'], ['agenda', 'Agenda'], ['financeiro', 'Financeiro'], ['progresso', 'Progresso'],
   ]
+  const quickNavItems = [
+    ['treino', 'Treino', '01'],
+    ['dieta', 'Dieta', '02'],
+    ['checkin', 'Check-in', '03'],
+    ['mensagens', 'Chat', '04'],
+  ]
 
   function goToSection(id) {
     document.getElementById(`student-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -4722,6 +4747,16 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           </div>
         </main>
       </div>
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/94 px-2 py-2 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+          {quickNavItems.map(([id, label, icon]) => (
+            <button key={id} type="button" onClick={() => goToSection(id)} className="grid min-h-14 place-items-center rounded-md px-1 py-1 text-center text-[10px] font-black text-zinc-200">
+              <span className="grid h-6 w-6 place-items-center rounded bg-emerald-400/12 text-[9px] text-emerald-200">{icon}</span>
+              <span className="mt-1 leading-tight">{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }
@@ -4817,7 +4852,7 @@ function CheckinForm({ students, onAddCheckin }) {
       ) : (
         <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
       )}
-      <Field label="Tipo" name="type" defaultValue="Fotos + peso" />
+      <Field label="Tipo" name="type" defaultValue="Check-in do dia" />
       <Field label="Prazo" name="due" defaultValue="Hoje" />
       <Select label="Status" name="state" defaultValue="Recebido" options={['Recebido', 'Pendente', 'Critico']} />
       <Field label="Peso informado" name="weight" defaultValue="84,0 kg" />
