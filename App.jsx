@@ -4296,7 +4296,7 @@ function StudentPortalPreview({
   )
 }
 
-function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
+function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullScreen = false }) {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -4327,8 +4327,8 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
   }
 
   return (
-    <div>
-      <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+    <div className={fullScreen ? 'flex h-full min-h-[calc(100vh-250px)] flex-col' : ''}>
+      <div className={`${fullScreen ? 'min-h-0 flex-1' : 'max-h-72'} space-y-3 overflow-y-auto pr-1`}>
         {orderedMessages.length ? (
           orderedMessages.map((message) => (
             <div
@@ -4349,11 +4349,11 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage }) {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
+      <form onSubmit={handleSubmit} className={`${fullScreen ? 'sticky bottom-0 mt-3 border-t border-white/10 bg-zinc-950/95 pt-3' : 'mt-4'} grid gap-3`}>
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          rows={3}
+          rows={fullScreen ? 2 : 3}
           placeholder="Responder ao coach..."
           className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
         />
@@ -4605,6 +4605,9 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
 }
 function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onExit }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('treino')
+  const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
+  const [workoutClock, setWorkoutClock] = useState(Date.now())
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
@@ -4614,42 +4617,117 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     .filter((appointment) => !['Concluido', 'Cancelado'].includes(appointment.status))
     .slice()
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
-  const studentInvoices = invoices
-    .filter((invoice) => String(invoice.studentId) === String(student?.id))
-    .slice()
-    .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
   const studentAssessments = assessments
     .filter((assessment) => String(assessment.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
   const nextWorkout = studentWorkouts[0]
   const nextAppointment = studentAppointments[0]
-  const pendingInvoice = studentInvoices.find((invoice) => invoice.status !== 'Pago')
+  const workoutSeconds = workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0
   const navItems = [
-    ['inicio', 'Início'], ['treino', 'Treino'], ['dieta', 'Dieta'], ['checkin', 'Check-in'],
-    ['mensagens', 'Mensagens'], ['agenda', 'Agenda'], ['financeiro', 'Financeiro'], ['progresso', 'Progresso'],
-  ]
-  const quickNavItems = [
     ['treino', 'Treino', '01'],
     ['dieta', 'Dieta', '02'],
     ['checkin', 'Check-in', '03'],
     ['mensagens', 'Chat', '04'],
+    ['agenda', 'Agenda', '05'],
+    ['progresso', 'Progresso', '06'],
+    ['historico', 'Histórico', '07'],
   ]
+  const quickNavItems = navItems.slice(0, 4)
+  const activeTitle = navItems.find(([id]) => id === activeTab)?.[1] || 'Treino'
 
-  function goToSection(id) {
-    document.getElementById(`student-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  useEffect(() => {
+    if (!workoutStartedAt) return undefined
+    const timer = window.setInterval(() => setWorkoutClock(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [workoutStartedAt])
+
+  function openTab(id) {
+    setActiveTab(id)
     setMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function toggleWorkoutTimer() {
+    if (workoutStartedAt) {
+      setWorkoutStartedAt(null)
+      return
+    }
+    setWorkoutStartedAt(Date.now())
+    setWorkoutClock(Date.now())
+  }
+
+  function renderActiveContent() {
+    if (activeTab === 'treino') {
+      return (
+        <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
+          <div className="mb-4 overflow-hidden rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
+            <p className="text-xs font-black uppercase text-emerald-200">Tempo de treino</p>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <p className="font-mono text-4xl font-black text-white">{formatWorkoutTimer(workoutSeconds)}</p>
+              <button type="button" onClick={toggleWorkoutTimer} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+                {workoutStartedAt ? 'Pausar treino' : 'Iniciar treino'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-zinc-400">Ao iniciar, o contador ajuda você a acompanhar o tempo total da sessão.</p>
+          </div>
+          {studentWorkouts.length ? (
+            <>
+              <WorkoutList workouts={studentWorkouts.slice(0, 1)} fallbackTitle={student.workout} />
+              {onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={onCompleteWorkout} /> : null}
+            </>
+          ) : (
+            <Empty text="Seu treino ainda não foi liberado pelo coach." />
+          )}
+        </StudentAppSection>
+      )
+    }
+
+    if (activeTab === 'dieta') {
+      return (
+        <StudentAppSection title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
+          {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
+        </StudentAppSection>
+      )
+    }
+
+    if (activeTab === 'checkin') {
+      return <StudentAppSection title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} /></StudentAppSection>
+    }
+
+    if (activeTab === 'mensagens') {
+      return <StudentChatScreen student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} />
+    }
+
+    if (activeTab === 'agenda') {
+      return (
+        <StudentAppSection title="Agenda" action={`${studentAppointments.length} próximos`}>
+          {nextAppointment ? <div className="rounded-md border border-white/10 bg-white/[0.035] p-4"><h4 className="font-black">{nextAppointment.title}</h4><p className="mt-1 text-sm text-zinc-400">{nextAppointment.type} - {nextAppointment.durationMinutes} min</p><p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(nextAppointment.startsAt)}</p><p className="mt-1 text-sm text-zinc-400">{nextAppointment.location || 'Local a confirmar'}</p></div> : <Empty text="Nenhum compromisso futuro agendado." />}
+        </StudentAppSection>
+      )
+    }
+
+    if (activeTab === 'progresso') {
+      return <StudentAppSection title="Progresso" action={`${checkins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} /></StudentAppSection>
+    }
+
+    return (
+      <StudentAppSection title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
+        <WorkoutLogList logs={studentWorkoutLogs} />
+        {checkins.length ? <div className="mt-4 space-y-3">{checkins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
+      </StudentAppSection>
+    )
   }
 
   return (
     <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/92 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl sm:px-5 lg:hidden">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 bg-white/[0.04]">
             <span className="grid gap-1.5"><span className="block h-0.5 w-5 rounded bg-zinc-100" /><span className="block h-0.5 w-5 rounded bg-zinc-100" /><span className="block h-0.5 w-5 rounded bg-zinc-100" /></span>
           </button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-black uppercase text-emerald-300">FIT COACH</p>
+            <p className="truncate text-xs font-black uppercase text-emerald-300">{activeTitle}</p>
             <p className="truncate text-sm font-black">{student.name}</p>
           </div>
           <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Sair</button>
@@ -4665,14 +4743,14 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <button type="button" onClick={() => setMenuOpen(false)} className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-xl text-zinc-200">×</button>
             </div>
             <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
-              <p className="text-xs font-black uppercase text-emerald-200">Aluno</p>
+              <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
             </div>
             <div className="mt-4 grid gap-2">
-              {navItems.map(([id, label]) => (
-                <button key={id} type="button" onClick={() => goToSection(id)} className="flex min-h-11 items-center justify-between rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-left text-sm font-black text-zinc-100">
-                  {label}<span className="text-zinc-500">›</span>
+              {navItems.map(([id, label, icon]) => (
+                <button key={id} type="button" onClick={() => openTab(id)} className={`flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-black ${activeTab === id ? 'border-emerald-300/40 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-100'}`}>
+                  <span>{icon} · {label}</span><span className="text-zinc-500">›</span>
                 </button>
               ))}
             </div>
@@ -4689,68 +4767,28 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
             <div className="mt-4 grid gap-2">
-              {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => goToSection(id)} className="rounded-md border border-white/10 bg-white/[0.035] px-3 py-2 text-left text-sm font-bold text-zinc-200 hover:border-emerald-300/35">{label}</button>)}
+              {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => openTab(id)} className={`rounded-md border px-3 py-2 text-left text-sm font-bold ${activeTab === id ? 'border-emerald-300/40 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-200 hover:border-emerald-300/35'}`}>{label}</button>)}
             </div>
             <button type="button" onClick={onExit} className="mt-4 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
           </div>
         </aside>
 
-        <main className="min-w-0 space-y-4">
-          <section id="student-inicio" className="scroll-mt-24 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
+        <main className="min-w-0">
+          <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
             <div className="p-4 sm:p-5">
-              <p className="text-xs font-black uppercase text-emerald-300">Meu acompanhamento</p>
-              <h1 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">{student.name}</h1>
+              <p className="text-xs font-black uppercase text-emerald-300">FIT COACH</p>
+              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
               <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <StudentStatusCard label="Treino" value={nextWorkout?.title || student.workout || 'Aguardando'} detail={nextWorkout?.focus || 'Plano atual'} />
-                <StudentStatusCard label="Dieta" value={studentNutritionPlans[0]?.calories || student.calories || 'Aguardando'} detail={studentNutritionPlans[0]?.title || 'Plano alimentar'} />
-                <StudentStatusCard label="Check-in" value={student.nextCheckin || 'Hoje'} detail={`${checkins.length} enviados`} />
-              </div>
-            </div>
-            <div className="border-t border-white/10 bg-white/[0.025] p-4">
-              <p className="text-sm font-black text-blue-200">{coachSettings?.publicName || 'Mensagem do coach'}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-300">{coachSettings?.welcomeMessage || 'Mantenha o plano de hoje, registre seu treino e envie o check-in se notar mudança relevante em peso, fome ou sono.'}</p>
             </div>
           </section>
-
-          <div className="scrollbar-soft -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0 lg:hidden">
-            {navItems.slice(1, 6).map(([id, label]) => <button key={id} type="button" onClick={() => goToSection(id)} className="shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-zinc-100">{label}</button>)}
-          </div>
-
-          <StudentAppSection id="treino" title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
-            {studentWorkouts.length ? <><WorkoutList workouts={studentWorkouts.slice(0, 2)} fallbackTitle={student.workout} />{onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={onCompleteWorkout} /> : null}</> : <Empty text="Seu treino ainda não foi liberado pelo coach." />}
-          </StudentAppSection>
-
-          <StudentAppSection id="dieta" title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
-            {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
-          </StudentAppSection>
-
-          <StudentAppSection id="checkin" title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} /></StudentAppSection>
-          <StudentAppSection id="mensagens" title="Mensagens" action={`${studentMessages.length} registros`}><StudentMessagePanel student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} /></StudentAppSection>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <StudentAppSection id="agenda" title="Agenda" action={`${studentAppointments.length} próximos`}>
-              {nextAppointment ? <div className="rounded-md border border-white/10 bg-white/[0.035] p-4"><h4 className="font-black">{nextAppointment.title}</h4><p className="mt-1 text-sm text-zinc-400">{nextAppointment.type} - {nextAppointment.durationMinutes} min</p><p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(nextAppointment.startsAt)}</p><p className="mt-1 text-sm text-zinc-400">{nextAppointment.location || 'Local a confirmar'}</p></div> : <Empty text="Nenhum compromisso futuro agendado." />}
-            </StudentAppSection>
-
-            <StudentAppSection id="financeiro" title="Financeiro" action={pendingInvoice ? 'Pendente' : 'Em dia'}>
-              {pendingInvoice ? <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4"><h4 className="font-black">{pendingInvoice.planName}</h4><p className="mt-1 text-sm text-zinc-400">{pendingInvoice.description || 'Mensalidade do acompanhamento'}</p><p className="mt-2 text-2xl font-black text-amber-100">{formatCurrency(pendingInvoice.amount)}</p><p className="mt-1 text-sm text-zinc-400">Vencimento: {formatDate(pendingInvoice.dueDate)}</p></div> : <Empty text="Nenhuma cobrança pendente." />}
-            </StudentAppSection>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <StudentAppSection id="progresso" title="Progresso" action={`${checkins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} /></StudentAppSection>
-            <StudentAppSection id="historico" title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
-              <WorkoutLogList logs={studentWorkoutLogs} />
-              {checkins.length ? <div className="mt-4 space-y-3">{checkins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
-            </StudentAppSection>
-          </div>
+          {renderActiveContent()}
         </main>
       </div>
+
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/94 px-2 py-2 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
           {quickNavItems.map(([id, label, icon]) => (
-            <button key={id} type="button" onClick={() => goToSection(id)} className="grid min-h-14 place-items-center rounded-md px-1 py-1 text-center text-[10px] font-black text-zinc-200">
+            <button key={id} type="button" onClick={() => openTab(id)} className={`grid min-h-14 place-items-center rounded-md px-1 py-1 text-center text-[10px] font-black ${activeTab === id ? 'bg-emerald-400/12 text-emerald-100' : 'text-zinc-300'}`}>
               <span className="grid h-6 w-6 place-items-center rounded bg-emerald-400/12 text-[9px] text-emerald-200">{icon}</span>
               <span className="mt-1 leading-tight">{label}</span>
             </button>
@@ -4760,7 +4798,6 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     </div>
   )
 }
-
 function StudentAppSection({ id, title, action, children }) {
   return (
     <section id={`student-${id}`} className="scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
@@ -4769,6 +4806,23 @@ function StudentAppSection({ id, title, action, children }) {
         <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
       </div>
       {children}
+    </section>
+  )
+}
+
+function StudentChatScreen({ student, coachId, messages, onSendMessage }) {
+  return (
+    <section className="min-h-[calc(100vh-168px)] overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/25">
+      <div className="flex min-h-[calc(100vh-168px)] flex-col">
+        <div className="border-b border-white/10 bg-emerald-400/10 p-4">
+          <p className="text-xs font-black uppercase text-emerald-200">Conversa com o coach</p>
+          <h2 className="mt-1 text-lg font-black">{student.name}</h2>
+          <p className="mt-1 text-xs text-zinc-400">Envie dúvidas, retornos rápidos e observações do dia.</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-hidden p-3">
+          <StudentMessagePanel student={student} coachId={coachId} messages={messages} onSendMessage={onSendMessage} fullScreen />
+        </div>
+      </div>
     </section>
   )
 }
@@ -6222,6 +6276,16 @@ function formatDateTime(value) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
+}
+
+function formatWorkoutTimer(totalSeconds) {
+  const safeSeconds = Math.max(0, Number(totalSeconds) || 0)
+  const hours = Math.floor(safeSeconds / 3600)
+  const minutes = Math.floor((safeSeconds % 3600) / 60)
+  const seconds = safeSeconds % 60
+  return [hours, minutes, seconds]
+    .map((item) => String(item).padStart(2, '0'))
+    .join(':')
 }
 
 function formatFullDateTime(value) {
