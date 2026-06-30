@@ -10,7 +10,7 @@ Segredos que precisam existir na Supabase Edge Function:
 
 ```text
 LASTLINK_WEBHOOK_TOKEN=cole-aqui-o-token-do-webhook-da-lastlink
-SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key-da-supabase
+FITCOACH_SERVICE_ROLE_KEY=sua-service-role-key-da-supabase
 ```
 
 Eventos recomendados na Lastlink:
