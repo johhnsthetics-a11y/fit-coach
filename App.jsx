@@ -5033,8 +5033,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt }) 
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
-  const firstMonthCheckoutUrl = import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || ''
-  const regularCheckoutUrl = import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl
+  const firstMonthCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '')
+  const regularCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan), 0)
   const now = new Date()
@@ -6458,6 +6458,15 @@ function getCoachBillingCycle(subscription, userCreatedAt, referenceTime = Date.
 function isCoachSubscriptionActive(subscription) {
   const status = normalizeText(subscription?.status || '')
   return ['active', 'paid', 'em dia', 'em_dia', 'trialing'].includes(status)
+}
+
+function normalizeCheckoutUrl(value) {
+  const raw = String(value || '').trim()
+  const urlIndex = raw.indexOf('https://')
+  if (urlIndex >= 0) return raw.slice(urlIndex).trim()
+  const httpIndex = raw.indexOf('http://')
+  if (httpIndex >= 0) return raw.slice(httpIndex).trim()
+  return raw
 }
 
 function parseValidDate(value) {
