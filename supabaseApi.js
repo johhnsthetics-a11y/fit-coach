@@ -276,6 +276,12 @@ export async function loadRemoteStudentMessages(studentId) {
   return loadRemoteMessages(studentId)
 }
 
+export async function loadRemoteStudentMessagesByInvite(inviteCode) {
+  if (!inviteCode) return []
+  const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
+  return (Array.isArray(result) ? result : []).map(fromMessageRow)
+}
+
 export async function upsertRemoteUser(user) {
   const rows = await request('users?on_conflict=id', {
     method: 'POST',

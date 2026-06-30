@@ -8,6 +8,7 @@ import {
   deleteRemoteStudent,
   loadRemoteData,
   loadRemoteMessages,
+  loadRemoteStudentMessagesByInvite,
   loadRemoteStudentMessages,
   loadRemoteStudentByInvite,
   markRemoteStudentMessagesRead,
@@ -578,7 +579,7 @@ export default function App() {
 
     async function syncStudentMessages() {
       try {
-        const latestMessages = await loadRemoteStudentMessages(studentAccess.student.id)
+        const latestMessages = await loadRemoteStudentMessagesByInvite(studentAccess.invite.code)
         if (!active) return
 
         setStudentAccess((current) => {
@@ -1332,6 +1333,44 @@ export default function App() {
     return true
   }
 
+  async function refreshCoachConversation(studentId) {
+    if (!supabaseEnabled || !studentId) return []
+    try {
+      const latestMessages = await loadRemoteMessages(studentId)
+      setData((current) => ({
+        ...current,
+        messages: mergeRecords(current.messages, latestMessages),
+        students: current.students.map((student) => {
+          const latestForStudent = latestMessages.find((message) => String(message.studentId) === String(student.id))
+          return latestForStudent ? { ...student, lastMessage: latestForStudent.body } : student
+        }),
+      }))
+      return latestMessages
+    } catch (error) {
+      if (/jwt expired|PGRST303/i.test(error?.message || '')) {
+        handleRemoteError(error, 'Sessão expirada')
+      }
+      return []
+    }
+  }
+
+  async function refreshStudentConversation() {
+    if (!supabaseEnabled || !studentAccess?.invite?.code) return []
+    try {
+      const latestMessages = await loadRemoteStudentMessagesByInvite(studentAccess.invite.code)
+      setStudentAccess((current) => (
+        current ? { ...current, messages: mergeRecords(current.messages, latestMessages) } : current
+      ))
+      setData((current) => ({
+        ...current,
+        messages: mergeRecords(current.messages, latestMessages),
+      }))
+      return latestMessages
+    } catch {
+      return []
+    }
+  }
+
   async function enterStudentByInvite(code, options = {}) {
     const cleanCode = code.trim()
     if (!cleanCode) return false
@@ -1449,6 +1488,7 @@ export default function App() {
         onCompleteWorkout={completeWorkout}
         onAddCheckin={addCheckin}
         onSendMessage={sendMessage}
+        onRefreshMessages={refreshStudentConversation}
         onExit={exitStudentAccess}
       />
     )
@@ -1703,6 +1743,7 @@ export default function App() {
                 messages={data.messages ?? []}
                 onSendMessage={sendMessage}
                 onMarkRead={markStudentMessagesRead}
+                onRefreshMessages={refreshCoachConversation}
               />
             )}
             {activeView === 'aluno-app' && (
@@ -4774,7 +4815,7 @@ function StudentAnamnesisSummary({ anamnesis, student }) {
   )
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -4808,11 +4849,12 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       onCompleteWorkout={completeStudentWorkout}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
+      onRefreshMessages={onRefreshMessages}
       onExit={onExit}
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onExit }) {
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('treino')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
@@ -4935,7 +4977,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     }
 
     if (activeTab === 'mensagens') {
-      return <StudentChatScreen student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} />
+      return <StudentChatScreen student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} onRefreshMessages={onRefreshMessages} />
     }
 
     if (activeTab === 'agenda') {
@@ -5089,7 +5131,21 @@ function StudentAppSection({ id, title, action, children }) {
   )
 }
 
-function StudentChatScreen({ student, coachId, messages, onSendMessage }) {
+function StudentChatScreen({ student, coachId, messages, onSendMessage, onRefreshMessages }) {
+  useEffect(() => {
+    if (!onRefreshMessages) return undefined
+    let active = true
+    const sync = () => {
+      if (active) onRefreshMessages()
+    }
+    sync()
+    const timer = window.setInterval(sync, 2500)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [onRefreshMessages])
+
   return (
     <section className="min-h-[calc(100vh-168px)] overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/25">
       <div className="flex min-h-[calc(100vh-168px)] flex-col">
@@ -5809,7 +5865,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
   )
 }
 
-function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
+function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefreshMessages }) {
   const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
@@ -5829,6 +5885,20 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [latestMessageId, selectedStudent?.id])
+
+  useEffect(() => {
+    if (!selectedStudent?.id || !onRefreshMessages) return undefined
+    let active = true
+    const sync = () => {
+      if (active) onRefreshMessages(selectedStudent.id)
+    }
+    sync()
+    const timer = window.setInterval(sync, 2500)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [selectedStudent?.id, onRefreshMessages])
 
   useEffect(() => () => {
     if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
