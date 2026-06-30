@@ -5033,8 +5033,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt }) 
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
-  const firstMonthCheckoutUrl = subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || import.meta.env.VITE_FITCOACH_BILLING_URL || ''
-  const regularCheckoutUrl = subscription?.checkoutRegularUrl || import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || firstMonthCheckoutUrl
+  const firstMonthCheckoutUrl = import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || ''
+  const regularCheckoutUrl = import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan), 0)
   const now = new Date()
