@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -7,6 +7,8 @@ import {
   createRemoteStudentInvite,
   deleteRemoteStudent,
   loadRemoteData,
+  loadRemoteMessages,
+  loadRemoteStudentMessages,
   loadRemoteStudentByInvite,
   markRemoteStudentMessagesRead,
   markRemoteNotificationsRead,
@@ -304,6 +306,7 @@ function prepareDataForStorage(data) {
       ...workout,
       exercises: (workout.exercises ?? []).map(({ videoFile, ...exercise }) => exercise),
     })),
+    messages: (data.messages ?? []).map(({ attachmentFile, attachmentPreview, ...message }) => message),
   }
 }
 
@@ -516,6 +519,92 @@ export default function App() {
 
     enterStudentByInvite(savedCode, { silent: true })
   }, [studentAccess])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess) return undefined
+
+    let active = true
+
+    async function syncCoachMessages() {
+      try {
+        const latestMessages = await loadRemoteMessages()
+        if (!active) return
+
+        setData((current) => {
+          const knownIds = new Set((current.messages ?? []).map((message) => String(message.id)))
+          const newStudentMessages = latestMessages.filter((message) => (
+            message.sender === 'student' && !knownIds.has(String(message.id))
+          ))
+          const messages = mergeRecords(current.messages, latestMessages)
+          const students = current.students.map((student) => {
+            const latestForStudent = messages.find((message) => String(message.studentId) === String(student.id))
+            return latestForStudent ? { ...student, lastMessage: latestForStudent.body } : student
+          })
+          const notifications = newStudentMessages.length
+            ? [
+              ...newStudentMessages.map((message) => ({
+                id: `message-${message.id}`,
+                title: 'Nova mensagem do aluno',
+                body: message.body,
+                read: false,
+              })),
+              ...current.notifications,
+            ]
+            : current.notifications
+
+          return { ...current, messages, students, notifications }
+        })
+      } catch (error) {
+        if (!active) return
+        if (/jwt expired|PGRST303/i.test(error?.message || '')) {
+          handleRemoteError(error, 'Sessão expirada')
+        }
+      }
+    }
+
+    syncCoachMessages()
+    const timer = window.setInterval(syncCoachMessages, 4000)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [data.session?.access_token, studentAccess])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !studentAccess?.student?.id || !studentAccess?.invite?.code) return undefined
+
+    let active = true
+
+    async function syncStudentMessages() {
+      try {
+        const latestMessages = await loadRemoteStudentMessages(studentAccess.student.id)
+        if (!active) return
+
+        setStudentAccess((current) => {
+          if (!current?.student?.id) return current
+          return {
+            ...current,
+            messages: mergeRecords(current.messages, latestMessages),
+          }
+        })
+        setData((current) => ({
+          ...current,
+          messages: mergeRecords(current.messages, latestMessages),
+        }))
+      } catch {
+        // Mantem a conversa aberta mesmo se a conexao oscilar por alguns segundos.
+      }
+    }
+
+    syncStudentMessages()
+    const timer = window.setInterval(syncStudentMessages, 3500)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [studentAccess?.student?.id, studentAccess?.invite?.code])
 
   async function login(formData) {
     const name = formData.get('name')?.toString().trim() || 'Coach'
@@ -1178,11 +1267,16 @@ export default function App() {
   }
 
   async function sendMessage(message) {
+    const localAttachmentUrl = message.attachmentPreview || message.attachmentUrl || ''
     const localMessage = {
       ...message,
       id: Date.now(),
       coachId: message.coachId ?? data.user?.id,
+      body: message.body?.trim() || (localAttachmentUrl ? 'Foto enviada' : ''),
       read: message.sender === 'coach',
+      attachmentUrl: localAttachmentUrl,
+      attachmentType: message.attachmentFile?.type || message.attachmentType || '',
+      attachmentName: message.attachmentFile?.name || message.attachmentName || '',
       createdAt: new Date().toISOString(),
     }
     let savedMessage = localMessage
@@ -4331,16 +4425,53 @@ function StudentPortalPreview({
 
 function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullScreen = false }) {
   const [draft, setDraft] = useState('')
+  const [attachmentFile, setAttachmentFile] = useState(null)
+  const [attachmentPreview, setAttachmentPreview] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const bottomRef = useRef(null)
   const orderedMessages = messages
     .slice()
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
+  const latestMessageId = orderedMessages.at(-1)?.id
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [latestMessageId])
+
+  useEffect(() => () => {
+    if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+  }, [attachmentPreview])
+
+  function handleAttachment(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Selecione uma imagem válida.')
+      event.target.value = ''
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('A foto deve ter no máximo 8 MB.')
+      event.target.value = ''
+      return
+    }
+    if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+    setError('')
+    setAttachmentFile(file)
+    setAttachmentPreview(URL.createObjectURL(file))
+  }
+
+  function clearAttachment() {
+    if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+    setAttachmentFile(null)
+    setAttachmentPreview('')
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
     const body = draft.trim()
-    if (!body || !onSendMessage) return
+    if ((!body && !attachmentFile) || !onSendMessage) return
 
     setSending(true)
     setError('')
@@ -4350,8 +4481,11 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
         studentId: student.id,
         sender: 'student',
         body,
+        attachmentFile,
+        attachmentPreview,
       })
       setDraft('')
+      clearAttachment()
     } catch (sendError) {
       setError(sendError?.message || 'Não foi possível enviar a mensagem.')
     } finally {
@@ -4373,13 +4507,15 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
               }`}
             >
               <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{message.sender === 'student' ? 'Você' : 'Coach'}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p>
+              {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
+              <MessageAttachment message={message} />
               <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
             </div>
           ))
         ) : (
           <Empty text="Nenhuma mensagem ainda." />
         )}
+        <div ref={bottomRef} />
       </div>
 
       <form onSubmit={handleSubmit} className={`${fullScreen ? 'sticky bottom-0 mt-3 border-t border-white/10 bg-zinc-950/95 pt-3' : 'mt-4'} grid gap-3`}>
@@ -4390,12 +4526,52 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
           placeholder="Responder ao coach..."
           className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
         />
-        <button disabled={sending || !draft.trim()} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
-          {sending ? 'Enviando...' : 'Enviar resposta'}
-        </button>
+        {attachmentPreview ? (
+          <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+            <div className="flex items-start gap-3">
+              <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Foto selecionada'}</p>
+                <button type="button" onClick={clearAttachment} className="mt-2 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
+                  Remover foto
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
+          <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
+            Enviar foto
+            <input type="file" accept="image/*" onChange={handleAttachment} className="hidden" />
+          </label>
+          <button disabled={sending || (!draft.trim() && !attachmentFile)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
+            {sending ? 'Enviando...' : 'Enviar resposta'}
+          </button>
+        </div>
         {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
       </form>
     </div>
+  )
+}
+
+function MessageAttachment({ message }) {
+  if (!message?.attachmentUrl) return null
+
+  const isImage = (message.attachmentType || '').startsWith('image/')
+    || /\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(message.attachmentUrl)
+
+  if (!isImage) {
+    return (
+      <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="mt-3 block break-all rounded-md border border-white/10 bg-zinc-950/60 p-3 text-sm font-bold text-blue-200">
+        {message.attachmentName || 'Abrir anexo'}
+      </a>
+    )
+  }
+
+  return (
+    <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="mt-3 block overflow-hidden rounded-md border border-white/10 bg-zinc-950/60">
+      <img src={message.attachmentUrl} alt={message.attachmentName || 'Foto enviada na conversa'} className="max-h-80 w-full object-cover" loading="lazy" />
+    </a>
   )
 }
 
@@ -5033,8 +5209,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt }) 
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
-  const firstMonthCheckoutUrl = import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || ''
-  const regularCheckoutUrl = import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl
+  const firstMonthCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '')
+  const regularCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan), 0)
   const now = new Date()
@@ -5186,6 +5362,12 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt }) 
             <p className="text-sm leading-6 text-zinc-400">
               O primeiro pagamento ativa a oferta de entrada por {formatCurrency(firstMonthPrice)}. Depois, o fechamento considera os alunos ativos e os planos cadastrados até o último dia do mês.
             </p>
+            <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+              <p className="text-xs font-black uppercase text-amber-200">Importante para liberar automaticamente</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-200">
+                No checkout, use o mesmo e-mail cadastrado aqui no FIT COACH. E-mail diferente pode impedir a liberação automática das ferramentas.
+              </p>
+            </div>
             {currentCheckoutUrl ? (
               <a href={currentCheckoutUrl} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 w-full items-center justify-center rounded-md bg-emerald-500 px-4 py-3 text-center text-sm font-black text-zinc-950">
                 {billingCycle.isPromotional ? `Pagar primeiro mês por ${formatCurrency(firstMonthPrice)}` : `Pagar mensalidade de ${formatCurrency(regularPrice)}`}
@@ -5630,15 +5812,27 @@ function CoachSettings({ user, settings, onSave, onExport }) {
 function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
   const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
+  const [attachmentFile, setAttachmentFile] = useState(null)
+  const [attachmentPreview, setAttachmentPreview] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const bottomRef = useRef(null)
   const selectedStudent = students.find((student) => String(student.id) === String(selectedStudentId)) ?? students[0]
   const studentMessages = messages
     .filter((message) => String(message.studentId) === String(selectedStudent?.id))
     .slice()
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
+  const latestMessageId = studentMessages.at(-1)?.id
   const suggestion = buildMessageSuggestion(selectedStudent, tone)
   const unreadForSelected = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [latestMessageId, selectedStudent?.id])
+
+  useEffect(() => () => {
+    if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+  }, [attachmentPreview])
 
   useEffect(() => {
     if (selectedStudent?.id && unreadForSelected > 0) {
@@ -5646,10 +5840,35 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
     }
   }, [selectedStudent?.id, unreadForSelected])
 
+  function handleAttachment(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Selecione uma imagem válida.')
+      event.target.value = ''
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('A foto deve ter no máximo 8 MB.')
+      event.target.value = ''
+      return
+    }
+    if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+    setError('')
+    setAttachmentFile(file)
+    setAttachmentPreview(URL.createObjectURL(file))
+  }
+
+  function clearAttachment() {
+    if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+    setAttachmentFile(null)
+    setAttachmentPreview('')
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     const body = draft.trim()
-    if (!body || !selectedStudent) return
+    if ((!body && !attachmentFile) || !selectedStudent) return
 
     setSending(true)
     setError('')
@@ -5658,8 +5877,11 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
         studentId: selectedStudent.id,
         sender: 'coach',
         body,
+        attachmentFile,
+        attachmentPreview,
       })
       setDraft('')
+      clearAttachment()
     } catch (sendError) {
       setError(sendError?.message || 'Não foi possível enviar a mensagem.')
     } finally {
@@ -5718,13 +5940,15 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
                 }`}
               >
                 <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{message.sender === 'coach' ? 'Coach' : 'Aluno'}</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p>
+                {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
+                <MessageAttachment message={message} />
                 <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
               </div>
             ))
           ) : (
             <Empty text="Nenhuma mensagem nesta conversa ainda." />
           )}
+          <div ref={bottomRef} />
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
@@ -5735,9 +5959,28 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead }) {
             placeholder="Escreva a mensagem para o aluno..."
             className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
-          <button disabled={sending || !draft.trim() || !selectedStudent} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
-            {sending ? 'Enviando...' : 'Enviar mensagem'}
-          </button>
+          {attachmentPreview ? (
+            <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+              <div className="flex items-start gap-3">
+                <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Foto selecionada'}</p>
+                  <button type="button" onClick={clearAttachment} className="mt-2 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
+                    Remover foto
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
+            <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
+              Enviar foto
+              <input type="file" accept="image/*" onChange={handleAttachment} className="hidden" />
+            </label>
+            <button disabled={sending || (!draft.trim() && !attachmentFile) || !selectedStudent} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
+              {sending ? 'Enviando...' : 'Enviar mensagem'}
+            </button>
+          </div>
           {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
         </form>
       </Panel>
@@ -6458,6 +6701,15 @@ function getCoachBillingCycle(subscription, userCreatedAt, referenceTime = Date.
 function isCoachSubscriptionActive(subscription) {
   const status = normalizeText(subscription?.status || '')
   return ['active', 'paid', 'em dia', 'em_dia', 'trialing'].includes(status)
+}
+
+function normalizeCheckoutUrl(value) {
+  const raw = String(value || '').trim()
+  const urlIndex = raw.indexOf('https://')
+  if (urlIndex >= 0) return raw.slice(urlIndex).trim()
+  const httpIndex = raw.indexOf('http://')
+  if (httpIndex >= 0) return raw.slice(httpIndex).trim()
+  return raw
 }
 
 function parseValidDate(value) {

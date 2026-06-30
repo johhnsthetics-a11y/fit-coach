@@ -2,6 +2,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
 const WORKOUT_VIDEO_BUCKET = 'workout-videos'
+const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
 
 let sessionToken = ''
 const REQUEST_TIMEOUT_MS = 25000
@@ -262,6 +263,17 @@ export async function loadRemoteData() {
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
   }
+}
+
+export async function loadRemoteMessages(studentId = '') {
+  const filter = studentId ? `&student_id=eq.${encodeURIComponent(studentId)}` : ''
+  const rows = await request(`messages?select=*${filter}&order=created_at.desc`)
+  return rows.map(fromMessageRow)
+}
+
+export async function loadRemoteStudentMessages(studentId) {
+  if (!isUuid(studentId)) return []
+  return loadRemoteMessages(studentId)
 }
 
 export async function upsertRemoteUser(user) {
@@ -655,10 +667,20 @@ export async function saveRemoteWorkoutLog(log) {
 }
 
 export async function saveRemoteMessage(message) {
+  const attachmentUrl = message.attachmentFile
+    ? await uploadMessageAttachment(message.attachmentFile, message.studentId, message.inviteCode)
+    : message.attachmentUrl || ''
+  const attachmentType = message.attachmentFile?.type || message.attachmentType || ''
+  const attachmentName = message.attachmentFile?.name || message.attachmentName || ''
+  const body = message.body?.trim() || (attachmentUrl ? 'Foto enviada' : '')
+
   if (message.inviteCode && message.sender === 'student') {
     const result = await rpcRequest('submit_student_message', {
       invite_code: message.inviteCode,
-      message_body: message.body,
+      message_body: body,
+      attachment_url: attachmentUrl || null,
+      attachment_type: attachmentType || null,
+      attachment_name: attachmentName || null,
     })
     return fromMessageRow(Array.isArray(result) ? result[0] : result)
   }
@@ -669,12 +691,36 @@ export async function saveRemoteMessage(message) {
       coach_id: message.coachId,
       student_id: message.studentId,
       sender: message.sender,
-      body: message.body,
+      body,
       read: Boolean(message.read),
+      attachment_url: attachmentUrl || null,
+      attachment_type: attachmentType || null,
+      attachment_name: attachmentName || null,
     }),
   })
 
   return fromMessageRow(rows[0])
+}
+
+async function uploadMessageAttachment(file, studentId, inviteCode = '') {
+  const extension = file.name?.split('.').pop() || 'jpg'
+  const owner = inviteCode || studentId || 'chat'
+  const safeName = `${owner}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`.replace(/\s+/g, '-')
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`, {
+    method: 'POST',
+    headers: authHeaders({
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true',
+    }),
+    body: file,
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw serviceError(response.status, message || 'Erro ao enviar foto da conversa')
+  }
+
+  return `${SUPABASE_URL}/storage/v1/object/public/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`
 }
 
 export async function markRemoteStudentMessagesRead(studentId) {
@@ -1108,6 +1154,9 @@ function fromMessageRow(row) {
     sender: row.sender ?? 'coach',
     body: row.body ?? '',
     read: Boolean(row.read),
+    attachmentUrl: row.attachment_url ?? '',
+    attachmentType: row.attachment_type ?? '',
+    attachmentName: row.attachment_name ?? '',
     createdAt: row.created_at,
   }
 }
