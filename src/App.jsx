@@ -9,7 +9,6 @@ import {
   loadRemoteData,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
-  loadRemoteStudentMessages,
   loadRemoteStudentByInvite,
   markRemoteStudentMessagesRead,
   markRemoteNotificationsRead,
@@ -2535,6 +2534,7 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
 
   const assessmentData = buildAssessmentChartData(assessments, selectedStudent?.id)
   const revenueChartData = buildRevenueChartData(invoices)
+  const actionPlan = buildCoachActionPlan(smartAlerts)
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.4fr_1fr]">
@@ -2572,8 +2572,27 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
               <SmartAlertCard key={alert.id} alert={alert} compact onOpen={() => setActiveView(alert.view)} />
             ))
           ) : (
-            <Empty text="Nenhuma prioridade critica agora." />
+            <Empty text="Nenhuma prioridade crítica agora." />
           )}
+        </div>
+      </Panel>
+
+      <Panel title="Próximas ações inteligentes" action="Coach OS">
+        <div className="grid gap-3">
+          {actionPlan.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => setActiveView(item.view)}
+              className="group flex min-w-0 items-start gap-3 rounded-md border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-emerald-300/40 hover:bg-emerald-400/[0.06]"
+            >
+              <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.tone}`} />
+              <span className="min-w-0">
+                <span className="block break-words text-sm font-black text-zinc-100">{item.title}</span>
+                <span className="mt-1 block break-words text-sm leading-6 text-zinc-400">{item.body}</span>
+              </span>
+            </button>
+          ))}
         </div>
       </Panel>
     </div>
@@ -2779,7 +2798,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
                 <Badge tone={student.risk}>{student.risk}</Badge>
               </div>
               <div className="mt-4 h-2 rounded bg-zinc-800">
-                <div className="h-2 rounded bg-blue-500" style={{ width: `${student.adherence}%` }} />
+                <div className="h-2 rounded bg-blue-500" style={{ width: `${clampPercent(student.adherence)}%` }} />
               </div>
             </button>
           ))}
@@ -5994,7 +6013,7 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefre
           <p className="text-xs font-black uppercase tracking-normal text-blue-200">Resposta sugerida</p>
           <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
           <button onClick={() => setDraft(suggestion)} className="mt-3 rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
-            Usar sugestao
+            Usar sugestão
           </button>
         </div>
 
@@ -6147,11 +6166,11 @@ function StudentSnapshot({ student }) {
         <Badge tone={student.risk}>{student.risk}</Badge>
       </div>
       <div className="mt-5 h-2 rounded bg-zinc-800">
-        <div className="h-2 rounded bg-blue-500" style={{ width: `${student.adherence}%` }} />
+        <div className="h-2 rounded bg-blue-500" style={{ width: `${clampPercent(student.adherence)}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-xs text-zinc-400">
         <span>Constância</span>
-        <span>{student.adherence}%</span>
+        <span>{clampPercent(student.adherence)}%</span>
       </div>
       <p className="mt-5 rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">{student.lastMessage}</p>
     </div>
@@ -6233,7 +6252,7 @@ function InlineSelect({ label, value, options, onChange }) {
         onChange={(event) => onChange(event.target.value)}
         className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       >
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        {options.map((option) => <option key={option} value={option}>{formatUiText(option)}</option>)}
       </select>
     </label>
   )
@@ -6270,6 +6289,69 @@ function TextArea({ label, name, defaultValue = '' }) {
       />
     </label>
   )
+}
+
+function buildCoachActionPlan(smartAlerts = []) {
+  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliacao'].includes(alert.type))
+  const hasPrescriptionGap = smartAlerts.some((alert) => ['Treino', 'Nutrição'].includes(alert.type))
+  const hasOverduePayment = smartAlerts.some((alert) => alert.type === 'Financeiro')
+  const hasAgenda = smartAlerts.some((alert) => alert.type === 'Agenda')
+
+  const actions = []
+
+  if (hasHighRisk) {
+    actions.push({
+      title: 'Priorize alunos que podem perder ritmo',
+      body: 'Comece pelos alertas de risco alto, check-ins críticos e avaliações atrasadas. Isso protege resultado e retenção.',
+      view: 'notificacoes',
+      tone: 'bg-rose-300',
+    })
+  }
+
+  if (hasPrescriptionGap) {
+    actions.push({
+      title: 'Complete o plano antes do próximo acesso',
+      body: 'Treino e dieta completos fazem o aluno perceber acompanhamento real logo que entra no aplicativo.',
+      view: 'treinos',
+      tone: 'bg-emerald-300',
+    })
+  }
+
+  if (hasOverduePayment) {
+    actions.push({
+      title: 'Recupere receita pendente',
+      body: 'Cobranças atrasadas aparecem antes de virarem perda. Abra recebimentos e resolva os casos críticos.',
+      view: 'pagamentos',
+      tone: 'bg-amber-300',
+    })
+  }
+
+  if (hasAgenda) {
+    actions.push({
+      title: 'Confirme os próximos compromissos',
+      body: 'Revisar agenda nas próximas 24 horas reduz faltas e melhora a experiência do aluno.',
+      view: 'agenda',
+      tone: 'bg-cyan-300',
+    })
+  }
+
+  if (!actions.length) {
+    actions.push({
+      title: 'Carteira sob controle',
+      body: 'Sem prioridade crítica agora. Use esse momento para revisar evolução, preparar próximos ajustes e mandar feedbacks.',
+      view: 'mensagens',
+      tone: 'bg-emerald-300',
+    })
+  }
+
+  actions.push({
+    title: 'Mantenha comunicação ativa',
+    body: 'Uma mensagem curta no momento certo aumenta percepção de cuidado e reduz abandono silencioso.',
+    view: 'mensagens',
+    tone: 'bg-blue-300',
+  })
+
+  return actions.slice(0, 4)
 }
 
 function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointments = [], invoices = [], assessments = []) {
@@ -6333,11 +6415,9 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     const latestAssessment = assessments
       .filter((assessment) => String(assessment.studentId) === studentId)
       .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))[0]
-    const assessmentAge = latestAssessment
-      ? (Date.now() - new Date(`${latestAssessment.assessedAt}T12:00:00`).getTime()) / (24 * 60 * 60 * 1000)
-      : null
+    const assessmentAge = latestAssessment ? daysSinceDate(latestAssessment.assessedAt) : null
 
-    if (!latestAssessment || assessmentAge > 30) {
+    if (!latestAssessment || assessmentAge === null || assessmentAge > 30) {
       alerts.push({
         id: `assessment-${student.id}`,
         type: 'Avaliacao',
@@ -6861,6 +6941,21 @@ function describeChange(value, unit) {
   const absolute = formatNumber(Math.abs(value))
   if (Math.abs(value) < 0.05) return `manteve (${absolute} ${unit})`
   return value > 0 ? `subiu ${absolute} ${unit}` : `reduziu ${absolute} ${unit}`
+}
+
+function clampPercent(value) {
+  const number = Number(value || 0)
+  if (!Number.isFinite(number)) return 0
+  return Math.min(100, Math.max(0, Math.round(number)))
+}
+
+function daysSinceDate(value) {
+  if (!value) return null
+  const raw = String(value)
+  const normalized = raw.includes('T') ? raw : `${raw}T12:00:00`
+  const time = new Date(normalized).getTime()
+  if (Number.isNaN(time)) return null
+  return (Date.now() - time) / (24 * 60 * 60 * 1000)
 }
 
 function buildAssessmentChartData(assessments, studentId) {

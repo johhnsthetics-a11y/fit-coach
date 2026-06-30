@@ -19,9 +19,13 @@ body {
   max-width: 100%;
   min-width: 0;
   overflow-x: hidden;
-  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Inter", "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background: #05070d;
 }
 
@@ -115,6 +119,24 @@ textarea {
 .app-shell h4,
 .app-shell h5 {
   overflow-wrap: anywhere;
+}
+
+.app-shell h1,
+.app-shell h2,
+.app-shell h3,
+.app-shell h4 {
+  letter-spacing: 0;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.app-shell p,
+.app-shell li,
+.app-shell button,
+.app-shell input,
+.app-shell select,
+.app-shell textarea {
+  letter-spacing: 0;
 }
 
 .app-shell button,
@@ -239,7 +261,7 @@ textarea {
   --fitness-steel: #94a3b8;
   --fitness-coal: #070909;
   scroll-behavior: smooth;
-  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
 }
 
@@ -301,7 +323,7 @@ textarea {
 .sales-page h2,
 .sales-page h3,
 .sales-page h4 {
-  font-family: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", "Aptos Display", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: 0;
   text-wrap: balance;
