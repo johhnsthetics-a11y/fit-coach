@@ -5184,21 +5184,21 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt }) 
 
           <Panel title="Pagamento da assinatura" action="Oferta ativa">
             <p className="text-sm leading-6 text-zinc-400">
-              O primeiro pagamento ativa a oferta de entrada por {formatCurrency(firstMonthPrice)}. Depois, o fechamento considera os alunos ativos e os planos cadastrados at? o ?ltimo dia do m?s.
+              O primeiro pagamento ativa a oferta de entrada por {formatCurrency(firstMonthPrice)}. Depois, o fechamento considera os alunos ativos e os planos cadastrados até o último dia do mês.
             </p>
             {currentCheckoutUrl ? (
               <a href={currentCheckoutUrl} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 w-full items-center justify-center rounded-md bg-emerald-500 px-4 py-3 text-center text-sm font-black text-zinc-950">
-                {billingCycle.isPromotional ? `Pagar primeiro m?s por ${formatCurrency(firstMonthPrice)}` : `Pagar mensalidade de ${formatCurrency(regularPrice)}`}
+                {billingCycle.isPromotional ? `Pagar primeiro mês por ${formatCurrency(firstMonthPrice)}` : `Pagar mensalidade de ${formatCurrency(regularPrice)}`}
               </a>
             ) : (
               <button type="button" disabled className="mt-4 w-full rounded-md bg-zinc-800 px-4 py-3 text-sm font-black text-zinc-500">
-                Checkout seguro em configura??o
+                Checkout seguro em configuração
               </button>
             )}
             <button type="button" onClick={copyBillingSummary} className="mt-3 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-              {copied ? 'Resumo copiado' : 'Copiar resumo da cobran?a'}
+              {copied ? 'Resumo copiado' : 'Copiar resumo da cobrança'}
             </button>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">A cobran?a recorrente ser? conferida no fechamento mensal, mantendo o primeiro m?s com isen??o total da taxa de manuten??o.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">A cobrança recorrente será conferida no fechamento mensal, mantendo o primeiro mês com isenção total da taxa de manutenção.</p>
           </Panel>
         </div>
       </div>
