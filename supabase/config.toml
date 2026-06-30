@@ -1,0 +1,4 @@
+project_id = "zrlcisuuekudczkbapil"
+
+[functions.lastlink-webhook]
+verify_jwt = false

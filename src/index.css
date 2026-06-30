@@ -1,0 +1,562 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  font-kerning: normal;
+  background: #05070d;
+}
+
+.fit-gradient-bg {
+  background-color: #070a09;
+  background-image:
+    linear-gradient(155deg, #065f46 0%, #10231d 22%, #070a09 48%, #0a100e 72%, #064e3b 100%);
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+@media (min-width: 640px) {
+  .fit-gradient-bg {
+    background-image:
+      linear-gradient(140deg, #047857 0%, #10231d 20%, #070a09 43%, #070a09 62%, #0b1713 80%, #065f46 100%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .fit-gradient-bg {
+    background-image:
+      linear-gradient(110deg, #065f46 0%, #064e3b 14%, #0b1713 31%, #070a09 52%, #0a100e 72%, #064e3b 88%, #047857 100%);
+  }
+}
+
+@media (min-width: 1600px) {
+  .fit-gradient-bg {
+    background-image:
+      linear-gradient(105deg, #064e3b 0%, #047857 10%, #10231d 25%, #070a09 43%, #070a09 60%, #0b1713 76%, #065f46 91%, #064e3b 100%);
+  }
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-shell,
+.app-shell main,
+.app-shell section,
+.app-shell form,
+.app-shell fieldset,
+.app-shell label,
+.app-shell > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-shell img,
+.app-shell video,
+.app-shell canvas,
+.app-shell svg {
+  max-width: 100%;
+}
+
+.app-shell p,
+.app-shell h1,
+.app-shell h2,
+.app-shell h3,
+.app-shell h4,
+.app-shell h5 {
+  overflow-wrap: anywhere;
+}
+
+.app-shell button,
+.app-shell a,
+.app-shell span,
+.app-shell td,
+.app-shell th,
+.app-shell summary {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.app-shell div {
+  min-width: 0;
+}
+
+.app-shell button,
+.app-shell a {
+  white-space: normal;
+}
+
+.workout-builder details summary {
+  min-height: 44px;
+  list-style: none;
+}
+
+.workout-builder details summary::-webkit-details-marker {
+  display: none;
+}
+
+.workout-builder a,
+.workout-builder button {
+  touch-action: manipulation;
+}
+
+@media (max-width: 639px) {
+  .app-shell {
+    font-size: 15px;
+  }
+
+  .app-shell button,
+  .app-shell input,
+  .app-shell select {
+    min-height: 44px;
+  }
+
+  .workout-builder textarea {
+    min-height: 96px;
+  }
+
+  .app-shell .recharts-wrapper,
+  .app-shell .recharts-surface {
+    max-width: 100% !important;
+  }
+}
+
+.scrollbar-soft {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.55) rgba(255, 255, 255, 0.06);
+}
+
+.scrollbar-soft::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.scrollbar-soft::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+
+.scrollbar-soft::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.55);
+  border-radius: 999px;
+}
+
+::selection {
+  background: #10b981;
+  color: #09090b;
+}
+
+.app-shell .text-blue-100,
+.app-shell .text-blue-200,
+.app-shell .text-blue-300,
+.app-shell .text-blue-400 {
+  color: #a7f3d0;
+}
+
+.app-shell .bg-blue-400,
+.app-shell .bg-blue-500,
+.app-shell .bg-blue-600 {
+  background-color: #10b981;
+}
+
+.app-shell .border-blue-300\/20,
+.app-shell .border-blue-300\/25,
+.app-shell .border-blue-300\/30,
+.app-shell .border-blue-300\/35,
+.app-shell .border-blue-300\/40,
+.app-shell .border-blue-500 {
+  border-color: rgba(52, 211, 153, 0.38);
+}
+
+.app-shell .bg-blue-300\/5,
+.app-shell .bg-blue-300\/10,
+.app-shell .bg-blue-500\/10 {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.app-shell .focus\:border-blue-500:focus {
+  border-color: #10b981;
+}
+
+.sales-page {
+  --sales-progress: 0;
+  --sales-scroll: 0px;
+  --fitness-lime: #10b981;
+  --fitness-lime-soft: #a7f3d0;
+  --fitness-deep-emerald: #047857;
+  --fitness-steel: #94a3b8;
+  --fitness-coal: #070909;
+  scroll-behavior: smooth;
+  font-family: "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.sales-page.fit-gradient-bg {
+  background-color: var(--fitness-coal);
+  background-image:
+    linear-gradient(145deg, rgba(5, 150, 105, 0.42) 0%, #0c1814 20%, #070909 48%, #0a1210 72%, rgba(4, 120, 87, 0.38) 100%);
+}
+
+.sales-page .text-blue-100,
+.sales-page .text-blue-200,
+.sales-page .text-blue-300,
+.sales-page .text-blue-400 {
+  color: var(--fitness-lime-soft);
+}
+
+.sales-page .bg-blue-400,
+.sales-page .bg-blue-500 {
+  background-color: var(--fitness-lime);
+}
+
+.sales-page .border-blue-300\/25,
+.sales-page .border-blue-300\/30,
+.sales-page .border-blue-300\/35,
+.sales-page .border-blue-500 {
+  border-color: rgba(52, 211, 153, 0.38);
+}
+
+.sales-page .bg-blue-300\/10,
+.sales-page .bg-blue-500\/\[0\.06\] {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.sales-page button.bg-blue-500 {
+  color: #090d06;
+}
+
+.sales-page .bg-red-400,
+.sales-page .bg-red-500 {
+  background-color: var(--fitness-deep-emerald);
+}
+
+.sales-page .text-red-200,
+.sales-page .text-red-300 {
+  color: #a7f3d0;
+}
+
+.sales-page .from-blue-500,
+.sales-page .from-blue-600 {
+  --tw-gradient-from: #10b981 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(16 185 129 / 0) var(--tw-gradient-to-position);
+}
+
+.sales-page .to-red-500 {
+  --tw-gradient-to: #047857 var(--tw-gradient-to-position);
+}
+
+.sales-page h1,
+.sales-page h2,
+.sales-page h3,
+.sales-page h4 {
+  font-family: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.sales-page h1 {
+  font-weight: 720;
+}
+
+.sales-page p {
+  letter-spacing: 0;
+}
+
+.sales-page .font-black {
+  font-weight: 700;
+}
+
+.sales-page button {
+  min-height: 44px;
+  letter-spacing: 0;
+}
+
+.sales-page #acesso,
+.sales-page #recursos {
+  scroll-margin-top: 84px;
+}
+
+.sales-page input,
+.sales-page select,
+.sales-page textarea {
+  font-family: inherit;
+}
+
+.sales-progress {
+  position: fixed;
+  z-index: 70;
+  top: 0;
+  left: 0;
+  width: calc(var(--sales-progress) * 100%);
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #34d399 0%, #10b981 52%, #047857 100%);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.42);
+}
+
+.sales-motion-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 700ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0ms),
+    transform 700ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--reveal-delay, 0ms);
+}
+
+.sales-motion-ready [data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sales-dashboard-motion {
+  transform: translateY(calc(var(--sales-progress) * -18px));
+  transition: transform 120ms linear;
+}
+
+.sales-section {
+  position: relative;
+  isolation: isolate;
+}
+
+.sales-section::before {
+  position: absolute;
+  z-index: -1;
+  inset: -1px 0 auto;
+  height: 180px;
+  content: "";
+  pointer-events: none;
+  opacity: 0.18;
+}
+
+.sales-section-blue::before {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.34), transparent);
+}
+
+.sales-section-red::before {
+  background: linear-gradient(180deg, rgba(4, 120, 87, 0.3), transparent);
+}
+
+.sales-section-final::before {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.22), rgba(16, 185, 129, 0.16), rgba(4, 120, 87, 0.25));
+}
+
+.sales-feature-card {
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.sales-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(52, 211, 153, 0.4);
+  background-color: rgba(255, 255, 255, 0.065);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+}
+
+.interactive-surface {
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  position: relative;
+  overflow: hidden;
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  transition:
+    transform 180ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+  touch-action: manipulation;
+}
+
+.interactive-surface::after {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(52, 211, 153, 0.14), transparent 34%);
+  transition: opacity 200ms ease;
+}
+
+.interactive-surface:hover::after,
+.interactive-surface.is-pressed::after {
+  opacity: 1;
+}
+
+.interactive-surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+.interactive-surface.is-pressed {
+  transform: perspective(900px) scale(0.985);
+  border-color: rgba(16, 185, 129, 0.52);
+}
+
+.sales-motion-ready [data-reveal].is-visible.interactive-surface {
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.sales-faq summary {
+  list-style: none;
+}
+
+.sales-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.sales-faq-icon {
+  transition: transform 220ms ease, color 220ms ease;
+}
+
+.sales-faq[open] {
+  border-color: rgba(52, 211, 153, 0.36);
+  background-color: rgba(9, 9, 11, 0.92);
+}
+
+.sales-faq[open] .sales-faq-icon {
+  transform: rotate(45deg);
+  color: #34d399;
+}
+
+.revenue-range {
+  height: 5px;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  border-radius: 999px;
+  outline: none;
+  background: linear-gradient(90deg, #34d399, #10b981, #047857);
+}
+
+.revenue-range::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  appearance: none;
+  border: 3px solid #f8fafc;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.revenue-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 3px solid #f8fafc;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 639px) {
+  .sales-page h1 {
+    font-size: 2.15rem;
+    line-height: 1.12;
+  }
+
+  .sales-page h2 {
+    line-height: 1.18;
+  }
+
+  .sales-page section {
+    min-width: 0;
+  }
+
+  .sales-page header .fit-brand-lockup {
+    max-width: 132px;
+  }
+
+  .sales-motion-ready [data-reveal] {
+    transform: translateY(18px);
+    transition-duration: 560ms;
+  }
+
+  .sales-dashboard-motion {
+    transform: none;
+  }
+
+  .sales-feature-card:hover {
+    transform: none;
+  }
+
+  .interactive-surface,
+  .sales-motion-ready [data-reveal].is-visible.interactive-surface {
+    transform: none;
+  }
+
+  .interactive-surface.is-pressed {
+    transform: scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page {
+    scroll-behavior: auto;
+  }
+
+  .sales-motion-ready [data-reveal],
+  .sales-motion-ready [data-reveal].is-visible,
+  .sales-dashboard-motion,
+  .sales-feature-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
