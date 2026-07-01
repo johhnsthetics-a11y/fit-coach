@@ -45,9 +45,7 @@ const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 
 const plans = [
-  { name: 'Essential', price: 'R$ 197', features: 'Treino, dieta e 1 check-in semanal' },
-  { name: 'Performance', price: 'R$ 347', features: 'Ajustes semanais, suporte e análise de vídeos' },
-  { name: 'Elite', price: 'R$ 597', features: 'Acompanhamento premium, chamadas e revisões completas' },
+  { name: 'Acompanhamento mensal', price: 'R$ 197', features: 'Plano padrão configurável pelo treinador' },
 ]
 
 const navItems = [
@@ -414,7 +412,6 @@ export default function App() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
   const [activeView, setActiveView] = useState('visao')
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
-  const [tone, setTone] = useState('Firme')
   const [studentAccess, setStudentAccess] = useState(null)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -452,6 +449,7 @@ export default function App() {
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive)
+  const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -1560,12 +1558,6 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mt-3 rounded-md border border-blue-500/40 bg-blue-500/10 p-2.5 lg:p-2">
-            <p className="text-[11px] font-black uppercase text-zinc-400">Status da operação</p>
-            <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
-            {remoteError ? <p className="mt-2 break-words text-xs leading-5 text-amber-200">{remoteError}</p> : null}
-          </div>
-
           <div className="mb-2 mt-3 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
             <span className="text-[10px] font-bold text-zinc-600">{navItems.length} áreas</span>
@@ -1629,17 +1621,6 @@ export default function App() {
                 <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
                 <span className="mt-0.5 block">{coachBillingCycle.daysRemaining} {coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
               </button>
-              {['Firme', 'Tecnico', 'Motivador'].map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setTone(item)}
-                  className={`rounded-md border px-4 py-2 text-sm font-bold ${
-                    tone === item ? 'border-amber-300 bg-amber-300 text-zinc-950' : 'border-white/10 bg-white/[0.04] text-zinc-300'
-                  }`}
-                >
-                  {formatUiText(item)}
-                </button>
-              ))}
             </div>
           </header>
 
@@ -1687,6 +1668,7 @@ export default function App() {
                 onSave={saveStudent}
                 onGenerateInvite={generateStudentInvite}
                 onDelete={deleteStudent}
+                coachPlans={coachPlans}
               />
             )}
             {activeView === 'avaliacoes' && (
@@ -1725,6 +1707,7 @@ export default function App() {
                 students={data.students}
                 invoices={data.invoices ?? []}
                 coachSettings={data.coachSettings}
+                coachPlans={coachPlans}
                 onSaveInvoice={saveInvoice}
                 onUpdateInvoiceStatus={updateInvoiceStatus}
                 onUpdatePayment={updatePayment}
@@ -1736,6 +1719,7 @@ export default function App() {
                 invoices={data.invoices ?? []}
                 subscription={data.coachSubscription}
                 userCreatedAt={data.user?.createdAt}
+                coachPlans={coachPlans}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -1748,7 +1732,6 @@ export default function App() {
             )}
             {activeView === 'mensagens' && (
               <Messages
-                tone={tone}
                 students={data.students}
                 messages={data.messages ?? []}
                 onSendMessage={sendMessage}
@@ -2778,12 +2761,13 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete }) {
+function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
   const [inviteError, setInviteError] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [releaseDays, setReleaseDays] = useState('3')
   const selectedInvite = savedInvite?.studentId === selectedStudent?.id
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
@@ -2791,7 +2775,8 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
 
   async function releaseTemporaryAccess(days = 3) {
     if (!selectedStudent) return
-    const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    const safeDays = Math.max(1, Math.min(90, Number(days) || 1))
+    const until = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString()
     await onSave({ ...selectedStudent, accessOverrideUntil: until })
   }
 
@@ -2829,6 +2814,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
         {editing ? (
           <StudentForm
             student={editing}
+            coachPlans={coachPlans}
             onCancel={() => setEditing(null)}
             onSave={async (student) => {
               const result = await onSave(student)
@@ -2854,8 +2840,18 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
                 Se o aluno estiver pendente, o portal bloqueia treino, dieta e progresso. Você pode liberar temporariamente em casos de exceção.
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <button type="button" onClick={() => releaseTemporaryAccess(1)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">Liberar 24h</button>
-                <button type="button" onClick={() => releaseTemporaryAccess(3)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">Liberar 3 dias</button>
+                <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
+                  Dias de liberação
+                  <input
+                    type="number"
+                    min="1"
+                    max="90"
+                    value={releaseDays}
+                    onChange={(event) => setReleaseDays(event.target.value)}
+                    className="min-h-10 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case text-zinc-100 outline-none focus:border-amber-300"
+                  />
+                </label>
+                <button type="button" onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">Liberar acesso</button>
                 <button type="button" onClick={() => onSave({ ...selectedStudent, accessOverrideUntil: '' })} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100">Remover liberação</button>
               </div>
             </div>
@@ -2930,10 +2926,11 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
   )
 }
 
-function StudentForm({ student, onSave, onCancel }) {
+function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [continuingStudent, setContinuingStudent] = useState(student.requireAnamnesis === false)
+  const selectedPlanName = coachPlans.some((plan) => plan.name === student.plan) ? student.plan : coachPlans[0]?.name
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -2997,7 +2994,7 @@ function StudentForm({ student, onSave, onCancel }) {
         <Field label="E-mail" name="email" type="email" defaultValue={student.email} autoComplete="email" />
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
-        <Select label="Plano" name="plan" defaultValue={student.plan} options={plans.map((plan) => plan.name)} />
+        <Select label="Plano" name="plan" defaultValue={selectedPlanName} options={coachPlans.map((plan) => plan.name)} />
         <Select label="Pagamento" name="payment" defaultValue={student.payment} options={['Pago', 'Pendente']} />
       </div>
       {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
@@ -5490,11 +5487,23 @@ function StudentPaymentLock({ student, invoices, coachSettings, onOpenPayments, 
   const pendingInvoices = invoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
   const nextInvoice = pendingInvoices[0]
   const totalPending = pendingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const billingBrand = getBillingBrand(coachSettings)
+  const billingMessage = buildBillingMessage(billingBrand.message, {
+    student,
+    amount: nextInvoice?.amount || totalPending,
+    dueDate: nextInvoice?.dueDate,
+    coachSettings,
+  })
 
   return (
     <StudentAppSection title="Acesso pausado" action="Pagamento pendente">
-      <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-        <p className="text-xs font-black uppercase text-amber-200">Regularize para continuar treinando</p>
+      <div className="rounded-md border p-4" style={{ borderColor: `${billingBrand.primaryColor}55`, background: `linear-gradient(135deg, ${billingBrand.primaryColor}22, ${billingBrand.accentColor}18)` }}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-black uppercase" style={{ color: billingBrand.primaryColor }}>Regularize para continuar treinando</p>
+          {billingBrand.logoUrl ? (
+            <img src={billingBrand.logoUrl} alt={coachSettings?.brandName || 'Logo do coach'} className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
+          ) : null}
+        </div>
         <h3 className="mt-2 text-2xl font-black text-white">Seu plano está aguardando confirmação de pagamento.</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
           Treino, dieta e progresso ficam protegidos até o pagamento ser validado pelo coach. Se você já pagou, envie o comprovante no chat.
@@ -5832,14 +5841,14 @@ function CheckinForm({ students, onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students, invoices, subscription, userCreatedAt }) {
+function CoachSubscription({ students, invoices, subscription, userCreatedAt, coachPlans = plans }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const firstMonthCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '')
   const regularCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
-  const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan), 0)
+  const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan, coachPlans), 0)
   const now = new Date()
   const receivedThisMonth = invoices
     .filter((invoice) => {
@@ -5862,7 +5871,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt }) 
   const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
   const closingDate = new Date(billingCycle.nextBillingAt)
   const studentBreakdown = activeStudents.map((student) => {
-    const monthlyValue = getPlanMonthlyPrice(student.plan)
+    const monthlyValue = getPlanMonthlyPrice(student.plan, coachPlans)
     return {
       ...student,
       monthlyValue,
@@ -6043,7 +6052,7 @@ function BillingLine({ label, value, note }) {
   )
 }
 
-function Payments({ students, invoices, coachSettings, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
+function Payments({ students, invoices, coachSettings, coachPlans = plans, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
   const [filter, setFilter] = useState('Todos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -6076,7 +6085,7 @@ function Payments({ students, invoices, coachSettings, onSaveInvoice, onUpdateIn
       if (!Number.isFinite(amount) || amount <= 0) throw new Error('Informe um valor de cobrança maior que zero.')
       await onSaveInvoice({
         studentId: form.get('studentId')?.toString() || '',
-        planName: form.get('planName')?.toString() || 'Essential',
+        planName: form.get('planName')?.toString() || coachPlans[0]?.name || 'Acompanhamento',
         description: form.get('description')?.toString() || 'Mensalidade do acompanhamento',
         amount,
         dueDate: form.get('dueDate')?.toString() || '',
@@ -6135,13 +6144,14 @@ function Payments({ students, invoices, coachSettings, onSaveInvoice, onUpdateIn
     setError('')
     try {
       for (const student of chargeableStudents) {
-        const amount = getPlanMonthlyPrice(student.plan) || 197
+        const amount = getPlanMonthlyPrice(student.plan, coachPlans) || 197
+        const dueDate = getDefaultDueDate()
         await onSaveInvoice({
           studentId: student.id,
           planName: student.plan || 'Acompanhamento',
-          description: `Cobrança automática do acompanhamento. Pix: ${coachSettings?.pixKey || 'informe com o coach'} | WhatsApp: ${coachSettings?.whatsapp || 'não informado'} | E-mail: ${coachSettings?.supportEmail || 'não informado'}`,
+          description: buildBillingMessage(coachSettings?.billingMessage, { student, amount, dueDate, coachSettings }),
           amount,
-          dueDate: getDefaultDueDate(),
+          dueDate,
           status: 'Pendente',
           paymentMethod: 'Pix',
         })
@@ -6184,9 +6194,9 @@ function Payments({ students, invoices, coachSettings, onSaveInvoice, onUpdateIn
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
               <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
-              <Select label="Plano" name="planName" defaultValue="Essential" options={plans.map((plan) => plan.name)} />
+              <Field label="Nome do plano" name="planName" defaultValue={coachPlans[0]?.name || 'Acompanhamento mensal'} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Valor (R$)" name="amount" type="number" defaultValue="197" />
+                <Field label="Valor (R$)" name="amount" type="number" defaultValue={String(getPlanMonthlyPrice(coachPlans[0]?.name, coachPlans) || 197)} />
                 <Field label="Vencimento" name="dueDate" type="date" defaultValue={getDefaultDueDate()} />
               </div>
               <Field label="Descrição" name="description" defaultValue="Mensalidade do acompanhamento" />
@@ -6201,7 +6211,7 @@ function Payments({ students, invoices, coachSettings, onSaveInvoice, onUpdateIn
           )}
 
           <div className="mt-5 grid gap-3">
-            {plans.map((plan) => (
+            {coachPlans.map((plan) => (
               <div key={plan.name} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -6404,8 +6414,42 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     whatsapp: settings?.whatsapp || '',
     supportEmail: settings?.supportEmail || user?.email || '',
     pixKey: settings?.pixKey || '',
+    billingLogoUrl: settings?.billingLogoUrl || '',
+    billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
+    billingAccentColor: settings?.billingAccentColor || '#0f172a',
+    billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
+    customPlans: getCoachPlans(settings),
     welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
+  }
+  const [billingLogoUrl, setBillingLogoUrl] = useState(current.billingLogoUrl)
+  const [plansDraft, setPlansDraft] = useState(formatPlansDraft(current.customPlans))
+
+  useEffect(() => {
+    setBillingLogoUrl(current.billingLogoUrl)
+    setPlansDraft(formatPlansDraft(current.customPlans))
+  }, [settings?.billingLogoUrl, settings?.customPlans])
+
+  function handleBillingLogoFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Selecione uma imagem válida para a logo.')
+      event.target.value = ''
+      return
+    }
+    if (file.size > 900 * 1024) {
+      setError('Use uma logo com até 900 KB para manter o app rápido.')
+      event.target.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setBillingLogoUrl(reader.result.toString())
+      setError('')
+    }
+    reader.onerror = () => setError('Não foi possível carregar esta logo.')
+    reader.readAsDataURL(file)
   }
 
   async function handleSubmit(event) {
@@ -6422,6 +6466,11 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         whatsapp: form.get('whatsapp')?.toString().trim() || '',
         supportEmail: form.get('supportEmail')?.toString().trim() || '',
         pixKey: form.get('pixKey')?.toString().trim() || '',
+        billingLogoUrl: form.get('billingLogoUrlDisplay')?.toString().trim() || billingLogoUrl || '',
+        billingPrimaryColor: form.get('billingPrimaryColor')?.toString().trim() || '#10b981',
+        billingAccentColor: form.get('billingAccentColor')?.toString().trim() || '#0f172a',
+        billingMessage: form.get('billingMessage')?.toString().trim() || current.billingMessage,
+        customPlans: parseCustomPlans(plansDraft),
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
         timezone: current.timezone,
       })
@@ -6438,6 +6487,8 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     { label: 'Marca do treinador', ready: Boolean(settings?.brandName) },
     { label: 'WhatsApp de suporte', ready: Boolean(settings?.whatsapp) },
     { label: 'Chave Pix para cobranças', ready: Boolean(settings?.pixKey) },
+    { label: 'Planos próprios', ready: getCoachPlans(settings).length > 0 },
+    { label: 'Marca da cobrança', ready: Boolean(settings?.billingMessage || settings?.billingLogoUrl) },
     { label: 'Registro profissional', ready: Boolean(settings?.cref) },
     { label: 'Mensagem para alunos', ready: Boolean(settings?.welcomeMessage) },
   ]
@@ -6455,6 +6506,42 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             <Field label="Chave Pix para cobranças" name="pixKey" defaultValue={current.pixKey} required={false} />
           </div>
           <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
+          <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-black text-emerald-100">Marca da cobrança do aluno</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                  Personalize a tela que o aluno inadimplente vê: logo, cor e mensagem com a linguagem do seu atendimento.
+                </p>
+              </div>
+              {billingLogoUrl ? (
+                <img src={billingLogoUrl} alt="Logo da cobrança" className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
+              ) : null}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                Logo da cobrança
+                <input type="file" accept="image/*" onChange={handleBillingLogoFile} className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950" />
+              </label>
+              <Field label="Link da logo (opcional)" name="billingLogoUrlDisplay" defaultValue={billingLogoUrl} required={false} placeholder="Cole uma URL ou envie arquivo ao lado" />
+              <Field label="Cor principal da cobrança" name="billingPrimaryColor" type="color" defaultValue={current.billingPrimaryColor} />
+              <Field label="Cor de apoio" name="billingAccentColor" type="color" defaultValue={current.billingAccentColor} />
+            </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">
+              Variáveis disponíveis: {'{aluno}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'}, {'{email}'}.
+            </p>
+            <TextArea label="Mensagem de cobrança para o aluno" name="billingMessage" defaultValue={current.billingMessage} />
+          </div>
+          <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm font-black text-zinc-100">Planos e valores do treinador</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">Cadastre um plano por linha no formato: Nome do plano | Valor | Descrição.</p>
+            <textarea
+              value={plansDraft}
+              onChange={(event) => setPlansDraft(event.target.value)}
+              rows={5}
+              className="mt-3 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none focus:border-emerald-500"
+            />
+          </div>
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar configurações'}
           </button>
@@ -6479,6 +6566,26 @@ function CoachSettings({ user, settings, onSave, onExport }) {
           </div>
         </Panel>
 
+        <Panel title="Prévia da cobrança" action="Branding">
+          <div className="rounded-md border p-4" style={{ borderColor: `${current.billingPrimaryColor}55`, background: `linear-gradient(135deg, ${current.billingPrimaryColor}20, ${current.billingAccentColor}18)` }}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase" style={{ color: current.billingPrimaryColor }}>Pagamento pendente</p>
+                <h3 className="mt-1 text-xl font-black text-white">{current.brandName}</h3>
+              </div>
+              {billingLogoUrl ? <img src={billingLogoUrl} alt="Logo da cobrança" className="h-14 max-w-36 rounded-md bg-white object-contain p-2" /> : null}
+            </div>
+            <p className="mt-4 text-sm leading-6 text-zinc-200">
+              {buildBillingMessage(current.billingMessage, {
+                student: { name: 'Aluno exemplo' },
+                amount: getPlanMonthlyPrice(getCoachPlans(settings)[0]?.name, getCoachPlans(settings)),
+                dueDate: getDefaultDueDate(),
+                coachSettings: current,
+              })}
+            </p>
+          </div>
+        </Panel>
+
         <Panel title="Prontidão da conta" action={`${readiness.filter((item) => item.ready).length}/${readiness.length}`}>
           <div className="grid gap-2">
             {readiness.map((item) => (
@@ -6499,7 +6606,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
   )
 }
 
-function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefreshMessages }) {
+function Messages({ students, messages, onSendMessage, onMarkRead, onRefreshMessages }) {
   const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
@@ -6513,7 +6620,7 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefre
     .slice()
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
   const latestMessageId = studentMessages.at(-1)?.id
-  const suggestion = buildMessageSuggestion(selectedStudent, tone)
+  const suggestion = buildMessageSuggestion(selectedStudent)
   const unreadForSelected = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
 
   useEffect(() => {
@@ -6626,7 +6733,7 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefre
         </div>
       </Panel>
 
-      <Panel title={selectedStudent ? `Mensagem para ${selectedStudent.name}` : 'Mensagem'} action={tone}>
+      <Panel title={selectedStudent ? `Mensagem para ${selectedStudent.name}` : 'Mensagem'} action="Chat">
         <div className="mb-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
           <p className="text-xs font-black uppercase tracking-normal text-blue-200">Resposta sugerida</p>
           <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
@@ -6718,7 +6825,7 @@ function createBlankStudent() {
     goal: '',
     phase: 'Cadastro',
     status: 'Em dia',
-    plan: 'Essential',
+    plan: 'Acompanhamento mensal',
     payment: 'Pendente',
     adherence: 0,
     risk: 'Baixo',
@@ -7123,16 +7230,10 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     .slice(0, 12)
 }
 
-function buildMessageSuggestion(student, tone) {
+function buildMessageSuggestion(student) {
   if (!student) return 'Me envie seu retorno de hoje com treino, dieta, sono e fome para eu ajustar seu plano.'
 
-  const base = {
-    Firme: `Recebi, ${student.name}. Vamos manter o plano sem improvisar: siga a meta de ${student.protein}, registre o treino ${student.workout} e me envie o check-in no prazo ${student.nextCheckin}.`,
-    Tecnico: `Boa, ${student.name}. Pelo objetivo de ${student.goal}, vou acompanhar constância, peso e resposta ao treino. Mantenha ${student.calories}, ${student.protein} e detalhe fome, sono e desempenho no próximo check-in.`,
-    Motivador: `Perfeito, ${student.name}. Continue no processo: cada check-in ajuda a ajustar melhor o plano. Hoje, foque em cumprir o treino ${student.workout}, atingir a proteína e me avisar sobre qualquer dificuldade.`,
-  }
-
-  return base[tone] ?? base.Firme
+  return `Recebi, ${student.name}. Continue seguindo o plano combinado, registre treino e alimentação no app e me envie qualquer dificuldade no check-in para eu ajustar o acompanhamento com precisão.`
 }
 
 function Empty({ text }) {
@@ -7447,12 +7548,74 @@ function formatCurrency(value) {
   }).format(Number.isFinite(amount) ? amount : 0)
 }
 
-function getPlanMonthlyPrice(planName) {
-  const plan = plans.find((item) => item.name === planName)
+function getPlanMonthlyPrice(planName, availablePlans = plans) {
+  const plan = availablePlans.find((item) => item.name === planName) ?? plans.find((item) => item.name === planName)
   if (!plan) return 0
   const normalized = plan.price.replace(/[^\d,]/g, '').replace(',', '.')
   const value = Number(normalized)
   return Number.isFinite(value) ? value : 0
+}
+
+function getCoachPlans(settings) {
+  const savedPlans = Array.isArray(settings?.customPlans) ? settings.customPlans : []
+  const normalizedPlans = savedPlans
+    .map((plan) => ({
+      name: String(plan?.name || '').trim(),
+      price: String(plan?.price || '').trim(),
+      features: String(plan?.features || '').trim(),
+    }))
+    .filter((plan) => plan.name)
+
+  return normalizedPlans.length ? normalizedPlans : plans
+}
+
+function parseCustomPlans(value) {
+  return String(value || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name = '', price = '', features = ''] = line.split('|').map((part) => part.trim())
+      return {
+        name,
+        price: normalizePlanPrice(price),
+        features: features || 'Plano do treinador',
+      }
+    })
+    .filter((plan) => plan.name)
+}
+
+function formatPlansDraft(customPlans) {
+  const source = Array.isArray(customPlans) && customPlans.length ? customPlans : plans
+  return source.map((plan) => `${plan.name} | ${plan.price} | ${plan.features || ''}`).join('\n')
+}
+
+function normalizePlanPrice(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return 'R$ 0'
+  if (/^r\$/i.test(raw)) return raw
+  const number = Number(raw.replace(/[^\d,.-]/g, '').replace(',', '.'))
+  return Number.isFinite(number) ? formatCurrency(number) : raw
+}
+
+function getBillingBrand(settings) {
+  return {
+    logoUrl: settings?.billingLogoUrl || '',
+    primaryColor: settings?.billingPrimaryColor || '#10b981',
+    accentColor: settings?.billingAccentColor || '#0f172a',
+    message: settings?.billingMessage || '',
+  }
+}
+
+function buildBillingMessage(template, { student, amount, dueDate, coachSettings }) {
+  const fallback = 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para o coach validar.'
+  return String(template || fallback)
+    .replaceAll('{aluno}', student?.name || 'aluno')
+    .replaceAll('{valor}', formatCurrency(amount || 0))
+    .replaceAll('{vencimento}', dueDate ? formatDate(dueDate) : 'a combinar')
+    .replaceAll('{pix}', coachSettings?.pixKey || 'Pix não informado')
+    .replaceAll('{whatsapp}', coachSettings?.whatsapp || 'WhatsApp não informado')
+    .replaceAll('{email}', coachSettings?.supportEmail || 'e-mail não informado')
 }
 
 function formatPercent(value) {
@@ -7642,7 +7805,6 @@ function getDefaultDueDate() {
 function formatUiText(value) {
   if (typeof value !== 'string') return value
   const labels = {
-    Tecnico: 'Técnico',
     Medio: 'Médio',
     Critico: 'Crítico',
     Atencao: 'Atenção',
