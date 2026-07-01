@@ -678,7 +678,7 @@ export async function saveRemoteMessage(message) {
     : message.attachmentUrl || ''
   const attachmentType = message.attachmentFile?.type || message.attachmentType || ''
   const attachmentName = message.attachmentFile?.name || message.attachmentName || ''
-  const body = message.body?.trim() || (attachmentUrl ? 'Foto enviada' : '')
+  const body = message.body?.trim() || (attachmentUrl ? (attachmentType.startsWith('audio/') ? 'Áudio enviado' : 'Foto enviada') : '')
 
   if (message.inviteCode && message.sender === 'student') {
     const result = await rpcRequest('submit_student_message', {
@@ -723,7 +723,7 @@ async function uploadMessageAttachment(file, studentId, inviteCode = '') {
 
   if (!response.ok) {
     const message = await response.text()
-    throw serviceError(response.status, message || 'Erro ao enviar foto da conversa')
+    throw serviceError(response.status, message || 'Erro ao enviar anexo da conversa')
   }
 
   return `${SUPABASE_URL}/storage/v1/object/public/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`
@@ -840,6 +840,7 @@ export async function saveRemoteCoachSettings(settings, coachId) {
       cref: settings.cref,
       whatsapp: settings.whatsapp,
       support_email: settings.supportEmail,
+      pix_key: settings.pixKey,
       welcome_message: settings.welcomeMessage,
       timezone: settings.timezone || 'America/Sao_Paulo',
       updated_at: new Date().toISOString(),
@@ -932,6 +933,8 @@ function fromStudentRow(row) {
     workout: row.workout ?? '',
     lastMessage: row.last_message ?? '',
     requireAnamnesis: row.require_anamnesis !== false,
+    accessOverrideUntil: row.access_override_until ?? '',
+    loadNotes: row.load_notes ?? '',
   }
 }
 
@@ -957,6 +960,8 @@ function toStudentRow(student, coachId) {
     workout: student.workout,
     last_message: student.lastMessage,
     require_anamnesis: student.requireAnamnesis !== false,
+    access_override_until: student.accessOverrideUntil || null,
+    load_notes: student.loadNotes || null,
   }
 }
 
@@ -1227,6 +1232,7 @@ function fromCoachSettingsRow(row) {
     cref: row.cref ?? '',
     whatsapp: row.whatsapp ?? '',
     supportEmail: row.support_email ?? '',
+    pixKey: row.pix_key ?? '',
     welcomeMessage: row.welcome_message ?? '',
     timezone: row.timezone ?? 'America/Sao_Paulo',
   }

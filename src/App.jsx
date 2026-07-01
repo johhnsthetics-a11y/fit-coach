@@ -51,19 +51,19 @@ const plans = [
 ]
 
 const navItems = [
-  { id: 'visao', label: 'Visão geral', icon: '01' },
-  { id: 'agenda', label: 'Agenda', icon: '02' },
-  { id: 'alunos', label: 'Alunos', icon: '03' },
-  { id: 'avaliacoes', label: 'Avaliações', icon: '04' },
-  { id: 'treinos', label: 'Treinos', icon: '05' },
-  { id: 'nutricao', label: 'Nutrição', icon: '06' },
-  { id: 'checkins', label: 'Check-ins', icon: '07' },
-  { id: 'pagamentos', label: 'Recebimentos', icon: '08' },
-  { id: 'notificacoes', label: 'Notificações', icon: '09' },
-  { id: 'mensagens', label: 'Mensagens', icon: '10' },
-  { id: 'aluno-app', label: 'Área do aluno', icon: '11' },
-  { id: 'configuracoes', label: 'Configurações', icon: '12' },
-  { id: 'assinatura', label: 'Minha assinatura', icon: '13' },
+  { id: 'visao', label: 'Visão geral' },
+  { id: 'agenda', label: 'Agenda' },
+  { id: 'alunos', label: 'Alunos' },
+  { id: 'avaliacoes', label: 'Avaliações' },
+  { id: 'treinos', label: 'Treinos' },
+  { id: 'nutricao', label: 'Nutrição' },
+  { id: 'checkins', label: 'Check-ins' },
+  { id: 'pagamentos', label: 'Recebimentos' },
+  { id: 'notificacoes', label: 'Notificações' },
+  { id: 'mensagens', label: 'Mensagens' },
+  { id: 'aluno-app', label: 'Área do aluno' },
+  { id: 'configuracoes', label: 'Configurações' },
+  { id: 'assinatura', label: 'Minha assinatura' },
 ]
 
 const workoutPlan = [
@@ -1033,8 +1033,18 @@ export default function App() {
         setRemoteStatus('Treino concluído')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao concluir treino')
-        throw error
+        const offlineLike = !navigator.onLine || /network|fetch|internet|failed to fetch|conectar/i.test(error?.message || '')
+        if (!offlineLike) {
+          handleRemoteError(error, 'Erro ao concluir treino')
+          throw error
+        }
+        savedLog = {
+          ...savedLog,
+          offline: true,
+          syncStatus: 'pending',
+        }
+        setRemoteStatus('Treino salvo offline')
+        setRemoteError('Quando a internet voltar, confira a conexão antes de registrar o próximo treino.')
       }
     }
 
@@ -1272,7 +1282,7 @@ export default function App() {
       ...message,
       id: Date.now(),
       coachId: message.coachId ?? data.user?.id,
-      body: message.body?.trim() || (localAttachmentUrl ? 'Foto enviada' : ''),
+      body: message.body?.trim() || (localAttachmentUrl ? (message.attachmentFile?.type?.startsWith('audio/') || message.attachmentType?.startsWith('audio/') ? 'Áudio enviado' : 'Foto enviada') : ''),
       read: message.sender === 'coach',
       attachmentUrl: localAttachmentUrl,
       attachmentType: message.attachmentFile?.type || message.attachmentType || '',
@@ -1580,7 +1590,6 @@ export default function App() {
                     : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
                 }`}
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-zinc-950/10 text-[11px] font-black lg:h-5 lg:w-5 lg:text-[9px]">{item.icon}</span>
                 <span className="min-w-0 flex-1 break-words text-[13px] leading-tight lg:text-[11px]">{item.label}</span>
                 {shouldLockCoachTools && item.id !== 'assinatura' ? (
                   <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-black uppercase text-zinc-500">Bloq.</span>
@@ -1696,6 +1705,7 @@ export default function App() {
                 workoutLogs={data.workoutLogs ?? []}
                 onSaveWorkout={saveWorkout}
                 onArchiveWorkout={archiveWorkout}
+                onSaveStudent={saveStudent}
               />
             )}
             {activeView === 'nutricao' && (
@@ -1714,6 +1724,7 @@ export default function App() {
               <Payments
                 students={data.students}
                 invoices={data.invoices ?? []}
+                coachSettings={data.coachSettings}
                 onSaveInvoice={saveInvoice}
                 onUpdateInvoiceStatus={updateInvoiceStatus}
                 onUpdatePayment={updatePayment}
@@ -2635,7 +2646,10 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
         durationMinutes: Number(form.get('durationMinutes')),
         status: 'Agendado',
         location: form.get('location')?.toString() || '',
-        notes: form.get('notes')?.toString() || '',
+        notes: [
+          form.get('setsLog')?.toString() ? `Séries/cargas: ${form.get('setsLog')?.toString()}` : '',
+          form.get('notes')?.toString() || '',
+        ].filter(Boolean).join('\n'),
       })
       formElement.reset()
       setMessage('Compromisso adicionado na agenda.')
@@ -2775,6 +2789,12 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
 
+  async function releaseTemporaryAccess(days = 3) {
+    if (!selectedStudent) return
+    const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+    await onSave({ ...selectedStudent, accessOverrideUntil: until })
+  }
+
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_1.15fr]">
       <Panel title="Carteira de alunos" action={`${students.length} perfis`}>
@@ -2825,7 +2845,19 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
               <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'Não informado'} />
               <Info label="Plano" value={selectedStudent.plan} />
               <Info label="Pagamento" value={selectedStudent.payment} />
+              <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
+            </div>
+            <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+              <p className="text-xs font-black uppercase text-amber-200">Acesso do aluno</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-200">
+                Se o aluno estiver pendente, o portal bloqueia treino, dieta e progresso. Você pode liberar temporariamente em casos de exceção.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <button type="button" onClick={() => releaseTemporaryAccess(1)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">Liberar 24h</button>
+                <button type="button" onClick={() => releaseTemporaryAccess(3)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">Liberar 3 dias</button>
+                <button type="button" onClick={() => onSave({ ...selectedStudent, accessOverrideUntil: '' })} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100">Remover liberação</button>
+              </div>
             </div>
             <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">Código de acesso do aluno</p>
@@ -3092,10 +3124,16 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
   )
 }
 
-function AssessmentProgress({ assessments, student, detailed = false }) {
+function AssessmentProgress({ assessments, student, detailed = false, checkins = [] }) {
   const ordered = assessments.slice().sort((a, b) => new Date(a.assessedAt) - new Date(b.assessedAt))
   const latest = ordered.at(-1)
   const first = ordered[0]
+  const photoCheckins = checkins
+    .filter((item) => item.photo)
+    .slice()
+    .sort((a, b) => getCheckinTime(a) - getCheckinTime(b))
+  const firstPhoto = photoCheckins[0]
+  const latestPhoto = photoCheckins.at(-1)
   const chartData = ordered.map((assessment) => ({
     label: formatShortDate(assessment.assessedAt),
     peso: assessment.weightKg,
@@ -3105,10 +3143,19 @@ function AssessmentProgress({ assessments, student, detailed = false }) {
 
   if (!latest) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Info label="Peso atual" value={student?.weight ?? '-'} />
-        <Info label="Gordura corporal" value={student?.bodyFat ?? '-'} />
-        <Empty text="A evolução detalhada aparecerá depois da primeira avaliação." />
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Info label="Peso atual" value={student?.weight ?? '-'} />
+          <Info label="Gordura corporal" value={student?.bodyFat ?? '-'} />
+        </div>
+        {firstPhoto && latestPhoto && firstPhoto.id !== latestPhoto.id ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PhotoCompareCard label="Primeiro registro" item={firstPhoto} />
+            <PhotoCompareCard label="Registro atual" item={latestPhoto} />
+          </div>
+        ) : (
+          <Empty text="A evolução detalhada aparecerá depois da primeira avaliação ou de dois check-ins com foto." />
+        )}
       </div>
     )
   }
@@ -3124,6 +3171,21 @@ function AssessmentProgress({ assessments, student, detailed = false }) {
         <Info label="Cintura" value={latest.waistCm ? `${formatNumber(latest.waistCm)} cm` : '-'} />
         <Info label="IMC" value={bmi ? formatNumber(bmi) : '-'} />
       </div>
+      {firstPhoto && latestPhoto && firstPhoto.id !== latestPhoto.id ? (
+        <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-emerald-200">Comparativo visual</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-300">Compare a primeira foto registrada com o check-in mais recente.</p>
+            </div>
+            <span className="text-xs font-bold text-zinc-400">{photoCheckins.length} foto(s)</span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <PhotoCompareCard label="Primeiro registro" item={firstPhoto} />
+            <PhotoCompareCard label="Registro atual" item={latestPhoto} />
+          </div>
+        </div>
+      ) : null}
       {detailed && chartData.length > 1 ? (
         <Suspense fallback={<ChartLoading />}>
           <AssessmentChart data={chartData} />
@@ -3135,6 +3197,26 @@ function AssessmentProgress({ assessments, student, detailed = false }) {
       </div>
     </div>
   )
+}
+
+function PhotoCompareCard({ label, item }) {
+  return (
+    <div className="overflow-hidden rounded-md border border-white/10 bg-zinc-950/60">
+      <img src={item.photo} alt={label} className="h-72 w-full object-cover" loading="lazy" />
+      <div className="p-3">
+        <p className="text-sm font-black">{label}</p>
+        <p className="mt-1 text-xs text-zinc-400">{item.type || 'Check-in'} | {item.due || formatDateTime(item.createdAt)}</p>
+        {item.weight ? <p className="mt-1 text-xs text-zinc-500">Peso informado: {item.weight}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function getCheckinTime(item) {
+  const parsed = Date.parse(item.createdAt || item.due || '')
+  if (Number.isFinite(parsed)) return parsed
+  const numericId = Number(item.id)
+  return Number.isFinite(numericId) ? numericId : 0
 }
 
 function AssessmentCard({ assessment, previous }) {
@@ -3171,7 +3253,7 @@ function AssessmentValue({ label, value, suffix, previous }) {
   )
 }
 
-function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWorkout, onArchiveWorkout }) {
+function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWorkout, onArchiveWorkout, onSaveStudent }) {
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
   ))
@@ -3191,9 +3273,75 @@ function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWork
         <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} onArchive={onArchiveWorkout} />
       </Panel>
 
+      <Panel title="Notas de carga" action="Progressão">
+        <LoadNotesPanel student={selectedStudent} logs={studentLogs} onSaveStudent={onSaveStudent} />
+      </Panel>
+
       <Panel title="Histórico de execução" action={`${studentLogs.length} registros`}>
         <WorkoutLogList logs={studentLogs} />
       </Panel>
+    </div>
+  )
+}
+
+function LoadNotesPanel({ student, logs, onSaveStudent }) {
+  const [notes, setNotes] = useState(student?.loadNotes || '')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const latestLogs = logs.slice(0, 4)
+  const latestEffort = latestLogs[0]?.effort || ''
+  const suggestion = latestEffort.includes('Leve')
+    ? 'Próximo treino: considere subir 2% a 5% na carga principal.'
+    : latestEffort.includes('Forte')
+      ? 'Próximo treino: mantenha a carga e busque execução mais limpa antes de subir.'
+      : 'Próximo treino: se as repetições baterem com boa técnica, progrida aos poucos.'
+
+  useEffect(() => {
+    setNotes(student?.loadNotes || '')
+    setMessage('')
+  }, [student?.id, student?.loadNotes])
+
+  async function handleSave() {
+    if (!student || !onSaveStudent) return
+    setSaving(true)
+    setMessage('')
+    try {
+      await onSaveStudent({ ...student, loadNotes: notes })
+      setMessage('Notas salvas para este aluno.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!student) return <Empty text="Selecione um aluno para controlar cargas." />
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-4">
+        <p className="text-xs font-black uppercase text-emerald-200">Sugestão automática</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
+      </div>
+      <textarea
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+        rows={5}
+        placeholder="Ex.: supino 30 kg por lado com RPE 8; manter carga até completar 10 reps limpas."
+        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none focus:border-blue-500"
+      />
+      <button type="button" disabled={saving} onClick={handleSave} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
+        {saving ? 'Salvando...' : 'Salvar notas de carga'}
+      </button>
+      {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
+      {latestLogs.length ? (
+        <div className="grid gap-2">
+          {latestLogs.map((log) => (
+            <div key={log.id} className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-sm font-black">{log.title}</p>
+              <p className="mt-1 text-xs text-zinc-400">{formatDateTime(log.completedAt)} | Esforço: {log.effort || '-'}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -3671,7 +3819,7 @@ function WorkoutLogList({ logs }) {
               {log.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{log.notes}</p> : null}
             </div>
             <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
-              Feito
+              {log.offline ? 'Offline' : 'Feito'}
             </span>
           </div>
         </div>
@@ -3714,6 +3862,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
   return (
     <form onSubmit={handleSubmit} className="mt-4 grid gap-3 rounded-md border border-blue-300/20 bg-blue-300/5 p-4">
       <Select label="Esforço percebido" name="effort" defaultValue="Moderado" options={['Leve', 'Moderado', 'Forte', 'Muito forte']} />
+      <TextArea label="Séries e cargas realizadas" name="setsLog" defaultValue="Ex.: supino 4x10 com 30 kg; remada 4x12 com 45 kg." />
       <TextArea label="Observação do treino" name="notes" defaultValue="Carga usada, dificuldade, dor, energia ou algo importante." />
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando...' : 'Marcar treino como concluído'}
@@ -4456,7 +4605,7 @@ function StudentPortalPreview({
       </Panel>
 
       <Panel title="Progresso" action={`${studentCheckins.length} check-ins`}>
-        <AssessmentProgress assessments={studentAssessments} student={student} />
+        <AssessmentProgress assessments={studentAssessments} student={student} checkins={studentCheckins} />
       </Panel>
 
       <Panel title="Treinos concluídos" action={`${studentWorkoutLogs.length} registros`}>
@@ -4506,13 +4655,16 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
   function handleAttachment(event) {
     const file = event.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setError('Selecione uma imagem válida.')
+    const isImage = file.type.startsWith('image/')
+    const isAudio = file.type.startsWith('audio/')
+    if (!isImage && !isAudio) {
+      setError('Selecione uma imagem ou áudio válido.')
       event.target.value = ''
       return
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setError('A foto deve ter no máximo 8 MB.')
+    const maxSize = isAudio ? 20 * 1024 * 1024 : 8 * 1024 * 1024
+    if (file.size > maxSize) {
+      setError(isAudio ? 'O áudio deve ter no máximo 20 MB.' : 'A foto deve ter no máximo 8 MB.')
       event.target.value = ''
       return
     }
@@ -4589,21 +4741,34 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
         {attachmentPreview ? (
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
             <div className="flex items-start gap-3">
-              <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+              {attachmentFile?.type?.startsWith('audio/') ? (
+                <audio controls src={attachmentPreview} className="w-full max-w-xs" />
+              ) : (
+                <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+              )}
               <div className="min-w-0 flex-1">
-                <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Foto selecionada'}</p>
+                <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Anexo selecionado'}</p>
                 <button type="button" onClick={clearAttachment} className="mt-2 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
-                  Remover foto
+                  Remover anexo
                 </button>
               </div>
             </div>
           </div>
         ) : null}
-        <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
+        <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
           <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
-            Enviar foto
-            <input type="file" accept="image/*" onChange={handleAttachment} className="hidden" />
+            Foto/áudio
+            <input type="file" accept="image/*,audio/*" onChange={handleAttachment} className="hidden" />
           </label>
+          <AudioRecorderButton
+            onAudio={(file) => {
+              if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+              setAttachmentFile(file)
+              setAttachmentPreview(URL.createObjectURL(file))
+              setError('')
+            }}
+            onError={setError}
+          />
           <button disabled={sending || (!draft.trim() && !attachmentFile)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
             {sending ? 'Enviando...' : 'Enviar resposta'}
           </button>
@@ -4619,6 +4784,17 @@ function MessageAttachment({ message }) {
 
   const isImage = (message.attachmentType || '').startsWith('image/')
     || /\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(message.attachmentUrl)
+  const isAudio = (message.attachmentType || '').startsWith('audio/')
+    || /\.(mp3|m4a|aac|ogg|wav|webm)(\?.*)?$/i.test(message.attachmentUrl)
+
+  if (isAudio) {
+    return (
+      <div className="mt-3 rounded-md border border-white/10 bg-zinc-950/60 p-3">
+        <audio controls src={message.attachmentUrl} className="w-full" />
+        {message.attachmentName ? <p className="mt-2 break-words text-xs text-zinc-500">{message.attachmentName}</p> : null}
+      </div>
+    )
+  }
 
   if (!isImage) {
     return (
@@ -4632,6 +4808,59 @@ function MessageAttachment({ message }) {
     <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="mt-3 block overflow-hidden rounded-md border border-white/10 bg-zinc-950/60">
       <img src={message.attachmentUrl} alt={message.attachmentName || 'Foto enviada na conversa'} className="max-h-80 w-full object-cover" loading="lazy" />
     </a>
+  )
+}
+
+function AudioRecorderButton({ onAudio, onError }) {
+  const [recording, setRecording] = useState(false)
+  const recorderRef = useRef(null)
+  const streamRef = useRef(null)
+  const chunksRef = useRef([])
+
+  useEffect(() => () => {
+    recorderRef.current?.stop?.()
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+  }, [])
+
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      onError?.('Seu navegador não liberou gravação de áudio. Anexe um arquivo de áudio pelo botão Foto/áudio.')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      chunksRef.current = []
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) chunksRef.current.push(event.data)
+      }
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        const file = new File([blob], `audio-fitcoach-${Date.now()}.webm`, { type: blob.type || 'audio/webm' })
+        onAudio?.(file)
+        streamRef.current?.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
+      }
+      recorderRef.current = recorder
+      streamRef.current = stream
+      recorder.start()
+      setRecording(true)
+      onError?.('')
+    } catch {
+      onError?.('Não foi possível acessar o microfone. Confira a permissão do navegador.')
+    }
+  }
+
+  function stopRecording() {
+    recorderRef.current?.stop()
+    recorderRef.current = null
+    setRecording(false)
+  }
+
+  return (
+    <button type="button" onClick={recording ? stopRecording : startRecording} className={`min-h-11 rounded-md border px-4 py-3 text-sm font-black ${recording ? 'border-rose-300/40 bg-rose-300/10 text-rose-100' : 'border-white/10 text-zinc-200'}`}>
+      {recording ? 'Parar áudio' : 'Gravar áudio'}
+    </button>
   )
 }
 
@@ -4834,6 +5063,28 @@ function StudentAnamnesisSummary({ anamnesis, student }) {
   )
 }
 
+function hasStudentAccess(student) {
+  if (!student) return false
+  if (student.payment === 'Pago') return true
+  if (!student.accessOverrideUntil) return false
+  const overrideUntil = new Date(student.accessOverrideUntil).getTime()
+  return Number.isFinite(overrideUntil) && overrideUntil > Date.now()
+}
+
+function sendLocalNotification(title, body) {
+  if (!('Notification' in window)) return
+  const show = () => new Notification(title, { body, icon: '/fit-coach-icon.svg' })
+  if (Notification.permission === 'granted') {
+    show()
+    return
+  }
+  if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') show()
+    })
+  }
+}
+
 function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
@@ -4881,6 +5132,8 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   const [workoutClock, setWorkoutClock] = useState(Date.now())
   const [installPrompt, setInstallPrompt] = useState(null)
   const [appInstalled, setAppInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
+  const [workoutStartNotified, setWorkoutStartNotified] = useState(false)
+  const [feedbackPrompt, setFeedbackPrompt] = useState(null)
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
@@ -4894,17 +5147,26 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     .filter((assessment) => String(assessment.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
+  const studentInvoices = invoices
+    .filter((invoice) => String(invoice.studentId) === String(student?.id))
+    .slice()
+    .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
   const nextWorkout = studentWorkouts[0]
   const nextAppointment = studentAppointments[0]
+  const hasOpenInvoice = studentInvoices.some((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
+  const temporaryAccessOpen = Boolean(student?.accessOverrideUntil && new Date(student.accessOverrideUntil).getTime() > Date.now())
+  const financialAccessOpen = temporaryAccessOpen || (hasStudentAccess(student) && !hasOpenInvoice)
+  const restrictedTabs = ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const navItems = [
-    ['treino', 'Treino', '01'],
-    ['dieta', 'Dieta', '02'],
-    ['checkin', 'Check-in', '03'],
-    ['mensagens', 'Chat', '04'],
-    ['agenda', 'Agenda', '05'],
-    ['progresso', 'Progresso', '06'],
-    ['historico', 'Histórico', '07'],
+    ['treino', 'Treino', ''],
+    ['dieta', 'Dieta', ''],
+    ['checkin', 'Check-in', ''],
+    ['mensagens', 'Chat', ''],
+    ['pagamentos', 'Pagamentos', ''],
+    ['agenda', 'Agenda', ''],
+    ['progresso', 'Progresso', ''],
+    ['historico', 'Histórico', ''],
   ]
   const quickNavItems = navItems.slice(0, 4)
   const activeTitle = navItems.find(([id]) => id === activeTab)?.[1] || 'Treino'
@@ -4948,6 +5210,36 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     }
     setWorkoutStartedAt(Date.now())
     setWorkoutClock(Date.now())
+    if (!workoutStartNotified) {
+      setWorkoutStartNotified(true)
+      sendLocalNotification('Treino iniciado', `${student.name} começou o treino.`)
+      onSendMessage?.({
+        studentId: student.id,
+        sender: 'student',
+        body: `${student.name} iniciou o treino${nextWorkout?.title ? `: ${nextWorkout.title}` : '.'}`,
+      }).catch(() => {})
+    }
+  }
+
+  async function completeWorkoutFromStudent(log) {
+    const savedLog = await onCompleteWorkout(log)
+    const completedCount = studentWorkoutLogs.length + 1
+    sendLocalNotification('Treino finalizado', `${student.name} concluiu o treino.`)
+    await onSendMessage?.({
+      studentId: student.id,
+      sender: 'student',
+      body: `${student.name} concluiu o treino ${log.title}. Esforço: ${log.effort}.${log.notes ? ` Observação: ${log.notes}` : ''}`,
+    }).catch(() => {})
+    setWorkoutStartedAt(null)
+    setWorkoutElapsedSeconds(0)
+    setWorkoutStartNotified(false)
+    if (completedCount > 0 && (completedCount % 20 === 0 || completedCount % 5 === 0)) {
+      setFeedbackPrompt({
+        type: completedCount % 20 === 0 ? 'mensal' : 'semanal',
+        count: completedCount,
+      })
+    }
+    return savedLog
   }
 
   async function installStudentApp() {
@@ -4958,9 +5250,26 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   }
 
   function renderActiveContent() {
+    if (!financialAccessOpen && restrictedTabs.includes(activeTab)) {
+      return (
+        <StudentPaymentLock
+          student={student}
+          invoices={studentInvoices}
+          coachSettings={coachSettings}
+          onOpenPayments={() => openTab('pagamentos')}
+          onOpenChat={() => openTab('mensagens')}
+        />
+      )
+    }
+
     if (activeTab === 'treino') {
       return (
         <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
+          <StudentReminderCard
+            title="Lembrete de treino"
+            body={`Hora de treinar, ${student.name}. Abra o FIT COACH e siga o plano de hoje.`}
+            action="Ativar lembrete"
+          />
           <div className="mb-4 overflow-hidden rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
             <p className="text-xs font-black uppercase text-emerald-200">Tempo de treino</p>
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -4974,7 +5283,19 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           {studentWorkouts.length ? (
             <>
               <WorkoutList workouts={studentWorkouts.slice(0, 1)} fallbackTitle={student.workout} />
-              {onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={onCompleteWorkout} /> : null}
+              {feedbackPrompt ? (
+                <WorkoutFeedbackPrompt
+                  prompt={feedbackPrompt}
+                  student={student}
+                  onClose={() => setFeedbackPrompt(null)}
+                  onSend={async (body) => {
+                    await onSendMessage?.({ studentId: student.id, sender: 'student', body }).catch(() => {})
+                    setFeedbackPrompt(null)
+                    openTab('mensagens')
+                  }}
+                />
+              ) : null}
+              {onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={completeWorkoutFromStudent} /> : null}
             </>
           ) : (
             <Empty text="Seu treino ainda não foi liberado pelo coach." />
@@ -4986,6 +5307,11 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     if (activeTab === 'dieta') {
       return (
         <StudentAppSection title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
+          <StudentReminderCard
+            title="Lembrete de refeição"
+            body={`${student.name}, confira sua refeição no FIT COACH para manter os macros do dia.`}
+            action="Ativar lembrete"
+          />
           {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
         </StudentAppSection>
       )
@@ -4999,6 +5325,17 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
       return <StudentChatScreen student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} onRefreshMessages={onRefreshMessages} />
     }
 
+    if (activeTab === 'pagamentos') {
+      return (
+        <StudentPaymentStatement
+          student={student}
+          invoices={studentInvoices}
+          coachSettings={coachSettings}
+          onSendMessage={onSendMessage}
+        />
+      )
+    }
+
     if (activeTab === 'agenda') {
       return (
         <StudentAppSection title="Agenda" action={`${studentAppointments.length} próximos`}>
@@ -5008,7 +5345,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     }
 
     if (activeTab === 'progresso') {
-      return <StudentAppSection title="Progresso" action={`${checkins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} /></StudentAppSection>
+      return <StudentAppSection title="Progresso" action={`${checkins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} checkins={checkins.filter((item) => String(item.studentId) === String(student?.id))} /></StudentAppSection>
     }
 
     return (
@@ -5051,9 +5388,9 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
             </div>
             <div className="mt-4 grid gap-2">
-              {navItems.map(([id, label, icon]) => (
+              {navItems.map(([id, label]) => (
                 <button key={id} type="button" onClick={() => openTab(id)} className={`flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-black ${activeTab === id ? 'border-emerald-300/40 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-100'}`}>
-                  <span>{icon} · {label}</span><span className="text-zinc-500">›</span>
+                  <span>{label}</span><span className="text-zinc-500">›</span>
                 </button>
               ))}
             </div>            {!appInstalled ? (
@@ -5127,10 +5464,9 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/94 px-2 py-2 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {quickNavItems.map(([id, label, icon]) => (
+          {quickNavItems.map(([id, label]) => (
             <button key={id} type="button" onClick={() => openTab(id)} className={`grid min-h-14 place-items-center rounded-md px-1 py-1 text-center text-[10px] font-black ${activeTab === id ? 'bg-emerald-400/12 text-emerald-100' : 'text-zinc-300'}`}>
-              <span className="grid h-6 w-6 place-items-center rounded bg-emerald-400/12 text-[9px] text-emerald-200">{icon}</span>
-              <span className="mt-1 leading-tight">{label}</span>
+              <span className="leading-tight">{label}</span>
             </button>
           ))}
         </div>
@@ -5148,6 +5484,222 @@ function StudentAppSection({ id, title, action, children }) {
       {children}
     </section>
   )
+}
+
+function StudentPaymentLock({ student, invoices, coachSettings, onOpenPayments, onOpenChat }) {
+  const pendingInvoices = invoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
+  const nextInvoice = pendingInvoices[0]
+  const totalPending = pendingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+
+  return (
+    <StudentAppSection title="Acesso pausado" action="Pagamento pendente">
+      <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+        <p className="text-xs font-black uppercase text-amber-200">Regularize para continuar treinando</p>
+        <h3 className="mt-2 text-2xl font-black text-white">Seu plano está aguardando confirmação de pagamento.</h3>
+        <p className="mt-2 text-sm leading-6 text-zinc-300">
+          Treino, dieta e progresso ficam protegidos até o pagamento ser validado pelo coach. Se você já pagou, envie o comprovante no chat.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <StudentStatusCard label="Total em aberto" value={formatCurrency(totalPending)} detail={pendingInvoices.length ? `${pendingInvoices.length} cobrança(s)` : 'Nenhuma cobrança pendente'} />
+          <StudentStatusCard label="Próximo vencimento" value={nextInvoice ? formatDate(nextInvoice.dueDate) : '-'} detail={nextInvoice?.description || 'Aguardando cobrança'} />
+          <StudentStatusCard label="Status" value={student.payment || 'Pendente'} detail={student.accessOverrideUntil ? `Liberado até ${formatFullDateTime(student.accessOverrideUntil)}` : 'Sem liberação temporária'} />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-emerald-300">Pix do coach</p>
+          <p className="mt-2 break-words text-lg font-black">{coachSettings?.pixKey || 'Pix ainda não informado'}</p>
+        </div>
+        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-blue-300">WhatsApp</p>
+          <p className="mt-2 break-words text-lg font-black">{coachSettings?.whatsapp || 'Não informado'}</p>
+        </div>
+        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-blue-300">E-mail</p>
+          <p className="mt-2 break-words text-lg font-black">{coachSettings?.supportEmail || 'Não informado'}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <button type="button" onClick={onOpenPayments} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+          Ver pagamentos
+        </button>
+        <button type="button" onClick={onOpenChat} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+          Enviar comprovante
+        </button>
+      </div>
+    </StudentAppSection>
+  )
+}
+
+function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessage }) {
+  const visibleInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
+  const paidTotal = visibleInvoices.filter((invoice) => invoice.status === 'Pago').reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const pendingTotal = visibleInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+
+  async function notifyPayment() {
+    await onSendMessage?.({
+      studentId: student.id,
+      sender: 'student',
+      body: `Olá, coach. Acabei de realizar um pagamento e gostaria da validação no app.`,
+    }).catch(() => {})
+  }
+
+  return (
+    <StudentAppSection title="Pagamentos" action={`${visibleInvoices.length} registros`}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StudentStatusCard label="Já pago" value={formatCurrency(paidTotal)} detail="Histórico confirmado" />
+        <StudentStatusCard label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
+        <StudentStatusCard label="Pix" value={coachSettings?.pixKey || '-'} detail={coachSettings?.publicName || 'Coach'} />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <button type="button" onClick={() => printStudentPaymentStatement(student, visibleInvoices, coachSettings)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+          Gerar extrato em PDF
+        </button>
+        <button type="button" onClick={notifyPayment} className="rounded-md border border-emerald-300/30 px-4 py-3 text-sm font-black text-emerald-100">
+          Avisei que paguei
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {visibleInvoices.length ? (
+          visibleInvoices.map((invoice) => (
+            <div key={invoice.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <InvoiceStatus status={invoice.status} />
+                  <h4 className="mt-3 break-words font-black">{invoice.description || invoice.planName}</h4>
+                  <p className="mt-1 text-sm text-zinc-400">Vencimento: {formatDate(invoice.dueDate)}</p>
+                  {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)}</p> : null}
+                </div>
+                <p className="text-xl font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <Empty text="Nenhum pagamento registrado ainda." />
+        )}
+      </div>
+    </StudentAppSection>
+  )
+}
+
+function WorkoutFeedbackPrompt({ prompt, student, onSend, onClose }) {
+  const [feedback, setFeedback] = useState('')
+  const label = prompt.type === 'mensal' ? 'Feedback mensal' : 'Feedback semanal'
+
+  return (
+    <div className="mb-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+      <p className="text-xs font-black uppercase text-blue-200">{label}</p>
+      <h3 className="mt-2 text-lg font-black">Como foi sua evolução até aqui?</h3>
+      <p className="mt-1 text-sm leading-6 text-zinc-300">
+        Você completou {prompt.count} treinos. Envie um retorno rápido para o coach ajustar carga, dieta e próximos passos.
+      </p>
+      <textarea
+        value={feedback}
+        onChange={(event) => setFeedback(event.target.value)}
+        rows={3}
+        placeholder="Energia, dificuldade, dores, fome, sono ou algo que o coach precisa saber."
+        className="mt-3 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-blue-500"
+      />
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <button type="button" onClick={() => onSend(`${label} de ${student.name}: ${feedback || 'Aluno solicitou revisão do plano.'}`)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+          Enviar feedback
+        </button>
+        <button type="button" onClick={onClose} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
+          Depois
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function StudentReminderCard({ title, body, action }) {
+  const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
+
+  async function handleReminder() {
+    if (!('Notification' in window)) return
+    if (Notification.permission !== 'granted') {
+      const nextPermission = await Notification.requestPermission()
+      setPermission(nextPermission)
+      if (nextPermission !== 'granted') return
+    }
+    sendLocalNotification(title, body)
+  }
+
+  return (
+    <div className="mb-4 rounded-md border border-white/10 bg-white/[0.035] p-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-blue-300">{title}</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">Receba um aviso no celular antes do compromisso.</p>
+        </div>
+        <button type="button" onClick={handleReminder} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
+          {permission === 'granted' ? 'Testar aviso' : action}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function printStudentPaymentStatement(student, invoices, coachSettings) {
+  const rows = invoices.map((invoice) => `
+    <tr>
+      <td>${escapeStatementHtml(invoice.description || invoice.planName || 'Mensalidade')}</td>
+      <td>${escapeStatementHtml(formatDate(invoice.dueDate))}</td>
+      <td>${escapeStatementHtml(invoice.status)}</td>
+      <td>${escapeStatementHtml(formatCurrency(invoice.amount))}</td>
+    </tr>
+  `).join('')
+  const paidTotal = invoices.filter((invoice) => invoice.status === 'Pago').reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const pendingTotal = invoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const popup = window.open('', '_blank', 'width=920,height=720')
+  if (!popup) return
+  popup.document.write(`
+    <html>
+      <head>
+        <title>Extrato FIT COACH</title>
+        <style>
+          body{font-family:Arial,sans-serif;color:#111827;margin:32px}
+          h1{margin:0 0 8px;font-size:28px}
+          p{color:#4b5563}
+          table{width:100%;border-collapse:collapse;margin-top:24px}
+          th,td{border-bottom:1px solid #e5e7eb;padding:12px;text-align:left;font-size:13px}
+          th{background:#f3f4f6}
+          .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+          .card{border:1px solid #e5e7eb;border-radius:8px;padding:14px}
+          .value{font-size:20px;font-weight:800;color:#047857}
+        </style>
+      </head>
+      <body>
+        <h1>Extrato de pagamentos</h1>
+        <p>Aluno: ${escapeStatementHtml(student.name)} | Coach: ${escapeStatementHtml(coachSettings?.publicName || coachSettings?.brandName || 'FIT COACH')}</p>
+        <div class="cards">
+          <div class="card"><strong>Pago</strong><div class="value">${escapeStatementHtml(formatCurrency(paidTotal))}</div></div>
+          <div class="card"><strong>Em aberto</strong><div class="value">${escapeStatementHtml(formatCurrency(pendingTotal))}</div></div>
+          <div class="card"><strong>Pix</strong><div>${escapeStatementHtml(coachSettings?.pixKey || '-')}</div></div>
+        </div>
+        <table>
+          <thead><tr><th>Descrição</th><th>Vencimento</th><th>Status</th><th>Valor</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="4">Nenhum registro.</td></tr>'}</tbody>
+        </table>
+      </body>
+    </html>
+  `)
+  popup.document.close()
+  popup.focus()
+  setTimeout(() => popup.print(), 300)
+}
+
+function escapeStatementHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 function StudentChatScreen({ student, coachId, messages, onSendMessage, onRefreshMessages }) {
@@ -5491,7 +6043,7 @@ function BillingLine({ label, value, note }) {
   )
 }
 
-function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
+function Payments({ students, invoices, coachSettings, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
   const [filter, setFilter] = useState('Todos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -5561,12 +6113,70 @@ function Payments({ students, invoices, onSaveInvoice, onUpdateInvoiceStatus, on
     }
   }
 
+  async function handleCreateAutoCharges() {
+    const openStudentIds = new Set(
+      invoices
+        .filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
+        .map((invoice) => String(invoice.studentId)),
+    )
+    const chargeableStudents = students.filter((student) => (
+      student.status !== 'Inativo'
+      && student.payment !== 'Pago'
+      && !openStudentIds.has(String(student.id))
+    ))
+
+    if (!chargeableStudents.length) {
+      setMessage('Nenhum aluno pendente sem cobrança em aberto.')
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      for (const student of chargeableStudents) {
+        const amount = getPlanMonthlyPrice(student.plan) || 197
+        await onSaveInvoice({
+          studentId: student.id,
+          planName: student.plan || 'Acompanhamento',
+          description: `Cobrança automática do acompanhamento. Pix: ${coachSettings?.pixKey || 'informe com o coach'} | WhatsApp: ${coachSettings?.whatsapp || 'não informado'} | E-mail: ${coachSettings?.supportEmail || 'não informado'}`,
+          amount,
+          dueDate: getDefaultDueDate(),
+          status: 'Pendente',
+          paymentMethod: 'Pix',
+        })
+      }
+      setMessage(`${chargeableStudents.length} cobrança(s) criada(s) automaticamente.`)
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível gerar as cobranças automáticas.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="grid gap-4 lg:gap-6">
       <section className="grid gap-3 sm:grid-cols-3">
         <Metric label="Recebido" value={formatCurrency(paidTotal)} detail={`${invoices.filter((item) => item.status === 'Pago').length} pagamentos`} />
         <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
         <Metric label="Em atraso" value={overdueCount} detail="cobranças vencidas" />
+      </section>
+
+      <section className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-amber-200">Cobrança automática dos alunos</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-200">
+              Gere cobranças para alunos pendentes, bloqueie o acesso até a validação e envie os dados de Pix do coach no próprio app.
+            </p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              Pix: {coachSettings?.pixKey || 'cadastre em Configurações'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
+            </p>
+          </div>
+          <button type="button" disabled={saving} onClick={handleCreateAutoCharges} className="rounded-md bg-amber-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
+            Gerar cobranças pendentes
+          </button>
+        </div>
       </section>
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.8fr_1.2fr]">
@@ -5793,6 +6403,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     cref: settings?.cref || '',
     whatsapp: settings?.whatsapp || '',
     supportEmail: settings?.supportEmail || user?.email || '',
+    pixKey: settings?.pixKey || '',
     welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
   }
@@ -5810,6 +6421,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         cref: form.get('cref')?.toString().trim() || '',
         whatsapp: form.get('whatsapp')?.toString().trim() || '',
         supportEmail: form.get('supportEmail')?.toString().trim() || '',
+        pixKey: form.get('pixKey')?.toString().trim() || '',
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
         timezone: current.timezone,
       })
@@ -5825,6 +6437,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     { label: 'Nome profissional', ready: Boolean(settings?.publicName) },
     { label: 'Marca do treinador', ready: Boolean(settings?.brandName) },
     { label: 'WhatsApp de suporte', ready: Boolean(settings?.whatsapp) },
+    { label: 'Chave Pix para cobranças', ready: Boolean(settings?.pixKey) },
     { label: 'Registro profissional', ready: Boolean(settings?.cref) },
     { label: 'Mensagem para alunos', ready: Boolean(settings?.welcomeMessage) },
   ]
@@ -5839,6 +6452,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             <Field label="CREF ou registro" name="cref" defaultValue={current.cref} required={false} />
             <Field label="WhatsApp" name="whatsapp" defaultValue={current.whatsapp} required={false} />
             <Field label="E-mail de suporte" name="supportEmail" type="email" defaultValue={current.supportEmail} />
+            <Field label="Chave Pix para cobranças" name="pixKey" defaultValue={current.pixKey} required={false} />
           </div>
           <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
@@ -5861,6 +6475,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
           <div className="mt-4 grid gap-2 text-sm text-zinc-400">
             <p>{current.whatsapp || 'WhatsApp ainda não informado'}</p>
             <p>{current.supportEmail}</p>
+            <p>{current.pixKey ? `Pix: ${current.pixKey}` : 'Chave Pix ainda não informada'}</p>
           </div>
         </Panel>
 
@@ -5932,13 +6547,16 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefre
   function handleAttachment(event) {
     const file = event.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setError('Selecione uma imagem válida.')
+    const isImage = file.type.startsWith('image/')
+    const isAudio = file.type.startsWith('audio/')
+    if (!isImage && !isAudio) {
+      setError('Selecione uma imagem ou áudio válido.')
       event.target.value = ''
       return
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setError('A foto deve ter no máximo 8 MB.')
+    const maxSize = isAudio ? 20 * 1024 * 1024 : 8 * 1024 * 1024
+    if (file.size > maxSize) {
+      setError(isAudio ? 'O áudio deve ter no máximo 20 MB.' : 'A foto deve ter no máximo 8 MB.')
       event.target.value = ''
       return
     }
@@ -6051,21 +6669,34 @@ function Messages({ tone, students, messages, onSendMessage, onMarkRead, onRefre
           {attachmentPreview ? (
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
               <div className="flex items-start gap-3">
-                <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+                {attachmentFile?.type?.startsWith('audio/') ? (
+                  <audio controls src={attachmentPreview} className="w-full max-w-xs" />
+                ) : (
+                  <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Foto selecionada'}</p>
+                  <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Anexo selecionado'}</p>
                   <button type="button" onClick={clearAttachment} className="mt-2 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
-                    Remover foto
+                    Remover anexo
                   </button>
                 </div>
               </div>
             </div>
           ) : null}
-          <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
+            <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
             <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
-              Enviar foto
-              <input type="file" accept="image/*" onChange={handleAttachment} className="hidden" />
+              Foto/áudio
+              <input type="file" accept="image/*,audio/*" onChange={handleAttachment} className="hidden" />
             </label>
+            <AudioRecorderButton
+              onAudio={(file) => {
+                if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
+                setAttachmentFile(file)
+                setAttachmentPreview(URL.createObjectURL(file))
+                setError('')
+              }}
+              onError={setError}
+            />
             <button disabled={sending || (!draft.trim() && !attachmentFile) || !selectedStudent} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
               {sending ? 'Enviando...' : 'Enviar mensagem'}
             </button>
@@ -6099,6 +6730,8 @@ function createBlankStudent() {
     workout: '',
     lastMessage: 'Cadastro concluído. Acompanhamento aguardando configuração.',
     requireAnamnesis: true,
+    accessOverrideUntil: '',
+    loadNotes: '',
   }
 }
 
