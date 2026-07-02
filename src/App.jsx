@@ -1574,7 +1574,7 @@ export default function App() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[300px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[320px] ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[320px] lg:max-w-none lg:translate-x-0 lg:p-4 xl:w-[340px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -1594,9 +1594,8 @@ export default function App() {
 
           <div className="mb-2 mt-3 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
-            <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-0.5 text-[10px] font-bold text-zinc-500">{navItems.length} áreas</span>
           </div>
-          <nav className="grid min-h-0 min-w-0 flex-1 content-start gap-1.5 overflow-hidden">
+          <nav className="grid min-h-0 min-w-0 flex-1 content-start gap-2 overflow-hidden">
             {navItems.map((item) => {
               const tone = getNavToneClasses(item.tone)
               const isActive = activeView === item.id
@@ -1613,7 +1612,7 @@ export default function App() {
                     setActiveView(item.id)
                     setMobileMenuOpen(false)
                   }}
-                  className={`group flex min-h-[40px] min-w-0 items-center gap-2.5 rounded-md border px-2.5 py-1.5 text-left text-sm font-semibold transition ${
+                  className={`group flex min-h-[43px] min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition active:scale-[0.99] ${
                     isActive
                       ? `${tone.active} shadow-lg shadow-black/20`
                       : isLocked
@@ -1621,7 +1620,7 @@ export default function App() {
                         : `${tone.idle} hover:-translate-y-0.5 hover:bg-white/[0.065]`
                   }`}
                 >
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border transition ${
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition ${
                     isActive ? tone.iconActive : isLocked ? 'border-white/5 bg-zinc-900 text-zinc-700' : tone.iconIdle
                   }`}>
                     <NavIcon name={item.icon} className="h-4 w-4" />
@@ -1643,7 +1642,7 @@ export default function App() {
           </button>
       </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[300px] lg:w-[calc(100%-300px)] lg:px-5 xl:ml-[320px] xl:w-[calc(100%-320px)] xl:px-7">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[320px] lg:w-[calc(100%-320px)] lg:px-5 xl:ml-[340px] xl:w-[calc(100%-340px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -2536,6 +2535,13 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Comece sua operação" action="Primeiros passos">
+          <div className="mb-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3">
+            <p className="text-xs font-black uppercase text-emerald-200">Validação manual</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">
+              Quando o aluno solicitar validação, confira o Pix/comprovante e clique em confirmar. O sistema marca como pago e libera o acesso do aluno.
+            </p>
+          </div>
+
           <div className="grid gap-3">
             {[
               ['1', 'Configure sua identidade', 'Preencha marca, nome profissional, CREF e WhatsApp.', 'configuracoes'],
@@ -2618,6 +2624,15 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
         </div>
       </Panel>
 
+      <Panel title="Radar de retenção" action="Diferencial">
+        <CoachRetentionRadar
+          selectedStudent={selectedStudent}
+          action={actionPlan[0]}
+          alertCount={smartAlerts.length}
+          onOpen={() => setActiveView(actionPlan[0]?.view || 'mensagens')}
+        />
+      </Panel>
+
       <Panel title="Próximas ações inteligentes" action="Coach OS">
         <div className="grid gap-3">
           {actionPlan.map((item) => (
@@ -2636,6 +2651,38 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
           ))}
         </div>
       </Panel>
+    </div>
+  )
+}
+
+function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
+  const retentionStatus = alertCount > 2 ? 'Atenção alta' : alertCount > 0 ? 'Acompanhar hoje' : 'Carteira estável'
+  const retentionCopy = alertCount > 2
+    ? 'Existem sinais que podem virar abandono se o coach não agir hoje.'
+    : alertCount > 0
+      ? 'Uma ação rápida agora aumenta percepção de cuidado.'
+      : 'Use o momento para mandar feedback proativo e reforçar resultado.'
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-lg border border-[#00c7a8]/25 bg-[#00c7a8]/10 p-4">
+        <p className="text-xs font-black uppercase text-[#9fffe8]">Próxima melhor ação</p>
+        <h4 className="mt-2 text-xl font-black text-white">{action?.title || 'Enviar feedback proativo'}</h4>
+        <p className="mt-2 text-sm leading-6 text-zinc-300">{action?.body || retentionCopy}</p>
+        <button type="button" onClick={onOpen} className="mt-4 rounded-lg bg-[#00c7a8] px-4 py-3 text-sm font-black text-black transition active:scale-[0.98]">
+          Agir agora
+        </button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
+          <p className="text-xs font-black uppercase text-zinc-500">Aluno em foco</p>
+          <p className="mt-2 text-lg font-black text-white">{selectedStudent?.name || 'Selecione um aluno'}</p>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
+          <p className="text-xs font-black uppercase text-zinc-500">Risco da carteira</p>
+          <p className="mt-2 text-lg font-black text-white">{retentionStatus}</p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -2974,7 +3021,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
               )}
             </div>
             <div className="mt-5">
-              <StudentAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} />
+              <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -5097,6 +5144,171 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
   )
 }
 
+function ProfessionalAnamnesisSummary({ anamnesis, student }) {
+  if (!anamnesis) {
+    if (student?.requireAnamnesis === false) {
+      return (
+        <div className="rounded-lg border border-blue-300/30 bg-blue-300/10 p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-black text-blue-100">Aluno transferido</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-300">Anamnese dispensada pelo coach. Use avaliações, histórico de treino e evolução atual para continuar o acompanhamento.</p>
+            </div>
+            <Badge tone="Baixo">Liberado</Badge>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4">
+        <p className="font-black text-amber-100">Anamnese pendente</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">O aluno preencherá a anamnese no primeiro acesso. Até lá, mantenha treino, carga e dieta em uma abordagem conservadora.</p>
+      </div>
+    )
+  }
+
+  const riskFlags = [
+    hasUsefulAnamnesisValue(anamnesis.injuries) ? 'Lesões relatadas' : '',
+    hasUsefulAnamnesisValue(anamnesis.pain) ? 'Dor ou limitação' : '',
+    hasUsefulAnamnesisValue(anamnesis.healthConditions) ? 'Condição de saúde' : '',
+    hasUsefulAnamnesisValue(anamnesis.medications) ? 'Medicamento em uso' : '',
+    ['Alto', 'Muito alto'].includes(anamnesis.stressLevel) ? 'Estresse elevado' : '',
+    ['Ruim', 'Regular'].includes(anamnesis.sleepQuality) ? 'Sono exige atenção' : '',
+  ].filter(Boolean)
+  const readinessScore = Math.max(0, 100 - riskFlags.length * 12)
+  const sections = [
+    {
+      title: 'Perfil e objetivo',
+      tone: 'blue',
+      items: [
+        ['Objetivo principal', anamnesis.primaryGoal],
+        ['Profissão / rotina de trabalho', anamnesis.occupation],
+        ['Experiência com treino', anamnesis.trainingExperience],
+        ['Frequência disponível', anamnesis.trainingFrequency],
+      ],
+    },
+    {
+      title: 'Saúde e segurança',
+      tone: riskFlags.length ? 'rose' : 'emerald',
+      items: [
+        ['Lesões atuais ou anteriores', anamnesis.injuries || 'Nenhuma relatada'],
+        ['Dores ou limitações', anamnesis.pain || 'Nenhuma relatada'],
+        ['Condições de saúde', anamnesis.healthConditions || 'Nenhuma relatada'],
+        ['Medicamentos', anamnesis.medications || 'Nenhum relatado'],
+        ['Cirurgias', anamnesis.surgeries || 'Nenhuma relatada'],
+        ['Contato de emergência', anamnesis.emergencyContact || 'Não informado'],
+      ],
+    },
+    {
+      title: 'Sono, estresse e hidratação',
+      tone: 'sky',
+      items: [
+        ['Horas de sono', anamnesis.sleepHours],
+        ['Qualidade do sono', anamnesis.sleepQuality],
+        ['Nível de estresse', anamnesis.stressLevel],
+        ['Água por dia', anamnesis.waterIntake],
+      ],
+    },
+    {
+      title: 'Nutrição e rotina',
+      tone: 'orange',
+      items: [
+        ['Restrições, alergias ou preferências', anamnesis.foodRestrictions || 'Nenhuma relatada'],
+        ['Rotina diária', anamnesis.routine],
+        ['Observações importantes', anamnesis.observations || 'Sem observações adicionais'],
+      ],
+    },
+  ]
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-emerald-300/30 bg-zinc-950/74 shadow-2xl shadow-black/20">
+      <div className="border-b border-white/10 bg-emerald-300/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Anamnese profissional</p>
+            <h4 className="mt-1 text-xl font-black text-white">Mapa inicial de {student?.name || 'aluno'}</h4>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">Recebida em {formatDateTime(anamnesis.submittedAt)}.</p>
+          </div>
+          <Badge tone="Baixo">Completa</Badge>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <AnamnesisStat label="Prontidão" value={`${readinessScore}%`} tone={readinessScore >= 80 ? 'emerald' : readinessScore >= 55 ? 'amber' : 'rose'} />
+          <AnamnesisStat label="Pontos de atenção" value={riskFlags.length || '0'} tone={riskFlags.length ? 'amber' : 'emerald'} />
+          <AnamnesisStat label="Frequência" value={anamnesis.trainingFrequency || '-'} tone="blue" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 p-4">
+        {riskFlags.length ? (
+          <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4">
+            <p className="text-xs font-black uppercase text-amber-200">Revisar antes de prescrever</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {riskFlags.map((flag) => (
+                <span key={flag} className="rounded-full border border-amber-200/25 bg-amber-200/10 px-3 py-1 text-xs font-bold text-amber-100">{flag}</span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4">
+            <p className="text-xs font-black uppercase text-emerald-200">Sem alerta crítico informado</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Ainda assim, confirme execução, dor e tolerância de carga nos primeiros treinos.</p>
+          </div>
+        )}
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          {sections.map((section) => <AnamnesisSection key={section.title} {...section} />)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function hasUsefulAnamnesisValue(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return Boolean(normalized && !['-', 'nao', 'não', 'nenhum', 'nenhuma', 'n/a'].includes(normalized))
+}
+
+function AnamnesisStat({ label, value, tone = 'emerald' }) {
+  const tones = {
+    emerald: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
+    amber: 'border-amber-300/25 bg-amber-300/10 text-amber-100',
+    rose: 'border-rose-300/25 bg-rose-300/10 text-rose-100',
+    blue: 'border-blue-300/25 bg-blue-300/10 text-blue-100',
+  }
+
+  return (
+    <div className={`rounded-lg border p-3 ${tones[tone] || tones.emerald}`}>
+      <p className="text-[10px] font-black uppercase opacity-80">{label}</p>
+      <p className="mt-1 break-words text-lg font-black">{value}</p>
+    </div>
+  )
+}
+
+function AnamnesisSection({ title, tone = 'emerald', items = [] }) {
+  const tones = {
+    emerald: 'border-emerald-300/20 bg-emerald-300/5 text-emerald-200',
+    blue: 'border-blue-300/20 bg-blue-300/5 text-blue-200',
+    sky: 'border-sky-300/20 bg-sky-300/5 text-sky-200',
+    orange: 'border-orange-300/20 bg-orange-300/5 text-orange-200',
+    rose: 'border-rose-300/20 bg-rose-300/5 text-rose-200',
+  }
+
+  return (
+    <div className={`rounded-lg border p-4 ${tones[tone] || tones.emerald}`}>
+      <h5 className="text-sm font-black">{title}</h5>
+      <div className="mt-3 grid gap-2">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-md border border-white/10 bg-zinc-950/55 p-3">
+            <p className="text-[10px] font-black uppercase text-zinc-500">{label}</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-100">{value || 'Não informado'}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function StudentAnamnesisSummary({ anamnesis, student }) {
   if (!anamnesis) {
     if (student?.requireAnamnesis === false) {
@@ -5210,7 +5422,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
 }
 function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('treino')
+  const [activeTab, setActiveTab] = useState('inicio')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0)
   const [workoutClock, setWorkoutClock] = useState(Date.now())
@@ -5247,17 +5459,28 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   const waterStorageKey = `fitcoach-water-${student?.id || 'aluno'}-${waterStorageDate}`
   const [waterMl, setWaterMl] = useState(0)
   const navItems = [
+    { id: 'inicio', label: 'Início', icon: 'dashboard', tone: 'emerald' },
     { id: 'treino', label: 'Treino', icon: 'dumbbell', tone: 'lime' },
     { id: 'dieta', label: 'Dieta', icon: 'nutrition', tone: 'orange' },
     { id: 'checkin', label: 'Check-in', icon: 'camera', tone: 'rose' },
     { id: 'mensagens', label: 'Chat', icon: 'message', tone: 'blue' },
-    { id: 'pagamentos', label: 'Pagamentos', icon: 'wallet', tone: 'green' },
+    { id: 'pagamentos', label: 'Fatura', icon: 'wallet', tone: 'green' },
     { id: 'agenda', label: 'Agenda', icon: 'calendar', tone: 'sky' },
     { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
     { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
   ]
-  const quickNavItems = navItems.slice(0, 4)
+  const bottomNavItems = [
+    navItems.find((item) => item.id === 'inicio'),
+    navItems.find((item) => item.id === 'agenda'),
+    navItems.find((item) => item.id === 'pagamentos'),
+    navItems.find((item) => item.id === 'mensagens'),
+  ].filter(Boolean)
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
+  const weekProgress = useMemo(() => buildStudentWeekProgress(studentWorkoutLogs), [studentWorkoutLogs])
+  const completedThisWeek = weekProgress.filter((day) => day.completed).length
+  const completedThisMonth = useMemo(() => countWorkoutLogsThisMonth(studentWorkoutLogs), [studentWorkoutLogs])
+  const weeklyChallengeTarget = Math.max(3, Math.min(5, studentWorkouts.length || 4))
+  const monthlyChallengeTarget = Math.max(12, weeklyChallengeTarget * 4)
 
   useEffect(() => {
     if (!workoutStartedAt) return undefined
@@ -5367,6 +5590,25 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
       )
     }
 
+    if (activeTab === 'inicio') {
+      return (
+        <StudentHomeDashboard
+          student={student}
+          weekProgress={weekProgress}
+          completedThisWeek={completedThisWeek}
+          weeklyTarget={weeklyChallengeTarget}
+          completedThisMonth={completedThisMonth}
+          monthlyTarget={monthlyChallengeTarget}
+          nextWorkout={nextWorkout}
+          nextAppointment={nextAppointment}
+          pendingInvoices={studentInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))}
+          waterMl={waterMl}
+          waterGoalMl={waterGoalMl}
+          onOpenTab={openTab}
+        />
+      )
+    }
+
     if (activeTab === 'treino') {
       return (
         <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
@@ -5468,12 +5710,10 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   }
 
   return (
-    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
+    <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-white">
-            <NavIcon name="menu" className="h-5 w-5" />
-          </button>
+          <BrandLockup compact subtitle="FIT COACH" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-black uppercase text-emerald-300">{activeTitle}</p>
             <p className="truncate text-sm font-black">{student.name}</p>
@@ -5597,24 +5837,168 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/94 px-2 py-2 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {quickNavItems.map((item) => {
-            const tone = getNavToneClasses(item.tone)
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-emerald-300/15 bg-black/95 px-2 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+          {bottomNavItems.map((item) => {
             const active = activeTab === item.id
 
             return (
-              <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`grid min-h-14 place-items-center gap-0.5 rounded-md px-1 py-1 text-center text-[10px] font-black ${active ? tone.active : 'text-zinc-300'}`}>
-                <NavIcon name={item.icon} className={`h-4 w-4 ${active ? '' : 'text-zinc-400'}`} />
+              <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`grid min-h-14 place-items-center gap-0.5 rounded-lg border px-1 py-1 text-center text-[10px] font-black transition ${
+                active
+                  ? 'border-[#00c7a8]/45 bg-[#00c7a8]/15 text-[#9fffe8]'
+                  : 'border-transparent text-zinc-400'
+              }`}>
+                <NavIcon name={item.icon} className={`h-4 w-4 ${active ? 'text-[#9fffe8]' : 'text-[#00c7a8]'}`} />
                 <span className="leading-tight">{item.label}</span>
               </button>
             )
           })}
+          <button type="button" onClick={() => setMenuOpen(true)} className="grid min-h-14 place-items-center gap-0.5 rounded-lg border border-transparent px-1 py-1 text-center text-[10px] font-black text-zinc-400 transition">
+            <NavIcon name="menu" className="h-4 w-4 text-[#00c7a8]" />
+            <span className="leading-tight">MENU</span>
+          </button>
         </div>
       </nav>
     </div>
   )
 }
+
+function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextAppointment, pendingInvoices, waterMl, waterGoalMl, onOpenTab }) {
+  const firstName = String(student?.name || 'aluno').split(' ')[0]
+  const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
+  const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
+  const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
+  const nextAction = pendingInvoices.length
+    ? { title: 'Regularizar fatura', body: 'Existe uma cobrança aguardando validação.', tab: 'pagamentos', icon: 'wallet' }
+    : nextWorkout
+      ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
+      : nextAppointment
+        ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
+        : { title: 'Abrir chat com o coach', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
+
+  return (
+    <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
+      <div className="grid gap-4">
+        <button type="button" onClick={() => onOpenTab(nextAction.tab)} className="flex items-center gap-3 rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4 text-left transition hover:border-emerald-200/45">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
+            <NavIcon name={nextAction.icon} className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-black text-white">{nextAction.title}</span>
+            <span className="mt-1 block text-xs leading-5 text-zinc-400">{nextAction.body}</span>
+          </span>
+          <NavIcon name="chevronRight" className="h-5 w-5 text-emerald-200" />
+        </button>
+
+        <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase text-emerald-300">Calendário semanal</p>
+              <p className="mt-1 text-sm text-zinc-400">{completedThisWeek} de {weeklyTarget} treinos do desafio da semana</p>
+            </div>
+            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{weeklyPercent}%</span>
+          </div>
+          <div className="mt-4 grid grid-cols-7 gap-1.5">
+            {weekProgress.map((day) => (
+              <div key={day.key} className={`grid min-h-16 place-items-center rounded-lg border p-2 text-center ${
+                day.completed
+                  ? 'border-emerald-300/40 bg-emerald-300/15 text-emerald-50'
+                  : day.isToday
+                    ? 'border-sky-300/35 bg-sky-300/10 text-sky-100'
+                    : 'border-white/10 bg-white/[0.03] text-zinc-400'
+              }`}>
+                <span className="text-[10px] font-black uppercase">{day.label}</span>
+                <span className="mt-1 text-base font-black">{day.dayNumber}</span>
+                <span className="mt-1 text-[10px] font-bold">{day.completed ? 'feito' : day.isToday ? 'hoje' : '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail="Bata sua sequência de treinos." tone="emerald" />
+          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail="Consistência acumulada no mês." tone="sky" />
+          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail="Meta de água definida pelo coach." tone="cyan" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => onOpenTab('treino')} className="rounded-lg border border-lime-300/25 bg-lime-300/10 p-4 text-left">
+            <NavIcon name="dumbbell" className="h-5 w-5 text-lime-200" />
+            <span className="mt-3 block text-sm font-black text-white">Treinar agora</span>
+          </button>
+          <button type="button" onClick={() => onOpenTab('mensagens')} className="rounded-lg border border-blue-300/25 bg-blue-300/10 p-4 text-left">
+            <NavIcon name="message" className="h-5 w-5 text-blue-200" />
+            <span className="mt-3 block text-sm font-black text-white">Falar com coach</span>
+          </button>
+        </div>
+      </div>
+    </StudentAppSection>
+  )
+}
+
+function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' }) {
+  const toneClasses = {
+    emerald: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
+    sky: 'border-sky-300/25 bg-sky-300/10 text-sky-100',
+    cyan: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
+  }[tone] || 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+
+  return (
+    <div className={`rounded-lg border p-4 ${toneClasses}`}>
+      <p className="text-xs font-black uppercase opacity-80">{title}</p>
+      <p className="mt-2 text-2xl font-black text-white">{value}</p>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+        <div className="h-full rounded-full bg-current transition-all duration-500" style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
+      </div>
+      <p className="mt-2 text-xs leading-5 text-zinc-400">{detail}</p>
+    </div>
+  )
+}
+
+function buildStudentWeekProgress(logs = []) {
+  const today = new Date()
+  const monday = getWeekStart(today)
+  const completedKeys = new Set(logs.map((log) => toLocalDateKey(log.completedAt)).filter(Boolean))
+  const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+
+  return labels.map((label, index) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + index)
+    const key = toLocalDateKey(date)
+    return {
+      key,
+      label,
+      dayNumber: date.getDate(),
+      completed: completedKeys.has(key),
+      isToday: key === toLocalDateKey(today),
+    }
+  })
+}
+
+function countWorkoutLogsThisMonth(logs = []) {
+  const now = new Date()
+  return logs.filter((log) => {
+    const date = new Date(log.completedAt)
+    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
+  }).length
+}
+
+function getWeekStart(date) {
+  const start = new Date(date)
+  const day = start.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  start.setHours(0, 0, 0, 0)
+  start.setDate(start.getDate() + diff)
+  return start
+}
+
+function toLocalDateKey(value) {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('sv-SE')
+}
+
 function StudentAppSection({ id, title, action, children }) {
   return (
     <section id={`student-${id}`} className="scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
@@ -5741,16 +6125,27 @@ function StudentPaymentLock({ student, invoices, coachSettings, onOpenPayments, 
 }
 
 function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessage }) {
+  const [noticeSending, setNoticeSending] = useState(false)
+  const [noticeSent, setNoticeSent] = useState(false)
   const visibleInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
   const paidTotal = visibleInvoices.filter((invoice) => invoice.status === 'Pago').reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
-  const pendingTotal = visibleInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const pendingInvoices = visibleInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
+  const pendingTotal = pendingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const nextPendingInvoice = pendingInvoices[0]
 
   async function notifyPayment() {
+    setNoticeSending(true)
+    setNoticeSent(false)
+    const invoiceSummary = nextPendingInvoice
+      ? `${nextPendingInvoice.description || nextPendingInvoice.planName || 'Mensalidade'} - ${formatCurrency(nextPendingInvoice.amount)} - vencimento ${formatDate(nextPendingInvoice.dueDate)}`
+      : `Total informado no app: ${formatCurrency(pendingTotal)}`
     await onSendMessage?.({
       studentId: student.id,
       sender: 'student',
-      body: `Olá, coach. Acabei de realizar um pagamento e gostaria da validação no app.`,
+      body: `Solicitação de validação de pagamento: ${student.name} informou que pagou. Cobrança: ${invoiceSummary}. Coach, confirme em Recebimentos para liberar o acesso.`,
     }).catch(() => {})
+    setNoticeSending(false)
+    setNoticeSent(true)
   }
 
   return (
@@ -5762,12 +6157,19 @@ function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessa
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={() => printStudentPaymentStatement(student, visibleInvoices, coachSettings)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+        <button type="button" onClick={() => printStudentPaymentStatement(student, visibleInvoices, coachSettings)} className="rounded-lg bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98]">
           Gerar extrato em PDF
         </button>
-        <button type="button" onClick={notifyPayment} className="rounded-md border border-emerald-300/30 px-4 py-3 text-sm font-black text-emerald-100">
-          Avisei que paguei
+        <button type="button" disabled={noticeSending || !pendingInvoices.length} onClick={notifyPayment} className="rounded-lg border border-emerald-300/30 px-4 py-3 text-sm font-black text-emerald-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
+          {noticeSending ? 'Enviando...' : 'Solicitar validação'}
         </button>
+      </div>
+      <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
+        <p className="text-xs font-black uppercase text-zinc-400">Como a liberação funciona</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">
+          O aluno paga pelo Pix do coach, solicita a validação e o treinador confirma em Recebimentos. Após confirmar como pago, o acesso fica liberado.
+        </p>
+        {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">Solicitação enviada ao treinador.</p> : null}
       </div>
 
       <div className="mt-5 grid gap-3">
@@ -6461,10 +6863,10 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
 
                       {!['Pago', 'Cancelado'].includes(invoice.status) ? (
                         <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-1">
-                          <button disabled={updatingId === String(invoice.id)} onClick={() => handleInvoiceStatus(invoice.id, 'Pago')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">
-                            Marcar como pago
+                          <button disabled={updatingId === String(invoice.id)} onClick={() => handleInvoiceStatus(invoice.id, 'Pago')} className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950 transition active:scale-[0.98] disabled:opacity-50">
+                            Confirmar e liberar
                           </button>
-                          <button disabled={updatingId === String(invoice.id)} onClick={() => handleInvoiceStatus(invoice.id, 'Cancelado')} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200 disabled:opacity-50">
+                          <button disabled={updatingId === String(invoice.id)} onClick={() => handleInvoiceStatus(invoice.id, 'Cancelado')} className="rounded-lg border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-200 transition active:scale-[0.98] disabled:opacity-50">
                             Cancelar
                           </button>
                         </div>
