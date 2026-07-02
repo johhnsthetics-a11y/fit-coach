@@ -49,19 +49,19 @@ const plans = [
 ]
 
 const navItems = [
-  { id: 'visao', label: 'Visão geral' },
-  { id: 'agenda', label: 'Agenda' },
-  { id: 'alunos', label: 'Alunos' },
-  { id: 'avaliacoes', label: 'Avaliações' },
-  { id: 'treinos', label: 'Treinos' },
-  { id: 'nutricao', label: 'Nutrição' },
-  { id: 'checkins', label: 'Check-ins' },
-  { id: 'pagamentos', label: 'Recebimentos' },
-  { id: 'notificacoes', label: 'Notificações' },
-  { id: 'mensagens', label: 'Mensagens' },
-  { id: 'aluno-app', label: 'Área do aluno' },
-  { id: 'configuracoes', label: 'Configurações' },
-  { id: 'assinatura', label: 'Minha assinatura' },
+  { id: 'visao', label: 'Visão geral', icon: 'dashboard', tone: 'emerald' },
+  { id: 'agenda', label: 'Agenda', icon: 'calendar', tone: 'sky' },
+  { id: 'alunos', label: 'Alunos', icon: 'users', tone: 'cyan' },
+  { id: 'avaliacoes', label: 'Avaliações', icon: 'chart', tone: 'amber' },
+  { id: 'treinos', label: 'Treinos', icon: 'dumbbell', tone: 'lime' },
+  { id: 'nutricao', label: 'Nutrição', icon: 'nutrition', tone: 'orange' },
+  { id: 'checkins', label: 'Check-ins', icon: 'camera', tone: 'rose' },
+  { id: 'pagamentos', label: 'Recebimentos', icon: 'wallet', tone: 'green' },
+  { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
+  { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
+  { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
+  { id: 'configuracoes', label: 'Configurações', icon: 'settings', tone: 'slate' },
+  { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
 
 const workoutPlan = [
@@ -603,6 +603,36 @@ export default function App() {
       window.clearInterval(timer)
     }
   }, [studentAccess?.student?.id, studentAccess?.invite?.code])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !studentAccess?.invite?.code) return undefined
+
+    let active = true
+
+    async function syncStudentPortalAccess() {
+      try {
+        const latestAccess = await loadRemoteStudentByInvite(studentAccess.invite.code)
+        if (!active) return
+
+        setStudentAccess((current) => {
+          if (!current?.invite?.code || current.invite.code !== latestAccess.invite?.code) return current
+          return {
+            ...latestAccess,
+            messages: mergeRecords(latestAccess.messages, current.messages),
+          }
+        })
+      } catch {
+        // Mantem o aluno no portal mesmo se a leitura do acesso oscilar.
+      }
+    }
+
+    const timer = window.setInterval(syncStudentPortalAccess, 10000)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [studentAccess?.invite?.code])
 
   async function login(formData) {
     const name = formData.get('name')?.toString().trim() || 'Coach'
@@ -1516,7 +1546,9 @@ export default function App() {
     return <AppLoading />
   }
 
-  const viewTitle = navItems.find((item) => item.id === activeView)?.label ?? 'Visão geral'
+  const activeNavItem = navItems.find((item) => item.id === activeView) ?? navItems[0]
+  const activeNavTone = getNavToneClasses(activeNavItem?.tone)
+  const viewTitle = activeNavItem?.label ?? 'Visão geral'
 
   return (
     <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
@@ -1526,8 +1558,9 @@ export default function App() {
           type="button"
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Abrir menu"
-          className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-2xl text-white"
+          className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-[0px] text-white"
         >
+          <NavIcon name="menu" className="h-5 w-5" />
           â˜°
         </button>
       </div>
@@ -1552,45 +1585,57 @@ export default function App() {
               type="button"
               onClick={() => setMobileMenuOpen(false)}
               aria-label="Fechar menu"
-              className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-xl text-zinc-300 lg:hidden"
+              className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-[0px] text-zinc-300 lg:hidden"
             >
+              <NavIcon name="close" className="h-5 w-5" />
               ×
             </button>
           </div>
 
           <div className="mb-2 mt-3 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
-            <span className="text-[10px] font-bold text-zinc-600">{navItems.length} áreas</span>
+            <span className="rounded-full border border-white/10 bg-white/[0.035] px-2 py-0.5 text-[10px] font-bold text-zinc-500">{navItems.length} áreas</span>
           </div>
-          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 grid-cols-1 content-start gap-1.5 overflow-y-auto pr-1 lg:grid-cols-2 lg:gap-1.5 lg:overflow-hidden lg:pr-0">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={activeView === item.id ? 'page' : undefined}
-                disabled={shouldLockCoachTools && item.id !== 'assinatura'}
-                onClick={() => {
-                  if (shouldLockCoachTools && item.id !== 'assinatura') return
-                  setActiveView(item.id)
-                  setMobileMenuOpen(false)
-                }}
-                className={`flex min-h-9 min-w-0 items-center gap-2.5 rounded-md border px-3 py-1.5 text-left text-sm font-semibold transition lg:min-h-[46px] lg:flex-col lg:items-start lg:justify-center lg:gap-1 lg:px-2 lg:py-2 ${
-                  activeView === item.id
-                    ? 'border-blue-500 bg-blue-500 text-zinc-950 shadow-lg shadow-emerald-950/20'
-                    : shouldLockCoachTools && item.id !== 'assinatura'
-                      ? 'cursor-not-allowed border-white/5 bg-white/[0.015] text-zinc-600'
-                    : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/25 hover:bg-white/[0.06]'
-                }`}
-              >
-                <span className="min-w-0 flex-1 break-words text-[13px] leading-tight lg:text-[11px]">{item.label}</span>
-                {shouldLockCoachTools && item.id !== 'assinatura' ? (
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-black uppercase text-zinc-500">Bloq.</span>
-                ) : null}
-                {item.id === 'notificacoes' && totalAlertCount > 0 ? (
-                  <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
-                ) : null}
-              </button>
-            ))}
+          <nav className="grid min-h-0 min-w-0 flex-1 content-start gap-1.5 overflow-hidden">
+            {navItems.map((item) => {
+              const tone = getNavToneClasses(item.tone)
+              const isActive = activeView === item.id
+              const isLocked = shouldLockCoachTools && item.id !== 'assinatura'
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-current={isActive ? 'page' : undefined}
+                  disabled={isLocked}
+                  onClick={() => {
+                    if (isLocked) return
+                    setActiveView(item.id)
+                    setMobileMenuOpen(false)
+                  }}
+                  className={`group flex min-h-[40px] min-w-0 items-center gap-2.5 rounded-md border px-2.5 py-1.5 text-left text-sm font-semibold transition ${
+                    isActive
+                      ? `${tone.active} shadow-lg shadow-black/20`
+                      : isLocked
+                        ? 'cursor-not-allowed border-white/5 bg-white/[0.015] text-zinc-600'
+                        : `${tone.idle} hover:-translate-y-0.5 hover:bg-white/[0.065]`
+                  }`}
+                >
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border transition ${
+                    isActive ? tone.iconActive : isLocked ? 'border-white/5 bg-zinc-900 text-zinc-700' : tone.iconIdle
+                  }`}>
+                    <NavIcon name={item.icon} className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] leading-tight">{item.label}</span>
+                  {isLocked ? (
+                    <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-black uppercase text-zinc-500">Bloq.</span>
+                  ) : null}
+                  {item.id === 'notificacoes' && totalAlertCount > 0 ? (
+                    <span className="rounded bg-amber-300 px-2 py-0.5 text-xs text-zinc-950">{totalAlertCount}</span>
+                  ) : null}
+                </button>
+              )
+            })}
           </nav>
 
           <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04] lg:mt-2 lg:py-2">
@@ -1600,11 +1645,13 @@ export default function App() {
 
         <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[300px] lg:w-[calc(100%-300px)] lg:px-5 xl:ml-[320px] xl:w-[calc(100%-320px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
-          <header className="mb-5 rounded-md border border-white/10 bg-zinc-900/60 p-4 sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
+          <header className="mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-1.5 w-8 bg-blue-500" />
-                <p className="text-xs font-black uppercase text-blue-300">FIT COACH / Central do coach</p>
+              <div className="mb-3 flex items-center gap-3">
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
+                  <NavIcon name={activeNavItem?.icon} className="h-5 w-5" />
+                </span>
+                <p className="text-xs font-black uppercase text-zinc-400">FIT COACH / Central do coach</p>
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
@@ -2768,16 +2815,49 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
   const [inviteError, setInviteError] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [releaseDays, setReleaseDays] = useState('3')
+  const [accessSaving, setAccessSaving] = useState(false)
+  const [accessMessage, setAccessMessage] = useState('')
+  const [accessError, setAccessError] = useState('')
   const selectedInvite = savedInvite?.studentId === selectedStudent?.id
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
 
+  useEffect(() => {
+    setAccessMessage('')
+    setAccessError('')
+  }, [selectedStudent?.id])
+
   async function releaseTemporaryAccess(days = 3) {
     if (!selectedStudent) return
     const safeDays = Math.max(1, Math.min(90, Number(days) || 1))
     const until = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString()
-    await onSave({ ...selectedStudent, accessOverrideUntil: until })
+    setAccessSaving(true)
+    setAccessMessage('')
+    setAccessError('')
+    try {
+      await onSave({ ...selectedStudent, accessOverrideUntil: until })
+      setAccessMessage(`Acesso liberado até ${formatFullDateTime(until)}.`)
+    } catch (error) {
+      setAccessError(error?.message || 'Não foi possível liberar o acesso do aluno.')
+    } finally {
+      setAccessSaving(false)
+    }
+  }
+
+  async function removeTemporaryAccess() {
+    if (!selectedStudent) return
+    setAccessSaving(true)
+    setAccessMessage('')
+    setAccessError('')
+    try {
+      await onSave({ ...selectedStudent, accessOverrideUntil: '' })
+      setAccessMessage('Liberação temporária removida.')
+    } catch (error) {
+      setAccessError(error?.message || 'Não foi possível remover a liberação.')
+    } finally {
+      setAccessSaving(false)
+    }
   }
 
   return (
@@ -2831,6 +2911,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
               <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'Não informado'} />
               <Info label="Plano" value={selectedStudent.plan} />
               <Info label="Pagamento" value={selectedStudent.payment} />
+              <Info label="Meta de água" value={selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'} />
               <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
             </div>
@@ -2851,9 +2932,13 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
                     className="min-h-10 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case text-zinc-100 outline-none focus:border-amber-300"
                   />
                 </label>
-                <button type="button" onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">Liberar acesso</button>
-                <button type="button" onClick={() => onSave({ ...selectedStudent, accessOverrideUntil: '' })} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100">Remover liberação</button>
+                <button type="button" disabled={accessSaving} onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md bg-amber-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                  {accessSaving ? 'Salvando...' : 'Liberar acesso'}
+                </button>
+                <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberação</button>
               </div>
+              {accessMessage ? <p className="mt-3 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{accessMessage}</p> : null}
+              {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
             </div>
             <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">Código de acesso do aluno</p>
@@ -2951,6 +3036,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
         cpf: cpf.replace(/\D/g, ''),
         plan: form.get('plan').toString(),
         payment: form.get('payment').toString(),
+        waterGoalMl: form.get('waterGoalMl')?.toString() || '2500',
         requireAnamnesis: !continuingStudent,
       })
     } catch (saveError) {
@@ -2994,6 +3080,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
         <Field label="E-mail" name="email" type="email" defaultValue={student.email} autoComplete="email" />
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
+        <Field label="Meta de água por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
         <Select label="Plano" name="plan" defaultValue={selectedPlanName} options={coachPlans.map((plan) => plan.name)} />
         <Select label="Pagamento" name="payment" defaultValue={student.payment} options={['Pago', 'Pendente']} />
       </div>
@@ -5155,24 +5242,37 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   const financialAccessOpen = temporaryAccessOpen || (hasStudentAccess(student) && !hasOpenInvoice)
   const restrictedTabs = ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
+  const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
+  const waterStorageDate = new Date().toLocaleDateString('sv-SE')
+  const waterStorageKey = `fitcoach-water-${student?.id || 'aluno'}-${waterStorageDate}`
+  const [waterMl, setWaterMl] = useState(0)
   const navItems = [
-    ['treino', 'Treino', ''],
-    ['dieta', 'Dieta', ''],
-    ['checkin', 'Check-in', ''],
-    ['mensagens', 'Chat', ''],
-    ['pagamentos', 'Pagamentos', ''],
-    ['agenda', 'Agenda', ''],
-    ['progresso', 'Progresso', ''],
-    ['historico', 'Histórico', ''],
+    { id: 'treino', label: 'Treino', icon: 'dumbbell', tone: 'lime' },
+    { id: 'dieta', label: 'Dieta', icon: 'nutrition', tone: 'orange' },
+    { id: 'checkin', label: 'Check-in', icon: 'camera', tone: 'rose' },
+    { id: 'mensagens', label: 'Chat', icon: 'message', tone: 'blue' },
+    { id: 'pagamentos', label: 'Pagamentos', icon: 'wallet', tone: 'green' },
+    { id: 'agenda', label: 'Agenda', icon: 'calendar', tone: 'sky' },
+    { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
+    { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
   ]
   const quickNavItems = navItems.slice(0, 4)
-  const activeTitle = navItems.find(([id]) => id === activeTab)?.[1] || 'Treino'
+  const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
 
   useEffect(() => {
     if (!workoutStartedAt) return undefined
     const timer = window.setInterval(() => setWorkoutClock(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [workoutStartedAt])
+
+  useEffect(() => {
+    const savedWater = Number(window.localStorage?.getItem(waterStorageKey) || 0)
+    setWaterMl(Number.isFinite(savedWater) ? Math.min(savedWater, waterGoalMl) : 0)
+  }, [waterStorageKey, waterGoalMl])
+
+  useEffect(() => {
+    window.localStorage?.setItem(waterStorageKey, String(Math.min(waterMl, waterGoalMl)))
+  }, [waterMl, waterGoalMl, waterStorageKey])
 
   useEffect(() => {
     function handleBeforeInstallPrompt(event) {
@@ -5197,6 +5297,14 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     setActiveTab(id)
     setMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function addWater(amountMl) {
+    setWaterMl((current) => Math.min(waterGoalMl, current + amountMl))
+  }
+
+  function resetWater() {
+    setWaterMl(0)
   }
 
   function toggleWorkoutTimer() {
@@ -5266,6 +5374,12 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
             title="Lembrete de treino"
             body={`Hora de treinar, ${student.name}. Abra o FIT COACH e siga o plano de hoje.`}
             action="Ativar lembrete"
+          />
+          <StudentWaterTracker
+            goalMl={waterGoalMl}
+            currentMl={waterMl}
+            onAddWater={addWater}
+            onReset={resetWater}
           />
           <div className="mb-4 overflow-hidden rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
             <p className="text-xs font-black uppercase text-emerald-200">Tempo de treino</p>
@@ -5357,8 +5471,8 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 bg-white/[0.04]">
-            <span className="grid gap-1.5"><span className="block h-0.5 w-5 rounded bg-zinc-100" /><span className="block h-0.5 w-5 rounded bg-zinc-100" /><span className="block h-0.5 w-5 rounded bg-zinc-100" /></span>
+          <button type="button" onClick={() => setMenuOpen(true)} aria-label="Abrir menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-white">
+            <NavIcon name="menu" className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-black uppercase text-emerald-300">{activeTitle}</p>
@@ -5377,7 +5491,9 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           <nav className="relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black">
             <div className="mb-5 flex items-center justify-between gap-3">
               <BrandLockup compact subtitle="FIT COACH" />
-              <button type="button" onClick={() => setMenuOpen(false)} className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-xl text-zinc-200">×</button>
+              <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar menu" className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-zinc-200">
+                <NavIcon name="close" className="h-5 w-5" />
+              </button>
             </div>
             <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
               <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
@@ -5385,12 +5501,22 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
             </div>
             <div className="mt-4 grid gap-2">
-              {navItems.map(([id, label]) => (
-                <button key={id} type="button" onClick={() => openTab(id)} className={`flex min-h-11 items-center justify-between rounded-md border px-3 py-2 text-left text-sm font-black ${activeTab === id ? 'border-emerald-300/40 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-100'}`}>
-                  <span>{label}</span><span className="text-zinc-500">›</span>
-                </button>
-              ))}
-            </div>            {!appInstalled ? (
+              {navItems.map((item) => {
+                const tone = getNavToneClasses(item.tone)
+                const active = activeTab === item.id
+
+                return (
+                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                      <NavIcon name={item.icon} className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="text-zinc-500">›</span>
+                  </button>
+                )
+              })}
+            </div>
+            {!appInstalled ? (
               <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
                 <p className="text-xs font-black uppercase text-blue-200">Acesso rápido</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-300">Adicione o FIT COACH na tela inicial para abrir sem digitar o código toda hora.</p>
@@ -5415,7 +5541,19 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
             <div className="mt-4 grid gap-2">
-              {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => openTab(id)} className={`rounded-md border px-3 py-2 text-left text-sm font-bold ${activeTab === id ? 'border-emerald-300/40 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-zinc-200 hover:border-emerald-300/35'}`}>{label}</button>)}
+              {navItems.map((item) => {
+                const tone = getNavToneClasses(item.tone)
+                const active = activeTab === item.id
+
+                return (
+                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-10 items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : `${tone.idle} hover:-translate-y-0.5`}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                      <NavIcon name={item.icon} className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  </button>
+                )
+              })}
             </div>
             <button type="button" onClick={onExit} className="mt-4 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
             {!appInstalled ? (
@@ -5461,11 +5599,17 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-zinc-950/94 px-2 py-2 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-          {quickNavItems.map(([id, label]) => (
-            <button key={id} type="button" onClick={() => openTab(id)} className={`grid min-h-14 place-items-center rounded-md px-1 py-1 text-center text-[10px] font-black ${activeTab === id ? 'bg-emerald-400/12 text-emerald-100' : 'text-zinc-300'}`}>
-              <span className="leading-tight">{label}</span>
-            </button>
-          ))}
+          {quickNavItems.map((item) => {
+            const tone = getNavToneClasses(item.tone)
+            const active = activeTab === item.id
+
+            return (
+              <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`grid min-h-14 place-items-center gap-0.5 rounded-md px-1 py-1 text-center text-[10px] font-black ${active ? tone.active : 'text-zinc-300'}`}>
+                <NavIcon name={item.icon} className={`h-4 w-4 ${active ? '' : 'text-zinc-400'}`} />
+                <span className="leading-tight">{item.label}</span>
+              </button>
+            )
+          })}
         </div>
       </nav>
     </div>
@@ -5480,6 +5624,60 @@ function StudentAppSection({ id, title, action, children }) {
       </div>
       {children}
     </section>
+  )
+}
+
+function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
+  const safeGoal = Math.max(500, Number(goalMl || 2500))
+  const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
+  const percent = Math.round((safeCurrent / safeGoal) * 100)
+  const fillHeight = `${Math.min(100, Math.max(4, percent))}%`
+  const remainingMl = Math.max(0, safeGoal - safeCurrent)
+  const currentLiters = (safeCurrent / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  const goalLiters = (safeGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+
+  return (
+    <div className="mb-4 overflow-hidden rounded-md border border-sky-300/25 bg-sky-400/10 p-4">
+      <div className="grid gap-4 sm:grid-cols-[112px_1fr] sm:items-center">
+        <div className="mx-auto grid justify-items-center gap-2">
+          <div className="h-5 w-14 rounded-t-md border border-sky-200/40 bg-zinc-950/80" />
+          <div className="relative h-44 w-24 overflow-hidden rounded-[2rem] border-2 border-sky-100/35 bg-zinc-950/70 shadow-inner shadow-sky-950/50">
+            <div
+              className="absolute inset-x-0 bottom-0 rounded-b-[1.8rem] bg-gradient-to-t from-sky-500 via-cyan-300 to-sky-200 transition-all duration-500 ease-out"
+              style={{ height: fillHeight }}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.18)_0%,transparent_22%,transparent_72%,rgba(255,255,255,0.14)_100%)]" />
+            <div className="absolute inset-0 grid place-items-center">
+              <span className="rounded-full border border-white/20 bg-zinc-950/70 px-3 py-1 text-sm font-black text-sky-100 backdrop-blur">
+                {percent}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase text-sky-200">Meta de água</p>
+              <h3 className="mt-1 text-2xl font-black text-white">{currentLiters} L / {goalLiters} L</h3>
+            </div>
+            <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-xs font-black text-sky-100">
+              Hoje
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">
+            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida pelo coach.` : 'Meta concluída hoje. Excelente consistência.'}
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => onAddWater(250)} className="rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
+            <button type="button" onClick={() => onAddWater(500)} className="rounded-md bg-cyan-300 px-3 py-3 text-xs font-black text-zinc-950">+500 ml</button>
+            <button type="button" onClick={onReset} className="rounded-md border border-white/10 px-3 py-3 text-xs font-black text-zinc-200">
+              Zerar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -6839,6 +7037,7 @@ function createBlankStudent() {
     requireAnamnesis: true,
     accessOverrideUntil: '',
     loadNotes: '',
+    waterGoalMl: '2500',
   }
 }
 
@@ -6870,6 +7069,128 @@ function BrandLockup({ subtitle = '', large = false, compact = false }) {
         draggable="false"
       />
     </div>
+  )
+}
+
+const navToneClasses = {
+  emerald: {
+    active: 'border-emerald-300/50 bg-emerald-400/10 text-emerald-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-emerald-300/35',
+    iconActive: 'border-emerald-300/45 bg-emerald-300/20 text-emerald-100',
+    iconIdle: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200',
+  },
+  sky: {
+    active: 'border-sky-300/50 bg-sky-400/10 text-sky-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-sky-300/35',
+    iconActive: 'border-sky-300/45 bg-sky-300/20 text-sky-100',
+    iconIdle: 'border-sky-300/20 bg-sky-300/10 text-sky-200',
+  },
+  cyan: {
+    active: 'border-cyan-300/50 bg-cyan-400/10 text-cyan-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-cyan-300/35',
+    iconActive: 'border-cyan-300/45 bg-cyan-300/20 text-cyan-100',
+    iconIdle: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200',
+  },
+  amber: {
+    active: 'border-amber-300/50 bg-amber-300/10 text-amber-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-amber-300/35',
+    iconActive: 'border-amber-300/45 bg-amber-300/20 text-amber-100',
+    iconIdle: 'border-amber-300/20 bg-amber-300/10 text-amber-200',
+  },
+  lime: {
+    active: 'border-lime-300/50 bg-lime-300/10 text-lime-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-lime-300/35',
+    iconActive: 'border-lime-300/45 bg-lime-300/20 text-lime-100',
+    iconIdle: 'border-lime-300/20 bg-lime-300/10 text-lime-200',
+  },
+  orange: {
+    active: 'border-orange-300/50 bg-orange-300/10 text-orange-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-orange-300/35',
+    iconActive: 'border-orange-300/45 bg-orange-300/20 text-orange-100',
+    iconIdle: 'border-orange-300/20 bg-orange-300/10 text-orange-200',
+  },
+  rose: {
+    active: 'border-rose-300/50 bg-rose-300/10 text-rose-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-rose-300/35',
+    iconActive: 'border-rose-300/45 bg-rose-300/20 text-rose-100',
+    iconIdle: 'border-rose-300/20 bg-rose-300/10 text-rose-200',
+  },
+  green: {
+    active: 'border-green-300/50 bg-green-300/10 text-green-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-green-300/35',
+    iconActive: 'border-green-300/45 bg-green-300/20 text-green-100',
+    iconIdle: 'border-green-300/20 bg-green-300/10 text-green-200',
+  },
+  yellow: {
+    active: 'border-yellow-300/50 bg-yellow-300/10 text-yellow-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-yellow-300/35',
+    iconActive: 'border-yellow-300/45 bg-yellow-300/20 text-yellow-100',
+    iconIdle: 'border-yellow-300/20 bg-yellow-300/10 text-yellow-200',
+  },
+  blue: {
+    active: 'border-blue-300/50 bg-blue-400/10 text-blue-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-blue-300/35',
+    iconActive: 'border-blue-300/45 bg-blue-300/20 text-blue-100',
+    iconIdle: 'border-blue-300/20 bg-blue-300/10 text-blue-200',
+  },
+  teal: {
+    active: 'border-teal-300/50 bg-teal-300/10 text-teal-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-teal-300/35',
+    iconActive: 'border-teal-300/45 bg-teal-300/20 text-teal-100',
+    iconIdle: 'border-teal-300/20 bg-teal-300/10 text-teal-200',
+  },
+  slate: {
+    active: 'border-slate-300/40 bg-slate-300/10 text-slate-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-slate-300/30',
+    iconActive: 'border-slate-300/40 bg-slate-300/20 text-slate-100',
+    iconIdle: 'border-slate-300/20 bg-slate-300/10 text-slate-200',
+  },
+  indigo: {
+    active: 'border-indigo-300/50 bg-indigo-300/10 text-indigo-50',
+    idle: 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-indigo-300/35',
+    iconActive: 'border-indigo-300/45 bg-indigo-300/20 text-indigo-100',
+    iconIdle: 'border-indigo-300/20 bg-indigo-300/10 text-indigo-200',
+  },
+}
+
+function getNavToneClasses(tone) {
+  return navToneClasses[tone] || navToneClasses.emerald
+}
+
+function NavIcon({ name, className = '' }) {
+  const common = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+  }
+  const icons = {
+    dashboard: <><rect x="3" y="3" width="7" height="8" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="15" width="7" height="6" rx="1.5" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" /><circle cx="9.5" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    chart: <><path d="M4 19V5" /><path d="M4 19h17" /><path d="M8 15l3-4 3 2 5-7" /><path d="M18 6h1v1" /></>,
+    dumbbell: <><path d="M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12" /></>,
+    nutrition: <><path d="M12 3c2.5 2.2 4 4.7 4 7.5A5.5 5.5 0 0 1 10.5 16 5.5 5.5 0 0 1 5 10.5C5 7.7 7.5 5 12 3Z" /><path d="M12 3c.5 3.3-.2 6-2 8" /><path d="M14 6c2.2-.4 4.1.1 5.5 1.5" /></>,
+    camera: <><path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" /><circle cx="12" cy="13" r="4" /></>,
+    wallet: <><path d="M3 7a2 2 0 0 1 2-2h14v4H5a2 2 0 0 1 0-4" /><path d="M3 7v12a2 2 0 0 0 2 2h16V9H5" /><path d="M17 14h.01" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
+    message: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" /><path d="M8 9h8M8 13h5" /></>,
+    phone: <><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></>,
+    settings: <><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22h-3.34v-.18A1.65 1.65 0 0 0 9.4 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2v-3.34h.18A1.65 1.65 0 0 0 4 9.4a1.65 1.65 0 0 0 .33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2h3.34v.18A1.65 1.65 0 0 0 14.6 4a1.65 1.65 0 0 0 1.82.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.36.4.71.6 1h2v3.34h-.18A1.65 1.65 0 0 0 20 14.6c-.2.14-.4.27-.6.4Z" /></>,
+    credit: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
+    water: <><path d="M12 2s6 6.5 6 12a6 6 0 0 1-12 0C6 8.5 12 2 12 2Z" /><path d="M9.5 15.5A3.1 3.1 0 0 0 12 17" /></>,
+    plus: <><path d="M12 5v14M5 12h14" /></>,
+    reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
+    menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
+    close: <><path d="M6 6l12 12M18 6 6 18" /></>,
+    chevronRight: <><path d="m9 18 6-6-6-6" /></>,
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...common}>
+      {icons[name] || icons.dashboard}
+    </svg>
   )
 }
 

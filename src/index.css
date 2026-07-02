@@ -30,9 +30,11 @@ body {
 }
 
 .fit-gradient-bg {
-  background-color: #070a09;
+  background-color: #05070d;
   background-image:
-    linear-gradient(155deg, #065f46 0%, #10231d 22%, #070a09 48%, #0a100e 72%, #064e3b 100%);
+    linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, transparent 28%),
+    linear-gradient(225deg, rgba(14, 165, 233, 0.18) 0%, transparent 34%),
+    linear-gradient(125deg, #05070d 0%, #0b1017 44%, #07120f 100%);
   background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
@@ -42,21 +44,27 @@ body {
 @media (min-width: 640px) {
   .fit-gradient-bg {
     background-image:
-      linear-gradient(140deg, #047857 0%, #10231d 20%, #070a09 43%, #070a09 62%, #0b1713 80%, #065f46 100%);
+      linear-gradient(140deg, rgba(16, 185, 129, 0.25) 0%, transparent 30%),
+      linear-gradient(230deg, rgba(14, 165, 233, 0.18) 0%, transparent 36%),
+      linear-gradient(128deg, #05070d 0%, #0b1017 46%, #07120f 100%);
   }
 }
 
 @media (min-width: 1024px) {
   .fit-gradient-bg {
     background-image:
-      linear-gradient(110deg, #065f46 0%, #064e3b 14%, #0b1713 31%, #070a09 52%, #0a100e 72%, #064e3b 88%, #047857 100%);
+      linear-gradient(115deg, rgba(16, 185, 129, 0.24) 0%, transparent 26%),
+      linear-gradient(245deg, rgba(56, 189, 248, 0.16) 0%, transparent 32%),
+      linear-gradient(112deg, #05070d 0%, #0b1017 44%, #07120f 72%, #05070d 100%);
   }
 }
 
 @media (min-width: 1600px) {
   .fit-gradient-bg {
     background-image:
-      linear-gradient(105deg, #064e3b 0%, #047857 10%, #10231d 25%, #070a09 43%, #070a09 60%, #0b1713 76%, #065f46 91%, #064e3b 100%);
+      linear-gradient(110deg, rgba(16, 185, 129, 0.22) 0%, transparent 24%),
+      linear-gradient(250deg, rgba(56, 189, 248, 0.16) 0%, transparent 30%),
+      linear-gradient(110deg, #05070d 0%, #0b1017 42%, #07120f 70%, #05070d 100%);
   }
 }
 
@@ -218,38 +226,6 @@ textarea {
 ::selection {
   background: #10b981;
   color: #09090b;
-}
-
-.app-shell .text-blue-100,
-.app-shell .text-blue-200,
-.app-shell .text-blue-300,
-.app-shell .text-blue-400 {
-  color: #a7f3d0;
-}
-
-.app-shell .bg-blue-400,
-.app-shell .bg-blue-500,
-.app-shell .bg-blue-600 {
-  background-color: #10b981;
-}
-
-.app-shell .border-blue-300\/20,
-.app-shell .border-blue-300\/25,
-.app-shell .border-blue-300\/30,
-.app-shell .border-blue-300\/35,
-.app-shell .border-blue-300\/40,
-.app-shell .border-blue-500 {
-  border-color: rgba(52, 211, 153, 0.38);
-}
-
-.app-shell .bg-blue-300\/5,
-.app-shell .bg-blue-300\/10,
-.app-shell .bg-blue-500\/10 {
-  background-color: rgba(16, 185, 129, 0.1);
-}
-
-.app-shell .focus\:border-blue-500:focus {
-  border-color: #10b981;
 }
 
 .sales-page {

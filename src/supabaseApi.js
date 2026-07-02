@@ -940,6 +940,7 @@ function fromStudentRow(row) {
     requireAnamnesis: row.require_anamnesis !== false,
     accessOverrideUntil: row.access_override_until ?? '',
     loadNotes: row.load_notes ?? '',
+    waterGoalMl: row.water_goal_ml ?? '',
   }
 }
 
@@ -967,6 +968,7 @@ function toStudentRow(student, coachId) {
     require_anamnesis: student.requireAnamnesis !== false,
     access_override_until: student.accessOverrideUntil || null,
     load_notes: student.loadNotes || null,
+    water_goal_ml: nullableNumber(student.waterGoalMl),
   }
 }
 
