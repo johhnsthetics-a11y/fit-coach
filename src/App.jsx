@@ -45,7 +45,7 @@ const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 
 const plans = [
-  { name: 'Acompanhamento mensal', price: 'R$ 197', features: 'Plano padrão configurável pelo treinador' },
+  { name: 'Acompanhamento mensal', price: 'R$ 197', cycle: 'mensal', duration: '1 mês', features: 'Plano padrão configurável pelo treinador' },
 ]
 
 const navItems = [
@@ -2027,43 +2027,75 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
   return (
     <div id="sales-page" className="sales-page fit-gradient-bg min-h-screen text-zinc-100">
       <div className="sales-progress" aria-hidden="true" />
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#05070d]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-2 sm:px-6">
+      <header className="sales-header sticky top-0 z-40 border-b border-white/10 bg-[#020816]/94 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
           <BrandLockup compact subtitle="FIT COACH" />
+          <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
+            {[
+              ['Solução', 'recursos'],
+              ['Mecanismo', 'mecanismo'],
+              ['App', 'app-aluno'],
+              ['Resultados', 'simulador'],
+              ['Preços', 'precos'],
+              ['Dúvidas', 'duvidas'],
+            ].map(([label, target]) => (
+              <button
+                key={target}
+                type="button"
+                onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="rounded-xl px-4 py-3 transition hover:bg-white/[0.08] hover:text-white"
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => openAccess('student')} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 sm:px-4 sm:text-sm">
-              Sou aluno
-            </button>
-            <button type="button" onClick={() => openAccess('signin')} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950 sm:px-4 sm:text-sm">
+            <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
               Entrar
+            </button>
+            <button type="button" onClick={() => openAccess('signup')} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
+              Começar por R$ 9,90
             </button>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100vh-68px)] lg:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.72fr)] lg:px-10 lg:py-14">
+        <section className="mx-auto grid max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100vh-68px)] lg:grid-cols-[minmax(0,1.04fr)_minmax(390px,0.78fr)] lg:px-10 lg:py-14">
           <div className="min-w-0" data-reveal>
-            <p className="text-sm font-semibold uppercase text-blue-200">Gestão profissional para personal trainers</p>
-            <h1 className="mt-4 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.5rem]">
-              Transforme seu acompanhamento em uma operação profissional, clara e escalável.
+            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-blue-200">Plataforma de operação para coaches fitness</p>
+            <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.7rem]">
+              A forma mais profissional de entregar consultoria fitness online.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-              O FIT COACH reúne treinos, nutrição, evolução, agenda, pagamentos e comunicação para você atender melhor, demonstrar mais valor e crescer sem depender de planilhas espalhadas.
+              Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => openAccess('signup')} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
-                Profissionalizar meu acompanhamento
+                Começar por R$ 9,90
               </button>
               <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
                 Ver como funciona
               </button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">Acesso pelo navegador, implantação gradual e portal individual para cada aluno.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">Primeiro mês promocional. Depois R$ 49,90/mês. Sem taxa por aluno.</p>
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
-              <SalesStat value="1 painel" label="operação centralizada" />
-              <SalesStat value="13 áreas" label="gestão completa" />
-              <SalesStat value="2 portais" label="coach e aluno" />
+              <SalesStat value="1 painel" label="toda a operação" />
+              <SalesStat value="App aluno" label="experiência premium" />
+              <SalesStat value="R$ 49,90" label="mensal fixo" />
+            </div>
+            <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
+              {[
+                ['Treino enviado', 'execução guiada e histórico'],
+                ['Dieta ajustada', 'macros e substituições'],
+                ['Cobrança clara', 'status por aluno'],
+              ].map(([title, text], index) => (
+                <div key={title} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+                  <span className="text-xs font-black text-emerald-200">0{index + 1}</span>
+                  <p className="mt-2 text-sm font-black text-white">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -2075,14 +2107,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 ? 'Enviaremos um link seguro para o e-mail cadastrado.'
                 : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'}
             </p>
-            <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold text-zinc-400">Sistema</p>
-                <span className="h-2 w-2 rounded bg-blue-400" />
+            {remoteError ? (
+              <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-3">
+                <p className="text-xs font-black uppercase text-amber-200">Atenção</p>
+                <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
               </div>
-              <p className="mt-1 text-sm font-bold text-blue-200">{remoteStatus}</p>
-              {remoteError ? <p className="mt-2 break-words text-sm leading-6 text-amber-200">{remoteError}</p> : null}
-            </div>
+            ) : null}
             <div className="mt-5 grid grid-cols-3 gap-2">
               {[
                 ['signin', 'Coach'],
@@ -2137,9 +2167,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <section className="border-y border-white/10 bg-zinc-950/80">
           <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
             {[
-              ['Sem instalação', 'Coach e aluno acessam diretamente pelo navegador.'],
-              ['Comece aos poucos', 'Migre primeiro os alunos ativos, sem parar sua rotina.'],
-              ['Dados por aluno', 'Histórico, anamnese e evolução permanecem organizados.'],
+              ['Operação centralizada', 'Treino, dieta, financeiro, agenda e chat no mesmo lugar.'],
+              ['Aluno mais engajado', 'Portal simples para seguir rotina, registrar treino e enviar feedback.'],
+              ['Marca mais premium', 'Você entrega seu método com mais clareza, organização e autoridade.'],
             ].map(([title, text]) => (
               <div key={title} className="flex gap-3">
                 <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
@@ -2152,21 +2182,101 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
+        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
+            <div data-reveal>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Visual de aplicativo</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Mostre para o aluno que ele está dentro de um acompanhamento premium.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">
+                As telas foram pensadas para celular, com ações simples, feedback visual e informação separada por contexto. O aluno abre, entende o que precisa fazer e registra a rotina sem se perder.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {[
+                  ['Treino guiado', 'Iniciar treino, pausar, registrar carga e concluir.'],
+                  ['Dieta clara', 'Refeições, macros e substituições equivalentes.'],
+                  ['Chat direto', 'Conversa em tempo real com envio de fotos.'],
+                  ['Engajamento', 'Meta de água, calendário e desafios semanais.'],
+                ].map(([title, text]) => (
+                  <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
+                    <p className="text-sm font-black text-emerald-100">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div data-reveal className="sales-phone-stage grid gap-2 sm:grid-cols-3">
+              {[
+                ['Hoje', 'Olá, Élinton', 'Calendário semanal · meta do dia', 'Desafio semanal 3/5', ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], 'wallet', 'R$ 297,00', 'plano mensal'],
+                ['Treino', 'Treino C', 'Legs · 7 exercícios', 'Treino iniciado · 23:14', ['Agachamento 4x10', 'Leg press 4x12', 'Cadeira flexora 3x12'], 'dumbbell', 'Treino', 'enviado'],
+                ['Fatura e chat', 'Pagamento em dia', 'Próxima cobrança em 6 dias', 'Chat com o coach', ['Pix validado', 'Foto enviada', 'Plano alimentar ativo'], 'message', 'Anamnese', 'recebida'],
+              ].map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
+                <div key={title} className={`sales-phone-mockup ${index === 1 ? 'sm:mt-8' : ''}`}>
+                  <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
+                      <NavIcon name={floatingIcon} className="h-4 w-4" />
+                    </span>
+                    <span>
+                      <strong>{floatingTitle}</strong>
+                      <small>{floatingText}</small>
+                    </span>
+                  </div>
+                  <div className="sales-phone-screen">
+                    <div className="sales-phone-notch" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
+                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">09:30</span>
+                    </div>
+                    <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
+                    <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
+                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-blue-500/25 to-emerald-300/10 p-3">
+                      <p className="text-xs font-black text-emerald-100">{action}</p>
+                      <div className="mt-3 h-2 rounded-full bg-zinc-800">
+                        <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${62 + index * 11}%` }} />
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-2">
+                      {rows.map((row) => (
+                        <div key={row} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
+                          <span className="text-[10px] font-bold text-zinc-200">{row}</span>
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="sales-phone-bottom-nav">
+                      {[
+                        ['dashboard', 'Início'],
+                        ['wallet', 'Fatura'],
+                        ['message', 'Chat'],
+                        ['menu', 'Menu'],
+                      ].map(([icon, label]) => (
+                        <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
+                          <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Uma estrutura para toda a operação</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Tudo que o coach precisa para entregar acompanhamento premium</h2>
-              <p className="mt-4 leading-7 text-zinc-400">Menos ferramentas espalhadas, menos tarefas manuais e uma experiência mais clara para cada aluno.</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Solução completa</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A estrutura que transforma atendimento em operação.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">O FIT COACH organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['01', 'Alunos e anamnese', 'Cadastro, código automático, anamnese quando necessária e histórico centralizado.'],
-                ['02', 'Treinos com execução guiada', 'Prescrição por exercício, séries, cargas, orientações e acesso ao vídeo do movimento.'],
-                ['03', 'Nutrição inteligente', 'Planos alimentares, busca de alimentos e cálculo automático de macronutrientes.'],
-                ['04', 'Evolução visual', 'Avaliações, medidas, fotos, gráficos e leitura clara do progresso.'],
-                ['05', 'Agenda e comunicação', 'Compromissos, mensagens e notificações para manter o acompanhamento ativo.'],
-                ['06', 'Financeiro organizado', 'Planos, cobranças, vencimentos e situação de pagamento de cada aluno.'],
+                ['01', 'Aluno 360º', 'Cadastro, anamnese, histórico, fotos, pagamentos, treino e dieta conectados em uma ficha única.'],
+                ['02', 'Treinos profissionais', 'Prescrição por exercício, séries, cargas, notas do coach e vídeo de execução quando necessário.'],
+                ['03', 'Nutrição com macros', 'Planos alimentares, alimentos da biblioteca, itens manuais e substituições equivalentes.'],
+                ['04', 'Evolução comparável', 'Fotos, medidas, avaliações e gráficos para o coach mostrar progresso com clareza.'],
+                ['05', 'Engajamento do aluno', 'Desafios, meta de água, check-ins, feedbacks e lembretes para manter constância.'],
+                ['06', 'Financeiro sem bagunça', 'Planos próprios do coach, cobranças, status de pagamento e comprovantes organizados.'],
               ].map(([number, title, description], index) => (
                 <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
                   <span className="text-xs font-black text-blue-300">{number}</span>
@@ -2178,13 +2288,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="mecanismo" className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal className="lg:sticky lg:top-28">
-              <p className="text-sm font-semibold uppercase text-emerald-300">O custo da desorganização</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu acompanhamento pode ser excelente e ainda parecer improvisado.</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">O custo invisível do improviso</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu método pode ser excelente e ainda parecer menor do que realmente é.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e tem dificuldade para demonstrar tudo que entrega.
+                Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e perde força na hora de justificar preço, renovar e escalar.
               </p>
             </div>
             <div className="grid gap-3">
@@ -2202,6 +2312,59 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   <span className="w-fit rounded border border-blue-300/30 bg-blue-300/10 px-3 py-2 text-xs font-black text-blue-100">{solution}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/80 py-10 sm:py-14">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div data-reveal>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Motor de recorrência</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Organização, cobrança e retenção trabalhando no mesmo fluxo.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">
+                O FIT COACH não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {[
+                  ['Centraliza', 'Fim do PDF, Excel e mensagem perdida.'],
+                  ['Cobra', 'Vencimentos, Pix e validação em um só lugar.'],
+                  ['Retém', 'Desafios, feedbacks e evolução mantêm o aluno ativo.'],
+                ].map(([title, text]) => (
+                  <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
+                    <p className="text-sm font-black text-emerald-100">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div data-reveal className="rounded-md border border-emerald-300/20 bg-zinc-950/85 p-5 shadow-2xl shadow-black/30">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase text-blue-200">Dashboard financeiro</p>
+                  <h3 className="mt-2 text-2xl font-black">Vendas e renovações</h3>
+                </div>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {[
+                  ['Vendas no mês', 'R$ 8.940', '+18%'],
+                  ['Renovações', '32', '7 dias'],
+                  ['Ticket médio', 'R$ 279', 'por aluno'],
+                  ['A receber', 'R$ 2.310', 'pendente'],
+                ].map(([label, value, detail]) => (
+                  <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
+                    <p className="mt-2 text-2xl font-black text-white">{value}</p>
+                    <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 flex h-28 items-end gap-2 rounded-lg border border-white/10 bg-white/[0.025] p-3">
+                {[34, 52, 46, 68, 59, 74, 88, 82, 96].map((height, index) => (
+                  <span key={index} className="flex-1 rounded-t bg-gradient-to-t from-emerald-700 to-emerald-300" style={{ height: `${height}%` }} />
+                ))}
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.</p>
             </div>
           </div>
         </section>
@@ -2232,12 +2395,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="app-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu serviço continua sendo seu. A percepção se torna muito maior.</h2>
-              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças e falar com o coach.</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
+              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
               <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
                 Profissionalizar meu acompanhamento
               </button>
@@ -2245,9 +2408,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ['Primeiro acesso', 'Código individual, consentimento e anamnese guiada.'],
-                ['Rotina diária', 'Treino e alimentação sempre disponíveis no celular.'],
-                ['Prestação de contas', 'Check-ins, fotos e conclusão de treinos registrados.'],
-                ['Proximidade', 'Mensagens, agenda e orientações em um só ambiente.'],
+                ['Rotina diária', 'Treino, alimentação, água e desafios sempre disponíveis no celular.'],
+                ['Prestação de contas', 'Check-ins, fotos, feedbacks e conclusão de treinos registrados.'],
+                ['Proximidade', 'Chat em tempo real, agenda e orientações em um só ambiente.'],
               ].map(([title, text], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card rounded-md border border-white/10 bg-zinc-950/70 p-5">
                   <h3 className="font-black text-emerald-200">{title}</h3>
@@ -2258,7 +2421,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="simulador" className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-blue-300">Potencial de faturamento</p>
@@ -2386,7 +2549,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="duvidas" className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center" data-reveal>
             <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
             <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o FIT COACH</h2>
@@ -2411,7 +2574,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/80 py-10 sm:py-14">
+        <section id="precos" className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/80 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6" data-reveal>
             <div className="overflow-hidden rounded-md border border-emerald-300/25 bg-[#070b0a] shadow-2xl shadow-black/40">
               <div className="grid gap-5 p-5 sm:p-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-stretch">
@@ -2432,7 +2595,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                     {[
                       ['Acesso completo', 'todas as ferramentas liberadas'],
                       ['Sem limite inicial', 'cadastre sua carteira ativa'],
-                      ['Acesso completo', 'painel do coach e portal do aluno'],
+                      ['Mensalidade fixa', 'depois apenas R$ 49,90/mês'],
                     ].map(([value, label]) => (
                       <div key={label} className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-4">
                         <p className="break-words text-lg font-black text-emerald-100">{value}</p>
@@ -6655,6 +6818,41 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
   const paidTotal = invoices
     .filter((invoice) => invoice.status === 'Pago')
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const now = new Date()
+  const paidThisMonth = invoices
+    .filter((invoice) => {
+      if (invoice.status !== 'Pago') return false
+      const paidAt = new Date(invoice.paidAt || invoice.dueDate)
+      return paidAt.getMonth() === now.getMonth() && paidAt.getFullYear() === now.getFullYear()
+    })
+  const salesThisMonth = paidThisMonth.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const renewalsNext7Days = invoices.filter((invoice) => {
+    const status = getInvoiceStatus(invoice)
+    if (['Pago', 'Cancelado'].includes(status)) return false
+    const due = new Date(`${invoice.dueDate}T12:00:00`)
+    const diffDays = Math.ceil((due - now) / 86400000)
+    return diffDays >= 0 && diffDays <= 7
+  })
+  const paidCount = invoices.filter((invoice) => invoice.status === 'Pago').length
+  const averageTicket = paidCount ? paidTotal / paidCount : 0
+  const forecast30Days = invoices
+    .filter((invoice) => {
+      const status = getInvoiceStatus(invoice)
+      if (['Pago', 'Cancelado'].includes(status)) return false
+      const due = new Date(`${invoice.dueDate}T12:00:00`)
+      const diffDays = Math.ceil((due - now) / 86400000)
+      return diffDays >= 0 && diffDays <= 30
+    })
+    .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const activePlanRevenue = students
+    .filter((student) => student.status !== 'Inativo')
+    .reduce((sum, student) => sum + getPlanMonthlyPrice(student.plan, coachPlans), 0)
+  const planSummary = coachPlans.map((plan) => ({
+    ...plan,
+    students: students.filter((student) => student.plan === plan.name && student.status !== 'Inativo').length,
+    billingValue: getPlanBillingAmount(plan.name, coachPlans),
+    monthlyValue: getPlanMonthlyPrice(plan.name, coachPlans),
+  }))
   const pendingTotal = invoices
     .filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
@@ -6738,7 +6936,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     setError('')
     try {
       for (const student of chargeableStudents) {
-        const amount = getPlanMonthlyPrice(student.plan, coachPlans) || 197
+        const amount = getPlanBillingAmount(student.plan, coachPlans) || 197
         const dueDate = getDefaultDueDate()
         await onSaveInvoice({
           studentId: student.id,
@@ -6760,10 +6958,46 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
 
   return (
     <div className="grid gap-4 lg:gap-6">
-      <section className="grid gap-3 sm:grid-cols-3">
-        <Metric label="Recebido" value={formatCurrency(paidTotal)} detail={`${invoices.filter((item) => item.status === 'Pago').length} pagamentos`} />
-        <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
-        <Metric label="Em atraso" value={overdueCount} detail="cobranças vencidas" />
+      <section className="rounded-md border border-emerald-300/20 bg-zinc-950/80 p-4 shadow-2xl shadow-black/20">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase text-emerald-300">Dashboard financeiro</p>
+            <h3 className="mt-2 text-2xl font-black text-white">Vendas, renovações e previsibilidade</h3>
+          </div>
+          <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
+          <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
+          <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
+          <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalsNext7Days.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0))} />
+          <Metric label="Ticket médio" value={formatCurrency(averageTicket)} detail="por pagamento confirmado" />
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-blue-200">Previsão dos próximos 30 dias</p>
+                <p className="mt-2 text-3xl font-black text-white">{formatCurrency(forecast30Days)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-zinc-500">Carteira ativa/mês</p>
+                <p className="mt-1 text-lg font-black text-emerald-200">{formatCurrency(activePlanRevenue)}</p>
+              </div>
+            </div>
+            <div className="mt-4 h-2 rounded-full bg-zinc-800">
+              <div className="h-2 rounded-full bg-gradient-to-r from-emerald-300 to-blue-500" style={{ width: `${Math.min(100, Math.round((salesThisMonth / Math.max(1, activePlanRevenue)) * 100))}%` }} />
+            </div>
+          </div>
+          <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-black uppercase text-zinc-400">Status financeiro</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div><p className="text-lg font-black text-amber-200">{invoices.filter((item) => getInvoiceStatus(item) === 'Pendente').length}</p><p className="text-xs text-zinc-500">pendentes</p></div>
+              <div><p className="text-lg font-black text-rose-200">{overdueCount}</p><p className="text-xs text-zinc-500">atrasadas</p></div>
+              <div><p className="text-lg font-black text-emerald-200">{students.filter((student) => student.payment === 'Pago').length}</p><p className="text-xs text-zinc-500">liberados</p></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
@@ -6790,7 +7024,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
               <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
               <Field label="Nome do plano" name="planName" defaultValue={coachPlans[0]?.name || 'Acompanhamento mensal'} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Valor (R$)" name="amount" type="number" defaultValue={String(getPlanMonthlyPrice(coachPlans[0]?.name, coachPlans) || 197)} />
+                <Field label="Valor (R$)" name="amount" type="number" defaultValue={String(getPlanBillingAmount(coachPlans[0]?.name, coachPlans) || 197)} />
                 <Field label="Vencimento" name="dueDate" type="date" defaultValue={getDefaultDueDate()} />
               </div>
               <Field label="Descrição" name="description" defaultValue="Mensalidade do acompanhamento" />
@@ -6805,14 +7039,15 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           )}
 
           <div className="mt-5 grid gap-3">
-            {coachPlans.map((plan) => (
+            {planSummary.map((plan) => (
               <div key={plan.name} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h4 className="font-black">{plan.name}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{plan.features}</p>
+                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {plan.students} aluno(s) ativo(s)</p>
                   </div>
-                  <span className="text-lg font-black text-blue-300">{plan.price}</span>
+                  <span className="text-right text-lg font-black text-blue-300">{formatCurrency(plan.billingValue)}</span>
                 </div>
               </div>
             ))}
@@ -7128,13 +7363,23 @@ function CoachSettings({ user, settings, onSave, onExport }) {
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm font-black text-zinc-100">Planos e valores do treinador</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">Cadastre um plano por linha no formato: Nome do plano | Valor | Descrição.</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | Descrição. Ciclos aceitos: semanal, mensal, semestral ou anual.
+            </p>
             <textarea
               value={plansDraft}
               onChange={(event) => setPlansDraft(event.target.value)}
-              rows={5}
+              rows={6}
               className="mt-3 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none focus:border-emerald-500"
             />
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {getCoachPlans({ customPlans: parseCustomPlans(plansDraft) }).slice(0, 4).map((plan) => (
+                <div key={plan.name} className="rounded-md border border-white/10 bg-zinc-950/70 p-3">
+                  <p className="text-sm font-black text-white">{plan.name}</p>
+                  <p className="mt-1 text-xs font-bold text-emerald-200">{formatCurrency(getPlanBillingAmount(plan.name, [plan]))} · {getPlanCycleLabel(plan)}</p>
+                </div>
+              ))}
+            </div>
           </div>
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar configurações'}
@@ -8268,7 +8513,19 @@ function formatCurrency(value) {
 function getPlanMonthlyPrice(planName, availablePlans = plans) {
   const plan = availablePlans.find((item) => item.name === planName) ?? plans.find((item) => item.name === planName)
   if (!plan) return 0
-  const normalized = plan.price.replace(/[^\d,]/g, '').replace(',', '.')
+  const value = getPlanBillingAmount(planName, availablePlans)
+  if (!Number.isFinite(value)) return 0
+  const cycle = normalizePlanCycle(plan.cycle)
+  if (cycle === 'semanal') return value * 4.33
+  if (cycle === 'semestral') return value / 6
+  if (cycle === 'anual') return value / 12
+  return value
+}
+
+function getPlanBillingAmount(planName, availablePlans = plans) {
+  const plan = availablePlans.find((item) => item.name === planName) ?? plans.find((item) => item.name === planName)
+  if (!plan) return 0
+  const normalized = String(plan.price || '').replace(/[^\d,.-]/g, '').replace(',', '.')
   const value = Number(normalized)
   return Number.isFinite(value) ? value : 0
 }
@@ -8279,6 +8536,8 @@ function getCoachPlans(settings) {
     .map((plan) => ({
       name: String(plan?.name || '').trim(),
       price: String(plan?.price || '').trim(),
+      cycle: normalizePlanCycle(plan?.cycle || plan?.duration || 'mensal'),
+      duration: String(plan?.duration || getPlanCycleLabel(plan)).trim(),
       features: String(plan?.features || '').trim(),
     }))
     .filter((plan) => plan.name)
@@ -8292,10 +8551,15 @@ function parseCustomPlans(value) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name = '', price = '', features = ''] = line.split('|').map((part) => part.trim())
+      const [name = '', price = '', cycleOrFeatures = '', featuresOrEmpty = ''] = line.split('|').map((part) => part.trim())
+      const hasExplicitCycle = ['semanal', 'mensal', 'semestral', 'anual'].includes(normalizePlanCycle(cycleOrFeatures))
+      const cycle = hasExplicitCycle ? normalizePlanCycle(cycleOrFeatures) : 'mensal'
+      const features = hasExplicitCycle ? featuresOrEmpty : cycleOrFeatures
       return {
         name,
         price: normalizePlanPrice(price),
+        cycle,
+        duration: getPlanCycleLabel({ cycle }),
         features: features || 'Plano do treinador',
       }
     })
@@ -8304,7 +8568,7 @@ function parseCustomPlans(value) {
 
 function formatPlansDraft(customPlans) {
   const source = Array.isArray(customPlans) && customPlans.length ? customPlans : plans
-  return source.map((plan) => `${plan.name} | ${plan.price} | ${plan.features || ''}`).join('\n')
+  return source.map((plan) => `${plan.name} | ${plan.price} | ${normalizePlanCycle(plan.cycle)} | ${plan.features || ''}`).join('\n')
 }
 
 function normalizePlanPrice(value) {
@@ -8313,6 +8577,22 @@ function normalizePlanPrice(value) {
   if (/^r\$/i.test(raw)) return raw
   const number = Number(raw.replace(/[^\d,.-]/g, '').replace(',', '.'))
   return Number.isFinite(number) ? formatCurrency(number) : raw
+}
+
+function normalizePlanCycle(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized.includes('semana')) return 'semanal'
+  if (normalized.includes('semestre') || normalized.includes('semes')) return 'semestral'
+  if (normalized.includes('ano') || normalized.includes('anual')) return 'anual'
+  return 'mensal'
+}
+
+function getPlanCycleLabel(plan) {
+  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
+  if (cycle === 'semanal') return 'cobrança semanal'
+  if (cycle === 'semestral') return 'cobrança semestral'
+  if (cycle === 'anual') return 'cobrança anual'
+  return 'cobrança mensal'
 }
 
 function getBillingBrand(settings) {
