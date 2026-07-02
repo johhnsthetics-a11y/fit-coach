@@ -894,7 +894,7 @@ function fromCoachSubscriptionRow(row) {
     nextBillingAt: row.next_billing_at,
     firstMonthPrice: Number(row.first_month_price_cents ?? 990) / 100,
     regularPrice: Number(row.regular_price_cents ?? 4990) / 100,
-    maintenanceRate: Number(row.maintenance_rate ?? 0.02),
+    maintenanceRate: Number(row.maintenance_rate ?? 0),
     provider: row.provider ?? 'lastlink',
     providerCustomerId: row.provider_customer_id ?? '',
     providerSubscriptionId: row.provider_subscription_id ?? '',

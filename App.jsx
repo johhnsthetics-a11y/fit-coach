@@ -2398,7 +2398,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
               ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
               ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o FIT COACH por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
-              ['Como funciona o valor depois do primeiro mês?', 'Após o primeiro mês promocional, a assinatura passa para R$ 49,90 mais 2% sobre o valor mensal dos planos dos alunos ativos cadastrados. O resumo fica visível antes do fechamento.'],
+              ['Como funciona o valor depois do primeiro mês?', 'Após o primeiro mês promocional, a assinatura passa para R$ 49,90 por mês. O coach continua com acesso ao painel completo, portal do aluno, treinos, nutrição, cobranças e acompanhamento em um só lugar.'],
             ].map(([question, answer], index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
@@ -2426,11 +2426,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   </div>
                   <h2 className="mt-6 max-w-3xl text-2xl font-bold leading-tight sm:text-3xl">Comece pequeno no investimento e grande na experiência entregue aos seus alunos.</h2>
                   <p className="mt-4 max-w-2xl leading-7 text-zinc-300">
-                    Acesse toda a estrutura do FIT COACH com <strong className="text-emerald-100">isenção total da taxa de manutenção</strong>. Use o primeiro mês para organizar sua carteira e perceber o ganho na rotina.
+                    Acesse toda a estrutura do FIT COACH com <strong className="text-emerald-100">condição especial de lançamento</strong>. Use o primeiro mês para organizar sua carteira e perceber o ganho na rotina.
                   </p>
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     {[
-                      ['0% de taxa', 'isenção total no primeiro mês'],
+                      ['Acesso completo', 'todas as ferramentas liberadas'],
                       ['Sem limite inicial', 'cadastre sua carteira ativa'],
                       ['Acesso completo', 'painel do coach e portal do aluno'],
                     ].map(([value, label]) => (
@@ -2455,12 +2455,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                     <span className="pb-1 text-sm font-bold text-zinc-400">por mês</span>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-zinc-500">
-                    Mais 2% sobre o valor mensal do plano de cada aluno ativo cadastrado. Você acompanha a composição antes do fechamento, aluno por aluno.
+                    Mensalidade fixa para manter sua operação organizada, com painel do treinador, portal do aluno, treinos, nutrição, chat e controle financeiro.
                   </p>
                   <div className="mt-5 grid gap-3 border-t border-white/10 pt-5">
-                    <ObjectionPoint text="Cobrança proporcional ao tamanho da operação." />
-                    <ObjectionPoint text="Cálculo detalhado por aluno." />
-                    <ObjectionPoint text="Resumo disponível antes do pagamento." />
+                    <ObjectionPoint text="Sem taxa variável por aluno." />
+                    <ObjectionPoint text="Mais previsibilidade para planejar seus custos." />
+                    <ObjectionPoint text="Estrutura completa para elevar a percepção de valor do seu serviço." />
                   </div>
                 </div>
               </div>
@@ -6460,10 +6460,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const billingCycle = getCoachBillingCycle(subscription, userCreatedAt, currentTime)
   const firstMonthPrice = subscription?.firstMonthPrice ?? 9.9
   const regularPrice = subscription?.regularPrice ?? 49.9
-  const maintenanceRate = subscription?.maintenanceRate ?? 0.02
-  const maintenanceFee = estimatedRevenue * maintenanceRate
   const firstMonthTotal = firstMonthPrice
-  const regularTotal = regularPrice + maintenanceFee
+  const regularTotal = regularPrice
   const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
   const currentCheckoutUrl = billingCycle.isPromotional ? firstMonthCheckoutUrl : regularCheckoutUrl
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
@@ -6475,7 +6473,6 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     return {
       ...student,
       monthlyValue,
-      maintenanceValue: monthlyValue * maintenanceRate,
     }
   })
 
@@ -6490,7 +6487,6 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       `Alunos ativos: ${activeStudents.length}`,
       `Receita estimada da carteira: ${formatCurrency(estimatedRevenue)}`,
       `Mensalidade regular: ${formatCurrency(regularPrice)}`,
-      `Taxa de manutenção (${formatPercent(maintenanceRate)}): ${formatCurrency(maintenanceFee)}`,
       `Total regular estimado: ${formatCurrency(regularTotal)}`,
     ].join('\n')
 
@@ -6511,7 +6507,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             <p className="text-xs font-black uppercase text-emerald-300">Sua assinatura FIT COACH</p>
             <h3 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">Uma estrutura profissional que cresce junto com sua carteira.</h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>, com isenção total da taxa de manutenção. Depois, a mensalidade é de {formatCurrency(regularPrice)} mais {formatPercent(maintenanceRate)} sobre o valor dos planos dos alunos ativos cadastrados.
+              Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>. Depois, a mensalidade fica em {formatCurrency(regularPrice)} por mês, mantendo todas as ferramentas liberadas para operar com previsibilidade.
             </p>
           </div>
           <div className="min-w-0 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
@@ -6519,8 +6515,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             <p className="mt-2 break-words text-4xl font-black text-white">{formatCurrency(currentBillingTotal)}</p>
             <p className="mt-2 text-xs leading-5 text-emerald-100">
               {billingCycle.isPromotional
-                ? 'Taxa de manutenção totalmente isenta neste ciclo.'
-                : `${formatCurrency(regularPrice)} + ${formatCurrency(maintenanceFee)} de manutenção estimada.`}
+                ? 'Condição especial de entrada ativa neste ciclo.'
+                : `${formatCurrency(regularPrice)} de mensalidade fixa.`}
             </p>
             <div className="mt-4 border-t border-emerald-300/20 pt-4">
               <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança em</p>
@@ -6542,21 +6538,19 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
         <Panel title="Composição da cobrança" action={`Fecha em ${formatDate(closingDate.toISOString())}`}>
           <div className="grid gap-3">
             <BillingLine label="Mensalidade do primeiro mês" value={formatCurrency(firstMonthPrice)} note="Condição especial de entrada" />
-            <BillingLine label="Taxa no primeiro mês" value={formatCurrency(0)} note={`Isenção de ${formatCurrency(maintenanceFee)} neste ciclo`} />
             <BillingLine label="Mensalidade após o primeiro mês" value={formatCurrency(regularPrice)} note="Valor fixo mensal" />
-            <BillingLine label="Taxa nos meses seguintes" value={formatCurrency(maintenanceFee)} note={`${formatPercent(maintenanceRate)} sobre ${formatCurrency(estimatedRevenue)} em planos ativos`} />
             <div className="mt-1 rounded-md border border-emerald-300/30 bg-emerald-400/10 p-4">
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase text-emerald-200">Próximos fechamentos</p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-400">Mensalidade regular somada à taxa da carteira ativa.</p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-400">Mensalidade fixa para manter sua operação previsível.</p>
                 </div>
                 <p className="break-words text-3xl font-black text-white">{formatCurrency(regularTotal)}</p>
               </div>
             </div>
           </div>
           <button type="button" onClick={() => setShowDetails((current) => !current)} className="mt-4 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-            {showDetails ? 'Ocultar alunos considerados' : 'Ver alunos considerados'}
+            {showDetails ? 'Ocultar carteira ativa' : 'Ver carteira ativa'}
           </button>
           {showDetails ? (
             <div className="mt-3 grid gap-2">
@@ -6567,11 +6561,11 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                     <p className="mt-1 break-words text-xs text-zinc-500">{student.plan} · mensalidade de {formatCurrency(student.monthlyValue)}</p>
                   </div>
                   <div className="shrink-0 text-left sm:text-right">
-                    <p className="text-xs text-zinc-500">Taxa de 2%</p>
-                    <p className="mt-1 text-sm font-black text-cyan-200">{formatCurrency(student.maintenanceValue)}</p>
+                    <p className="text-xs text-zinc-500">Plano mensal</p>
+                    <p className="mt-1 text-sm font-black text-cyan-200">{formatCurrency(student.monthlyValue)}</p>
                   </div>
                 </div>
-              )) : <Empty text="Cadastre alunos e selecione os planos para calcular a taxa." />}
+              )) : <Empty text="Cadastre alunos e selecione os planos para acompanhar sua carteira." />}
             </div>
           ) : null}
         </Panel>
@@ -6616,7 +6610,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             <button type="button" onClick={copyBillingSummary} className="mt-3 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
               {copied ? 'Resumo copiado' : 'Copiar resumo da cobrança'}
             </button>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">A cobrança recorrente será conferida no fechamento mensal, mantendo o primeiro mês com isenção total da taxa de manutenção.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">A cobrança recorrente mantém o valor fixo mensal após o primeiro ciclo promocional.</p>
           </Panel>
         </div>
       </div>
