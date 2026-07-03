@@ -42,7 +42,56 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
+const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
+const cartpandaCheckoutPlans = [
+  {
+    id: 'mensal',
+    name: 'Mensal',
+    cycle: 'cobrança mensal',
+    badge: 'Mais flexível',
+    price: 'R$ 49,90',
+    suffix: '/mês',
+    oldPrice: '',
+    total: 'Total em 12 meses: R$ 598,80',
+    economy: 'Pague mês a mês',
+    equivalent: 'sem compromisso de ciclo longo',
+    checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
+    description: 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
+    highlights: ['Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
+  },
+  {
+    id: 'semestral',
+    name: 'Semestral',
+    cycle: 'ciclo de 6 meses',
+    badge: 'Mais escolhido',
+    price: 'R$ 239,40',
+    suffix: '/semestre',
+    oldPrice: 'R$ 299,40',
+    total: 'Equivale a R$ 39,90/mês',
+    economy: 'Economize R$ 60,00',
+    equivalent: 'melhor equilíbrio entre economia e flexibilidade',
+    checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211373219:1?subscription=4479',
+    description: 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
+    highlights: ['Acesso completo ao painel', 'Menos renovações no ano', 'Rotina financeira previsível', 'Boa opção para equipes em crescimento'],
+  },
+  {
+    id: 'anual',
+    name: 'Anual',
+    cycle: 'ciclo de 12 meses',
+    badge: 'Maior economia',
+    price: 'R$ 358,80',
+    suffix: '/ano',
+    oldPrice: 'R$ 598,00',
+    total: 'Equivale a R$ 29,90/mês',
+    economy: 'Economize R$ 239,20',
+    equivalent: 'menor custo para operar o ano inteiro',
+    checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
+    description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
+    highlights: ['Acesso completo por 12 meses', 'Planejamento de longo prazo', 'Foco em escala e retenção', 'Melhor para operações maduras'],
+  },
+]
+const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
 
 const plans = [
   { name: 'Acompanhamento mensal', price: 'R$ 197', cycle: 'mensal', duration: '1 mês', features: 'Plano padrão configurável pelo treinador' },
@@ -1686,7 +1735,7 @@ export default function App() {
   return (
     <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
-        <BrandLockup compact subtitle="FIT COACH" />
+        <BrandLockup compact subtitle="Coach Fit Pro" />
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
@@ -1783,7 +1832,7 @@ export default function App() {
                 <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
                   <NavIcon name={activeNavItem?.icon} className="h-5 w-5" />
                 </span>
-                <p className="text-xs font-black uppercase text-zinc-400">FIT COACH / Central do coach</p>
+                <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro / Central do coach</p>
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
@@ -1807,7 +1856,7 @@ export default function App() {
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Conclua o pagamento seguro usando o mesmo e-mail da conta. Ao voltar do checkout, o FIT COACH verifica automaticamente a confirmação e libera o painel assim que o pagamento for aprovado.
+                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que o pagamento for aprovado.
               </p>
             </div>
           ) : null}
@@ -1960,7 +2009,7 @@ function AppLoading() {
     <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
       <section className="w-full max-w-sm rounded-md border border-white/10 bg-zinc-950/85 p-6 text-center shadow-2xl shadow-black/30">
         <div className="flex justify-center">
-          <BrandLockup large subtitle="FIT COACH" />
+          <BrandLockup large subtitle="Coach Fit Pro" />
         </div>
         <div className="mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
           <span className="block h-full w-1/2 animate-pulse rounded bg-emerald-400" />
@@ -2014,7 +2063,7 @@ function PasswordRecovery({ onSave }) {
     <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
       <form onSubmit={handleSubmit} className="w-full max-w-md rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 sm:p-7">
         <div className="flex justify-center">
-          <BrandLockup subtitle="FIT COACH" />
+          <BrandLockup subtitle="Coach Fit Pro" />
         </div>
         <p className="mt-6 text-xs font-black uppercase text-emerald-300">Recuperação de acesso</p>
         <h1 className="mt-2 text-2xl font-black">Cadastre sua nova senha</h1>
@@ -2035,12 +2084,14 @@ function PasswordRecovery({ onSave }) {
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
   const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
+  const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [revenueScenario, setRevenueScenario] = useState({
     students: 20,
     monthlyPrice: 250,
     additionalStudents: 6,
     priceIncrease: 30,
   })
+  const selectedOfferPlan = cartpandaCheckoutPlans.find((plan) => plan.id === selectedOfferPlanId) || cartpandaCheckoutPlans[1]
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -2137,6 +2188,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
     openAccess('signup')
   }
 
+  function startPlanSignup(planId) {
+    try {
+      window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
+    } catch {
+      // Mantem o fluxo normal mesmo se o navegador bloquear armazenamento local.
+    }
+    openAccess('signup')
+  }
+
   function leaveSalesPreview() {
     const url = new URL(window.location.href)
     if (!url.searchParams.has('preview')) return
@@ -2163,7 +2223,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/10 bg-[#020816]/94 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
-          <BrandLockup compact subtitle="FIT COACH" />
+          <BrandLockup compact subtitle="Coach Fit Pro" />
           <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
             {[
               ['Solução', 'recursos'],
@@ -2187,8 +2247,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
               Entrar
             </button>
-            <button type="button" onClick={() => openAccess('signup')} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
-              Começar por R$ 9,90
+            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
+              Ver planos
             </button>
           </div>
         </div>
@@ -2205,18 +2265,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <button type="button" onClick={() => openAccess('signup')} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
-                Começar por R$ 9,90
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
+                Escolher meu plano
               </button>
               <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
                 Ver como funciona
               </button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">Primeiro mês promocional. Depois R$ 49,90/mês. Sem taxa por aluno.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.</p>
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
               <SalesStat value="1 painel" label="toda a operação" />
               <SalesStat value="App aluno" label="experiência premium" />
-              <SalesStat value="R$ 49,90" label="mensal fixo" />
+              <SalesStat value="3 planos" label="mensal, semestral e anual" />
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
               {[
@@ -2401,7 +2461,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             <div className="max-w-3xl" data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Solução completa</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A estrutura que transforma atendimento em operação.</h2>
-              <p className="mt-4 leading-7 text-zinc-400">O FIT COACH organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.</p>
+              <p className="mt-4 leading-7 text-zinc-400">O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
@@ -2456,7 +2516,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <p className="text-sm font-semibold uppercase text-emerald-300">Motor de recorrência</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Organização, cobrança e retenção trabalhando no mesmo fluxo.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                O FIT COACH não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.
+                O Coach Fit Pro não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 {[
@@ -2522,7 +2582,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   <p className="text-xs font-black uppercase text-cyan-300">{item}</p>
                   <p className="mt-3 text-sm leading-6 text-zinc-500"><strong className="text-zinc-400">Antes:</strong> {before}</p>
                   <div className="my-3 h-px bg-white/10" />
-                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">Com FIT COACH:</strong> {after}</p>
+                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">Com Coach Fit Pro:</strong> {after}</p>
                 </div>
               ))}
             </div>
@@ -2561,7 +2621,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <p className="text-sm font-semibold uppercase text-blue-300">Potencial de faturamento</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
               <p className="mt-4 leading-7 text-zinc-300">
-                O FIT COACH reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
+                O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
               </p>
               <div className="mt-6 grid gap-3">
                 {[
@@ -2658,7 +2718,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
             </div>
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
               <div data-reveal className="rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-emerald-300">O FIT COACH faz sentido para você que</p>
+                <p className="text-xs font-black uppercase text-emerald-300">O Coach Fit Pro faz sentido para você que</p>
                 <div className="mt-4 grid gap-3">
                   {[
                     'Atende alunos online, presencialmente ou de forma híbrida.',
@@ -2686,16 +2746,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
         <section id="duvidas" className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center" data-reveal>
             <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o FIT COACH</h2>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o Coach Fit Pro</h2>
           </div>
           <div className="mt-9 grid gap-3">
             {[
               ['Meus alunos precisam instalar alguma coisa?', 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.'],
-              ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O FIT COACH organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
+              ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O Coach Fit Pro organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
               ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
               ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
-              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o FIT COACH por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
-              ['Como funciona o valor depois do primeiro mês?', 'Após o primeiro mês promocional, a assinatura passa para R$ 49,90 por mês. O coach continua com acesso ao painel completo, portal do aluno, treinos, nutrição, cobranças e acompanhamento em um só lugar.'],
+              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
+              ['Quais planos estão disponíveis?', 'Você pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutrição, cobranças, chat e acompanhamento em um só lugar. O valor e a condição de cada plano aparecem na etapa de pagamento da Cartpanda.'],
             ].map(([question, answer], index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
@@ -2708,57 +2768,93 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           </div>
         </section>
 
-        <section id="precos" className="sales-section sales-section-final border-t border-white/10 bg-zinc-950/80 py-10 sm:py-14">
+        <section id="precos" className="sales-section sales-section-final border-t border-white/10 bg-[#04070d] py-12 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6" data-reveal>
-            <div className="overflow-hidden rounded-md border border-emerald-300/25 bg-[#070b0a] shadow-2xl shadow-black/40">
-              <div className="grid gap-5 p-5 sm:p-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-stretch">
-                <div className="min-w-0 rounded-md border border-emerald-300/30 bg-gradient-to-br from-emerald-400/15 via-emerald-950/10 to-transparent p-5 sm:p-7">
-                  <span className="inline-flex rounded bg-emerald-400 px-3 py-2 text-xs font-black uppercase text-zinc-950">
-                    Oferta de lançamento
-                  </span>
-                  <p className="mt-5 text-sm font-black uppercase text-emerald-200">Seu primeiro mês completo por</p>
-                  <div className="mt-2 flex flex-wrap items-end gap-3">
-                    <span className="text-6xl font-black leading-none text-white sm:text-7xl">R$ 9,90</span>
-                    <span className="pb-1 text-sm font-bold text-zinc-400">pagamento único no primeiro ciclo</span>
-                  </div>
-                  <h2 className="mt-6 max-w-3xl text-2xl font-bold leading-tight sm:text-3xl">Comece pequeno no investimento e grande na experiência entregue aos seus alunos.</h2>
-                  <p className="mt-4 max-w-2xl leading-7 text-zinc-300">
-                    Acesse toda a estrutura do FIT COACH com <strong className="text-emerald-100">condição especial de lançamento</strong>. Use o primeiro mês para organizar sua carteira e perceber o ganho na rotina.
-                  </p>
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    {[
-                      ['Acesso completo', 'todas as ferramentas liberadas'],
-                      ['Sem limite inicial', 'cadastre sua carteira ativa'],
-                      ['Mensalidade fixa', 'depois apenas R$ 49,90/mês'],
-                    ].map(([value, label]) => (
-                      <div key={label} className="min-w-0 rounded-md border border-white/10 bg-white/[0.035] p-4">
-                        <p className="break-words text-lg font-black text-emerald-100">{value}</p>
-                        <p className="mt-1 text-xs leading-5 text-zinc-500">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" onClick={startFirstMonthOffer} className="mt-6 w-full rounded-md bg-emerald-400 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/30 sm:w-auto">
-                    Garantir meu primeiro mês por R$ 9,90
-                  </button>
-                  <p className="mt-3 text-xs leading-5 text-zinc-500">
-                    Crie sua conta agora. Depois você será levado para a página de assinatura para ativar o primeiro mês.
-                  </p>
-                </div>
+            <div className="mx-auto max-w-4xl text-center">
+              <p className="text-sm font-black uppercase text-emerald-300">Planos Coach Fit Pro</p>
+              <h2 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
+                Comece hoje. Escale no seu ritmo.
+              </h2>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
+                Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
+              </p>
 
-                <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.025] p-5 sm:p-6">
-                  <p className="text-xs font-black uppercase text-zinc-500">Transparência nos próximos ciclos</p>
-                  <div className="mt-4 flex flex-wrap items-end gap-2">
-                    <span className="text-2xl font-black text-zinc-200">R$ 49,90</span>
-                    <span className="pb-1 text-sm font-bold text-zinc-400">por mês</span>
+              <div className="mx-auto mt-7 grid max-w-xl grid-cols-3 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30">
+                {cartpandaCheckoutPlans.map((plan) => {
+                  const selected = selectedOfferPlan.id === plan.id
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedOfferPlanId(plan.id)}
+                      className={`rounded-xl px-3 py-3 text-xs font-black transition sm:text-sm ${
+                        selected
+                          ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
+                          : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
+                      }`}
+                    >
+                      {plan.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
+              <div className="sales-interactive relative overflow-hidden rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/18 via-zinc-950 to-zinc-950 p-5 shadow-2xl shadow-blue-950/30 sm:p-8">
+                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true" />
+                <div className="relative">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase text-blue-300">{selectedOfferPlan.cycle}</p>
+                      <h3 className="mt-2 text-3xl font-black text-white sm:text-4xl">{selectedOfferPlan.name}</h3>
+                    </div>
+                    <span className="w-fit rounded-full bg-blue-500 px-4 py-2 text-xs font-black uppercase text-white shadow-lg shadow-blue-950/30">
+                      {selectedOfferPlan.badge}
+                    </span>
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-zinc-500">
-                    Mensalidade fixa para manter sua operação organizada, com painel do treinador, portal do aluno, treinos, nutrição, chat e controle financeiro.
+
+                  <div className="mt-7">
+                    {selectedOfferPlan.oldPrice ? <p className="text-base font-bold text-zinc-500 line-through">De {selectedOfferPlan.oldPrice}</p> : null}
+                    <div className="mt-1 flex flex-wrap items-end gap-3">
+                      <span className="text-5xl font-black leading-none text-white sm:text-6xl">{selectedOfferPlan.price}</span>
+                      <span className="pb-2 text-base font-bold text-zinc-400">{selectedOfferPlan.suffix}</span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                        <p className="text-xs font-black uppercase text-zinc-500">Comparativo</p>
+                        <p className="mt-1 text-sm font-black text-blue-200">{selectedOfferPlan.total}</p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                        <p className="text-xs font-black uppercase text-emerald-200">Vantagem</p>
+                        <p className="mt-1 text-sm font-black text-emerald-50">{selectedOfferPlan.economy}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
+
+                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-blue-500 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
+                    Assinar agora
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-zinc-950/92 p-5 shadow-2xl shadow-black/30 sm:p-6">
+                <p className="text-sm font-black uppercase text-zinc-400">Incluso no plano</p>
+                <div className="mt-5 grid gap-3">
+                  {selectedOfferPlan.highlights.map((item) => (
+                    <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200">
+                      <span className="text-blue-300">✓</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                  <p className="text-xs font-black uppercase text-emerald-200">Sem taxa por aluno</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">
+                    O treinador cresce a carteira sem pagar adicional por aluno cadastrado.
                   </p>
-                  <div className="mt-5 grid gap-3 border-t border-white/10 pt-5">
-                    <ObjectionPoint text="Sem taxa variável por aluno." />
-                    <ObjectionPoint text="Mais previsibilidade para planejar seus custos." />
-                    <ObjectionPoint text="Estrutura completa para elevar a percepção de valor do seu serviço." />
-                  </div>
                 </div>
               </div>
             </div>
@@ -2767,7 +2863,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
       </main>
 
       <footer className="border-t border-white/10 bg-[#05070d] px-4 py-6 text-center text-xs text-zinc-500">
-        FIT COACH · Gestão profissional de acompanhamento
+        Coach Fit Pro · Gestão profissional de acompanhamento
       </footer>
     </div>
   )
@@ -3406,7 +3502,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
         <span className="min-w-0">
           <span className="block font-black text-zinc-100">Aluno já acompanhado</span>
           <span className="mt-1 block text-sm leading-6 text-zinc-400">
-            Use para transferir um aluno atual para o FIT COACH. Ele aceitará o consentimento e entrará direto no portal, sem preencher uma nova anamnese.
+            Use para transferir um aluno atual para o Coach Fit Pro. Ele aceitará o consentimento e entrará direto no portal, sem preencher uma nova anamnese.
           </span>
         </span>
       </label>
@@ -4438,7 +4534,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
         <p className="font-black text-blue-100">Assistente inteligente de alimentos</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
-          Digite o alimento e a quantidade. O FIT COACH procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
+          Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
         </p>
       </div>
       <Select
@@ -5390,7 +5486,7 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
             <h1 className="mt-2 text-2xl font-black sm:text-3xl">Anamnese de {access.student.name}</h1>
             <p className="mt-2 text-sm leading-6 text-zinc-400">Estas informações serão enviadas com segurança ao seu coach para personalizar treino e alimentação.</p>
           </div>
-          <BrandLockup subtitle="FIT COACH" />
+          <BrandLockup subtitle="Coach Fit Pro" />
         </div>
 
         <section className="grid gap-4">
@@ -5909,7 +6005,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
         <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
           <StudentReminderCard
             title="Lembrete de treino"
-            body={`Hora de treinar, ${student.name}. Abra o FIT COACH e siga o plano de hoje.`}
+            body={`Hora de treinar, ${student.name}. Abra o Coach Fit Pro e siga o plano de hoje.`}
             action="Ativar lembrete"
           />
           <div className="mb-4 overflow-hidden rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
@@ -5951,7 +6047,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
         <StudentAppSection title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
           <StudentReminderCard
             title="Lembrete de refeição"
-            body={`${student.name}, confira sua refeição no FIT COACH para manter os macros do dia.`}
+            body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
             action="Ativar lembrete"
           />
           {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
@@ -6002,7 +6098,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <BrandLockup compact subtitle="FIT COACH" />
+          <BrandLockup compact subtitle="Coach Fit Pro" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-black uppercase text-emerald-300">{activeTitle}</p>
             <p className="truncate text-sm font-black">{student.name}</p>
@@ -6019,7 +6115,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <nav className="relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black">
             <div className="mb-5 flex items-center justify-between gap-3">
-              <BrandLockup compact subtitle="FIT COACH" />
+              <BrandLockup compact subtitle="Coach Fit Pro" />
               <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar menu" className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-zinc-200">
                 <NavIcon name="close" className="h-5 w-5" />
               </button>
@@ -6048,7 +6144,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
             {!appInstalled ? (
               <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
                 <p className="text-xs font-black uppercase text-blue-200">Acesso rápido</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-300">Adicione o FIT COACH na tela inicial para abrir sem digitar o código toda hora.</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-300">Adicione o Coach Fit Pro na tela inicial para abrir sem digitar o código toda hora.</p>
                 {installPrompt ? (
                   <button type="button" onClick={installStudentApp} className="mt-3 w-full rounded-md bg-emerald-400 px-3 py-2.5 text-xs font-black text-zinc-950">Adicionar no celular</button>
                 ) : (
@@ -6102,7 +6198,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
         <main className="min-w-0">
           <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
             <div className="p-4 sm:p-5">
-              <p className="text-xs font-black uppercase text-emerald-300">FIT COACH</p>
+              <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
               <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
               <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
               {!appInstalled ? (
@@ -6538,7 +6634,7 @@ function printStudentPaymentStatement(student, invoices, coachSettings) {
   popup.document.write(`
     <html>
       <head>
-        <title>Extrato FIT COACH</title>
+        <title>Extrato Coach Fit Pro</title>
         <style>
           body{font-family:Arial,sans-serif;color:#111827;margin:32px}
           h1{margin:0 0 8px;font-size:28px}
@@ -6553,7 +6649,7 @@ function printStudentPaymentStatement(student, invoices, coachSettings) {
       </head>
       <body>
         <h1>Extrato de pagamentos</h1>
-        <p>Aluno: ${escapeStatementHtml(student.name)} | Coach: ${escapeStatementHtml(coachSettings?.publicName || coachSettings?.brandName || 'FIT COACH')}</p>
+        <p>Aluno: ${escapeStatementHtml(student.name)} | Coach: ${escapeStatementHtml(coachSettings?.publicName || coachSettings?.brandName || 'Coach Fit Pro')}</p>
         <div class="cards">
           <div class="card"><strong>Pago</strong><div class="value">${escapeStatementHtml(formatCurrency(paidTotal))}</div></div>
           <div class="card"><strong>Em aberto</strong><div class="value">${escapeStatementHtml(formatCurrency(pendingTotal))}</div></div>
@@ -6717,8 +6813,27 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const [checkoutStarted, setCheckoutStarted] = useState(false)
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [paymentMessage, setPaymentMessage] = useState('')
-  const firstMonthCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '')
-  const regularCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl)
+  const [selectedCheckoutPlanId, setSelectedCheckoutPlanId] = useState(() => {
+    try {
+      return window.localStorage.getItem(SELECTED_CHECKOUT_PLAN_KEY) || 'mensal'
+    } catch {
+      return 'mensal'
+    }
+  })
+  const firstMonthCheckoutUrl = resolveCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '', primaryCartpandaCheckoutUrl)
+  const regularCheckoutUrl = resolveCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || '', firstMonthCheckoutUrl)
+  const checkoutPlans = cartpandaCheckoutPlans.map((plan) => {
+    const envUrl = plan.id === 'mensal'
+      ? firstMonthCheckoutUrl
+      : plan.id === 'semestral'
+        ? import.meta.env.VITE_FITCOACH_SEMESTER_CHECKOUT_URL
+        : import.meta.env.VITE_FITCOACH_ANNUAL_CHECKOUT_URL
+
+    return {
+      ...plan,
+      checkoutUrl: resolveCheckoutUrl(envUrl, plan.checkoutUrl),
+    }
+  })
   const subscriptionActive = isCoachSubscriptionActive(subscription)
   const subscriptionStatusLabel = getSubscriptionStatusLabel(subscription)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
@@ -6737,7 +6852,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const firstMonthTotal = firstMonthPrice
   const regularTotal = regularPrice
   const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
-  const currentCheckoutUrl = billingCycle.isPromotional ? firstMonthCheckoutUrl : regularCheckoutUrl
+  const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || regularCheckoutUrl
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
   const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
   const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
@@ -6807,7 +6922,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
 
   async function copyBillingSummary() {
     const summary = [
-      'Resumo da assinatura FIT COACH',
+      'Resumo da assinatura Coach Fit Pro',
       `Alunos ativos: ${activeStudents.length}`,
       `Receita estimada da carteira: ${formatCurrency(estimatedRevenue)}`,
       `Mensalidade regular: ${formatCurrency(regularPrice)}`,
@@ -6836,7 +6951,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     setCheckingPayment(false)
   }
 
-  function handleCheckoutClick() {
+  function handleCheckoutClick(planId = selectedCheckoutPlanId) {
+    setSelectedCheckoutPlanId(planId)
+    try {
+      window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
+    } catch {
+      // Mantem o checkout funcionando mesmo se o armazenamento local falhar.
+    }
     setCheckoutStarted(true)
     setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
   }
@@ -6846,13 +6967,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       <section className="overflow-hidden rounded-md border border-emerald-300/25 bg-zinc-950/75 shadow-2xl shadow-black/25">
         <div className="grid gap-5 border-b border-white/10 p-4 sm:p-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-emerald-300">Sua assinatura FIT COACH</p>
+            <p className="text-xs font-black uppercase text-emerald-300">Sua assinatura Coach Fit Pro</p>
             <h3 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">
               {subscriptionActive ? 'Painel liberado e pronto para operar.' : 'Ative sua assinatura para liberar o painel profissional.'}
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
               {subscriptionActive
-                ? 'Sua conta está ativa. Continue cadastrando alunos, planos, treinos, dietas, cobranças e acompanhamentos sem sair do FIT COACH.'
+                ? 'Sua conta está ativa. Continue cadastrando alunos, planos, treinos, dietas, cobranças e acompanhamentos sem sair do Coach Fit Pro.'
                 : <>Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>. Depois, a mensalidade fica em {formatCurrency(regularPrice)} por mês, mantendo todas as ferramentas liberadas para operar com previsibilidade.</>}
             </p>
             <div className={`mt-4 inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase ${
@@ -6945,21 +7066,59 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             <p className="text-sm leading-6 text-zinc-400">
               {subscriptionActive
                 ? 'Sua assinatura está confirmada. Se você acabou de pagar e ainda vê alguma área bloqueada, toque em atualizar status.'
-                : `O primeiro pagamento ativa a oferta de entrada por ${formatCurrency(firstMonthPrice)}. Depois, a mensalidade fixa mantém o painel completo liberado.`}
+                : 'Escolha o ciclo ideal para sua operação. Todos os planos liberam o painel completo, e a confirmação da Cartpanda desbloqueia suas ferramentas automaticamente.'}
             </p>
             {!subscriptionActive ? <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
               <p className="text-xs font-black uppercase text-amber-200">Importante para liberar automaticamente</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
-                No checkout, use o mesmo e-mail cadastrado aqui no FIT COACH. E-mail diferente pode impedir a liberação automática das ferramentas.
+                No checkout, use o mesmo e-mail cadastrado aqui no Coach Fit Pro. E-mail diferente pode impedir a liberação automática das ferramentas.
               </p>
             </div> : null}
-            {!subscriptionActive && currentCheckoutUrl ? (
-              <a href={currentCheckoutUrl} target="_blank" rel="noreferrer" onClick={handleCheckoutClick} className="mt-4 flex min-h-11 w-full items-center justify-center rounded-md bg-emerald-500 px-4 py-3 text-center text-sm font-black text-zinc-950">
-                {billingCycle.isPromotional ? `Pagar primeiro mês por ${formatCurrency(firstMonthPrice)}` : `Pagar mensalidade de ${formatCurrency(regularPrice)}`}
-              </a>
+            {!subscriptionActive && checkoutPlans.length ? (
+              <div className="mt-4 grid gap-3">
+                {checkoutPlans.map((plan) => {
+                  const selected = selectedCheckoutPlanId === plan.id
+                  return (
+                    <a
+                      key={plan.id}
+                      href={plan.checkoutUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => handleCheckoutClick(plan.id)}
+                      className={`rounded-md border p-4 transition hover:-translate-y-0.5 ${
+                        selected
+                          ? 'border-emerald-300/45 bg-emerald-300/12 shadow-lg shadow-emerald-950/20'
+                          : 'border-white/10 bg-white/[0.035]'
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-black text-white">{plan.name}</p>
+                          <p className="mt-1 text-xs leading-5 text-zinc-500">{plan.cycle}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${
+                          selected ? 'bg-emerald-400 text-zinc-950' : 'bg-white/10 text-zinc-300'
+                        }`}>
+                          {selected ? 'Escolhido' : plan.badge}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-zinc-400">{plan.description}</p>
+                      <div className="mt-3 rounded-md border border-white/10 bg-zinc-950/50 p-3">
+                        {plan.oldPrice ? <p className="text-xs font-bold text-zinc-500 line-through">De {plan.oldPrice}</p> : null}
+                        <div className="mt-1 flex flex-wrap items-end gap-2">
+                          <span className="text-2xl font-black text-white">{plan.price}</span>
+                          <span className="pb-1 text-xs font-bold text-zinc-500">{plan.suffix}</span>
+                        </div>
+                        <p className="mt-1 text-xs font-black text-emerald-200">{plan.total}</p>
+                      </div>
+                      <p className="mt-3 text-sm font-black text-emerald-200">Abrir checkout Cartpanda</p>
+                    </a>
+                  )
+                })}
+              </div>
             ) : !subscriptionActive ? (
               <button type="button" disabled className="mt-4 w-full rounded-md bg-zinc-800 px-4 py-3 text-sm font-black text-zinc-500">
-                Checkout seguro em configuração
+                Pagamento em configuração
               </button>
             ) : null}
             <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-md border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 disabled:cursor-wait disabled:opacity-60">
@@ -7485,7 +7644,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     setError('')
     try {
       await onSave({
-        brandName: form.get('brandName')?.toString().trim() || 'FIT COACH',
+        brandName: form.get('brandName')?.toString().trim() || 'Coach Fit Pro',
         publicName: form.get('publicName')?.toString().trim() || '',
         cref: form.get('cref')?.toString().trim() || '',
         whatsapp: form.get('whatsapp')?.toString().trim() || '',
@@ -7900,7 +8059,7 @@ function BrandLockup({ subtitle = '', large = false, compact = false }) {
     >
       <img
         src={fitCoachLogo}
-        alt="FIT COACH PRO"
+        alt="Coach Fit Pro"
         className="h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.48)]"
         decoding="async"
         draggable="false"
@@ -8857,6 +9016,12 @@ function normalizeCheckoutUrl(value) {
   const httpIndex = raw.indexOf('http://')
   if (httpIndex >= 0) return raw.slice(httpIndex).trim()
   return raw
+}
+
+function resolveCheckoutUrl(value, fallback = primaryCartpandaCheckoutUrl) {
+  const normalized = normalizeCheckoutUrl(value)
+  if (!normalized || /lastlink\.com/i.test(normalized)) return fallback
+  return normalized
 }
 
 function parseValidDate(value) {
