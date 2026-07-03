@@ -2834,6 +2834,19 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
 
                   <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
 
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    {[
+                      ['Entrega premium', 'treino, dieta, check-ins e chat em um só fluxo'],
+                      ['Mais percepção', 'o aluno sente que está dentro de uma operação profissional'],
+                      ['Menos retrabalho', 'processos organizados para vender e acompanhar melhor'],
+                    ].map(([title, text]) => (
+                      <div key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                        <p className="text-sm font-black text-white">{title}</p>
+                        <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
+                      </div>
+                    ))}
+                  </div>
+
                   <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-blue-500 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
                     Assinar agora
                   </button>
@@ -2855,6 +2868,22 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     O treinador cresce a carteira sem pagar adicional por aluno cadastrado.
                   </p>
+                </div>
+                <div className="mt-4 rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+                  <p className="text-xs font-black uppercase text-blue-200">Próximo passo simples</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">
+                    Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.
+                  </p>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-black text-white">100%</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">das ferramentas liberadas</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-black text-white">0%</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">taxa extra por aluno</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -6853,6 +6882,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const regularTotal = regularPrice
   const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
   const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || regularCheckoutUrl
+  const selectedCheckoutPlan = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId) || checkoutPlans[0]
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
   const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
   const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
@@ -6951,15 +6981,125 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     setCheckingPayment(false)
   }
 
-  function handleCheckoutClick(planId = selectedCheckoutPlanId) {
+  function chooseCheckoutPlan(planId) {
     setSelectedCheckoutPlanId(planId)
+    setPaymentMessage('')
     try {
       window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
     } catch {
-      // Mantem o checkout funcionando mesmo se o armazenamento local falhar.
+      // Mantem a troca de plano funcionando mesmo se o armazenamento local falhar.
     }
+  }
+
+  function handleCheckoutClick(planId = selectedCheckoutPlanId) {
+    chooseCheckoutPlan(planId)
     setCheckoutStarted(true)
     setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
+  }
+
+  if (!subscriptionActive) {
+    return (
+      <div className="grid min-w-0 gap-5 lg:gap-6">
+        <section className="overflow-hidden rounded-2xl border border-blue-400/25 bg-zinc-950/90 shadow-2xl shadow-black/35">
+          <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.75fr)] lg:items-stretch">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-blue-300">Ativação da conta</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">
+                Falta só escolher o ciclo e ativar seu Coach Fit Pro.
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
+                Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
+              </p>
+
+              <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5">
+                {checkoutPlans.map((plan) => {
+                  const selected = selectedCheckoutPlan.id === plan.id
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => chooseCheckoutPlan(plan.id)}
+                      className={`rounded-xl px-2 py-3 text-xs font-black transition sm:text-sm ${
+                        selected
+                          ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
+                          : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
+                      }`}
+                    >
+                      {plan.name}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {[
+                  ['1', 'Conta criada', 'seus dados já estão salvos'],
+                  ['2', 'Plano escolhido', selectedCheckoutPlan.name],
+                  ['3', 'Liberação automática', 'após aprovação do pagamento'],
+                ].map(([step, title, text]) => (
+                  <div key={step} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                    <span className="inline-grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{step}</span>
+                    <p className="mt-3 text-sm font-black text-white">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="min-w-0 rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/16 via-zinc-950 to-zinc-950 p-5 shadow-xl shadow-blue-950/25 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase text-blue-300">{selectedCheckoutPlan.cycle}</p>
+                  <h3 className="mt-2 text-2xl font-black text-white">{selectedCheckoutPlan.name}</h3>
+                </div>
+                <span className="rounded-full bg-blue-500 px-3 py-1 text-xs font-black uppercase text-white">
+                  {selectedCheckoutPlan.badge}
+                </span>
+              </div>
+
+              <div className="mt-6">
+                {selectedCheckoutPlan.oldPrice ? <p className="text-sm font-bold text-zinc-500 line-through">De {selectedCheckoutPlan.oldPrice}</p> : null}
+                <div className="mt-1 flex flex-wrap items-end gap-2">
+                  <span className="text-4xl font-black leading-none text-white">{selectedCheckoutPlan.price}</span>
+                  <span className="pb-1 text-sm font-bold text-zinc-400">{selectedCheckoutPlan.suffix}</span>
+                </div>
+                <p className="mt-2 text-sm font-black text-blue-200">{selectedCheckoutPlan.total}</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-200">{selectedCheckoutPlan.economy}</p>
+              </div>
+
+              <div className="mt-5 grid gap-2">
+                {selectedCheckoutPlan.highlights.slice(0, 4).map((item) => (
+                  <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-zinc-200">
+                    <span className="text-blue-300">✓</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <a
+                href={selectedCheckoutPlan.checkoutUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => handleCheckoutClick(selectedCheckoutPlan.id)}
+                className="mt-6 flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-500 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5"
+              >
+                Ativar {selectedCheckoutPlan.name} agora
+              </a>
+
+              <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-xl border border-blue-300/25 bg-blue-300/10 px-4 py-3 text-sm font-black text-blue-100 disabled:cursor-wait disabled:opacity-60">
+                {checkingPayment ? 'Verificando...' : 'Já paguei, verificar liberação'}
+              </button>
+
+              {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{paymentMessage}</p> : null}
+
+              <p className="mt-4 text-xs leading-5 text-zinc-500">
+                Use o mesmo e-mail da conta no pagamento para a liberação automática funcionar.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
   }
 
   return (
@@ -7111,7 +7251,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                         </div>
                         <p className="mt-1 text-xs font-black text-emerald-200">{plan.total}</p>
                       </div>
-                      <p className="mt-3 text-sm font-black text-emerald-200">Abrir checkout Cartpanda</p>
+                      <p className="mt-3 text-sm font-black text-emerald-200">Ativar este plano</p>
                     </a>
                   )
                 })}
