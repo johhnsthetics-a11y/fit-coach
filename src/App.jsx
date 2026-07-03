@@ -59,6 +59,10 @@ const cartpandaCheckoutPlans = [
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
     description: 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
     highlights: ['Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
+    bestFor: 'Coach que quer iniciar sem compromisso longo e validar a experiência com os primeiros alunos.',
+    operatingPromise: 'Implante em etapas, cadastre alunos ativos e acompanhe o ganho de organização desde a primeira semana.',
+    activationPlan: ['Criar conta e ativar o ciclo mensal', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
+    decisionPoints: ['mais flexibilidade', 'melhor para teste operacional', 'renovação mês a mês'],
   },
   {
     id: 'semestral',
@@ -74,6 +78,10 @@ const cartpandaCheckoutPlans = [
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211373219:1?subscription=4479',
     description: 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
     highlights: ['Acesso completo ao painel', 'Menos renovações no ano', 'Rotina financeira previsível', 'Boa opção para equipes em crescimento'],
+    bestFor: 'Coach que já tem carteira ativa e quer estruturar a operação sem ficar repensando assinatura todo mês.',
+    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, reduzir retrabalho e aumentar percepção de valor.',
+    activationPlan: ['Ativar o semestre com economia', 'Organizar alunos por planos e vencimentos', 'Criar rotina de treinos, dieta, check-ins e cobrança'],
+    decisionPoints: ['equilíbrio ideal', 'economia sem travar por um ano', 'mais previsibilidade'],
   },
   {
     id: 'anual',
@@ -89,6 +97,10 @@ const cartpandaCheckoutPlans = [
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
     description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
     highlights: ['Acesso completo por 12 meses', 'Planejamento de longo prazo', 'Foco em escala e retenção', 'Melhor para operações maduras'],
+    bestFor: 'Coach que quer operar o ano inteiro com menor custo mensal e foco em escala, retenção e rotina de equipe.',
+    operatingPromise: 'O ciclo anual transforma o app em infraestrutura fixa da operação, com menor custo equivalente por mês.',
+    activationPlan: ['Ativar o ano com maior economia', 'Migrar a carteira em ondas semanais', 'Usar financeiro, ranking e indicadores para gestão contínua'],
+    decisionPoints: ['maior economia', 'menor custo mensal', 'estrutura para longo prazo'],
   },
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
@@ -2531,20 +2543,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 ))}
               </div>
             </div>
-            <div data-reveal className="rounded-md border border-emerald-300/20 bg-zinc-950/85 p-5 shadow-2xl shadow-black/30">
+            <div data-reveal className="rounded-2xl border border-emerald-300/20 bg-zinc-950/88 p-5 shadow-2xl shadow-black/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase text-blue-200">Dashboard financeiro</p>
-                  <h3 className="mt-2 text-2xl font-black">Vendas e renovações</h3>
+                  <h3 className="mt-2 text-2xl font-black">Receita, renovações e inadimplência sob controle</h3>
                 </div>
                 <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
                 {[
-                  ['Vendas no mês', 'R$ 8.940', '+18%'],
-                  ['Renovações', '32', '7 dias'],
-                  ['Ticket médio', 'R$ 279', 'por aluno'],
+                  ['Recebido no mês', 'R$ 8.940', '+18%'],
+                  ['Renovações próximas', '32', '7 dias'],
                   ['A receber', 'R$ 2.310', 'pendente'],
+                  ['Alunos liberados', '94%', 'pagos'],
                 ].map(([label, value, detail]) => (
                   <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
@@ -2553,10 +2565,30 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   </div>
                 ))}
               </div>
-              <div className="mt-5 flex h-28 items-end gap-2 rounded-lg border border-white/10 bg-white/[0.025] p-3">
-                {[34, 52, 46, 68, 59, 74, 88, 82, 96].map((height, index) => (
-                  <span key={index} className="flex-1 rounded-t bg-gradient-to-t from-emerald-700 to-emerald-300" style={{ height: `${height}%` }} />
-                ))}
+              <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-lg border border-white/10 bg-white/[0.025] p-3">
+                  <div className="flex h-32 items-end gap-2">
+                    {[34, 52, 46, 68, 59, 74, 88, 82, 96].map((height, index) => (
+                      <span key={index} className="flex-1 rounded-t bg-gradient-to-t from-emerald-700 to-emerald-300" style={{ height: `${height}%` }} />
+                    ))}
+                  </div>
+                  <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-zinc-600">
+                    <span>Semana 1</span>
+                    <span>Semana 4</span>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  {[
+                    ['Cobranças automáticas', 'Pix, WhatsApp e status por aluno'],
+                    ['Confirmação manual', 'coach valida e libera o acesso'],
+                    ['Planos próprios', 'mensal, semanal, semestral ou anual'],
+                  ].map(([title, text]) => (
+                    <div key={title} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                      <p className="text-sm font-black text-white">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.</p>
             </div>
@@ -2595,7 +2627,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
               <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
-              <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
                 Profissionalizar meu acompanhamento
               </button>
             </div>
@@ -2779,7 +2811,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
               </p>
 
-              <div className="mx-auto mt-7 grid max-w-xl grid-cols-3 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30">
+              <div className="mx-auto mt-7 grid max-w-3xl gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30 sm:grid-cols-3">
                 {cartpandaCheckoutPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
                   return (
@@ -2787,13 +2819,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                       key={plan.id}
                       type="button"
                       onClick={() => setSelectedOfferPlanId(plan.id)}
-                      className={`rounded-xl px-3 py-3 text-xs font-black transition sm:text-sm ${
+                      className={`min-h-20 rounded-xl px-3 py-3 text-left transition ${
                         selected
                           ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
                           : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
-                      {plan.name}
+                      <span className="block text-sm font-black">{plan.name}</span>
+                      <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
+                      <span className="mt-2 block text-xs font-black">{plan.price}</span>
                     </button>
                   )
                 })}
@@ -2833,6 +2867,47 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   </div>
 
                   <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
+
+                  <div className="mt-6 grid gap-3 lg:grid-cols-3">
+                    <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+                      <p className="text-xs font-black uppercase text-blue-200">Decisão inteligente</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        {selectedOfferPlan.id === 'mensal'
+                          ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
+                          : selectedOfferPlan.id === 'semestral'
+                            ? 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.'
+                            : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                      <p className="text-xs font-black uppercase text-zinc-500">Melhor para</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.bestFor}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                      <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.operatingPromise}</p>
+                      </div>
+                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberação automática</span>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      {selectedOfferPlan.activationPlan.map((item, index) => (
+                        <div key={item} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
+                          <p className="mt-3 text-xs font-bold leading-5 text-zinc-300">{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     {[
@@ -2874,6 +2949,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.
                   </p>
+                </div>
+                <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-400">Implantação prática</p>
+                  <div className="mt-3 grid gap-2">
+                    {['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'].map((item, index) => (
+                      <div key={item} className="flex gap-3 text-sm leading-6 text-zinc-300">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
@@ -3125,6 +3211,9 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
     })
     .slice()
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
+  const todayKey = toLocalDateKey(now)
+  const todayAppointments = appointments.filter((appointment) => toLocalDateKey(appointment.startsAt) === todayKey && !['Concluido', 'Cancelado'].includes(appointment.status))
+  const nextAppointments = appointments.filter((appointment) => new Date(appointment.startsAt) >= now && !['Concluido', 'Cancelado'].includes(appointment.status))
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -3172,6 +3261,32 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="xl:col-span-2 rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500/10 via-zinc-950/90 to-emerald-300/8 p-5 shadow-2xl shadow-black/20">
+        <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="text-xs font-black uppercase text-blue-200">Agenda do coach</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Organize check-ins, avaliações, chamadas e revisões sem misturar com o chat.</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Use esta área para marcar compromissos que precisam de data, horário e acompanhamento. O aluno visualiza a agenda no portal dele.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase text-zinc-500">Hoje</p>
+              <p className="mt-1 text-2xl font-black text-white">{todayAppointments.length}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase text-zinc-500">Próximos</p>
+              <p className="mt-1 text-2xl font-black text-blue-200">{nextAppointments.length}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase text-zinc-500">Alunos</p>
+              <p className="mt-1 text-2xl font-black text-emerald-200">{students.length}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Panel title="Novo compromisso" action="Agenda">
         {students.length ? (
           <form onSubmit={handleSubmit} className="grid gap-4">
@@ -3182,7 +3297,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título" name="title" defaultValue="Acompanhamento" />
-              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliacao', 'Check-in', 'Chamada', 'Outro']} />
+              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliação', 'Check-in', 'Chamada', 'Revisão de treino', 'Revisão de dieta', 'Outro']} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Data e horário" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
@@ -4130,6 +4245,54 @@ function WorkoutList({ workouts, fallbackTitle, onArchive }) {
     )
   }
 
+  if (subscriptionActive) {
+    return (
+      <div className="grid min-w-0 gap-5 lg:gap-6">
+        <section className="overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950/88 shadow-2xl shadow-black/35">
+          <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-emerald-300">Minha assinatura</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">Assinatura ativa.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                Seu acesso ao Coach Fit Pro está liberado. Esta área mostra apenas o status da sua assinatura para você não confundir pagamento da plataforma com financeiro dos alunos.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Plano escolhido</p>
+                  <p className="mt-2 text-lg font-black text-white">{selectedCheckoutPlan.name}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Status</p>
+                  <p className="mt-2 text-lg font-black text-emerald-200">{subscriptionStatusLabel}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Provedor</p>
+                  <p className="mt-2 text-lg font-black text-blue-200">Cartpanda</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-5">
+              <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro ciclo' : 'Próximo ciclo'}</p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <p className="text-3xl font-black text-white">{selectedCheckoutPlan.price}</p>
+                <p className="pb-1 text-sm font-bold text-zinc-400">{selectedCheckoutPlan.suffix}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Próxima referência em {billingCycle.daysRemaining} {billingCycle.daysRemaining === 1 ? 'dia' : 'dias'}.
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">{formatFullDateTime(billingCycle.nextBillingAt)}</p>
+              <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-5 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                {checkingPayment ? 'Atualizando...' : 'Atualizar status'}
+              </button>
+              {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm leading-6 text-zinc-200">{paymentMessage}</p> : null}
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {workouts.map((workout) => (
@@ -4403,7 +4566,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
         effort: form.get('effort')?.toString() || 'Moderado',
         notes: form.get('notes')?.toString() || '',
       })
-      setMessage('Treino marcado como concluído.')
+      setMessage('Treino concluído. +80 XP adicionados ao ranking de evolução.')
       formElement.reset()
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
@@ -4420,7 +4583,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando...' : 'Marcar treino como concluído'}
       </button>
-      {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+      {message ? <p className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
     </form>
   )
@@ -6282,6 +6445,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
+  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent })
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextAppointment
@@ -6301,6 +6465,41 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           </span>
           <NavIcon name="chevronRight" className="h-5 w-5 text-emerald-200" />
         </button>
+
+        <div className="overflow-hidden rounded-xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/12 via-zinc-950 to-blue-500/10 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
+              <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
+              <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
+              <p className="mt-1 text-lg font-black text-emerald-100">{reward.nextLevelName}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">{reward.remainingXp > 0 ? `faltam ${reward.remainingXp} XP` : 'ranking máximo'}</p>
+            </div>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-blue-400 transition-all duration-700" style={{ width: `${reward.progress}%` }} />
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {reward.badges.map((badge) => (
+              <div key={badge.label} className={`rounded-lg border p-3 ${badge.done ? 'border-emerald-300/35 bg-emerald-300/12' : 'border-white/10 bg-white/[0.03]'}`}>
+                <p className={`text-xs font-black uppercase ${badge.done ? 'text-emerald-100' : 'text-zinc-500'}`}>{badge.label}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">{badge.detail}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            {reward.sources.map((source) => (
+              <div key={source.label} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs font-black uppercase text-zinc-500">{source.label}</p>
+                <p className="mt-1 text-lg font-black text-white">{source.value}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">{source.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <StudentWaterTracker
           goalMl={waterGoalMl}
@@ -6335,9 +6534,9 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail="Bata sua sequência de treinos." tone="emerald" />
-          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail="Consistência acumulada no mês." tone="sky" />
-          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail="Meta de água definida pelo coach." tone="cyan" />
+          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta e ganhe bônus de XP.'} tone="emerald" />
+          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" />
+          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? '+40 XP de rotina liberado hoje.' : 'Meta de água definida pelo coach.'} tone="cyan" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -6353,6 +6552,45 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
       </div>
     </StudentAppSection>
   )
+}
+
+function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0, waterPercent = 0 }) {
+  const workoutXp = completedThisMonth * 80
+  const weeklyBonusXp = completedThisWeek >= 3 ? 120 : 0
+  const monthlyBonusXp = completedThisMonth >= 12 ? 300 : 0
+  const hydrationXp = waterPercent >= 100 ? 40 : waterPercent >= 80 ? 25 : 0
+  const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp)
+  const levels = [
+    { name: 'Selo Bronze', min: 0 },
+    { name: 'Selo Prata', min: 450 },
+    { name: 'Selo Ouro', min: 900 },
+    { name: 'Selo Diamante', min: 1600 },
+    { name: 'Elite Coach Fit', min: 2600 },
+  ]
+  const currentIndex = levels.reduce((index, level, levelIndex) => (xp >= level.min ? levelIndex : index), 0)
+  const current = levels[currentIndex]
+  const next = levels[currentIndex + 1]
+  const progress = next ? Math.round(((xp - current.min) / Math.max(1, next.min - current.min)) * 100) : 100
+  const remainingXp = next ? Math.max(0, next.min - xp) : 0
+
+  return {
+    xp,
+    levelName: current.name,
+    nextLevelName: next?.name || 'Ranking máximo',
+    remainingXp,
+    progress: Math.min(100, Math.max(0, progress)),
+    badges: [
+      { label: 'Treino', done: completedThisWeek >= 3, detail: completedThisWeek >= 3 ? '+120 XP de bônus semanal' : 'complete 3 treinos na semana' },
+      { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? '+25 XP de hidratação' : 'bata 80% da meta de água' },
+      { label: 'Consistência', done: completedThisMonth >= 8, detail: completedThisMonth >= 8 ? 'ritmo forte no mês' : 'alcance 8 treinos no mês' },
+      { label: 'Evolução', done: completedThisMonth >= 12, detail: completedThisMonth >= 12 ? '+300 XP de bônus mensal' : 'busque 12 treinos no mês' },
+    ],
+    sources: [
+      { label: 'Treinos concluídos', value: `+${workoutXp} XP`, detail: '80 XP por treino finalizado' },
+      { label: 'Bônus semanal', value: `+${weeklyBonusXp} XP`, detail: 'meta mínima de treinos da semana' },
+      { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
+    ],
+  }
 }
 
 function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' }) {
@@ -7011,7 +7249,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
               </p>
 
-              <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5">
+              <div className="mt-6 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
                 {checkoutPlans.map((plan) => {
                   const selected = selectedCheckoutPlan.id === plan.id
                   return (
@@ -7019,16 +7257,30 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                       key={plan.id}
                       type="button"
                       onClick={() => chooseCheckoutPlan(plan.id)}
-                      className={`rounded-xl px-2 py-3 text-xs font-black transition sm:text-sm ${
+                      className={`min-h-20 rounded-xl px-3 py-3 text-left transition ${
                         selected
                           ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
                           : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
-                      {plan.name}
+                      <span className="block text-sm font-black">{plan.name}</span>
+                      <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
+                      <span className="mt-2 block text-xs font-black">{plan.price}</span>
                     </button>
                   )
                 })}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <p className="text-xs font-black uppercase text-zinc-500">Por que este plano faz sentido</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.bestFor}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedCheckoutPlan.decisionPoints.map((item) => (
+                    <span key={item} className="rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-xs font-black text-blue-100">
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -7065,6 +7317,11 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 </div>
                 <p className="mt-2 text-sm font-black text-blue-200">{selectedCheckoutPlan.total}</p>
                 <p className="mt-1 text-xs leading-5 text-emerald-200">{selectedCheckoutPlan.economy}</p>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <p className="text-xs font-black uppercase text-emerald-200">O que acontece depois</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.operatingPromise}</p>
               </div>
 
               <div className="mt-5 grid gap-2">
@@ -7351,7 +7608,15 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
   const pendingTotal = invoices
     .filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const pendingCount = invoices.filter((invoice) => getInvoiceStatus(invoice) === 'Pendente').length
   const overdueCount = invoices.filter((invoice) => getInvoiceStatus(invoice) === 'Atrasado').length
+  const overdueTotal = invoices
+    .filter((invoice) => getInvoiceStatus(invoice) === 'Atrasado')
+    .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const renewalValue7Days = renewalsNext7Days.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const paidStudents = students.filter((student) => student.payment === 'Pago').length
+  const activeStudents = students.filter((student) => student.status !== 'Inativo').length
+  const paymentRate = activeStudents ? Math.round((paidStudents / activeStudents) * 100) : 0
   const visibleInvoices = invoices
     .map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
     .filter((invoice) => filter === 'Todos' || invoice.status === filter)
@@ -7461,12 +7726,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           </div>
           <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${activeStudents} aluno(s) ativos`} />
           <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
           <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
           <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
-          <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalsNext7Days.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0))} />
-          <Metric label="Ticket médio" value={formatCurrency(averageTicket)} detail="por pagamento confirmado" />
+          <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
+          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${paidStudents} aluno(s) liberados`} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
@@ -7487,9 +7753,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs font-black uppercase text-zinc-400">Status financeiro</p>
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <div><p className="text-lg font-black text-amber-200">{invoices.filter((item) => getInvoiceStatus(item) === 'Pendente').length}</p><p className="text-xs text-zinc-500">pendentes</p></div>
+              <div><p className="text-lg font-black text-amber-200">{pendingCount}</p><p className="text-xs text-zinc-500">pendentes</p></div>
               <div><p className="text-lg font-black text-rose-200">{overdueCount}</p><p className="text-xs text-zinc-500">atrasadas</p></div>
-              <div><p className="text-lg font-black text-emerald-200">{students.filter((student) => student.payment === 'Pago').length}</p><p className="text-xs text-zinc-500">liberados</p></div>
+              <div><p className="text-lg font-black text-emerald-200">{paidStudents}</p><p className="text-xs text-zinc-500">liberados</p></div>
+            </div>
+            <div className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/8 p-3">
+              <p className="text-xs font-black uppercase text-rose-200">Valor em atraso</p>
+              <p className="mt-1 text-xl font-black text-white">{formatCurrency(overdueTotal)}</p>
             </div>
           </div>
         </div>
