@@ -1,0 +1,19 @@
+{
+  "name": "FIT COACH",
+  "short_name": "FIT COACH",
+  "description": "Acompanhamento de treino, dieta, check-ins e mensagens do aluno.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#05070d",
+  "theme_color": "#064e3b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/fit-coach-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

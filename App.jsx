@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -416,6 +416,7 @@ export default function App() {
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billingClock, setBillingClock] = useState(Date.now())
+  const subscriptionCheckRef = useRef(0)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
@@ -500,6 +501,96 @@ export default function App() {
 
     return () => window.clearTimeout(timer)
   }, [data.session?.refresh_token, data.session?.expires_at])
+
+  const syncCoachWorkspace = useCallback(async ({ status = 'Atualizando painel', silent = false, goToOverviewOnActive = false } = {}) => {
+    if (!supabaseEnabled || !data.session?.access_token) {
+      return { active: false, refreshed: false }
+    }
+
+    if (!silent) setRemoteStatus(status)
+
+    let remoteData
+    try {
+      remoteData = await loadRemoteData()
+    } catch (error) {
+      const message = error?.message || ''
+      if (/jwt expired|PGRST303/i.test(message) && data.session?.refresh_token) {
+        await refreshStoredSession('Sessão renovada')
+        remoteData = await loadRemoteData()
+      } else {
+        if (!silent) handleRemoteError(error, 'Erro ao atualizar painel')
+        return { active: false, refreshed: false, error }
+      }
+    }
+
+    const activeSubscription = isCoachSubscriptionActive(remoteData.coachSubscription)
+    setData((current) => {
+      const wasActive = isCoachSubscriptionActive(current.coachSubscription)
+      const unlockedNow = !wasActive && activeSubscription
+      return {
+        ...current,
+        user: remoteData.user ?? current.user,
+        students: remoteData.students,
+        checkins: remoteData.checkins,
+        notifications: unlockedNow
+          ? [
+            {
+              id: `subscription-${Date.now()}`,
+              title: 'Assinatura liberada',
+              body: 'Pagamento confirmado. Suas ferramentas profissionais foram desbloqueadas.',
+              read: false,
+            },
+            ...remoteData.notifications,
+          ]
+          : remoteData.notifications,
+        workouts: remoteData.workouts ?? [],
+        nutritionPlans: remoteData.nutritionPlans ?? [],
+        workoutLogs: remoteData.workoutLogs ?? [],
+        messages: remoteData.messages ?? [],
+        appointments: remoteData.appointments ?? [],
+        invoices: remoteData.invoices ?? [],
+        assessments: remoteData.assessments ?? [],
+        invites: remoteData.invites ?? [],
+        anamneses: remoteData.anamneses ?? [],
+        coachSettings: remoteData.coachSettings,
+        coachSubscription: remoteData.coachSubscription,
+      }
+    })
+
+    if (activeSubscription) {
+      setRemoteStatus('Assinatura liberada')
+      setRemoteError('')
+      if (goToOverviewOnActive) setActiveView('visao')
+    } else if (!silent) {
+      setRemoteStatus('Aguardando confirmação do pagamento')
+      setRemoteError('')
+    }
+
+    return { active: activeSubscription, refreshed: true, remoteData }
+  }, [data.session?.access_token, data.session?.refresh_token])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || coachSubscriptionActive) return undefined
+
+    async function checkSubscriptionOnReturn() {
+      if (document.visibilityState === 'hidden') return
+      const now = Date.now()
+      if (now - subscriptionCheckRef.current < 7000) return
+      subscriptionCheckRef.current = now
+      await syncCoachWorkspace({ status: 'Verificando assinatura', silent: true, goToOverviewOnActive: true })
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') checkSubscriptionOnReturn()
+    }
+
+    window.addEventListener('focus', checkSubscriptionOnReturn)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('focus', checkSubscriptionOnReturn)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [data.session?.access_token, studentAccess, coachSubscriptionActive, syncCoachWorkspace])
 
   useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('invite')
@@ -1674,7 +1765,7 @@ export default function App() {
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Crie sua conta, conclua o pagamento seguro e o painel será liberado assim que a confirmação chegar no sistema.
+                Conclua o pagamento seguro usando o mesmo e-mail da conta. Ao voltar do checkout, o FIT COACH verifica automaticamente a confirmação e libera o painel assim que o pagamento for aprovado.
               </p>
             </div>
           ) : null}
@@ -1766,6 +1857,7 @@ export default function App() {
                 subscription={data.coachSubscription}
                 userCreatedAt={data.user?.createdAt}
                 coachPlans={coachPlans}
+                onRefreshSubscription={syncCoachWorkspace}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -5612,9 +5704,8 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
   const nextWorkout = studentWorkouts[0]
   const nextAppointment = studentAppointments[0]
-  const hasOpenInvoice = studentInvoices.some((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
   const temporaryAccessOpen = Boolean(student?.accessOverrideUntil && new Date(student.accessOverrideUntil).getTime() > Date.now())
-  const financialAccessOpen = temporaryAccessOpen || (hasStudentAccess(student) && !hasOpenInvoice)
+  const financialAccessOpen = temporaryAccessOpen || hasStudentAccess(student)
   const restrictedTabs = ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
@@ -5744,8 +5835,6 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     if (!financialAccessOpen && restrictedTabs.includes(activeTab)) {
       return (
         <StudentPaymentLock
-          student={student}
-          invoices={studentInvoices}
           coachSettings={coachSettings}
           onOpenPayments={() => openTab('pagamentos')}
           onOpenChat={() => openTab('mensagens')}
@@ -5764,9 +5853,10 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           monthlyTarget={monthlyChallengeTarget}
           nextWorkout={nextWorkout}
           nextAppointment={nextAppointment}
-          pendingInvoices={studentInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))}
           waterMl={waterMl}
           waterGoalMl={waterGoalMl}
+          onAddWater={addWater}
+          onResetWater={resetWater}
           onOpenTab={openTab}
         />
       )
@@ -5779,12 +5869,6 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
             title="Lembrete de treino"
             body={`Hora de treinar, ${student.name}. Abra o FIT COACH e siga o plano de hoje.`}
             action="Ativar lembrete"
-          />
-          <StudentWaterTracker
-            goalMl={waterGoalMl}
-            currentMl={waterMl}
-            onAddWater={addWater}
-            onReset={resetWater}
           />
           <div className="mb-4 overflow-hidden rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
             <p className="text-xs font-black uppercase text-emerald-200">Tempo de treino</p>
@@ -6026,18 +6110,16 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   )
 }
 
-function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextAppointment, pendingInvoices, waterMl, waterGoalMl, onOpenTab }) {
+function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextAppointment, waterMl, waterGoalMl, onAddWater, onResetWater, onOpenTab }) {
   const firstName = String(student?.name || 'aluno').split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
-  const nextAction = pendingInvoices.length
-    ? { title: 'Regularizar fatura', body: 'Existe uma cobrança aguardando validação.', tab: 'pagamentos', icon: 'wallet' }
-    : nextWorkout
-      ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
-      : nextAppointment
-        ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
-        : { title: 'Abrir chat com o coach', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
+  const nextAction = nextWorkout
+    ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
+    : nextAppointment
+      ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
+      : { title: 'Abrir chat com o coach', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
 
   return (
     <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
@@ -6052,6 +6134,13 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           </span>
           <NavIcon name="chevronRight" className="h-5 w-5 text-emerald-200" />
         </button>
+
+        <StudentWaterTracker
+          goalMl={waterGoalMl}
+          currentMl={waterMl}
+          onAddWater={onAddWater}
+          onReset={onResetWater}
+        />
 
         <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
           <div className="flex items-center justify-between gap-3">
@@ -6228,59 +6317,30 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
   )
 }
 
-function StudentPaymentLock({ student, invoices, coachSettings, onOpenPayments, onOpenChat }) {
-  const pendingInvoices = invoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
-  const nextInvoice = pendingInvoices[0]
-  const totalPending = pendingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+function StudentPaymentLock({ coachSettings, onOpenPayments, onOpenChat }) {
   const billingBrand = getBillingBrand(coachSettings)
-  const billingMessage = buildBillingMessage(billingBrand.message, {
-    student,
-    amount: nextInvoice?.amount || totalPending,
-    dueDate: nextInvoice?.dueDate,
-    coachSettings,
-  })
 
   return (
-    <StudentAppSection title="Acesso pausado" action="Pagamento pendente">
-      <div className="rounded-md border p-4" style={{ borderColor: `${billingBrand.primaryColor}55`, background: `linear-gradient(135deg, ${billingBrand.primaryColor}22, ${billingBrand.accentColor}18)` }}>
+    <StudentAppSection title="Acesso pausado" action="Fatura">
+      <div className="rounded-md border p-4" style={{ borderColor: `${billingBrand.primaryColor}55`, background: `linear-gradient(135deg, ${billingBrand.primaryColor}18, ${billingBrand.accentColor}12)` }}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-black uppercase" style={{ color: billingBrand.primaryColor }}>Regularize para continuar treinando</p>
+          <p className="text-xs font-black uppercase" style={{ color: billingBrand.primaryColor }}>Área temporariamente pausada</p>
           {billingBrand.logoUrl ? (
             <img src={billingBrand.logoUrl} alt={coachSettings?.brandName || 'Logo do coach'} className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
           ) : null}
         </div>
-        <h3 className="mt-2 text-2xl font-black text-white">Seu plano está aguardando confirmação de pagamento.</h3>
+        <h3 className="mt-2 text-2xl font-black text-white">Resolva sua fatura para liberar esta área.</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
-          Treino, dieta e progresso ficam protegidos até o pagamento ser validado pelo coach. Se você já pagou, envie o comprovante no chat.
+          Os detalhes de assinatura, Pix, extrato e comprovante ficam concentrados na aba Fatura para não misturar cobrança com treino, dieta ou progresso.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <StudentStatusCard label="Total em aberto" value={formatCurrency(totalPending)} detail={pendingInvoices.length ? `${pendingInvoices.length} cobrança(s)` : 'Nenhuma cobrança pendente'} />
-          <StudentStatusCard label="Próximo vencimento" value={nextInvoice ? formatDate(nextInvoice.dueDate) : '-'} detail={nextInvoice?.description || 'Aguardando cobrança'} />
-          <StudentStatusCard label="Status" value={student.payment || 'Pendente'} detail={student.accessOverrideUntil ? `Liberado até ${formatFullDateTime(student.accessOverrideUntil)}` : 'Sem liberação temporária'} />
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-black uppercase text-emerald-300">Pix do coach</p>
-          <p className="mt-2 break-words text-lg font-black">{coachSettings?.pixKey || 'Pix ainda não informado'}</p>
-        </div>
-        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-black uppercase text-blue-300">WhatsApp</p>
-          <p className="mt-2 break-words text-lg font-black">{coachSettings?.whatsapp || 'Não informado'}</p>
-        </div>
-        <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-black uppercase text-blue-300">E-mail</p>
-          <p className="mt-2 break-words text-lg font-black">{coachSettings?.supportEmail || 'Não informado'}</p>
-        </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <button type="button" onClick={onOpenPayments} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
-          Ver pagamentos
+          Ir para Fatura
         </button>
         <button type="button" onClick={onOpenChat} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-          Enviar comprovante
+          Falar com coach
         </button>
       </div>
     </StudentAppSection>
@@ -6312,7 +6372,7 @@ function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessa
   }
 
   return (
-    <StudentAppSection title="Pagamentos" action={`${visibleInvoices.length} registros`}>
+    <StudentAppSection title="Fatura" action={`${visibleInvoices.length} registros`}>
       <div className="grid gap-3 sm:grid-cols-3">
         <StudentStatusCard label="Já pago" value={formatCurrency(paidTotal)} detail="Histórico confirmado" />
         <StudentStatusCard label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
@@ -6323,14 +6383,18 @@ function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessa
         <button type="button" onClick={() => printStudentPaymentStatement(student, visibleInvoices, coachSettings)} className="rounded-lg bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98]">
           Gerar extrato em PDF
         </button>
-        <button type="button" disabled={noticeSending || !pendingInvoices.length} onClick={notifyPayment} className="rounded-lg border border-emerald-300/30 px-4 py-3 text-sm font-black text-emerald-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
-          {noticeSending ? 'Enviando...' : 'Solicitar validação'}
-        </button>
+        {pendingInvoices.length ? (
+          <button type="button" disabled={noticeSending} onClick={notifyPayment} className="rounded-lg border border-emerald-300/30 px-4 py-3 text-sm font-black text-emerald-100 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
+            {noticeSending ? 'Enviando...' : 'Avisei que paguei'}
+          </button>
+        ) : null}
       </div>
       <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-        <p className="text-xs font-black uppercase text-zinc-400">Como a liberação funciona</p>
+        <p className="text-xs font-black uppercase text-zinc-400">{pendingInvoices.length ? 'Como a liberação funciona' : 'Assinatura em dia'}</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
-          O aluno paga pelo Pix do coach, solicita a validação e o treinador confirma em Recebimentos. Após confirmar como pago, o acesso fica liberado.
+          {pendingInvoices.length
+            ? 'Pague pelo Pix do coach, envie o comprovante no chat e toque em “Avisei que paguei”. O treinador confirma em Recebimentos e o acesso é liberado.'
+            : 'Nenhuma cobrança em aberto no momento. Quando houver uma nova fatura, ela aparecerá somente nesta área.'}
         </p>
         {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">Solicitação enviada ao treinador.</p> : null}
       </div>
@@ -6604,12 +6668,17 @@ function CheckinForm({ students, onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students, invoices, subscription, userCreatedAt, coachPlans = plans }) {
+function CoachSubscription({ students, invoices, subscription, userCreatedAt, coachPlans = plans, onRefreshSubscription }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
+  const [checkoutStarted, setCheckoutStarted] = useState(false)
+  const [checkingPayment, setCheckingPayment] = useState(false)
+  const [paymentMessage, setPaymentMessage] = useState('')
   const firstMonthCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '')
   const regularCheckoutUrl = normalizeCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || firstMonthCheckoutUrl)
+  const subscriptionActive = isCoachSubscriptionActive(subscription)
+  const subscriptionStatusLabel = getSubscriptionStatusLabel(subscription)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan, coachPlans), 0)
   const now = new Date()
@@ -6644,6 +6713,56 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     return () => window.clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    if (!checkoutStarted || subscriptionActive || !onRefreshSubscription) return undefined
+
+    let stopped = false
+    let attempts = 0
+    let busy = false
+
+    async function verify() {
+      if (stopped || busy) return
+      busy = true
+      attempts += 1
+      const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+      if (stopped) return
+      if (result?.active) {
+        setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
+        stopped = true
+      } else if (attempts >= 24) {
+        setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que o provedor enviar o pagamento aprovado, o painel será liberado.')
+        stopped = true
+      } else {
+        setPaymentMessage('Aguardando confirmação do pagamento. Pode levar alguns instantes após o checkout.')
+      }
+      busy = false
+    }
+
+    const timer = window.setInterval(verify, 5000)
+    verify()
+
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [checkoutStarted, subscriptionActive, onRefreshSubscription])
+
+  useEffect(() => {
+    if (!checkoutStarted || subscriptionActive || !onRefreshSubscription) return undefined
+
+    const verifyOnReturn = () => {
+      if (document.visibilityState === 'hidden') return
+      checkPaymentStatus(true)
+    }
+
+    window.addEventListener('focus', verifyOnReturn)
+    document.addEventListener('visibilitychange', verifyOnReturn)
+    return () => {
+      window.removeEventListener('focus', verifyOnReturn)
+      document.removeEventListener('visibilitychange', verifyOnReturn)
+    }
+  }, [checkoutStarted, subscriptionActive, onRefreshSubscription])
+
   async function copyBillingSummary() {
     const summary = [
       'Resumo da assinatura FIT COACH',
@@ -6662,16 +6781,45 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     }
   }
 
+  async function checkPaymentStatus(silent = false) {
+    if (!onRefreshSubscription) return
+    setCheckingPayment(true)
+    if (!silent) setPaymentMessage('Verificando pagamento...')
+    const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+    if (result?.active) {
+      setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
+    } else if (!silent) {
+      setPaymentMessage('Pagamento ainda não confirmado. Use o mesmo e-mail da conta no checkout e aguarde alguns instantes.')
+    }
+    setCheckingPayment(false)
+  }
+
+  function handleCheckoutClick() {
+    setCheckoutStarted(true)
+    setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
+  }
+
   return (
     <div className="grid min-w-0 gap-4 lg:gap-6">
       <section className="overflow-hidden rounded-md border border-emerald-300/25 bg-zinc-950/75 shadow-2xl shadow-black/25">
         <div className="grid gap-5 border-b border-white/10 p-4 sm:p-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase text-emerald-300">Sua assinatura FIT COACH</p>
-            <h3 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">Uma estrutura profissional que cresce junto com sua carteira.</h3>
+            <h3 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl">
+              {subscriptionActive ? 'Painel liberado e pronto para operar.' : 'Ative sua assinatura para liberar o painel profissional.'}
+            </h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-              Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>. Depois, a mensalidade fica em {formatCurrency(regularPrice)} por mês, mantendo todas as ferramentas liberadas para operar com previsibilidade.
+              {subscriptionActive
+                ? 'Sua conta está ativa. Continue cadastrando alunos, planos, treinos, dietas, cobranças e acompanhamentos sem sair do FIT COACH.'
+                : <>Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>. Depois, a mensalidade fica em {formatCurrency(regularPrice)} por mês, mantendo todas as ferramentas liberadas para operar com previsibilidade.</>}
             </p>
+            <div className={`mt-4 inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase ${
+              subscriptionActive
+                ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
+                : 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+            }`}>
+              {subscriptionStatusLabel}
+            </div>
           </div>
           <div className="min-w-0 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
             <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro fechamento' : 'Próximo fechamento'}</p>
@@ -6751,29 +6899,35 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             </div>
           </Panel>
 
-          <Panel title="Pagamento da assinatura" action="Oferta ativa">
+          <Panel title="Pagamento da assinatura" action={subscriptionActive ? 'Conta ativa' : 'Oferta ativa'}>
             <p className="text-sm leading-6 text-zinc-400">
-              O primeiro pagamento ativa a oferta de entrada por {formatCurrency(firstMonthPrice)}. Depois, o fechamento considera os alunos ativos e os planos cadastrados até o último dia do mês.
+              {subscriptionActive
+                ? 'Sua assinatura está confirmada. Se você acabou de pagar e ainda vê alguma área bloqueada, toque em atualizar status.'
+                : `O primeiro pagamento ativa a oferta de entrada por ${formatCurrency(firstMonthPrice)}. Depois, a mensalidade fixa mantém o painel completo liberado.`}
             </p>
-            <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+            {!subscriptionActive ? <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
               <p className="text-xs font-black uppercase text-amber-200">Importante para liberar automaticamente</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
                 No checkout, use o mesmo e-mail cadastrado aqui no FIT COACH. E-mail diferente pode impedir a liberação automática das ferramentas.
               </p>
-            </div>
-            {currentCheckoutUrl ? (
-              <a href={currentCheckoutUrl} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 w-full items-center justify-center rounded-md bg-emerald-500 px-4 py-3 text-center text-sm font-black text-zinc-950">
+            </div> : null}
+            {!subscriptionActive && currentCheckoutUrl ? (
+              <a href={currentCheckoutUrl} target="_blank" rel="noreferrer" onClick={handleCheckoutClick} className="mt-4 flex min-h-11 w-full items-center justify-center rounded-md bg-emerald-500 px-4 py-3 text-center text-sm font-black text-zinc-950">
                 {billingCycle.isPromotional ? `Pagar primeiro mês por ${formatCurrency(firstMonthPrice)}` : `Pagar mensalidade de ${formatCurrency(regularPrice)}`}
               </a>
-            ) : (
+            ) : !subscriptionActive ? (
               <button type="button" disabled className="mt-4 w-full rounded-md bg-zinc-800 px-4 py-3 text-sm font-black text-zinc-500">
                 Checkout seguro em configuração
               </button>
-            )}
+            ) : null}
+            <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-md border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 disabled:cursor-wait disabled:opacity-60">
+              {checkingPayment ? 'Verificando...' : subscriptionActive ? 'Atualizar status da assinatura' : 'Verificar pagamento agora'}
+            </button>
+            {paymentMessage ? <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-zinc-300">{paymentMessage}</p> : null}
             <button type="button" onClick={copyBillingSummary} className="mt-3 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
               {copied ? 'Resumo copiado' : 'Copiar resumo da cobrança'}
             </button>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">A cobrança recorrente mantém o valor fixo mensal após o primeiro ciclo promocional.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">Depois do checkout, o app verifica a assinatura automaticamente quando você voltar para esta aba e também pelo botão de atualização.</p>
           </Panel>
         </div>
       </div>
@@ -8643,7 +8797,15 @@ function getCoachBillingCycle(subscription, userCreatedAt, referenceTime = Date.
 
 function isCoachSubscriptionActive(subscription) {
   const status = normalizeText(subscription?.status || '')
-  return ['active', 'paid', 'em dia', 'em_dia', 'trialing'].includes(status)
+  return ['active', 'paid', 'em dia', 'em_dia', 'trialing', 'approved', 'aprovado', 'authorized', 'autorizado', 'completed', 'complete', 'ativo'].includes(status)
+}
+
+function getSubscriptionStatusLabel(subscription) {
+  const status = normalizeText(subscription?.status || '')
+  if (isCoachSubscriptionActive(subscription)) return 'Assinatura ativa'
+  if (['pending', 'pendente', 'waiting_payment', 'aguardando_pagamento', 'trial'].includes(status)) return 'Aguardando pagamento'
+  if (['expired', 'cancelled', 'canceled', 'cancelado', 'vencido'].includes(status)) return 'Assinatura pausada'
+  return subscription?.status ? `Status: ${subscription.status}` : 'Aguardando ativação'
 }
 
 function normalizeCheckoutUrl(value) {
