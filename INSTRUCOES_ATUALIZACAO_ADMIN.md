@@ -1,34 +1,24 @@
-# Atualização Admin Master - FIT COACH PRO
+# COACH FIT PRO — Admin separado /admin
 
-## Acesso correto
-
+## Acesso
 Depois do deploy, acesse:
 
 https://coachfitpro.com.br/admin
 
-O Admin Master aceita somente:
+Login permitido como Admin Master:
 
 sac@coachfitpro.com.br
 
-## Ordem recomendada
+## Importante para Cloudflare
+Esta versão remove totalmente o arquivo `public/_redirects`, porque a Cloudflare estava recusando o deploy por loop de redirect.
 
-1. Executar o SQL do arquivo `supabase_admin_master.sql`, caso ainda não tenha executado.
-2. Subir todos os arquivos deste ZIP no GitHub.
-3. Aguardar o deploy da Cloudflare.
-4. Abrir `https://coachfitpro.com.br/admin` em aba anônima.
-5. Fazer login com `sac@coachfitpro.com.br`.
+Antes de subir no GitHub, confirme que NÃO existe mais este arquivo no repositório:
 
-## Correção aplicada nesta versão
+public/_redirects
 
-Esta versão cria uma entrada real de build em `admin/index.html`, além da rota interna React `/admin`.
-Também adiciona regras em `public/_redirects` para a Cloudflare entregar `/admin/index.html` quando o usuário acessar `/admin`.
+Se ele ainda aparecer no GitHub, delete manualmente.
 
-Isso evita que `coachfitpro.com.br/admin` caia na página principal de vendas.
+O `package.json` também foi ajustado para apagar qualquer `dist/_redirects` depois do build.
 
-## Se ainda abrir a página de vendas
-
-1. Confirme se o arquivo `admin/index.html` subiu para o GitHub.
-2. Confirme se `public/_redirects` subiu com as regras de `/admin`.
-3. Aguarde o deploy novo finalizar na Cloudflare.
-4. Teste em aba anônima.
-5. Se necessário, limpe cache/purge cache na Cloudflare.
+## SQL
+Não precisa rodar outro SQL se o SQL Admin Master anterior já foi executado.

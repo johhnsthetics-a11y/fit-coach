@@ -6,9 +6,9 @@
   "packageManager": "pnpm@10.11.1",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && rm -f dist/_redirects",
     "preview": "pnpm run build && pnpm dlx wrangler@4 dev",
-    "deploy": "pnpm run build && pnpm dlx wrangler@4 deploy"
+    "deploy": "pnpm run build && rm -f dist/_redirects && pnpm dlx wrangler@4 deploy"
   },
   "dependencies": {
     "react": "^18.2.0",
