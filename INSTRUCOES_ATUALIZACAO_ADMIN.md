@@ -42,3 +42,37 @@ Build validado com:
 ```bash
 npm run build
 ```
+
+## Correção 2026-07-03 - Admin Master invisível
+
+Foi reforçada a regra de identificação do Admin Master:
+- `sac@coachfitpro.com.br` sempre é considerado Master Admin no front-end;
+- se houver `VITE_FITCOACH_ADMIN_EMAILS` no Cloudflare, ele não substitui mais o e-mail principal;
+- a validação agora considera tanto o e-mail salvo em `users` quanto o e-mail real da sessão autenticada.
+
+Se a tela não aparecer após subir este ZIP:
+1. confirme que o deploy da Cloudflare terminou;
+2. faça logout e login novamente com `sac@coachfitpro.com.br`;
+3. limpe cache/abra em aba anônima;
+4. confirme que você subiu o conteúdo deste ZIP, não o ZIP anterior.
+
+## Atualização /admin
+
+Esta versão cria uma rota administrativa separada em `/admin`.
+
+Fluxo correto:
+1. Acesse `https://SEU-DOMINIO/admin`.
+2. Faça login com `sac@coachfitpro.com.br` e a senha cadastrada no Supabase Auth.
+3. O app abre direto no Admin Master.
+4. O painel comum de coach continua acessível pelo domínio principal `/`.
+
+Segurança aplicada no código:
+- somente `sac@coachfitpro.com.br` é reconhecido como Admin Master;
+- a variável `VITE_FITCOACH_ADMIN_EMAILS` não amplia mais a lista de admins;
+- tentativa de login admin com outro e-mail é bloqueada após autenticação.
+
+Infraestrutura:
+- não precisa SQL novo se o SQL do Admin Master anterior já foi executado;
+- foi adicionado `public/_redirects` para que Cloudflare Pages/Netlify redirecione `/admin` para a SPA;
+- `wrangler.jsonc` já possui `not_found_handling: single-page-application`;
+- o cache do service worker foi atualizado para evitar tela antiga.

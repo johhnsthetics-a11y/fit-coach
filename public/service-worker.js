@@ -1,5 +1,5 @@
-const CACHE_NAME = 'fit-coach-app-v2'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
+const CACHE_NAME = 'fit-coach-app-v3-admin-route'
+const APP_SHELL = ['/', '/admin', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -361,10 +361,14 @@ const defaultAppAdminSettings = {
 }
 const ADMIN_SETTINGS_STORAGE_KEY = 'coachfitpro-admin-settings-preview'
 const MASTER_ADMIN_EMAIL = 'sac@coachfitpro.com.br'
-const ADMIN_EMAILS = (import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || MASTER_ADMIN_EMAIL)
-  .split(',')
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean)
+const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
+const ADMIN_ROUTE_PATH = '/admin'
+
+function isAdminRoutePath() {
+  if (typeof window === 'undefined') return false
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  return path === ADMIN_ROUTE_PATH
+}
 
 function normalizeAdminSettings(settings = {}) {
   const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
@@ -408,8 +412,10 @@ function saveLocalAdminSettings(settings) {
 }
 
 function isMasterAdmin(user, sessionUser = null) {
-  const email = String(user?.email || sessionUser?.email || '').trim().toLowerCase()
-  return Boolean(email && ADMIN_EMAILS.includes(email))
+  const emails = [user?.email, sessionUser?.email]
+    .map((email) => String(email || '').trim().toLowerCase())
+    .filter(Boolean)
+  return emails.some((email) => ADMIN_EMAILS.includes(email))
 }
 
 const plans = [
@@ -807,6 +813,7 @@ export default function App() {
   const [billingClock, setBillingClock] = useState(Date.now())
   const subscriptionCheckRef = useRef(0)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
+  const [adminRoute, setAdminRoute] = useState(() => isAdminRoutePath())
 
   const selectedStudent = useMemo(
     () => data.students.find((student) => student.id === selectedStudentId) ?? data.students[0],
@@ -847,6 +854,25 @@ export default function App() {
       ? [...navItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
       : navItems
   ), [masterAdmin])
+
+  useEffect(() => {
+    function handleRouteChange() {
+      setAdminRoute(isAdminRoutePath())
+    }
+
+    window.addEventListener('popstate', handleRouteChange)
+    window.addEventListener('hashchange', handleRouteChange)
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange)
+      window.removeEventListener('hashchange', handleRouteChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (adminRoute && masterAdmin) {
+      setActiveView('admin-master')
+    }
+  }, [adminRoute, masterAdmin])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -1168,7 +1194,8 @@ export default function App() {
     const email = formData.get('email')?.toString().trim() || ''
     const password = formData.get('password')?.toString() || ''
     const mode = formData.get('mode')?.toString() || 'signin'
-    const user = { name, email, role: 'Coach principal' }
+    const adminLogin = mode === 'admin'
+    const user = { name, email, role: adminLogin ? 'Admin Master' : 'Coach principal' }
 
     if (productionWithoutSupabase) {
       setRemoteStatus('Configuração pendente')
@@ -1196,6 +1223,13 @@ export default function App() {
           ? await signUpCoach({ name, email, password })
           : await signInCoach({ email, password })
         savedUser = await upsertRemoteUser({ ...session.user, name: session.user.name || name })
+        if (adminLogin && !isMasterAdmin(savedUser, session.user)) {
+          await signOutCoach(session.access_token).catch(() => {})
+          setSupabaseSession('')
+          setRemoteStatus('Acesso negado')
+          setRemoteError('Este login não tem permissão para acessar o Admin Master. Use sac@coachfitpro.com.br.')
+          return false
+        }
         const remoteData = await loadRemoteData()
         setData((current) => ({
           ...current,
@@ -1220,7 +1254,9 @@ export default function App() {
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
-        if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
+        if (adminLogin) {
+          setActiveView('admin-master')
+        } else if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
           setActiveView('assinatura')
         }
         return true
@@ -2029,6 +2065,37 @@ export default function App() {
     return <PasswordRecovery onSave={finishPasswordRecovery} />
   }
 
+  if (adminRoute) {
+    if (!data.user || (supabaseEnabled && !data.session?.access_token)) {
+      return (
+        <AdminLoginScreen
+          onLogin={login}
+          remoteStatus={remoteStatus}
+          remoteError={remoteError}
+        />
+      )
+    }
+
+    if (supabaseEnabled && remoteStatus === 'Conectando Supabase') {
+      return <AppLoading />
+    }
+
+    if (!masterAdmin) {
+      return <AdminUnauthorized user={data.user} onLogout={logout} remoteError={remoteError} />
+    }
+
+    return (
+      <AdminRouteShell
+        user={data.user}
+        settings={appAdminSettings}
+        onSave={saveAppAdminSettings}
+        onLogout={logout}
+        remoteStatus={remoteStatus}
+        remoteError={remoteError}
+      />
+    )
+  }
+
   if (salesPreview) {
     return (
       <LoginScreen
@@ -2470,6 +2537,111 @@ function PasswordRecovery({ onSave }) {
         </button>
       </form>
     </main>
+  )
+}
+
+function AdminLoginScreen({ onLogin, remoteStatus, remoteError }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setLoading(true)
+    try {
+      await onLogin(new FormData(event.currentTarget))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fit-gradient-bg min-h-screen text-zinc-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10">
+        <div className="rounded-3xl border border-emerald-300/20 bg-zinc-950/92 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8">
+          <BrandLockup subtitle="Admin Master" />
+          <p className="mt-6 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-200">
+            Acesso administrativo separado
+          </p>
+          <h1 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">Entrar no Admin Master</h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            Essa área é exclusiva para editar página de vendas, planos, links, módulos, usuários e assinaturas. O acesso permitido é somente para {MASTER_ADMIN_EMAIL}.
+          </p>
+
+          {remoteError ? (
+            <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4">
+              <p className="text-xs font-black uppercase text-amber-200">Atenção</p>
+              <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
+            </div>
+          ) : null}
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <input type="hidden" name="mode" value="admin" />
+            <Field label="E-mail admin" name="email" type="email" defaultValue={MASTER_ADMIN_EMAIL} />
+            <Field label="Senha" name="password" type="password" defaultValue="" />
+            <button disabled={loading} className="w-full rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {loading ? 'Validando...' : 'Entrar no Admin Master'}
+            </button>
+          </form>
+
+          <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold text-zinc-500">
+            <a href="/" className="rounded-xl border border-white/10 px-3 py-2 text-zinc-300 transition hover:bg-white/[0.06] hover:text-white">Voltar para o site</a>
+            <span className="rounded-xl border border-white/10 px-3 py-2">Rota: /admin</span>
+          </div>
+          {remoteStatus ? <p className="mt-4 text-xs font-bold text-zinc-500">Status: {remoteStatus}</p> : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AdminUnauthorized({ user, onLogout, remoteError }) {
+  return (
+    <div className="fit-gradient-bg min-h-screen text-zinc-100">
+      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10">
+        <div className="rounded-3xl border border-rose-300/20 bg-zinc-950/92 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8">
+          <BrandLockup subtitle="Admin Master" />
+          <p className="mt-6 inline-flex rounded-full border border-rose-300/25 bg-rose-300/10 px-3 py-1 text-xs font-black uppercase text-rose-200">
+            Acesso negado
+          </p>
+          <h1 className="mt-4 text-3xl font-black text-white">Este usuário não é admin.</h1>
+          <p className="mt-3 break-words text-sm leading-6 text-zinc-400">
+            Login atual: {user?.email || 'e-mail não identificado'}. O Admin Master aceita somente {MASTER_ADMIN_EMAIL}.
+          </p>
+          {remoteError ? <p className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50">{remoteError}</p> : null}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={onLogout} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950">Sair e entrar com admin</button>
+            <a href="/" className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm font-black text-zinc-100">Voltar para o site</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AdminRouteShell({ user, settings, onSave, onLogout, remoteStatus, remoteError }) {
+  return (
+    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/92 px-4 py-3 backdrop-blur-xl sm:px-6">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <BrandLockup compact subtitle="Admin Master" />
+            <p className="mt-2 text-xs font-bold text-zinc-500">Logado como {user?.email}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a href="/" className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-100 transition hover:bg-white/[0.06]">Ver site</a>
+            <a href="/?preview=vendas" className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-100 transition hover:bg-white/[0.06]">Prévia vendas</a>
+            <button type="button" onClick={onLogout} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950">Sair</button>
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto max-w-[1440px] px-3 py-5 sm:px-6 lg:px-8">
+        <AdminMaster
+          settings={settings}
+          onSave={onSave}
+          remoteStatus={remoteStatus}
+          remoteError={remoteError}
+        />
+      </main>
+    </div>
   )
 }
 
