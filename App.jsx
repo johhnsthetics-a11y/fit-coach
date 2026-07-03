@@ -593,6 +593,48 @@ export default function App() {
   }, [data.session?.access_token, studentAccess, coachSubscriptionActive, syncCoachWorkspace])
 
   useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || coachSubscriptionActive) return undefined
+
+    const params = new URLSearchParams(window.location.search)
+    const paymentStatus = params.get('pagamento') || params.get('payment') || params.get('checkout')
+    const returnedFromCheckout = ['confirmado', 'aprovado', 'sucesso', 'success', 'paid', 'ok'].includes(normalizeText(paymentStatus || ''))
+
+    if (!returnedFromCheckout) return undefined
+
+    let stopped = false
+    let attempts = 0
+    setActiveView('assinatura')
+    setRemoteStatus('Verificando pagamento')
+    setRemoteError('Recebemos seu retorno do checkout. Estamos conferindo a confirmação da compra automaticamente.')
+
+    async function verifyPaymentReturn() {
+      if (stopped) return
+      attempts += 1
+      const result = await syncCoachWorkspace({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+      if (stopped) return
+
+      if (result?.active) {
+        stopped = true
+        window.history.replaceState({}, '', window.location.pathname)
+        setRemoteStatus('Assinatura liberada')
+        setRemoteError('')
+      } else if (attempts >= 24) {
+        stopped = true
+        setRemoteStatus('Aguardando confirmação do pagamento')
+        setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback aprovado, o painel será liberado.')
+      }
+    }
+
+    verifyPaymentReturn()
+    const timer = window.setInterval(verifyPaymentReturn, 5000)
+
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [data.session?.access_token, studentAccess, coachSubscriptionActive, syncCoachWorkspace])
+
+  useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('invite')
     if (!inviteCode || studentAccess) return
 

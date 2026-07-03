@@ -2,3 +2,6 @@ project_id = "zrlcisuuekudczkbapil"
 
 [functions.lastlink-webhook]
 verify_jwt = false
+
+[functions.cartpanda-webhook]
+verify_jwt = false
