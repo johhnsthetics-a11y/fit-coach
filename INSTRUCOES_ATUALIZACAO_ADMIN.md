@@ -1,78 +1,34 @@
-# Atualização Admin Master - Coach Fit Pro
+# Atualização Admin Master - FIT COACH PRO
 
-## Antes de subir no GitHub
+## Acesso correto
 
-1. No Supabase, abra o SQL Editor.
-2. Execute o arquivo `supabase_admin_master.sql` inteiro.
-3. Confirme que o login `sac@coachfitpro.com.br` existe no Auth do Supabase.
-4. Faça o deploy deste projeto atualizado no GitHub/Cloudflare.
+Depois do deploy, acesse:
+
+https://coachfitpro.com.br/admin
+
+O Admin Master aceita somente:
+
+sac@coachfitpro.com.br
 
 ## Ordem recomendada
 
-1. Backup do repositório atual.
-2. Aplicar `supabase_admin_master.sql` no Supabase.
-3. Subir os arquivos atualizados no GitHub.
-4. Aguardar o deploy da Cloudflare.
-5. Entrar com `sac@coachfitpro.com.br`.
-6. Abrir `Admin Master`.
-7. Salvar uma alteração pequena de teste, por exemplo o aviso da página.
-8. Abrir a página de vendas em aba anônima para confirmar a alteração.
+1. Executar o SQL do arquivo `supabase_admin_master.sql`, caso ainda não tenha executado.
+2. Subir todos os arquivos deste ZIP no GitHub.
+3. Aguardar o deploy da Cloudflare.
+4. Abrir `https://coachfitpro.com.br/admin` em aba anônima.
+5. Fazer login com `sac@coachfitpro.com.br`.
 
-## O que esta versão adiciona
+## Correção aplicada nesta versão
 
-- Admin Master liberado apenas para `sac@coachfitpro.com.br`.
-- Edição dos textos principais da página de vendas.
-- Editor avançado da página principal por JSON.
-- Edição dos planos, preços, selos, descrições e links Cartpanda.
-- Configurações de suporte, aviso de manutenção e criação de conta.
-- Controle visual de cores.
-- Módulos editáveis no Admin.
-- Listagem administrativa de coaches e assinaturas.
-- Botões para ativar, deixar pendente ou bloquear assinatura manualmente.
-- SQL atualizado com policies RLS para proteger escrita administrativa.
+Esta versão cria uma entrada real de build em `admin/index.html`, além da rota interna React `/admin`.
+Também adiciona regras em `public/_redirects` para a Cloudflare entregar `/admin/index.html` quando o usuário acessar `/admin`.
 
-## Observação
+Isso evita que `coachfitpro.com.br/admin` caia na página principal de vendas.
 
-Depois desta atualização, mudanças comerciais e de conteúdo poderão ser feitas no Admin Master sem novo upload no GitHub. Ainda será necessário GitHub/Cloudflare quando a mudança for estrutural de código, nova tela complexa, nova integração ou alteração pesada de lógica.
+## Se ainda abrir a página de vendas
 
-## Build
-
-Build validado com:
-
-```bash
-npm run build
-```
-
-## Correção 2026-07-03 - Admin Master invisível
-
-Foi reforçada a regra de identificação do Admin Master:
-- `sac@coachfitpro.com.br` sempre é considerado Master Admin no front-end;
-- se houver `VITE_FITCOACH_ADMIN_EMAILS` no Cloudflare, ele não substitui mais o e-mail principal;
-- a validação agora considera tanto o e-mail salvo em `users` quanto o e-mail real da sessão autenticada.
-
-Se a tela não aparecer após subir este ZIP:
-1. confirme que o deploy da Cloudflare terminou;
-2. faça logout e login novamente com `sac@coachfitpro.com.br`;
-3. limpe cache/abra em aba anônima;
-4. confirme que você subiu o conteúdo deste ZIP, não o ZIP anterior.
-
-## Atualização /admin
-
-Esta versão cria uma rota administrativa separada em `/admin`.
-
-Fluxo correto:
-1. Acesse `https://SEU-DOMINIO/admin`.
-2. Faça login com `sac@coachfitpro.com.br` e a senha cadastrada no Supabase Auth.
-3. O app abre direto no Admin Master.
-4. O painel comum de coach continua acessível pelo domínio principal `/`.
-
-Segurança aplicada no código:
-- somente `sac@coachfitpro.com.br` é reconhecido como Admin Master;
-- a variável `VITE_FITCOACH_ADMIN_EMAILS` não amplia mais a lista de admins;
-- tentativa de login admin com outro e-mail é bloqueada após autenticação.
-
-Infraestrutura:
-- não precisa SQL novo se o SQL do Admin Master anterior já foi executado;
-- foi adicionado `public/_redirects` para que Cloudflare Pages/Netlify redirecione `/admin` para a SPA;
-- `wrangler.jsonc` já possui `not_found_handling: single-page-application`;
-- o cache do service worker foi atualizado para evitar tela antiga.
+1. Confirme se o arquivo `admin/index.html` subiu para o GitHub.
+2. Confirme se `public/_redirects` subiu com as regras de `/admin`.
+3. Aguarde o deploy novo finalizar na Cloudflare.
+4. Teste em aba anônima.
+5. Se necessário, limpe cache/purge cache na Cloudflare.

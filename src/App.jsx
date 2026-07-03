@@ -366,8 +366,25 @@ const ADMIN_ROUTE_PATH = '/admin'
 
 function isAdminRoutePath() {
   if (typeof window === 'undefined') return false
-  const path = window.location.pathname.replace(/\/+$/, '') || '/'
-  return path === ADMIN_ROUTE_PATH
+
+  const forcedAdminEntry = Boolean(window.__FITCOACH_ADMIN_ROUTE__)
+  const url = new URL(window.location.href)
+  const path = url.pathname.toLowerCase().replace(/\/+$/, '') || '/'
+  const firstSegment = path.split('/').filter(Boolean)[0] || ''
+  const routeParam = (url.searchParams.get('route') || url.searchParams.get('page') || '').toLowerCase()
+  const hashRoute = url.hash.toLowerCase().replace(/^#/, '').replace(/^\//, '')
+  const adminSubdomain = url.hostname.toLowerCase().startsWith('admin.')
+
+  return (
+    forcedAdminEntry
+    || adminSubdomain
+    || path === ADMIN_ROUTE_PATH
+    || path === `${ADMIN_ROUTE_PATH}/index.html`
+    || firstSegment === 'admin'
+    || routeParam === 'admin'
+    || hashRoute === 'admin'
+    || hashRoute.startsWith('admin/')
+  )
 }
 
 function normalizeAdminSettings(settings = {}) {

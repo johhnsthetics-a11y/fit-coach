@@ -1,5 +1,5 @@
-const CACHE_NAME = 'fit-coach-app-v3-admin-route'
-const APP_SHELL = ['/', '/admin', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
+const CACHE_NAME = 'fit-coach-app-v4-admin-entry'
+const APP_SHELL = ['/', '/admin/', '/admin/index.html', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -25,7 +25,8 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/index.html')))
+    const fallbackPath = url.pathname.toLowerCase().startsWith('/admin') ? '/admin/index.html' : '/index.html'
+    event.respondWith(fetch(request).catch(() => caches.match(fallbackPath).then((cached) => cached || caches.match('/index.html'))))
     return
   }
 
