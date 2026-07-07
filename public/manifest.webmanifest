@@ -1,6 +1,6 @@
 {
-  "name": "FIT COACH",
-  "short_name": "FIT COACH",
+  "name": "Coach Fit Pro",
+  "short_name": "Coach Fit Pro",
   "description": "Acompanhamento de treino, dieta, check-ins e mensagens do aluno.",
   "start_url": "/",
   "scope": "/",

@@ -226,7 +226,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, appAdminSettings] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -242,6 +242,7 @@ export async function loadRemoteData() {
     request('student_invites?select=*&order=created_at.desc'),
     request('student_anamneses?select=*&order=submitted_at.desc'),
     optionalTableRequest('coach_subscriptions?select=*&limit=1'),
+    loadRemoteAppAdminSettings().catch(() => null),
   ])
 
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
@@ -262,7 +263,26 @@ export async function loadRemoteData() {
     invites: invites.map(fromInviteRow),
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
+    appAdminSettings,
   }
+}
+
+export async function loadRemoteAppAdminSettings() {
+  const rows = await optionalTableRequest('app_admin_settings?select=*&key=eq.global&limit=1')
+  return rows[0]?.settings || null
+}
+
+export async function saveRemoteAppAdminSettings(settings) {
+  const rows = await request('app_admin_settings?on_conflict=key', {
+    method: 'POST',
+    body: JSON.stringify({
+      key: 'global',
+      settings,
+      updated_at: new Date().toISOString(),
+    }),
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+  })
+  return rows[0]?.settings || settings
 }
 
 export async function loadRemoteMessages(studentId = '') {

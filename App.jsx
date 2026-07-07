@@ -7,6 +7,7 @@ import {
   createRemoteStudentInvite,
   deleteRemoteStudent,
   loadRemoteData,
+  loadRemoteAppAdminSettings,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
   loadRemoteStudentByInvite,
@@ -18,6 +19,7 @@ import {
   saveRemoteAssessment,
   saveRemoteCheckin,
   saveRemoteCoachSettings,
+  saveRemoteAppAdminSettings,
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
   saveRemoteStudent,
@@ -59,6 +61,10 @@ const cartpandaCheckoutPlans = [
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
     description: 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
     highlights: ['Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
+    bestFor: 'Coach que quer iniciar sem compromisso longo e validar a experiência com os primeiros alunos.',
+    operatingPromise: 'Implante em etapas, cadastre alunos ativos e acompanhe o ganho de organização desde a primeira semana.',
+    activationPlan: ['Criar conta e ativar o ciclo mensal', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
+    decisionPoints: ['mais flexibilidade', 'melhor para teste operacional', 'renovação mês a mês'],
   },
   {
     id: 'semestral',
@@ -74,6 +80,10 @@ const cartpandaCheckoutPlans = [
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211373219:1?subscription=4479',
     description: 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
     highlights: ['Acesso completo ao painel', 'Menos renovações no ano', 'Rotina financeira previsível', 'Boa opção para equipes em crescimento'],
+    bestFor: 'Coach que já tem carteira ativa e quer estruturar a operação sem ficar repensando assinatura todo mês.',
+    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, reduzir retrabalho e aumentar percepção de valor.',
+    activationPlan: ['Ativar o semestre com economia', 'Organizar alunos por planos e vencimentos', 'Criar rotina de treinos, dieta, check-ins e cobrança'],
+    decisionPoints: ['equilíbrio ideal', 'economia sem travar por um ano', 'mais previsibilidade'],
   },
   {
     id: 'anual',
@@ -89,9 +99,78 @@ const cartpandaCheckoutPlans = [
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
     description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
     highlights: ['Acesso completo por 12 meses', 'Planejamento de longo prazo', 'Foco em escala e retenção', 'Melhor para operações maduras'],
+    bestFor: 'Coach que quer operar o ano inteiro com menor custo mensal e foco em escala, retenção e rotina de equipe.',
+    operatingPromise: 'O ciclo anual transforma o app em infraestrutura fixa da operação, com menor custo equivalente por mês.',
+    activationPlan: ['Ativar o ano com maior economia', 'Migrar a carteira em ondas semanais', 'Usar financeiro, ranking e indicadores para gestão contínua'],
+    decisionPoints: ['maior economia', 'menor custo mensal', 'estrutura para longo prazo'],
   },
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
+const defaultAppAdminSettings = {
+  salesHeadline: 'A forma mais profissional de entregar consultoria fitness online.',
+  salesSubheadline: 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
+  salesCta: 'Escolher meu plano',
+  announcement: 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
+  logoUrl: '',
+  salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
+  primaryColor: '#00c7a8',
+  accentColor: '#3b82f6',
+  checkoutPlans: cartpandaCheckoutPlans,
+  featureFlags: {
+    studentXp: true,
+    financialDashboard: true,
+    salesSimulator: true,
+    waterGoal: true,
+  },
+}
+const ADMIN_SETTINGS_STORAGE_KEY = 'coachfitpro-admin-settings-preview'
+const ADMIN_EMAILS = (import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || 'sac@coachfitpro.com.br,admin@coachfitpro.com.br,john@coachfitpro.com.br,johhnsthetics@gmail.com')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
+
+function normalizeAdminSettings(settings = {}) {
+  const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
+    ? settings.checkoutPlans.map((plan, index) => ({
+      ...cartpandaCheckoutPlans[index],
+      ...plan,
+      highlights: Array.isArray(plan.highlights) ? plan.highlights : (typeof plan.highlights === 'string' ? plan.highlights.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.highlights || []),
+      activationPlan: Array.isArray(plan.activationPlan) ? plan.activationPlan : (typeof plan.activationPlan === 'string' ? plan.activationPlan.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.activationPlan || []),
+      decisionPoints: Array.isArray(plan.decisionPoints) ? plan.decisionPoints : (typeof plan.decisionPoints === 'string' ? plan.decisionPoints.split(',').map((item) => item.trim()).filter(Boolean) : cartpandaCheckoutPlans[index]?.decisionPoints || []),
+    }))
+    : defaultAppAdminSettings.checkoutPlans
+
+  return {
+    ...defaultAppAdminSettings,
+    ...settings,
+    checkoutPlans,
+    featureFlags: {
+      ...defaultAppAdminSettings.featureFlags,
+      ...(settings.featureFlags || {}),
+    },
+  }
+}
+
+function loadLocalAdminSettings() {
+  try {
+    return normalizeAdminSettings(JSON.parse(window.localStorage.getItem(ADMIN_SETTINGS_STORAGE_KEY) || '{}'))
+  } catch {
+    return defaultAppAdminSettings
+  }
+}
+
+function saveLocalAdminSettings(settings) {
+  try {
+    window.localStorage.setItem(ADMIN_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+  } catch {
+    // Mantem a edição local no estado mesmo se o navegador bloquear storage.
+  }
+}
+
+function isMasterAdmin(user, sessionUser = null) {
+  const email = String(user?.email || sessionUser?.email || '').toLowerCase()
+  return Boolean(email && (ADMIN_EMAILS.includes(email) || email.endsWith('@coachfitpro.com.br')))
+}
 
 const plans = [
   { name: 'Acompanhamento mensal', price: 'R$ 197', cycle: 'mensal', duration: '1 mês', features: 'Plano padrão configurável pelo treinador' },
@@ -308,6 +387,7 @@ function createInitialData() {
     anamneses: [],
     coachSettings: null,
     coachSubscription: null,
+    appAdminSettings: loadLocalAdminSettings(),
   }
 }
 
@@ -340,6 +420,7 @@ function prepareDataForStorage(data) {
       user: data.user ?? null,
       session: data.session ?? null,
       coachSettings: data.coachSettings ?? null,
+      appAdminSettings: data.appAdminSettings ?? loadLocalAdminSettings(),
     }
   }
 
@@ -374,6 +455,24 @@ function useStoredData() {
   )
 
   useEffect(() => {
+    if (!supabaseEnabled) return undefined
+    let active = true
+    loadRemoteAppAdminSettings()
+      .then((settings) => {
+        if (!active || !settings) return
+        const normalized = normalizeAdminSettings(settings)
+        saveLocalAdminSettings(normalized)
+        setData((current) => ({ ...current, appAdminSettings: normalized }))
+      })
+      .catch(() => {
+        // O app continua usando as configurações padrão até o SQL do Admin Master ser aplicado.
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token) return
 
     setSupabaseSession(data.session.access_token)
@@ -400,6 +499,7 @@ function useStoredData() {
           anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings ?? current.coachSettings,
           coachSubscription: remoteData.coachSubscription ?? current.coachSubscription,
+          appAdminSettings: remoteData.appAdminSettings ?? current.appAdminSettings,
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
@@ -498,8 +598,15 @@ export default function App() {
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
-  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive)
+  const masterAdmin = isMasterAdmin(data.user, data.session?.user)
+  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
+  const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
+  const visibleNavItems = useMemo(() => (
+    masterAdmin
+      ? [...navItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
+      : navItems
+  ), [masterAdmin])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -517,7 +624,7 @@ export default function App() {
   }, [activeView])
 
   useEffect(() => {
-    if (shouldLockCoachTools && activeView !== 'assinatura') {
+    if (shouldLockCoachTools && activeView !== 'assinatura' && activeView !== 'admin-master') {
       setActiveView('assinatura')
     }
   }, [shouldLockCoachTools, activeView])
@@ -1412,6 +1519,30 @@ export default function App() {
     return savedSettings
   }
 
+  async function saveAppAdminSettings(settings) {
+    const normalized = normalizeAdminSettings(settings)
+    saveLocalAdminSettings(normalized)
+    setData((current) => ({ ...current, appAdminSettings: normalized }))
+
+    if (supabaseEnabled) {
+      try {
+        const savedSettings = normalizeAdminSettings(await saveRemoteAppAdminSettings(normalized))
+        saveLocalAdminSettings(savedSettings)
+        setData((current) => ({ ...current, appAdminSettings: savedSettings }))
+        setRemoteStatus('Admin Master salvo')
+        setRemoteError('')
+        return savedSettings
+      } catch (error) {
+        setRemoteStatus('Admin salvo localmente')
+        setRemoteError('Para salvar no banco e alterar sem GitHub, aplique o SQL do Admin Master no Supabase.')
+        return normalized
+      }
+    }
+
+    setRemoteStatus('Admin salvo localmente')
+    return normalized
+  }
+
   function exportAccountData() {
     const exportData = {
       exportedAt: new Date().toISOString(),
@@ -1665,6 +1796,7 @@ export default function App() {
         onStudentAccess={enterStudentByInvite}
         remoteStatus={remoteStatus}
         remoteError={remoteError}
+        appAdminSettings={appAdminSettings}
       />
     )
   }
@@ -1720,6 +1852,7 @@ export default function App() {
         onStudentAccess={enterStudentByInvite}
         remoteStatus={remoteStatus}
         remoteError={remoteError}
+        appAdminSettings={appAdminSettings}
       />
     )
   }
@@ -1728,7 +1861,7 @@ export default function App() {
     return <AppLoading />
   }
 
-  const activeNavItem = navItems.find((item) => item.id === activeView) ?? navItems[0]
+  const activeNavItem = visibleNavItems.find((item) => item.id === activeView) ?? visibleNavItems[0]
   const activeNavTone = getNavToneClasses(activeNavItem?.tone)
   const viewTitle = activeNavItem?.label ?? 'Visão geral'
 
@@ -1778,10 +1911,10 @@ export default function App() {
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
           </div>
           <nav className="grid min-h-0 min-w-0 flex-1 content-start gap-2 overflow-hidden">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const tone = getNavToneClasses(item.tone)
               const isActive = activeView === item.id
-              const isLocked = shouldLockCoachTools && item.id !== 'assinatura'
+              const isLocked = shouldLockCoachTools && item.id !== 'assinatura' && item.id !== 'admin-master'
 
               return (
                 <button
@@ -1841,6 +1974,16 @@ export default function App() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2 xl:mt-0">
+              {masterAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveView('admin-master')}
+                  className="rounded-md border border-blue-300/30 bg-blue-400/10 px-4 py-2 text-left text-sm font-bold text-blue-100"
+                >
+                  <span className="block text-[10px] font-black uppercase text-blue-300">Admin</span>
+                  <span className="mt-0.5 block">Admin Master</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setActiveView('assinatura')}
@@ -1948,7 +2091,16 @@ export default function App() {
                 subscription={data.coachSubscription}
                 userCreatedAt={data.user?.createdAt}
                 coachPlans={coachPlans}
+                appAdminSettings={appAdminSettings}
                 onRefreshSubscription={syncCoachWorkspace}
+              />
+            )}
+            {activeView === 'admin-master' && masterAdmin && (
+              <AdminMaster
+                settings={appAdminSettings}
+                onSave={saveAppAdminSettings}
+                remoteStatus={remoteStatus}
+                remoteError={remoteError}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -2081,7 +2233,7 @@ function PasswordRecovery({ onSave }) {
   )
 }
 
-function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
+function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings }) {
   const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
@@ -2091,7 +2243,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
     additionalStudents: 6,
     priceIncrease: 30,
   })
-  const selectedOfferPlan = cartpandaCheckoutPlans.find((plan) => plan.id === selectedOfferPlanId) || cartpandaCheckoutPlans[1]
+  const salesSettings = normalizeAdminSettings(appAdminSettings)
+  const salesPlans = salesSettings.checkoutPlans
+  const selectedOfferPlan = salesPlans.find((plan) => plan.id === selectedOfferPlanId) || salesPlans[1] || salesPlans[0]
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -2259,20 +2413,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
           <div className="min-w-0" data-reveal>
             <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-blue-200">Plataforma de operação para coaches fitness</p>
             <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.7rem]">
-              A forma mais profissional de entregar consultoria fitness online.
+              {salesSettings.salesHeadline}
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-              Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.
+              {salesSettings.salesSubheadline}
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
-                Escolher meu plano
+                {salesSettings.salesCta}
               </button>
               <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
                 Ver como funciona
               </button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">{salesSettings.announcement}</p>
+            {salesSettings.salesTrustText ? (
+              <p className="mt-2 max-w-xl text-xs font-bold leading-5 text-emerald-100/85">{salesSettings.salesTrustText}</p>
+            ) : null}
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
               <SalesStat value="1 painel" label="toda a operação" />
               <SalesStat value="App aluno" label="experiência premium" />
@@ -2531,20 +2688,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 ))}
               </div>
             </div>
-            <div data-reveal className="rounded-md border border-emerald-300/20 bg-zinc-950/85 p-5 shadow-2xl shadow-black/30">
+            <div data-reveal className="rounded-2xl border border-emerald-300/20 bg-zinc-950/88 p-5 shadow-2xl shadow-black/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase text-blue-200">Dashboard financeiro</p>
-                  <h3 className="mt-2 text-2xl font-black">Vendas e renovações</h3>
+                  <h3 className="mt-2 text-2xl font-black">Receita, renovações e inadimplência sob controle</h3>
                 </div>
                 <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
                 {[
-                  ['Vendas no mês', 'R$ 8.940', '+18%'],
-                  ['Renovações', '32', '7 dias'],
-                  ['Ticket médio', 'R$ 279', 'por aluno'],
+                  ['Recebido no mês', 'R$ 8.940', '+18%'],
+                  ['Renovações próximas', '32', '7 dias'],
                   ['A receber', 'R$ 2.310', 'pendente'],
+                  ['Alunos liberados', '94%', 'pagos'],
                 ].map(([label, value, detail]) => (
                   <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
@@ -2553,10 +2710,30 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   </div>
                 ))}
               </div>
-              <div className="mt-5 flex h-28 items-end gap-2 rounded-lg border border-white/10 bg-white/[0.025] p-3">
-                {[34, 52, 46, 68, 59, 74, 88, 82, 96].map((height, index) => (
-                  <span key={index} className="flex-1 rounded-t bg-gradient-to-t from-emerald-700 to-emerald-300" style={{ height: `${height}%` }} />
-                ))}
+              <div className="mt-5 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-lg border border-white/10 bg-white/[0.025] p-3">
+                  <div className="flex h-32 items-end gap-2">
+                    {[34, 52, 46, 68, 59, 74, 88, 82, 96].map((height, index) => (
+                      <span key={index} className="flex-1 rounded-t bg-gradient-to-t from-emerald-700 to-emerald-300" style={{ height: `${height}%` }} />
+                    ))}
+                  </div>
+                  <div className="mt-3 flex justify-between text-[10px] font-bold uppercase text-zinc-600">
+                    <span>Semana 1</span>
+                    <span>Semana 4</span>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  {[
+                    ['Cobranças automáticas', 'Pix, WhatsApp e status por aluno'],
+                    ['Confirmação manual', 'coach valida e libera o acesso'],
+                    ['Planos próprios', 'mensal, semanal, semestral ou anual'],
+                  ].map(([title, text]) => (
+                    <div key={title} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                      <p className="text-sm font-black text-white">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.</p>
             </div>
@@ -2595,7 +2772,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
               <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
               <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
-              <button type="button" onClick={() => openAccess('signup')} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
                 Profissionalizar meu acompanhamento
               </button>
             </div>
@@ -2779,21 +2956,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                 Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
               </p>
 
-              <div className="mx-auto mt-7 grid max-w-xl grid-cols-3 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30">
-                {cartpandaCheckoutPlans.map((plan) => {
+              <div className="mx-auto mt-7 grid max-w-3xl gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30 sm:grid-cols-3">
+                {salesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
                   return (
                     <button
                       key={plan.id}
                       type="button"
                       onClick={() => setSelectedOfferPlanId(plan.id)}
-                      className={`rounded-xl px-3 py-3 text-xs font-black transition sm:text-sm ${
+                      className={`min-h-20 rounded-xl px-3 py-3 text-left transition ${
                         selected
                           ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
                           : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
-                      {plan.name}
+                      <span className="block text-sm font-black">{plan.name}</span>
+                      <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
+                      <span className="mt-2 block text-xs font-black">{plan.price}</span>
                     </button>
                   )
                 })}
@@ -2833,6 +3012,47 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   </div>
 
                   <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
+
+                  <div className="mt-6 grid gap-3 lg:grid-cols-3">
+                    <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+                      <p className="text-xs font-black uppercase text-blue-200">Decisão inteligente</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        {selectedOfferPlan.id === 'mensal'
+                          ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
+                          : selectedOfferPlan.id === 'semestral'
+                            ? 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.'
+                            : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                      <p className="text-xs font-black uppercase text-zinc-500">Melhor para</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.bestFor}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                      <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.operatingPromise}</p>
+                      </div>
+                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberação automática</span>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      {selectedOfferPlan.activationPlan.map((item, index) => (
+                        <div key={item} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
+                          <p className="mt-3 text-xs font-bold leading-5 text-zinc-300">{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
                     {[
@@ -2874,6 +3094,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError }) {
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.
                   </p>
+                </div>
+                <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-400">Implantação prática</p>
+                  <div className="mt-3 grid gap-2">
+                    {['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'].map((item, index) => (
+                      <div key={item} className="flex gap-3 text-sm leading-6 text-zinc-300">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
@@ -3125,6 +3356,9 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
     })
     .slice()
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
+  const todayKey = toLocalDateKey(now)
+  const todayAppointments = appointments.filter((appointment) => toLocalDateKey(appointment.startsAt) === todayKey && !['Concluido', 'Cancelado'].includes(appointment.status))
+  const nextAppointments = appointments.filter((appointment) => new Date(appointment.startsAt) >= now && !['Concluido', 'Cancelado'].includes(appointment.status))
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -3172,6 +3406,32 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="xl:col-span-2 rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500/10 via-zinc-950/90 to-emerald-300/8 p-5 shadow-2xl shadow-black/20">
+        <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="text-xs font-black uppercase text-blue-200">Agenda do coach</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Organize check-ins, avaliações, chamadas e revisões sem misturar com o chat.</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Use esta área para marcar compromissos que precisam de data, horário e acompanhamento. O aluno visualiza a agenda no portal dele.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase text-zinc-500">Hoje</p>
+              <p className="mt-1 text-2xl font-black text-white">{todayAppointments.length}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase text-zinc-500">Próximos</p>
+              <p className="mt-1 text-2xl font-black text-blue-200">{nextAppointments.length}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="text-xs font-black uppercase text-zinc-500">Alunos</p>
+              <p className="mt-1 text-2xl font-black text-emerald-200">{students.length}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Panel title="Novo compromisso" action="Agenda">
         {students.length ? (
           <form onSubmit={handleSubmit} className="grid gap-4">
@@ -3182,7 +3442,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título" name="title" defaultValue="Acompanhamento" />
-              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliacao', 'Check-in', 'Chamada', 'Outro']} />
+              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliação', 'Check-in', 'Chamada', 'Revisão de treino', 'Revisão de dieta', 'Outro']} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Data e horário" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
@@ -4130,6 +4390,54 @@ function WorkoutList({ workouts, fallbackTitle, onArchive }) {
     )
   }
 
+  if (subscriptionActive) {
+    return (
+      <div className="grid min-w-0 gap-5 lg:gap-6">
+        <section className="overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950/88 shadow-2xl shadow-black/35">
+          <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-emerald-300">Minha assinatura</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">Assinatura ativa.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                Seu acesso ao Coach Fit Pro está liberado. Esta área mostra apenas o status da sua assinatura para você não confundir pagamento da plataforma com financeiro dos alunos.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Plano escolhido</p>
+                  <p className="mt-2 text-lg font-black text-white">{selectedCheckoutPlan.name}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Status</p>
+                  <p className="mt-2 text-lg font-black text-emerald-200">{subscriptionStatusLabel}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Provedor</p>
+                  <p className="mt-2 text-lg font-black text-blue-200">Cartpanda</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-5">
+              <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro ciclo' : 'Próximo ciclo'}</p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <p className="text-3xl font-black text-white">{selectedCheckoutPlan.price}</p>
+                <p className="pb-1 text-sm font-bold text-zinc-400">{selectedCheckoutPlan.suffix}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Próxima referência em {billingCycle.daysRemaining} {billingCycle.daysRemaining === 1 ? 'dia' : 'dias'}.
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">{formatFullDateTime(billingCycle.nextBillingAt)}</p>
+              <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-5 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                {checkingPayment ? 'Atualizando...' : 'Atualizar status'}
+              </button>
+              {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm leading-6 text-zinc-200">{paymentMessage}</p> : null}
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {workouts.map((workout) => (
@@ -4403,7 +4711,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
         effort: form.get('effort')?.toString() || 'Moderado',
         notes: form.get('notes')?.toString() || '',
       })
-      setMessage('Treino marcado como concluído.')
+      setMessage('Treino concluído. +80 XP adicionados ao ranking de evolução.')
       formElement.reset()
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
@@ -4420,7 +4728,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando...' : 'Marcar treino como concluído'}
       </button>
-      {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+      {message ? <p className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
     </form>
   )
@@ -6282,6 +6590,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
+  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent })
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextAppointment
@@ -6301,6 +6610,41 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           </span>
           <NavIcon name="chevronRight" className="h-5 w-5 text-emerald-200" />
         </button>
+
+        <div className="overflow-hidden rounded-xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/12 via-zinc-950 to-blue-500/10 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
+              <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
+              <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
+              <p className="mt-1 text-lg font-black text-emerald-100">{reward.nextLevelName}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">{reward.remainingXp > 0 ? `faltam ${reward.remainingXp} XP` : 'ranking máximo'}</p>
+            </div>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-blue-400 transition-all duration-700" style={{ width: `${reward.progress}%` }} />
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-4">
+            {reward.badges.map((badge) => (
+              <div key={badge.label} className={`rounded-lg border p-3 ${badge.done ? 'border-emerald-300/35 bg-emerald-300/12' : 'border-white/10 bg-white/[0.03]'}`}>
+                <p className={`text-xs font-black uppercase ${badge.done ? 'text-emerald-100' : 'text-zinc-500'}`}>{badge.label}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">{badge.detail}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            {reward.sources.map((source) => (
+              <div key={source.label} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <p className="text-xs font-black uppercase text-zinc-500">{source.label}</p>
+                <p className="mt-1 text-lg font-black text-white">{source.value}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">{source.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <StudentWaterTracker
           goalMl={waterGoalMl}
@@ -6335,9 +6679,9 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail="Bata sua sequência de treinos." tone="emerald" />
-          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail="Consistência acumulada no mês." tone="sky" />
-          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail="Meta de água definida pelo coach." tone="cyan" />
+          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta e ganhe bônus de XP.'} tone="emerald" />
+          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" />
+          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? '+40 XP de rotina liberado hoje.' : 'Meta de água definida pelo coach.'} tone="cyan" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -6353,6 +6697,45 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
       </div>
     </StudentAppSection>
   )
+}
+
+function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0, waterPercent = 0 }) {
+  const workoutXp = completedThisMonth * 80
+  const weeklyBonusXp = completedThisWeek >= 3 ? 120 : 0
+  const monthlyBonusXp = completedThisMonth >= 12 ? 300 : 0
+  const hydrationXp = waterPercent >= 100 ? 40 : waterPercent >= 80 ? 25 : 0
+  const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp)
+  const levels = [
+    { name: 'Selo Bronze', min: 0 },
+    { name: 'Selo Prata', min: 450 },
+    { name: 'Selo Ouro', min: 900 },
+    { name: 'Selo Diamante', min: 1600 },
+    { name: 'Elite Coach Fit', min: 2600 },
+  ]
+  const currentIndex = levels.reduce((index, level, levelIndex) => (xp >= level.min ? levelIndex : index), 0)
+  const current = levels[currentIndex]
+  const next = levels[currentIndex + 1]
+  const progress = next ? Math.round(((xp - current.min) / Math.max(1, next.min - current.min)) * 100) : 100
+  const remainingXp = next ? Math.max(0, next.min - xp) : 0
+
+  return {
+    xp,
+    levelName: current.name,
+    nextLevelName: next?.name || 'Ranking máximo',
+    remainingXp,
+    progress: Math.min(100, Math.max(0, progress)),
+    badges: [
+      { label: 'Treino', done: completedThisWeek >= 3, detail: completedThisWeek >= 3 ? '+120 XP de bônus semanal' : 'complete 3 treinos na semana' },
+      { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? '+25 XP de hidratação' : 'bata 80% da meta de água' },
+      { label: 'Consistência', done: completedThisMonth >= 8, detail: completedThisMonth >= 8 ? 'ritmo forte no mês' : 'alcance 8 treinos no mês' },
+      { label: 'Evolução', done: completedThisMonth >= 12, detail: completedThisMonth >= 12 ? '+300 XP de bônus mensal' : 'busque 12 treinos no mês' },
+    ],
+    sources: [
+      { label: 'Treinos concluídos', value: `+${workoutXp} XP`, detail: '80 XP por treino finalizado' },
+      { label: 'Bônus semanal', value: `+${weeklyBonusXp} XP`, detail: 'meta mínima de treinos da semana' },
+      { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
+    ],
+  }
 }
 
 function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' }) {
@@ -6835,7 +7218,7 @@ function CheckinForm({ students, onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students, invoices, subscription, userCreatedAt, coachPlans = plans, onRefreshSubscription }) {
+function CoachSubscription({ students, invoices, subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -6851,7 +7234,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   })
   const firstMonthCheckoutUrl = resolveCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '', primaryCartpandaCheckoutUrl)
   const regularCheckoutUrl = resolveCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || '', firstMonthCheckoutUrl)
-  const checkoutPlans = cartpandaCheckoutPlans.map((plan) => {
+  const officialCheckoutPlans = normalizeAdminSettings(appAdminSettings).checkoutPlans
+  const checkoutPlans = officialCheckoutPlans.map((plan) => {
     const envUrl = plan.id === 'mensal'
       ? firstMonthCheckoutUrl
       : plan.id === 'semestral'
@@ -7011,7 +7395,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
               </p>
 
-              <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5">
+              <div className="mt-6 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
                 {checkoutPlans.map((plan) => {
                   const selected = selectedCheckoutPlan.id === plan.id
                   return (
@@ -7019,16 +7403,30 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                       key={plan.id}
                       type="button"
                       onClick={() => chooseCheckoutPlan(plan.id)}
-                      className={`rounded-xl px-2 py-3 text-xs font-black transition sm:text-sm ${
+                      className={`min-h-20 rounded-xl px-3 py-3 text-left transition ${
                         selected
                           ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
                           : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
-                      {plan.name}
+                      <span className="block text-sm font-black">{plan.name}</span>
+                      <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
+                      <span className="mt-2 block text-xs font-black">{plan.price}</span>
                     </button>
                   )
                 })}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <p className="text-xs font-black uppercase text-zinc-500">Por que este plano faz sentido</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.bestFor}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedCheckoutPlan.decisionPoints.map((item) => (
+                    <span key={item} className="rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-xs font-black text-blue-100">
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -7065,6 +7463,11 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 </div>
                 <p className="mt-2 text-sm font-black text-blue-200">{selectedCheckoutPlan.total}</p>
                 <p className="mt-1 text-xs leading-5 text-emerald-200">{selectedCheckoutPlan.economy}</p>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <p className="text-xs font-black uppercase text-emerald-200">O que acontece depois</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.operatingPromise}</p>
               </div>
 
               <div className="mt-5 grid gap-2">
@@ -7351,7 +7754,15 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
   const pendingTotal = invoices
     .filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const pendingCount = invoices.filter((invoice) => getInvoiceStatus(invoice) === 'Pendente').length
   const overdueCount = invoices.filter((invoice) => getInvoiceStatus(invoice) === 'Atrasado').length
+  const overdueTotal = invoices
+    .filter((invoice) => getInvoiceStatus(invoice) === 'Atrasado')
+    .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const renewalValue7Days = renewalsNext7Days.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const paidStudents = students.filter((student) => student.payment === 'Pago').length
+  const activeStudents = students.filter((student) => student.status !== 'Inativo').length
+  const paymentRate = activeStudents ? Math.round((paidStudents / activeStudents) * 100) : 0
   const visibleInvoices = invoices
     .map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
     .filter((invoice) => filter === 'Todos' || invoice.status === filter)
@@ -7461,12 +7872,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           </div>
           <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${activeStudents} aluno(s) ativos`} />
           <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
           <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
           <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
-          <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalsNext7Days.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0))} />
-          <Metric label="Ticket médio" value={formatCurrency(averageTicket)} detail="por pagamento confirmado" />
+          <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
+          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${paidStudents} aluno(s) liberados`} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
@@ -7487,9 +7899,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs font-black uppercase text-zinc-400">Status financeiro</p>
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <div><p className="text-lg font-black text-amber-200">{invoices.filter((item) => getInvoiceStatus(item) === 'Pendente').length}</p><p className="text-xs text-zinc-500">pendentes</p></div>
+              <div><p className="text-lg font-black text-amber-200">{pendingCount}</p><p className="text-xs text-zinc-500">pendentes</p></div>
               <div><p className="text-lg font-black text-rose-200">{overdueCount}</p><p className="text-xs text-zinc-500">atrasadas</p></div>
-              <div><p className="text-lg font-black text-emerald-200">{students.filter((student) => student.payment === 'Pago').length}</p><p className="text-xs text-zinc-500">liberados</p></div>
+              <div><p className="text-lg font-black text-emerald-200">{paidStudents}</p><p className="text-xs text-zinc-500">liberados</p></div>
+            </div>
+            <div className="mt-4 rounded-lg border border-rose-300/20 bg-rose-300/8 p-3">
+              <p className="text-xs font-black uppercase text-rose-200">Valor em atraso</p>
+              <p className="mt-1 text-xl font-black text-white">{formatCurrency(overdueTotal)}</p>
             </div>
           </div>
         </div>
@@ -7724,6 +8140,229 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
         </button>
       </div>
     </div>
+  )
+}
+
+function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
+  const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [logoFileError, setLogoFileError] = useState('')
+
+  useEffect(() => {
+    setDraft(normalizeAdminSettings(settings))
+  }, [settings])
+
+  function updateField(field, value) {
+    setDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function handleLogoFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setLogoFileError('')
+    if (!file.type.startsWith('image/')) {
+      setLogoFileError('Envie uma imagem em PNG, JPG ou WebP.')
+      return
+    }
+    if (file.size > 700 * 1024) {
+      setLogoFileError('A imagem ficou pesada. Use uma logo com ate 700 KB para carregar rapido.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => updateField('logoUrl', reader.result?.toString() || '')
+    reader.onerror = () => setLogoFileError('Nao consegui ler a imagem. Tente outro arquivo.')
+    reader.readAsDataURL(file)
+  }
+
+  function updateFlag(field, value) {
+    setDraft((current) => ({
+      ...current,
+      featureFlags: { ...current.featureFlags, [field]: value },
+    }))
+  }
+
+  function updatePlan(planIndex, field, value) {
+    setDraft((current) => ({
+      ...current,
+      checkoutPlans: current.checkoutPlans.map((plan, index) => (
+        index === planIndex ? { ...plan, [field]: value } : plan
+      )),
+    }))
+  }
+
+  function updatePlanList(planIndex, field, value, separator = '\n') {
+    const items = value
+      .split(separator)
+      .map((item) => item.trim())
+      .filter(Boolean)
+    updatePlan(planIndex, field, items)
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    setMessage('')
+    try {
+      await onSave(draft)
+      setMessage('Configurações salvas. As próximas visitas já usam esta versão.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function resetDefaults() {
+    setDraft(defaultAppAdminSettings)
+    setMessage('Padrão carregado. Clique em salvar para publicar.')
+  }
+
+  return (
+    <div className="grid gap-5 lg:gap-6">
+      <section className="overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950/88 p-5 shadow-2xl shadow-black/25 sm:p-6">
+        <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="text-xs font-black uppercase text-emerald-300">Admin Master</p>
+            <h2 className="mt-2 text-3xl font-black text-white">Controle central do Coach Fit Pro.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
+              Edite página de vendas, planos oficiais, links de checkout, cores e módulos sem precisar subir código no GitHub.
+            </p>
+          </div>
+          <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+            <p className="text-xs font-black uppercase text-blue-200">Status</p>
+            <p className="mt-2 text-sm font-bold text-zinc-200">{remoteStatus || 'Pronto'}</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              {remoteError ? remoteError : 'Quando o SQL do Admin Master estiver aplicado, salvar aqui publica no banco.'}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
+        <Panel title="Página de vendas" action="Textos principais">
+          <div className="grid gap-4">
+            <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
+            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: menos retrabalho, mais organização e melhor experiência para o aluno." />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar agora." />
+              <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
+            </div>
+            <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
+          </div>
+        </Panel>
+
+        <Panel title="Planos e checkout" action={`${draft.checkoutPlans.length} planos`}>
+          <div className="grid gap-4">
+            {draft.checkoutPlans.map((plan, index) => (
+              <div key={plan.id || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase text-zinc-500">Plano {index + 1}</p>
+                    <h3 className="mt-1 text-xl font-black text-white">{plan.name}</h3>
+                  </div>
+                  <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{plan.badge}</span>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <AdminTextInput label="Nome" value={plan.name} onChange={(value) => updatePlan(index, 'name', value)} />
+                  <AdminTextInput label="Ciclo" value={plan.cycle} onChange={(value) => updatePlan(index, 'cycle', value)} />
+                  <AdminTextInput label="Selo do card" value={plan.badge} onChange={(value) => updatePlan(index, 'badge', value)} />
+                  <AdminTextInput label="Preço" value={plan.price} onChange={(value) => updatePlan(index, 'price', value)} />
+                  <AdminTextInput label="Complemento do preço" value={plan.suffix} onChange={(value) => updatePlan(index, 'suffix', value)} />
+                  <AdminTextInput label="Preço antigo" value={plan.oldPrice || ''} onChange={(value) => updatePlan(index, 'oldPrice', value)} />
+                  <AdminTextInput label="Comparativo" value={plan.total} onChange={(value) => updatePlan(index, 'total', value)} />
+                  <AdminTextInput label="Vantagem" value={plan.economy} onChange={(value) => updatePlan(index, 'economy', value)} />
+                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} hint="Cole o link completo do checkout. Recomendado: começar por https://pagamento.coachfitpro.com.br/checkout/." />
+                </div>
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <AdminTextArea label="Descrição" value={plan.description} onChange={(value) => updatePlan(index, 'description', value)} />
+                  <AdminTextArea label="Melhor para" value={plan.bestFor} onChange={(value) => updatePlan(index, 'bestFor', value)} />
+                  <AdminTextArea label="Promessa operacional" value={plan.operatingPromise} onChange={(value) => updatePlan(index, 'operatingPromise', value)} />
+                  <AdminTextArea label="Itens inclusos, um por linha" value={(plan.highlights || []).join('\n')} onChange={(value) => updatePlanList(index, 'highlights', value)} />
+                  <AdminTextArea label="Passos de implantação, um por linha" value={(plan.activationPlan || []).join('\n')} onChange={(value) => updatePlanList(index, 'activationPlan', value)} />
+                  <AdminTextArea label="Gatilhos do plano, separados por vírgula" value={(plan.decisionPoints || []).join(', ')} onChange={(value) => updatePlanList(index, 'decisionPoints', value, ',')} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+          <Panel title="Branding global" action="Visual">
+            <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <AdminTextInput label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Use código hexadecimal. Exemplo: #00c7a8." />
+                <AdminTextInput label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} hint="Escolha uma cor que contraste com o fundo escuro." />
+              </div>
+              <AdminTextInput label="URL da logotipo principal" value={draft.logoUrl} onChange={(value) => updateField('logoUrl', value)} hint="Opcional. Use PNG horizontal com fundo transparente. Se deixar vazio, o app usa a logo padrão." />
+              <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                Enviar logotipo
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} className="rounded-xl border border-dashed border-white/15 bg-zinc-950 px-3 py-3 text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-black file:text-zinc-950" />
+                <span className="text-xs font-medium leading-5 text-zinc-500">Recomendação: imagem horizontal, até 700 KB, preferencialmente PNG/WebP transparente para combinar com o fundo preto.</span>
+                {logoFileError ? <span className="text-xs font-bold text-amber-200">{logoFileError}</span> : null}
+              </label>
+            </div>
+            <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: `linear-gradient(135deg, ${draft.primaryColor}22, ${draft.accentColor}22)` }}>
+              <p className="text-sm font-black text-white">Prévia do visual</p>
+              <div className="mt-3 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-black/35 p-4">
+                <img src={draft.logoUrl || fitCoachLogo} alt="Prévia da logotipo" className="max-h-16 max-w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]" />
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-400">Salve para publicar a logo e as cores nos acessos novos. Se a logo ficar apagada no preto, use uma versão clara ou com contorno.</p>
+            </div>
+          </Panel>
+
+          <Panel title="Módulos ativos" action="Funcionalidades">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ['studentXp', 'XP e selos do aluno'],
+                ['financialDashboard', 'Dashboard financeiro'],
+                ['salesSimulator', 'Simulador da página inicial'],
+                ['waterGoal', 'Meta de água interativa'],
+              ].map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <span className="text-sm font-black text-zinc-100">{label}</span>
+                  <input type="checkbox" checked={Boolean(draft.featureFlags?.[key])} onChange={(event) => updateFlag(key, event.target.checked)} className="h-5 w-5 accent-emerald-400" />
+                </label>
+              ))}
+            </div>
+          </Panel>
+        </div>
+
+        <div className="sticky bottom-3 z-20 flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/92 p-3 shadow-2xl shadow-black/35 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-5 text-zinc-400">
+            Depois de salvar no Supabase, textos, planos e links mudam sem precisar atualizar o GitHub.
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={resetDefaults} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+              Restaurar padrão
+            </button>
+            <button disabled={saving} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {saving ? 'Salvando...' : 'Salvar Admin Master'}
+            </button>
+          </div>
+        </div>
+
+        {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+      </form>
+    </div>
+  )
+}
+
+function AdminTextInput({ label, value, onChange, hint = '' }) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-zinc-300">
+      {label}
+      <input value={value || ''} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50" />
+      {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
+    </label>
+  )
+}
+
+function AdminTextArea({ label, value, onChange, hint = '' }) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-zinc-300">
+      {label}
+      <textarea value={value || ''} onChange={(event) => onChange(event.target.value)} rows={4} className="min-h-28 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none transition focus:border-emerald-300/50" />
+      {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
+    </label>
   )
 }
 
@@ -8186,6 +8825,7 @@ function ChartLoading() {
 }
 
 function BrandLockup({ subtitle = '', large = false, compact = false }) {
+  const logoSrc = loadLocalAdminSettings().logoUrl || fitCoachLogo
   return (
     <div
       className={`fit-brand-lockup grid aspect-[400/71] shrink-0 place-items-center ${
@@ -8198,7 +8838,7 @@ function BrandLockup({ subtitle = '', large = false, compact = false }) {
       title={subtitle}
     >
       <img
-        src={fitCoachLogo}
+        src={logoSrc}
         alt="Coach Fit Pro"
         className="h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.48)]"
         decoding="async"
