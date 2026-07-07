@@ -781,7 +781,7 @@ export default function App() {
         window.history.replaceState({}, '', window.location.pathname)
         setRemoteStatus('Assinatura liberada')
         setRemoteError('')
-      } else if (attempts >= 24) {
+      } else if (attempts >= 120) {
         stopped = true
         setRemoteStatus('Aguardando confirmação do pagamento')
         setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback aprovado, o painel será liberado.')
@@ -7586,7 +7586,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       if (result?.active) {
         setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
         stopped = true
-      } else if (attempts >= 24) {
+      } else if (attempts >= 120) {
         setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que o provedor enviar o pagamento aprovado, o painel será liberado.')
         stopped = true
       } else {

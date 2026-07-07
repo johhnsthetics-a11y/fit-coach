@@ -168,6 +168,119 @@ textarea {
   white-space: normal;
 }
 
+.app-shell {
+  --brand-emerald: #00d2b2;
+  --brand-emerald-soft: #a7fff1;
+  --brand-emerald-deep: #00806c;
+  --brand-emerald-glow: rgba(0, 210, 178, 0.32);
+}
+
+.app-shell .text-blue-50,
+.app-shell .text-blue-100,
+.app-shell .text-blue-200,
+.app-shell .text-blue-300,
+.app-shell .text-blue-400 {
+  color: var(--brand-emerald-soft) !important;
+}
+
+.app-shell .bg-blue-300,
+.app-shell .bg-blue-400,
+.app-shell .bg-blue-500,
+.app-shell .bg-blue-600 {
+  background-color: var(--brand-emerald) !important;
+}
+
+.app-shell .bg-blue-300\/5,
+.app-shell .bg-blue-300\/10,
+.app-shell .bg-blue-400\/10,
+.app-shell .bg-blue-400\/12,
+.app-shell .bg-blue-500\/10,
+.app-shell .bg-blue-500\/16,
+.app-shell .bg-blue-500\/20,
+.app-shell .bg-blue-500\/\[0\.06\],
+.app-shell .bg-blue-300\/\[0\.10\] {
+  background-color: rgba(0, 210, 178, 0.1) !important;
+}
+
+.app-shell .border-blue-300\/20,
+.app-shell .border-blue-300\/25,
+.app-shell .border-blue-300\/30,
+.app-shell .border-blue-300\/35,
+.app-shell .border-blue-300\/40,
+.app-shell .border-blue-300\/45,
+.app-shell .border-blue-300\/50,
+.app-shell .border-blue-300\/60,
+.app-shell .border-blue-400\/25,
+.app-shell .border-blue-400\/35,
+.app-shell .border-blue-500,
+.app-shell .border-blue-500\/10,
+.app-shell .border-blue-500\/30 {
+  border-color: rgba(0, 210, 178, 0.42) !important;
+}
+
+.app-shell .hover\:border-blue-300\/35:hover,
+.app-shell .hover\:border-blue-300\/40:hover,
+.app-shell .hover\:border-blue-300\/45:hover,
+.app-shell .focus\:border-blue-500:focus {
+  border-color: rgba(0, 210, 178, 0.72) !important;
+}
+
+.app-shell .from-blue-200 {
+  --tw-gradient-from: #d8fff8 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(216 255 248 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .from-blue-500,
+.app-shell .from-blue-600 {
+  --tw-gradient-from: #00d2b2 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .from-blue-500\/10 {
+  --tw-gradient-from: rgb(0 210 178 / 0.1) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .from-blue-500\/16 {
+  --tw-gradient-from: rgb(0 210 178 / 0.16) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .from-blue-500\/18 {
+  --tw-gradient-from: rgb(0 210 178 / 0.18) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .via-blue-400 {
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #00d2b2 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+.app-shell .to-blue-400,
+.app-shell .to-blue-500 {
+  --tw-gradient-to: var(--brand-emerald-deep) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .to-blue-400\/10,
+.app-shell .to-blue-500\/10 {
+  --tw-gradient-to: rgb(0 210 178 / 0.1) var(--tw-gradient-to-position) !important;
+}
+
+.app-shell .shadow-blue-950\/20,
+.app-shell .shadow-blue-950\/25,
+.app-shell .shadow-blue-950\/30,
+.app-shell .shadow-blue-950\/35,
+.app-shell .shadow-blue-950\/40 {
+  --tw-shadow-color: var(--brand-emerald-glow) !important;
+  --tw-shadow: var(--tw-shadow-colored) !important;
+}
+
+.app-shell button.bg-blue-500,
+.app-shell a.bg-blue-500,
+.app-shell .bg-blue-500.text-zinc-950 {
+  color: #020504 !important;
+}
+
 .student-mobile-shell button,
 .student-mobile-shell a,
 .student-mobile-shell summary {
