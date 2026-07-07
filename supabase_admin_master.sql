@@ -63,19 +63,19 @@ values (
         'id', 'mensal',
         'name', 'Mensal',
         'cycle', 'cobrança mensal',
-        'badge', 'Mais flexível',
-        'price', 'R$ 49,90',
-        'suffix', '/mês',
-        'oldPrice', '',
-        'total', 'Total em 12 meses: R$ 598,80',
-        'economy', 'Pague mês a mês',
+        'badge', 'Primeiro mês R$ 9,90',
+        'price', 'R$ 9,90',
+        'suffix', 'no 1º mês',
+        'oldPrice', 'R$ 49,90',
+        'total', 'Depois R$ 49,90/mês',
+        'economy', 'Economize R$ 40,00 na ativação',
         'checkoutUrl', 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
-        'description', 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
-        'bestFor', 'Coach que quer iniciar sem compromisso longo e validar a experiência com os primeiros alunos.',
-        'operatingPromise', 'Implante em etapas, cadastre alunos ativos e acompanhe o ganho de organização desde a primeira semana.',
-        'highlights', jsonb_build_array('Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'),
-        'activationPlan', jsonb_build_array('Criar conta e ativar o ciclo mensal', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'),
-        'decisionPoints', jsonb_build_array('mais flexibilidade', 'melhor para teste operacional', 'renovação mês a mês')
+        'description', 'Comece pagando pouco no primeiro mês, valide a operação com alunos reais e mantenha liberdade para continuar mês a mês.',
+        'bestFor', 'Coach que quer entrar com baixo risco, testar a experiência premium com os primeiros alunos e validar o impacto antes de assumir um ciclo maior.',
+        'operatingPromise', 'A oferta de entrada reduz a barreira para começar agora. Você ativa a estrutura, organiza os alunos atuais e decide a continuidade com dados reais da operação.',
+        'highlights', jsonb_build_array('Primeiro mês por R$ 9,90', 'Depois R$ 49,90/mês', 'Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'),
+        'activationPlan', jsonb_build_array('Ativar o primeiro mês promocional', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'),
+        'decisionPoints', jsonb_build_array('R$ 9,90 para começar', 'baixo risco de entrada', 'renovação mensal depois')
       ),
       jsonb_build_object(
         'id', 'semestral',
@@ -118,7 +118,13 @@ values (
 )
 on conflict (key) do update
 set
-  settings = excluded.settings || public.app_admin_settings.settings,
+  settings = public.app_admin_settings.settings || jsonb_build_object(
+    'checkoutPlans', excluded.settings -> 'checkoutPlans',
+    'featureFlags', coalesce(public.app_admin_settings.settings -> 'featureFlags', '{}'::jsonb) || coalesce(excluded.settings -> 'featureFlags', '{}'::jsonb),
+    'salesTrustText', excluded.settings ->> 'salesTrustText',
+    'primaryColor', excluded.settings ->> 'primaryColor',
+    'accentColor', excluded.settings ->> 'accentColor'
+  ),
   updated_at = now();
 
 update public.app_admin_settings

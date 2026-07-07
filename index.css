@@ -817,6 +817,16 @@ textarea {
   box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.28);
 }
 
+.sales-dashboard-money {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  font-size: clamp(1.35rem, 2.05vw, 1.65rem);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
 .interactive-surface {
   --pointer-x: 50%;
   --pointer-y: 50%;

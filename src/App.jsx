@@ -51,20 +51,20 @@ const cartpandaCheckoutPlans = [
     id: 'mensal',
     name: 'Mensal',
     cycle: 'cobrança mensal',
-    badge: 'Mais flexível',
-    price: 'R$ 49,90',
-    suffix: '/mês',
-    oldPrice: '',
-    total: 'Total em 12 meses: R$ 598,80',
-    economy: 'Pague mês a mês',
+    badge: 'Primeiro mês R$ 9,90',
+    price: 'R$ 9,90',
+    suffix: 'no 1º mês',
+    oldPrice: 'R$ 49,90',
+    total: 'Depois R$ 49,90/mês',
+    economy: 'Economize R$ 40,00 na ativação',
     equivalent: 'sem compromisso de ciclo longo',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
-    description: 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
-    highlights: ['Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
-    bestFor: 'Coach que quer iniciar sem compromisso longo e validar a experiência com os primeiros alunos.',
-    operatingPromise: 'Implante em etapas, cadastre alunos ativos e acompanhe o ganho de organização desde a primeira semana.',
-    activationPlan: ['Criar conta e ativar o ciclo mensal', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
-    decisionPoints: ['mais flexibilidade', 'melhor para teste operacional', 'renovação mês a mês'],
+    description: 'Comece pagando pouco no primeiro mês, valide a operação com alunos reais e mantenha liberdade para continuar mês a mês.',
+    highlights: ['Primeiro mês por R$ 9,90', 'Depois R$ 49,90/mês', 'Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
+    bestFor: 'Coach que quer entrar com baixo risco, testar a experiência premium com os primeiros alunos e validar o impacto antes de assumir um ciclo maior.',
+    operatingPromise: 'A oferta de entrada reduz a barreira para começar agora. Você ativa a estrutura, organiza os alunos atuais e decide a continuidade com dados reais da operação.',
+    activationPlan: ['Ativar o primeiro mês promocional', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
+    decisionPoints: ['R$ 9,90 para começar', 'baixo risco de entrada', 'renovação mensal depois'],
   },
   {
     id: 'semestral',
@@ -137,7 +137,14 @@ function normalizeAdminSettings(settings = {}) {
       highlights: Array.isArray(plan.highlights) ? plan.highlights : (typeof plan.highlights === 'string' ? plan.highlights.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.highlights || []),
       activationPlan: Array.isArray(plan.activationPlan) ? plan.activationPlan : (typeof plan.activationPlan === 'string' ? plan.activationPlan.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.activationPlan || []),
       decisionPoints: Array.isArray(plan.decisionPoints) ? plan.decisionPoints : (typeof plan.decisionPoints === 'string' ? plan.decisionPoints.split(',').map((item) => item.trim()).filter(Boolean) : cartpandaCheckoutPlans[index]?.decisionPoints || []),
-    }))
+    })).map((plan, index) => {
+      const defaultPlan = cartpandaCheckoutPlans[index] || cartpandaCheckoutPlans.find((item) => item.id === plan.id)
+      const isLegacyMonthly = plan.id === 'mensal'
+        && (plan.price === 'R$ 49,90' || String(plan.total || '').includes('598,80'))
+      return isLegacyMonthly && defaultPlan
+        ? { ...plan, ...defaultPlan, checkoutUrl: plan.checkoutUrl || defaultPlan.checkoutUrl }
+        : plan
+    })
     : defaultAppAdminSettings.checkoutPlans
 
   return {
@@ -2746,7 +2753,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 ].map(([label, value, detail]) => (
                   <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
-                    <p className="mt-2 text-2xl font-black text-white">{value}</p>
+                    <p className="sales-dashboard-money mt-2 font-black text-white">{value}</p>
                     <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
                   </div>
                 ))}
@@ -3081,6 +3088,21 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <div className="sales-interactive relative overflow-hidden rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/18 via-zinc-950 to-zinc-950 p-5 shadow-2xl shadow-blue-950/30 sm:p-8">
                 <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true" />
                 <div className="relative">
+                  <div className="mb-6 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <div>
+                      <p className="text-xs font-black uppercase text-emerald-100">
+                        {selectedOfferPlan.id === 'mensal' ? 'Oferta de entrada' : 'Condição estratégica'}
+                      </p>
+                      <p className="mt-2 text-sm font-bold leading-6 text-emerald-50">
+                        {selectedOfferPlan.id === 'mensal'
+                          ? 'Ative o primeiro mês por R$ 9,90. Depois, a continuidade fica em R$ 49,90/mês.'
+                          : `${selectedOfferPlan.economy}. Acesso completo, sem taxa extra por aluno cadastrado.`}
+                      </p>
+                    </div>
+                    <span className="w-fit rounded-full border border-emerald-200/25 bg-zinc-950/70 px-4 py-2 text-xs font-black uppercase text-emerald-100">
+                      Sem taxa por aluno
+                    </span>
+                  </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-xs font-black uppercase text-blue-300">{selectedOfferPlan.cycle}</p>
@@ -3122,9 +3144,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                             : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-xs font-black uppercase text-zinc-500">Melhor para</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.bestFor}</p>
+                    <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/[0.08] p-4 shadow-lg shadow-emerald-950/20">
+                      <p className="text-xs font-black uppercase text-emerald-100">Melhor para</p>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-zinc-100">{selectedOfferPlan.bestFor}</p>
                     </div>
                     <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                       <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
@@ -4682,54 +4704,6 @@ function WorkoutList({ workouts, fallbackTitle, onArchive }) {
       <div className="space-y-3">
         <Empty text="Nenhum treino prescrito ainda. Salve o primeiro treino para este aluno." />
         {fallbackTitle ? <Row title={fallbackTitle} meta="Treino antigo cadastrado na ficha do aluno" badge="Ficha" /> : null}
-      </div>
-    )
-  }
-
-  if (subscriptionActive) {
-    return (
-      <div className="grid min-w-0 gap-5 lg:gap-6">
-        <section className="overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950/88 shadow-2xl shadow-black/35">
-          <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-emerald-300">Minha assinatura</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">Assinatura ativa.</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-                Seu acesso ao Coach Fit Pro está liberado. Esta área mostra apenas o status da sua assinatura para você não confundir pagamento da plataforma com financeiro dos alunos.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-zinc-500">Plano escolhido</p>
-                  <p className="mt-2 text-lg font-black text-white">{selectedCheckoutPlan.name}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-zinc-500">Status</p>
-                  <p className="mt-2 text-lg font-black text-emerald-200">{subscriptionStatusLabel}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-zinc-500">Provedor</p>
-                  <p className="mt-2 text-lg font-black text-blue-200">Cartpanda</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-5">
-              <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro ciclo' : 'Próximo ciclo'}</p>
-              <div className="mt-2 flex flex-wrap items-end gap-2">
-                <p className="text-3xl font-black text-white">{selectedCheckoutPlan.price}</p>
-                <p className="pb-1 text-sm font-bold text-zinc-400">{selectedCheckoutPlan.suffix}</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Próxima referência em {billingCycle.daysRemaining} {billingCycle.daysRemaining === 1 ? 'dia' : 'dias'}.
-              </p>
-              <p className="mt-1 text-xs text-zinc-500">{formatFullDateTime(billingCycle.nextBillingAt)}</p>
-              <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-5 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-                {checkingPayment ? 'Atualizando...' : 'Atualizar status'}
-              </button>
-              {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm leading-6 text-zinc-200">{paymentMessage}</p> : null}
-            </div>
-          </div>
-        </section>
       </div>
     )
   }
@@ -7573,6 +7547,12 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
   const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || regularCheckoutUrl
   const selectedCheckoutPlan = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId) || checkoutPlans[0]
+  const selectedCyclePrice = selectedCheckoutPlan.id === 'mensal'
+    ? formatCurrency(billingCycle.isPromotional ? firstMonthPrice : regularPrice)
+    : selectedCheckoutPlan.price
+  const selectedCycleSuffix = selectedCheckoutPlan.id === 'mensal'
+    ? (billingCycle.isPromotional ? 'no 1º mês' : '/mês')
+    : selectedCheckoutPlan.suffix
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
   const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
   const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
