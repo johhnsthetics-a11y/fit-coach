@@ -1889,7 +1889,7 @@ export default function App() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[320px] lg:max-w-none lg:translate-x-0 lg:p-4 xl:w-[340px] ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -1907,10 +1907,11 @@ export default function App() {
             </button>
           </div>
 
-          <div className="mb-2 mt-3 flex items-center justify-between px-1">
+          <div className="mb-2 mt-2 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
+            <span className="hidden text-[10px] font-bold text-zinc-600 lg:inline">role para ver tudo</span>
           </div>
-          <nav className="grid min-h-0 min-w-0 flex-1 content-start gap-2 overflow-hidden">
+          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 content-start gap-1.5 overflow-y-auto pr-1">
             {visibleNavItems.map((item) => {
               const tone = getNavToneClasses(item.tone)
               const isActive = activeView === item.id
@@ -1927,7 +1928,7 @@ export default function App() {
                     setActiveView(item.id)
                     setMobileMenuOpen(false)
                   }}
-                  className={`group flex min-h-[43px] min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition active:scale-[0.99] ${
+                  className={`group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
                     isActive
                       ? `${tone.active} shadow-lg shadow-black/20`
                       : isLocked
@@ -1935,12 +1936,12 @@ export default function App() {
                         : `${tone.idle} hover:-translate-y-0.5 hover:bg-white/[0.065]`
                   }`}
                 >
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition ${
+                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
                     isActive ? tone.iconActive : isLocked ? 'border-white/5 bg-zinc-900 text-zinc-700' : tone.iconIdle
                   }`}>
-                    <NavIcon name={item.icon} className="h-4 w-4" />
+                    <NavIcon name={item.icon} className="h-3.5 w-3.5" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] leading-tight">{item.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] leading-tight">{item.label}</span>
                   {isLocked ? (
                     <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-black uppercase text-zinc-500">Bloq.</span>
                   ) : null}
@@ -1952,12 +1953,12 @@ export default function App() {
             })}
           </nav>
 
-          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04] lg:mt-2 lg:py-2">
+          <button type="button" onClick={logout} className="mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
             Sair
           </button>
       </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[320px] lg:w-[calc(100%-320px)] lg:px-5 xl:ml-[340px] xl:w-[calc(100%-340px)] xl:px-7">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
           <header className="mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -3816,9 +3817,12 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
 }
 
 function buildCoachStudentRanking(students = [], workoutLogs = []) {
-  return students
+  const safeStudents = Array.isArray(students) ? students.filter(Boolean) : []
+  const safeLogs = Array.isArray(workoutLogs) ? workoutLogs.filter(Boolean) : []
+
+  return safeStudents
     .map((student) => {
-      const logs = workoutLogs.filter((log) => String(log.studentId) === String(student.id))
+      const logs = safeLogs.filter((log) => String(log.studentId ?? log.student_id ?? '') === String(student.id))
       const completedCount = logs.length
       const reward = buildStudentRewardStats({
         completedThisWeek: countWorkoutLogsThisWeek(logs),
@@ -6884,6 +6888,16 @@ function countWorkoutLogsThisMonth(logs = []) {
   }).length
 }
 
+function countWorkoutLogsThisWeek(logs = []) {
+  const start = getWeekStart(new Date())
+  const end = new Date(start)
+  end.setDate(start.getDate() + 7)
+  return (Array.isArray(logs) ? logs : []).filter((log) => {
+    const date = new Date(log?.completedAt || log?.createdAt || log?.date)
+    return Number.isFinite(date.getTime()) && date >= start && date < end
+  }).length
+}
+
 function getWeekStart(date) {
   const start = new Date(date)
   const day = start.getDay()
@@ -7687,20 +7701,33 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
         </Panel>
 
         <div className="grid min-w-0 gap-4">
-          <Panel title="O investimento em perspectiva" action="Valor percebido">
-            <div className="rounded-md border border-cyan-300/20 bg-cyan-400/[0.05] p-4">
-              <p className="text-xs font-black uppercase text-cyan-200">Custo sobre a receita</p>
-              <p className="mt-2 text-4xl font-black text-white">{costShare.toFixed(1).replace('.', ',')}%</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">
-                No cenário atual, o custo regular estimado representa apenas essa parcela da receita mensal da carteira.
-              </p>
-            </div>
-            <div className="mt-3 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
-              <p className="text-xs font-black uppercase text-emerald-200">Receita comparada à assinatura</p>
-              <p className="mt-2 text-3xl font-black text-white">{returnMultiple.toFixed(1).replace('.', ',')}x</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Sua carteira estimada é maior que o custo da plataforma. Organização, retenção e percepção de valor ajudam a proteger esse resultado.
-              </p>
+          <Panel title="Central de previsibilidade" action="Recebimentos">
+            <div className="grid gap-3">
+              <div className="rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
+                <p className="text-xs font-black uppercase text-emerald-200">Carteira ativa estimada</p>
+                <p className="mt-2 text-3xl font-black text-white">{formatCurrency(estimatedRevenue)}</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Soma mensal prevista a partir dos alunos ativos e dos planos cadastrados pelo treinador.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+                  <p className="text-xs font-black uppercase text-amber-200">Atenção de cobrança</p>
+                  <p className="mt-2 text-2xl font-black text-white">{students.filter((student) => student.payment !== 'Pago' && student.status !== 'Inativo').length}</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400">Alunos ativos que ainda precisam de confirmação de pagamento.</p>
+                </div>
+                <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+                  <p className="text-xs font-black uppercase text-blue-200">Planos configurados</p>
+                  <p className="mt-2 text-2xl font-black text-white">{coachPlans.length}</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400">Mantenha nomes, valores e ciclos atualizados para não perder previsibilidade.</p>
+                </div>
+              </div>
+              <div className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+                <p className="text-xs font-black uppercase text-zinc-400">Próxima ação recomendada</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Revise alunos pendentes, envie cobrança pelo sistema e confirme como pago quando receber. Isso mantém o portal do aluno alinhado com a realidade financeira da carteira.
+                </p>
+              </div>
             </div>
           </Panel>
 
