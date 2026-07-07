@@ -2463,6 +2463,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
+        <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+          <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/25 backdrop-blur sm:grid-cols-4 sm:p-5">
+            {[
+              ['★★★★★', 'Avaliação visual premium', 'experiência que aumenta percepção de valor'],
+              ['1 painel', 'operação centralizada', 'menos WhatsApp, menos planilha, menos improviso'],
+              ['App aluno', 'rotina no celular', 'treino, dieta, fatura e chat em um só lugar'],
+              ['Sem taxa', 'por aluno cadastrado', 'cresça a carteira com previsibilidade'],
+            ].map(([value, title, text]) => (
+              <div key={title} data-reveal className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
+                <p className="text-xl font-black text-blue-100">{value}</p>
+                <p className="mt-2 text-sm font-black text-white">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section id="acesso" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
           <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
             <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
@@ -2529,21 +2546,31 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </form>
         </section>
 
-        <section className="border-y border-white/10 bg-zinc-950/80">
-          <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
-            {[
-              ['Operação centralizada', 'Treino, dieta, financeiro, agenda e chat no mesmo lugar.'],
-              ['Aluno mais engajado', 'Portal simples para seguir rotina, registrar treino e enviar feedback.'],
-              ['Marca mais premium', 'Você entrega seu método com mais clareza, organização e autoridade.'],
-            ].map(([title, text]) => (
-              <div key={title} className="flex gap-3">
-                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
-                <div>
-                  <p className="text-sm font-black text-emerald-100">{title}</p>
-                  <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
+        <section className="sales-section border-y border-white/10 bg-[#030712]/82 py-10 backdrop-blur-xl sm:py-14">
+          <div className="mx-auto grid max-w-6xl gap-5 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div data-reveal>
+              <p className="text-sm font-black uppercase text-blue-200">O problema não é falta de método</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
+                É vender consultoria premium usando uma operação improvisada.
+              </h2>
+              <p className="mt-4 max-w-xl text-base leading-7 text-zinc-400">
+                O aluno esquece carga, perde mensagem, não vê evolução e o treinador fica preso em cobrança manual, prints e retrabalho.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                ['Sem histórico de carga', 'o aluno treina, mas não enxerga progressão real'],
+                ['Cobrança espalhada', 'vencimentos e comprovantes ficam soltos no WhatsApp'],
+                ['Evolução invisível', 'foto, medida e feedback não viram argumento de retenção'],
+                ['Rotina sem clareza', 'o aluno não sabe exatamente o que fazer no dia'],
+              ].map(([title, text]) => (
+                <div key={title} data-reveal className="sales-feature-card rounded-2xl border border-white/10 bg-white/[0.035] p-5">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-violet-300/25 bg-violet-400/10 text-sm font-black text-violet-100">!</span>
+                  <h3 className="mt-4 text-base font-black text-white">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
@@ -2636,12 +2663,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['01', 'Aluno 360º', 'Cadastro, anamnese, histórico, fotos, pagamentos, treino e dieta conectados em uma ficha única.'],
-                ['02', 'Treinos profissionais', 'Prescrição por exercício, séries, cargas, notas do coach e vídeo de execução quando necessário.'],
-                ['03', 'Nutrição com macros', 'Planos alimentares, alimentos da biblioteca, itens manuais e substituições equivalentes.'],
-                ['04', 'Evolução comparável', 'Fotos, medidas, avaliações e gráficos para o coach mostrar progresso com clareza.'],
-                ['05', 'Engajamento do aluno', 'Desafios, meta de água, check-ins, feedbacks e lembretes para manter constância.'],
-                ['06', 'Financeiro sem bagunça', 'Planos próprios do coach, cobranças, status de pagamento e comprovantes organizados.'],
+                ['01', 'Treinos personalizados', 'Prescrição por aluno, com exercícios, séries, carga, vídeo e notas para cada fase do acompanhamento.'],
+                ['02', 'Registro de cargas', 'O aluno registra execução e o treinador acompanha progressão sem depender de memória ou papel.'],
+                ['03', 'Evolução visual', 'Fotos, medidas, check-ins e gráficos ajudam a provar resultado e aumentar retenção.'],
+                ['04', 'Planejamento inteligente', 'Agenda, desafios, lembretes, meta de água e rotina semanal para manter consistência.'],
+                ['05', 'Histórico de performance', 'Cada treino, feedback e avaliação fica registrado para decisões melhores no próximo ciclo.'],
+                ['06', 'Financeiro profissional', 'Planos próprios, cobrança, status de pagamento e comprovantes organizados para reduzir atrasos.'],
               ].map(([number, title, description], index) => (
                 <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
                   <span className="text-xs font-black text-blue-300">{number}</span>
@@ -2806,6 +2833,33 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
+        <section className="sales-section border-y border-white/10 bg-[#020816]/82 py-10 sm:py-14">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="mx-auto max-w-3xl text-center" data-reveal>
+              <p className="text-sm font-black uppercase text-blue-200">Como funciona</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
+                Você profissionaliza sua operação em 3 passos.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-zinc-400">
+                Sem precisar parar sua rotina. Comece com os alunos ativos e evolua o processo aos poucos.
+              </p>
+            </div>
+            <div className="mt-9 grid gap-4 md:grid-cols-3">
+              {[
+                ['01', 'Crie seu painel', 'Configure sua conta, identidade profissional, planos e forma de cobrança.'],
+                ['02', 'Cadastre alunos e objetivos', 'Envie convites, organize histórico, prescreva treino, dieta e rotina semanal.'],
+                ['03', 'Acompanhe evolução e vendas', 'Veja cargas, check-ins, pagamentos, mensagens e progresso em uma operação única.'],
+              ].map(([number, title, text]) => (
+                <div key={number} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-500 text-sm font-black text-zinc-950">{number}</span>
+                  <h3 className="mt-5 text-xl font-black text-white">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="simulador" className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
@@ -2930,6 +2984,36 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ].map((item) => <ObjectionPoint key={item} text={item} />)}
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
+            <div data-reveal>
+              <p className="text-sm font-black uppercase text-emerald-200">Depoimentos de uso</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
+                A sensação para o coach é parar de apagar incêndio.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-zinc-400">
+                Exemplos realistas do tipo de transformação operacional que buscamos entregar para treinadores.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ['★★★★★', '“Antes eu perdia cobrança no WhatsApp. Agora sei quem pagou, quem está pendente e consigo agir rápido.”', 'Marina C.', 'Personal trainer'],
+                ['★★★★★', '“O aluno sente que recebeu um app meu. A percepção de valor mudou muito na renovação.”', 'Rafael M.', 'Coach online'],
+                ['★★★★★', '“Registrar carga e feedback deixou minha prescrição mais inteligente. Não dependo mais de lembrar tudo.”', 'Lucas A.', 'Treinador presencial'],
+              ].map(([stars, quote, name, role]) => (
+                <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                  <p className="text-sm font-black text-blue-100">{stars}</p>
+                  <p className="mt-4 text-sm leading-6 text-zinc-200">{quote}</p>
+                  <div className="mt-5 border-t border-white/10 pt-4">
+                    <p className="text-sm font-black text-white">{name}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{role}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -3132,6 +3216,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div data-reveal className="overflow-hidden rounded-3xl border border-blue-300/25 bg-gradient-to-br from-blue-500/18 via-zinc-950 to-emerald-500/10 p-6 shadow-2xl shadow-blue-950/30 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-8">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black uppercase text-blue-100">Pronto para vender uma entrega mais premium?</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
+                Organize sua operação antes que sua agenda cresça mais do que seu controle.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-zinc-300">
+                Treino, consultoria, aulas presenciais, evolução, cargas, cobrança e comunicação com o aluno em uma experiência moderna.
+              </p>
+            </div>
+            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-2xl bg-blue-500 px-6 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/35 transition hover:-translate-y-0.5 lg:mt-0 lg:w-auto lg:min-w-56">
+              Assinar agora
+            </button>
           </div>
         </section>
       </main>
