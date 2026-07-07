@@ -2032,6 +2032,7 @@ export default function App() {
             {activeView === 'alunos' && (
               <Students
                 students={data.students}
+                workoutLogs={data.workoutLogs ?? []}
                 invites={data.invites ?? []}
                 anamneses={data.anamneses ?? []}
                 selectedStudent={selectedStudent}
@@ -3537,7 +3538,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ students, workoutLogs = [], invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -3551,6 +3552,7 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
+  const ranking = buildCoachStudentRanking(students, workoutLogs)
 
   useEffect(() => {
     setAccessMessage('')
@@ -3590,7 +3592,10 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
   }
 
   return (
-    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_1.15fr]">
+    <div className="grid gap-4 lg:gap-6">
+      <StudentRankingPanel ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
+
+      <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
       <Panel title="Carteira de alunos" action={`${students.length} perfis`}>
         <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           Novo aluno
@@ -3736,8 +3741,102 @@ function Students({ students, invites, anamneses, selectedStudent, setSelectedSt
           <Empty text="Nenhum aluno selecionado." />
         )}
       </Panel>
+      </div>
     </div>
   )
+}
+
+function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
+  return (
+    <Panel title="Ranking dos alunos" action={`${ranking.length} no placar`}>
+      {ranking.length ? (
+        <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
+          <div className="rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-300/12 via-white/[0.035] to-blue-400/10 p-4">
+            <p className="text-xs font-black uppercase text-emerald-200">Pódio de evolução</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {ranking.slice(0, 3).map((item, index) => (
+                <button
+                  key={item.student.id}
+                  type="button"
+                  onClick={() => onSelectStudent(item.student.id)}
+                  className={`min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${
+                    String(selectedStudentId) === String(item.student.id)
+                      ? 'border-emerald-300/60 bg-emerald-300/15'
+                      : 'border-white/10 bg-black/25 hover:border-emerald-300/35'
+                  } ${index === 0 ? 'sm:order-2 sm:-mt-2' : index === 1 ? 'sm:order-1 sm:mt-5' : 'sm:order-3 sm:mt-8'}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border ${
+                      index === 0 ? 'border-amber-300/40 bg-amber-300/15' : index === 1 ? 'border-zinc-300/30 bg-zinc-200/10' : 'border-orange-300/35 bg-orange-300/12'
+                    }`}>
+                      <NavIcon name="trophy" className={`h-5 w-5 ${index === 0 ? 'text-amber-200' : index === 1 ? 'text-zinc-200' : 'text-orange-200'}`} />
+                    </span>
+                    <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-black text-zinc-300">#{item.position}</span>
+                  </div>
+                  <h4 className="mt-4 truncate text-base font-black text-white">{item.student.name}</h4>
+                  <p className="mt-1 text-xs font-bold text-zinc-400">{item.levelName}</p>
+                  <p className="mt-3 text-2xl font-black text-emerald-100">{item.xp} XP</p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/45">
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-blue-400" style={{ width: `${item.progress}%` }} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            {ranking.slice(0, 6).map((item) => (
+              <button
+                key={item.student.id}
+                type="button"
+                onClick={() => onSelectStudent(item.student.id)}
+                className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                  String(selectedStudentId) === String(item.student.id)
+                    ? 'border-blue-300/60 bg-blue-400/12'
+                    : 'border-white/10 bg-white/[0.035] hover:border-blue-300/35'
+                }`}
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-zinc-950 text-sm font-black text-emerald-100">#{item.position}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <p className="truncate text-sm font-black text-white">{item.student.name}</p>
+                    <p className="shrink-0 text-sm font-black text-emerald-100">{item.xp} XP</p>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-zinc-500">{item.levelName} · {item.completedCount} treinos concluídos</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <Empty text="Cadastre alunos e registre treinos concluídos para montar o ranking." />
+      )}
+    </Panel>
+  )
+}
+
+function buildCoachStudentRanking(students = [], workoutLogs = []) {
+  return students
+    .map((student) => {
+      const logs = workoutLogs.filter((log) => String(log.studentId) === String(student.id))
+      const completedCount = logs.length
+      const reward = buildStudentRewardStats({
+        completedThisWeek: countWorkoutLogsThisWeek(logs),
+        completedThisMonth: countWorkoutLogsThisMonth(logs),
+        waterPercent: clampPercent(student.waterProgress || student.hydration || 0),
+      })
+      const adherenceBonus = Math.round(clampPercent(student.adherence) * 2)
+      const xp = reward.xp + adherenceBonus
+      return {
+        student,
+        completedCount,
+        xp,
+        levelName: reward.levelName,
+        progress: reward.progress,
+      }
+    })
+    .sort((a, b) => b.xp - a.xp || clampPercent(b.student.adherence) - clampPercent(a.student.adherence))
+    .map((item, index) => ({ ...item, position: index + 1 }))
 }
 
 function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
@@ -8148,6 +8247,12 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [logoFileError, setLogoFileError] = useState('')
+  const [openSections, setOpenSections] = useState({
+    sales: true,
+    plans: false,
+    branding: false,
+    modules: false,
+  })
 
   useEffect(() => {
     setDraft(normalizeAdminSettings(settings))
@@ -8216,6 +8321,10 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     setMessage('Padrão carregado. Clique em salvar para publicar.')
   }
 
+  function toggleSection(section) {
+    setOpenSections((current) => ({ ...current, [section]: !current[section] }))
+  }
+
   return (
     <div className="grid gap-5 lg:gap-6">
       <section className="overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950/88 p-5 shadow-2xl shadow-black/25 sm:p-6">
@@ -8238,7 +8347,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       </section>
 
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
-        <Panel title="Página de vendas" action="Textos principais">
+        <AdminAccordionSection title="Página de vendas" action="Textos principais" open={openSections.sales} onToggle={() => toggleSection('sales')}>
           <div className="grid gap-4">
             <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
             <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: menos retrabalho, mais organização e melhor experiência para o aluno." />
@@ -8248,9 +8357,9 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
             </div>
             <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
           </div>
-        </Panel>
+        </AdminAccordionSection>
 
-        <Panel title="Planos e checkout" action={`${draft.checkoutPlans.length} planos`}>
+        <AdminAccordionSection title="Planos e checkout" action={`${draft.checkoutPlans.length} planos`} open={openSections.plans} onToggle={() => toggleSection('plans')}>
           <div className="grid gap-4">
             {draft.checkoutPlans.map((plan, index) => (
               <div key={plan.id || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
@@ -8283,10 +8392,10 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
               </div>
             ))}
           </div>
-        </Panel>
+        </AdminAccordionSection>
 
         <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-          <Panel title="Branding global" action="Visual">
+          <AdminAccordionSection title="Branding global" action="Visual" open={openSections.branding} onToggle={() => toggleSection('branding')}>
             <div className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <AdminTextInput label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Use código hexadecimal. Exemplo: #00c7a8." />
@@ -8307,9 +8416,9 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
               </div>
               <p className="mt-3 text-xs leading-5 text-zinc-400">Salve para publicar a logo e as cores nos acessos novos. Se a logo ficar apagada no preto, use uma versão clara ou com contorno.</p>
             </div>
-          </Panel>
+          </AdminAccordionSection>
 
-          <Panel title="Módulos ativos" action="Funcionalidades">
+          <AdminAccordionSection title="Módulos ativos" action="Funcionalidades" open={openSections.modules} onToggle={() => toggleSection('modules')}>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ['studentXp', 'XP e selos do aluno'],
@@ -8323,7 +8432,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                 </label>
               ))}
             </div>
-          </Panel>
+          </AdminAccordionSection>
         </div>
 
         <div className="sticky bottom-3 z-20 flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/92 p-3 shadow-2xl shadow-black/35 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
@@ -8343,6 +8452,31 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       </form>
     </div>
+  )
+}
+
+function AdminAccordionSection({ title, action, open, onToggle, children }) {
+  return (
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/20">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full min-w-0 items-center justify-between gap-3 px-4 py-4 text-left transition hover:bg-white/[0.035] sm:px-5"
+      >
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-black text-white sm:text-lg">{title}</h3>
+          <p className="mt-1 truncate text-xs font-bold text-zinc-500">{formatUiText(action)}</p>
+        </div>
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-emerald-100 transition ${open ? 'rotate-180' : ''}`}>
+          <NavIcon name="chevronDown" className="h-5 w-5" />
+        </span>
+      </button>
+      {open ? (
+        <div className="border-t border-white/10 p-4 sm:p-5">
+          {children}
+        </div>
+      ) : null}
+    </section>
   )
 }
 
@@ -8956,11 +9090,13 @@ function NavIcon({ name, className = '' }) {
     settings: <><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22h-3.34v-.18A1.65 1.65 0 0 0 9.4 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2v-3.34h.18A1.65 1.65 0 0 0 4 9.4a1.65 1.65 0 0 0 .33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2h3.34v.18A1.65 1.65 0 0 0 14.6 4a1.65 1.65 0 0 0 1.82.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.36.4.71.6 1h2v3.34h-.18A1.65 1.65 0 0 0 20 14.6c-.2.14-.4.27-.6.4Z" /></>,
     credit: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
     water: <><path d="M12 2s6 6.5 6 12a6 6 0 0 1-12 0C6 8.5 12 2 12 2Z" /><path d="M9.5 15.5A3.1 3.1 0 0 0 12 17" /></>,
+    trophy: <><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" /><path d="M5 5H3v2a4 4 0 0 0 4 4" /><path d="M19 5h2v2a4 4 0 0 1-4 4" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
     menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
     close: <><path d="M6 6l12 12M18 6 6 18" /></>,
     chevronRight: <><path d="m9 18 6-6-6-6" /></>,
+    chevronDown: <><path d="m6 9 6 6 6-6" /></>,
   }
 
   return (
@@ -8982,10 +9118,10 @@ function Metric({ label, value, detail }) {
 
 function Panel({ title, action, children }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900/70 p-4 shadow-2xl shadow-black/20 sm:p-5">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
       <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-        <h3 className="text-base font-black sm:text-lg">{title}</h3>
-        <span className="max-w-full break-words rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold leading-5 text-zinc-300">{formatUiText(action)}</span>
+        <h3 className="min-w-0 break-words text-base font-black text-white sm:text-lg">{title}</h3>
+        <span className="max-w-full break-words rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 text-left text-xs font-bold leading-5 text-zinc-300 sm:shrink-0 sm:text-right">{formatUiText(action)}</span>
       </div>
       {children}
     </section>
