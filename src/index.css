@@ -266,9 +266,10 @@ textarea {
 .sales-page.fit-gradient-bg {
   background-color: var(--fitness-coal);
   background-image:
-    radial-gradient(circle at 14% 8%, rgba(59, 130, 246, 0.24), transparent 28%),
-    radial-gradient(circle at 82% 10%, rgba(0, 210, 178, 0.16), transparent 30%),
-    linear-gradient(180deg, #020816 0%, #000 42%, #020504 100%);
+    radial-gradient(circle at 10% 4%, rgba(0, 210, 178, 0.26), transparent 28%),
+    radial-gradient(circle at 78% 2%, rgba(0, 128, 108, 0.28), transparent 32%),
+    radial-gradient(circle at 94% 42%, rgba(0, 210, 178, 0.16), transparent 30%),
+    linear-gradient(180deg, #00130f 0%, #000 44%, #020504 100%);
 }
 
 .sales-page .text-blue-100,
@@ -296,11 +297,15 @@ textarea {
 .sales-page .border-blue-300\/25,
 .sales-page .border-blue-300\/30,
 .sales-page .border-blue-300\/35,
+.sales-page .border-blue-400\/35,
+.sales-page .border-blue-500\/30,
 .sales-page .border-blue-500 {
   border-color: rgba(0, 210, 178, 0.38);
 }
 
 .sales-page .bg-blue-300\/10,
+.sales-page .bg-blue-400\/10,
+.sales-page .bg-blue-500\/10,
 .sales-page .bg-blue-500\/\[0\.06\],
 .sales-page .bg-emerald-400\/10 {
   background-color: rgba(0, 210, 178, 0.1);
@@ -323,6 +328,25 @@ textarea {
 .sales-page .from-blue-500,
 .sales-page .from-blue-600 {
   --tw-gradient-from: #00d2b2 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position);
+}
+
+.sales-page .from-blue-200 {
+  --tw-gradient-from: #d8fff8 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(216 255 248 / 0) var(--tw-gradient-to-position);
+}
+
+.sales-page .via-blue-400 {
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #00d2b2 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.sales-page .to-emerald-200 {
+  --tw-gradient-to: #a7fff1 var(--tw-gradient-to-position);
+}
+
+.sales-page .from-blue-500\/18 {
+  --tw-gradient-from: rgb(0 210 178 / 0.18) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position);
 }
 
@@ -378,7 +402,7 @@ textarea {
   z-index: -1;
   content: "";
   background:
-    linear-gradient(180deg, rgba(2, 8, 22, 0.76), rgba(2, 8, 22, 0.18) 72%, transparent);
+    linear-gradient(180deg, rgba(0, 15, 12, 0.78), rgba(0, 15, 12, 0.18) 72%, transparent);
 }
 
 .sales-hero {
@@ -407,7 +431,7 @@ textarea {
   height: 62%;
   content: "";
   pointer-events: none;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.22), transparent 68%);
+  background: radial-gradient(circle, rgba(0, 210, 178, 0.24), transparent 68%);
   filter: blur(4px);
 }
 
@@ -511,42 +535,58 @@ textarea {
 
 .sales-hero-phone-wrap {
   position: relative;
-  min-height: 610px;
+  min-height: 660px;
   perspective: 1300px;
+}
+
+.sales-hero-phone-wrap::before {
+  position: absolute;
+  inset: 16px 0 22px;
+  z-index: -1;
+  content: "";
+  border: 1px solid rgba(0, 210, 178, 0.18);
+  border-radius: 38px;
+  background:
+    linear-gradient(145deg, rgba(0, 210, 178, 0.1), rgba(255, 255, 255, 0.025) 42%, rgba(0, 128, 108, 0.11)),
+    rgba(0, 0, 0, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 32px 90px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
 }
 
 .sales-hero-phone-glow {
   position: absolute;
-  inset: 10% 8% 8%;
+  inset: 4% 2% 6%;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 45% 28%, rgba(59, 130, 246, 0.22), transparent 45%),
-    radial-gradient(circle at 58% 64%, rgba(0, 210, 178, 0.12), transparent 52%);
+    radial-gradient(circle at 45% 28%, rgba(0, 210, 178, 0.26), transparent 45%),
+    radial-gradient(circle at 58% 64%, rgba(0, 128, 108, 0.18), transparent 52%);
   filter: blur(10px);
 }
 
 .sales-hero-phone-wrap .sales-phone-mockup {
   position: absolute;
-  top: 54px;
+  top: 76px;
   left: 50%;
-  width: min(48%, 268px);
+  width: min(50%, 304px);
 }
 
 .sales-hero-phone-1 {
   z-index: 1;
-  transform: translateX(-118%) translateY(34px) scale(0.92) rotate(-8deg);
-  opacity: 0.56;
+  transform: translateX(-116%) translateY(50px) scale(0.96) rotate(-8deg);
+  opacity: 0.68;
 }
 
 .sales-hero-phone-2 {
   z-index: 3;
-  transform: translateX(-50%) scale(1.1) rotate(0deg);
+  transform: translateX(-50%) scale(1.18) rotate(0deg);
 }
 
 .sales-hero-phone-3 {
   z-index: 2;
-  transform: translateX(18%) translateY(42px) scale(0.93) rotate(8deg);
-  opacity: 0.62;
+  transform: translateX(14%) translateY(58px) scale(0.98) rotate(8deg);
+  opacity: 0.72;
 }
 
 .sales-phone-mockup {
@@ -584,6 +624,27 @@ textarea {
   box-shadow:
     0 30px 90px rgba(0, 0, 0, 0.5),
     0 0 36px rgba(0, 210, 178, 0.1);
+}
+
+.sales-hero-phone-wrap .sales-hero-phone-1,
+.sales-hero-phone-wrap .sales-hero-phone-1:hover {
+  z-index: 1;
+  transform: translateX(-116%) translateY(50px) scale(0.96) rotate(-8deg);
+  opacity: 0.68;
+}
+
+.sales-hero-phone-wrap .sales-hero-phone-2,
+.sales-hero-phone-wrap .sales-hero-phone-2:hover {
+  z-index: 3;
+  transform: translateX(-50%) scale(1.18) rotate(0deg);
+  opacity: 1;
+}
+
+.sales-hero-phone-wrap .sales-hero-phone-3,
+.sales-hero-phone-wrap .sales-hero-phone-3:hover {
+  z-index: 2;
+  transform: translateX(14%) translateY(58px) scale(0.98) rotate(8deg);
+  opacity: 0.72;
 }
 
 .sales-phone-screen {
@@ -625,11 +686,12 @@ textarea {
   align-items: center;
   gap: 9px;
   width: max-content;
-  max-width: 184px;
-  border: 1px solid rgba(59, 130, 246, 0.34);
+  min-width: 168px;
+  max-width: min(230px, 58vw);
+  border: 1px solid rgba(0, 210, 178, 0.34);
   border-radius: 14px;
   padding: 9px 12px;
-  background: rgba(8, 18, 38, 0.92);
+  background: rgba(1, 17, 14, 0.94);
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
   backdrop-filter: blur(14px);
 }
@@ -647,7 +709,7 @@ textarea {
 }
 
 .sales-floating-badge.right {
-  right: -38px;
+  right: -8px;
   top: 72px;
   transform: rotate(4deg);
 }
@@ -656,18 +718,86 @@ textarea {
 .sales-floating-badge small {
   display: block;
   line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sales-floating-badge strong {
-  font-size: 0.84rem;
+  max-width: 150px;
+  white-space: nowrap;
+  font-size: clamp(0.78rem, 1.2vw, 0.95rem);
+  font-variant-numeric: tabular-nums;
   color: #fff;
 }
 
 .sales-floating-badge small {
   margin-top: 2px;
+  max-width: 150px;
+  white-space: nowrap;
   font-size: 0.68rem;
   font-weight: 800;
   color: #94a3b8;
+}
+
+.sales-showcase-metric {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  min-width: 182px;
+  max-width: 240px;
+  border: 1px solid rgba(0, 210, 178, 0.28);
+  border-radius: 18px;
+  padding: 10px 13px;
+  background:
+    linear-gradient(145deg, rgba(0, 210, 178, 0.12), rgba(1, 17, 14, 0.92)),
+    rgba(1, 17, 14, 0.88);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(16px);
+}
+
+.sales-showcase-metric strong,
+.sales-showcase-metric small {
+  display: block;
+  overflow: hidden;
+  max-width: 162px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sales-showcase-metric strong {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-showcase-metric small {
+  margin-top: 3px;
+  color: #9ca3af;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.sales-showcase-metric.metric-1 {
+  top: 46px;
+  left: 4%;
+  transform: rotate(-4deg);
+}
+
+.sales-showcase-metric.metric-2 {
+  right: 2%;
+  top: 118px;
+  transform: rotate(4deg);
+}
+
+.sales-showcase-metric.metric-3 {
+  right: 8%;
+  bottom: 62px;
+  transform: rotate(-3deg);
 }
 
 .sales-phone-bottom-nav {
@@ -837,13 +967,18 @@ textarea {
   }
 
   .sales-hero-phone-wrap {
-    min-height: 430px;
+    min-height: 456px;
     margin-top: -0.25rem;
   }
 
+  .sales-hero-phone-wrap::before {
+    inset: 8px 0 20px;
+    border-radius: 30px;
+  }
+
   .sales-hero-phone-wrap .sales-phone-mockup {
-    top: 22px;
-    width: min(74vw, 250px);
+    top: 44px;
+    width: min(76vw, 258px);
   }
 
   .sales-hero-phone-1,
@@ -905,30 +1040,64 @@ textarea {
 
   .sales-hero-phone-wrap .sales-hero-phone-1,
   .sales-hero-phone-wrap .sales-hero-phone-1:hover {
-    transform: translateX(-70%) translateY(22px) scale(0.82) rotate(-8deg);
+    transform: translateX(-73%) translateY(28px) scale(0.82) rotate(-8deg);
     opacity: 0.45;
   }
 
   .sales-hero-phone-wrap .sales-hero-phone-2,
   .sales-hero-phone-wrap .sales-hero-phone-2:hover {
-    transform: translateX(-50%) scale(1);
+    transform: translateX(-50%) scale(1.02);
     opacity: 1;
   }
 
   .sales-hero-phone-wrap .sales-hero-phone-3,
   .sales-hero-phone-wrap .sales-hero-phone-3:hover {
-    transform: translateX(-31%) translateY(30px) scale(0.82) rotate(8deg);
+    transform: translateX(-27%) translateY(34px) scale(0.82) rotate(8deg);
     opacity: 0.42;
   }
 
-  .sales-floating-badge.left,
-  .sales-floating-badge.top,
-  .sales-floating-badge.right {
-    left: auto;
-    right: 8px;
-    top: -16px;
-    max-width: 170px;
+  .sales-hero-phone-1 .sales-floating-badge,
+  .sales-hero-phone-3 .sales-floating-badge {
+    display: none;
+  }
+
+  .sales-floating-badge.top {
+    left: 50%;
+    right: auto;
+    top: -20px;
+    min-width: 158px;
+    max-width: 178px;
     transform: none;
+    transform: translateX(-50%);
+  }
+
+  .sales-floating-badge strong,
+  .sales-floating-badge small {
+    max-width: 120px;
+  }
+
+  .sales-showcase-metric {
+    min-width: 152px;
+    max-width: 178px;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 15px;
+  }
+
+  .sales-showcase-metric strong,
+  .sales-showcase-metric small {
+    max-width: 112px;
+  }
+
+  .sales-showcase-metric.metric-1 {
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+  }
+
+  .sales-showcase-metric.metric-2,
+  .sales-showcase-metric.metric-3 {
+    display: none;
   }
 
   .interactive-surface,

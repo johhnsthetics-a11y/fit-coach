@@ -2410,7 +2410,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       </header>
 
       <main>
-        <section className="sales-hero mx-auto grid max-w-[1440px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)] lg:px-10 lg:pb-14 lg:pt-10">
+        <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.84fr)_minmax(520px,1.16fr)] lg:px-10 lg:pb-14 lg:pt-10 xl:gap-12">
           <div className="min-w-0" data-reveal>
             <p className="inline-flex rounded-full border border-blue-300/25 bg-blue-300/10 px-4 py-2 text-xs font-black uppercase text-blue-100">Para personal, coach e consultoria online</p>
             <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]">
@@ -3260,9 +3260,26 @@ function SalesPhoneShowcase() {
     ['Financeiro', 'Recebimentos', 'Status da carteira', 'Cobrança automática', ['R$ 1.709,00 no mês', 'Pix validado', 'Renovação próxima'], 'message', 'Chat', 'respondido'],
   ]
 
+  const metrics = [
+    ['wallet', 'R$ 12.450', 'carteira organizada'],
+    ['trophy', '+34%', 'retencao estimada'],
+    ['dashboard', '1 painel', 'treino, dieta e cobranca'],
+  ]
+
   return (
     <div className="sales-hero-phone-wrap" aria-label="Prévia do aplicativo Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
+      {metrics.map(([icon, value, label], index) => (
+        <div key={label} className={`sales-showcase-metric metric-${index + 1}`}>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
+            <NavIcon name={icon} className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <strong>{value}</strong>
+            <small>{label}</small>
+          </span>
+        </div>
+      ))}
       {screens.map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
         <div key={title} className={`sales-phone-mockup sales-hero-phone-${index + 1}`}>
           <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
