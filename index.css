@@ -266,9 +266,9 @@ textarea {
 .sales-page.fit-gradient-bg {
   background-color: var(--fitness-coal);
   background-image:
-    radial-gradient(circle at 12% 4%, rgba(0, 210, 178, 0.26), transparent 28%),
-    radial-gradient(circle at 86% 10%, rgba(0, 128, 108, 0.18), transparent 30%),
-    linear-gradient(180deg, #000 0%, #020504 42%, #000 100%);
+    radial-gradient(circle at 14% 8%, rgba(59, 130, 246, 0.24), transparent 28%),
+    radial-gradient(circle at 82% 10%, rgba(0, 210, 178, 0.16), transparent 30%),
+    linear-gradient(180deg, #020816 0%, #000 42%, #020504 100%);
 }
 
 .sales-page .text-blue-100,
@@ -369,7 +369,7 @@ textarea {
 }
 
 .sales-header {
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  box-shadow: none;
 }
 
 .sales-header::before {
@@ -378,8 +378,37 @@ textarea {
   z-index: -1;
   content: "";
   background:
-    linear-gradient(90deg, rgba(0, 210, 178, 0.08), transparent 36%),
-    linear-gradient(180deg, rgba(14, 37, 79, 0.6), rgba(2, 8, 22, 0.94));
+    linear-gradient(180deg, rgba(2, 8, 22, 0.76), rgba(2, 8, 22, 0.18) 72%, transparent);
+}
+
+.sales-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.sales-hero::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  opacity: 0.38;
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.35) 1px, transparent 1px);
+  background-position: center;
+  background-size: 24px 24px;
+  mask-image: linear-gradient(90deg, #000 0%, #000 74%, transparent 100%);
+}
+
+.sales-hero::after {
+  position: absolute;
+  inset: 12% 0 auto auto;
+  z-index: -1;
+  width: min(48vw, 720px);
+  height: 62%;
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.22), transparent 68%);
+  filter: blur(4px);
 }
 
 .sales-progress {
@@ -474,6 +503,50 @@ textarea {
   align-items: center;
   justify-items: center;
   column-gap: 0;
+}
+
+.sales-hero-device {
+  min-width: 0;
+}
+
+.sales-hero-phone-wrap {
+  position: relative;
+  min-height: 610px;
+  perspective: 1300px;
+}
+
+.sales-hero-phone-glow {
+  position: absolute;
+  inset: 10% 8% 8%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 45% 28%, rgba(59, 130, 246, 0.22), transparent 45%),
+    radial-gradient(circle at 58% 64%, rgba(0, 210, 178, 0.12), transparent 52%);
+  filter: blur(10px);
+}
+
+.sales-hero-phone-wrap .sales-phone-mockup {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  width: min(48%, 268px);
+}
+
+.sales-hero-phone-1 {
+  z-index: 1;
+  transform: translateX(-118%) translateY(34px) scale(0.92) rotate(-8deg);
+  opacity: 0.56;
+}
+
+.sales-hero-phone-2 {
+  z-index: 3;
+  transform: translateX(-50%) scale(1.1) rotate(0deg);
+}
+
+.sales-hero-phone-3 {
+  z-index: 2;
+  transform: translateX(18%) translateY(42px) scale(0.93) rotate(8deg);
+  opacity: 0.62;
 }
 
 .sales-phone-mockup {
@@ -714,8 +787,8 @@ textarea {
 
 @media (max-width: 639px) {
   .sales-page h1 {
-    font-size: 2.15rem;
-    line-height: 1.12;
+    font-size: 2.72rem;
+    line-height: 0.98;
   }
 
   .sales-page h2 {
@@ -727,7 +800,20 @@ textarea {
   }
 
   .sales-page header .fit-brand-lockup {
-    max-width: 132px;
+    max-width: 138px;
+  }
+
+  .sales-hero {
+    padding-top: 1.25rem;
+  }
+
+  .sales-hero-proof {
+    display: none;
+  }
+
+  .sales-hero::before {
+    opacity: 0.22;
+    mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
   }
 
   .sales-motion-ready [data-reveal] {
@@ -744,15 +830,95 @@ textarea {
   }
 
   .sales-phone-stage {
-    gap: 1.75rem;
+    position: relative;
+    display: block;
+    min-height: 510px;
+    gap: 0;
+  }
+
+  .sales-hero-phone-wrap {
+    min-height: 430px;
+    margin-top: -0.25rem;
+  }
+
+  .sales-hero-phone-wrap .sales-phone-mockup {
+    top: 22px;
+    width: min(74vw, 250px);
+  }
+
+  .sales-hero-phone-1,
+  .sales-hero-phone-1:hover {
+    transform: translateX(-70%) translateY(22px) scale(0.82) rotate(-8deg);
+    opacity: 0.45;
+  }
+
+  .sales-hero-phone-2,
+  .sales-hero-phone-2:hover {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+
+  .sales-hero-phone-3,
+  .sales-hero-phone-3:hover {
+    transform: translateX(-31%) translateY(30px) scale(0.82) rotate(8deg);
+    opacity: 0.42;
   }
 
   .sales-phone-mockup,
   .sales-phone-mockup:nth-child(2),
   .sales-phone-mockup:nth-child(3),
   .sales-phone-mockup:hover {
-    width: min(100%, 238px);
+    width: min(74vw, 238px);
     transform: none;
+  }
+
+  .sales-phone-stage > .sales-phone-mockup {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+  }
+
+  .sales-phone-stage > .sales-phone-mockup:nth-child(1),
+  .sales-phone-stage > .sales-phone-mockup:nth-child(1):hover {
+    transform: translateX(-72%) translateY(26px) scale(0.82) rotate(-8deg);
+    opacity: 0.48;
+    z-index: 1;
+  }
+
+  .sales-phone-stage > .sales-phone-mockup:nth-child(2),
+  .sales-phone-stage > .sales-phone-mockup:nth-child(2):hover {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+    z-index: 3;
+  }
+
+  .sales-phone-stage > .sales-phone-mockup:nth-child(3),
+  .sales-phone-stage > .sales-phone-mockup:nth-child(3):hover {
+    transform: translateX(-28%) translateY(32px) scale(0.82) rotate(8deg);
+    opacity: 0.46;
+    z-index: 2;
+  }
+
+  .sales-hero-phone-wrap .sales-phone-mockup {
+    position: absolute;
+  }
+
+  .sales-hero-phone-wrap .sales-hero-phone-1,
+  .sales-hero-phone-wrap .sales-hero-phone-1:hover {
+    transform: translateX(-70%) translateY(22px) scale(0.82) rotate(-8deg);
+    opacity: 0.45;
+  }
+
+  .sales-hero-phone-wrap .sales-hero-phone-2,
+  .sales-hero-phone-wrap .sales-hero-phone-2:hover {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+
+  .sales-hero-phone-wrap .sales-hero-phone-3,
+  .sales-hero-phone-wrap .sales-hero-phone-3:hover {
+    transform: translateX(-31%) translateY(30px) scale(0.82) rotate(8deg);
+    opacity: 0.42;
   }
 
   .sales-floating-badge.left,

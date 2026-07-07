@@ -107,10 +107,10 @@ const cartpandaCheckoutPlans = [
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
 const defaultAppAdminSettings = {
-  salesHeadline: 'A forma mais profissional de entregar consultoria fitness online.',
-  salesSubheadline: 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
-  salesCta: 'Escolher meu plano',
-  announcement: 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
+  salesHeadline: 'A forma mais simples de organizar sua consultoria online.',
+  salesSubheadline: 'Gerencie alunos, treino, dieta, cobrança recorrente e evolução em uma plataforma com experiência de app. Menos caos, mais previsibilidade e uma entrega que parece premium desde o primeiro acesso.',
+  salesCta: 'Começar agora',
+  announcement: 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.',
   logoUrl: '',
   salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
   primaryColor: '#00c7a8',
@@ -2377,13 +2377,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   return (
     <div id="sales-page" className="sales-page fit-gradient-bg min-h-screen text-zinc-100">
       <div className="sales-progress" aria-hidden="true" />
-      <header className="sales-header sticky top-0 z-40 border-b border-white/10 bg-[#020816]/94 backdrop-blur-xl">
+      <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
           <BrandLockup compact subtitle="Coach Fit Pro" />
           <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
             {[
               ['Solução', 'recursos'],
-              ['Mecanismo', 'mecanismo'],
               ['App', 'app-aluno'],
               ['Resultados', 'simulador'],
               ['Preços', 'precos'],
@@ -2404,46 +2403,53 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               Entrar
             </button>
             <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
-              Ver planos
+              Começar agora
             </button>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100vh-68px)] lg:grid-cols-[minmax(0,1.04fr)_minmax(390px,0.78fr)] lg:px-10 lg:py-14">
+        <section className="sales-hero mx-auto grid max-w-[1440px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,1.08fr)] lg:px-10 lg:pb-14 lg:pt-10">
           <div className="min-w-0" data-reveal>
-            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-blue-200">Plataforma de operação para coaches fitness</p>
-            <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.7rem]">
-              {salesSettings.salesHeadline}
+            <p className="inline-flex rounded-full border border-blue-300/25 bg-blue-300/10 px-4 py-2 text-xs font-black uppercase text-blue-100">Para personal, coach e consultoria online</p>
+            <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]">
+              A forma mais simples de organizar
+              <span className="mt-2 block bg-gradient-to-r from-blue-200 via-blue-400 to-emerald-200 bg-clip-text text-transparent">Consultoria Online</span>
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-              {salesSettings.salesSubheadline}
+            <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-zinc-300 sm:text-xl">
+              Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
             </p>
+            <div data-reveal className="sales-hero-device-mobile mt-5 lg:hidden">
+              <SalesPhoneShowcase />
+            </div>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
-                {salesSettings.salesCta}
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-blue-500 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-blue-950/30 transition hover:-translate-y-0.5 sm:w-auto">
+                {salesSettings.salesCta || 'Começar agora'}
               </button>
-              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
-                Ver como funciona
+              <button type="button" onClick={() => document.getElementById('app-aluno')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-xl border border-blue-300/25 bg-white/[0.035] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-blue-300/45 sm:w-auto">
+                Ver o app
               </button>
             </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">{salesSettings.announcement}</p>
-            {salesSettings.salesTrustText ? (
-              <p className="mt-2 max-w-xl text-xs font-bold leading-5 text-emerald-100/85">{salesSettings.salesTrustText}</p>
-            ) : null}
-            <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
-              <SalesStat value="1 painel" label="toda a operação" />
-              <SalesStat value="App aluno" label="experiência premium" />
-              <SalesStat value="3 planos" label="mensal, semestral e anual" />
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-400">
+              <span className="text-blue-300">✓</span>
+              <span>Sem planilha solta</span>
+              <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
+              <span>Cancele quando quiser</span>
+              <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
+              <span>Cobrança recorrente organizada</span>
+            </div>
+            <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-blue-300/25 bg-blue-400/10 px-4 py-3 text-sm font-black text-blue-100">
+              <span className="h-2 w-2 rounded-full bg-blue-300 shadow-[0_0_18px_rgba(59,130,246,0.8)]" />
+              + organização, + percepção de valor, - retrabalho
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
               {[
-                ['Treino enviado', 'execução guiada e histórico'],
-                ['Dieta ajustada', 'macros e substituições'],
-                ['Cobrança clara', 'status por aluno'],
+                ['Treino', 'execução guiada e histórico'],
+                ['Nutrição', 'macros e substituições'],
+                ['Financeiro', 'cobranças e status'],
               ].map(([title, text], index) => (
-                <div key={title} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
+                <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                   <span className="text-xs font-black text-emerald-200">0{index + 1}</span>
                   <p className="mt-2 text-sm font-black text-white">{title}</p>
                   <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -2452,7 +2458,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
           </div>
 
-          <form id="acesso" data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7 lg:sticky lg:top-24">
+          <div data-reveal className="sales-hero-device hidden lg:block">
+            <SalesPhoneShowcase />
+          </div>
+        </section>
+
+        <section id="acesso" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+          <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
             <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
             <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
@@ -3136,6 +3148,69 @@ function SalesStat({ value, label }) {
     <div className="min-w-0">
       <p className="text-lg font-black text-white sm:text-xl">{value}</p>
       <p className="mt-1 text-xs leading-5 text-zinc-400">{label}</p>
+    </div>
+  )
+}
+
+function SalesPhoneShowcase() {
+  const screens = [
+    ['Hoje', 'Olá, Coach', 'Carteira em movimento', '6 dias de sequência', ['Novo aluno entrou', 'Plano alimentar lançado', 'Anamnese recebida'], 'wallet', 'R$ 539,00', 'plano semestral'],
+    ['Treino C', 'LEGS', '7 exercícios', 'Ver treino', ['Agachamento 4x10', 'Leg press 4x12', 'Carga registrada'], 'dumbbell', 'Treino', 'enviado'],
+    ['Financeiro', 'Recebimentos', 'Status da carteira', 'Cobrança automática', ['R$ 1.709,00 no mês', 'Pix validado', 'Renovação próxima'], 'message', 'Chat', 'respondido'],
+  ]
+
+  return (
+    <div className="sales-hero-phone-wrap" aria-label="Prévia do aplicativo Coach Fit Pro">
+      <div className="sales-hero-phone-glow" aria-hidden="true" />
+      {screens.map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
+        <div key={title} className={`sales-phone-mockup sales-hero-phone-${index + 1}`}>
+          <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
+              <NavIcon name={floatingIcon} className="h-4 w-4" />
+            </span>
+            <span>
+              <strong>{floatingTitle}</strong>
+              <small>{floatingText}</small>
+            </span>
+          </div>
+          <div className="sales-phone-screen">
+            <div className="sales-phone-notch" />
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">09:30</span>
+            </div>
+            <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
+            <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
+            <div className="mt-4 rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500/35 to-emerald-300/10 p-3">
+              <p className="text-xs font-black text-emerald-100">{action}</p>
+              <div className="mt-3 h-2 rounded-full bg-zinc-800">
+                <div className="h-2 rounded-full bg-blue-300" style={{ width: `${68 + index * 9}%` }} />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {rows.map((row) => (
+                <div key={row} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
+                  <span className="text-[10px] font-bold text-zinc-200">{row}</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                </div>
+              ))}
+            </div>
+            <div className="sales-phone-bottom-nav">
+              {[
+                ['dashboard', 'Início'],
+                ['wallet', 'Fatura'],
+                ['dumbbell', 'Treino'],
+                ['message', 'Chat'],
+              ].map(([icon, label]) => (
+                <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
+                  <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

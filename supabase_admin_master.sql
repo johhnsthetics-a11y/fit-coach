@@ -44,10 +44,10 @@ insert into public.app_admin_settings (key, settings)
 values (
   'global',
   jsonb_build_object(
-    'salesHeadline', 'A forma mais profissional de entregar consultoria fitness online.',
-    'salesSubheadline', 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
-    'salesCta', 'Escolher meu plano',
-    'announcement', 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
+    'salesHeadline', 'A forma mais simples de organizar sua consultoria online.',
+    'salesSubheadline', 'Gerencie alunos, treino, dieta, cobrança recorrente e evolução em uma plataforma com experiência de app. Menos caos, mais previsibilidade e uma entrega que parece premium desde o primeiro acesso.',
+    'salesCta', 'Começar agora',
+    'announcement', 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.',
     'logoUrl', '',
     'salesTrustText', 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
     'primaryColor', '#00c7a8',
@@ -120,3 +120,14 @@ on conflict (key) do update
 set
   settings = excluded.settings || public.app_admin_settings.settings,
   updated_at = now();
+
+update public.app_admin_settings
+set
+  settings = settings || jsonb_build_object(
+    'salesHeadline', 'A forma mais simples de organizar sua consultoria online.',
+    'salesSubheadline', 'Gerencie alunos, treino, dieta, cobrança recorrente e evolução em uma plataforma com experiência de app. Menos caos, mais previsibilidade e uma entrega que parece premium desde o primeiro acesso.',
+    'salesCta', 'Começar agora',
+    'announcement', 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.'
+  ),
+  updated_at = now()
+where key = 'global';
