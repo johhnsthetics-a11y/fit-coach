@@ -48,6 +48,8 @@ values (
     'salesSubheadline', 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
     'salesCta', 'Escolher meu plano',
     'announcement', 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
+    'logoUrl', '',
+    'salesTrustText', 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
     'primaryColor', '#00c7a8',
     'accentColor', '#3b82f6',
     'featureFlags', jsonb_build_object(
@@ -114,4 +116,7 @@ values (
     )
   )
 )
-on conflict (key) do nothing;
+on conflict (key) do update
+set
+  settings = excluded.settings || public.app_admin_settings.settings,
+  updated_at = now();

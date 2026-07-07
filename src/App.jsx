@@ -111,6 +111,8 @@ const defaultAppAdminSettings = {
   salesSubheadline: 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
   salesCta: 'Escolher meu plano',
   announcement: 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
+  logoUrl: '',
+  salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
   primaryColor: '#00c7a8',
   accentColor: '#3b82f6',
   checkoutPlans: cartpandaCheckoutPlans,
@@ -596,10 +598,10 @@ export default function App() {
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
-  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive)
+  const masterAdmin = isMasterAdmin(data.user, data.session?.user)
+  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
-  const masterAdmin = isMasterAdmin(data.user, data.session?.user)
   const visibleNavItems = useMemo(() => (
     masterAdmin
       ? [...navItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
@@ -2425,6 +2427,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </button>
             </div>
             <p className="mt-3 text-xs leading-5 text-zinc-500">{salesSettings.announcement}</p>
+            {salesSettings.salesTrustText ? (
+              <p className="mt-2 max-w-xl text-xs font-bold leading-5 text-emerald-100/85">{salesSettings.salesTrustText}</p>
+            ) : null}
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
               <SalesStat value="1 painel" label="toda a operação" />
               <SalesStat value="App aluno" label="experiência premium" />
@@ -8142,6 +8147,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [logoFileError, setLogoFileError] = useState('')
 
   useEffect(() => {
     setDraft(normalizeAdminSettings(settings))
@@ -8149,6 +8155,24 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
   function updateField(field, value) {
     setDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function handleLogoFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setLogoFileError('')
+    if (!file.type.startsWith('image/')) {
+      setLogoFileError('Envie uma imagem em PNG, JPG ou WebP.')
+      return
+    }
+    if (file.size > 700 * 1024) {
+      setLogoFileError('A imagem ficou pesada. Use uma logo com ate 700 KB para carregar rapido.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => updateField('logoUrl', reader.result?.toString() || '')
+    reader.onerror = () => setLogoFileError('Nao consegui ler a imagem. Tente outro arquivo.')
+    reader.readAsDataURL(file)
   }
 
   function updateFlag(field, value) {
@@ -8216,12 +8240,13 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
         <Panel title="Página de vendas" action="Textos principais">
           <div className="grid gap-4">
-            <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} />
-            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} />
+            <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
+            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: menos retrabalho, mais organização e melhor experiência para o aluno." />
             <div className="grid gap-4 sm:grid-cols-2">
-              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} />
-              <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} />
+              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar agora." />
+              <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
             </div>
+            <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
           </div>
         </Panel>
 
@@ -8245,7 +8270,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                   <AdminTextInput label="Preço antigo" value={plan.oldPrice || ''} onChange={(value) => updatePlan(index, 'oldPrice', value)} />
                   <AdminTextInput label="Comparativo" value={plan.total} onChange={(value) => updatePlan(index, 'total', value)} />
                   <AdminTextInput label="Vantagem" value={plan.economy} onChange={(value) => updatePlan(index, 'economy', value)} />
-                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} />
+                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} hint="Cole o link completo do checkout. Recomendado: começar por https://pagamento.coachfitpro.com.br/checkout/." />
                 </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   <AdminTextArea label="Descrição" value={plan.description} onChange={(value) => updatePlan(index, 'description', value)} />
@@ -8262,13 +8287,25 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
         <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
           <Panel title="Branding global" action="Visual">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <AdminTextInput label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} />
-              <AdminTextInput label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} />
+            <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <AdminTextInput label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Use código hexadecimal. Exemplo: #00c7a8." />
+                <AdminTextInput label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} hint="Escolha uma cor que contraste com o fundo escuro." />
+              </div>
+              <AdminTextInput label="URL da logotipo principal" value={draft.logoUrl} onChange={(value) => updateField('logoUrl', value)} hint="Opcional. Use PNG horizontal com fundo transparente. Se deixar vazio, o app usa a logo padrão." />
+              <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                Enviar logotipo
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} className="rounded-xl border border-dashed border-white/15 bg-zinc-950 px-3 py-3 text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-black file:text-zinc-950" />
+                <span className="text-xs font-medium leading-5 text-zinc-500">Recomendação: imagem horizontal, até 700 KB, preferencialmente PNG/WebP transparente para combinar com o fundo preto.</span>
+                {logoFileError ? <span className="text-xs font-bold text-amber-200">{logoFileError}</span> : null}
+              </label>
             </div>
             <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: `linear-gradient(135deg, ${draft.primaryColor}22, ${draft.accentColor}22)` }}>
-              <p className="text-sm font-black text-white">Prévia das cores</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">Essas cores ficam disponíveis para as próximas evoluções visuais do app.</p>
+              <p className="text-sm font-black text-white">Prévia do visual</p>
+              <div className="mt-3 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-black/35 p-4">
+                <img src={draft.logoUrl || fitCoachLogo} alt="Prévia da logotipo" className="max-h-16 max-w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]" />
+              </div>
+              <p className="mt-3 text-xs leading-5 text-zinc-400">Salve para publicar a logo e as cores nos acessos novos. Se a logo ficar apagada no preto, use uma versão clara ou com contorno.</p>
             </div>
           </Panel>
 
@@ -8309,20 +8346,22 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   )
 }
 
-function AdminTextInput({ label, value, onChange }) {
+function AdminTextInput({ label, value, onChange, hint = '' }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <input value={value || ''} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50" />
+      {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
     </label>
   )
 }
 
-function AdminTextArea({ label, value, onChange }) {
+function AdminTextArea({ label, value, onChange, hint = '' }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <textarea value={value || ''} onChange={(event) => onChange(event.target.value)} rows={4} className="min-h-28 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none transition focus:border-emerald-300/50" />
+      {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
     </label>
   )
 }
@@ -8786,6 +8825,7 @@ function ChartLoading() {
 }
 
 function BrandLockup({ subtitle = '', large = false, compact = false }) {
+  const logoSrc = loadLocalAdminSettings().logoUrl || fitCoachLogo
   return (
     <div
       className={`fit-brand-lockup grid aspect-[400/71] shrink-0 place-items-center ${
@@ -8798,7 +8838,7 @@ function BrandLockup({ subtitle = '', large = false, compact = false }) {
       title={subtitle}
     >
       <img
-        src={fitCoachLogo}
+        src={logoSrc}
         alt="Coach Fit Pro"
         className="h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.48)]"
         decoding="async"
