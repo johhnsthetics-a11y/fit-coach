@@ -7,7 +7,6 @@ import {
   createRemoteStudentInvite,
   deleteRemoteStudent,
   loadRemoteData,
-  loadRemoteAdminOverview,
   loadRemoteAppAdminSettings,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -21,7 +20,6 @@ import {
   saveRemoteCheckin,
   saveRemoteCoachSettings,
   saveRemoteAppAdminSettings,
-  updateRemoteAdminCoachSubscription,
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
   saveRemoteStudent,
@@ -108,231 +106,6 @@ const cartpandaCheckoutPlans = [
   },
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
-
-const defaultSalesContent = {
-  navItems: [
-    { label: 'Solução', target: 'recursos' },
-    { label: 'Mecanismo', target: 'mecanismo' },
-    { label: 'App', target: 'app-aluno' },
-    { label: 'Resultados', target: 'simulador' },
-    { label: 'Preços', target: 'precos' },
-    { label: 'Dúvidas', target: 'duvidas' },
-  ],
-  heroBadge: 'Plataforma de operação para coaches fitness',
-  secondaryCta: 'Ver como funciona',
-  plansButton: 'Ver planos',
-  loginButton: 'Entrar',
-  heroStats: [
-    { value: '1 painel', label: 'toda a operação' },
-    { value: 'App aluno', label: 'experiência premium' },
-    { value: '3 planos', label: 'mensal, semestral e anual' },
-  ],
-  heroProofs: [
-    { title: 'Treino enviado', text: 'execução guiada e histórico' },
-    { title: 'Dieta ajustada', text: 'macros e substituições' },
-    { title: 'Cobrança clara', text: 'status por aluno' },
-  ],
-  valueBullets: [
-    { title: 'Operação centralizada', text: 'Treino, dieta, financeiro, agenda e chat no mesmo lugar.' },
-    { title: 'Aluno mais engajado', text: 'Portal simples para seguir rotina, registrar treino e enviar feedback.' },
-    { title: 'Marca mais premium', text: 'Você entrega seu método com mais clareza, organização e autoridade.' },
-  ],
-  appVisual: {
-    eyebrow: 'Visual de aplicativo',
-    title: 'Mostre para o aluno que ele está dentro de um acompanhamento premium.',
-    description: 'As telas foram pensadas para celular, com ações simples, feedback visual e informação separada por contexto. O aluno abre, entende o que precisa fazer e registra a rotina sem se perder.',
-    cards: [
-      { title: 'Treino guiado', text: 'Iniciar treino, pausar, registrar carga e concluir.' },
-      { title: 'Dieta clara', text: 'Refeições, macros e substituições equivalentes.' },
-      { title: 'Chat direto', text: 'Conversa em tempo real com envio de fotos.' },
-      { title: 'Engajamento', text: 'Meta de água, calendário e desafios semanais.' },
-    ],
-    phoneScreens: [
-      { kicker: 'Hoje', title: 'Olá, Élinton', subtitle: 'Calendário semanal · meta do dia', action: 'Desafio semanal 3/5', rows: ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], floatingIcon: 'wallet', floatingTitle: 'R$ 297,00', floatingText: 'plano mensal' },
-      { kicker: 'Treino', title: 'Treino C', subtitle: 'Legs · 7 exercícios', action: 'Treino iniciado · 23:14', rows: ['Agachamento 4x10', 'Leg press 4x12', 'Cadeira flexora 3x12'], floatingIcon: 'dumbbell', floatingTitle: 'Treino', floatingText: 'enviado' },
-      { kicker: 'Fatura e chat', title: 'Pagamento em dia', subtitle: 'Próxima cobrança em 6 dias', action: 'Chat com o coach', rows: ['Pix validado', 'Foto enviada', 'Plano alimentar ativo'], floatingIcon: 'message', floatingTitle: 'Anamnese', floatingText: 'recebida' },
-    ],
-    phoneNav: [
-      { icon: 'dashboard', label: 'Início' },
-      { icon: 'wallet', label: 'Fatura' },
-      { icon: 'message', label: 'Chat' },
-      { icon: 'menu', label: 'Menu' },
-    ],
-  },
-  features: {
-    eyebrow: 'Solução completa',
-    title: 'A estrutura que transforma atendimento em operação.',
-    description: 'O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.',
-    items: [
-      { number: '01', title: 'Aluno 360º', description: 'Cadastro, anamnese, histórico, fotos, pagamentos, treino e dieta conectados em uma ficha única.' },
-      { number: '02', title: 'Treinos profissionais', description: 'Prescrição por exercício, séries, cargas, notas do coach e vídeo de execução quando necessário.' },
-      { number: '03', title: 'Nutrição com macros', description: 'Planos alimentares, alimentos da biblioteca, itens manuais e substituições equivalentes.' },
-      { number: '04', title: 'Evolução comparável', description: 'Fotos, medidas, avaliações e gráficos para o coach mostrar progresso com clareza.' },
-      { number: '05', title: 'Engajamento do aluno', description: 'Desafios, meta de água, check-ins, feedbacks e lembretes para manter constância.' },
-      { number: '06', title: 'Financeiro sem bagunça', description: 'Planos próprios do coach, cobranças, status de pagamento e comprovantes organizados.' },
-    ],
-  },
-  mechanism: {
-    eyebrow: 'O custo invisível do improviso',
-    title: 'Seu método pode ser excelente e ainda parecer menor do que realmente é.',
-    description: 'Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e perde força na hora de justificar preço, renovar e escalar.',
-    items: [
-      { title: 'Planilhas e mensagens espalhadas', problem: 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', solution: 'Uma ficha central por aluno' },
-      { title: 'Cobrança manual e atrasos', problem: 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', solution: 'Planos e pagamentos organizados' },
-      { title: 'Aluno sem clareza do processo', problem: 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', solution: 'Portal próprio e rotina guiada' },
-      { title: 'Decisões sem histórico completo', problem: 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', solution: 'Evolução registrada e comparável' },
-    ],
-  },
-  commandCenter: {
-    eyebrow: 'Motor de recorrência',
-    title: 'Organização, cobrança e retenção trabalhando no mesmo fluxo.',
-    description: 'O Coach Fit Pro não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.',
-    cards: [
-      { title: 'Centraliza', text: 'Fim do PDF, Excel e mensagem perdida.' },
-      { title: 'Cobra', text: 'Vencimentos, Pix e validação em um só lugar.' },
-      { title: 'Retém', text: 'Desafios, feedbacks e evolução mantêm o aluno ativo.' },
-    ],
-    dashboardEyebrow: 'Dashboard financeiro',
-    dashboardTitle: 'Receita, renovações e inadimplência sob controle',
-    dashboardBadge: 'ao vivo',
-    metrics: [
-      { label: 'Recebido no mês', value: 'R$ 8.940', detail: '+18%' },
-      { label: 'Renovações próximas', value: '32', detail: '7 dias' },
-      { label: 'A receber', value: 'R$ 2.310', detail: 'pendente' },
-      { label: 'Alunos liberados', value: '94%', detail: 'pagos' },
-    ],
-    automationItems: [
-      { title: 'Cobranças automáticas', text: 'Pix, WhatsApp e status por aluno' },
-      { title: 'Confirmação manual', text: 'coach valida e libera o acesso' },
-      { title: 'Planos próprios', text: 'mensal, semanal, semestral ou anual' },
-    ],
-    dashboardFootnote: 'Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.',
-  },
-  comparison: {
-    eyebrow: 'Antes e depois',
-    title: 'A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.',
-    beforeLabel: 'Antes:',
-    afterLabel: 'Com Coach Fit Pro:',
-    items: [
-      { item: 'Cadastro', before: 'Formulários e mensagens soltas', after: 'Código, consentimento e continuidade' },
-      { item: 'Prescrição', before: 'Arquivos separados', after: 'Treino e dieta no portal' },
-      { item: 'Acompanhamento', before: 'Perguntas no WhatsApp', after: 'Check-ins e histórico' },
-      { item: 'Evolução', before: 'Fotos na galeria', after: 'Avaliações e gráficos' },
-      { item: 'Financeiro', before: 'Agenda ou memória', after: 'Cobranças e vencimentos' },
-      { item: 'Comunicação', before: 'Conversa sem contexto', after: 'Mensagens ligadas ao aluno' },
-    ],
-  },
-  studentApp: {
-    eyebrow: 'Experiência do aluno',
-    title: 'O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.',
-    description: 'Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.',
-    cta: 'Profissionalizar meu acompanhamento',
-    items: [
-      { title: 'Primeiro acesso', text: 'Código individual, consentimento e anamnese guiada.' },
-      { title: 'Rotina diária', text: 'Treino, alimentação, água e desafios sempre disponíveis no celular.' },
-      { title: 'Prestação de contas', text: 'Check-ins, fotos, feedbacks e conclusão de treinos registrados.' },
-      { title: 'Proximidade', text: 'Chat em tempo real, agenda e orientações em um só ambiente.' },
-    ],
-  },
-  results: {
-    eyebrow: 'Potencial de faturamento',
-    title: 'Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.',
-    description: 'O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.',
-    simulatorEyebrow: 'Simulador de cenário',
-    simulatorTitle: 'Quanto sua operação pode movimentar?',
-    simulatorDisclaimer: 'Estimativa, não garantia de resultado',
-    items: [
-      { title: 'Mais capacidade', text: 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.' },
-      { title: 'Maior valor percebido', text: 'Um portal completo torna visível tudo que existe dentro do acompanhamento.' },
-      { title: 'Mais retenção', text: 'Rotina, check-ins e evolução ajudam o aluno a permanecer conectado ao processo.' },
-      { title: 'Receita previsível', text: 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.' },
-    ],
-  },
-  objections: {
-    eyebrow: 'Feito para a rotina real do coach',
-    title: 'Uma boa plataforma precisa se adaptar ao seu método, não substituir sua identidade.',
-    description: 'Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.',
-    positiveTitle: 'O Coach Fit Pro faz sentido para você que',
-    negativeTitle: 'O sistema não promete atalhos',
-    positiveItems: [
-      'Atende alunos online, presencialmente ou de forma híbrida.',
-      'Quer reduzir tarefas repetitivas sem perder proximidade.',
-      'Precisa organizar treino, dieta, evolução e financeiro.',
-      'Deseja aumentar o valor percebido do acompanhamento.',
-    ],
-    negativeItems: [
-      'Não substitui sua análise e sua responsabilidade profissional.',
-      'Não garante faturamento sem posicionamento e execução.',
-      'Não obriga você a migrar todos os alunos de uma vez.',
-      'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
-    ],
-  },
-  faq: {
-    eyebrow: 'Dúvidas antes de começar',
-    title: 'O que você precisa saber sobre o Coach Fit Pro',
-    items: [
-      { question: 'Meus alunos precisam instalar alguma coisa?', answer: 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.' },
-      { question: 'Já uso WhatsApp. Por que preciso de uma plataforma?', answer: 'O WhatsApp continua útil para contato rápido. O Coach Fit Pro organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.' },
-      { question: 'Vou precisar cadastrar tudo novamente?', answer: 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.' },
-      { question: 'Consigo usar no celular e no desktop?', answer: 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.' },
-      { question: 'Preciso abandonar minhas ferramentas atuais no primeiro dia?', answer: 'Não. Você pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.' },
-      { question: 'Quais planos estão disponíveis?', answer: 'Você pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutrição, cobranças, chat e acompanhamento em um só lugar. O valor e a condição de cada plano aparecem na etapa de pagamento da Cartpanda.' },
-    ],
-  },
-  pricing: {
-    eyebrow: 'Planos Coach Fit Pro',
-    title: 'Comece hoje. Escale no seu ritmo.',
-    description: 'Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.',
-    decisionTitle: 'Decisão inteligente',
-    decisionByPlan: {
-      mensal: 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.',
-      semestral: 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.',
-      anual: 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.',
-    },
-    bestForTitle: 'Melhor para',
-    unlockTitle: 'O que você destrava',
-    unlockText: 'Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.',
-    afterSignupTitle: 'Depois de assinar',
-    activationBadge: 'liberação automática',
-    deliveryCards: [
-      { title: 'Entrega premium', text: 'treino, dieta, check-ins e chat em um só fluxo' },
-      { title: 'Mais percepção', text: 'o aluno sente que está dentro de uma operação profissional' },
-      { title: 'Menos retrabalho', text: 'processos organizados para vender e acompanhar melhor' },
-    ],
-    cta: 'Assinar agora',
-    includedTitle: 'Incluso no plano',
-    noStudentFeeTitle: 'Sem taxa por aluno',
-    noStudentFeeText: 'O treinador cresce a carteira sem pagar adicional por aluno cadastrado.',
-    nextStepTitle: 'Próximo passo simples',
-    nextStepText: 'Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.',
-    implementationTitle: 'Implantação prática',
-    implementationSteps: ['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'],
-    metricCards: [
-      { value: '100%', label: 'das ferramentas liberadas' },
-      { value: '0%', label: 'taxa extra por aluno' },
-    ],
-  },
-  footerText: 'Coach Fit Pro · Gestão profissional de acompanhamento',
-}
-
-function mergeList(current, fallback) {
-  return Array.isArray(current) && current.length ? current : fallback
-}
-
-function mergeObject(current, fallback) {
-  if (!current || typeof current !== 'object' || Array.isArray(current)) return fallback
-  const merged = { ...fallback, ...current }
-  Object.entries(fallback).forEach(([key, value]) => {
-    if (Array.isArray(value)) merged[key] = mergeList(current[key], value)
-    else if (value && typeof value === 'object') merged[key] = mergeObject(current[key], value)
-  })
-  return merged
-}
-
-function normalizeSalesContent(content = {}) {
-  return mergeObject(content, defaultSalesContent)
-}
-
 const defaultAppAdminSettings = {
   salesHeadline: 'A forma mais profissional de entregar consultoria fitness online.',
   salesSubheadline: 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
@@ -340,52 +113,19 @@ const defaultAppAdminSettings = {
   announcement: 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
   primaryColor: '#00c7a8',
   accentColor: '#3b82f6',
-  defaultCheckoutPlanId: 'semestral',
-  signupEnabled: true,
-  salesPageEnabled: true,
-  maintenanceNotice: '',
-  supportEmail: 'sac@coachfitpro.com.br',
-  supportWhatsapp: '',
-  salesContent: defaultSalesContent,
   checkoutPlans: cartpandaCheckoutPlans,
   featureFlags: {
     studentXp: true,
     financialDashboard: true,
     salesSimulator: true,
     waterGoal: true,
-    salesAppVisual: true,
-    salesCommandCenter: true,
-    salesComparison: true,
-    salesFaq: true,
   },
 }
 const ADMIN_SETTINGS_STORAGE_KEY = 'coachfitpro-admin-settings-preview'
-const MASTER_ADMIN_EMAIL = 'sac@coachfitpro.com.br'
-const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
-const ADMIN_ROUTE_PATH = '/admin'
-
-function isAdminRoutePath() {
-  if (typeof window === 'undefined') return false
-
-  const forcedAdminEntry = Boolean(window.__FITCOACH_ADMIN_ROUTE__)
-  const url = new URL(window.location.href)
-  const path = url.pathname.toLowerCase().replace(/\/+$/, '') || '/'
-  const firstSegment = path.split('/').filter(Boolean)[0] || ''
-  const routeParam = (url.searchParams.get('route') || url.searchParams.get('page') || '').toLowerCase()
-  const hashRoute = url.hash.toLowerCase().replace(/^#/, '').replace(/^\//, '')
-  const adminSubdomain = url.hostname.toLowerCase().startsWith('admin.')
-
-  return (
-    forcedAdminEntry
-    || adminSubdomain
-    || path === ADMIN_ROUTE_PATH
-    || path === `${ADMIN_ROUTE_PATH}/index.html`
-    || firstSegment === 'admin'
-    || routeParam === 'admin'
-    || hashRoute === 'admin'
-    || hashRoute.startsWith('admin/')
-  )
-}
+const ADMIN_EMAILS = (import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || 'sac@coachfitpro.com.br,admin@coachfitpro.com.br,john@coachfitpro.com.br,johhnsthetics@gmail.com')
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
 
 function normalizeAdminSettings(settings = {}) {
   const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
@@ -401,9 +141,6 @@ function normalizeAdminSettings(settings = {}) {
   return {
     ...defaultAppAdminSettings,
     ...settings,
-    salesPageEnabled: settings.salesPageEnabled !== false,
-    signupEnabled: settings.signupEnabled !== false,
-    salesContent: normalizeSalesContent(settings.salesContent),
     checkoutPlans,
     featureFlags: {
       ...defaultAppAdminSettings.featureFlags,
@@ -429,10 +166,8 @@ function saveLocalAdminSettings(settings) {
 }
 
 function isMasterAdmin(user, sessionUser = null) {
-  const emails = [user?.email, sessionUser?.email]
-    .map((email) => String(email || '').trim().toLowerCase())
-    .filter(Boolean)
-  return emails.some((email) => ADMIN_EMAILS.includes(email))
+  const email = String(user?.email || sessionUser?.email || '').toLowerCase()
+  return Boolean(email && (ADMIN_EMAILS.includes(email) || email.endsWith('@coachfitpro.com.br')))
 }
 
 const plans = [
@@ -830,7 +565,6 @@ export default function App() {
   const [billingClock, setBillingClock] = useState(Date.now())
   const subscriptionCheckRef = useRef(0)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
-  const [adminRoute, setAdminRoute] = useState(() => isAdminRoutePath())
 
   const selectedStudent = useMemo(
     () => data.students.find((student) => student.id === selectedStudentId) ?? data.students[0],
@@ -871,25 +605,6 @@ export default function App() {
       ? [...navItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
       : navItems
   ), [masterAdmin])
-
-  useEffect(() => {
-    function handleRouteChange() {
-      setAdminRoute(isAdminRoutePath())
-    }
-
-    window.addEventListener('popstate', handleRouteChange)
-    window.addEventListener('hashchange', handleRouteChange)
-    return () => {
-      window.removeEventListener('popstate', handleRouteChange)
-      window.removeEventListener('hashchange', handleRouteChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (adminRoute && masterAdmin) {
-      setActiveView('admin-master')
-    }
-  }, [adminRoute, masterAdmin])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -1211,8 +926,7 @@ export default function App() {
     const email = formData.get('email')?.toString().trim() || ''
     const password = formData.get('password')?.toString() || ''
     const mode = formData.get('mode')?.toString() || 'signin'
-    const adminLogin = mode === 'admin'
-    const user = { name, email, role: adminLogin ? 'Admin Master' : 'Coach principal' }
+    const user = { name, email, role: 'Coach principal' }
 
     if (productionWithoutSupabase) {
       setRemoteStatus('Configuração pendente')
@@ -1240,13 +954,6 @@ export default function App() {
           ? await signUpCoach({ name, email, password })
           : await signInCoach({ email, password })
         savedUser = await upsertRemoteUser({ ...session.user, name: session.user.name || name })
-        if (adminLogin && !isMasterAdmin(savedUser, session.user)) {
-          await signOutCoach(session.access_token).catch(() => {})
-          setSupabaseSession('')
-          setRemoteStatus('Acesso negado')
-          setRemoteError('Este login não tem permissão para acessar o Admin Master. Use sac@coachfitpro.com.br.')
-          return false
-        }
         const remoteData = await loadRemoteData()
         setData((current) => ({
           ...current,
@@ -1271,9 +978,7 @@ export default function App() {
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
-        if (adminLogin) {
-          setActiveView('admin-master')
-        } else if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
+        if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
           setActiveView('assinatura')
         }
         return true
@@ -2082,37 +1787,6 @@ export default function App() {
     return <PasswordRecovery onSave={finishPasswordRecovery} />
   }
 
-  if (adminRoute) {
-    if (!data.user || (supabaseEnabled && !data.session?.access_token)) {
-      return (
-        <AdminLoginScreen
-          onLogin={login}
-          remoteStatus={remoteStatus}
-          remoteError={remoteError}
-        />
-      )
-    }
-
-    if (supabaseEnabled && remoteStatus === 'Conectando Supabase') {
-      return <AppLoading />
-    }
-
-    if (!masterAdmin) {
-      return <AdminUnauthorized user={data.user} onLogout={logout} remoteError={remoteError} />
-    }
-
-    return (
-      <AdminRouteShell
-        user={data.user}
-        settings={appAdminSettings}
-        onSave={saveAppAdminSettings}
-        onLogout={logout}
-        remoteStatus={remoteStatus}
-        remoteError={remoteError}
-      />
-    )
-  }
-
   if (salesPreview) {
     return (
       <LoginScreen
@@ -2557,111 +2231,6 @@ function PasswordRecovery({ onSave }) {
   )
 }
 
-function AdminLoginScreen({ onLogin, remoteStatus, remoteError }) {
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(event) {
-    event.preventDefault()
-    setLoading(true)
-    try {
-      await onLogin(new FormData(event.currentTarget))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="fit-gradient-bg min-h-screen text-zinc-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10">
-        <div className="rounded-3xl border border-emerald-300/20 bg-zinc-950/92 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8">
-          <BrandLockup subtitle="Admin Master" />
-          <p className="mt-6 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-200">
-            Acesso administrativo separado
-          </p>
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">Entrar no Admin Master</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-400">
-            Essa área é exclusiva para editar página de vendas, planos, links, módulos, usuários e assinaturas. O acesso permitido é somente para {MASTER_ADMIN_EMAIL}.
-          </p>
-
-          {remoteError ? (
-            <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">Atenção</p>
-              <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
-            </div>
-          ) : null}
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <input type="hidden" name="mode" value="admin" />
-            <Field label="E-mail admin" name="email" type="email" defaultValue={MASTER_ADMIN_EMAIL} />
-            <Field label="Senha" name="password" type="password" defaultValue="" />
-            <button disabled={loading} className="w-full rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-              {loading ? 'Validando...' : 'Entrar no Admin Master'}
-            </button>
-          </form>
-
-          <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold text-zinc-500">
-            <a href="/" className="rounded-xl border border-white/10 px-3 py-2 text-zinc-300 transition hover:bg-white/[0.06] hover:text-white">Voltar para o site</a>
-            <span className="rounded-xl border border-white/10 px-3 py-2">Rota: /admin</span>
-          </div>
-          {remoteStatus ? <p className="mt-4 text-xs font-bold text-zinc-500">Status: {remoteStatus}</p> : null}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AdminUnauthorized({ user, onLogout, remoteError }) {
-  return (
-    <div className="fit-gradient-bg min-h-screen text-zinc-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10">
-        <div className="rounded-3xl border border-rose-300/20 bg-zinc-950/92 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8">
-          <BrandLockup subtitle="Admin Master" />
-          <p className="mt-6 inline-flex rounded-full border border-rose-300/25 bg-rose-300/10 px-3 py-1 text-xs font-black uppercase text-rose-200">
-            Acesso negado
-          </p>
-          <h1 className="mt-4 text-3xl font-black text-white">Este usuário não é admin.</h1>
-          <p className="mt-3 break-words text-sm leading-6 text-zinc-400">
-            Login atual: {user?.email || 'e-mail não identificado'}. O Admin Master aceita somente {MASTER_ADMIN_EMAIL}.
-          </p>
-          {remoteError ? <p className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50">{remoteError}</p> : null}
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={onLogout} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950">Sair e entrar com admin</button>
-            <a href="/" className="rounded-xl border border-white/10 px-5 py-3 text-center text-sm font-black text-zinc-100">Voltar para o site</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AdminRouteShell({ user, settings, onSave, onLogout, remoteStatus, remoteError }) {
-  return (
-    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/92 px-4 py-3 backdrop-blur-xl sm:px-6">
-        <div className="mx-auto flex max-w-[1440px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <BrandLockup compact subtitle="Admin Master" />
-            <p className="mt-2 text-xs font-bold text-zinc-500">Logado como {user?.email}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <a href="/" className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-100 transition hover:bg-white/[0.06]">Ver site</a>
-            <a href="/?preview=vendas" className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-100 transition hover:bg-white/[0.06]">Prévia vendas</a>
-            <button type="button" onClick={onLogout} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950">Sair</button>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-[1440px] px-3 py-5 sm:px-6 lg:px-8">
-        <AdminMaster
-          settings={settings}
-          onSave={onSave}
-          remoteStatus={remoteStatus}
-          remoteError={remoteError}
-        />
-      </main>
-    </div>
-  )
-}
-
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings }) {
   const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
@@ -2673,9 +2242,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     priceIncrease: 30,
   })
   const salesSettings = normalizeAdminSettings(appAdminSettings)
-  const salesContent = salesSettings.salesContent
   const salesPlans = salesSettings.checkoutPlans
-  const selectedOfferPlan = salesPlans.find((plan) => plan.id === selectedOfferPlanId) || salesPlans.find((plan) => plan.id === salesSettings.defaultCheckoutPlanId) || salesPlans[1] || salesPlans[0]
+  const selectedOfferPlan = salesPlans.find((plan) => plan.id === selectedOfferPlanId) || salesPlans[1] || salesPlans[0]
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -2769,7 +2337,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   function startFirstMonthOffer() {
-    openAccess(salesSettings.signupEnabled ? 'signup' : 'signin')
+    openAccess('signup')
   }
 
   function startPlanSignup(planId) {
@@ -2778,7 +2346,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     } catch {
       // Mantem o fluxo normal mesmo se o navegador bloquear armazenamento local.
     }
-    openAccess(salesSettings.signupEnabled ? 'signup' : 'signin')
+    openAccess('signup')
   }
 
   function leaveSalesPreview() {
@@ -2792,9 +2360,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     event.preventDefault()
     setLoading(true)
     try {
-      if (mode === 'signup' && !salesSettings.signupEnabled) {
-        throw new Error('A criação de conta está temporariamente desativada. Use Entrar ou fale com o suporte.')
-      }
       const formData = new FormData(event.currentTarget)
       const success = mode === 'student'
         ? await onStudentAccess(formData.get('inviteCode')?.toString() || '')
@@ -2812,7 +2377,14 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
           <BrandLockup compact subtitle="Coach Fit Pro" />
           <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
-            {salesContent.navItems.map(({ label, target }) => (
+            {[
+              ['Solução', 'recursos'],
+              ['Mecanismo', 'mecanismo'],
+              ['App', 'app-aluno'],
+              ['Resultados', 'simulador'],
+              ['Preços', 'precos'],
+              ['Dúvidas', 'duvidas'],
+            ].map(([label, target]) => (
               <button
                 key={target}
                 type="button"
@@ -2825,10 +2397,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </nav>
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
-              {salesContent.loginButton}
+              Entrar
             </button>
             <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
-              {salesContent.plansButton}
+              Ver planos
             </button>
           </div>
         </div>
@@ -2837,7 +2409,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       <main>
         <section className="mx-auto grid max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100vh-68px)] lg:grid-cols-[minmax(0,1.04fr)_minmax(390px,0.78fr)] lg:px-10 lg:py-14">
           <div className="min-w-0" data-reveal>
-            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-blue-200">{salesContent.heroBadge}</p>
+            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-blue-200">Plataforma de operação para coaches fitness</p>
             <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.7rem]">
               {salesSettings.salesHeadline}
             </h1>
@@ -2849,16 +2421,21 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 {salesSettings.salesCta}
               </button>
               <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
-                {salesContent.secondaryCta}
+                Ver como funciona
               </button>
             </div>
             <p className="mt-3 text-xs leading-5 text-zinc-500">{salesSettings.announcement}</p>
-            {salesSettings.maintenanceNotice ? <p className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-xs font-bold leading-5 text-amber-100">{salesSettings.maintenanceNotice}</p> : null}
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
-              {salesContent.heroStats.map((item) => <SalesStat key={`${item.value}-${item.label}`} value={item.value} label={item.label} />)}
+              <SalesStat value="1 painel" label="toda a operação" />
+              <SalesStat value="App aluno" label="experiência premium" />
+              <SalesStat value="3 planos" label="mensal, semestral e anual" />
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
-              {salesContent.heroProofs.map(({ title, text }, index) => (
+              {[
+                ['Treino enviado', 'execução guiada e histórico'],
+                ['Dieta ajustada', 'macros e substituições'],
+                ['Cobrança clara', 'status por aluno'],
+              ].map(([title, text], index) => (
                 <div key={title} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
                   <span className="text-xs font-black text-emerald-200">0{index + 1}</span>
                   <p className="mt-2 text-sm font-black text-white">{title}</p>
@@ -2885,7 +2462,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="mt-5 grid grid-cols-3 gap-2">
               {[
                 ['signin', 'Coach'],
-                ...(salesSettings.signupEnabled ? [['signup', 'Criar conta']] : []),
+                ['signup', 'Criar conta'],
                 ['student', 'Aluno'],
               ].map(([id, label]) => (
                 <button
@@ -2935,7 +2512,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
         <section className="border-y border-white/10 bg-zinc-950/80">
           <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
-            {salesContent.valueBullets.map(({ title, text }) => (
+            {[
+              ['Operação centralizada', 'Treino, dieta, financeiro, agenda e chat no mesmo lugar.'],
+              ['Aluno mais engajado', 'Portal simples para seguir rotina, registrar treino e enviar feedback.'],
+              ['Marca mais premium', 'Você entrega seu método com mais clareza, organização e autoridade.'],
+            ].map(([title, text]) => (
               <div key={title} className="flex gap-3">
                 <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
                 <div>
@@ -2950,13 +2531,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.appVisual.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.appVisual.title}</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Visual de aplicativo</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Mostre para o aluno que ele está dentro de um acompanhamento premium.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                {salesContent.appVisual.description}
+                As telas foram pensadas para celular, com ações simples, feedback visual e informação separada por contexto. O aluno abre, entende o que precisa fazer e registra a rotina sem se perder.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {salesContent.appVisual.cards.map(({ title, text }) => (
+                {[
+                  ['Treino guiado', 'Iniciar treino, pausar, registrar carga e concluir.'],
+                  ['Dieta clara', 'Refeições, macros e substituições equivalentes.'],
+                  ['Chat direto', 'Conversa em tempo real com envio de fotos.'],
+                  ['Engajamento', 'Meta de água, calendário e desafios semanais.'],
+                ].map(([title, text]) => (
                   <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
                     <p className="text-sm font-black text-emerald-100">{title}</p>
                     <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -2965,7 +2551,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </div>
             </div>
             <div data-reveal className="sales-phone-stage grid gap-2 sm:grid-cols-3">
-              {salesContent.appVisual.phoneScreens.map(({ kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText }, index) => (
+              {[
+                ['Hoje', 'Olá, Élinton', 'Calendário semanal · meta do dia', 'Desafio semanal 3/5', ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], 'wallet', 'R$ 297,00', 'plano mensal'],
+                ['Treino', 'Treino C', 'Legs · 7 exercícios', 'Treino iniciado · 23:14', ['Agachamento 4x10', 'Leg press 4x12', 'Cadeira flexora 3x12'], 'dumbbell', 'Treino', 'enviado'],
+                ['Fatura e chat', 'Pagamento em dia', 'Próxima cobrança em 6 dias', 'Chat com o coach', ['Pix validado', 'Foto enviada', 'Plano alimentar ativo'], 'message', 'Anamnese', 'recebida'],
+              ].map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
                 <div key={title} className={`sales-phone-mockup ${index === 1 ? 'sm:mt-8' : ''}`}>
                   <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
@@ -2999,7 +2589,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       ))}
                     </div>
                     <div className="sales-phone-bottom-nav">
-                      {salesContent.appVisual.phoneNav.map(({ icon, label }) => (
+                      {[
+                        ['dashboard', 'Início'],
+                        ['wallet', 'Fatura'],
+                        ['message', 'Chat'],
+                        ['menu', 'Menu'],
+                      ].map(([icon, label]) => (
                         <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
                           <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
                           {label}
@@ -3016,12 +2611,19 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.features.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.features.title}</h2>
-              <p className="mt-4 leading-7 text-zinc-400">{salesContent.features.description}</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Solução completa</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A estrutura que transforma atendimento em operação.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {salesContent.features.items.map(({ number, title, description }, index) => (
+              {[
+                ['01', 'Aluno 360º', 'Cadastro, anamnese, histórico, fotos, pagamentos, treino e dieta conectados em uma ficha única.'],
+                ['02', 'Treinos profissionais', 'Prescrição por exercício, séries, cargas, notas do coach e vídeo de execução quando necessário.'],
+                ['03', 'Nutrição com macros', 'Planos alimentares, alimentos da biblioteca, itens manuais e substituições equivalentes.'],
+                ['04', 'Evolução comparável', 'Fotos, medidas, avaliações e gráficos para o coach mostrar progresso com clareza.'],
+                ['05', 'Engajamento do aluno', 'Desafios, meta de água, check-ins, feedbacks e lembretes para manter constância.'],
+                ['06', 'Financeiro sem bagunça', 'Planos próprios do coach, cobranças, status de pagamento e comprovantes organizados.'],
+              ].map(([number, title, description], index) => (
                 <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
                   <span className="text-xs font-black text-blue-300">{number}</span>
                   <h3 className="mt-3 text-lg font-black">{title}</h3>
@@ -3035,14 +2637,19 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="mecanismo" className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal className="lg:sticky lg:top-28">
-              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.mechanism.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.mechanism.title}</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">O custo invisível do improviso</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu método pode ser excelente e ainda parecer menor do que realmente é.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                {salesContent.mechanism.description}
+                Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e perde força na hora de justificar preço, renovar e escalar.
               </p>
             </div>
             <div className="grid gap-3">
-              {salesContent.mechanism.items.map(({ title, problem, solution }, index) => (
+              {[
+                ['Planilhas e mensagens espalhadas', 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', 'Uma ficha central por aluno'],
+                ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos e pagamentos organizados'],
+                ['Aluno sem clareza do processo', 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', 'Portal próprio e rotina guiada'],
+                ['Decisões sem histórico completo', 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
+              ].map(([title, problem, solution], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div>
                     <h3 className="font-black">{title}</h3>
@@ -3058,13 +2665,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/80 py-10 sm:py-14">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.commandCenter.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.commandCenter.title}</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Motor de recorrência</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Organização, cobrança e retenção trabalhando no mesmo fluxo.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                {salesContent.commandCenter.description}
+                O Coach Fit Pro não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {salesContent.commandCenter.cards.map(({ title, text }) => (
+                {[
+                  ['Centraliza', 'Fim do PDF, Excel e mensagem perdida.'],
+                  ['Cobra', 'Vencimentos, Pix e validação em um só lugar.'],
+                  ['Retém', 'Desafios, feedbacks e evolução mantêm o aluno ativo.'],
+                ].map(([title, text]) => (
                   <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
                     <p className="text-sm font-black text-emerald-100">{title}</p>
                     <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -3075,13 +2686,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="rounded-2xl border border-emerald-300/20 bg-zinc-950/88 p-5 shadow-2xl shadow-black/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase text-blue-200">{salesContent.commandCenter.dashboardEyebrow}</p>
-                  <h3 className="mt-2 text-2xl font-black">{salesContent.commandCenter.dashboardTitle}</h3>
+                  <p className="text-xs font-black uppercase text-blue-200">Dashboard financeiro</p>
+                  <h3 className="mt-2 text-2xl font-black">Receita, renovações e inadimplência sob controle</h3>
                 </div>
-                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{salesContent.commandCenter.dashboardBadge}</span>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                {salesContent.commandCenter.metrics.map(({ label, value, detail }) => (
+                {[
+                  ['Recebido no mês', 'R$ 8.940', '+18%'],
+                  ['Renovações próximas', '32', '7 dias'],
+                  ['A receber', 'R$ 2.310', 'pendente'],
+                  ['Alunos liberados', '94%', 'pagos'],
+                ].map(([label, value, detail]) => (
                   <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
                     <p className="mt-2 text-2xl font-black text-white">{value}</p>
@@ -3102,7 +2718,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                 </div>
                 <div className="grid gap-3">
-                  {salesContent.commandCenter.automationItems.map(({ title, text }) => (
+                  {[
+                    ['Cobranças automáticas', 'Pix, WhatsApp e status por aluno'],
+                    ['Confirmação manual', 'coach valida e libera o acesso'],
+                    ['Planos próprios', 'mensal, semanal, semestral ou anual'],
+                  ].map(([title, text]) => (
                     <div key={title} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
                       <p className="text-sm font-black text-white">{title}</p>
                       <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -3110,7 +2730,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ))}
                 </div>
               </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500">{salesContent.commandCenter.dashboardFootnote}</p>
+              <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.</p>
             </div>
           </div>
         </section>
@@ -3118,16 +2738,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section sales-section-red border-y border-white/10 bg-zinc-950/75 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.comparison.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.comparison.title}</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Antes e depois</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.</h2>
             </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {salesContent.comparison.items.map(({ item, before, after }) => (
+              {[
+                ['Cadastro', 'Formulários e mensagens soltas', 'Código, consentimento e continuidade'],
+                ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
+                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
+                ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
+                ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
+                ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
+              ].map(([item, before, after]) => (
                 <div key={item} data-reveal className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-[#05070d]/85 p-4">
                   <p className="text-xs font-black uppercase text-cyan-300">{item}</p>
-                  <p className="mt-3 text-sm leading-6 text-zinc-500"><strong className="text-zinc-400">{salesContent.comparison.beforeLabel}</strong> {before}</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-500"><strong className="text-zinc-400">Antes:</strong> {before}</p>
                   <div className="my-3 h-px bg-white/10" />
-                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">{salesContent.comparison.afterLabel}</strong> {after}</p>
+                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">Com Coach Fit Pro:</strong> {after}</p>
                 </div>
               ))}
             </div>
@@ -3137,15 +2764,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="app-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-blue-300">{salesContent.studentApp.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.studentApp.title}</h2>
-              <p className="mt-4 leading-7 text-zinc-300">{salesContent.studentApp.description}</p>
+              <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
+              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
-                {salesContent.studentApp.cta}
+                Profissionalizar meu acompanhamento
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {salesContent.studentApp.items.map(({ title, text }, index) => (
+              {[
+                ['Primeiro acesso', 'Código individual, consentimento e anamnese guiada.'],
+                ['Rotina diária', 'Treino, alimentação, água e desafios sempre disponíveis no celular.'],
+                ['Prestação de contas', 'Check-ins, fotos, feedbacks e conclusão de treinos registrados.'],
+                ['Proximidade', 'Chat em tempo real, agenda e orientações em um só ambiente.'],
+              ].map(([title, text], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card rounded-md border border-white/10 bg-zinc-950/70 p-5">
                   <h3 className="font-black text-emerald-200">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
@@ -3158,13 +2790,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="simulador" className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-blue-300">{salesContent.results.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.results.title}</h2>
+              <p className="text-sm font-semibold uppercase text-blue-300">Potencial de faturamento</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
               <p className="mt-4 leading-7 text-zinc-300">
-                {salesContent.results.description}
+                O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
               </p>
               <div className="mt-6 grid gap-3">
-                {salesContent.results.items.map(({ title, text }, index) => (
+                {[
+                  ['Mais capacidade', 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.'],
+                  ['Maior valor percebido', 'Um portal completo torna visível tudo que existe dentro do acompanhamento.'],
+                  ['Mais retenção', 'Rotina, check-ins e evolução ajudam o aluno a permanecer conectado ao processo.'],
+                  ['Receita previsível', 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.'],
+                ].map(([title, text], index) => (
                   <div key={title} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="flex gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
                     <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded ${index % 2 ? 'bg-emerald-700' : 'bg-emerald-400'}`} />
                     <div>
@@ -3179,10 +2816,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="sales-interactive rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
               <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase text-emerald-200">{salesContent.results.simulatorEyebrow}</p>
-                  <h3 className="mt-2 text-2xl font-black">{salesContent.results.simulatorTitle}</h3>
+                  <p className="text-xs font-black uppercase text-emerald-200">Simulador de cenário</p>
+                  <h3 className="mt-2 text-2xl font-black">Quanto sua operação pode movimentar?</h3>
                 </div>
-                <span className="text-xs text-zinc-500">{salesContent.results.simulatorDisclaimer}</span>
+                <span className="text-xs text-zinc-500">Estimativa, não garantia de resultado</span>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -3247,21 +2884,31 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section border-y border-white/10 bg-zinc-950/70 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.objections.eyebrow}</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.objections.title}</h2>
-              <p className="mt-4 leading-7 text-zinc-400">{salesContent.objections.description}</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Feito para a rotina real do coach</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Uma boa plataforma precisa se adaptar ao seu método, não substituir sua identidade.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.</p>
             </div>
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
               <div data-reveal className="rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-emerald-300">{salesContent.objections.positiveTitle}</p>
+                <p className="text-xs font-black uppercase text-emerald-300">O Coach Fit Pro faz sentido para você que</p>
                 <div className="mt-4 grid gap-3">
-                  {salesContent.objections.positiveItems.map((item) => <ObjectionPoint key={item} text={item} positive />)}
+                  {[
+                    'Atende alunos online, presencialmente ou de forma híbrida.',
+                    'Quer reduzir tarefas repetitivas sem perder proximidade.',
+                    'Precisa organizar treino, dieta, evolução e financeiro.',
+                    'Deseja aumentar o valor percebido do acompanhamento.',
+                  ].map((item) => <ObjectionPoint key={item} text={item} positive />)}
                 </div>
               </div>
               <div data-reveal className="rounded-md border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-zinc-400">{salesContent.objections.negativeTitle}</p>
+                <p className="text-xs font-black uppercase text-zinc-400">O sistema não promete atalhos</p>
                 <div className="mt-4 grid gap-3">
-                  {salesContent.objections.negativeItems.map((item) => <ObjectionPoint key={item} text={item} />)}
+                  {[
+                    'Não substitui sua análise e sua responsabilidade profissional.',
+                    'Não garante faturamento sem posicionamento e execução.',
+                    'Não obriga você a migrar todos os alunos de uma vez.',
+                    'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
+                  ].map((item) => <ObjectionPoint key={item} text={item} />)}
                 </div>
               </div>
             </div>
@@ -3270,11 +2917,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
         <section id="duvidas" className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center" data-reveal>
-            <p className="text-sm font-semibold uppercase text-emerald-200">{salesContent.faq.eyebrow}</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.faq.title}</h2>
+            <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o Coach Fit Pro</h2>
           </div>
           <div className="mt-9 grid gap-3">
-            {salesContent.faq.items.map(({ question, answer }, index) => (
+            {[
+              ['Meus alunos precisam instalar alguma coisa?', 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.'],
+              ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O Coach Fit Pro organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
+              ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
+              ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
+              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
+              ['Quais planos estão disponíveis?', 'Você pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutrição, cobranças, chat e acompanhamento em um só lugar. O valor e a condição de cada plano aparecem na etapa de pagamento da Cartpanda.'],
+            ].map(([question, answer], index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
                   <span>{question}</span>
@@ -3289,12 +2943,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="precos" className="sales-section sales-section-final border-t border-white/10 bg-[#04070d] py-12 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6" data-reveal>
             <div className="mx-auto max-w-4xl text-center">
-              <p className="text-sm font-black uppercase text-emerald-300">{salesContent.pricing.eyebrow}</p>
+              <p className="text-sm font-black uppercase text-emerald-300">Planos Coach Fit Pro</p>
               <h2 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
-                {salesContent.pricing.title}
+                Comece hoje. Escale no seu ritmo.
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-                {salesContent.pricing.description}
+                Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
               </p>
 
               <div className="mx-auto mt-7 grid max-w-3xl gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30 sm:grid-cols-3">
@@ -3356,19 +3010,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
                   <div className="mt-6 grid gap-3 lg:grid-cols-3">
                     <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
-                      <p className="text-xs font-black uppercase text-blue-200">{salesContent.pricing.decisionTitle}</p>
+                      <p className="text-xs font-black uppercase text-blue-200">Decisão inteligente</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">
-                        {salesContent.pricing.decisionByPlan?.[selectedOfferPlan.id] || selectedOfferPlan.equivalent || selectedOfferPlan.description}
+                        {selectedOfferPlan.id === 'mensal'
+                          ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
+                          : selectedOfferPlan.id === 'semestral'
+                            ? 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.'
+                            : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                      <p className="text-xs font-black uppercase text-zinc-500">{salesContent.pricing.bestForTitle}</p>
+                      <p className="text-xs font-black uppercase text-zinc-500">Melhor para</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.bestFor}</p>
                     </div>
                     <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                      <p className="text-xs font-black uppercase text-emerald-200">{salesContent.pricing.unlockTitle}</p>
+                      <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">
-                        {salesContent.pricing.unlockText}
+                        Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.
                       </p>
                     </div>
                   </div>
@@ -3376,10 +3034,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-xs font-black uppercase text-zinc-500">{salesContent.pricing.afterSignupTitle}</p>
+                        <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
                         <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.operatingPromise}</p>
                       </div>
-                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{salesContent.pricing.activationBadge}</span>
+                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberação automática</span>
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       {selectedOfferPlan.activationPlan.map((item, index) => (
@@ -3392,7 +3050,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    {salesContent.pricing.deliveryCards.map(({ title, text }) => (
+                    {[
+                      ['Entrega premium', 'treino, dieta, check-ins e chat em um só fluxo'],
+                      ['Mais percepção', 'o aluno sente que está dentro de uma operação profissional'],
+                      ['Menos retrabalho', 'processos organizados para vender e acompanhar melhor'],
+                    ].map(([title, text]) => (
                       <div key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
                         <p className="text-sm font-black text-white">{title}</p>
                         <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
@@ -3401,13 +3063,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
 
                   <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-blue-500 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
-                    {salesContent.pricing.cta}
+                    Assinar agora
                   </button>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-zinc-950/92 p-5 shadow-2xl shadow-black/30 sm:p-6">
-                <p className="text-sm font-black uppercase text-zinc-400">{salesContent.pricing.includedTitle}</p>
+                <p className="text-sm font-black uppercase text-zinc-400">Incluso no plano</p>
                 <div className="mt-5 grid gap-3">
                   {selectedOfferPlan.highlights.map((item) => (
                     <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200">
@@ -3417,21 +3079,21 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ))}
                 </div>
                 <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-emerald-200">{salesContent.pricing.noStudentFeeTitle}</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">Sem taxa por aluno</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    {salesContent.pricing.noStudentFeeText}
+                    O treinador cresce a carteira sem pagar adicional por aluno cadastrado.
                   </p>
                 </div>
                 <div className="mt-4 rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
-                  <p className="text-xs font-black uppercase text-blue-200">{salesContent.pricing.nextStepTitle}</p>
+                  <p className="text-xs font-black uppercase text-blue-200">Próximo passo simples</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    {salesContent.pricing.nextStepText}
+                    Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.
                   </p>
                 </div>
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs font-black uppercase text-zinc-400">{salesContent.pricing.implementationTitle}</p>
+                  <p className="text-xs font-black uppercase text-zinc-400">Implantação prática</p>
                   <div className="mt-3 grid gap-2">
-                    {salesContent.pricing.implementationSteps.map((item, index) => (
+                    {['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'].map((item, index) => (
                       <div key={item} className="flex gap-3 text-sm leading-6 text-zinc-300">
                         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
                         <span>{item}</span>
@@ -3440,12 +3102,14 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  {salesContent.pricing.metricCards.map((item) => (
-                    <div key={`${item.value}-${item.label}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                      <p className="text-lg font-black text-white">{item.value}</p>
-                      <p className="mt-1 text-xs leading-5 text-zinc-500">{item.label}</p>
-                    </div>
-                  ))}
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-black text-white">100%</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">das ferramentas liberadas</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-black text-white">0%</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">taxa extra por aluno</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3454,7 +3118,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       </main>
 
       <footer className="border-t border-white/10 bg-[#05070d] px-4 py-6 text-center text-xs text-zinc-500">
-        {salesContent.footerText}
+        Coach Fit Pro · Gestão profissional de acompanhamento
       </footer>
     </div>
   )
@@ -8476,38 +8140,12 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
 
 function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
-  const [salesContentJson, setSalesContentJson] = useState(() => JSON.stringify(normalizeAdminSettings(settings).salesContent, null, 2))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [jsonError, setJsonError] = useState('')
-  const [overview, setOverview] = useState({ users: [], subscriptions: [] })
-  const [overviewError, setOverviewError] = useState('')
-  const [loadingOverview, setLoadingOverview] = useState(false)
-  const [updatingCoachId, setUpdatingCoachId] = useState('')
 
   useEffect(() => {
-    const normalized = normalizeAdminSettings(settings)
-    setDraft(normalized)
-    setSalesContentJson(JSON.stringify(normalized.salesContent, null, 2))
+    setDraft(normalizeAdminSettings(settings))
   }, [settings])
-
-  const refreshOverview = useCallback(async () => {
-    if (!supabaseEnabled) return
-    setLoadingOverview(true)
-    setOverviewError('')
-    try {
-      const loaded = await loadRemoteAdminOverview()
-      setOverview(loaded)
-    } catch (error) {
-      setOverviewError(error?.message || 'Não foi possível carregar usuários e assinaturas.')
-    } finally {
-      setLoadingOverview(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    refreshOverview()
-  }, [refreshOverview])
 
   function updateField(field, value) {
     setDraft((current) => ({ ...current, [field]: value }))
@@ -8537,37 +8175,12 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     updatePlan(planIndex, field, items)
   }
 
-  function parseSalesContentJson() {
-    try {
-      const parsed = JSON.parse(salesContentJson)
-      const normalized = normalizeSalesContent(parsed)
-      setJsonError('')
-      return normalized
-    } catch (error) {
-      setJsonError('JSON inválido. Revise vírgulas, aspas e chaves antes de salvar.')
-      return null
-    }
-  }
-
-  function applySalesContentJson() {
-    const parsed = parseSalesContentJson()
-    if (!parsed) return
-    setDraft((current) => ({ ...current, salesContent: parsed }))
-    setSalesContentJson(JSON.stringify(parsed, null, 2))
-    setMessage('Conteúdo avançado aplicado no rascunho. Clique em salvar para publicar.')
-  }
-
   async function handleSubmit(event) {
     event.preventDefault()
-    const parsedContent = parseSalesContentJson()
-    if (!parsedContent) return
     setSaving(true)
     setMessage('')
     try {
-      const normalizedDraft = normalizeAdminSettings({ ...draft, salesContent: parsedContent })
-      await onSave(normalizedDraft)
-      setDraft(normalizedDraft)
-      setSalesContentJson(JSON.stringify(normalizedDraft.salesContent, null, 2))
+      await onSave(draft)
       setMessage('Configurações salvas. As próximas visitas já usam esta versão.')
     } finally {
       setSaving(false)
@@ -8575,36 +8188,9 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   }
 
   function resetDefaults() {
-    const normalized = normalizeAdminSettings(defaultAppAdminSettings)
-    setDraft(normalized)
-    setSalesContentJson(JSON.stringify(normalized.salesContent, null, 2))
+    setDraft(defaultAppAdminSettings)
     setMessage('Padrão carregado. Clique em salvar para publicar.')
   }
-
-  async function updateCoachSubscription(coachId, status) {
-    if (!coachId) return
-    setUpdatingCoachId(coachId)
-    setOverviewError('')
-    try {
-      const next = new Date()
-      next.setMonth(next.getMonth() + 1)
-      await updateRemoteAdminCoachSubscription({
-        coachId,
-        status,
-        provider: 'manual_admin',
-        paidAt: status === 'active' ? new Date().toISOString() : null,
-        currentPeriodEndsAt: status === 'active' ? next.toISOString() : null,
-        nextBillingAt: status === 'active' ? next.toISOString() : null,
-      })
-      await refreshOverview()
-    } catch (error) {
-      setOverviewError(error?.message || 'Não foi possível atualizar a assinatura.')
-    } finally {
-      setUpdatingCoachId('')
-    }
-  }
-
-  const subscriptionByCoach = new Map((overview.subscriptions || []).map((item) => [String(item.coachId), item]))
 
   return (
     <div className="grid gap-5 lg:gap-6">
@@ -8614,58 +8200,28 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
             <p className="text-xs font-black uppercase text-emerald-300">Admin Master</p>
             <h2 className="mt-2 text-3xl font-black text-white">Controle central do Coach Fit Pro.</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-              Acesso liberado somente para {MASTER_ADMIN_EMAIL}. Edite página de vendas, planos, checkout, módulos, suporte e assinaturas sem depender do GitHub para alterações comerciais.
+              Edite página de vendas, planos oficiais, links de checkout, cores e módulos sem precisar subir código no GitHub.
             </p>
           </div>
           <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
             <p className="text-xs font-black uppercase text-blue-200">Status</p>
             <p className="mt-2 text-sm font-bold text-zinc-200">{remoteStatus || 'Pronto'}</p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">
-              {remoteError ? remoteError : 'Quando o SQL atualizado estiver aplicado, salvar aqui publica no Supabase.'}
+              {remoteError ? remoteError : 'Quando o SQL do Admin Master estiver aplicado, salvar aqui publica no banco.'}
             </p>
           </div>
         </div>
       </section>
 
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
-        <Panel title="Página de vendas" action="Textos e operação">
+        <Panel title="Página de vendas" action="Textos principais">
           <div className="grid gap-4">
             <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} />
             <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} />
             <div className="grid gap-4 sm:grid-cols-2">
               <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} />
               <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} />
-              <AdminTextInput label="Plano selecionado por padrão" value={draft.defaultCheckoutPlanId} onChange={(value) => updateField('defaultCheckoutPlanId', value)} />
-              <AdminTextInput label="E-mail de suporte" value={draft.supportEmail} onChange={(value) => updateField('supportEmail', value)} />
-              <AdminTextInput label="WhatsApp de suporte" value={draft.supportWhatsapp} onChange={(value) => updateField('supportWhatsapp', value)} />
-              <AdminTextInput label="Aviso de manutenção" value={draft.maintenanceNotice} onChange={(value) => updateField('maintenanceNotice', value)} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <AdminCheckbox label="Página de vendas ativa" checked={draft.salesPageEnabled !== false} onChange={(checked) => updateField('salesPageEnabled', checked)} />
-              <AdminCheckbox label="Permitir criação de conta pela página" checked={draft.signupEnabled !== false} onChange={(checked) => updateField('signupEnabled', checked)} />
-            </div>
-          </div>
-        </Panel>
-
-        <Panel title="Página principal de vendas" action="Editor avançado">
-          <p className="mb-3 text-sm leading-6 text-zinc-400">
-            Este JSON controla menu, cards, seções, dúvidas, textos dos blocos, rodapé e microcopy da página de vendas. Edite com cuidado e clique em “Aplicar JSON” antes de salvar.
-          </p>
-          <textarea
-            value={salesContentJson}
-            onChange={(event) => setSalesContentJson(event.target.value)}
-            rows={18}
-            spellCheck={false}
-            className="w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-3 font-mono text-xs leading-5 text-zinc-100 outline-none transition focus:border-emerald-300/50"
-          />
-          {jsonError ? <p className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{jsonError}</p> : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={applySalesContentJson} className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100">
-              Aplicar JSON no rascunho
-            </button>
-            <button type="button" onClick={() => setSalesContentJson(JSON.stringify(defaultSalesContent, null, 2))} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-              Carregar conteúdo padrão da página
-            </button>
           </div>
         </Panel>
 
@@ -8681,7 +8237,6 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                   <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{plan.badge}</span>
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <AdminTextInput label="ID interno do plano" value={plan.id} onChange={(value) => updatePlan(index, 'id', value)} />
                   <AdminTextInput label="Nome" value={plan.name} onChange={(value) => updatePlan(index, 'name', value)} />
                   <AdminTextInput label="Ciclo" value={plan.cycle} onChange={(value) => updatePlan(index, 'cycle', value)} />
                   <AdminTextInput label="Selo do card" value={plan.badge} onChange={(value) => updatePlan(index, 'badge', value)} />
@@ -8713,7 +8268,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
             </div>
             <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: `linear-gradient(135deg, ${draft.primaryColor}22, ${draft.accentColor}22)` }}>
               <p className="text-sm font-black text-white">Prévia das cores</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">Essas cores ficam disponíveis para a página de vendas e próximas evoluções visuais do app.</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">Essas cores ficam disponíveis para as próximas evoluções visuais do app.</p>
             </div>
           </Panel>
 
@@ -8724,58 +8279,19 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                 ['financialDashboard', 'Dashboard financeiro'],
                 ['salesSimulator', 'Simulador da página inicial'],
                 ['waterGoal', 'Meta de água interativa'],
-                ['salesAppVisual', 'Seção visual do app'],
-                ['salesCommandCenter', 'Seção comando financeiro'],
-                ['salesComparison', 'Seção antes e depois'],
-                ['salesFaq', 'Dúvidas frequentes'],
               ].map(([key, label]) => (
-                <AdminCheckbox key={key} label={label} checked={Boolean(draft.featureFlags?.[key])} onChange={(checked) => updateFlag(key, checked)} />
+                <label key={key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <span className="text-sm font-black text-zinc-100">{label}</span>
+                  <input type="checkbox" checked={Boolean(draft.featureFlags?.[key])} onChange={(event) => updateFlag(key, event.target.checked)} className="h-5 w-5 accent-emerald-400" />
+                </label>
               ))}
             </div>
           </Panel>
         </div>
 
-        <Panel title="Coaches e assinaturas" action={loadingOverview ? 'Carregando' : `${overview.users.length} usuários`}>
-          {overviewError ? <p className="mb-3 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm font-bold text-amber-100">{overviewError}</p> : null}
-          <div className="mb-3 flex flex-wrap gap-2">
-            <button type="button" onClick={refreshOverview} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-              Atualizar lista
-            </button>
-          </div>
-          <div className="grid gap-3">
-            {overview.users.length ? overview.users.map((user) => {
-              const subscription = subscriptionByCoach.get(String(user.id))
-              const status = subscription?.status || 'sem assinatura'
-              return (
-                <div key={user.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-black uppercase text-zinc-500">{user.role || 'Coach'}</p>
-                      <h3 className="mt-1 break-words text-lg font-black text-white">{user.name || user.email}</h3>
-                      <p className="mt-1 break-words text-sm text-zinc-400">{user.email}</p>
-                      <p className="mt-2 text-xs text-zinc-500">Criado em {formatDate(user.createdAt)}</p>
-                    </div>
-                    <div className="grid gap-2 sm:min-w-64">
-                      <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase ${isCoachSubscriptionActive(subscription) ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
-                        {status}
-                      </span>
-                      <p className="text-xs leading-5 text-zinc-500">Próxima cobrança: {subscription?.nextBillingAt ? formatDate(subscription.nextBillingAt) : 'não definida'}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" disabled={updatingCoachId === user.id} onClick={() => updateCoachSubscription(user.id, 'active')} className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">Ativar</button>
-                        <button type="button" disabled={updatingCoachId === user.id} onClick={() => updateCoachSubscription(user.id, 'past_due')} className="rounded-lg border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-100 disabled:opacity-50">Pendente</button>
-                        <button type="button" disabled={updatingCoachId === user.id} onClick={() => updateCoachSubscription(user.id, 'canceled')} className="rounded-lg border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-50">Bloquear</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            }) : <Empty text="Nenhum usuário encontrado ou RLS ainda não liberou a visão admin." />}
-          </div>
-        </Panel>
-
         <div className="sticky bottom-3 z-20 flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/92 p-3 shadow-2xl shadow-black/35 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-zinc-400">
-            Depois de salvar no Supabase, textos, planos, links, módulos e conteúdo da página mudam sem novo deploy.
+            Depois de salvar no Supabase, textos, planos e links mudam sem precisar atualizar o GitHub.
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={resetDefaults} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -8802,20 +8318,11 @@ function AdminTextInput({ label, value, onChange }) {
   )
 }
 
-function AdminTextArea({ label, value, onChange, rows = 4 }) {
+function AdminTextArea({ label, value, onChange }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
-      <textarea value={value || ''} onChange={(event) => onChange(event.target.value)} rows={rows} className="min-h-28 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none transition focus:border-emerald-300/50" />
-    </label>
-  )
-}
-
-function AdminCheckbox({ label, checked, onChange }) {
-  return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
-      <span className="text-sm font-black text-zinc-100">{label}</span>
-      <input type="checkbox" checked={Boolean(checked)} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 accent-emerald-400" />
+      <textarea value={value || ''} onChange={(event) => onChange(event.target.value)} rows={4} className="min-h-28 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none transition focus:border-emerald-300/50" />
     </label>
   )
 }
