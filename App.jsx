@@ -978,6 +978,11 @@ export default function App() {
     }
 
     if (mode === 'forgot') {
+      if (!email) {
+        setRemoteStatus('Informe o e-mail')
+        setRemoteError('Digite o e-mail cadastrado para receber o link de recuperação de senha.')
+        return false
+      }
       try {
         await requestCoachPasswordReset(email)
         setRemoteStatus('E-mail de recuperação enviado')
@@ -1852,6 +1857,7 @@ export default function App() {
     const url = new URL(window.location.href)
     const recoveryParams = ['type', 'access_token', 'refresh_token', 'expires_in', 'expires_at', 'token_type']
     recoveryParams.forEach((key) => url.searchParams.delete(key))
+    url.hash = ''
     window.history.replaceState({}, '', `${url.pathname}${url.search}`)
     setRemoteStatus('Senha atualizada')
     setRemoteError('Entre com seu e-mail e a nova senha.')
@@ -2597,6 +2603,14 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
               </div>
             ) : null}
+            {mode === 'forgot' ? (
+              <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <p className="text-sm font-black text-emerald-100">Recuperação automática</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-300">
+                  Enviaremos um link seguro para o e-mail cadastrado. Ao abrir o link, o treinador cria uma nova senha e volta ao painel normalmente.
+                </p>
+              </div>
+            ) : null}
             <div className="mt-5 grid grid-cols-3 gap-2">
               {[
                 ['signin', 'Coach'],
@@ -2639,6 +2653,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <button type="button" onClick={() => setMode('signin')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-zinc-400">
                 Voltar para o login
               </button>
+            ) : null}
+            {mode === 'forgot' && remoteStatus?.toLowerCase().includes('recuper') ? (
+              <p className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-xs font-bold leading-5 text-emerald-100">
+                Link enviado. Verifique a caixa de entrada e a pasta de spam do e-mail informado.
+              </p>
             ) : null}
             {mode === 'signup' ? (
               <p className="mt-4 text-xs leading-5 text-zinc-500">
@@ -3172,15 +3191,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       key={plan.id}
                       type="button"
                       onClick={() => setSelectedOfferPlanId(plan.id)}
-                      className={`min-h-20 rounded-xl px-3 py-3 text-left transition ${
+                      className={`min-h-16 rounded-xl px-3 py-3 text-left transition ${
                         selected
-                          ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
-                          : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
+                          ? 'bg-emerald-400 text-zinc-950 shadow-xl shadow-emerald-950/35 ring-2 ring-emerald-200/40'
+                          : 'border border-white/5 text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
-                      <span className="block text-sm font-black">{plan.name}</span>
+                      <span className="block text-base font-black">{plan.name}</span>
                       <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
-                      <span className="mt-2 block text-xs font-black">{plan.price}</span>
+                      <span className="mt-1 block text-sm font-black">{plan.price}</span>
                     </button>
                   )
                 })}
@@ -3188,10 +3207,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
 
             <div className="mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
-              <div className="sales-interactive relative overflow-hidden rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/18 via-zinc-950 to-zinc-950 p-5 shadow-2xl shadow-blue-950/30 sm:p-8">
-                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true" />
+              <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/35 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-5 shadow-2xl shadow-emerald-950/25 sm:p-7">
+                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
                 <div className="relative">
-                  <div className="mb-6 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="sales-plan-strategy mb-5 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <div>
                       <p className="text-xs font-black uppercase text-emerald-100">
                         {selectedOfferPlan.id === 'mensal' ? 'Oferta de entrada' : 'Condição estratégica'}
@@ -3234,9 +3253,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                   </div>
 
-                  <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
+                  <p className="sales-plan-description mt-5 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
 
-                  <div className="mt-6 grid gap-3 lg:grid-cols-3">
+                  <div className="sales-plan-proof mt-5 grid gap-3 lg:grid-cols-3">
                     <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
                       <p className="text-xs font-black uppercase text-blue-200">Decisão inteligente</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">
@@ -3259,7 +3278,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                   </div>
 
-                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="sales-plan-after mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
@@ -3277,7 +3296,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="sales-plan-mini-benefits mt-5 grid gap-3 sm:grid-cols-3">
                     {[
                       ['Entrega premium', 'treino, dieta, check-ins e chat em um só fluxo'],
                       ['Mais percepção', 'o aluno sente que está dentro de uma operação profissional'],
@@ -3296,7 +3315,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-zinc-950/92 p-5 shadow-2xl shadow-black/30 sm:p-6">
+              <div className="sales-plan-side rounded-2xl border border-white/10 bg-zinc-950/92 p-5 shadow-2xl shadow-black/30 sm:p-6">
                 <p className="text-sm font-black uppercase text-zinc-400">Incluso no plano</p>
                 <div className="mt-5 grid gap-3">
                   {selectedOfferPlan.highlights.map((item) => (
@@ -8341,18 +8360,18 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   if (!subscriptionActive) {
     return (
       <div className="grid min-w-0 gap-5 lg:gap-6">
-        <section className="overflow-hidden rounded-2xl border border-blue-400/25 bg-zinc-950/90 shadow-2xl shadow-black/35">
-          <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.75fr)] lg:items-stretch">
+        <section className="overflow-hidden rounded-2xl border border-emerald-400/25 bg-zinc-950/90 shadow-2xl shadow-black/35">
+          <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.72fr)] lg:items-start">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase text-blue-300">Ativação da conta</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">
                 Falta só escolher o ciclo e ativar seu Coach Fit Pro.
               </h2>
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
                 Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
               </p>
 
-              <div className="mt-6 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
+              <div className="mt-5 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
                 {checkoutPlans.map((plan) => {
                   const selected = selectedCheckoutPlan.id === plan.id
                   return (
@@ -8374,19 +8393,24 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 })}
               </div>
 
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                <p className="text-xs font-black uppercase text-zinc-500">Por que este plano faz sentido</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.bestFor}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/12 via-white/[0.035] to-zinc-950 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase text-emerald-200">Escolha estratégica</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-zinc-100">{selectedCheckoutPlan.bestFor}</p>
+                  </div>
+                  <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">sem taxa por aluno</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
                   {selectedCheckoutPlan.decisionPoints.map((item) => (
-                    <span key={item} className="rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-xs font-black text-blue-100">
+                    <span key={item} className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">
                       {item}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {[
                   ['1', 'Conta criada', 'seus dados já estão salvos'],
                   ['2', 'Plano escolhido', selectedCheckoutPlan.name],
@@ -8401,7 +8425,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               </div>
             </div>
 
-            <div className="min-w-0 rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/16 via-zinc-950 to-zinc-950 p-5 shadow-xl shadow-blue-950/25 sm:p-6">
+            <div className="min-w-0 rounded-2xl border border-emerald-400/35 bg-gradient-to-br from-emerald-500/14 via-zinc-950 to-zinc-950 p-4 shadow-xl shadow-emerald-950/20 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase text-blue-300">{selectedCheckoutPlan.cycle}</p>
@@ -8412,7 +8436,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 </span>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-5">
                 {selectedCheckoutPlan.oldPrice ? <p className="text-sm font-bold text-zinc-500 line-through">De {selectedCheckoutPlan.oldPrice}</p> : null}
                 <div className="mt-1 flex flex-wrap items-end gap-2">
                   <span className="text-4xl font-black leading-none text-white">{selectedCheckoutPlan.price}</span>
@@ -8422,13 +8446,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 <p className="mt-1 text-xs leading-5 text-emerald-200">{selectedCheckoutPlan.economy}</p>
               </div>
 
-              <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+              <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-xs font-black uppercase text-emerald-200">O que acontece depois</p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.operatingPromise}</p>
               </div>
 
-              <div className="mt-5 grid gap-2">
-                {selectedCheckoutPlan.highlights.slice(0, 4).map((item) => (
+              <div className="mt-4 grid gap-2">
+                {selectedCheckoutPlan.highlights.slice(0, 3).map((item) => (
                   <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-zinc-200">
                     <span className="text-blue-300">✓</span>
                     <span>{item}</span>
@@ -8441,7 +8465,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => handleCheckoutClick(selectedCheckoutPlan.id)}
-                className="mt-6 flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-500 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5"
+                className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5"
               >
                 Ativar {selectedCheckoutPlan.name} agora
               </a>
