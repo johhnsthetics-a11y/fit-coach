@@ -3413,9 +3413,6 @@ function LegalModal({ type, onClose }) {
             </div>
           ))}
         </div>
-        <p className="mt-5 text-xs leading-5 text-zinc-500">
-          Este resumo é uma base operacional para lançamento. A versão jurídica final deve ser revisada por um profissional especializado antes de escalar campanhas.
-        </p>
       </div>
     </div>
   )
@@ -3592,6 +3589,21 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Comece sua operação" action="Primeiros passos">
+          <div className="mb-4 overflow-hidden rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-200">Ativação guiada</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-200">
+                  Comece pelo essencial: marca, primeiro aluno, entrega inicial e convite. Em poucos minutos o painel já fica pronto para operar.
+                </p>
+              </div>
+              <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/60 px-3 py-1 text-xs font-black text-emerald-100">4 etapas</span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-900">
+              <div className="h-full w-1/4 rounded-full bg-gradient-to-r from-emerald-300 to-emerald-600" />
+            </div>
+          </div>
+
           <div className="mb-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3">
             <p className="text-xs font-black uppercase text-emerald-200">Validação manual</p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">
@@ -3609,12 +3621,15 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
               <button
                 key={number}
                 onClick={() => setActiveView(view)}
-                className="flex w-full items-start gap-4 rounded-md border border-white/10 bg-white/[0.03] p-4 text-left hover:border-blue-300/40"
+                className="group flex w-full items-start gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/40 hover:bg-emerald-400/[0.06]"
               >
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-blue-500 font-black text-zinc-950">{number}</span>
-                <span>
-                  <span className="block font-black">{title}</span>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-400 font-black text-zinc-950 shadow-lg shadow-emerald-950/30">{number}</span>
+                <span className="min-w-0">
+                  <span className="block font-black text-white">{title}</span>
                   <span className="mt-1 block text-sm leading-6 text-zinc-400">{description}</span>
+                  <span className="mt-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-black text-emerald-100 transition group-hover:border-emerald-300/40">
+                    Abrir etapa
+                  </span>
                 </span>
               </button>
             ))}
@@ -3622,13 +3637,25 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
         </Panel>
 
         <Panel title="Conta pronta para iniciar" action="Ambiente limpo">
-          <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+          <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
             <p className="font-black text-blue-200">Nenhum dado demonstrativo</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               Sua conta está vazia e preparada para receber somente alunos reais da sua operação.
             </p>
           </div>
-          <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+          <div className="mt-4 grid gap-3">
+            {[
+              ['Treino', 'publique o primeiro treino antes de convidar'],
+              ['Dieta', 'cadastre pelo menos uma rotina alimentar'],
+              ['Cobrança', 'configure Pix e mensagem padrão'],
+            ].map(([title, text]) => (
+              <div key={title} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-sm font-black text-white">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
             Cadastrar primeiro aluno
           </button>
         </Panel>
