@@ -313,6 +313,19 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
+export async function loadRemoteLeadEvents(limit = 120) {
+  const rows = await optionalTableRequest(`lead_events?select=*&order=created_at.desc&limit=${encodeURIComponent(limit)}`)
+  return rows.map(fromLeadEventRow)
+}
+
+export async function saveRemoteLeadEvent(event) {
+  const rows = await request('lead_events', {
+    method: 'POST',
+    body: JSON.stringify(toLeadEventRow(event)),
+  })
+  return rows?.[0] ? fromLeadEventRow(rows[0]) : event
+}
+
 export async function loadRemoteMessages(studentId = '') {
   const filter = studentId ? `&student_id=eq.${encodeURIComponent(studentId)}` : ''
   const rows = await request(`messages?select=*${filter}&order=created_at.desc`)
@@ -945,6 +958,29 @@ function fromUserRow(row) {
     email: row.email,
     role: row.role ?? 'Coach principal',
     createdAt: row.created_at,
+  }
+}
+
+function fromLeadEventRow(row) {
+  return {
+    id: row.id,
+    type: row.event_type,
+    email: row.email ?? '',
+    planId: row.plan_id ?? '',
+    attribution: row.attribution ?? {},
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+  }
+}
+
+function toLeadEventRow(event = {}) {
+  return {
+    event_type: event.type || event.eventType || 'visit',
+    email: event.email || event.metadata?.email || null,
+    plan_id: event.planId || event.metadata?.planId || null,
+    attribution: event.attribution || {},
+    metadata: event.metadata || {},
+    created_at: event.createdAt || new Date().toISOString(),
   }
 }
 

@@ -9,6 +9,7 @@ import {
   fetchRemoteExerciseMedia,
   loadRemoteData,
   loadRemoteAppAdminSettings,
+  loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
   loadRemoteStudentByInvite,
@@ -21,6 +22,7 @@ import {
   saveRemoteCheckin,
   saveRemoteCoachSettings,
   saveRemoteAppAdminSettings,
+  saveRemoteLeadEvent,
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
   saveRemoteStudent,
@@ -47,6 +49,7 @@ const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
+const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 const cartpandaCheckoutPlans = [
   {
@@ -2434,6 +2437,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
   function startPlanSignup(planId) {
     captureLeadAttribution()
+    recordLeadEvent('plan_selected', { planId })
     try {
       window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
     } catch {
@@ -2454,6 +2458,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     setLoading(true)
     try {
       const formData = new FormData(event.currentTarget)
+      if (mode === 'signup') {
+        recordLeadEvent('signup_submitted', {
+          email: formData.get('email')?.toString() || '',
+          planId: selectedOfferPlanId,
+        })
+      }
       const success = mode === 'student'
         ? await onStudentAccess(formData.get('inviteCode')?.toString() || '')
         : await onLogin(formData)
@@ -8243,6 +8253,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       if (stopped) return
       if (result?.active) {
         setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
+        recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
         stopped = true
       } else if (attempts >= 120) {
         setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que o provedor enviar o pagamento aprovado, o painel será liberado.')
@@ -8303,6 +8314,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
     if (result?.active) {
       setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
+      recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
     } else if (!silent) {
       setPaymentMessage('Pagamento ainda não confirmado. Use o mesmo e-mail da conta no checkout e aguarde alguns instantes.')
     }
@@ -8322,6 +8334,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   function handleCheckoutClick(planId = selectedCheckoutPlanId) {
     chooseCheckoutPlan(planId)
     setCheckoutStarted(true)
+    recordLeadEvent('checkout_clicked', { planId, checkoutUrl: currentCheckoutUrl })
     setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
   }
 
@@ -9177,6 +9190,8 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [message, setMessage] = useState('')
   const [logoFileError, setLogoFileError] = useState('')
   const [openSections, setOpenSections] = useState({
+    traffic: true,
+    launch: false,
     sales: true,
     plans: false,
     branding: false,
@@ -9276,6 +9291,14 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       </section>
 
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
+        <AdminAccordionSection title="Tráfego e conversões" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
+          <AdminTrafficPanel />
+        </AdminAccordionSection>
+
+        <AdminAccordionSection title="Checklist de lançamento" action="Operação pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
+          <AdminLaunchChecklist />
+        </AdminAccordionSection>
+
         <AdminAccordionSection title="Página de vendas" action="Textos principais" open={openSections.sales} onToggle={() => toggleSection('sales')}>
           <div className="grid gap-4">
             <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
@@ -9380,6 +9403,152 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
         {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       </form>
+    </div>
+  )
+}
+
+function AdminTrafficPanel() {
+  const [events, setEvents] = useState(() => getStoredLeadEvents())
+  const [status, setStatus] = useState('Eventos locais carregados')
+
+  const snapshot = useMemo(() => buildLeadTrafficSnapshot(events), [events])
+
+  useEffect(() => {
+    let active = true
+
+    async function refresh() {
+      const localEvents = getStoredLeadEvents()
+      if (!supabaseEnabled) {
+        if (active) {
+          setEvents(localEvents)
+          setStatus('Eventos locais carregados')
+        }
+        return
+      }
+
+      try {
+        const remoteEvents = await loadRemoteLeadEvents()
+        if (!active) return
+        const merged = mergeLeadEvents(remoteEvents, localEvents)
+        setEvents(merged)
+        setStatus(remoteEvents.length ? 'Sincronizado com Supabase' : 'Aguardando primeiros eventos no Supabase')
+      } catch {
+        if (!active) return
+        setEvents(localEvents)
+        setStatus('Mostrando eventos locais. Rode o SQL de tráfego para salvar tudo no Supabase.')
+      }
+    }
+
+    refresh()
+    const timer = window.setInterval(refresh, 8000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  function clearLocalEvents() {
+    saveStoredLeadEvents([])
+    setEvents([])
+    setStatus('Histórico local limpo. Os eventos do Supabase permanecem salvos.')
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/8 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase text-emerald-200">Captação em tempo real</p>
+          <p className="mt-1 text-sm leading-6 text-zinc-300">{status}</p>
+        </div>
+        <button type="button" onClick={clearLocalEvents} className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:bg-white/[0.04] sm:w-auto">
+          Limpar local
+        </button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          ['Visitas', snapshot.visits, 'Entradas na página'],
+          ['Planos escolhidos', snapshot.planSelections, 'Cliques em oferta'],
+          ['Cadastros', snapshot.signups, 'Conta iniciada'],
+          ['Checkouts', snapshot.checkouts, 'Compra aberta'],
+          ['Pagamentos', snapshot.payments, 'Liberação detectada'],
+        ].map(([label, value, detail]) => (
+          <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
+            <p className="mt-3 text-3xl font-black text-white">{value}</p>
+            <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="grid gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <p className="text-xs font-black uppercase text-zinc-500">Origem mais recente</p>
+            <h4 className="mt-2 text-xl font-black text-white">{snapshot.lastSource}</h4>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">{snapshot.lastCampaign}</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <p className="text-xs font-black uppercase text-zinc-500">Plano com mais intenção</p>
+            <h4 className="mt-2 text-xl font-black text-white">{snapshot.topPlan}</h4>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Use esse sinal para ajustar anúncios, criativos e destaque dos planos.</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase text-zinc-500">Últimos eventos</p>
+              <h4 className="mt-1 font-black text-white">Jornada do lead</h4>
+            </div>
+            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{events.length} registros</span>
+          </div>
+          <div className="mt-4 grid max-h-80 gap-2 overflow-y-auto pr-1">
+            {events.length ? events.slice(0, 18).map((event) => (
+              <div key={event.id || `${event.type}-${event.createdAt}`} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-black text-white">{formatLeadEventType(event.type)}</p>
+                  <p className="text-xs font-bold text-zinc-500">{formatDateTime(event.createdAt)}</p>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                  {formatLeadEventDetail(event)}
+                </p>
+              </div>
+            )) : (
+              <Empty text="Assim que alguém entrar por campanha, escolher plano ou abrir checkout, os eventos aparecem aqui." />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AdminLaunchChecklist() {
+  const attribution = getStoredLeadAttribution()
+  const checks = [
+    { title: 'Domínio principal', status: 'Ativo', detail: 'coachfitpro.com.br e app.coachfitpro.com.br configurados para o app.' },
+    { title: 'Checkout Cartpanda', status: 'Ativo', detail: 'Planos mensal, semestral e anual vinculados aos botões da página.' },
+    { title: 'Webhook de pagamento', status: 'Conferir', detail: 'Teste um pagamento real sempre que trocar checkout, produto ou postback.' },
+    { title: 'UTM e campanhas', status: attribution.firstSeenAt ? 'Capturando' : 'Pronto', detail: 'Links com utm_source, utm_campaign ou cid são enviados para o checkout.' },
+    { title: 'Suporte e termos', status: 'Ativo', detail: 'Rodapé com Termos, Privacidade e Suporte para reduzir dúvidas antes da compra.' },
+  ]
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {checks.map((item) => (
+        <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <h4 className="font-black text-white">{item.title}</h4>
+            <span className={`rounded-full px-3 py-1 text-[11px] font-black ${
+              item.status === 'Ativo' || item.status === 'Capturando'
+                ? 'border border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                : 'border border-amber-300/25 bg-amber-300/10 text-amber-100'
+            }`}>{item.status}</span>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">{item.detail}</p>
+        </div>
+      ))}
     </div>
   )
 }
@@ -11118,6 +11287,16 @@ function captureLeadAttribution() {
     }
   }
 
+  try {
+    const sessionKey = `coachfitpro-visit-recorded-${attribution.firstSeenAt || 'default'}`
+    if (!window.sessionStorage.getItem(sessionKey)) {
+      window.sessionStorage.setItem(sessionKey, '1')
+      recordLeadEvent('visit', { page: window.location.pathname, hasCampaignData })
+    }
+  } catch {
+    recordLeadEvent('visit', { page: window.location.pathname, hasCampaignData })
+  }
+
   return attribution
 }
 
@@ -11128,6 +11307,106 @@ function getStoredLeadAttribution() {
   } catch {
     return {}
   }
+}
+
+function getStoredLeadEvents() {
+  if (typeof window === 'undefined') return []
+  try {
+    const events = JSON.parse(window.localStorage.getItem(LEAD_EVENTS_KEY) || '[]')
+    return Array.isArray(events) ? events : []
+  } catch {
+    return []
+  }
+}
+
+function saveStoredLeadEvents(events) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(LEAD_EVENTS_KEY, JSON.stringify(events.slice(0, 160)))
+  } catch {
+    // O app continua funcionando mesmo se o navegador bloquear storage.
+  }
+}
+
+function recordLeadEvent(type, metadata = {}) {
+  if (typeof window === 'undefined') return null
+  const attribution = getStoredLeadAttribution()
+  const event = {
+    id: `lead-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    planId: metadata.planId || '',
+    email: metadata.email || '',
+    attribution,
+    metadata,
+    createdAt: new Date().toISOString(),
+  }
+  const nextEvents = [event, ...getStoredLeadEvents()].slice(0, 160)
+  saveStoredLeadEvents(nextEvents)
+  if (supabaseEnabled) {
+    saveRemoteLeadEvent(event).catch(() => {})
+  }
+  return event
+}
+
+function mergeLeadEvents(...eventGroups) {
+  const records = new Map()
+  eventGroups.flat().forEach((event) => {
+    if (!event) return
+    const key = event.id || `${event.type}-${event.createdAt}-${event.email || event.metadata?.email || ''}-${event.planId || event.metadata?.planId || ''}`
+    records.set(key, event)
+  })
+  return [...records.values()].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+}
+
+function buildLeadTrafficSnapshot(events = []) {
+  const counts = events.reduce((acc, event) => {
+    acc[event.type] = (acc[event.type] || 0) + 1
+    return acc
+  }, {})
+  const planCounts = events.reduce((acc, event) => {
+    const planId = event.planId || event.metadata?.planId || ''
+    if (planId) acc[planId] = (acc[planId] || 0) + 1
+    return acc
+  }, {})
+  const topPlanEntry = Object.entries(planCounts).sort((a, b) => b[1] - a[1])[0]
+  const latestAttribution = events.find((event) => event.attribution && Object.keys(event.attribution).length)?.attribution || getStoredLeadAttribution()
+  const source = latestAttribution.utm_source || latestAttribution.src || latestAttribution.referrer || 'Direto / orgânico'
+  const campaign = latestAttribution.utm_campaign || latestAttribution.campaign || latestAttribution.cid || 'Sem campanha identificada'
+
+  return {
+    visits: counts.visit || 0,
+    planSelections: counts.plan_selected || 0,
+    signups: counts.signup_submitted || 0,
+    checkouts: counts.checkout_clicked || 0,
+    payments: counts.payment_confirmed || 0,
+    lastSource: source,
+    lastCampaign: campaign,
+    topPlan: topPlanEntry ? `${formatUiText(topPlanEntry[0])} (${topPlanEntry[1]})` : 'Sem dados ainda',
+  }
+}
+
+function formatLeadEventType(type) {
+  const labels = {
+    visit: 'Visita na página',
+    plan_selected: 'Plano escolhido',
+    signup_submitted: 'Cadastro iniciado',
+    checkout_clicked: 'Checkout aberto',
+    payment_confirmed: 'Pagamento confirmado',
+  }
+  return labels[type] || formatUiText(type)
+}
+
+function formatLeadEventDetail(event = {}) {
+  const planId = event.planId || event.metadata?.planId || ''
+  const email = event.email || event.metadata?.email || ''
+  const source = event.attribution?.utm_source || event.attribution?.src || ''
+  const campaign = event.attribution?.utm_campaign || event.attribution?.campaign || event.attribution?.cid || ''
+  const parts = []
+  if (planId) parts.push(`Plano: ${formatUiText(planId)}`)
+  if (email) parts.push(`E-mail: ${email}`)
+  if (source) parts.push(`Origem: ${source}`)
+  if (campaign) parts.push(`Campanha: ${campaign}`)
+  return parts.length ? parts.join(' · ') : 'Evento registrado sem campanha identificada.'
 }
 
 function appendAttributionToCheckoutUrl(value, planId = '') {
