@@ -2486,7 +2486,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <span>{activeHeroHeadline.proof}</span>
               <span className="hidden">
               Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
-              </span>
+                </span>
             </p>
             <div data-reveal className="sales-hero-device-mobile mt-5 lg:hidden">
               <SalesPhoneShowcase />
@@ -8555,7 +8555,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
         await onSaveInvoice({
           studentId: student.id,
           planName: plan?.name || student.plan || 'Acompanhamento',
-          description: buildBillingMessage(coachSettings?.billingMessage, { student, amount, dueDate, coachSettings }),
+          description: buildBillingMessage(getBillingMessageTemplateForPlan(plan, coachSettings), { student, amount, dueDate, coachSettings, plan }),
           amount,
           dueDate,
           status: 'Pendente',
@@ -8638,7 +8638,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
             <p className="mt-2 text-sm leading-6 text-zinc-200">
               O sistema identifica alunos pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
             </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">
+            <p className="hidden">
               Pix: {coachSettings?.pixKey || 'cadastre em Configurações'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
             </p>
           </div>
@@ -8688,11 +8688,12 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                 key={`desc-${selectedBillingStudent?.id || 'none'}-${selectedBillingPlan?.name || 'plan'}`}
                 label="Descrição"
                 name="description"
-                defaultValue={buildBillingMessage(coachSettings?.billingMessage, {
+                defaultValue={buildBillingMessage(getBillingMessageTemplateForPlan(selectedBillingPlan, coachSettings), {
                   student: selectedBillingStudent,
                   amount: selectedBillingAmount || 197,
                   dueDate: selectedBillingDueDate,
                   coachSettings,
+                  plan: selectedBillingPlan,
                 })}
               />
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
@@ -8996,7 +8997,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
           <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
             <p className="text-xs font-black uppercase text-blue-200">Status</p>
             <p className="mt-2 text-sm font-bold text-zinc-200">{remoteStatus || 'Pronto'}</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">
+            <p className="hidden">
               {remoteError ? remoteError : 'Quando o SQL do Admin Master estiver aplicado, salvar aqui publica no banco.'}
             </p>
           </div>
@@ -9178,12 +9179,77 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     timezone: settings?.timezone || 'America/Sao_Paulo',
   }
   const [billingLogoUrl, setBillingLogoUrl] = useState(current.billingLogoUrl)
-  const [plansDraft, setPlansDraft] = useState(formatPlansDraft(current.customPlans))
+  const [planEditorPlans, setPlanEditorPlans] = useState(current.customPlans)
+  const [editingPlanIndex, setEditingPlanIndex] = useState(-1)
+  const [planDraft, setPlanDraft] = useState({
+    name: '',
+    price: '',
+    cycle: 'mensal',
+    features: '',
+    billingMessage: '',
+  })
 
   useEffect(() => {
     setBillingLogoUrl(current.billingLogoUrl)
-    setPlansDraft(formatPlansDraft(current.customPlans))
+    setPlanEditorPlans(current.customPlans)
+    setEditingPlanIndex(-1)
+    setPlanDraft({ name: '', price: '', cycle: 'mensal', features: '', billingMessage: '' })
   }, [settings?.billingLogoUrl, settings?.customPlans])
+
+  function updatePlanDraft(field, value) {
+    setPlanDraft((draft) => ({ ...draft, [field]: value }))
+  }
+
+  function resetPlanDraft() {
+    setPlanDraft({ name: '', price: '', cycle: 'mensal', features: '', billingMessage: '' })
+    setEditingPlanIndex(-1)
+  }
+
+  function savePlanDraft() {
+    const normalizedPlan = normalizeCoachPlan(planDraft)
+    if (!normalizedPlan.name) {
+      setError('Informe o nome do plano.')
+      return
+    }
+    if (getPlanBillingAmount(normalizedPlan.name, [normalizedPlan]) <= 0) {
+      setError('Informe o valor que voce cobra neste plano.')
+      return
+    }
+
+    setPlanEditorPlans((currentPlans) => {
+      const existingIndex = editingPlanIndex >= 0
+        ? editingPlanIndex
+        : currentPlans.findIndex((plan) => normalizeText(plan.name) === normalizeText(normalizedPlan.name))
+
+      if (existingIndex >= 0) {
+        return currentPlans.map((plan, index) => (index === existingIndex ? normalizedPlan : plan))
+      }
+
+      return [normalizedPlan, ...currentPlans]
+    })
+    setError('')
+    resetPlanDraft()
+  }
+
+  function editPlanDraft(plan, index) {
+    setPlanDraft({
+      name: plan.name || '',
+      price: plan.price || '',
+      cycle: normalizePlanCycle(plan.cycle),
+      features: plan.features || '',
+      billingMessage: plan.billingMessage || '',
+    })
+    setEditingPlanIndex(index)
+  }
+
+  function removePlanDraft(index) {
+    if (planEditorPlans.length <= 1) {
+      setError('Mantenha pelo menos um plano cadastrado.')
+      return
+    }
+    setPlanEditorPlans((currentPlans) => currentPlans.filter((_, planIndex) => planIndex !== index))
+    if (editingPlanIndex === index) resetPlanDraft()
+  }
 
   function handleBillingLogoFile(event) {
     const file = event.target.files?.[0]
@@ -9226,7 +9292,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         billingAccentColor: form.get('billingAccentColor')?.toString().trim() || '#0f172a',
         billingMessage: form.get('billingMessage')?.toString().trim() || current.billingMessage,
         autoBillingEnabled: form.get('autoBillingEnabled') === 'on',
-        customPlans: parseCustomPlans(plansDraft),
+        customPlans: planEditorPlans.map(normalizeCoachPlan).filter((plan) => plan.name),
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
         timezone: current.timezone,
       })
@@ -9290,19 +9356,78 @@ function CoachSettings({ user, settings, onSave, onExport }) {
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm font-black text-zinc-100">Planos e valores do treinador</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">
+            <p className="hidden">
               Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | Descrição. Ciclos aceitos: semanal, mensal, semestral ou anual.
             </p>
-            <textarea
-              value={plansDraft}
-              onChange={(event) => setPlansDraft(event.target.value)}
-              rows={6}
-              className="mt-3 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none focus:border-emerald-500"
-            />
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobranca automaticamente.
+            </p>
+            <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
+              <div className="grid gap-3 lg:grid-cols-[1fr_0.72fr_0.7fr]">
+                <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                  Nome do plano
+                  <input value={planDraft.name} onChange={(event) => updatePlanDraft('name', event.target.value)} placeholder="Ex: Consultoria premium" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                  Valor
+                  <input value={planDraft.price} onChange={(event) => updatePlanDraft('price', event.target.value)} placeholder="Ex: 250,00" inputMode="decimal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+                </label>
+                <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                  Ciclo
+                  <select value={planDraft.cycle} onChange={(event) => updatePlanDraft('cycle', event.target.value)} className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm">
+                    <option value="semanal">Semanal</option>
+                    <option value="mensal">Mensal</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                </label>
+              </div>
+              <label className="mt-3 grid gap-2 text-sm font-bold text-zinc-300">
+                O que inclui
+                <input value={planDraft.features} onChange={(event) => updatePlanDraft('features', event.target.value)} placeholder="Ex: treino, dieta, check-in semanal e suporte" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+              </label>
+              <label className="mt-3 grid gap-2 text-sm font-bold text-zinc-300">
+                Mensagem de cobranca deste plano
+                <textarea
+                  value={planDraft.billingMessage}
+                  onChange={(event) => updatePlanDraft('billingMessage', event.target.value)}
+                  rows={4}
+                  placeholder="Ex: Ola, {aluno}. Sua mensalidade do plano {plano} vence em {vencimento}. Valor: {valor}. Pix: {pix}."
+                  className="min-h-28 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base leading-6 text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+                />
+                <span className="text-xs leading-5 text-zinc-500">
+                  Use variaveis como {'{aluno}'}, {'{plano}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'} e {'{email}'}.
+                </span>
+              </label>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <button type="button" onClick={savePlanDraft} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98]">
+                  {editingPlanIndex >= 0 ? 'Atualizar plano' : 'Adicionar plano'}
+                </button>
+                {editingPlanIndex >= 0 ? (
+                  <button type="button" onClick={resetPlanDraft} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+                    Cancelar edicao
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs font-black uppercase text-zinc-500">Planos cadastrados</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {getCoachPlans({ customPlans: parseCustomPlans(plansDraft) }).slice(0, 4).map((plan) => (
-                <div key={plan.name} className="rounded-md border border-white/10 bg-zinc-950/70 p-3">
+              {planEditorPlans.map((plan, index) => (
+                <div key={plan.name} className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
                   <p className="text-sm font-black text-white">{plan.name}</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-500">{plan.features || 'Plano do treinador'}</p>
+                  <p className="mt-2 text-xs font-bold text-cyan-100">
+                    {plan.billingMessage ? 'Mensagem de cobranca personalizada' : 'Usa a mensagem padrao de cobranca'}
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => editPlanDraft(plan, index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => removePlanDraft(index)} className="rounded-md border border-rose-300/25 px-3 py-2 text-xs font-black text-rose-100">
+                      Remover
+                    </button>
+                  </div>
                   <p className="mt-1 text-xs font-bold text-emerald-200">{formatCurrency(getPlanBillingAmount(plan.name, [plan]))} · {getPlanCycleLabel(plan)}</p>
                 </div>
               ))}
@@ -9315,8 +9440,12 @@ function CoachSettings({ user, settings, onSave, onExport }) {
                 className="mt-1 h-4 w-4 accent-emerald-400"
               />
               <span>
+                <strong className="block text-emerald-100">Cobranca automatica dos alunos</strong>
+                <span className="block">Quando um aluno ficar pendente, o app cria a cobranca usando o valor do plano dele.</span>
+                <span className="hidden">
                 <strong className="block text-emerald-100">Gerar cobranças automaticamente</strong>
                 O sistema cria cobranças para alunos pendentes sem cobrança em aberto, usando o valor e o ciclo do plano cadastrado.
+                </span>
               </span>
             </label>
           </div>
@@ -9354,11 +9483,12 @@ function CoachSettings({ user, settings, onSave, onExport }) {
               {billingLogoUrl ? <img src={billingLogoUrl} alt="Logo da cobrança" className="h-14 max-w-36 rounded-md bg-white object-contain p-2" /> : null}
             </div>
             <p className="mt-4 text-sm leading-6 text-zinc-200">
-              {buildBillingMessage(current.billingMessage, {
+              {buildBillingMessage(getBillingMessageTemplateForPlan(planEditorPlans[0], current), {
                 student: { name: 'Aluno exemplo' },
-                amount: getPlanMonthlyPrice(getCoachPlans(settings)[0]?.name, getCoachPlans(settings)),
+                amount: getPlanBillingAmount(planEditorPlans[0]?.name, planEditorPlans),
                 dueDate: getDefaultDueDate(),
                 coachSettings: current,
+                plan: planEditorPlans[0],
               })}
             </p>
           </div>
@@ -10481,6 +10611,7 @@ function getCoachPlans(settings) {
       cycle: normalizePlanCycle(plan?.cycle || plan?.duration || 'mensal'),
       duration: String(plan?.duration || getPlanCycleLabel(plan)).trim(),
       features: String(plan?.features || '').trim(),
+      billingMessage: String(plan?.billingMessage || plan?.billing_message || '').trim(),
     }))
     .filter((plan) => plan.name)
 
@@ -10514,6 +10645,7 @@ function normalizeCoachPlan(plan = {}) {
     cycle,
     duration: getPlanCycleLabel({ cycle }),
     features: String(plan?.features || plan?.description || 'Plano personalizado do treinador').trim(),
+    billingMessage: String(plan?.billingMessage || plan?.billing_message || '').trim(),
   }
 }
 
@@ -10523,7 +10655,7 @@ function parseCustomPlans(value) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name = '', price = '', cycleOrFeatures = '', featuresOrEmpty = ''] = line.split('|').map((part) => part.trim())
+      const [name = '', price = '', cycleOrFeatures = '', featuresOrEmpty = '', billingMessage = ''] = line.split('|').map((part) => part.trim())
       const hasExplicitCycle = ['semanal', 'mensal', 'semestral', 'anual'].includes(normalizePlanCycle(cycleOrFeatures))
       const cycle = hasExplicitCycle ? normalizePlanCycle(cycleOrFeatures) : 'mensal'
       const features = hasExplicitCycle ? featuresOrEmpty : cycleOrFeatures
@@ -10533,6 +10665,7 @@ function parseCustomPlans(value) {
         cycle,
         duration: getPlanCycleLabel({ cycle }),
         features: features || 'Plano do treinador',
+        billingMessage,
       }
     })
     .filter((plan) => plan.name)
@@ -10589,10 +10722,15 @@ function getBillingBrand(settings) {
   }
 }
 
-function buildBillingMessage(template, { student, amount, dueDate, coachSettings }) {
+function getBillingMessageTemplateForPlan(plan, coachSettings) {
+  return plan?.billingMessage || coachSettings?.billingMessage || ''
+}
+
+function buildBillingMessage(template, { student, amount, dueDate, coachSettings, plan }) {
   const fallback = 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para o coach validar.'
   return String(template || fallback)
     .replaceAll('{aluno}', student?.name || 'aluno')
+    .replaceAll('{plano}', plan?.name || student?.plan || 'acompanhamento')
     .replaceAll('{valor}', formatCurrency(amount || 0))
     .replaceAll('{vencimento}', dueDate ? formatDate(dueDate) : 'a combinar')
     .replaceAll('{pix}', coachSettings?.pixKey || 'Pix não informado')
