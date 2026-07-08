@@ -46,6 +46,7 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
+const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 const cartpandaCheckoutPlans = [
   {
@@ -2331,6 +2332,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const activeHeroHeadline = salesHeroHeadlines[heroHeadlineIndex % salesHeroHeadlines.length]
 
   useEffect(() => {
+    captureLeadAttribution()
+  }, [])
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       setHeroHeadlineIndex((current) => (current + 1) % salesHeroHeadlines.length)
     }, 4200)
@@ -2428,6 +2433,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   function startPlanSignup(planId) {
+    captureLeadAttribution()
     try {
       window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
     } catch {
@@ -8176,7 +8182,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
 
     return {
       ...plan,
-      checkoutUrl: resolveCheckoutUrl(envUrl, plan.checkoutUrl),
+      checkoutUrl: appendAttributionToCheckoutUrl(resolveCheckoutUrl(envUrl, plan.checkoutUrl), plan.id),
     }
   })
   const subscriptionActive = isCoachSubscriptionActive(subscription)
@@ -8197,7 +8203,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const firstMonthTotal = firstMonthPrice
   const regularTotal = regularPrice
   const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
-  const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || regularCheckoutUrl
+  const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || appendAttributionToCheckoutUrl(regularCheckoutUrl, selectedCheckoutPlanId)
   const selectedCheckoutPlan = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId) || checkoutPlans[0]
   const selectedCyclePrice = selectedCheckoutPlan.id === 'mensal'
     ? formatCurrency(billingCycle.isPromotional ? firstMonthPrice : regularPrice)
@@ -11075,6 +11081,75 @@ function resolveCheckoutUrl(value, fallback = primaryCartpandaCheckoutUrl) {
   const normalized = normalizeCheckoutUrl(value)
   if (!normalized || /lastlink\.com/i.test(normalized)) return fallback
   return normalized
+}
+
+function captureLeadAttribution() {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'cid', 'src', 'campaign', 'adset', 'ad']
+  const values = {}
+  keys.forEach((key) => {
+    const value = params.get(key)
+    if (value) values[key] = value
+  })
+
+  const hasCampaignData = Object.keys(values).length > 0
+  let previous = {}
+  try {
+    previous = JSON.parse(window.localStorage.getItem(LEAD_ATTRIBUTION_KEY) || '{}')
+  } catch {
+    previous = {}
+  }
+
+  const attribution = {
+    ...previous,
+    ...values,
+    landingPage: previous.landingPage || window.location.href,
+    referrer: previous.referrer || document.referrer || '',
+    firstSeenAt: previous.firstSeenAt || new Date().toISOString(),
+    lastSeenAt: new Date().toISOString(),
+  }
+
+  if (hasCampaignData || !previous.firstSeenAt) {
+    try {
+      window.localStorage.setItem(LEAD_ATTRIBUTION_KEY, JSON.stringify(attribution))
+    } catch {
+      // O rastreamento segue opcional caso o navegador bloqueie armazenamento local.
+    }
+  }
+
+  return attribution
+}
+
+function getStoredLeadAttribution() {
+  if (typeof window === 'undefined') return {}
+  try {
+    return JSON.parse(window.localStorage.getItem(LEAD_ATTRIBUTION_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function appendAttributionToCheckoutUrl(value, planId = '') {
+  const baseUrl = resolveCheckoutUrl(value)
+  const attribution = getStoredLeadAttribution()
+  const relevantKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'cid', 'src', 'campaign', 'adset', 'ad']
+  const hasAttribution = relevantKeys.some((key) => attribution[key])
+  if (!hasAttribution && !planId) return baseUrl
+
+  try {
+    const url = new URL(baseUrl)
+    relevantKeys.forEach((key) => {
+      if (attribution[key] && !url.searchParams.has(key)) url.searchParams.set(key, attribution[key])
+    })
+    if (planId && !url.searchParams.has('fitcoach_plan')) url.searchParams.set('fitcoach_plan', planId)
+    if (attribution.firstSeenAt && !url.searchParams.has('fitcoach_first_seen')) {
+      url.searchParams.set('fitcoach_first_seen', attribution.firstSeenAt)
+    }
+    return url.toString()
+  } catch {
+    return baseUrl
+  }
 }
 
 function parseValidDate(value) {
