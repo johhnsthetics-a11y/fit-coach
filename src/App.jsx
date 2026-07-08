@@ -133,12 +133,12 @@ const salesHeroHeadlines = [
   {
     id: 'consultoria',
     lead: 'A forma mais simples de organizar',
-    focus: 'Consultoria Online',
+    focus: 'Consultorias e Aulas',
     proof: 'Do treino ao financeiro, tudo centralizado para entregar valor e escalar sem perder controle.',
   },
   {
     id: 'presencial',
-    lead: 'Transforme suas aulas presenciais em uma',
+    lead: 'Transforme seu atendimento em uma',
     focus: 'Experiência Premium',
     proof: 'O aluno treina com você, acompanha no app, registra cargas e percebe mais profissionalismo.',
   },
@@ -150,7 +150,7 @@ const salesHeroHeadlines = [
   },
   {
     id: 'retencao',
-    lead: 'Mais clareza para o aluno. Mais',
+    lead: 'Mais clareza para o aluno, mais',
     focus: 'Retenção para o Coach',
     proof: 'Rotina guiada, evolução visível e acompanhamento constante para aumentar permanência e renovação.',
   },
@@ -222,7 +222,7 @@ const navItems = [
   { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
   { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
   { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
-  { id: 'configuracoes', label: 'Configurações', icon: 'settings', tone: 'slate' },
+  { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
 
@@ -1160,16 +1160,27 @@ export default function App() {
     }
 
     setData((current) => {
+      const previousStudent = current.students.find((item) => item.id === student.id)
       const exists = current.students.some((item) => item.id === student.id)
       const students = exists
         ? current.students.map((item) => (item.id === student.id ? savedStudent : item))
         : [savedStudent, ...current.students]
+      const planChanged = Boolean(previousStudent && previousStudent.plan !== savedStudent.plan)
+      const nextBillingDate = planChanged
+        ? getNextBillingDateForStudent(savedStudent, current.invoices ?? [], getCoachPlans(current.coachSettings))
+        : ''
 
       return {
         ...current,
         students,
         invites: createdInvite ? [createdInvite, ...(current.invites ?? [])] : current.invites ?? [],
         notifications: [
+          ...(planChanged ? [{
+            id: Date.now() + 2,
+            title: 'Plano do aluno atualizado',
+            body: `${savedStudent.name} agora está no plano ${savedStudent.plan}. Próxima cobrança estimada: ${formatDate(nextBillingDate)}.`,
+            read: false,
+          }] : []),
           {
             id: Date.now() + 1,
             title: exists ? 'Aluno atualizado' : 'Aluno cadastrado',
@@ -1561,10 +1572,10 @@ export default function App() {
     if (supabaseEnabled) {
       try {
         savedSettings = await saveRemoteCoachSettings(settings, data.user?.id)
-        setRemoteStatus('Configurações salvas')
+        setRemoteStatus('Gerenciamento salvo')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao salvar configurações')
+        handleRemoteError(error, 'Erro ao salvar gerenciamento')
         throw error
       }
     }
@@ -2478,7 +2489,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.84fr)_minmax(520px,1.16fr)] lg:px-10 lg:pb-14 lg:pt-10 xl:gap-12">
           <div className="min-w-0" data-reveal>
             <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-emerald-100">Para personal, coach, consultoria online e aulas presenciais</p>
-            <h1 className="sales-rotating-headline mt-5 max-w-4xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]" aria-live="polite">
+            <h1 className="sales-rotating-headline mt-5 max-w-5xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]" aria-live="polite">
               <span key={`lead-${activeHeroHeadline.id}`} className="sales-rotating-line">{activeHeroHeadline.lead}</span>
               <span key={`focus-${activeHeroHeadline.id}`} className="sales-rotating-focus mt-2 block bg-gradient-to-r from-emerald-100 via-emerald-300 to-cyan-100 bg-clip-text text-transparent">{activeHeroHeadline.focus}</span>
             </h1>
@@ -4363,7 +4374,7 @@ function StudentPlanPreview({ plan, availablePlans = plans }) {
   if (!plan) {
     return (
       <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-bold text-amber-100">
-        Cadastre pelo menos um plano em Configuracoes ou crie um novo plano para este aluno.
+        Cadastre pelo menos um plano em Gerenciamento ou crie um novo plano para este aluno.
       </div>
     )
   }
@@ -8411,7 +8422,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
   const selectedBillingStudent = students.find((student) => String(student.id) === String(billingStudentId)) || students[0]
   const selectedBillingPlan = coachPlans.find((plan) => plan.name === selectedBillingStudent?.plan) || coachPlans[0]
   const selectedBillingAmount = getPlanBillingAmount(selectedBillingPlan?.name, coachPlans) || 0
-  const selectedBillingDueDate = getDueDateForPlan(selectedBillingPlan)
+  const selectedBillingDueDate = getNextBillingDateForStudent(selectedBillingStudent, invoices, coachPlans)
 
   useEffect(() => {
     if (!billingStudentId && students[0]?.id) {
@@ -8551,7 +8562,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
       for (const student of chargeableStudents) {
         const plan = coachPlans.find((item) => item.name === student.plan) || coachPlans[0]
         const amount = getPlanBillingAmount(plan?.name, coachPlans) || 197
-        const dueDate = getDueDateForPlan(plan)
+        const dueDate = getNextBillingDateForStudent(student, invoices, coachPlans)
         await onSaveInvoice({
           studentId: student.id,
           planName: plan?.name || student.plan || 'Acompanhamento',
@@ -8639,7 +8650,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
               O sistema identifica alunos pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
             </p>
             <p className="hidden">
-              Pix: {coachSettings?.pixKey || 'cadastre em Configurações'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
+              Pix: {coachSettings?.pixKey || 'cadastre em Gerenciamento'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
             </p>
           </div>
           <button type="button" disabled={saving} onClick={handleCreateAutoCharges} className="rounded-md bg-amber-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
@@ -8696,6 +8707,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                   plan: selectedBillingPlan,
                 })}
               />
+              <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança estimada</p>
+                <p className="mt-1 text-lg font-black text-white">{formatDate(selectedBillingDueDate)}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                  Calculada pelo plano do aluno, ciclo cadastrado e histórico de cobranças já registradas.
+                </p>
+              </div>
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
                 {saving ? 'Gerando...' : 'Gerar cobrança'}
               </button>
@@ -8968,7 +8986,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     setMessage('')
     try {
       await onSave(draft)
-      setMessage('Configurações salvas. As próximas visitas já usam esta versão.')
+      setMessage('Gerenciamento salvo. As próximas visitas já usam esta versão.')
     } finally {
       setSaving(false)
     }
@@ -9205,29 +9223,49 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     setEditingPlanIndex(-1)
   }
 
-  function savePlanDraft() {
+  async function persistPlanEditorPlans(nextPlans, successMessage = 'Planos atualizados.') {
+    const normalizedPlans = nextPlans.map(normalizeCoachPlan).filter((plan) => plan.name)
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const savedSettings = await onSave({
+        ...current,
+        billingLogoUrl,
+        customPlans: normalizedPlans,
+      })
+      const savedPlans = getCoachPlans(savedSettings)
+      setPlanEditorPlans(savedPlans)
+      setMessage(successMessage)
+      return savedPlans
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar os planos agora.')
+      throw saveError
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function savePlanDraft() {
     const normalizedPlan = normalizeCoachPlan(planDraft)
     if (!normalizedPlan.name) {
       setError('Informe o nome do plano.')
       return
     }
     if (getPlanBillingAmount(normalizedPlan.name, [normalizedPlan]) <= 0) {
-      setError('Informe o valor que voce cobra neste plano.')
+      setError('Informe o valor que você cobra neste plano.')
       return
     }
 
-    setPlanEditorPlans((currentPlans) => {
-      const existingIndex = editingPlanIndex >= 0
-        ? editingPlanIndex
-        : currentPlans.findIndex((plan) => normalizeText(plan.name) === normalizeText(normalizedPlan.name))
+    const existingIndex = editingPlanIndex >= 0
+      ? editingPlanIndex
+      : planEditorPlans.findIndex((plan) => normalizeText(plan.name) === normalizeText(normalizedPlan.name))
 
-      if (existingIndex >= 0) {
-        return currentPlans.map((plan, index) => (index === existingIndex ? normalizedPlan : plan))
-      }
+    const nextPlans = existingIndex >= 0
+      ? planEditorPlans.map((plan, index) => (index === existingIndex ? normalizedPlan : plan))
+      : [normalizedPlan, ...planEditorPlans]
 
-      return [normalizedPlan, ...currentPlans]
-    })
-    setError('')
+    await persistPlanEditorPlans(nextPlans, existingIndex >= 0 ? 'Plano atualizado e salvo.' : 'Plano adicionado e salvo.')
     resetPlanDraft()
   }
 
@@ -9242,12 +9280,12 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     setEditingPlanIndex(index)
   }
 
-  function removePlanDraft(index) {
+  async function removePlanDraft(index) {
     if (planEditorPlans.length <= 1) {
       setError('Mantenha pelo menos um plano cadastrado.')
       return
     }
-    setPlanEditorPlans((currentPlans) => currentPlans.filter((_, planIndex) => planIndex !== index))
+    await persistPlanEditorPlans(planEditorPlans.filter((_, planIndex) => planIndex !== index), 'Plano removido e salvo.')
     if (editingPlanIndex === index) resetPlanDraft()
   }
 
@@ -9296,9 +9334,9 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
         timezone: current.timezone,
       })
-      setMessage('Configurações profissionais atualizadas.')
+      setMessage('Gerenciamento profissional atualizado.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar as configurações.')
+      setError(saveError?.message || 'Não foi possível salvar o gerenciamento.')
     } finally {
       setSaving(false)
     }
@@ -9360,7 +9398,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
               Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | Descrição. Ciclos aceitos: semanal, mensal, semestral ou anual.
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">
-              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobranca automaticamente.
+              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobrança automaticamente.
             </p>
             <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
               <div className="grid gap-3 lg:grid-cols-[1fr_0.72fr_0.7fr]">
@@ -9387,7 +9425,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
                 <input value={planDraft.features} onChange={(event) => updatePlanDraft('features', event.target.value)} placeholder="Ex: treino, dieta, check-in semanal e suporte" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
               </label>
               <label className="mt-3 grid gap-2 text-sm font-bold text-zinc-300">
-                Mensagem de cobranca deste plano
+                Mensagem de cobrança deste plano
                 <textarea
                   value={planDraft.billingMessage}
                   onChange={(event) => updatePlanDraft('billingMessage', event.target.value)}
@@ -9396,16 +9434,16 @@ function CoachSettings({ user, settings, onSave, onExport }) {
                   className="min-h-28 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base leading-6 text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
                 />
                 <span className="text-xs leading-5 text-zinc-500">
-                  Use variaveis como {'{aluno}'}, {'{plano}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'} e {'{email}'}.
+                  Use variáveis como {'{aluno}'}, {'{plano}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'} e {'{email}'}.
                 </span>
               </label>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={savePlanDraft} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98]">
-                  {editingPlanIndex >= 0 ? 'Atualizar plano' : 'Adicionar plano'}
+                <button type="button" disabled={saving} onClick={savePlanDraft} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60">
+                  {saving ? 'Salvando...' : editingPlanIndex >= 0 ? 'Atualizar e salvar plano' : 'Adicionar e salvar plano'}
                 </button>
                 {editingPlanIndex >= 0 ? (
-                  <button type="button" onClick={resetPlanDraft} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-                    Cancelar edicao
+                  <button type="button" disabled={saving} onClick={resetPlanDraft} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:opacity-60">
+                    Cancelar edição
                   </button>
                 ) : null}
               </div>
@@ -9418,13 +9456,13 @@ function CoachSettings({ user, settings, onSave, onExport }) {
                   <p className="text-sm font-black text-white">{plan.name}</p>
                   <p className="mt-2 text-xs leading-5 text-zinc-500">{plan.features || 'Plano do treinador'}</p>
                   <p className="mt-2 text-xs font-bold text-cyan-100">
-                    {plan.billingMessage ? 'Mensagem de cobranca personalizada' : 'Usa a mensagem padrao de cobranca'}
+                    {plan.billingMessage ? 'Mensagem de cobrança personalizada' : 'Usa a mensagem padrão de cobrança'}
                   </p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => editPlanDraft(plan, index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
+                    <button type="button" disabled={saving} onClick={() => editPlanDraft(plan, index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60">
                       Editar
                     </button>
-                    <button type="button" onClick={() => removePlanDraft(index)} className="rounded-md border border-rose-300/25 px-3 py-2 text-xs font-black text-rose-100">
+                    <button type="button" disabled={saving} onClick={() => removePlanDraft(index)} className="rounded-md border border-rose-300/25 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-60">
                       Remover
                     </button>
                   </div>
@@ -9440,8 +9478,8 @@ function CoachSettings({ user, settings, onSave, onExport }) {
                 className="mt-1 h-4 w-4 accent-emerald-400"
               />
               <span>
-                <strong className="block text-emerald-100">Cobranca automatica dos alunos</strong>
-                <span className="block">Quando um aluno ficar pendente, o app cria a cobranca usando o valor do plano dele.</span>
+                <strong className="block text-emerald-100">Cobrança automática dos alunos</strong>
+                <span className="block">Quando um aluno ficar pendente, o app cria a cobrança usando o valor do plano dele.</span>
                 <span className="hidden">
                 <strong className="block text-emerald-100">Gerar cobranças automaticamente</strong>
                 O sistema cria cobranças para alunos pendentes sem cobrança em aberto, usando o valor e o ciclo do plano cadastrado.
@@ -9450,7 +9488,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
             </label>
           </div>
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-            {saving ? 'Salvando...' : 'Salvar configurações'}
+            {saving ? 'Salvando...' : 'Salvar gerenciamento'}
           </button>
           {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
           {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
@@ -10936,6 +10974,49 @@ function getDefaultDueDate() {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }
 
+function toDateInputValue(date) {
+  const safeDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date()
+  const offset = safeDate.getTimezoneOffset() * 60 * 1000
+  return new Date(safeDate.getTime() - offset).toISOString().slice(0, 10)
+}
+
+function addPlanCycleToDate(value, plan) {
+  const date = parseValidDate(value) ?? new Date()
+  date.setHours(12, 0, 0, 0)
+  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
+
+  if (cycle === 'semanal') {
+    date.setDate(date.getDate() + 7)
+  } else if (cycle === 'semestral') {
+    date.setMonth(date.getMonth() + 6)
+  } else if (cycle === 'anual') {
+    date.setFullYear(date.getFullYear() + 1)
+  } else {
+    date.setMonth(date.getMonth() + 1)
+  }
+
+  return toDateInputValue(date)
+}
+
+function getNextBillingDateForStudent(student, invoices = [], availablePlans = plans) {
+  if (!student) return getDefaultDueDate()
+  const plan = availablePlans.find((item) => item.name === student.plan) || availablePlans[0]
+  const studentInvoices = invoices
+    .filter((invoice) => String(invoice.studentId) === String(student.id))
+    .map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
+    .sort((a, b) => new Date(b.paidAt || b.dueDate || b.createdAt || 0) - new Date(a.paidAt || a.dueDate || a.createdAt || 0))
+
+  const openInvoice = studentInvoices.find((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
+  if (openInvoice?.dueDate) return openInvoice.dueDate
+
+  const latestPaid = studentInvoices.find((invoice) => invoice.status === 'Pago')
+  if (latestPaid) return addPlanCycleToDate(latestPaid.paidAt || latestPaid.dueDate || latestPaid.createdAt, plan)
+
+  if (student.payment === 'Pendente') return toDateInputValue(new Date())
+
+  return getDueDateForPlan(plan)
+}
+
 function getDueDateForPlan(plan) {
   const date = new Date()
   const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
@@ -10964,7 +11045,7 @@ function formatUiText(value) {
     Avaliacao: 'Avaliação',
     Inicio: 'Início',
     Previa: 'Prévia',
-    Configuracoes: 'Configurações',
+    Configuracoes: 'Gerenciamento',
   }
   return labels[value] ?? value
 }

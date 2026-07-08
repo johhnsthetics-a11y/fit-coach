@@ -561,7 +561,9 @@ textarea {
 }
 
 .sales-rotating-headline {
-  min-height: clamp(7.2rem, 13vw, 10.2rem);
+  min-height: clamp(7.2rem, 12vw, 10.2rem);
+  max-width: min(100%, 62rem);
+  text-wrap: balance;
 }
 
 .sales-rotating-line,
@@ -573,15 +575,34 @@ textarea {
 
 .sales-rotating-line {
   display: block;
+  overflow-wrap: normal;
 }
 
 .sales-rotating-focus {
   animation-delay: 70ms;
   filter: drop-shadow(0 0 22px rgba(0, 210, 178, 0.16));
+  overflow-wrap: normal;
 }
 
 .sales-rotating-proof {
   animation-delay: 120ms;
+}
+
+@media (min-width: 1024px) {
+  .sales-hero {
+    grid-template-columns: minmax(620px, 0.96fr) minmax(500px, 1.04fr);
+  }
+
+  .sales-rotating-headline {
+    font-size: clamp(4.35rem, 5.05vw, 5.65rem);
+    max-width: 64rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .sales-hero {
+    grid-template-columns: minmax(700px, 1fr) minmax(520px, 0.95fr);
+  }
 }
 
 @keyframes salesHeadlineSwap {
