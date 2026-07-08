@@ -1085,6 +1085,26 @@ export default function App() {
     setRemoteError(message)
   }
 
+  async function saveCoachPlan(planDraft) {
+    const parsedPlan = normalizeCoachPlan(planDraft)
+    if (!parsedPlan?.name) throw new Error('Informe o nome do plano do aluno.')
+    if (getPlanBillingAmount(parsedPlan.name, [parsedPlan]) <= 0) throw new Error('Informe um valor valido para o plano.')
+
+    const currentSettings = buildCoachSettingsPayload(data.coachSettings, data.user)
+    const currentPlans = getCoachPlans(currentSettings)
+    const planIndex = currentPlans.findIndex((plan) => normalizeText(plan.name) === normalizeText(parsedPlan.name))
+    const nextPlans = planIndex >= 0
+      ? currentPlans.map((plan, index) => (index === planIndex ? { ...plan, ...parsedPlan } : plan))
+      : [parsedPlan, ...currentPlans]
+
+    const savedSettings = await saveCoachSettings({
+      ...currentSettings,
+      customPlans: nextPlans,
+    })
+
+    return getCoachPlans(savedSettings).find((plan) => normalizeText(plan.name) === normalizeText(parsedPlan.name)) || parsedPlan
+  }
+
   async function saveStudent(student) {
     const studentId = student.id || Date.now()
     const isNewStudent = !student.id
@@ -2046,6 +2066,7 @@ export default function App() {
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentId}
                 onSave={saveStudent}
+                onSaveCoachPlan={saveCoachPlan}
                 onGenerateInvite={generateStudentInvite}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
@@ -2605,9 +2626,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div data-reveal className="sales-phone-stage grid gap-2 sm:grid-cols-3">
               {[
-                ['Hoje', 'Olá, Élinton', 'Calendário semanal · meta do dia', 'Desafio semanal 3/5', ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], 'wallet', 'R$ 297,00', 'plano mensal'],
+                ['Hoje', 'Olá, Élinton', 'Calendário semanal · meta do dia', 'Desafio semanal 3/5', ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], 'trophy', '+80 XP', 'ranking atualizado'],
                 ['Treino', 'Treino C', 'Legs · 7 exercícios', 'Treino iniciado · 23:14', ['Agachamento 4x10', 'Leg press 4x12', 'Cadeira flexora 3x12'], 'dumbbell', 'Treino', 'enviado'],
-                ['Fatura e chat', 'Pagamento em dia', 'Próxima cobrança em 6 dias', 'Chat com o coach', ['Pix validado', 'Foto enviada', 'Plano alimentar ativo'], 'message', 'Anamnese', 'recebida'],
+                ['Chat e check-in', 'Feedback enviado', 'Conversa direta com o coach', 'Foto e evolução recebidas', ['Foto enviada', 'Dúvida respondida', 'Plano alimentar ativo'], 'message', 'Check-in', 'recebido'],
               ].map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
                 <div key={title} className={`sales-phone-mockup ${index === 1 ? 'sm:mt-8' : ''}`}>
                   <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
@@ -2620,10 +2641,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </span>
                   </div>
                   <div className="sales-phone-screen">
+                    <div className="sales-phone-statusbar" aria-hidden="true">
+                      <span>09:30</span>
+                      <span className="sales-phone-status-icons">
+                        <span className="sales-signal" />
+                        <span className="sales-wifi" />
+                        <span className="sales-battery" />
+                      </span>
+                    </div>
                     <div className="sales-phone-notch" />
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">09:30</span>
+                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">app aluno</span>
                     </div>
                     <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
                     <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
@@ -3324,10 +3353,18 @@ function SalesPhoneShowcase() {
             </span>
           </div>
           <div className="sales-phone-screen">
+            <div className="sales-phone-statusbar" aria-hidden="true">
+              <span>09:30</span>
+              <span className="sales-phone-status-icons">
+                <span className="sales-signal" />
+                <span className="sales-wifi" />
+                <span className="sales-battery" />
+              </span>
+            </div>
             <div className="sales-phone-notch" />
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">09:30</span>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">{active ? 'ao vivo' : 'prévia'}</span>
             </div>
             <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
             <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
@@ -3776,7 +3813,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, workoutLogs = [], invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ students, workoutLogs = [], invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -3791,6 +3828,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
   const ranking = buildCoachStudentRanking(students, workoutLogs)
+  const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
   useEffect(() => {
     setAccessMessage('')
@@ -3867,6 +3905,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
           <StudentForm
             student={editing}
             coachPlans={coachPlans}
+            onSaveCoachPlan={onSaveCoachPlan}
             onCancel={() => setEditing(null)}
             onSave={async (student) => {
               const result = await onSave(student)
@@ -3877,6 +3916,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
         ) : selectedStudent ? (
           <>
             <StudentSnapshot student={selectedStudent} />
+            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano nao definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobranca automatica.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano nao definido', price: '0', cycle: 'mensal' }]} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Info label="E-mail" value={selectedStudent.email} />
               <Info label="Telefone" value={selectedStudent.phone} />
@@ -4080,11 +4120,30 @@ function buildCoachStudentRanking(students = [], workoutLogs = []) {
     .map((item, index) => ({ ...item, position: index + 1 }))
 }
 
-function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
+function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [continuingStudent, setContinuingStudent] = useState(student.requireAnamnesis === false)
   const selectedPlanName = coachPlans.some((plan) => plan.name === student.plan) ? student.plan : coachPlans[0]?.name
+  const [planMode, setPlanMode] = useState('existing')
+  const [selectedPlan, setSelectedPlan] = useState(selectedPlanName || coachPlans[0]?.name || '')
+  const [newPlanName, setNewPlanName] = useState('')
+  const [newPlanPrice, setNewPlanPrice] = useState('')
+  const [newPlanCycle, setNewPlanCycle] = useState('mensal')
+  const [newPlanFeatures, setNewPlanFeatures] = useState('Acompanhamento personalizado')
+  const existingPlanPreview = coachPlans.find((plan) => plan.name === selectedPlan) || coachPlans[0]
+  const newPlanPreview = normalizeCoachPlan({
+    name: newPlanName || 'Novo plano do treinador',
+    price: newPlanPrice || '0',
+    cycle: newPlanCycle,
+    features: newPlanFeatures,
+  })
+  const activePlanPreview = planMode === 'new' ? newPlanPreview : existingPlanPreview
+
+  useEffect(() => {
+    setSelectedPlan(selectedPlanName || coachPlans[0]?.name || '')
+    setPlanMode('existing')
+  }, [student.id, selectedPlanName, coachPlans])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -4097,13 +4156,30 @@ function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
     setSaving(true)
     setError('')
     try {
+      let planName = selectedPlan || coachPlans[0]?.name || 'Acompanhamento'
+
+      if (planMode === 'new') {
+        const planDraft = normalizeCoachPlan({
+          name: newPlanName,
+          price: newPlanPrice,
+          cycle: newPlanCycle,
+          features: newPlanFeatures,
+        })
+
+        if (!planDraft.name) throw new Error('Informe o nome do plano.')
+        if (getPlanBillingAmount(planDraft.name, [planDraft]) <= 0) throw new Error('Informe o valor cobrado neste plano.')
+
+        if (onSaveCoachPlan) await onSaveCoachPlan(planDraft)
+        planName = planDraft.name
+      }
+
       await onSave({
         ...student,
         name: form.get('name').toString(),
         email: form.get('email').toString(),
         phone: form.get('phone').toString(),
         cpf: cpf.replace(/\D/g, ''),
-        plan: form.get('plan').toString(),
+        plan: planName,
         payment: form.get('payment').toString(),
         waterGoalMl: form.get('waterGoalMl')?.toString() || '2500',
         requireAnamnesis: !continuingStudent,
@@ -4150,8 +4226,85 @@ function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
         <Field label="Meta de água por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
-        <Select label="Plano" name="plan" defaultValue={selectedPlanName} options={coachPlans.map((plan) => plan.name)} />
         <Select label="Pagamento" name="payment" defaultValue={student.payment} options={['Pago', 'Pendente']} />
+      </div>
+      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-emerald-200">Plano comercial do aluno</p>
+            <h4 className="mt-1 text-lg font-black text-white">Escolha o plano que este aluno fechou com o treinador.</h4>
+            <p className="mt-1 text-sm leading-6 text-zinc-400">
+              O valor e o ciclo selecionados puxam automaticamente a cobranca, o dashboard financeiro e os recebimentos.
+            </p>
+          </div>
+          <span className="w-fit rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-emerald-100">
+            sincronizado
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {[
+            ['existing', 'Usar plano cadastrado'],
+            ['new', 'Criar novo plano'],
+          ].map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setPlanMode(mode)}
+              className={`rounded-xl border px-4 py-3 text-sm font-black transition active:scale-[0.98] ${
+                planMode === mode
+                  ? 'border-emerald-300/60 bg-emerald-300/18 text-emerald-50'
+                  : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-emerald-300/35'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {planMode === 'existing' ? (
+          <div className="mt-4">
+            <Select
+              label="Plano cadastrado"
+              name="existingPlan"
+              value={selectedPlan}
+              onChange={(event) => setSelectedPlan(event.target.value)}
+              options={coachPlans.map((plan) => ({
+                label: `${plan.name} - ${formatCurrency(getPlanBillingAmount(plan.name, coachPlans))} - ${getPlanCycleLabel(plan)}`,
+                value: plan.name,
+              }))}
+            />
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <label className="grid gap-2 text-sm font-bold text-zinc-300">
+              Nome do plano
+              <input value={newPlanName} onChange={(event) => setNewPlanName(event.target.value)} placeholder="Ex: Consultoria premium" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+            </label>
+            <label className="grid gap-2 text-sm font-bold text-zinc-300">
+              Valor cobrado
+              <input value={newPlanPrice} onChange={(event) => setNewPlanPrice(event.target.value)} placeholder="Ex: 250,00" inputMode="decimal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+            </label>
+            <Select
+              label="Ciclo de cobranca"
+              name="newPlanCycle"
+              value={newPlanCycle}
+              onChange={(event) => setNewPlanCycle(event.target.value)}
+              options={[
+                { label: 'Semanal', value: 'semanal' },
+                { label: 'Mensal', value: 'mensal' },
+                { label: 'Semestral', value: 'semestral' },
+                { label: 'Anual', value: 'anual' },
+              ]}
+            />
+            <label className="grid gap-2 text-sm font-bold text-zinc-300">
+              Descricao curta
+              <input value={newPlanFeatures} onChange={(event) => setNewPlanFeatures(event.target.value)} placeholder="Ex: Treino, dieta e suporte semanal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+            </label>
+          </div>
+        )}
+
+        <StudentPlanPreview plan={activePlanPreview} availablePlans={planMode === 'new' ? [activePlanPreview] : coachPlans} />
       </div>
       {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -4163,6 +4316,39 @@ function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
         </button>
       </div>
     </form>
+  )
+}
+
+function StudentPlanPreview({ plan, availablePlans = plans }) {
+  if (!plan) {
+    return (
+      <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-bold text-amber-100">
+        Cadastre pelo menos um plano em Configuracoes ou crie um novo plano para este aluno.
+      </div>
+    )
+  }
+
+  const billingAmount = getPlanBillingAmount(plan.name, availablePlans)
+  const monthlyEquivalent = getPlanMonthlyPrice(plan.name, availablePlans)
+
+  return (
+    <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <div className="rounded-xl border border-white/10 bg-black/25 p-4">
+        <p className="text-xs font-black uppercase text-zinc-500">Plano aplicado</p>
+        <h5 className="mt-2 break-words text-lg font-black text-white">{plan.name}</h5>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">{plan.features || 'Plano personalizado do treinador'}</p>
+      </div>
+      <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+        <p className="text-xs font-black uppercase text-emerald-200">Valor da cobranca</p>
+        <p className="mt-2 text-2xl font-black text-white">{formatCurrency(billingAmount)}</p>
+        <p className="mt-1 text-sm font-bold text-emerald-100">{getPlanCycleLabel(plan)}</p>
+      </div>
+      <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-4">
+        <p className="text-xs font-black uppercase text-cyan-100">Leitura mensal</p>
+        <p className="mt-2 text-2xl font-black text-white">{formatCurrency(monthlyEquivalent)}</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">Usado para previsao, carteira ativa e dashboard financeiro.</p>
+      </div>
+    </div>
   )
 }
 
@@ -10243,9 +10429,7 @@ function getPlanMonthlyPrice(planName, availablePlans = plans) {
 function getPlanBillingAmount(planName, availablePlans = plans) {
   const plan = availablePlans.find((item) => item.name === planName) ?? plans.find((item) => item.name === planName)
   if (!plan) return 0
-  const normalized = String(plan.price || '').replace(/[^\d,.-]/g, '').replace(',', '.')
-  const value = Number(normalized)
-  return Number.isFinite(value) ? value : 0
+  return parseCurrencyNumber(plan.price)
 }
 
 function getCoachPlans(settings) {
@@ -10261,6 +10445,36 @@ function getCoachPlans(settings) {
     .filter((plan) => plan.name)
 
   return normalizedPlans.length ? normalizedPlans : plans
+}
+
+function buildCoachSettingsPayload(settings = {}, user = {}) {
+  return {
+    brandName: settings?.brandName || 'Coach Fit Pro',
+    publicName: settings?.publicName || user?.name || '',
+    cref: settings?.cref || '',
+    whatsapp: settings?.whatsapp || '',
+    supportEmail: settings?.supportEmail || user?.email || '',
+    pixKey: settings?.pixKey || '',
+    billingLogoUrl: settings?.billingLogoUrl || '',
+    billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
+    billingAccentColor: settings?.billingAccentColor || '#0f172a',
+    billingMessage: settings?.billingMessage || 'Ola, {aluno}. Seu acesso esta aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Apos pagar, envie o comprovante no chat para validacao.',
+    autoBillingEnabled: settings?.autoBillingEnabled !== false,
+    customPlans: getCoachPlans(settings),
+    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como voce esta evoluindo.',
+    timezone: settings?.timezone || 'America/Sao_Paulo',
+  }
+}
+
+function normalizeCoachPlan(plan = {}) {
+  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration || 'mensal')
+  return {
+    name: String(plan?.name || '').trim(),
+    price: normalizePlanPrice(plan?.price),
+    cycle,
+    duration: getPlanCycleLabel({ cycle }),
+    features: String(plan?.features || plan?.description || 'Plano personalizado do treinador').trim(),
+  }
 }
 
 function parseCustomPlans(value) {
@@ -10293,8 +10507,21 @@ function normalizePlanPrice(value) {
   const raw = String(value || '').trim()
   if (!raw) return 'R$ 0'
   if (/^r\$/i.test(raw)) return raw
-  const number = Number(raw.replace(/[^\d,.-]/g, '').replace(',', '.'))
+  const number = parseCurrencyNumber(raw)
   return Number.isFinite(number) ? formatCurrency(number) : raw
+}
+
+function parseCurrencyNumber(value) {
+  const raw = String(value || '').trim().replace(/[^\d,.-]/g, '')
+  if (!raw) return 0
+  const hasComma = raw.includes(',')
+  const normalized = hasComma
+    ? raw.replace(/\./g, '').replace(',', '.')
+    : raw.includes('.') && raw.split('.').at(-1)?.length === 3
+      ? raw.replace(/\./g, '')
+      : raw
+  const number = Number(normalized)
+  return Number.isFinite(number) ? number : 0
 }
 
 function normalizePlanCycle(value) {

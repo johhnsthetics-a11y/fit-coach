@@ -721,20 +721,44 @@ textarea {
   position: relative;
   width: min(100%, 206px);
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 34px;
-  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 44px;
+  padding: 9px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.035) 34%, rgba(0, 210, 178, 0.08)),
     #05070d;
   box-shadow:
     0 26px 70px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 0 0 5px rgba(0, 0, 0, 0.52);
   transform: rotateY(-7deg) rotateX(3deg);
   transition:
     transform 260ms ease,
     border-color 220ms ease,
     box-shadow 220ms ease;
+}
+
+.sales-phone-mockup::before,
+.sales-phone-mockup::after {
+  position: absolute;
+  z-index: 0;
+  content: "";
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.035));
+}
+
+.sales-phone-mockup::before {
+  left: -3px;
+  top: 102px;
+  width: 3px;
+  height: 58px;
+}
+
+.sales-phone-mockup::after {
+  right: -3px;
+  top: 134px;
+  width: 3px;
+  height: 74px;
 }
 
 .sales-phone-mockup:nth-child(2) {
@@ -823,11 +847,15 @@ textarea {
   position: relative;
   min-height: 402px;
   overflow: hidden;
-  border-radius: 28px;
-  padding: 24px 13px 58px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 34px;
+  padding: 44px 13px 58px;
   background:
     radial-gradient(circle at 20% 0%, rgba(0, 210, 178, 0.22), transparent 34%),
     linear-gradient(180deg, #06100f, #030607 54%, #060910);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -18px 44px rgba(0, 0, 0, 0.36);
 }
 
 .sales-phone-screen::after {
@@ -841,14 +869,98 @@ textarea {
 
 .sales-phone-notch {
   position: absolute;
-  top: 8px;
+  top: 10px;
   left: 50%;
-  width: 68px;
-  height: 18px;
+  z-index: 3;
+  width: 86px;
+  height: 25px;
   border-radius: 999px;
   background: #020304;
   transform: translateX(-50%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+    0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+.sales-phone-notch::after {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  content: "";
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, #1f3b4d, #020304 72%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.sales-phone-statusbar {
+  position: absolute;
+  top: 13px;
+  left: 16px;
+  right: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.sales-phone-status-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sales-signal {
+  width: 12px;
+  height: 8px;
+  background: linear-gradient(90deg, transparent 0 2px, currentColor 2px 4px, transparent 4px 5px, currentColor 5px 8px, transparent 8px 9px, currentColor 9px 12px);
+  opacity: 0.78;
+}
+
+.sales-wifi {
+  width: 10px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 999px 999px 0 0;
+  opacity: 0.72;
+  transform: scaleX(0.9);
+}
+
+.sales-battery {
+  position: relative;
+  width: 17px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.86;
+}
+
+.sales-battery::before {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 11px;
+  height: 4px;
+  content: "";
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.sales-battery::after {
+  position: absolute;
+  top: 2px;
+  right: -3px;
+  width: 2px;
+  height: 4px;
+  content: "";
+  border-radius: 0 2px 2px 0;
+  background: currentColor;
 }
 
 .sales-floating-badge {
