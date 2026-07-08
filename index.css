@@ -560,6 +560,44 @@ textarea {
   filter: blur(4px);
 }
 
+.sales-rotating-headline {
+  min-height: clamp(7.2rem, 13vw, 10.2rem);
+}
+
+.sales-rotating-line,
+.sales-rotating-focus,
+.sales-rotating-proof {
+  animation: salesHeadlineSwap 640ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  will-change: opacity, transform, filter;
+}
+
+.sales-rotating-line {
+  display: block;
+}
+
+.sales-rotating-focus {
+  animation-delay: 70ms;
+  filter: drop-shadow(0 0 22px rgba(0, 210, 178, 0.16));
+}
+
+.sales-rotating-proof {
+  animation-delay: 120ms;
+}
+
+@keyframes salesHeadlineSwap {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .sales-progress {
   position: fixed;
   z-index: 70;

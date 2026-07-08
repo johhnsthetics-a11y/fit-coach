@@ -129,6 +129,33 @@ const ADMIN_EMAILS = (import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || 'sac@coachfi
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean)
 
+const salesHeroHeadlines = [
+  {
+    id: 'consultoria',
+    lead: 'A forma mais simples de organizar',
+    focus: 'Consultoria Online',
+    proof: 'Do treino ao financeiro, tudo centralizado para entregar valor e escalar sem perder controle.',
+  },
+  {
+    id: 'presencial',
+    lead: 'Transforme suas aulas presenciais em uma',
+    focus: 'Experiência Premium',
+    proof: 'O aluno treina com você, acompanha no app, registra cargas e percebe mais profissionalismo.',
+  },
+  {
+    id: 'operacao',
+    lead: 'Sua operação de treinador com',
+    focus: 'Gestão de Alto Nível',
+    proof: 'Alunos, agenda, treinos, dieta, chat e cobranças organizados em um painel moderno.',
+  },
+  {
+    id: 'retencao',
+    lead: 'Mais clareza para o aluno. Mais',
+    focus: 'Retenção para o Coach',
+    proof: 'Rotina guiada, evolução visível e acompanhamento constante para aumentar permanência e renovação.',
+  },
+]
+
 function normalizeAdminSettings(settings = {}) {
   const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
     ? settings.checkoutPlans.map((plan, index) => ({
@@ -2267,6 +2294,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
+  const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
   const [revenueScenario, setRevenueScenario] = useState({
     students: 20,
     monthlyPrice: 250,
@@ -2282,6 +2310,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const projectedRevenue = projectedStudents * projectedPrice
   const projectedIncrease = projectedRevenue - currentRevenue
   const projectedPercent = currentRevenue ? Math.round((projectedIncrease / currentRevenue) * 100) : 0
+  const activeHeroHeadline = salesHeroHeadlines[heroHeadlineIndex % salesHeroHeadlines.length]
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setHeroHeadlineIndex((current) => (current + 1) % salesHeroHeadlines.length)
+    }, 4200)
+
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const page = document.getElementById('sales-page')
@@ -2440,13 +2477,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       <main>
         <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.84fr)_minmax(520px,1.16fr)] lg:px-10 lg:pb-14 lg:pt-10 xl:gap-12">
           <div className="min-w-0" data-reveal>
-            <p className="inline-flex rounded-full border border-blue-300/25 bg-blue-300/10 px-4 py-2 text-xs font-black uppercase text-blue-100">Para personal, coach e consultoria online</p>
-            <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]">
-              A forma mais simples de organizar
-              <span className="mt-2 block bg-gradient-to-r from-blue-200 via-blue-400 to-emerald-200 bg-clip-text text-transparent">Consultoria Online</span>
+            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-emerald-100">Para personal, coach, consultoria online e aulas presenciais</p>
+            <h1 className="sales-rotating-headline mt-5 max-w-4xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]" aria-live="polite">
+              <span key={`lead-${activeHeroHeadline.id}`} className="sales-rotating-line">{activeHeroHeadline.lead}</span>
+              <span key={`focus-${activeHeroHeadline.id}`} className="sales-rotating-focus mt-2 block bg-gradient-to-r from-emerald-100 via-emerald-300 to-cyan-100 bg-clip-text text-transparent">{activeHeroHeadline.focus}</span>
             </h1>
-            <p className="mt-5 max-w-2xl text-base font-medium leading-7 text-zinc-300 sm:text-xl">
+            <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof mt-5 max-w-2xl text-base font-medium leading-7 text-zinc-300 sm:text-xl">
+              <span>{activeHeroHeadline.proof}</span>
+              <span className="hidden">
               Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
+              </span>
             </p>
             <div data-reveal className="sales-hero-device-mobile mt-5 lg:hidden">
               <SalesPhoneShowcase />
