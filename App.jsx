@@ -3276,10 +3276,11 @@ function SalesStat({ value, label }) {
 }
 
 function SalesPhoneShowcase() {
+  const [activeIndex, setActiveIndex] = useState(1)
   const screens = [
-    ['Hoje', 'Olá, Coach', 'Carteira em movimento', '6 dias de sequência', ['Novo aluno entrou', 'Plano alimentar lançado', 'Anamnese recebida'], 'wallet', 'R$ 539,00', 'plano semestral'],
-    ['Treino C', 'LEGS', '7 exercícios', 'Ver treino', ['Agachamento 4x10', 'Leg press 4x12', 'Carga registrada'], 'dumbbell', 'Treino', 'enviado'],
-    ['Financeiro', 'Recebimentos', 'Status da carteira', 'Cobrança automática', ['R$ 1.709,00 no mês', 'Pix validado', 'Renovação próxima'], 'message', 'Chat', 'respondido'],
+    ['Início do aluno', 'Olá, aluno', 'Semana, água e desafios', 'Meta do dia em progresso', ['Treino concluído: +80 XP', 'Água 1,8L / 2,5L', 'Desafio semanal 3/5'], 'trophy', '+80 XP', 'ranking atualizado'],
+    ['Treino de hoje', 'LEGS', 'Carga por exercício', 'Registrar série realizada', ['Agachamento: 80 kg', 'Leg press: 160 kg', 'Cadeira extensora: 45 kg'], 'dumbbell', 'Treino', 'em execução'],
+    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovações', 'Cobrança automática', ['R$ 8.940 recebidos', '32 renovações próximas', '94% pagos'], 'wallet', 'R$ 8.940', 'recebido no mês'],
   ]
 
   const metrics = [
@@ -3302,8 +3303,17 @@ function SalesPhoneShowcase() {
           </span>
         </div>
       ))}
-      {screens.map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
-        <div key={title} className={`sales-phone-mockup sales-hero-phone-${index + 1}`}>
+      {screens.map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => {
+        const active = activeIndex === index
+        return (
+        <button
+          key={title}
+          type="button"
+          aria-label={`Ver mockup: ${title}`}
+          aria-pressed={active}
+          onClick={() => setActiveIndex(index)}
+          className={`sales-phone-mockup sales-hero-phone-${index + 1} ${active ? 'is-active' : ''}`}
+        >
           <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
               <NavIcon name={floatingIcon} className="h-4 w-4" />
@@ -3349,8 +3359,20 @@ function SalesPhoneShowcase() {
               ))}
             </div>
           </div>
-        </div>
-      ))}
+        </button>
+        )
+      })}
+      <div className="sales-showcase-tabs" aria-label="Selecionar prévia">
+        {screens.map((screen, index) => (
+          <button
+            key={screen[1]}
+            type="button"
+            aria-label={`Mostrar ${screen[1]}`}
+            onClick={() => setActiveIndex(index)}
+            className={`sales-showcase-tab ${activeIndex === index ? 'is-active' : ''}`}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -4979,7 +5001,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
         workoutId: workout.id,
         title: workout.title,
         effort: form.get('effort')?.toString() || 'Moderado',
-        notes: form.get('notes')?.toString() || '',
+        notes: [form.get('setsLog')?.toString(), form.get('notes')?.toString()].filter(Boolean).join('\n\n') || '',
       })
       setMessage('Treino concluído. +80 XP adicionados ao ranking de evolução.')
       formElement.reset()
@@ -5001,6 +5023,141 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
       {message ? <p className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
     </form>
+  )
+}
+
+function StudentWorkoutExecution({ student, workout, onCompleteWorkout, preview = false }) {
+  const exercises = (workout?.exercises || []).map(enrichExercise)
+  const [loads, setLoads] = useState({})
+  const [effort, setEffort] = useState('Moderado')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
+
+  function updateLoad(index, value) {
+    setLoads((current) => ({ ...current, [index]: value }))
+  }
+
+  async function finishWorkout() {
+    if (preview || !onCompleteWorkout) return
+
+    const loadNotes = exercises
+      .map((exercise, index) => ({ exercise, value: String(loads[index] || '').trim() }))
+      .filter((item) => item.value)
+      .map((item) => `${item.exercise.name}: ${item.value}`)
+
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      await onCompleteWorkout({
+        coachId: workout.coachId,
+        studentId: student.id,
+        workoutId: workout.id,
+        title: workout.title,
+        effort,
+        notes: loadNotes.length
+          ? `Cargas registradas pelo aluno:\n${loadNotes.join('\n')}`
+          : 'Treino concluído pelo aluno no app.',
+      })
+      setMessage('Treino concluído. +80 XP adicionados ao ranking e ao histórico de evolução.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível concluir o treino.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase text-emerald-200">{preview ? 'Prévia do aluno' : 'Execução do treino'}</p>
+            <h4 className="mt-1 text-xl font-black text-white">{workout.title}</h4>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{workout.focus || student.goal || 'Plano do dia'}</p>
+          </div>
+          <div className="rounded-xl border border-emerald-300/20 bg-zinc-950/55 px-3 py-2 text-sm font-black text-emerald-100">
+            +80 XP ao concluir
+          </div>
+        </div>
+        {workout.notes ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
+      </div>
+
+      {exercises.length ? (
+        <div className="grid gap-3">
+          {exercises.map((exercise, index) => (
+            <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                  <h5 className="mt-1 text-lg font-black text-white">{exercise.name}</h5>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {exercise.muscleGroup || 'Movimento personalizado'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                  <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+                  <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
+                  <ExerciseMetric label="Carga alvo" value={exercise.load || '-'} />
+                  <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
+                </div>
+              </div>
+
+              {exercise.instructions ? (
+                <p className="mt-3 rounded-xl border border-white/10 bg-zinc-950/55 p-3 text-sm leading-6 text-zinc-300">
+                  {exercise.instructions}
+                </p>
+              ) : null}
+
+              <label className="mt-4 grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+                Carga realizada pelo aluno
+                <input
+                  value={loads[index] || ''}
+                  disabled={preview}
+                  onChange={(event) => updateLoad(index, event.target.value)}
+                  placeholder={preview ? 'O aluno registra aqui a carga usada' : 'Ex.: 80 kg, 12 reps, RPE 8'}
+                  className="min-h-11 min-w-0 rounded-xl border border-emerald-300/20 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-400 disabled:opacity-70 sm:text-sm"
+                />
+              </label>
+
+              <div className="mt-3">
+                <ExerciseMedia exercise={exercise} compact />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty text="Este treino ainda não possui exercícios cadastrados." />
+      )}
+
+      {!preview ? (
+        <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
+          <label className="grid gap-2 text-sm font-bold text-zinc-300">
+            Como foi o esforço?
+            <select
+              value={effort}
+              onChange={(event) => setEffort(event.target.value)}
+              className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
+            >
+              {['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={finishWorkout}
+            className="mt-4 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/25 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+          >
+            {saving ? 'Salvando...' : 'Concluir treino e ganhar XP'}
+          </button>
+          {message ? <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+          {error ? <p className="mt-3 text-sm font-bold text-rose-200">{error}</p> : null}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -5698,12 +5855,20 @@ function StudentPortalPreview({
 
       <Panel title="Treino de hoje" action={studentWorkouts[0]?.title ?? student.workout}>
         {studentWorkouts.length ? (
-          <>
-            <WorkoutList workouts={studentWorkouts.slice(0, 2)} fallbackTitle={student.workout} />
-            {onCompleteWorkout ? (
-              <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={onCompleteWorkout} />
-            ) : null}
-          </>
+          <div className="grid gap-4">
+            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
+              <p className="text-xs font-black uppercase text-emerald-200">O que o aluno enxerga</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Esta prévia mostra a tela de execução do treino com vídeo, orientação e campo de carga que o aluno registra no celular.
+              </p>
+            </div>
+            <StudentWorkoutExecution
+              student={student}
+              workout={studentWorkouts[0]}
+              onCompleteWorkout={onCompleteWorkout}
+              preview
+            />
+          </div>
         ) : (
           <div className="space-y-3">
             {workoutPlan.slice(0, 3).map((item) => (
@@ -6627,7 +6792,11 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           </div>
           {studentWorkouts.length ? (
             <>
-              <WorkoutList workouts={studentWorkouts.slice(0, 1)} fallbackTitle={student.workout} />
+              <StudentWorkoutExecution
+                student={student}
+                workout={studentWorkouts[0]}
+                onCompleteWorkout={completeWorkoutFromStudent}
+              />
               {feedbackPrompt ? (
                 <WorkoutFeedbackPrompt
                   prompt={feedbackPrompt}
@@ -6640,7 +6809,6 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                   }}
                 />
               ) : null}
-              {onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={completeWorkoutFromStudent} /> : null}
             </>
           ) : (
             <Empty text="Seu treino ainda não foi liberado pelo coach." />
@@ -8012,6 +8180,19 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState('')
+  const autoBillingRunRef = useRef(false)
+  const [billingStudentId, setBillingStudentId] = useState(students[0]?.id ? String(students[0].id) : '')
+  const selectedBillingStudent = students.find((student) => String(student.id) === String(billingStudentId)) || students[0]
+  const selectedBillingPlan = coachPlans.find((plan) => plan.name === selectedBillingStudent?.plan) || coachPlans[0]
+  const selectedBillingAmount = getPlanBillingAmount(selectedBillingPlan?.name, coachPlans) || 0
+  const selectedBillingDueDate = getDueDateForPlan(selectedBillingPlan)
+
+  useEffect(() => {
+    if (!billingStudentId && students[0]?.id) {
+      setBillingStudentId(String(students[0].id))
+    }
+  }, [billingStudentId, students])
+
   const paidTotal = invoices
     .filter((invoice) => invoice.status === 'Pago')
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
@@ -8119,7 +8300,8 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     }
   }
 
-  async function handleCreateAutoCharges() {
+  async function handleCreateAutoCharges(options = {}) {
+    const silent = Boolean(options.silent)
     const openStudentIds = new Set(
       invoices
         .filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
@@ -8132,20 +8314,21 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     ))
 
     if (!chargeableStudents.length) {
-      setMessage('Nenhum aluno pendente sem cobrança em aberto.')
+      if (!silent) setMessage('Nenhum aluno pendente sem cobrança em aberto.')
       return
     }
 
     setSaving(true)
-    setMessage('')
+    if (!silent) setMessage('')
     setError('')
     try {
       for (const student of chargeableStudents) {
-        const amount = getPlanBillingAmount(student.plan, coachPlans) || 197
-        const dueDate = getDefaultDueDate()
+        const plan = coachPlans.find((item) => item.name === student.plan) || coachPlans[0]
+        const amount = getPlanBillingAmount(plan?.name, coachPlans) || 197
+        const dueDate = getDueDateForPlan(plan)
         await onSaveInvoice({
           studentId: student.id,
-          planName: student.plan || 'Acompanhamento',
+          planName: plan?.name || student.plan || 'Acompanhamento',
           description: buildBillingMessage(coachSettings?.billingMessage, { student, amount, dueDate, coachSettings }),
           amount,
           dueDate,
@@ -8153,13 +8336,25 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           paymentMethod: 'Pix',
         })
       }
-      setMessage(`${chargeableStudents.length} cobrança(s) criada(s) automaticamente.`)
+      setMessage(`${chargeableStudents.length} cobrança(s) criada(s) automaticamente conforme o ciclo do plano.`)
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível gerar as cobranças automáticas.')
     } finally {
       setSaving(false)
     }
   }
+
+  useEffect(() => {
+    if (autoBillingRunRef.current || saving || !students.length || coachSettings?.autoBillingEnabled === false) return
+    const hasChargeableStudent = students.some((student) => (
+      student.status !== 'Inativo'
+      && student.payment !== 'Pago'
+      && !invoices.some((invoice) => String(invoice.studentId) === String(student.id) && ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
+    ))
+    if (!hasChargeableStudent) return
+    autoBillingRunRef.current = true
+    handleCreateAutoCharges({ silent: true })
+  }, [students, invoices, saving, coachSettings?.autoBillingEnabled])
 
   return (
     <div className="grid gap-4 lg:gap-6">
@@ -8215,7 +8410,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           <div className="min-w-0">
             <p className="text-xs font-black uppercase text-amber-200">Cobrança automática dos alunos</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">
-              Gere cobranças para alunos pendentes, bloqueie o acesso até a validação e envie os dados de Pix do coach no próprio app.
+              O sistema identifica alunos pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">
               Pix: {coachSettings?.pixKey || 'cadastre em Configurações'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
@@ -8231,13 +8426,49 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
         <Panel title="Gerar cobrança" action="Financeiro">
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
-              <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
-              <Field label="Nome do plano" name="planName" defaultValue={coachPlans[0]?.name || 'Acompanhamento mensal'} />
+              <Select
+                label="Aluno"
+                name="studentId"
+                value={String(selectedBillingStudent?.id || '')}
+                onChange={(event) => setBillingStudentId(event.target.value)}
+                options={students.map((student) => ({
+                  label: `${student.name} - ${student.plan || 'sem plano'}`,
+                  value: student.id,
+                }))}
+              />
+              <Field
+                key={`plan-${selectedBillingStudent?.id || 'none'}-${selectedBillingPlan?.name || 'plan'}`}
+                label="Plano aplicado"
+                name="planName"
+                defaultValue={selectedBillingPlan?.name || selectedBillingStudent?.plan || 'Acompanhamento'}
+              />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Valor (R$)" name="amount" type="number" defaultValue={String(getPlanBillingAmount(coachPlans[0]?.name, coachPlans) || 197)} />
-                <Field label="Vencimento" name="dueDate" type="date" defaultValue={getDefaultDueDate()} />
+                <Field
+                  key={`amount-${selectedBillingStudent?.id || 'none'}-${selectedBillingAmount}`}
+                  label="Valor (R$)"
+                  name="amount"
+                  type="number"
+                  defaultValue={String(selectedBillingAmount || 197)}
+                />
+                <Field
+                  key={`due-${selectedBillingStudent?.id || 'none'}-${selectedBillingDueDate}`}
+                  label="Vencimento"
+                  name="dueDate"
+                  type="date"
+                  defaultValue={selectedBillingDueDate}
+                />
               </div>
-              <Field label="Descrição" name="description" defaultValue="Mensalidade do acompanhamento" />
+              <Field
+                key={`desc-${selectedBillingStudent?.id || 'none'}-${selectedBillingPlan?.name || 'plan'}`}
+                label="Descrição"
+                name="description"
+                defaultValue={buildBillingMessage(coachSettings?.billingMessage, {
+                  student: selectedBillingStudent,
+                  amount: selectedBillingAmount || 197,
+                  dueDate: selectedBillingDueDate,
+                  coachSettings,
+                })}
+              />
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
                 {saving ? 'Gerando...' : 'Gerar cobrança'}
               </button>
@@ -8715,6 +8946,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
     billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
+    autoBillingEnabled: settings?.autoBillingEnabled !== false,
     customPlans: getCoachPlans(settings),
     welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
@@ -8767,6 +8999,7 @@ function CoachSettings({ user, settings, onSave, onExport }) {
         billingPrimaryColor: form.get('billingPrimaryColor')?.toString().trim() || '#10b981',
         billingAccentColor: form.get('billingAccentColor')?.toString().trim() || '#0f172a',
         billingMessage: form.get('billingMessage')?.toString().trim() || current.billingMessage,
+        autoBillingEnabled: form.get('autoBillingEnabled') === 'on',
         customPlans: parseCustomPlans(plansDraft),
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
         timezone: current.timezone,
@@ -8848,6 +9081,18 @@ function CoachSettings({ user, settings, onSave, onExport }) {
                 </div>
               ))}
             </div>
+            <label className="mt-4 flex items-start gap-3 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm leading-6 text-zinc-200">
+              <input
+                name="autoBillingEnabled"
+                type="checkbox"
+                defaultChecked={current.autoBillingEnabled}
+                className="mt-1 h-4 w-4 accent-emerald-400"
+              />
+              <span>
+                <strong className="block text-emerald-100">Gerar cobranças automaticamente</strong>
+                O sistema cria cobranças para alunos pendentes sem cobrança em aberto, usando o valor e o ciclo do plano cadastrado.
+              </span>
+            </label>
           </div>
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar configurações'}
@@ -9310,7 +9555,7 @@ function Metric({ label, value, detail }) {
   return (
     <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
       <p className="text-sm text-zinc-400">{label}</p>
-      <h3 className="mt-2 break-words text-2xl font-black sm:mt-3 sm:text-3xl">{value}</h3>
+      <h3 className="metric-money-value mt-2 font-black sm:mt-3">{value}</h3>
       <p className="mt-2 text-xs font-semibold text-blue-300">{detail}</p>
     </div>
   )
@@ -9431,13 +9676,15 @@ function InlineSelect({ label, value, options, onChange }) {
   )
 }
 
-function Select({ label, name, defaultValue, options }) {
+function Select({ label, name, defaultValue, value, onChange, options }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <select
         name={name}
+        value={value}
         defaultValue={defaultValue}
+        onChange={onChange}
         className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       >
         {options.map((option) => {
@@ -10280,6 +10527,22 @@ function getDefaultAppointmentDate() {
 function getDefaultDueDate() {
   const date = new Date()
   date.setDate(date.getDate() + 7)
+  const offset = date.getTimezoneOffset() * 60 * 1000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+}
+
+function getDueDateForPlan(plan) {
+  const date = new Date()
+  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
+  if (cycle === 'semanal') {
+    date.setDate(date.getDate() + 7)
+  } else if (cycle === 'semestral') {
+    date.setMonth(date.getMonth() + 6)
+  } else if (cycle === 'anual') {
+    date.setFullYear(date.getFullYear() + 1)
+  } else {
+    date.setMonth(date.getMonth() + 1)
+  }
   const offset = date.getTimezoneOffset() * 60 * 1000
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }

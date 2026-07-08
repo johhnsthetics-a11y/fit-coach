@@ -168,6 +168,18 @@ textarea {
   white-space: normal;
 }
 
+.app-shell .metric-money-value {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  font-size: clamp(1.35rem, 1.55vw, 1.88rem);
+  line-height: 1.04;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
 .app-shell {
   --brand-emerald: #00d2b2;
   --brand-emerald-soft: #a7fff1;
@@ -683,6 +695,9 @@ textarea {
   top: 76px;
   left: 50%;
   width: min(50%, 304px);
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
 }
 
 .sales-hero-phone-1 {
@@ -758,6 +773,50 @@ textarea {
   z-index: 2;
   transform: translateX(14%) translateY(58px) scale(0.98) rotate(8deg);
   opacity: 0.72;
+}
+
+.sales-hero-phone-wrap .sales-phone-mockup.is-active,
+.sales-hero-phone-wrap .sales-phone-mockup.is-active:hover {
+  z-index: 8;
+  transform: translateX(-50%) translateY(0) scale(1.2) rotate(0deg);
+  opacity: 1;
+  border-color: rgba(0, 210, 178, 0.58);
+  box-shadow:
+    0 34px 100px rgba(0, 0, 0, 0.58),
+    0 0 46px rgba(0, 210, 178, 0.18);
+}
+
+.sales-hero-phone-wrap .sales-phone-mockup:focus-visible {
+  outline: 3px solid rgba(0, 210, 178, 0.5);
+  outline-offset: 8px;
+}
+
+.sales-showcase-tabs {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.sales-showcase-tab {
+  height: 8px;
+  width: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
+  transition:
+    width 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.sales-showcase-tab.is-active {
+  width: 42px;
+  background: linear-gradient(90deg, #00d2b2, #5fffd8);
+  box-shadow: 0 0 22px rgba(0, 210, 178, 0.28);
 }
 
 .sales-phone-screen {
@@ -1179,9 +1238,24 @@ textarea {
     opacity: 0.42;
   }
 
+  .sales-hero-phone-wrap .sales-phone-mockup.is-active,
+  .sales-hero-phone-wrap .sales-phone-mockup.is-active:hover {
+    z-index: 8;
+    transform: translateX(-50%) translateY(0) scale(1.04) rotate(0deg);
+    opacity: 1;
+  }
+
   .sales-hero-phone-1 .sales-floating-badge,
   .sales-hero-phone-3 .sales-floating-badge {
     display: none;
+  }
+
+  .sales-hero-phone-wrap .sales-phone-mockup.is-active .sales-floating-badge {
+    display: flex;
+  }
+
+  .sales-showcase-tabs {
+    bottom: 18px;
   }
 
   .sales-floating-badge.top {
