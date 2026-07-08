@@ -2312,6 +2312,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
+  const [legalModal, setLegalModal] = useState('')
   const [revenueScenario, setRevenueScenario] = useState({
     students: 20,
     monthlyPrice: 250,
@@ -3346,8 +3347,76 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       </main>
 
       <footer className="border-t border-white/10 bg-[#05070d] px-4 py-6 text-center text-xs text-zinc-500">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
+          <span>Coach Fit Pro · Gestão profissional de acompanhamento</span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button type="button" onClick={() => setLegalModal('terms')} className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
+              Termos de uso
+            </button>
+            <button type="button" onClick={() => setLegalModal('privacy')} className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
+              Privacidade
+            </button>
+            <a href="mailto:sac@coachfitpro.com.br" className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 font-bold text-emerald-100 transition hover:border-emerald-300/50">
+              Suporte
+            </a>
+          </div>
+        </div>
+        <span className="sr-only">
         Coach Fit Pro · Gestão profissional de acompanhamento
+        </span>
       </footer>
+      <LegalModal type={legalModal} onClose={() => setLegalModal('')} />
+    </div>
+  )
+}
+
+function LegalModal({ type, onClose }) {
+  if (!type) return null
+
+  const isPrivacy = type === 'privacy'
+  const title = isPrivacy ? 'Privacidade e dados' : 'Termos de uso'
+  const intro = isPrivacy
+    ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar o painel do treinador e o acesso do aluno.'
+    : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional e relação com o aluno continuam sob responsabilidade do treinador.'
+  const items = isPrivacy
+    ? [
+        'Dados sensíveis devem ser usados apenas com consentimento do aluno e finalidade de acompanhamento.',
+        'Fotos, check-ins e mensagens ficam vinculados ao treinador responsável e ao aluno cadastrado.',
+        'Chaves de API e integrações ficam protegidas no ambiente seguro da Supabase, não no navegador do usuário.',
+        'Solicitações sobre dados podem ser enviadas para sac@coachfitpro.com.br.',
+      ]
+    : [
+        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
+        'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
+        'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout.',
+        'O acesso pode ser limitado em caso de uso indevido, inadimplência ou violação de segurança.',
+      ]
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-zinc-950 p-5 text-zinc-100 shadow-2xl shadow-black/50 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
+            <h2 className="mt-2 text-2xl font-black">{title}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 text-xl font-black text-zinc-300 transition hover:border-emerald-300/40 hover:text-white" aria-label="Fechar">
+            ×
+          </button>
+        </div>
+        <p className="mt-5 text-sm leading-7 text-zinc-300">{intro}</p>
+        <div className="mt-5 grid gap-3">
+          {items.map((item) => (
+            <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">
+              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 text-xs leading-5 text-zinc-500">
+          Este resumo é uma base operacional para lançamento. A versão jurídica final deve ser revisada por um profissional especializado antes de escalar campanhas.
+        </p>
+      </div>
     </div>
   )
 }
