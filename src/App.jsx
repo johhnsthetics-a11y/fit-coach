@@ -82,7 +82,7 @@ const cartpandaCheckoutPlans = [
     description: 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
     highlights: ['Acesso completo ao painel', 'Menos renovações no ano', 'Rotina financeira previsível', 'Boa opção para equipes em crescimento'],
     bestFor: 'Coach que já tem carteira ativa e quer estruturar a operação sem ficar repensando assinatura todo mês.',
-    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, reduzir retrabalho e aumentar percepção de valor.',
+    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, ganhar controle e aumentar percepção de valor.',
     activationPlan: ['Ativar o semestre com economia', 'Organizar alunos por planos e vencimentos', 'Criar rotina de treinos, dieta, check-ins e cobrança'],
     decisionPoints: ['equilíbrio ideal', 'economia sem travar por um ano', 'mais previsibilidade'],
   },
@@ -2457,7 +2457,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className="sales-page fit-gradient-bg min-h-screen text-zinc-100">
+    <div id="sales-page" className="sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100">
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
@@ -2526,7 +2526,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-blue-300/25 bg-blue-400/10 px-4 py-3 text-sm font-black text-blue-100">
               <span className="h-2 w-2 rounded-full bg-blue-300 shadow-[0_0_18px_rgba(59,130,246,0.8)]" />
-              + organização, + percepção de valor, - retrabalho
+              + organização, + percepção de valor, + rotina profissional
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
               {[
@@ -2639,7 +2639,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 É vender consultoria premium usando uma operação improvisada.
               </h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-zinc-400">
-                O aluno esquece carga, perde mensagem, não vê evolução e o treinador fica preso em cobrança manual, prints e retrabalho.
+                O aluno esquece carga, perde mensagem, não vê evolução e o treinador fica preso em cobrança manual, prints e processos espalhados.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -2659,7 +2659,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
-        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="app-aluno" className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Visual de aplicativo</p>
@@ -3055,7 +3055,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <p className="mt-4 leading-7 text-zinc-400">Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.</p>
             </div>
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
-              <div data-reveal className="rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
+              <div data-reveal className="sales-objection-positive rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
                 <p className="text-xs font-black uppercase text-emerald-300">O Coach Fit Pro faz sentido para você que</p>
                 <div className="mt-4 grid gap-3">
                   {[
@@ -3066,8 +3066,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ].map((item) => <ObjectionPoint key={item} text={item} positive />)}
                 </div>
               </div>
-              <div data-reveal className="rounded-md border border-white/10 bg-white/[0.03] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-zinc-400">O sistema não promete atalhos</p>
+              <div data-reveal className="sales-objection-warning rounded-md border border-rose-400/25 bg-rose-500/[0.06] p-5 sm:p-6">
+                <p className="text-xs font-black uppercase text-rose-200">Pontos importantes antes de começar</p>
                 <div className="mt-4 grid gap-3">
                   {[
                     'Não substitui sua análise e sua responsabilidade profissional.',
@@ -3264,7 +3264,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     {[
                       ['Entrega premium', 'treino, dieta, check-ins e chat em um só fluxo'],
                       ['Mais percepção', 'o aluno sente que está dentro de uma operação profissional'],
-                      ['Menos retrabalho', 'processos organizados para vender e acompanhar melhor'],
+                      ['Mais controle', 'processos organizados para vender e acompanhar melhor'],
                     ].map(([title, text]) => (
                       <div key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
                         <p className="text-sm font-black text-white">{title}</p>
@@ -3473,8 +3473,10 @@ function SalesPhoneShowcase() {
 
 function ObjectionPoint({ text, positive = false }) {
   return (
-    <div className="flex gap-3 text-sm leading-6 text-zinc-300">
-      <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${positive ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
+    <div className={`flex gap-3 text-sm leading-6 ${positive ? 'text-emerald-50' : 'text-rose-50'}`}>
+      <span className={`mt-2 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${positive ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'}`}>
+        {positive ? '✓' : '!'}
+      </span>
       <p>{text}</p>
     </div>
   )
@@ -9175,7 +9177,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         <AdminAccordionSection title="Página de vendas" action="Textos principais" open={openSections.sales} onToggle={() => toggleSection('sales')}>
           <div className="grid gap-4">
             <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
-            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: menos retrabalho, mais organização e melhor experiência para o aluno." />
+            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: mais controle, mais organização e melhor experiência para o aluno." />
             <div className="grid gap-4 sm:grid-cols-2">
               <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar agora." />
               <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />

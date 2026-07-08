@@ -1170,6 +1170,49 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+.sales-page-condensed main > section:nth-of-type(6),
+.sales-page-condensed main > section:nth-of-type(7),
+.sales-page-condensed main > section:nth-of-type(8),
+.sales-page-condensed main > section:nth-of-type(9),
+.sales-page-condensed main > section:nth-of-type(10),
+.sales-page-condensed main > section:nth-of-type(11),
+.sales-page-condensed main > section:nth-of-type(14),
+.sales-page-condensed main > section:nth-of-type(17) {
+  display: none;
+}
+
+.sales-page-condensed .sales-section {
+  padding-top: clamp(2.4rem, 5vw, 4rem);
+  padding-bottom: clamp(2.4rem, 5vw, 4rem);
+}
+
+.sales-page-condensed .sales-hero {
+  min-height: auto;
+  padding-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.sales-page-condensed #precos {
+  padding-top: clamp(3rem, 6vw, 4.75rem);
+}
+
+.sales-page-condensed #duvidas details:nth-of-type(n + 5) {
+  display: none;
+}
+
+.sales-page-condensed .sales-objection-positive {
+  border-color: rgba(52, 211, 153, 0.32);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(52, 211, 153, 0.12), transparent 34%),
+    rgba(6, 78, 59, 0.16);
+}
+
+.sales-page-condensed .sales-objection-warning {
+  border-color: rgba(244, 63, 94, 0.28);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(244, 63, 94, 0.12), transparent 34%),
+    rgba(76, 5, 25, 0.16);
+}
+
 .interactive-surface {
   --pointer-x: 50%;
   --pointer-y: 50%;
