@@ -129,9 +129,12 @@ const defaultAppAdminSettings = {
   },
 }
 const ADMIN_SETTINGS_STORAGE_KEY = 'coachfitpro-admin-settings-preview'
-const ADMIN_EMAILS = (import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || 'sac@coachfitpro.com.br,admin@coachfitpro.com.br,john@coachfitpro.com.br,johhnsthetics@gmail.com')
-  .split(',')
-  .map((email) => email.trim().toLowerCase())
+const DEFAULT_ADMIN_EMAILS = ['sac@coachfitpro.com.br', 'admin@coachfitpro.com.br', 'john@coachfitpro.com.br', 'johhnsthetics@gmail.com']
+const ADMIN_EMAILS = [
+  ...DEFAULT_ADMIN_EMAILS,
+  ...(import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || '').split(','),
+]
+  .map((email) => email.trim().toLowerCase().replace(/^vite_fitcoach_admin_emails=/i, ''))
   .filter(Boolean)
 
 const salesHeroHeadlines = [
@@ -207,7 +210,13 @@ function saveLocalAdminSettings(settings) {
 }
 
 function isMasterAdmin(user, sessionUser = null) {
-  const email = String(user?.email || sessionUser?.email || '').toLowerCase()
+  const email = String(
+    user?.email
+    || sessionUser?.email
+    || sessionUser?.user_metadata?.email
+    || sessionUser?.identities?.[0]?.identity_data?.email
+    || '',
+  ).trim().toLowerCase()
   return Boolean(email && (ADMIN_EMAILS.includes(email) || email.endsWith('@coachfitpro.com.br')))
 }
 
