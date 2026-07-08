@@ -6,6 +6,7 @@ import {
   archiveRemoteWorkout,
   createRemoteStudentInvite,
   deleteRemoteStudent,
+  fetchRemoteExerciseMedia,
   loadRemoteData,
   loadRemoteAppAdminSettings,
   loadRemoteMessages,
@@ -4749,6 +4750,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     createExerciseDraft('Remada baixa', { sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' }),
     createExerciseDraft('Desenvolvimento com halteres', { sets: '3', reps: '8-10', load: 'RPE 7', rest: '75s' }),
   ])
+  const [resolvingExerciseIndex, setResolvingExerciseIndex] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -4787,6 +4789,45 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     setExercises((current) => current.map((exercise, itemIndex) => (
       itemIndex === index ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '' } : exercise
     )))
+  }
+
+  async function resolveExerciseFromApi(index) {
+    const exercise = exercises[index]
+    if (!exercise?.name?.trim()) {
+      setError('Digite o nome do exercício antes de buscar na AscendAPI.')
+      return
+    }
+    if (!supabaseEnabled) {
+      setError('Conecte o Supabase para buscar exercícios pela AscendAPI.')
+      return
+    }
+
+    setResolvingExerciseIndex(index)
+    setError('')
+    setMessage('')
+    try {
+      const apiExercise = await fetchRemoteExerciseMedia(exercise.name)
+      setExercises((current) => current.map((item, itemIndex) => (
+        itemIndex === index
+          ? {
+            ...item,
+            name: apiExercise.name || item.name,
+            muscleGroup: apiExercise.group || item.muscleGroup,
+            equipment: apiExercise.equipment || item.equipment,
+            instructions: apiExercise.cues || item.instructions,
+            videoUrl: apiExercise.videoUrl || item.videoUrl,
+            thumbnailUrl: apiExercise.thumbnailUrl || item.thumbnailUrl,
+            imageUrl: apiExercise.imageUrl || apiExercise.thumbnailUrl || item.imageUrl,
+            ascendapiId: apiExercise.externalId || apiExercise.exerciseId || item.ascendapiId,
+          }
+          : item
+      )))
+      setMessage(apiExercise.videoUrl ? 'Exercício encontrado com mídia da AscendAPI.' : 'Exercício encontrado. A API não enviou vídeo para este item, então o app usará a ficha técnica.')
+    } catch (apiError) {
+      setError(apiError?.message || 'Não foi possível buscar este exercício na AscendAPI.')
+    } finally {
+      setResolvingExerciseIndex(null)
+    }
   }
 
   function removeExercise(index) {
@@ -4905,6 +4946,22 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
             <details className="mt-4 rounded-md border border-white/10 bg-zinc-950/55">
               <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação e vídeo de execução</summary>
               <div className="grid gap-3 border-t border-white/10 p-3">
+                <div className="flex flex-col gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-emerald-100">Buscar mídia profissional</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                      Puxa vídeo, imagem, músculo-alvo e instruções pela AscendAPI. Use quando quiser completar o exercício automaticamente.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={resolvingExerciseIndex === index}
+                    onClick={() => resolveExerciseFromApi(index)}
+                    className="rounded-md bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {resolvingExerciseIndex === index ? 'Buscando...' : 'Buscar na AscendAPI'}
+                  </button>
+                </div>
                 <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
                   Orientações técnicas
                   <textarea
@@ -5051,6 +5108,7 @@ function getExerciseLibrary(remoteItems = []) {
       cues: exercise.cues || exercise.instructions || local.cues || '',
       videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
       thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
+      imageUrl: exercise.imageUrl || exercise.image_url || exercise.thumbnailUrl || local.imageUrl || local.thumbnailUrl || '',
       aliases: [...new Set([...(local.aliases || []), ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])])],
     })
   })
@@ -5094,6 +5152,7 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     instructions: profile?.cues ?? '',
     videoUrl: profile?.videoUrl ?? '',
     thumbnailUrl: profile?.thumbnailUrl ?? '',
+    imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
     videoFile: null,
     videoFileName: '',
     ...overrides,
@@ -5109,6 +5168,7 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     instructions: exercise.instructions || profile?.cues || '',
     videoUrl: exercise.videoUrl || profile?.videoUrl || '',
     thumbnailUrl: exercise.thumbnailUrl || profile?.thumbnailUrl || '',
+    imageUrl: exercise.imageUrl || profile?.imageUrl || profile?.thumbnailUrl || '',
     videoFile: exercise.videoFile || null,
     videoFileName: exercise.videoFileName || '',
   }
@@ -5145,6 +5205,11 @@ function getVideoEmbedUrl(value) {
     return ''
   }
   return ''
+}
+
+function getExerciseVideoUrl(exercise) {
+  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
 }
 
 function isDirectVideoUrl(value) {
@@ -5225,16 +5290,23 @@ function ExerciseMedia({ exercise, compact = false }) {
 
 function ExerciseTechniqueCard({ exercise, compact = false }) {
   const target = exercise.muscleGroup || 'Músculo alvo'
+  const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
   return (
     <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
-          <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
-          <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
-          <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
-          <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
-          <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
-          <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
+          {imageUrl ? (
+            <img src={imageUrl} alt={`Execução de ${exercise.name}`} className="h-full w-full object-cover" />
+          ) : (
+            <>
+              <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
+              <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
+              <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
+              <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
+              <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
+              <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
+            </>
+          )}
           <span className="absolute bottom-2 left-2 rounded-full border border-emerald-300/25 bg-zinc-950/80 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">
             {target}
           </span>
@@ -5247,6 +5319,14 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
           <p className="mt-2 text-xs leading-5 text-zinc-500">
             O treinador pode vincular um vídeo próprio ou um vídeo da biblioteca para este exercício aparecer aqui.
           </p>
+          <a
+            href={getExerciseVideoUrl(exercise)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100"
+          >
+            Buscar execução no YouTube
+          </a>
         </div>
       </div>
     </div>

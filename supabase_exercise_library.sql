@@ -4,14 +4,18 @@
 
 create table if not exists public.exercise_library (
   id uuid primary key default gen_random_uuid(),
+  external_id text,
   name text not null unique,
   muscle_group text not null default '',
   equipment text default '',
   instructions text default '',
   video_url text default '',
+  image_url text default '',
   thumbnail_url text default '',
   muscle_map text default '',
   aliases text[] default '{}',
+  provider text default 'coachfit',
+  source_payload jsonb default '{}'::jsonb,
   active boolean default true,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -163,4 +167,3 @@ set
 -- update public.exercise_library
 -- set video_url = 'https://SEU-PROJETO.supabase.co/storage/v1/object/public/exercise-library-videos/supino-reto.mp4'
 -- where name = 'Supino reto com barra';
-

@@ -146,6 +146,32 @@ async function rpcRequest(functionName, body) {
   })
 }
 
+async function functionRequest(functionName, body) {
+  if (!supabaseEnabled) {
+    throw new Error('Supabase não configurado')
+  }
+
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  })
+
+  const text = await response.text()
+  let payload = {}
+  try {
+    payload = text ? JSON.parse(text) : {}
+  } catch {
+    payload = { message: text }
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error || payload.message || `Erro na função ${functionName}`)
+  }
+
+  return payload
+}
+
 export async function signUpCoach({ name, email, password }) {
   const payload = await authRequest('signup', {
     email,
@@ -302,6 +328,18 @@ export async function loadRemoteStudentMessagesByInvite(inviteCode) {
   if (!inviteCode) return []
   const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
   return (Array.isArray(result) ? result : []).map(fromMessageRow)
+}
+
+export async function fetchRemoteExerciseMedia(query) {
+  const search = String(query || '').trim()
+  if (!search) throw new Error('Digite o nome do exercício antes de buscar na biblioteca.')
+
+  const payload = await functionRequest('ascendapi-exercises', { query: search })
+  if (!payload?.exercise) {
+    throw new Error(payload?.message || 'Exercício não encontrado na AscendAPI.')
+  }
+
+  return payload.exercise
 }
 
 export async function upsertRemoteUser(user) {
@@ -588,6 +626,8 @@ export async function saveRemoteWorkout(workout, coachId) {
         equipment: exercise.equipment || null,
         instructions: exercise.instructions || null,
         video_url: uploadedVideoUrl || exercise.videoUrl || null,
+        image_url: exercise.imageUrl || exercise.thumbnailUrl || null,
+        external_id: exercise.ascendapiId || exercise.exerciseId || null,
         order_index: index,
       }
     }))
@@ -1148,6 +1188,9 @@ function fromWorkoutRow(row) {
         equipment: exercise.equipment ?? '',
         instructions: exercise.instructions ?? '',
         videoUrl: exercise.video_url ?? '',
+        imageUrl: exercise.image_url ?? '',
+        thumbnailUrl: exercise.image_url ?? '',
+        ascendapiId: exercise.external_id ?? '',
       })),
   }
 }
@@ -1160,7 +1203,10 @@ function fromExerciseLibraryRow(row) {
     equipment: row.equipment ?? '',
     cues: row.instructions ?? row.cues ?? '',
     videoUrl: row.video_url ?? '',
-    thumbnailUrl: row.thumbnail_url ?? '',
+    thumbnailUrl: row.thumbnail_url ?? row.image_url ?? '',
+    imageUrl: row.image_url ?? row.thumbnail_url ?? '',
+    externalId: row.external_id ?? row.exercise_id ?? '',
+    exerciseId: row.external_id ?? row.exercise_id ?? '',
     muscleMap: row.muscle_map ?? '',
     aliases: Array.isArray(row.aliases) ? row.aliases : [],
     source: 'supabase',
