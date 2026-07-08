@@ -413,6 +413,7 @@ function createInitialData() {
     workouts: [],
     nutritionPlans: [],
     workoutLogs: [],
+    exerciseLibrary: [],
     messages: [],
     appointments: [],
     invoices: [],
@@ -525,6 +526,7 @@ function useStoredData() {
           workouts: remoteData.workouts ?? [],
           nutritionPlans: remoteData.nutritionPlans ?? [],
           workoutLogs: remoteData.workoutLogs ?? [],
+          exerciseLibrary: remoteData.exerciseLibrary ?? current.exerciseLibrary ?? [],
           messages: remoteData.messages ?? [],
           appointments: remoteData.appointments ?? [],
           invoices: remoteData.invoices ?? [],
@@ -1896,6 +1898,7 @@ export default function App() {
         workouts={studentAccess.workouts ?? []}
         nutritionPlans={studentAccess.nutritionPlans ?? []}
         workoutLogs={mergeRecords(data.workoutLogs, studentAccess.workoutLogs)}
+        exerciseLibraryItems={studentAccess.exerciseLibrary ?? data.exerciseLibrary ?? []}
         messages={mergeRecords(data.messages, studentAccess.messages)}
         appointments={studentAccess.appointments ?? []}
         invoices={studentAccess.invoices ?? []}
@@ -2124,6 +2127,7 @@ export default function App() {
                 students={data.students}
                 workouts={data.workouts ?? []}
                 workoutLogs={data.workoutLogs ?? []}
+                exerciseLibraryItems={data.exerciseLibrary ?? []}
                 onSaveWorkout={saveWorkout}
                 onArchiveWorkout={archiveWorkout}
                 onSaveStudent={saveStudent}
@@ -2196,6 +2200,7 @@ export default function App() {
                 workouts={data.workouts ?? []}
                 nutritionPlans={data.nutritionPlans ?? []}
                 workoutLogs={data.workoutLogs ?? []}
+                exerciseLibraryItems={data.exerciseLibrary ?? []}
                 messages={data.messages ?? []}
                 appointments={data.appointments ?? []}
                 invoices={data.invoices ?? []}
@@ -4643,7 +4648,8 @@ function AssessmentValue({ label, value, suffix, previous }) {
   )
 }
 
-function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWorkout, onArchiveWorkout, onSaveStudent }) {
+function Workouts({ selectedStudent, students, workouts, workoutLogs, exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, onSaveStudent }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
   ))
@@ -4653,14 +4659,14 @@ function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWork
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
       <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
         {students.length ? (
-          <WorkoutForm students={students} selectedStudent={selectedStudent} onSaveWorkout={onSaveWorkout} />
+          <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
         ) : (
           <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
         )}
       </Panel>
 
       <Panel title="Treinos prescritos" action={`${studentWorkouts.length} ativos`}>
-        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} onArchive={onArchiveWorkout} />
+        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} exerciseLibraryItems={availableExerciseLibrary} onArchive={onArchiveWorkout} />
       </Panel>
 
       <Panel title="Notas de carga" action="Progressão">
@@ -4736,7 +4742,8 @@ function LoadNotesPanel({ student, logs, onSaveStudent }) {
   )
 }
 
-function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
+function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exerciseLibrary, onSaveWorkout }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [exercises, setExercises] = useState([
     createExerciseDraft('Supino reto com barra', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '90s' }),
     createExerciseDraft('Remada baixa', { sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' }),
@@ -4746,6 +4753,10 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
+  }, [availableExerciseLibrary])
+
   function updateExercise(index, field, value) {
     setExercises((current) => current.map((exercise, itemIndex) => (
       itemIndex === index ? { ...exercise, [field]: value } : exercise
@@ -4753,7 +4764,7 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
   }
 
   function updateExerciseName(index, value) {
-    const profile = findExerciseProfile(value)
+    const profile = findExerciseProfile(value, availableExerciseLibrary)
     setExercises((current) => current.map((exercise, itemIndex) => {
       if (itemIndex !== index) return exercise
       return {
@@ -4762,12 +4773,14 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
         muscleGroup: profile?.group ?? exercise.muscleGroup,
         equipment: profile?.equipment ?? exercise.equipment,
         instructions: profile?.cues ?? exercise.instructions,
+        videoUrl: profile?.videoUrl || exercise.videoUrl || '',
+        thumbnailUrl: profile?.thumbnailUrl || exercise.thumbnailUrl || '',
       }
     }))
   }
 
   function addExercise(name = '') {
-    setExercises((current) => [...current, createExerciseDraft(name)])
+    setExercises((current) => [...current, createExerciseDraft(name, {}, availableExerciseLibrary)])
   }
 
   function updateExerciseVideoFile(index, file) {
@@ -4804,7 +4817,7 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
         title: form.get('title')?.toString() || 'Treino',
         focus: form.get('focus')?.toString() || '',
         notes: form.get('notes')?.toString() || '',
-        exercises: filledExercises.map(enrichExercise),
+        exercises: filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
       })
       setMessage('Treino salvo e liberado para o aluno.')
     } catch (saveError) {
@@ -4834,10 +4847,10 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
             <p className="text-sm font-black text-emerald-100">Biblioteca rápida</p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">Escolha um movimento comum ou digite livremente no campo de exercício.</p>
           </div>
-          <span className="w-fit rounded border border-emerald-300/20 px-2 py-1 text-xs font-bold text-emerald-200">{exerciseLibrary.length} exercícios</span>
+          <span className="w-fit rounded border border-emerald-300/20 px-2 py-1 text-xs font-bold text-emerald-200">{availableExerciseLibrary.length} exercícios</span>
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-soft">
-          {exerciseLibrary.slice(0, 10).map((exercise) => (
+          {availableExerciseLibrary.slice(0, 10).map((exercise) => (
             <button
               key={exercise.name}
               type="button"
@@ -4851,7 +4864,7 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
       </div>
 
       <datalist id="exercise-library-options">
-        {exerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
+        {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
       </datalist>
 
       <div className="space-y-3">
@@ -4912,7 +4925,7 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
                       className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950"
                     />
                     <span className="text-[11px] normal-case leading-4 tracking-normal text-zinc-500">
-                      {exercise.videoFileName || 'Opcional. Se não enviar, o app mostra a imagem técnica do movimento.'}
+                      {exercise.videoFileName || 'Opcional. Se não enviar, o app usa o vídeo da biblioteca ou uma ficha técnica do movimento.'}
                     </span>
                   </label>
                 </div>
@@ -4945,7 +4958,8 @@ function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
   )
 }
 
-function WorkoutList({ workouts, fallbackTitle, onArchive }) {
+function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(workout) {
@@ -4990,7 +5004,7 @@ function WorkoutList({ workouts, fallbackTitle, onArchive }) {
           </div>
           <div className="mt-4 grid gap-3">
             {workout.exercises.map((exercise, index) => {
-              const enriched = enrichExercise(exercise)
+              const enriched = enrichExercise(exercise, availableExerciseLibrary)
               return (
                 <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-md border border-white/10 bg-zinc-950/55 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -5020,17 +5034,46 @@ function WorkoutList({ workouts, fallbackTitle, onArchive }) {
   )
 }
 
-function findExerciseProfile(value) {
+function getExerciseLibrary(remoteItems = []) {
+  const records = new Map()
+  const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
+
+  ;(remoteItems || []).forEach((exercise) => {
+    if (!exercise?.name) return
+    const key = normalizeText(exercise.name)
+    const local = localByName.get(key) || {}
+    records.set(key, {
+      ...local,
+      ...exercise,
+      name: local.name || exercise.name,
+      group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
+      equipment: exercise.equipment || local.equipment || '',
+      cues: exercise.cues || exercise.instructions || local.cues || '',
+      videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
+      thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
+      aliases: [...new Set([...(local.aliases || []), ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])])],
+    })
+  })
+
+  exerciseLibrary.forEach((exercise) => {
+    const key = normalizeText(exercise.name)
+    if (!records.has(key)) records.set(key, exercise)
+  })
+
+  return [...records.values()]
+}
+
+function findExerciseProfile(value, library = exerciseLibrary) {
   const normalized = normalizeText(value)
   if (!normalized) return null
 
-  const exact = exerciseLibrary.find((exercise) => (
+  const exact = library.find((exercise) => (
     [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalized)
   ))
   if (exact) return exact
 
   if (normalized.length < 4) return null
-  return exerciseLibrary.find((exercise) => (
+  return library.find((exercise) => (
     [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => {
       const normalizedCandidate = normalizeText(candidate)
       return normalizedCandidate.includes(normalized) || normalized.includes(normalizedCandidate)
@@ -5038,8 +5081,8 @@ function findExerciseProfile(value) {
   )) ?? null
 }
 
-function createExerciseDraft(name = '', overrides = {}) {
-  const profile = findExerciseProfile(name)
+function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrary) {
+  const profile = findExerciseProfile(name, library)
   return {
     name,
     sets: '3',
@@ -5049,21 +5092,23 @@ function createExerciseDraft(name = '', overrides = {}) {
     muscleGroup: profile?.group ?? '',
     equipment: profile?.equipment ?? '',
     instructions: profile?.cues ?? '',
-    videoUrl: '',
+    videoUrl: profile?.videoUrl ?? '',
+    thumbnailUrl: profile?.thumbnailUrl ?? '',
     videoFile: null,
     videoFileName: '',
     ...overrides,
   }
 }
 
-function enrichExercise(exercise) {
-  const profile = findExerciseProfile(exercise.name)
+function enrichExercise(exercise, library = exerciseLibrary) {
+  const profile = findExerciseProfile(exercise.name, library)
   return {
     ...exercise,
     muscleGroup: exercise.muscleGroup || profile?.group || '',
     equipment: exercise.equipment || profile?.equipment || '',
     instructions: exercise.instructions || profile?.cues || '',
-    videoUrl: exercise.videoUrl || '',
+    videoUrl: exercise.videoUrl || profile?.videoUrl || '',
+    thumbnailUrl: exercise.thumbnailUrl || profile?.thumbnailUrl || '',
     videoFile: exercise.videoFile || null,
     videoFileName: exercise.videoFileName || '',
   }
@@ -5077,13 +5122,6 @@ function safeExternalUrl(value) {
   } catch {
     return ''
   }
-}
-
-function getExerciseVideoUrl(exercise) {
-  const customUrl = safeExternalUrl(exercise.videoUrl)
-  if (customUrl) return customUrl
-  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
 }
 
 function getVideoEmbedUrl(value) {
@@ -5134,24 +5172,27 @@ function ExerciseMedia({ exercise, compact = false }) {
   const embedUrl = getVideoEmbedUrl(exercise.videoUrl)
   const hasCustomVideo = Boolean(videoUrl)
 
-  if (videoUrl && isDirectVideoUrl(videoUrl) && !compact) {
+  if (videoUrl && isDirectVideoUrl(videoUrl)) {
     return (
-      <div className="overflow-hidden rounded-md border border-emerald-300/20 bg-black">
-        <video
-          src={videoUrl}
-          controls
-          preload="metadata"
-          playsInline
-          className="aspect-video h-full w-full bg-black object-contain"
-        />
-      </div>
+      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
+        <div className="aspect-video border-t border-white/10 bg-black">
+          <video
+            src={videoUrl}
+            controls
+            preload="metadata"
+            playsInline
+            className="h-full w-full bg-black object-contain"
+          />
+        </div>
+      </details>
     )
   }
 
-  if (embedUrl && !compact) {
+  if (embedUrl) {
     return (
       <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Assistir vídeo de execução</summary>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <iframe
             src={embedUrl}
@@ -5179,15 +5220,36 @@ function ExerciseMedia({ exercise, compact = false }) {
     )
   }
 
+  return <ExerciseTechniqueCard exercise={exercise} compact={compact} />
+}
+
+function ExerciseTechniqueCard({ exercise, compact = false }) {
+  const target = exercise.muscleGroup || 'Músculo alvo'
   return (
-    <a
-      href={getExerciseVideoUrl(exercise)}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
-    >
-      Buscar vídeo de execução no YouTube
-    </a>
+    <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
+          <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
+          <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
+          <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
+          <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
+          <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
+          <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
+          <span className="absolute bottom-2 left-2 rounded-full border border-emerald-300/25 bg-zinc-950/80 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">
+            {target}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black uppercase text-emerald-200">Vídeo ainda não cadastrado na biblioteca</p>
+          <p className="mt-1 text-sm leading-6 text-zinc-300">
+            {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">
+            O treinador pode vincular um vídeo próprio ou um vídeo da biblioteca para este exercício aparecer aqui.
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -5263,8 +5325,9 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
   )
 }
 
-function StudentWorkoutExecution({ student, workout, onCompleteWorkout, preview = false }) {
-  const exercises = (workout?.exercises || []).map(enrichExercise)
+function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+  const exercises = (workout?.exercises || []).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const [loads, setLoads] = useState({})
   const [effort, setEffort] = useState('Moderado')
   const [saving, setSaving] = useState(false)
@@ -5931,6 +5994,7 @@ function StudentPortalPreview({
   workouts = [],
   nutritionPlans = [],
   workoutLogs = [],
+  exerciseLibraryItems = [],
   messages = [],
   appointments = [],
   invoices = [],
@@ -5944,6 +6008,7 @@ function StudentPortalPreview({
   onRemoteError,
   canGenerateInvite = true,
 }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(student?.id) && workout.active !== false
@@ -6099,12 +6164,13 @@ function StudentPortalPreview({
                 Esta prévia mostra a tela de execução do treino com vídeo, orientação e campo de carga que o aluno registra no celular.
               </p>
             </div>
-            <StudentWorkoutExecution
-              student={student}
-              workout={studentWorkouts[0]}
-              onCompleteWorkout={onCompleteWorkout}
-              preview
-            />
+        <StudentWorkoutExecution
+          student={student}
+          workout={studentWorkouts[0]}
+          exerciseLibraryItems={availableExerciseLibrary}
+          onCompleteWorkout={onCompleteWorkout}
+          preview
+        />
           </div>
         ) : (
           <div className="space-y-3">
@@ -6783,7 +6849,7 @@ function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -6808,6 +6874,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       workouts={workouts}
       nutritionPlans={nutritionPlans}
       workoutLogs={workoutLogs}
+      exerciseLibraryItems={exerciseLibraryItems}
       messages={messages}
       appointments={appointments}
       invoices={invoices}
@@ -6822,7 +6889,8 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('inicio')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
@@ -7032,6 +7100,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               <StudentWorkoutExecution
                 student={student}
                 workout={studentWorkouts[0]}
+                exerciseLibraryItems={availableExerciseLibrary}
                 onCompleteWorkout={completeWorkoutFromStudent}
               />
               {feedbackPrompt ? (

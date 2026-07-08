@@ -226,7 +226,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, appAdminSettings] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, appAdminSettings] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -242,6 +242,7 @@ export async function loadRemoteData() {
     request('student_invites?select=*&order=created_at.desc'),
     request('student_anamneses?select=*&order=submitted_at.desc'),
     optionalTableRequest('coach_subscriptions?select=*&limit=1'),
+    optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
     loadRemoteAppAdminSettings().catch(() => null),
   ])
 
@@ -263,6 +264,7 @@ export async function loadRemoteData() {
     invites: invites.map(fromInviteRow),
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
+    exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
     appAdminSettings,
   }
 }
@@ -509,6 +511,7 @@ export async function loadRemoteStudentByInvite(code) {
 
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
+  const exerciseLibrary = await optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc')
 
   return {
     invite: fromInviteRow(invite),
@@ -522,6 +525,7 @@ export async function loadRemoteStudentByInvite(code) {
     appointments: (payload.appointments ?? []).map(fromAppointmentRow),
     invoices: (payload.invoices ?? []).map(fromInvoiceRow),
     assessments: (payload.assessments ?? []).map(fromAssessmentRow),
+    exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
     coachSettings: payload.coach_settings ? fromCoachSettingsRow(payload.coach_settings) : null,
     anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
     anamnesisRequired: payload.student.require_anamnesis !== false,
@@ -1145,6 +1149,21 @@ function fromWorkoutRow(row) {
         instructions: exercise.instructions ?? '',
         videoUrl: exercise.video_url ?? '',
       })),
+  }
+}
+
+function fromExerciseLibraryRow(row) {
+  return {
+    id: row.id,
+    name: row.name ?? '',
+    group: row.muscle_group ?? row.group_name ?? '',
+    equipment: row.equipment ?? '',
+    cues: row.instructions ?? row.cues ?? '',
+    videoUrl: row.video_url ?? '',
+    thumbnailUrl: row.thumbnail_url ?? '',
+    muscleMap: row.muscle_map ?? '',
+    aliases: Array.isArray(row.aliases) ? row.aliases : [],
+    source: 'supabase',
   }
 }
 
