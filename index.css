@@ -41,6 +41,70 @@ body {
   background-size: cover;
 }
 
+.app-shell.fit-gradient-bg {
+  background-color: var(--admin-app-bg, #000);
+  background-image:
+    radial-gradient(circle at 14% 8%, color-mix(in srgb, var(--admin-primary, #00d2b2) 22%, transparent), transparent 28%),
+    radial-gradient(circle at 86% 0%, color-mix(in srgb, var(--admin-accent, #0ea5e9) 16%, transparent), transparent 30%),
+    linear-gradient(125deg, var(--admin-app-bg, #000) 0%, #020504 48%, var(--admin-app-bg, #000) 100%);
+}
+
+.sales-page.fit-gradient-bg {
+  color: var(--admin-sales-text, #f8fafc);
+  background-color: var(--admin-sales-bg, #00150f);
+  background-image:
+    radial-gradient(circle at 14% 8%, color-mix(in srgb, var(--admin-primary, #00d2b2) 26%, transparent), transparent 28%),
+    radial-gradient(circle at 86% 0%, color-mix(in srgb, var(--admin-accent, #0ea5e9) 18%, transparent), transparent 30%),
+    linear-gradient(125deg, #000 0%, var(--admin-sales-bg, #00150f) 48%, #000 100%);
+}
+
+.sales-page .sales-header::before {
+  background:
+    linear-gradient(180deg, var(--admin-header-bg, rgba(0, 15, 12, 0.78)), rgba(0, 15, 12, 0.18) 72%, transparent);
+}
+
+.sales-page .bg-blue-500,
+.sales-page button.bg-blue-500 {
+  color: var(--admin-cta-text, #020617) !important;
+  background-color: var(--admin-cta, #00d2b2) !important;
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--admin-cta, #00d2b2) 24%, transparent) !important;
+}
+
+.sales-page .text-blue-100,
+.sales-page .text-blue-200,
+.sales-page .text-blue-300,
+.sales-page .text-blue-400,
+.sales-page .text-emerald-100,
+.sales-page .text-emerald-200,
+.sales-page .text-emerald-300 {
+  color: color-mix(in srgb, var(--admin-primary, #00d2b2) 78%, white) !important;
+}
+
+.sales-page .border-blue-300\/25,
+.sales-page .border-blue-300\/30,
+.sales-page .border-blue-300\/40,
+.sales-page .border-emerald-300\/20,
+.sales-page .border-emerald-300\/25 {
+  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 34%, transparent) !important;
+}
+
+.sales-page .bg-blue-400\/10,
+.sales-page .bg-blue-300\/10,
+.sales-page .bg-emerald-300\/10 {
+  background-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 12%, transparent) !important;
+}
+
+.sales-page .sales-feature-card,
+.sales-page .sales-mini-card,
+.sales-page .sales-interactive,
+.sales-page #acesso form {
+  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 86%, transparent);
+}
+
+.sales-page .sales-progress {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--admin-primary, #00d2b2) 42%, white), var(--admin-primary, #00d2b2), var(--admin-accent, #0ea5e9));
+}
+
 @media (min-width: 640px) {
   .fit-gradient-bg {
     background-image:

@@ -17,10 +17,7 @@ create policy "app_admin_settings_admin_insert"
 on public.app_admin_settings
 for insert
 with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) in (
-    'admin@coachfitpro.com.br',
-    'sac@coachfitpro.com.br'
-  )
+  lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br'
 );
 
 drop policy if exists "app_admin_settings_admin_update" on public.app_admin_settings;
@@ -28,16 +25,10 @@ create policy "app_admin_settings_admin_update"
 on public.app_admin_settings
 for update
 using (
-  lower(coalesce(auth.jwt() ->> 'email', '')) in (
-    'admin@coachfitpro.com.br',
-    'sac@coachfitpro.com.br'
-  )
+  lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br'
 )
 with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) in (
-    'admin@coachfitpro.com.br',
-    'sac@coachfitpro.com.br'
-  )
+  lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br'
 );
 
 insert into public.app_admin_settings (key, settings)
@@ -52,6 +43,13 @@ values (
     'salesTrustText', 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
     'primaryColor', '#00c7a8',
     'accentColor', '#3b82f6',
+    'appBackgroundColor', '#000000',
+    'salesBackgroundColor', '#00150f',
+    'salesSurfaceColor', '#07110f',
+    'salesTextColor', '#f8fafc',
+    'ctaColor', '#00d2b2',
+    'ctaTextColor', '#020617',
+    'headerBackgroundColor', 'rgba(0, 0, 0, 0.68)',
     'featureFlags', jsonb_build_object(
       'studentXp', true,
       'financialDashboard', true,
@@ -123,7 +121,14 @@ set
     'featureFlags', coalesce(public.app_admin_settings.settings -> 'featureFlags', '{}'::jsonb) || coalesce(excluded.settings -> 'featureFlags', '{}'::jsonb),
     'salesTrustText', excluded.settings ->> 'salesTrustText',
     'primaryColor', excluded.settings ->> 'primaryColor',
-    'accentColor', excluded.settings ->> 'accentColor'
+    'accentColor', excluded.settings ->> 'accentColor',
+    'appBackgroundColor', excluded.settings ->> 'appBackgroundColor',
+    'salesBackgroundColor', excluded.settings ->> 'salesBackgroundColor',
+    'salesSurfaceColor', excluded.settings ->> 'salesSurfaceColor',
+    'salesTextColor', excluded.settings ->> 'salesTextColor',
+    'ctaColor', excluded.settings ->> 'ctaColor',
+    'ctaTextColor', excluded.settings ->> 'ctaTextColor',
+    'headerBackgroundColor', excluded.settings ->> 'headerBackgroundColor'
   ),
   updated_at = now();
 

@@ -120,6 +120,13 @@ const defaultAppAdminSettings = {
   salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
   primaryColor: '#00c7a8',
   accentColor: '#3b82f6',
+  appBackgroundColor: '#000000',
+  salesBackgroundColor: '#00150f',
+  salesSurfaceColor: '#07110f',
+  salesTextColor: '#f8fafc',
+  ctaColor: '#00d2b2',
+  ctaTextColor: '#020617',
+  headerBackgroundColor: 'rgba(0, 0, 0, 0.62)',
   checkoutPlans: cartpandaCheckoutPlans,
   featureFlags: {
     studentXp: true,
@@ -185,6 +192,21 @@ function normalizeAdminSettings(settings = {}) {
       ...defaultAppAdminSettings.featureFlags,
       ...(settings.featureFlags || {}),
     },
+  }
+}
+
+function buildAdminThemeStyle(settings = {}) {
+  const theme = normalizeAdminSettings(settings)
+  return {
+    '--admin-primary': theme.primaryColor || '#00c7a8',
+    '--admin-accent': theme.accentColor || '#3b82f6',
+    '--admin-app-bg': theme.appBackgroundColor || '#000000',
+    '--admin-sales-bg': theme.salesBackgroundColor || '#00150f',
+    '--admin-sales-surface': theme.salesSurfaceColor || '#07110f',
+    '--admin-sales-text': theme.salesTextColor || '#f8fafc',
+    '--admin-cta': theme.ctaColor || theme.primaryColor || '#00d2b2',
+    '--admin-cta-text': theme.ctaTextColor || '#020617',
+    '--admin-header-bg': theme.headerBackgroundColor || 'rgba(0, 0, 0, 0.62)',
   }
 }
 
@@ -2029,7 +2051,7 @@ function AppContent() {
   const viewTitle = activeNavItem?.label ?? 'Visão geral'
 
   return (
-    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
+    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
         <button
@@ -2566,7 +2588,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className="sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100">
+    <div id="sales-page" className="sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100" style={buildAdminThemeStyle(salesSettings)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
@@ -9755,6 +9777,10 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     updatePlan(planIndex, field, items)
   }
 
+  function applyVisualPreset(preset) {
+    setDraft((current) => ({ ...current, ...preset }))
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     setSaving(true)
@@ -9860,9 +9886,29 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
           <AdminAccordionSection title="Branding global" action="Visual" open={openSections.branding} onToggle={() => toggleSection('branding')}>
             <div className="grid gap-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ['Esmeralda premium', { primaryColor: '#00d2b2', accentColor: '#3b82f6', appBackgroundColor: '#000000', salesBackgroundColor: '#00150f', salesSurfaceColor: '#07110f', salesTextColor: '#f8fafc', ctaColor: '#00d2b2', ctaTextColor: '#020617', headerBackgroundColor: 'rgba(0, 0, 0, 0.68)' }],
+                  ['Fitness neon', { primaryColor: '#39ff88', accentColor: '#00d2b2', appBackgroundColor: '#020403', salesBackgroundColor: '#03140b', salesSurfaceColor: '#09120e', salesTextColor: '#f7fff9', ctaColor: '#39ff88', ctaTextColor: '#021006', headerBackgroundColor: 'rgba(2, 6, 4, 0.72)' }],
+                  ['Grafite safira', { primaryColor: '#10b981', accentColor: '#0ea5e9', appBackgroundColor: '#050505', salesBackgroundColor: '#06100d', salesSurfaceColor: '#101418', salesTextColor: '#f8fafc', ctaColor: '#10b981', ctaTextColor: '#02130d', headerBackgroundColor: 'rgba(5, 5, 5, 0.72)' }],
+                ].map(([label, preset]) => (
+                  <button key={label} type="button" onClick={() => applyVisualPreset(preset)} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-left text-xs font-black text-zinc-100 transition hover:border-emerald-300/40 hover:bg-emerald-300/10">
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <AdminTextInput label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Use código hexadecimal. Exemplo: #00c7a8." />
-                <AdminTextInput label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} hint="Escolha uma cor que contraste com o fundo escuro." />
+                <AdminTextInput type="color" label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Destaques, ícones e detalhes de marca." />
+                <AdminTextInput type="color" label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} hint="Contraste para bordas, selos e efeitos." />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <AdminTextInput type="color" label="Fundo do app" value={draft.appBackgroundColor} onChange={(value) => updateField('appBackgroundColor', value)} hint="Fundo quando coach e aluno estão logados." />
+                <AdminTextInput type="color" label="Fundo da página de vendas" value={draft.salesBackgroundColor} onChange={(value) => updateField('salesBackgroundColor', value)} hint="Base do site público." />
+                <AdminTextInput type="color" label="Fundo dos cards" value={draft.salesSurfaceColor} onChange={(value) => updateField('salesSurfaceColor', value)} hint="Cards, boxes e áreas com vidro." />
+                <AdminTextInput type="color" label="Texto principal" value={draft.salesTextColor} onChange={(value) => updateField('salesTextColor', value)} hint="Use cor clara para fundo escuro." />
+                <AdminTextInput type="color" label="Cor dos botões CTA" value={draft.ctaColor} onChange={(value) => updateField('ctaColor', value)} hint="Botão de compra e cadastro." />
+                <AdminTextInput type="color" label="Texto dos botões CTA" value={draft.ctaTextColor} onChange={(value) => updateField('ctaTextColor', value)} hint="Preto em botão claro costuma funcionar bem." />
+                <AdminTextInput label="Fundo do cabeçalho" value={draft.headerBackgroundColor} onChange={(value) => updateField('headerBackgroundColor', value)} hint="Aceita rgba. Exemplo: rgba(0, 0, 0, 0.70)." />
               </div>
               <AdminTextInput label="URL da logotipo principal" value={draft.logoUrl} onChange={(value) => updateField('logoUrl', value)} hint="Opcional. Use PNG horizontal com fundo transparente. Se deixar vazio, o app usa a logo padrão." />
               <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -10152,11 +10198,11 @@ function AdminAccordionSection({ title, action, open, onToggle, children }) {
   )
 }
 
-function AdminTextInput({ label, value, onChange, hint = '' }) {
+function AdminTextInput({ label, value, onChange, hint = '', type = 'text' }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
-      <input value={value || ''} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50" />
+      <input type={type} value={value || ''} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50" />
       {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
     </label>
   )
