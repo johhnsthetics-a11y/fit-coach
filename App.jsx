@@ -127,6 +127,7 @@ const defaultAppAdminSettings = {
   ctaColor: '#00d2b2',
   ctaTextColor: '#020617',
   headerBackgroundColor: 'rgba(0, 0, 0, 0.62)',
+  publishedAt: '',
   checkoutPlans: cartpandaCheckoutPlans,
   featureFlags: {
     studentXp: true,
@@ -558,6 +559,38 @@ function useStoredData() {
       })
     return () => {
       active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!supabaseEnabled) return undefined
+    let active = true
+
+    async function refreshAdminSettings() {
+      try {
+        const settings = await loadRemoteAppAdminSettings()
+        if (!active || !settings) return
+        const normalized = normalizeAdminSettings(settings)
+        saveLocalAdminSettings(normalized)
+        setData((current) => ({ ...current, appAdminSettings: normalized }))
+      } catch {
+        // Mantem a versao local se o celular estiver offline ou o Supabase ainda nao responder.
+      }
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState !== 'hidden') refreshAdminSettings()
+    }
+
+    const timer = window.setInterval(refreshAdminSettings, 45000)
+    window.addEventListener('focus', refreshAdminSettings)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshAdminSettings)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
   }, [])
 
@@ -1703,7 +1736,7 @@ function AppContent() {
   }
 
   async function saveAppAdminSettings(settings) {
-    const normalized = normalizeAdminSettings(settings)
+    const normalized = normalizeAdminSettings({ ...settings, publishedAt: new Date().toISOString() })
     saveLocalAdminSettings(normalized)
     setData((current) => ({ ...current, appAdminSettings: normalized }))
 
@@ -2025,6 +2058,7 @@ function AppContent() {
         onAddCheckin={addCheckin}
         onSendMessage={sendMessage}
         onRefreshMessages={refreshStudentConversation}
+        appAdminSettings={appAdminSettings}
         onExit={exitStudentAccess}
       />
     )
@@ -7535,7 +7569,7 @@ function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -7567,6 +7601,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       assessments={assessments}
       coachSettings={coachSettings}
       coachId={access.invite.coachId}
+      appAdminSettings={appAdminSettings}
       onCompleteWorkout={completeStudentWorkout}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
@@ -7575,7 +7610,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('inicio')
@@ -7893,7 +7928,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   }
 
   return (
-    <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
+    <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <BrandLockup compact subtitle="Coach Fit Pro" />
@@ -9816,6 +9851,9 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
           <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
             <p className="text-xs font-black uppercase text-blue-200">Status</p>
             <p className="mt-2 text-sm font-bold text-zinc-200">{remoteStatus || 'Pronto'}</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-400">
+              {draft.publishedAt ? `Versao publicada em ${formatDateTime(draft.publishedAt)}.` : 'Nenhuma versao visual publicada ainda.'} Celulares buscam a versao nova ao abrir, voltar para a aba ou a cada 45 segundos.
+            </p>
             <p className="hidden">
               {remoteError ? remoteError : 'Quando o SQL do Admin Master estiver aplicado, salvar aqui publica no banco.'}
             </p>

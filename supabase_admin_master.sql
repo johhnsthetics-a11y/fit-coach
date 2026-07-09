@@ -50,6 +50,7 @@ values (
     'ctaColor', '#00d2b2',
     'ctaTextColor', '#020617',
     'headerBackgroundColor', 'rgba(0, 0, 0, 0.68)',
+    'publishedAt', now()::text,
     'featureFlags', jsonb_build_object(
       'studentXp', true,
       'financialDashboard', true,
@@ -128,7 +129,8 @@ set
     'salesTextColor', excluded.settings ->> 'salesTextColor',
     'ctaColor', excluded.settings ->> 'ctaColor',
     'ctaTextColor', excluded.settings ->> 'ctaTextColor',
-    'headerBackgroundColor', excluded.settings ->> 'headerBackgroundColor'
+    'headerBackgroundColor', excluded.settings ->> 'headerBackgroundColor',
+    'publishedAt', coalesce(public.app_admin_settings.settings ->> 'publishedAt', excluded.settings ->> 'publishedAt', now()::text)
   ),
   updated_at = now();
 

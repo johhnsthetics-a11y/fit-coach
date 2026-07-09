@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fit-coach-app-v2'
+const CACHE_NAME = 'fit-coach-app-v20260709-admin-theme'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
@@ -25,7 +25,15 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/index.html')))
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          const copy = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy))
+          return response
+        })
+        .catch(() => caches.match('/index.html')),
+    )
     return
   }
 

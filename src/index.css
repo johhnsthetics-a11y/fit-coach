@@ -442,23 +442,72 @@ textarea {
 .sales-page {
   --sales-progress: 0;
   --sales-scroll: 0px;
-  --fitness-lime: #00d2b2;
-  --fitness-lime-soft: #a7fff1;
-  --fitness-deep-emerald: #00806c;
+  --fitness-lime: var(--admin-primary, #00d2b2);
+  --fitness-lime-soft: color-mix(in srgb, var(--admin-primary, #00d2b2) 34%, #ffffff);
+  --fitness-deep-emerald: color-mix(in srgb, var(--admin-primary, #00d2b2) 58%, #00140f);
   --fitness-steel: #94a3b8;
-  --fitness-coal: #000;
+  --fitness-coal: var(--admin-sales-bg, #000);
   scroll-behavior: smooth;
   font-family: "Plus Jakarta Sans", "Inter", "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
+  color: var(--admin-sales-text, #f8fafc);
 }
 
 .sales-page.fit-gradient-bg {
   background-color: var(--fitness-coal);
   background-image:
-    radial-gradient(circle at 10% 4%, rgba(0, 210, 178, 0.26), transparent 28%),
-    radial-gradient(circle at 78% 2%, rgba(0, 128, 108, 0.28), transparent 32%),
-    radial-gradient(circle at 94% 42%, rgba(0, 210, 178, 0.16), transparent 30%),
-    linear-gradient(180deg, #00130f 0%, #000 44%, #020504 100%);
+    radial-gradient(circle at 10% 4%, color-mix(in srgb, var(--admin-primary, #00d2b2) 28%, transparent), transparent 28%),
+    radial-gradient(circle at 78% 2%, color-mix(in srgb, var(--admin-accent, #3b82f6) 18%, transparent), transparent 32%),
+    radial-gradient(circle at 94% 42%, color-mix(in srgb, var(--admin-primary, #00d2b2) 16%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in srgb, var(--admin-sales-bg, #00130f) 82%, var(--admin-primary, #00d2b2)) 0%, var(--admin-sales-bg, #000) 44%, #020504 100%);
+}
+
+.sales-page .sales-header {
+  background: var(--admin-header-bg, rgba(0, 0, 0, 0.62));
+}
+
+.sales-page .sales-section,
+.sales-page .sales-feature-card,
+.sales-page .sales-mini-card,
+.sales-page .sales-interactive,
+.sales-page .sales-faq,
+.sales-page #acesso form {
+  color: var(--admin-sales-text, #f8fafc);
+}
+
+.sales-page .sales-feature-card,
+.sales-page .sales-mini-card,
+.sales-page .sales-interactive,
+.sales-page .sales-plan-card,
+.sales-page .sales-plan-side,
+.sales-page #acesso form {
+  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 88%, transparent);
+  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 24%, rgba(255, 255, 255, 0.12));
+}
+
+.sales-page .sales-phone-mockup,
+.sales-page .sales-phone-screen,
+.sales-page .sales-plan-proof > div,
+.sales-page .sales-plan-after,
+.sales-page .sales-plan-mini-benefits > div,
+.sales-page .sales-plan-side > div,
+.sales-page .sales-plan-strategy {
+  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 82%, #000);
+  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 24%, rgba(255, 255, 255, 0.12));
+}
+
+.sales-page button.bg-blue-500,
+.sales-page button.bg-emerald-400,
+.sales-page button.bg-emerald-500,
+.sales-page .bg-blue-500,
+.sales-page .bg-emerald-400,
+.sales-page .bg-emerald-500 {
+  background-color: var(--admin-cta, var(--admin-primary, #00d2b2)) !important;
+  color: var(--admin-cta-text, #020617) !important;
+}
+
+.sales-page .sales-progress {
+  background: linear-gradient(90deg, var(--admin-primary, #00d2b2), var(--admin-accent, #3b82f6));
 }
 
 .sales-page .text-blue-100,

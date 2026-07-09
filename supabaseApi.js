@@ -17,7 +17,7 @@ async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    return await fetch(url, { ...options, signal: controller.signal })
+    return await fetch(url, { cache: 'no-store', ...options, signal: controller.signal })
   } catch (error) {
     if (error?.name === 'AbortError') {
       throw new Error('A conexão demorou demais. Verifique sua internet e tente novamente.')
