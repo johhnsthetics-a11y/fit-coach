@@ -1,3 +1,7 @@
+-- BASE LEGADA / NAO EXECUTAR SOZINHO EM PRODUCAO
+-- Este schema cria tabelas base, mas nao aplica todas as politicas atuais do app.
+-- Depois dele, e obrigatorio aplicar a ordem oficial em SUPABASE-PRODUCTION-SQL-ORDER.md.
+
 create extension if not exists pgcrypto;
 
 create table if not exists users (
@@ -122,11 +126,13 @@ alter table checkins enable row level security;
 alter table checkin_photos enable row level security;
 alter table notifications enable row level security;
 
-create policy "prototype users access" on users for all using (true) with check (true);
-create policy "prototype students access" on students for all using (true) with check (true);
-create policy "prototype plans access" on plans for all using (true) with check (true);
-create policy "prototype subscriptions access" on subscriptions for all using (true) with check (true);
-create policy "prototype payments access" on payments for all using (true) with check (true);
-create policy "prototype checkins access" on checkins for all using (true) with check (true);
-create policy "prototype checkin photos access" on checkin_photos for all using (true) with check (true);
-create policy "prototype notifications access" on notifications for all using (true) with check (true);
+-- As politicas abertas do prototipo foram removidas por seguranca.
+-- Depois deste schema, rode supabase_auth_security.sql para aplicar o acesso por treinador.
+drop policy if exists "prototype users access" on users;
+drop policy if exists "prototype students access" on students;
+drop policy if exists "prototype plans access" on plans;
+drop policy if exists "prototype subscriptions access" on subscriptions;
+drop policy if exists "prototype payments access" on payments;
+drop policy if exists "prototype checkins access" on checkins;
+drop policy if exists "prototype checkin photos access" on checkin_photos;
+drop policy if exists "prototype notifications access" on notifications;

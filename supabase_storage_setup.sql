@@ -1,3 +1,8 @@
+-- OBSOLETO / NAO USAR EM PRODUCAO
+-- Este arquivo deixa o bucket checkin-photos publico e cria politicas amplas de prototipo.
+-- Para producao, use supabase_private_checkin_photos.sql e a ordem documentada
+-- em SUPABASE-PRODUCTION-SQL-ORDER.md.
+
 insert into storage.buckets (id, name, public)
 values ('checkin-photos', 'checkin-photos', true)
 on conflict (id) do update set public = true;

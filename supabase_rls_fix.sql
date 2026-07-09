@@ -1,3 +1,9 @@
+-- OBSOLETO / NAO USAR EM PRODUCAO
+-- Este arquivo pertence a fase de prototipo e recria politicas abertas com using (true) e with check (true).
+-- Para producao, use a ordem documentada em SUPABASE-PRODUCTION-SQL-ORDER.md.
+-- Substitutos seguros: supabase_auth_security.sql, supabase_admin_master_sac_exclusivo_20260709.sql
+-- e supabase_p0_security_hardening_20260709.sql.
+
 alter table users enable row level security;
 alter table students enable row level security;
 alter table plans enable row level security;
