@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -631,6 +631,63 @@ function useStoredData() {
 }
 
 export default function App() {
+  return (
+    <AppErrorBoundary>
+      <AppContent />
+    </AppErrorBoundary>
+  )
+}
+
+class AppErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error, info) {
+    try {
+      window.localStorage.setItem('coachfitpro-last-error', JSON.stringify({
+        message: error?.message || 'Erro inesperado',
+        stack: error?.stack || '',
+        componentStack: info?.componentStack || '',
+        createdAt: new Date().toISOString(),
+      }))
+    } catch {
+      // A tela de contingência continua funcionando mesmo se o navegador bloquear storage.
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+
+    return (
+      <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
+        <section className="w-full max-w-xl rounded-2xl border border-emerald-300/25 bg-zinc-950/92 p-6 text-center shadow-2xl shadow-black/40">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-2xl font-black text-emerald-100">
+            !
+          </div>
+          <h1 className="mt-5 text-2xl font-black text-white">Algo saiu do lugar, mas seus dados continuam seguros.</h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            O Coach Fit Pro registrou o erro localmente para diagnóstico. Atualize a página para tentar novamente.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30"
+          >
+            Atualizar aplicativo
+          </button>
+        </section>
+      </main>
+    )
+  }
+}
+
+function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
   const [activeView, setActiveView] = useState('visao')
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
@@ -9248,6 +9305,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [message, setMessage] = useState('')
   const [logoFileError, setLogoFileError] = useState('')
   const [openSections, setOpenSections] = useState({
+    health: true,
     traffic: true,
     launch: false,
     sales: true,
@@ -9349,6 +9407,10 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       </section>
 
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
+        <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
+          <AdminSystemHealthPanel remoteStatus={remoteStatus} remoteError={remoteError} settings={draft} />
+        </AdminAccordionSection>
+
         <AdminAccordionSection title="Tráfego e conversões" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
           <AdminTrafficPanel />
         </AdminAccordionSection>
@@ -9461,6 +9523,69 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
         {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       </form>
+    </div>
+  )
+}
+
+function AdminSystemHealthPanel({ remoteStatus, remoteError, settings }) {
+  const [lastError, setLastError] = useState(() => loadLastAppError())
+  const checkoutPlans = normalizeAdminSettings(settings).checkoutPlans
+  const checks = buildSystemHealthChecks({ remoteStatus, remoteError, checkoutPlans, lastError })
+
+  function clearLastError() {
+    try {
+      window.localStorage.removeItem('coachfitpro-last-error')
+    } catch {
+      // Mantem a UI funcionando mesmo se o navegador bloquear storage.
+    }
+    setLastError(null)
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {checks.map((item) => (
+          <div key={item.title} className={`rounded-2xl border p-4 ${
+            item.status === 'ok'
+              ? 'border-emerald-300/25 bg-emerald-300/[0.075]'
+              : item.status === 'warning'
+                ? 'border-amber-300/25 bg-amber-300/[0.075]'
+                : 'border-rose-300/25 bg-rose-300/[0.075]'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-black text-white">{item.title}</p>
+              <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase ${
+                item.status === 'ok'
+                  ? 'bg-emerald-300/15 text-emerald-100'
+                  : item.status === 'warning'
+                    ? 'bg-amber-300/15 text-amber-100'
+                    : 'bg-rose-300/15 text-rose-100'
+              }`}>{item.label}</span>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-300">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      {lastError ? (
+        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.075] p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-amber-100">Último erro capturado</p>
+              <p className="mt-2 break-words text-sm font-bold text-white">{lastError.message}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">{formatDateTime(lastError.createdAt)}</p>
+            </div>
+            <button type="button" onClick={clearLastError} className="rounded-xl border border-white/10 px-4 py-2 text-xs font-black text-zinc-100">
+              Limpar aviso
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
+          <p className="text-sm font-black text-emerald-100">Nenhum erro crítico registrado neste navegador.</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">Se alguma tela quebrar, o diagnóstico aparece aqui para facilitar a correção.</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -11481,6 +11606,57 @@ function formatLeadEventDetail(event = {}) {
   if (source) parts.push(`Origem: ${source}`)
   if (campaign) parts.push(`Campanha: ${campaign}`)
   return parts.length ? parts.join(' · ') : 'Evento registrado sem campanha identificada.'
+}
+
+function loadLastAppError() {
+  if (typeof window === 'undefined') return null
+  try {
+    const error = JSON.parse(window.localStorage.getItem('coachfitpro-last-error') || 'null')
+    return error?.message ? error : null
+  } catch {
+    return null
+  }
+}
+
+function buildSystemHealthChecks({ remoteStatus = '', remoteError = '', checkoutPlans = [], lastError = null }) {
+  const hasCartpandaPlans = checkoutPlans.length >= 3 && checkoutPlans.every((plan) => /cartpanda|coachfitpro\.com\.br\/checkout/i.test(plan.checkoutUrl || ''))
+  const hasLogoIcon = true
+  const statusText = `${remoteStatus} ${remoteError}`.toLowerCase()
+  const supabaseOk = supabaseEnabled && !/erro|expirada|indispon/.test(statusText)
+  const webhookLikelyOk = !/postback|webhook|pagamento ainda|aguardando confirma/i.test(statusText)
+
+  return [
+    {
+      title: 'Supabase',
+      status: supabaseOk ? 'ok' : supabaseEnabled ? 'warning' : 'danger',
+      label: supabaseOk ? 'ok' : supabaseEnabled ? 'atenção' : 'pendente',
+      detail: supabaseOk ? 'Banco conectado e sessão operacional.' : supabaseEnabled ? 'Existe conexão, mas há aviso recente no app.' : 'Variáveis do Supabase não encontradas nesta publicação.',
+    },
+    {
+      title: 'Checkout Cartpanda',
+      status: hasCartpandaPlans ? 'ok' : 'warning',
+      label: hasCartpandaPlans ? 'ok' : 'revisar',
+      detail: hasCartpandaPlans ? 'Planos oficiais apontam para checkouts Cartpanda.' : 'Revise os links dos planos oficiais no Admin Master.',
+    },
+    {
+      title: 'Liberação automática',
+      status: webhookLikelyOk ? 'ok' : 'warning',
+      label: webhookLikelyOk ? 'ok' : 'testar',
+      detail: webhookLikelyOk ? 'Nenhum erro recente de confirmação de pagamento.' : 'Faça um teste de compra para confirmar o postback.',
+    },
+    {
+      title: 'Ícone e PWA',
+      status: hasLogoIcon ? 'ok' : 'warning',
+      label: hasLogoIcon ? 'ok' : 'revisar',
+      detail: 'Favicon e ícone instalável usam a logo abreviada do Coach Fit Pro.',
+    },
+    {
+      title: 'Erros críticos',
+      status: lastError ? 'warning' : 'ok',
+      label: lastError ? 'atenção' : 'limpo',
+      detail: lastError ? 'Há um erro capturado neste navegador para revisar.' : 'Nenhuma falha crítica capturada localmente.',
+    },
+  ]
 }
 
 function appendAttributionToCheckoutUrl(value, planId = '') {
