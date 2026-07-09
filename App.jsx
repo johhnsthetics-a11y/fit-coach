@@ -3215,11 +3215,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </div>
             </div>
 
-            <div className="mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
-              <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/35 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-5 shadow-2xl shadow-emerald-950/25 sm:p-7">
+            <div className="mx-auto mt-7 grid max-w-5xl gap-5 lg:mt-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
+              <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-4 shadow-2xl shadow-emerald-950/25 sm:p-6">
                 <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
                 <div className="relative">
-                  <div className="sales-plan-strategy mb-5 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="sales-plan-strategy mb-4 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <div>
                       <p className="text-xs font-black uppercase text-emerald-100">
                         {selectedOfferPlan.id === 'mensal' ? 'Oferta de entrada' : 'Condição estratégica'}
@@ -3244,7 +3244,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </span>
                   </div>
 
-                  <div className="mt-7">
+                  <div className="mt-5">
                     {selectedOfferPlan.oldPrice ? <p className="text-base font-bold text-zinc-500 line-through">De {selectedOfferPlan.oldPrice}</p> : null}
                     <div className="mt-1 flex flex-wrap items-end gap-3">
                       <span className="text-5xl font-black leading-none text-white sm:text-6xl">{selectedOfferPlan.price}</span>
@@ -3252,8 +3252,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                        <p className="text-xs font-black uppercase text-zinc-500">Comparativo</p>
-                        <p className="mt-1 text-sm font-black text-blue-200">{selectedOfferPlan.total}</p>
+                        <p className="text-xs font-black uppercase text-emerald-100">Comparativo</p>
+                        <p className="mt-1 text-sm font-black text-white">{selectedOfferPlan.total}</p>
                       </div>
                       <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                         <p className="text-xs font-black uppercase text-emerald-200">Vantagem</p>
@@ -3262,12 +3262,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                   </div>
 
-                  <p className="sales-plan-description mt-5 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
+                  <p className="sales-plan-description mt-4 max-w-2xl text-sm leading-6 text-zinc-200">{selectedOfferPlan.description}</p>
 
-                  <div className="sales-plan-proof mt-5 grid gap-3 lg:grid-cols-3">
-                    <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+                  <div className="sales-plan-proof mt-4 grid gap-3 lg:grid-cols-3">
+                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/[0.11] p-4">
                       <p className="text-xs font-black uppercase text-blue-200">Decisão inteligente</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                      <p className="mt-2 text-sm leading-6 text-zinc-100">
                         {selectedOfferPlan.id === 'mensal'
                           ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
                           : selectedOfferPlan.id === 'semestral'
@@ -3275,13 +3275,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                             : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/[0.08] p-4 shadow-lg shadow-emerald-950/20">
+                    <div className="rounded-xl border border-emerald-300/35 bg-emerald-300/[0.12] p-4 shadow-lg shadow-emerald-950/20">
                       <p className="text-xs font-black uppercase text-emerald-100">Melhor para</p>
-                      <p className="mt-2 text-sm font-semibold leading-6 text-zinc-100">{selectedOfferPlan.bestFor}</p>
+                      <p className="mt-2 text-sm font-semibold leading-6 text-white">{selectedOfferPlan.bestFor}</p>
                     </div>
-                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-300/[0.12] p-4">
                       <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                      <p className="mt-2 text-sm leading-6 text-zinc-100">
                         Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.
                       </p>
                     </div>
@@ -3291,7 +3291,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.operatingPromise}</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-100">{selectedOfferPlan.operatingPromise}</p>
                       </div>
                       <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberação automática</span>
                     </div>
