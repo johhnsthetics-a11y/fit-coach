@@ -28,6 +28,7 @@ import {
   saveRemoteStudent,
   saveRemoteMessage,
   saveRemoteWorkout,
+  saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
   setSupabaseSession,
   signInCoach,
@@ -468,6 +469,7 @@ function createInitialData() {
     workouts: [],
     nutritionPlans: [],
     workoutLogs: [],
+    workoutProgressionDecisions: [],
     exerciseLibrary: [],
     messages: [],
     appointments: [],
@@ -613,6 +615,7 @@ function useStoredData() {
           workouts: remoteData.workouts ?? [],
           nutritionPlans: remoteData.nutritionPlans ?? [],
           workoutLogs: remoteData.workoutLogs ?? [],
+          workoutProgressionDecisions: remoteData.workoutProgressionDecisions ?? current.workoutProgressionDecisions ?? [],
           exerciseLibrary: remoteData.exerciseLibrary ?? current.exerciseLibrary ?? [],
           messages: remoteData.messages ?? [],
           appointments: remoteData.appointments ?? [],
@@ -894,6 +897,7 @@ function AppContent() {
         workouts: remoteData.workouts ?? [],
         nutritionPlans: remoteData.nutritionPlans ?? [],
         workoutLogs: remoteData.workoutLogs ?? [],
+        workoutProgressionDecisions: remoteData.workoutProgressionDecisions ?? current.workoutProgressionDecisions ?? [],
         messages: remoteData.messages ?? [],
         appointments: remoteData.appointments ?? [],
         invoices: remoteData.invoices ?? [],
@@ -1166,6 +1170,7 @@ function AppContent() {
           workouts: remoteData.workouts ?? [],
           nutritionPlans: remoteData.nutritionPlans ?? [],
           workoutLogs: remoteData.workoutLogs ?? [],
+          workoutProgressionDecisions: remoteData.workoutProgressionDecisions ?? current.workoutProgressionDecisions ?? [],
           messages: remoteData.messages ?? [],
           appointments: remoteData.appointments ?? [],
           invoices: remoteData.invoices ?? [],
@@ -1527,6 +1532,104 @@ function AppContent() {
     return true
   }
 
+  async function saveWorkoutProgressionDecision(decision) {
+    let savedDecision = {
+      ...decision,
+      id: decision.id || Date.now(),
+      coachId: data.user?.id,
+      createdAt: new Date().toISOString(),
+    }
+
+    if (supabaseEnabled) {
+      try {
+        savedDecision = await saveRemoteWorkoutProgressionDecision(savedDecision, data.user?.id)
+        setRemoteStatus('Progressão registrada')
+        setRemoteError('')
+      } catch (error) {
+        setRemoteStatus('Progressão salva localmente')
+        setRemoteError('Rode a migration de progressão para manter o histórico também no Supabase.')
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      workoutProgressionDecisions: [savedDecision, ...(current.workoutProgressionDecisions ?? [])],
+    }))
+
+    return savedDecision
+  }
+
+  async function approveWorkoutProgression(recommendation, editedTarget = null) {
+    const workout = data.workouts.find((item) => String(item.id) === String(recommendation.workoutId))
+    if (!workout) throw new Error('Treino original não encontrado.')
+    const nextTarget = editedTarget || recommendation.nextTarget
+    const nextWorkout = buildWorkoutFromProgression(workout, recommendation, nextTarget)
+    const savedWorkout = await saveWorkout(nextWorkout)
+    await archiveWorkout(workout.id)
+    return saveWorkoutProgressionDecision({
+      studentId: recommendation.studentId,
+      workoutId: workout.id,
+      exerciseName: recommendation.exercise.name,
+      action: recommendation.action,
+      suggestion: recommendation.suggestion,
+      reason: recommendation.reason,
+      confidence: recommendation.confidence,
+      status: 'approved',
+      previousTarget: recommendation.previousTarget,
+      nextTarget: { ...nextTarget, generatedWorkoutId: savedWorkout.id },
+    })
+  }
+
+  async function ignoreWorkoutProgression(recommendation) {
+    return saveWorkoutProgressionDecision({
+      studentId: recommendation.studentId,
+      workoutId: recommendation.workoutId,
+      exerciseName: recommendation.exercise.name,
+      action: recommendation.action,
+      suggestion: recommendation.suggestion,
+      reason: recommendation.reason,
+      confidence: recommendation.confidence,
+      status: 'ignored',
+      previousTarget: recommendation.previousTarget,
+      nextTarget: recommendation.nextTarget,
+    })
+  }
+
+  async function undoWorkoutProgression(decision) {
+    const activeWorkout = data.workouts.find((workout) => (
+      String(workout.studentId) === String(decision.studentId)
+      && workout.active !== false
+      && (workout.exercises || []).some((exercise) => normalizeText(exercise.name) === normalizeText(decision.exerciseName))
+    ))
+    if (!activeWorkout) throw new Error('Treino ativo para desfazer não encontrado.')
+    const recommendation = {
+      workoutId: activeWorkout.id,
+      studentId: decision.studentId,
+      exercise: { name: decision.exerciseName },
+      previousTarget: decision.nextTarget,
+      nextTarget: decision.previousTarget,
+      action: 'undo',
+      suggestion: 'desfazer progressão',
+      reason: 'Reversão manual solicitada pelo treinador.',
+      confidence: 'manual',
+    }
+    const revertedWorkout = buildWorkoutFromProgression(activeWorkout, recommendation, decision.previousTarget)
+    const savedWorkout = await saveWorkout(revertedWorkout)
+    await archiveWorkout(activeWorkout.id)
+    return saveWorkoutProgressionDecision({
+      studentId: decision.studentId,
+      workoutId: activeWorkout.id,
+      exerciseName: decision.exerciseName,
+      action: 'undo',
+      suggestion: 'desfazer alteração',
+      reason: 'Treinador desfez a decisão anterior.',
+      confidence: 'manual',
+      status: 'undone',
+      previousTarget: decision.nextTarget,
+      nextTarget: { ...decision.previousTarget, generatedWorkoutId: savedWorkout.id },
+    })
+  }
+
   async function saveNutritionPlan(plan) {
     let savedPlan = { ...plan, id: Date.now(), active: true }
 
@@ -1780,6 +1883,7 @@ function AppContent() {
       checkins: data.checkins.map(({ photo, photoFile, ...checkin }) => checkin),
       workouts: data.workouts,
       workoutLogs: data.workoutLogs,
+      workoutProgressionDecisions: data.workoutProgressionDecisions,
       nutritionPlans: data.nutritionPlans,
       appointments: data.appointments,
       invoices: data.invoices,
@@ -2292,9 +2396,13 @@ function AppContent() {
                 students={data.students}
                 workouts={data.workouts ?? []}
                 workoutLogs={data.workoutLogs ?? []}
+                progressionDecisions={data.workoutProgressionDecisions ?? []}
                 exerciseLibraryItems={data.exerciseLibrary ?? []}
                 onSaveWorkout={saveWorkout}
                 onArchiveWorkout={archiveWorkout}
+                onApproveProgression={approveWorkoutProgression}
+                onIgnoreProgression={ignoreWorkoutProgression}
+                onUndoProgression={undoWorkoutProgression}
                 onSaveStudent={saveStudent}
               />
             )}
@@ -4954,7 +5062,7 @@ function AssessmentValue({ label, value, suffix, previous }) {
   )
 }
 
-function Workouts({ selectedStudent, students, workouts, workoutLogs, exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, onSaveStudent }) {
+function Workouts({ selectedStudent, students, workouts, workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
@@ -4975,6 +5083,19 @@ function Workouts({ selectedStudent, students, workouts, workoutLogs, exerciseLi
         <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} exerciseLibraryItems={availableExerciseLibrary} onArchive={onArchiveWorkout} />
       </Panel>
 
+      <div className="xl:col-span-2">
+        <WorkoutProgressionRecommendations
+          student={selectedStudent}
+          workouts={studentWorkouts}
+          logs={studentLogs}
+          decisions={progressionDecisions.filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
+          exerciseLibraryItems={availableExerciseLibrary}
+          onApprove={onApproveProgression}
+          onIgnore={onIgnoreProgression}
+          onUndo={onUndoProgression}
+        />
+      </div>
+
       <Panel title="Notas de carga" action="Progressão">
         <LoadNotesPanel student={selectedStudent} logs={studentLogs} onSaveStudent={onSaveStudent} />
       </Panel>
@@ -4984,6 +5105,409 @@ function Workouts({ selectedStudent, students, workouts, workoutLogs, exerciseLi
       </Panel>
     </div>
   )
+}
+
+function WorkoutProgressionRecommendations({ student, workouts, logs, decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
+  const [loading, setLoading] = useState(true)
+  const [busyKey, setBusyKey] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const recommendations = useMemo(
+    () => buildWorkoutProgressionRecommendations({ student, workouts, logs, decisions, exerciseLibraryItems }),
+    [student, workouts, logs, decisions, exerciseLibraryItems],
+  )
+  const recentDecisions = decisions.slice(0, 4)
+
+  useEffect(() => {
+    setLoading(true)
+    const timer = window.setTimeout(() => setLoading(false), 180)
+    return () => window.clearTimeout(timer)
+  }, [student?.id, workouts.length, logs.length, decisions.length])
+
+  async function handleApprove(recommendation, editedTarget = null) {
+    setBusyKey(recommendation.key)
+    setMessage('')
+    setError('')
+    try {
+      await onApprove?.(recommendation, editedTarget)
+      setMessage('Progressão aprovada. Uma nova versão do treino foi criada e a anterior foi arquivada.')
+    } catch (approveError) {
+      setError(approveError?.message || 'Não foi possível aprovar a progressão.')
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  async function handleEdit(recommendation) {
+    const sets = window.prompt('Séries alvo', recommendation.nextTarget.sets || recommendation.exercise.sets || '')
+    if (sets === null) return
+    const reps = window.prompt('Repetições alvo', recommendation.nextTarget.reps || recommendation.exercise.reps || '')
+    if (reps === null) return
+    const load = window.prompt('Carga / esforço alvo', recommendation.nextTarget.load || recommendation.exercise.load || '')
+    if (load === null) return
+    await handleApprove(recommendation, { ...recommendation.nextTarget, sets, reps, load })
+  }
+
+  async function handleIgnore(recommendation) {
+    setBusyKey(recommendation.key)
+    setMessage('')
+    setError('')
+    try {
+      await onIgnore?.(recommendation)
+      setMessage('Sugestão ignorada e registrada no histórico.')
+    } catch (ignoreError) {
+      setError(ignoreError?.message || 'Não foi possível ignorar a sugestão.')
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  async function handleUndo(decision) {
+    setBusyKey(`undo-${decision.id}`)
+    setMessage('')
+    setError('')
+    try {
+      await onUndo?.(decision)
+      setMessage('Alteração desfeita. Uma nova versão com a meta anterior foi criada.')
+    } catch (undoError) {
+      setError(undoError?.message || 'Não foi possível desfazer esta alteração.')
+    } finally {
+      setBusyKey('')
+    }
+  }
+
+  return (
+    <Panel title="Recomendações de progressão" action={`${recommendations.length} sugestões`}>
+      {!student ? (
+        <Empty text="Selecione um aluno para analisar progressão de treino." />
+      ) : loading ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {[1, 2].map((item) => <div key={item} className="h-44 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />)}
+        </div>
+      ) : recommendations.length ? (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {recommendations.map((recommendation) => (
+            <div key={recommendation.key} className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-200">{student.name}</p>
+                  <h4 className="mt-1 text-lg font-black text-white">{recommendation.exercise.name}</h4>
+                  <p className="mt-1 text-sm leading-6 text-zinc-400">{recommendation.recentPerformance}</p>
+                </div>
+                <span className="w-fit rounded-full border border-white/10 bg-zinc-950/60 px-3 py-1 text-xs font-black text-zinc-100">
+                  {recommendation.confidence}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <ExerciseMetric label="Carga atual" value={recommendation.previousTarget.load || '-'} />
+                <ExerciseMetric label="Reps alvo" value={recommendation.previousTarget.reps || '-'} />
+                <ExerciseMetric label="Séries" value={recommendation.previousTarget.sets || '-'} />
+              </div>
+
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                <p className="text-xs font-black uppercase text-zinc-500">Sugestão</p>
+                <p className="mt-1 text-sm font-black text-emerald-100">{recommendation.suggestion}</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">{recommendation.reason}</p>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button disabled={busyKey === recommendation.key || recommendation.action === 'insufficient'} type="button" onClick={() => handleApprove(recommendation)} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-45">
+                  {busyKey === recommendation.key ? 'Aplicando...' : 'Aprovar'}
+                </button>
+                <button disabled={busyKey === recommendation.key || recommendation.action === 'insufficient'} type="button" onClick={() => handleEdit(recommendation)} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:cursor-not-allowed disabled:opacity-45">
+                  Editar
+                </button>
+                <button disabled={busyKey === recommendation.key} type="button" onClick={() => handleIgnore(recommendation)} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-400 disabled:opacity-45">
+                  Ignorar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty text="Dados insuficientes para sugerir progressão. Peça ao aluno para registrar cargas, repetições, RPE/RIR e concluir mais treinos." />
+      )}
+
+      {recentDecisions.length ? (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs font-black uppercase text-zinc-500">Histórico recente de decisões</p>
+          <div className="mt-3 grid gap-2">
+            {recentDecisions.map((decision) => (
+              <div key={decision.id} className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white">{decision.exerciseName} · {formatUiText(decision.status)}</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">{decision.suggestion || decision.reason}</p>
+                </div>
+                {decision.status === 'approved' ? (
+                  <button disabled={busyKey === `undo-${decision.id}`} type="button" onClick={() => handleUndo(decision)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-50">
+                    {busyKey === `undo-${decision.id}` ? 'Desfazendo...' : 'Desfazer'}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {message ? <p className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+      {error ? <p className="mt-4 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+    </Panel>
+  )
+}
+
+function buildWorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [] }) {
+  if (!student || !workouts.length) return []
+  const latestWorkout = workouts.slice().sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
+  if (!latestWorkout?.exercises?.length) return []
+  const recentLogs = logs
+    .slice()
+    .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0))
+    .slice(0, 6)
+  const recentDecisions = new Set(decisions.slice(0, 12).filter((decision) => ['approved', 'ignored'].includes(decision.status)).map((decision) => `${normalizeText(decision.exerciseName)}-${decision.status}`))
+  const frequency14 = countSince(logs, 14, (log) => log.completedAt)
+
+  return latestWorkout.exercises
+    .map((rawExercise, index) => {
+      const exercise = enrichExercise(rawExercise, exerciseLibraryItems)
+      const key = `${latestWorkout.id}-${normalizeText(exercise.name)}-${index}`
+      const recommendation = buildExerciseProgressionRecommendation({
+        student,
+        workout: latestWorkout,
+        exercise,
+        index,
+        recentLogs,
+        frequency14,
+      })
+      return { ...recommendation, key }
+    })
+    .filter((recommendation) => !recentDecisions.has(`${normalizeText(recommendation.exercise.name)}-ignored`))
+}
+
+function buildExerciseProgressionRecommendation({ student, workout, exercise, index, recentLogs, frequency14 }) {
+  const sessions = recentLogs
+    .map((log) => parseExercisePerformanceFromLog(log, exercise.name))
+    .filter(Boolean)
+    .slice(0, 4)
+  const previousTarget = {
+    sets: exercise.sets || '',
+    reps: exercise.reps || '',
+    load: exercise.load || '',
+    rest: exercise.rest || '',
+  }
+  const base = {
+    studentId: student.id,
+    workoutId: workout.id,
+    workoutTitle: workout.title,
+    exercise,
+    previousTarget,
+    nextTarget: previousTarget,
+    action: 'insufficient',
+    suggestion: 'dados insuficientes',
+    reason: 'Ainda não há registros suficientes de carga, repetições, RPE/RIR ou histórico recente para sugerir mudança com segurança.',
+    confidence: 'baixa confiança',
+    recentPerformance: sessions.length ? summarizeExerciseSessions(sessions) : 'Sem histórico específico deste exercício.',
+  }
+
+  if (sessions.length < 2) return base
+
+  const latest = sessions[0]
+  const previous = sessions[1]
+  const avgRpe = averageDefined(sessions.map((item) => item.rpe))
+  const avgRir = averageDefined(sessions.map((item) => item.rir))
+  const avgReps = averageDefined(sessions.map((item) => item.reps))
+  const loadTrend = getNumberTrend(sessions.map((item) => item.loadKg))
+  const repsTrend = getNumberTrend(sessions.map((item) => item.reps))
+  const highRir = avgRir !== null && avgRir >= 3
+  const highRpe = avgRpe !== null && avgRpe >= 9
+  const lowRir = avgRir !== null && avgRir <= 1
+  const performanceDrop = (loadTrend < -1 || repsTrend < -1) && sessions.length >= 3
+  const lowFrequency = frequency14 < 2
+  const hitTarget = targetWasHit(latest, exercise)
+  const nextTarget = { ...previousTarget }
+  let action = 'maintain'
+  let suggestion = 'manter treino atual'
+  let reason = 'Desempenho recente está estável. Mantenha o alvo e observe a próxima sessão.'
+  let confidence = sessions.length >= 3 ? 'média confiança' : 'baixa confiança'
+
+  if (performanceDrop && (highRpe || lowRir || lowFrequency)) {
+    action = 'deload'
+    suggestion = 'sugerir deload'
+    nextTarget.load = reduceLoadTarget(exercise.load || latest.loadText || '', 7)
+    reason = 'Houve queda de desempenho em sessões recentes combinada com esforço alto ou baixa frequência. Recomendo reduzir carga por uma sessão e priorizar recuperação.'
+    confidence = 'alta confiança'
+  } else if (highRpe || lowRir) {
+    action = 'maintain_or_reduce'
+    suggestion = latest.failed ? 'reduzir carga' : 'manter carga'
+    nextTarget.load = latest.failed ? reduceLoadTarget(exercise.load || latest.loadText || '', 5) : previousTarget.load
+    reason = 'O aluno registrou RPE alto ou RIR baixo. Subir carga agora pode piorar técnica ou recuperação.'
+    confidence = sessions.length >= 3 ? 'alta confiança' : 'média confiança'
+  } else if (hitTarget && highRir) {
+    action = 'increase_load'
+    suggestion = 'aumentar carga'
+    nextTarget.load = increaseLoadTarget(exercise.load || latest.loadText || '', 3)
+    reason = 'O aluno atingiu a meta de repetições com RIR alto. Há margem para um aumento leve e controlado de carga.'
+    confidence = 'alta confiança'
+  } else if (hitTarget && avgRpe !== null && avgRpe <= 8) {
+    action = 'increase_reps'
+    suggestion = 'aumentar repetições'
+    nextTarget.reps = increaseRepTarget(exercise.reps)
+    reason = 'Meta atingida com esforço controlado. Aumentar repetições é uma progressão segura antes de subir carga.'
+    confidence = sessions.length >= 3 ? 'alta confiança' : 'média confiança'
+  } else if (avgReps !== null && getTargetTopReps(exercise.reps) && avgReps < getTargetTopReps(exercise.reps) - 2) {
+    action = 'reduce_reps'
+    suggestion = 'reduzir repetições'
+    nextTarget.reps = reduceRepTarget(exercise.reps)
+    reason = 'As repetições realizadas ficaram abaixo da meta. Reduzir a faixa ajuda a preservar execução e aderência.'
+    confidence = 'média confiança'
+  } else if (sessions.length >= 3 && !performanceDrop && !highRpe && !lowRir && frequency14 >= 3) {
+    action = 'add_set'
+    suggestion = 'adicionar série'
+    nextTarget.sets = increaseSetTarget(exercise.sets)
+    reason = 'Frequência recente está boa e não há sinal de esforço excessivo. Uma série extra pode aumentar estímulo sem trocar o exercício.'
+    confidence = 'média confiança'
+  }
+
+  return {
+    ...base,
+    action,
+    suggestion,
+    reason,
+    confidence,
+    nextTarget,
+    recentPerformance: summarizeExerciseSessions(sessions),
+  }
+}
+
+function parseExercisePerformanceFromLog(log, exerciseName) {
+  const notes = String(log?.notes || '')
+  const normalizedName = normalizeText(exerciseName)
+  const lines = notes.split(/\n|;/).map((line) => line.trim()).filter(Boolean)
+  const exerciseLine = lines.find((line) => {
+    const normalizedLine = normalizeText(line)
+    return normalizedLine.includes(normalizedName) || normalizedName.split(' ').some((part) => part.length > 4 && normalizedLine.includes(part))
+  })
+  const source = exerciseLine || notes
+  if (!source) return null
+  const repsMatch = source.match(/(\d{1,2})\s*(?:rep|reps|x)/i)
+  const setsMatch = source.match(/(\d{1,2})\s*x\s*\d{1,2}/i) || source.match(/(\d{1,2})\s*(?:serie|series|s[eé]ries)/i)
+  const loadMatch = source.match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(?:kg|kgs|quilos?)/i)
+  const rpeMatch = source.match(/rpe\s*([0-9]{1,2}(?:[,.]\d)?)/i)
+  const rirMatch = source.match(/rir\s*([0-9]{1,2}(?:[,.]\d)?)/i)
+  const failed = /falh|nao consegui|não consegui|travou|dor|muito pesado/i.test(source) || log.effort === 'Muito forte'
+
+  return {
+    date: log.completedAt,
+    sets: setsMatch ? Number(setsMatch[1]) : null,
+    reps: repsMatch ? Number(repsMatch[1]) : null,
+    loadKg: loadMatch ? Number(loadMatch[1].replace(',', '.')) : null,
+    loadText: loadMatch ? `${loadMatch[1]} kg` : '',
+    rpe: rpeMatch ? Number(rpeMatch[1].replace(',', '.')) : effortToRpe(log.effort),
+    rir: rirMatch ? Number(rirMatch[1].replace(',', '.')) : null,
+    failed,
+    raw: source,
+  }
+}
+
+function summarizeExerciseSessions(sessions = []) {
+  const latest = sessions[0]
+  const parts = [
+    latest?.loadKg ? `${formatNumber(latest.loadKg)} kg` : null,
+    latest?.reps ? `${latest.reps} reps` : null,
+    latest?.rpe ? `RPE ${formatNumber(latest.rpe)}` : null,
+    latest?.rir !== null && latest?.rir !== undefined ? `RIR ${formatNumber(latest.rir)}` : null,
+  ].filter(Boolean)
+  return parts.length
+    ? `Última sessão: ${parts.join(' · ')}. Histórico analisado: ${sessions.length} sessão(ões).`
+    : `Histórico analisado: ${sessions.length} sessão(ões), mas com poucos dados objetivos.`
+}
+
+function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
+  const targetName = normalizeText(recommendation.exercise.name)
+  const exercises = (workout.exercises || []).map((exercise) => {
+    if (normalizeText(exercise.name) !== targetName) return exercise
+    const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
+    return {
+      ...exercise,
+      sets: nextTarget.sets || exercise.sets,
+      reps: nextTarget.reps || exercise.reps,
+      load: nextTarget.load || exercise.load,
+      instructions: [exercise.instructions, progressionNote].filter(Boolean).join('\n'),
+    }
+  })
+
+  return {
+    studentId: workout.studentId,
+    title: `${workout.title} · progressão`,
+    focus: workout.focus,
+    notes: [workout.notes, `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`].filter(Boolean).join('\n'),
+    exercises,
+  }
+}
+
+function targetWasHit(session, exercise) {
+  const topReps = getTargetTopReps(exercise.reps)
+  if (!topReps || !session.reps) return !session.failed
+  return session.reps >= topReps && !session.failed
+}
+
+function getTargetTopReps(value) {
+  const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
+  return numbers.length ? Math.max(...numbers) : null
+}
+
+function averageDefined(values = []) {
+  const valid = values.filter((value) => Number.isFinite(Number(value)))
+  if (!valid.length) return null
+  return valid.reduce((sum, value) => sum + Number(value), 0) / valid.length
+}
+
+function getNumberTrend(values = []) {
+  const valid = values.filter((value) => Number.isFinite(Number(value)))
+  if (valid.length < 2) return 0
+  return Number(valid[0]) - Number(valid[valid.length - 1])
+}
+
+function effortToRpe(effort) {
+  if (effort === 'Muito forte') return 9.5
+  if (effort === 'Forte') return 8.5
+  if (effort === 'Moderado') return 7
+  if (effort === 'Leve') return 5.5
+  return null
+}
+
+function increaseLoadTarget(value, percent = 3) {
+  const match = String(value || '').match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(kg|kgs|quilos?)?/i)
+  if (!match) return value ? `${value} + ${percent}%` : `aumentar ${percent}%`
+  const current = Number(match[1].replace(',', '.'))
+  return `${formatNumber(current * (1 + percent / 100))} kg`
+}
+
+function reduceLoadTarget(value, percent = 5) {
+  const match = String(value || '').match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(kg|kgs|quilos?)?/i)
+  if (!match) return value ? `${value} - ${percent}%` : `reduzir ${percent}%`
+  const current = Number(match[1].replace(',', '.'))
+  return `${formatNumber(current * (1 - percent / 100))} kg`
+}
+
+function increaseRepTarget(value) {
+  const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
+  if (!numbers.length) return value ? `${value} +1 rep` : 'aumentar 1 repetição'
+  const updated = numbers.map((item) => item + 1)
+  return updated.length >= 2 ? `${updated[0]}-${updated[1]}` : String(updated[0])
+}
+
+function reduceRepTarget(value) {
+  const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
+  if (!numbers.length) return value ? `${value} -1 rep` : 'reduzir 1 repetição'
+  const updated = numbers.map((item) => Math.max(1, item - 1))
+  return updated.length >= 2 ? `${updated[0]}-${updated[1]}` : String(updated[0])
+}
+
+function increaseSetTarget(value) {
+  const match = String(value || '').match(/\d+/)
+  if (!match) return value ? `${value} +1 série` : '4'
+  return String(Number(match[0]) + 1)
 }
 
 function LoadNotesPanel({ student, logs, onSaveStudent }) {
@@ -5292,6 +5816,9 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                   </label>
                 </div>
                 <ExerciseMedia exercise={exercise} compact />
+                <div className="mt-2">
+                  <ExerciseYouTubeLink exercise={exercise} compact />
+                </div>
               </div>
             </details>
           </div>
@@ -5385,6 +5912,9 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
                   {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
                   <div className="mt-3">
                     <ExerciseMedia exercise={enriched} />
+                    <div className="mt-2">
+                      <ExerciseYouTubeLink exercise={enriched} />
+                    </div>
                   </div>
                 </div>
               )
@@ -5515,6 +6045,19 @@ function getVideoEmbedUrl(value) {
 function getExerciseVideoUrl(exercise) {
   const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+}
+
+function ExerciseYouTubeLink({ exercise, compact = false }) {
+  return (
+    <a
+      href={getExerciseVideoUrl(exercise)}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-red-300/25 bg-red-400/10 px-3 py-2 text-center text-xs font-black text-red-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
+    >
+      Ver execução no YouTube
+    </a>
+  )
 }
 
 function isDirectVideoUrl(value) {
@@ -5810,6 +6353,9 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
 
               <div className="mt-3">
                 <ExerciseMedia exercise={exercise} compact />
+                <div className="mt-2">
+                  <ExerciseYouTubeLink exercise={exercise} compact />
+                </div>
               </div>
             </div>
           ))}

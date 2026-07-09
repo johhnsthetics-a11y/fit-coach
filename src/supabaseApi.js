@@ -252,7 +252,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, appAdminSettings] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -269,6 +269,7 @@ export async function loadRemoteData() {
     request('student_anamneses?select=*&order=submitted_at.desc'),
     optionalTableRequest('coach_subscriptions?select=*&limit=1'),
     optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
+    optionalTableRequest('workout_progression_decisions?select=*&order=created_at.desc'),
     loadRemoteAppAdminSettings().catch(() => null),
   ])
 
@@ -291,6 +292,7 @@ export async function loadRemoteData() {
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
     exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
+    workoutProgressionDecisions: workoutProgressionDecisions.map(fromWorkoutProgressionDecisionRow),
     appAdminSettings,
   }
 }
@@ -671,6 +673,27 @@ export async function archiveRemoteWorkout(workoutId) {
     body: JSON.stringify({ active: false }),
   })
   return rows[0] ? fromWorkoutRow(rows[0]) : null
+}
+
+export async function saveRemoteWorkoutProgressionDecision(decision, coachId) {
+  const rows = await request('workout_progression_decisions', {
+    method: 'POST',
+    body: JSON.stringify({
+      coach_id: coachId || null,
+      student_id: decision.studentId,
+      workout_id: isUuid(decision.workoutId) ? decision.workoutId : null,
+      exercise_name: decision.exerciseName,
+      action: decision.action,
+      suggestion: decision.suggestion,
+      reason: decision.reason,
+      confidence: decision.confidence,
+      status: decision.status || 'approved',
+      previous_target: decision.previousTarget || {},
+      next_target: decision.nextTarget || {},
+      source: decision.source || 'local_rules',
+    }),
+  })
+  return rows[0] ? fromWorkoutProgressionDecisionRow(rows[0]) : decision
 }
 
 export async function saveRemoteNutritionPlan(plan, coachId) {
@@ -1246,6 +1269,25 @@ function fromExerciseLibraryRow(row) {
     muscleMap: row.muscle_map ?? '',
     aliases: Array.isArray(row.aliases) ? row.aliases : [],
     source: 'supabase',
+  }
+}
+
+function fromWorkoutProgressionDecisionRow(row) {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    studentId: row.student_id,
+    workoutId: row.workout_id,
+    exerciseName: row.exercise_name ?? '',
+    action: row.action ?? '',
+    suggestion: row.suggestion ?? '',
+    reason: row.reason ?? '',
+    confidence: row.confidence ?? '',
+    status: row.status ?? '',
+    previousTarget: row.previous_target ?? {},
+    nextTarget: row.next_target ?? {},
+    source: row.source ?? 'local_rules',
+    createdAt: row.created_at,
   }
 }
 
