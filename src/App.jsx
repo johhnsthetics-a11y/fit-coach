@@ -4514,11 +4514,7 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                   } ${index === 0 ? 'sm:order-2 sm:-mt-2' : index === 1 ? 'sm:order-1 sm:mt-5' : 'sm:order-3 sm:mt-8'}`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border ${
-                      index === 0 ? 'border-amber-300/40 bg-amber-300/15' : index === 1 ? 'border-zinc-300/30 bg-zinc-200/10' : 'border-orange-300/35 bg-orange-300/12'
-                    }`}>
-                      <NavIcon name="trophy" className={`h-5 w-5 ${index === 0 ? 'text-amber-200' : index === 1 ? 'text-zinc-200' : 'text-orange-200'}`} />
-                    </span>
+                    <RankMedal icon={item.levelIcon} label={item.levelName} size="sm" />
                     <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-black text-zinc-300">#{item.position}</span>
                   </div>
                   <h4 className="mt-4 truncate text-base font-black text-white">{item.student.name}</h4>
@@ -4544,7 +4540,7 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                     : 'border-white/10 bg-white/[0.035] hover:border-blue-300/35'
                 }`}
               >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-zinc-950 text-sm font-black text-emerald-100">#{item.position}</span>
+                <RankMedal icon={item.levelIcon} label={item.levelName} size="sm" />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center justify-between gap-2">
                     <p className="truncate text-sm font-black text-white">{item.student.name}</p>
@@ -4584,6 +4580,7 @@ function buildCoachStudentRanking(students = [], workoutLogs = []) {
         xp,
         levelName: reward.levelName,
         progress: reward.progress,
+        levelIcon: reward.levelIcon,
       }
     })
     .sort((a, b) => b.xp - a.xp || clampPercent(b.student.adherence) - clampPercent(a.student.adherence))
@@ -5602,6 +5599,8 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         ...exercise,
         name: value,
         muscleGroup: profile?.group ?? exercise.muscleGroup,
+        primaryMuscle: profile?.primaryMuscle ?? exercise.primaryMuscle,
+        secondaryMuscles: profile?.secondaryMuscles ?? exercise.secondaryMuscles,
         equipment: profile?.equipment ?? exercise.equipment,
         instructions: profile?.cues ?? exercise.instructions,
         videoUrl: profile?.videoUrl || exercise.videoUrl || '',
@@ -5642,6 +5641,8 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
             ...item,
             name: apiExercise.name || item.name,
             muscleGroup: apiExercise.group || item.muscleGroup,
+            primaryMuscle: apiExercise.primaryMuscle || item.primaryMuscle,
+            secondaryMuscles: apiExercise.secondaryMuscles || item.secondaryMuscles,
             equipment: apiExercise.equipment || item.equipment,
             instructions: apiExercise.cues || item.instructions,
             videoUrl: apiExercise.videoUrl || item.videoUrl,
@@ -5725,9 +5726,15 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               key={exercise.name}
               type="button"
               onClick={() => addExercise(exercise.name)}
-              className="shrink-0 rounded-md border border-white/10 bg-zinc-950/70 px-3 py-2 text-xs font-bold text-zinc-200"
+              className="group flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/70 px-3 py-2 text-left text-xs font-bold text-zinc-200 transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300/35 hover:bg-emerald-300/10 active:scale-[0.98]"
             >
-              + {exercise.name}
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/20 bg-emerald-300/10 text-emerald-100">
+                <MuscleMapMini exercise={exercise} />
+              </span>
+              <span className="min-w-0">
+                <span className="block max-w-40 truncate">+ {exercise.name}</span>
+                <span className="mt-0.5 block max-w-40 truncate text-[10px] font-bold text-zinc-500">{exercise.group || exercise.muscleGroup || 'Músculo alvo'}</span>
+              </span>
             </button>
           ))}
         </div>
@@ -5739,7 +5746,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 
       <div className="space-y-3">
         {exercises.map((exercise, index) => (
-          <div key={index} className="min-w-0 rounded-md border border-white/10 bg-white/[0.03] p-4">
+          <div key={index} className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
@@ -5770,6 +5777,10 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
               <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
               <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
+            </div>
+
+            <div className="mt-4">
+              <ExerciseMuscleSummary exercise={exercise} compact />
             </div>
 
             <details className="mt-4 rounded-md border border-white/10 bg-zinc-950/55">
@@ -5895,7 +5906,7 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
             {workout.exercises.map((exercise, index) => {
               const enriched = enrichExercise(exercise, availableExerciseLibrary)
               return (
-                <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-md border border-white/10 bg-zinc-950/55 p-4">
+                <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
@@ -5908,6 +5919,9 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
                       <ExerciseMetric label="Carga" value={enriched.load || '-'} />
                       <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
                     </div>
+                  </div>
+                  <div className="mt-4">
+                    <ExerciseMuscleSummary exercise={enriched} />
                   </div>
                   {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
                   <div className="mt-3">
@@ -5939,6 +5953,8 @@ function getExerciseLibrary(remoteItems = []) {
       ...exercise,
       name: local.name || exercise.name,
       group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
+      primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
+      secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
       equipment: exercise.equipment || local.equipment || '',
       cues: exercise.cues || exercise.instructions || local.cues || '',
       videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
@@ -5983,6 +5999,8 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     load: '',
     rest: '60s',
     muscleGroup: profile?.group ?? '',
+    primaryMuscle: profile?.primaryMuscle ?? '',
+    secondaryMuscles: profile?.secondaryMuscles ?? [],
     equipment: profile?.equipment ?? '',
     instructions: profile?.cues ?? '',
     videoUrl: profile?.videoUrl ?? '',
@@ -5996,9 +6014,16 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
 
 function enrichExercise(exercise, library = exerciseLibrary) {
   const profile = findExerciseProfile(exercise.name, library)
+  const muscleProfile = getExerciseMuscleProfile({
+    ...profile,
+    ...exercise,
+    muscleGroup: exercise.muscleGroup || profile?.group || '',
+  })
   return {
     ...exercise,
     muscleGroup: exercise.muscleGroup || profile?.group || '',
+    primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
+    secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
     equipment: exercise.equipment || profile?.equipment || '',
     instructions: exercise.instructions || profile?.cues || '',
     videoUrl: exercise.videoUrl || profile?.videoUrl || '',
@@ -6078,6 +6103,359 @@ function ExerciseMetric({ label, value }) {
       <p className="mt-1 break-words font-black text-zinc-200">{value}</p>
     </div>
   )
+}
+
+const muscleConfig = {
+  peitoral: { label: 'Peitoral', view: 'front', aliases: ['peito', 'chest', 'pectoral', 'pectorals', 'peitoral maior'], description: 'Região principal dos movimentos de empurrar.' },
+  'peitoral-superior': { label: 'Peitoral superior', view: 'front', aliases: ['peito superior', 'upper chest', 'incline chest', 'upper pectoral'], description: 'Foco na porção clavicular do peitoral.' },
+  costas: { label: 'Costas', view: 'back', aliases: ['back', 'upper back', 'costas altas', 'meio das costas'], description: 'Região ampla de puxadas e remadas.' },
+  dorsal: { label: 'Dorsal', view: 'back', aliases: ['lats', 'latissimus', 'latissimo', 'latíssimo', 'grande dorsal'], description: 'Responsável por puxadas e controle escapular.' },
+  trapezio: { label: 'Trapézio', view: 'back', aliases: ['trapézio', 'traps', 'trap', 'trapezius'], description: 'Estabiliza escápulas e parte superior das costas.' },
+  lombar: { label: 'Lombar', view: 'back', aliases: ['lower back', 'erectors', 'eretores', 'lombares'], description: 'Estabilização da coluna e extensão de quadril.' },
+  'deltoide-anterior': { label: 'Deltoide anterior', view: 'front', aliases: ['ombro anterior', 'front delt', 'anterior deltoid'], description: 'Atua em empurradas e elevação frontal.' },
+  'deltoide-lateral': { label: 'Deltoide lateral', view: 'front', aliases: ['ombro lateral', 'side delt', 'lateral deltoid', 'ombros'], description: 'Dá suporte às elevações laterais e abdução do ombro.' },
+  'deltoide-posterior': { label: 'Deltoide posterior', view: 'back', aliases: ['ombro posterior', 'rear delt', 'posterior deltoid'], description: 'Ajuda em remadas, puxadas e postura escapular.' },
+  biceps: { label: 'Bíceps', view: 'front', aliases: ['bíceps', 'biceps', 'bicep'], description: 'Flexão de cotovelo e apoio nas puxadas.' },
+  triceps: { label: 'Tríceps', view: 'back', aliases: ['tríceps', 'triceps', 'tricep'], description: 'Extensão de cotovelo e finalização das empurradas.' },
+  antebraco: { label: 'Antebraço', view: 'front', aliases: ['antebraço', 'forearm', 'forearms', 'grip'], description: 'Pegada, punho e estabilidade de carga.' },
+  abdomen: { label: 'Abdômen', view: 'front', aliases: ['abdomen', 'abdômen', 'abs', 'core', 'abdominal'], description: 'Controle do tronco e estabilidade.' },
+  obliquos: { label: 'Oblíquos', view: 'front', aliases: ['oblíquos', 'obliques', 'lateral abdomen'], description: 'Rotação, anti-rotação e estabilidade lateral.' },
+  gluteos: { label: 'Glúteos', view: 'back', aliases: ['glúteos', 'gluteos', 'glutes', 'glute', 'gluteus'], description: 'Extensão de quadril e potência de membros inferiores.' },
+  quadriceps: { label: 'Quadríceps', view: 'front', aliases: ['quadríceps', 'quadriceps', 'quads', 'coxa anterior'], description: 'Extensão de joelho e base de agachamentos.' },
+  'posterior-coxa': { label: 'Posterior de coxa', view: 'back', aliases: ['posterior de coxa', 'posteriores', 'hamstrings', 'isquiotibiais', 'coxa posterior'], description: 'Flexão de joelho e extensão de quadril.' },
+  adutores: { label: 'Adutores', view: 'front', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
+  abdutores: { label: 'Abdutores', view: 'front', aliases: ['abdutor', 'abdutores', 'abductors', 'outer thigh'], description: 'Estabilidade lateral do quadril.' },
+  panturrilhas: { label: 'Panturrilhas', view: 'back', aliases: ['panturrilha', 'calves', 'calf', 'gastrocnemius', 'soleus'], description: 'Elevação do calcanhar e estabilidade do tornozelo.' },
+}
+
+const muscleAliasMap = Object.entries(muscleConfig).reduce((map, [key, config]) => {
+  map.set(normalizeText(key), key)
+  map.set(normalizeText(config.label), key)
+  ;(config.aliases || []).forEach((alias) => map.set(normalizeText(alias), key))
+  return map
+}, new Map())
+
+const exerciseNameMuscleRules = [
+  { match: ['supino inclinado'], primary: 'peitoral-superior', secondary: ['peitoral', 'deltoide-anterior', 'triceps'] },
+  { match: ['supino', 'crucifixo', 'flexao', 'flexão'], primary: 'peitoral', secondary: ['deltoide-anterior', 'triceps'] },
+  { match: ['puxada', 'barra fixa', 'pulley'], primary: 'dorsal', secondary: ['costas', 'biceps'] },
+  { match: ['remada'], primary: 'costas', secondary: ['dorsal', 'biceps', 'deltoide-posterior'] },
+  { match: ['desenvolvimento'], primary: 'deltoide-anterior', secondary: ['deltoide-lateral', 'triceps'] },
+  { match: ['elevacao lateral', 'elevação lateral'], primary: 'deltoide-lateral', secondary: ['deltoide-anterior'] },
+  { match: ['rosca'], primary: 'biceps', secondary: ['antebraco'] },
+  { match: ['triceps', 'tríceps'], primary: 'triceps', secondary: ['antebraco'] },
+  { match: ['agachamento', 'leg press', 'extensora', 'afundo', 'passada'], primary: 'quadriceps', secondary: ['gluteos', 'adutores'] },
+  { match: ['flexora', 'stiff', 'terra', 'romeno'], primary: 'posterior-coxa', secondary: ['gluteos', 'lombar'] },
+  { match: ['elevacao pelvica', 'elevação pélvica', 'hip thrust'], primary: 'gluteos', secondary: ['posterior-coxa'] },
+  { match: ['panturrilha'], primary: 'panturrilhas', secondary: [] },
+  { match: ['prancha', 'abdominal', 'crunch'], primary: 'abdomen', secondary: ['obliquos'] },
+]
+
+function normalizeMuscleName(value) {
+  const normalized = normalizeText(String(value || '').replace(/_/g, ' ').replace(/-/g, ' '))
+  if (!normalized) return ''
+  if (muscleAliasMap.has(normalized)) return muscleAliasMap.get(normalized)
+  const partial = [...muscleAliasMap.entries()].find(([alias]) => alias.length > 3 && (normalized.includes(alias) || alias.includes(normalized)))
+  return partial?.[1] || ''
+}
+
+function splitMuscleValues(value) {
+  if (Array.isArray(value)) return value
+  return String(value || '')
+    .split(/,|;|\/|\+| e | and |&/i)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function uniqueMuscles(values) {
+  return [...new Set(values.map(normalizeMuscleName).filter(Boolean))]
+}
+
+function getExerciseMuscleProfile(exercise = {}) {
+  const primaryCandidates = [
+    exercise.primaryMuscle,
+    exercise.primary_muscle,
+    exercise.muscleGroup,
+    exercise.muscle_group,
+    exercise.group,
+    exercise.category,
+  ]
+  let primaryMuscle = ''
+  let secondaryMuscles = uniqueMuscles([
+    ...splitMuscleValues(exercise.secondaryMuscles),
+    ...splitMuscleValues(exercise.secondary_muscles),
+  ])
+
+  for (const candidate of primaryCandidates) {
+    const muscles = uniqueMuscles(splitMuscleValues(candidate))
+    if (muscles.length) {
+      primaryMuscle = primaryMuscle || muscles[0]
+      secondaryMuscles = [...secondaryMuscles, ...muscles.slice(1)]
+      break
+    }
+  }
+
+  if (!primaryMuscle) {
+    const normalizedName = normalizeText(exercise.name || '')
+    const inferred = exerciseNameMuscleRules.find((rule) => rule.match.some((term) => normalizedName.includes(normalizeText(term))))
+    if (inferred) {
+      primaryMuscle = inferred.primary
+      secondaryMuscles = [...secondaryMuscles, ...inferred.secondary]
+    }
+  }
+
+  secondaryMuscles = [...new Set(secondaryMuscles.filter((muscle) => muscle !== primaryMuscle))]
+  return {
+    primaryMuscle,
+    secondaryMuscles,
+    primaryLabel: muscleConfig[primaryMuscle]?.label || 'Músculo alvo não identificado',
+    secondaryLabels: secondaryMuscles.map((muscle) => muscleConfig[muscle]?.label).filter(Boolean),
+    view: muscleConfig[primaryMuscle]?.view || secondaryMuscles.map((muscle) => muscleConfig[muscle]?.view).find(Boolean) || 'front',
+  }
+}
+
+function MuscleMapMini({ exercise }) {
+  const profile = getExerciseMuscleProfile(exercise)
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+      <path d="M12 2.5a2.6 2.6 0 0 1 2.6 2.6 2.5 2.5 0 0 1-1.1 2.1l1.7 1.4 1.5 5.6-1.8.5-1.1-3.8-.9 3.5.7 6.7h-2l-.6-5.2-.6 5.2h-2l.7-6.7-.9-3.5-1.1 3.8-1.8-.5 1.5-5.6 1.7-1.4a2.5 2.5 0 0 1-1.1-2.1A2.6 2.6 0 0 1 12 2.5Z" fill="currentColor" opacity="0.32" />
+      <circle cx="12" cy="5.1" r="2.1" fill="currentColor" opacity="0.44" />
+      <path
+        d={profile.view === 'back' ? 'M8.7 8.6h6.6l1.2 4.6-2.7 3.2H10l-2.5-3.2Z' : 'M8.5 8.6h7l-1.1 4.8H9.6Z'}
+        fill="#34f5a5"
+      />
+    </svg>
+  )
+}
+
+function MuscleMap({ exercise, compact = false, className = '' }) {
+  const [hovered, setHovered] = useState('')
+  const profile = useMemo(() => getExerciseMuscleProfile(exercise), [exercise])
+  const activeMuscles = useMemo(() => {
+    const map = new Map()
+    if (profile.primaryMuscle) map.set(profile.primaryMuscle, 'primary')
+    profile.secondaryMuscles.forEach((muscle) => map.set(muscle, 'secondary'))
+    return map
+  }, [profile.primaryMuscle, profile.secondaryMuscles])
+  const view = profile.view === 'back' ? 'back' : 'front'
+  const hoveredConfig = hovered ? muscleConfig[hovered] : null
+
+  return (
+    <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Músculo alvo</p>
+          <p className="mt-1 text-sm font-black text-white">{profile.primaryLabel}</p>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-black uppercase text-zinc-300">{view === 'back' ? 'traseira' : 'frontal'}</span>
+      </div>
+      <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-36' : 'h-56'} w-full max-w-56`}>
+        <defs>
+          <filter id="muscleGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="2.1" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <BodySilhouette view={view} />
+        <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} />
+      </svg>
+      <div className="mt-3 grid gap-2">
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-300/12 px-2.5 py-1 text-[11px] font-black text-emerald-100">
+            <span className="h-2 w-2 rounded-full bg-emerald-300" /> Principal
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-300/20 bg-teal-300/10 px-2.5 py-1 text-[11px] font-black text-teal-100">
+            <span className="h-2 w-2 rounded-full bg-teal-300/70" /> Auxiliar
+          </span>
+        </div>
+        {profile.secondaryLabels.length ? (
+          <p className="text-xs leading-5 text-zinc-400">Auxiliares: {profile.secondaryLabels.join(', ')}</p>
+        ) : (
+          <p className="text-xs leading-5 text-zinc-500">Sem músculos auxiliares definidos para este exercício.</p>
+        )}
+        <p className="min-h-5 text-xs leading-5 text-emerald-100">
+          {hoveredConfig ? `${hoveredConfig.label}: ${hoveredConfig.description}` : 'Toque ou passe o mouse no mapa para ver detalhes.'}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function BodySilhouette({ view }) {
+  const neutral = '#273033'
+  const neutralSoft = '#1b2225'
+  return (
+    <g opacity="0.98">
+      <circle cx="50" cy="12" r="8" fill={neutral} />
+      <path d="M39 22h22l7 31-6 31H38l-6-31 7-31Z" fill={neutralSoft} />
+      <path d="M34 25 19 42l-6 34 9 2 8-29 8-12Z" fill={neutral} />
+      <path d="M66 25 81 42l6 34-9 2-8-29-8-12Z" fill={neutral} />
+      <path d="M38 83h11l-3 39H34l-3-23Z" fill={neutral} />
+      <path d="M51 83h11l7 16-3 23H54Z" fill={neutral} />
+      <path d="M43 122h-12l-1 6h15Z" fill={neutralSoft} />
+      <path d="M57 122h12l1 6H55Z" fill={neutralSoft} />
+      {view === 'back' ? <path d="M41 25h18l-9 10Z" fill="#111719" opacity="0.7" /> : <path d="M43 25h14l-7 7Z" fill="#101618" opacity="0.55" />}
+    </g>
+  )
+}
+
+function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
+  const primary = '#34f5a5'
+  const secondary = 'rgba(45, 212, 191, 0.58)'
+  const idle = 'rgba(255,255,255,0.08)'
+
+  function regionProps(key) {
+    const state = activeMuscles.get(key)
+    const active = Boolean(state)
+    return {
+      role: 'img',
+      tabIndex: 0,
+      'aria-label': `${muscleConfig[key]?.label || key}${state === 'primary' ? ', músculo principal' : state === 'secondary' ? ', músculo auxiliar' : ''}`,
+      onMouseEnter: () => onHover(key),
+      onMouseLeave: () => onHover(''),
+      onFocus: () => onHover(key),
+      onBlur: () => onHover(''),
+      fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
+      stroke: state === 'primary' || hovered === key ? '#a7f3d0' : 'rgba(255,255,255,0.16)',
+      strokeWidth: state === 'primary' ? 1.35 : 0.75,
+      opacity: active ? 1 : 0.42,
+      filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,
+      style: { cursor: 'pointer', transition: 'fill 180ms ease, opacity 180ms ease, stroke 180ms ease, transform 180ms ease', transformOrigin: 'center' },
+    }
+  }
+
+  const front = (
+    <>
+      <ellipse cx="43" cy="34" rx="8" ry="7" {...regionProps('peitoral')}><title>Peitoral</title></ellipse>
+      <ellipse cx="57" cy="34" rx="8" ry="7" {...regionProps('peitoral')}><title>Peitoral</title></ellipse>
+      <path d="M39 27h22l-4 5H43Z" {...regionProps('peitoral-superior')}><title>Peitoral superior</title></path>
+      <path d="M43 44h14l3 25H40Z" {...regionProps('abdomen')}><title>Abdômen</title></path>
+      <path d="M36 44h7l-3 24h-6Z" {...regionProps('obliquos')}><title>Oblíquos</title></path>
+      <path d="M57 44h7l2 24h-6Z" {...regionProps('obliquos')}><title>Oblíquos</title></path>
+      <ellipse cx="32" cy="30" rx="6" ry="8" {...regionProps('deltoide-anterior')}><title>Deltoide anterior</title></ellipse>
+      <ellipse cx="68" cy="30" rx="6" ry="8" {...regionProps('deltoide-anterior')}><title>Deltoide anterior</title></ellipse>
+      <ellipse cx="29" cy="36" rx="5" ry="9" {...regionProps('deltoide-lateral')}><title>Deltoide lateral</title></ellipse>
+      <ellipse cx="71" cy="36" rx="5" ry="9" {...regionProps('deltoide-lateral')}><title>Deltoide lateral</title></ellipse>
+      <path d="M24 44h9l-5 21h-8Z" {...regionProps('biceps')}><title>Bíceps</title></path>
+      <path d="M67 44h9l4 21h-8Z" {...regionProps('biceps')}><title>Bíceps</title></path>
+      <path d="M18 66h10l-3 19h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
+      <path d="M72 66h10l2 19h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
+      <path d="M35 84h14l-4 35H33l-4-20Z" {...regionProps('quadriceps')}><title>Quadríceps</title></path>
+      <path d="M51 84h14l6 15-4 20H55Z" {...regionProps('quadriceps')}><title>Quadríceps</title></path>
+      <path d="M47 86h6l-1 31h-4Z" {...regionProps('adutores')}><title>Adutores</title></path>
+      <path d="M31 88h6l-6 25-4-12Z" {...regionProps('abdutores')}><title>Abdutores</title></path>
+      <path d="M63 88h6l4 13-4 12Z" {...regionProps('abdutores')}><title>Abdutores</title></path>
+      <path d="M34 119h12l-2 10H32Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
+      <path d="M54 119h12l2 10H56Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
+    </>
+  )
+
+  const back = (
+    <>
+      <path d="M39 24h22l7 31-8 17H40l-8-17Z" {...regionProps('costas')}><title>Costas</title></path>
+      <path d="M34 35h13l-8 32-9-16Z" {...regionProps('dorsal')}><title>Dorsal</title></path>
+      <path d="M53 35h13l4 16-9 16Z" {...regionProps('dorsal')}><title>Dorsal</title></path>
+      <path d="M41 23h18l-5 12h-8Z" {...regionProps('trapezio')}><title>Trapézio</title></path>
+      <path d="M42 63h16l3 15H39Z" {...regionProps('lombar')}><title>Lombar</title></path>
+      <ellipse cx="31" cy="32" rx="6" ry="9" {...regionProps('deltoide-posterior')}><title>Deltoide posterior</title></ellipse>
+      <ellipse cx="69" cy="32" rx="6" ry="9" {...regionProps('deltoide-posterior')}><title>Deltoide posterior</title></ellipse>
+      <path d="M23 44h9l-5 24h-9Z" {...regionProps('triceps')}><title>Tríceps</title></path>
+      <path d="M68 44h9l5 24h-9Z" {...regionProps('triceps')}><title>Tríceps</title></path>
+      <path d="M18 68h10l-3 18h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
+      <path d="M72 68h10l2 18h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
+      <path d="M36 78h28l4 17-18 8-18-8Z" {...regionProps('gluteos')}><title>Glúteos</title></path>
+      <path d="M34 95h14l-3 24H33l-4-19Z" {...regionProps('posterior-coxa')}><title>Posterior de coxa</title></path>
+      <path d="M52 95h14l5 5-4 19H55Z" {...regionProps('posterior-coxa')}><title>Posterior de coxa</title></path>
+      <path d="M34 119h12l-2 10H32Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
+      <path d="M54 119h12l2 10H56Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
+    </>
+  )
+
+  return view === 'back' ? back : front
+}
+
+function ExerciseMuscleSummary({ exercise, compact = false }) {
+  const profile = getExerciseMuscleProfile(exercise)
+  return (
+    <div className={`grid gap-3 ${compact ? '' : 'lg:grid-cols-[0.82fr_1fr] lg:items-stretch'}`}>
+      <MuscleMap exercise={exercise} compact={compact} />
+      <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
+            <NavIcon name="muscle" className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-xs font-black uppercase text-zinc-500">Principal</p>
+            <p className="mt-1 text-base font-black text-white">{profile.primaryLabel}</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-300/20 bg-teal-300/10 text-teal-100">
+            <NavIcon name="layers" className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-xs font-black uppercase text-zinc-500">Auxiliares</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{profile.secondaryLabels.length ? profile.secondaryLabels.join(', ') : 'Não definidos'}</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
+            <NavIcon name="bulb" className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-xs font-black uppercase text-zinc-500">Dica técnica</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{getExerciseTechniqueTip(exercise)}</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-rose-300/20 bg-rose-300/10 text-rose-100">
+            <NavIcon name="alert" className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-xs font-black uppercase text-zinc-500">Erro comum</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{getExerciseCommonMistake(exercise)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getExerciseTechniqueTip(exercise = {}) {
+  const profile = getExerciseMuscleProfile(exercise)
+  const tips = {
+    peitoral: 'Mantenha escápulas firmes e controle a descida antes de empurrar.',
+    'peitoral-superior': 'Use banco inclinado sem perder a linha do punho com o cotovelo.',
+    costas: 'Puxe com os cotovelos e mantenha o tronco estável.',
+    dorsal: 'Comece deprimindo as escápulas antes de puxar.',
+    quadriceps: 'Joelhos acompanham a direção dos pés durante toda a repetição.',
+    gluteos: 'Finalize contraindo glúteos sem hiperestender a lombar.',
+    'posterior-coxa': 'Empurre o quadril para trás e preserve a coluna neutra.',
+    biceps: 'Cotovelos próximos ao tronco e descida controlada.',
+    triceps: 'Cotovelos estáveis e extensão completa com controle.',
+    abdomen: 'Contraia o abdômen e evite compensar com pescoço ou lombar.',
+  }
+  return tips[profile.primaryMuscle] || exercise.instructions || 'Execute com amplitude controlada, respiração organizada e técnica acima da carga.'
+}
+
+function getExerciseCommonMistake(exercise = {}) {
+  const profile = getExerciseMuscleProfile(exercise)
+  const mistakes = {
+    peitoral: 'Perder a posição dos ombros ou quicar a carga no peito.',
+    'peitoral-superior': 'Inclinar demais o banco e transformar em movimento de ombro.',
+    costas: 'Puxar com impulso e deixar os ombros subirem.',
+    dorsal: 'Dobrar o tronco para terminar a repetição.',
+    quadriceps: 'Fechar os joelhos para dentro ou perder controle na descida.',
+    gluteos: 'Compensar com lombar no final do movimento.',
+    'posterior-coxa': 'Arredondar a coluna para buscar mais amplitude.',
+    biceps: 'Balançar o tronco para subir a carga.',
+    triceps: 'Abrir os cotovelos e perder tensão no alvo.',
+    abdomen: 'Prender a respiração e perder alinhamento do tronco.',
+  }
+  return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execução prescrita.'
 }
 
 function ExerciseMedia({ exercise, compact = false }) {
@@ -6317,7 +6695,7 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
       {exercises.length ? (
         <div className="grid gap-3">
           {exercises.map((exercise, index) => (
-            <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition duration-200 hover:border-emerald-300/25 active:scale-[0.995]">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
@@ -6339,6 +6717,10 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
                   {exercise.instructions}
                 </p>
               ) : null}
+
+              <div className="mt-4">
+                <ExerciseMuscleSummary exercise={exercise} compact />
+              </div>
 
               <label className="mt-4 grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
                 Carga realizada pelo aluno
@@ -8687,6 +9069,9 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
+              <div className="mb-3">
+                <RankMedal icon={reward.levelIcon} label={reward.levelName} />
+              </div>
               <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
               <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
             </div>
@@ -8744,7 +9129,9 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
               }`}>
                 <span className="text-[10px] font-black uppercase">{day.label}</span>
                 <span className="mt-1 text-base font-black">{day.dayNumber}</span>
-                <span className="mt-1 text-[10px] font-bold">{day.completed ? 'feito' : day.isToday ? 'hoje' : '-'}</span>
+                <span className="mt-1 grid h-5 min-w-5 place-items-center rounded-full text-[10px] font-bold">
+                  {day.completed ? <NavIcon name="check" className="h-4 w-4" /> : day.isToday ? 'hoje' : '-'}
+                </span>
               </div>
             ))}
           </div>
@@ -8778,11 +9165,11 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
   const hydrationXp = waterPercent >= 100 ? 40 : waterPercent >= 80 ? 25 : 0
   const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp)
   const levels = [
-    { name: 'Selo Bronze', min: 0 },
-    { name: 'Selo Prata', min: 450 },
-    { name: 'Selo Ouro', min: 900 },
-    { name: 'Selo Diamante', min: 1600 },
-    { name: 'Elite Coach Fit', min: 2600 },
+    { name: 'Selo Bronze', min: 0, icon: 'bronze', tone: 'from-amber-700 to-orange-300' },
+    { name: 'Selo Prata', min: 450, icon: 'prata', tone: 'from-slate-500 to-zinc-100' },
+    { name: 'Selo Ouro', min: 900, icon: 'ouro', tone: 'from-yellow-600 to-amber-200' },
+    { name: 'Selo Diamante', min: 1600, icon: 'diamante', tone: 'from-cyan-400 to-emerald-200' },
+    { name: 'Elite Coach Fit', min: 2600, icon: 'elite', tone: 'from-emerald-300 to-lime-200' },
   ]
   const currentIndex = levels.reduce((index, level, levelIndex) => (xp >= level.min ? levelIndex : index), 0)
   const current = levels[currentIndex]
@@ -8793,6 +9180,8 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
   return {
     xp,
     levelName: current.name,
+    levelIcon: current.icon,
+    levelTone: current.tone,
     nextLevelName: next?.name || 'Ranking máximo',
     remainingXp,
     progress: Math.min(100, Math.max(0, progress)),
@@ -8808,6 +9197,24 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
       { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
     ],
   }
+}
+
+function RankMedal({ icon = 'bronze', label = 'Selo Bronze', size = 'md' }) {
+  const tone = {
+    bronze: 'from-amber-800 via-orange-500 to-amber-200 text-amber-950',
+    prata: 'from-slate-500 via-zinc-200 to-white text-zinc-950',
+    ouro: 'from-yellow-700 via-amber-300 to-yellow-100 text-yellow-950',
+    diamante: 'from-cyan-500 via-emerald-200 to-white text-cyan-950',
+    elite: 'from-emerald-500 via-lime-200 to-white text-emerald-950',
+  }[icon] || 'from-amber-800 via-orange-500 to-amber-200 text-amber-950'
+  const dimensions = size === 'sm' ? 'h-10 w-10' : 'h-14 w-14'
+
+  return (
+    <span className={`relative grid ${dimensions} shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${tone} shadow-lg shadow-black/25`} title={label} aria-label={label}>
+      <span className="absolute inset-1 rounded-xl border border-black/20" />
+      <NavIcon name={icon === 'diamante' ? 'star' : 'trophy'} className={size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'} />
+    </span>
+  )
 }
 
 function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' }) {
@@ -11608,6 +12015,13 @@ function NavIcon({ name, className = '' }) {
     credit: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
     water: <><path d="M12 2s6 6.5 6 12a6 6 0 0 1-12 0C6 8.5 12 2 12 2Z" /><path d="M9.5 15.5A3.1 3.1 0 0 0 12 17" /></>,
     trophy: <><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" /><path d="M5 5H3v2a4 4 0 0 0 4 4" /><path d="M19 5h2v2a4 4 0 0 1-4 4" /></>,
+    muscle: <><path d="M12 3a3 3 0 0 1 3 3c0 1.1-.6 2-1.4 2.5l2.2 1.8 2 7.2-2.4.7-1.4-5-1.1 4.4.8 4.4h-3.4l.8-4.4-1.1-4.4-1.4 5-2.4-.7 2-7.2 2.2-1.8A2.9 2.9 0 0 1 9 6a3 3 0 0 1 3-3Z" /></>,
+    layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 16 9 5 9-5" /></>,
+    bulb: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M8.5 14.5A6 6 0 1 1 15.5 14c-.9.8-1.5 1.7-1.5 3h-4c0-1.2-.5-2-1.5-2.5Z" /></>,
+    alert: <><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" /></>,
+    play: <><path d="M8 5v14l11-7Z" /></>,
+    star: <><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" /></>,
+    check: <><path d="m20 6-11 11-5-5" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
     menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
