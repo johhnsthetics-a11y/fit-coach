@@ -775,6 +775,18 @@ function AppContent() {
     ),
     [data.students, data.checkins, data.workouts, data.nutritionPlans, data.appointments, data.invoices, data.assessments],
   )
+  const priorityDashboard = useMemo(
+    () => buildPriorityDashboard({
+      students: data.students,
+      checkins: data.checkins,
+      workouts: data.workouts ?? [],
+      workoutLogs: data.workoutLogs ?? [],
+      messages: data.messages ?? [],
+      invoices: data.invoices ?? [],
+      assessments: data.assessments ?? [],
+    }),
+    [data.students, data.checkins, data.workouts, data.workoutLogs, data.messages, data.invoices, data.assessments],
+  )
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
@@ -2236,8 +2248,10 @@ function AppContent() {
               <Overview
                 selectedStudent={selectedStudent}
                 smartAlerts={smartAlerts}
+                priorityDashboard={priorityDashboard}
                 assessments={data.assessments ?? []}
                 invoices={data.invoices ?? []}
+                setSelectedStudentId={setSelectedStudentId}
                 setActiveView={setActiveView}
               />
             )}
@@ -2338,6 +2352,7 @@ function AppContent() {
               <Messages
                 students={data.students}
                 messages={data.messages ?? []}
+                selectedStudent={selectedStudent}
                 onSendMessage={sendMessage}
                 onMarkRead={markStudentMessagesRead}
                 onRefreshMessages={refreshCoachConversation}
@@ -3761,7 +3776,7 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
   )
 }
 
-function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActiveView }) {
+function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments, invoices, setSelectedStudentId, setActiveView }) {
   if (!selectedStudent) {
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -3843,9 +3858,24 @@ function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActi
   const assessmentData = buildAssessmentChartData(assessments, selectedStudent?.id)
   const revenueChartData = buildRevenueChartData(invoices)
   const actionPlan = buildCoachActionPlan(smartAlerts)
+  const openStudentFromPriority = (studentId, view = 'alunos') => {
+    setSelectedStudentId?.(studentId)
+    setActiveView(view)
+  }
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="xl:col-span-2">
+        <DailyIntelligenceSummary dashboard={priorityDashboard} onOpenView={setActiveView} />
+      </div>
+
+      <div className="xl:col-span-2">
+        <StudentPriorityPanel
+          dashboard={priorityDashboard}
+          onOpenStudent={(studentId) => openStudentFromPriority(studentId, 'alunos')}
+          onMessageStudent={(studentId) => openStudentFromPriority(studentId, 'mensagens')}
+        />
+      </div>
       <Panel title="Evolução corporal" action={`${assessmentData.length} avaliações`}>
         {assessmentData.length ? (
           <Suspense fallback={<ChartLoading />}>
@@ -10648,8 +10678,8 @@ function CoachSettings({ user, settings, onSave, onExport, masterAdmin = false, 
   )
 }
 
-function Messages({ students, messages, onSendMessage, onMarkRead, onRefreshMessages }) {
-  const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? '')
+function Messages({ students, messages, selectedStudent: selectedStudentFromDashboard, onSendMessage, onMarkRead, onRefreshMessages }) {
+  const [selectedStudentId, setSelectedStudentId] = useState(selectedStudentFromDashboard?.id ?? students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState('')
@@ -10663,6 +10693,12 @@ function Messages({ students, messages, onSendMessage, onMarkRead, onRefreshMess
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
   const latestMessageId = studentMessages.at(-1)?.id
   const suggestion = buildMessageSuggestion(selectedStudent)
+
+  useEffect(() => {
+    if (selectedStudentFromDashboard?.id) {
+      setSelectedStudentId(selectedStudentFromDashboard.id)
+    }
+  }, [selectedStudentFromDashboard?.id])
   const unreadForSelected = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
 
   useEffect(() => {
@@ -11262,6 +11298,525 @@ function buildCoachActionPlan(smartAlerts = []) {
   })
 
   return actions.slice(0, 4)
+}
+
+function DailyIntelligenceSummary({ dashboard, onOpenView }) {
+  const summary = dashboard?.summary || {}
+  const actions = dashboard?.recommendedActions || []
+
+  return (
+    <Panel title="Resumo inteligente do dia" action="Prioridades reais">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <PrioritySummaryMetric label="Alunos em risco" value={summary.riskStudents || 0} detail="abandono médio, alto ou crítico" tone="rose" />
+        <PrioritySummaryMetric label="Sem treino ativo" value={summary.withoutWorkout || 0} detail="precisam de prescrição" tone="amber" />
+        <PrioritySummaryMetric label="Check-ins pendentes" value={summary.pendingCheckins || 0} detail="retornos a revisar" tone="cyan" />
+        <PrioritySummaryMetric label="Cobranças próximas" value={summary.upcomingCharges || 0} detail="vencem em até 7 dias" tone="emerald" />
+        <PrioritySummaryMetric label="Mensagens pendentes" value={summary.pendingMessages || 0} detail="alunos aguardando resposta" tone="blue" />
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {actions.length ? actions.map((action) => (
+          <button
+            key={`${action.studentId}-${action.title}`}
+            type="button"
+            onClick={() => onOpenView?.(action.view)}
+            className="group rounded-xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/40 hover:bg-emerald-300/[0.07]"
+          >
+            <p className="text-xs font-black uppercase text-emerald-200">{action.label}</p>
+            <h4 className="mt-2 text-sm font-black text-white">{action.title}</h4>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">{action.body}</p>
+            <span className="mt-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-black text-emerald-100 group-hover:border-emerald-300/35">
+              Abrir ação
+            </span>
+          </button>
+        )) : (
+          <div className="lg:col-span-3">
+            <Empty text="Nenhuma ação urgente agora. Acompanhe check-ins, treinos e mensagens para manter a carteira aquecida." />
+          </div>
+        )}
+      </div>
+    </Panel>
+  )
+}
+
+function PrioritySummaryMetric({ label, value, detail, tone = 'emerald' }) {
+  const toneClass = {
+    rose: 'border-rose-300/25 bg-rose-300/[0.07] text-rose-100',
+    amber: 'border-amber-300/25 bg-amber-300/[0.07] text-amber-100',
+    cyan: 'border-cyan-300/25 bg-cyan-300/[0.07] text-cyan-100',
+    blue: 'border-blue-300/25 bg-blue-300/[0.07] text-blue-100',
+    emerald: 'border-emerald-300/25 bg-emerald-300/[0.07] text-emerald-100',
+  }[tone] || 'border-emerald-300/25 bg-emerald-300/[0.07] text-emerald-100'
+
+  return (
+    <div className={`rounded-xl border p-4 ${toneClass}`}>
+      <p className="text-xs font-black uppercase opacity-80">{label}</p>
+      <p className="mt-2 text-3xl font-black text-white">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-zinc-400">{detail}</p>
+    </div>
+  )
+}
+
+function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
+  const [filter, setFilter] = useState('todos')
+  const [loading, setLoading] = useState(true)
+  const items = dashboard?.items || []
+  const filters = [
+    ['todos', 'Todos'],
+    ['urgente', 'Urgente'],
+    ['baixa-adesao', 'Baixa adesão'],
+    ['risco-abandono', 'Risco de abandono'],
+    ['sem-treino', 'Sem treino'],
+    ['sem-checkin', 'Sem check-in'],
+    ['financeiro', 'Financeiro'],
+    ['sem-resposta', 'Sem resposta'],
+  ]
+
+  useEffect(() => {
+    setLoading(true)
+    const timer = window.setTimeout(() => setLoading(false), 180)
+    return () => window.clearTimeout(timer)
+  }, [dashboard?.generatedAt, filter])
+
+  const filteredItems = items.filter((item) => filter === 'todos' || item.filterTags.includes(filter))
+
+  return (
+    <Panel title="Alunos que precisam de atenção" action={`${filteredItems.length} no filtro`}>
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-soft">
+        {filters.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setFilter(id)}
+            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black transition ${
+              filter === id
+                ? 'border-emerald-300/60 bg-emerald-300 text-zinc-950'
+                : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-emerald-300/35 hover:text-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {[1, 2].map((item) => (
+            <div key={item} className="h-48 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />
+          ))}
+        </div>
+      ) : filteredItems.length ? (
+        <div className="mt-4 grid gap-3 xl:grid-cols-2">
+          {filteredItems.map((item) => (
+            <PriorityStudentCard
+              key={item.student.id}
+              item={item}
+              onOpenStudent={() => onOpenStudent?.(item.student.id)}
+              onMessageStudent={() => onMessageStudent?.(item.student.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4">
+          <Empty text="Nenhum aluno encontrado neste filtro. Use Todos para enxergar a carteira completa." />
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+function PriorityStudentCard({ item, onOpenStudent, onMessageStudent }) {
+  const tone = getPriorityTone(item.priority)
+
+  return (
+    <article className={`rounded-2xl border p-4 ${tone.card}`}>
+      <div className="flex items-start gap-3">
+        <StudentPriorityAvatar student={item.student} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h4 className="truncate text-lg font-black text-white">{item.student.name}</h4>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">{item.lastActivity}</p>
+            </div>
+            <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${tone.badge}`}>{formatUiText(item.priority)}</span>
+          </div>
+          <p className="mt-3 text-sm font-black text-zinc-100">{item.reason}</p>
+          <p className="mt-1 text-sm leading-6 text-zinc-400">{item.recommendedAction}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <ScoreBox label="Adesão" value={item.adherence.score} detail={item.adherence.classification} tone={item.adherence.score < 55 ? 'rose' : item.adherence.score < 75 ? 'amber' : 'emerald'} />
+        <ScoreBox label="Risco" value={item.risk.score} detail={item.risk.classification} tone={item.risk.classification === 'critico' || item.risk.classification === 'alto' ? 'rose' : item.risk.classification === 'medio' ? 'amber' : 'emerald'} />
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        <p className="text-xs font-black uppercase text-zinc-500">Fatores detectados</p>
+        <div className="flex flex-wrap gap-2">
+          {item.factors.slice(0, 5).map((factor) => (
+            <span key={factor} className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-bold text-zinc-300">{factor}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+        <p className="text-xs font-black uppercase text-zinc-500">Por que este score?</p>
+        <p className="mt-1 text-xs leading-5 text-zinc-300">{item.adherence.reason}</p>
+        <p className="mt-1 text-xs leading-5 text-zinc-400">{item.risk.reason}</p>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button type="button" onClick={onOpenStudent} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/40 hover:bg-emerald-300/10">
+          Abrir perfil
+        </button>
+        <button type="button" onClick={onMessageStudent} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300">
+          Enviar mensagem
+        </button>
+      </div>
+    </article>
+  )
+}
+
+function StudentPriorityAvatar({ student }) {
+  const initials = String(student?.name || 'A')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
+  if (student?.photo) {
+    return <img src={student.photo} alt={student.name} className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
+  }
+
+  return (
+    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
+      {initials || 'A'}
+    </div>
+  )
+}
+
+function ScoreBox({ label, value, detail, tone = 'emerald' }) {
+  const toneClass = {
+    rose: 'border-rose-300/25 bg-rose-300/[0.075] text-rose-100',
+    amber: 'border-amber-300/25 bg-amber-300/[0.075] text-amber-100',
+    emerald: 'border-emerald-300/25 bg-emerald-300/[0.075] text-emerald-100',
+  }[tone] || 'border-emerald-300/25 bg-emerald-300/[0.075] text-emerald-100'
+
+  return (
+    <div className={`rounded-xl border p-3 ${toneClass}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase opacity-80">{label}</p>
+        <p className="text-xl font-black text-white">{value}</p>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/30">
+        <div className="h-full rounded-full bg-current" style={{ width: `${clampPercent(value)}%` }} />
+      </div>
+      <p className="mt-2 text-xs font-bold">{detail}</p>
+    </div>
+  )
+}
+
+function getPriorityTone(priority) {
+  if (priority === 'Urgente') {
+    return {
+      card: 'border-rose-300/30 bg-rose-300/[0.055]',
+      badge: 'border-rose-300/40 bg-rose-300/10 text-rose-100',
+    }
+  }
+  if (priority === 'Atencao') {
+    return {
+      card: 'border-orange-300/30 bg-orange-300/[0.055]',
+      badge: 'border-orange-300/40 bg-orange-300/10 text-orange-100',
+    }
+  }
+  if (priority === 'Acompanhar') {
+    return {
+      card: 'border-amber-300/30 bg-amber-300/[0.055]',
+      badge: 'border-amber-300/40 bg-amber-300/10 text-amber-100',
+    }
+  }
+  return {
+    card: 'border-emerald-300/25 bg-emerald-300/[0.045]',
+    badge: 'border-emerald-300/35 bg-emerald-300/10 text-emerald-100',
+  }
+}
+
+function buildPriorityDashboard({ students = [], checkins = [], workouts = [], workoutLogs = [], messages = [], invoices = [], assessments = [] } = {}) {
+  const activeStudents = (students || []).filter((student) => student && student.status !== 'Inativo')
+  const items = activeStudents
+    .map((student) => buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }))
+    .sort((a, b) => a.priorityRank - b.priorityRank || b.risk.score - a.risk.score || a.adherence.score - b.adherence.score)
+
+  const summary = {
+    riskStudents: items.filter((item) => ['medio', 'alto', 'critico'].includes(item.risk.classification)).length,
+    withoutWorkout: items.filter((item) => item.filterTags.includes('sem-treino')).length,
+    pendingCheckins: checkins.filter((checkin) => checkin.state !== 'Recebido').length,
+    upcomingCharges: items.filter((item) => item.filterTags.includes('financeiro') && item.financialDueSoon).length,
+    pendingMessages: items.reduce((total, item) => total + item.pendingMessages, 0),
+  }
+
+  const recommendedActions = items
+    .filter((item) => item.priority !== 'Regular')
+    .slice(0, 3)
+    .map((item) => ({
+      studentId: item.student.id,
+      label: item.priority,
+      title: item.student.name,
+      body: item.recommendedAction,
+      view: item.primaryView,
+    }))
+
+  return {
+    generatedAt: new Date().toISOString(),
+    summary,
+    recommendedActions,
+    items,
+  }
+}
+
+function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }) {
+  const studentId = String(student.id)
+  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
+  const studentLogs = workoutLogs.filter((log) => String(log.studentId) === studentId)
+  const studentCheckins = checkins.filter((checkin) => String(checkin.studentId) === studentId)
+  const studentMessages = messages.filter((message) => String(message.studentId) === studentId)
+  const studentInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) })).filter((invoice) => String(invoice.studentId) === studentId)
+  const studentAssessments = assessments.filter((assessment) => String(assessment.studentId) === studentId)
+
+  const latestWorkout = latestByDate(studentLogs, (item) => item.completedAt || item.createdAt || item.date)
+  const latestCheckin = latestByDate(studentCheckins, (item) => item.createdAt || item.due)
+  const latestMessage = latestByDate(studentMessages, (item) => item.createdAt)
+  const latestAssessment = latestByDate(studentAssessments, (item) => item.assessedAt)
+  const latestInvoice = latestByDate(studentInvoices, (item) => item.paidAt || item.dueDate || item.createdAt)
+  const lastActivityDate = [latestWorkout?.completedAt, latestCheckin?.createdAt || latestCheckin?.due, latestMessage?.createdAt, latestAssessment?.assessedAt, latestInvoice?.paidAt || latestInvoice?.createdAt]
+    .filter(Boolean)
+    .sort((a, b) => new Date(b) - new Date(a))[0]
+
+  const lastWorkoutDays = safeDaysSince(latestWorkout?.completedAt || latestWorkout?.createdAt || latestWorkout?.date)
+  const lastCheckinDays = safeDaysSince(latestCheckin?.createdAt || latestCheckin?.due)
+  const lastAssessmentDays = safeDaysSince(latestAssessment?.assessedAt)
+  const logs14 = countSince(studentLogs, 14, (item) => item.completedAt || item.createdAt || item.date)
+  const previousLogs14 = countBetweenDays(studentLogs, 15, 28, (item) => item.completedAt || item.createdAt || item.date)
+  const checkins30 = countSince(studentCheckins, 30, (item) => item.createdAt || item.due)
+  const unreadStudentMessages = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
+  const latestMessageNeedsReply = latestMessage?.sender === 'student' && safeDaysSince(latestMessage.createdAt) >= 2
+  const overdueInvoices = studentInvoices.filter((invoice) => invoice.status === 'Atrasado')
+  const pendingInvoices = studentInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
+  const dueSoonInvoices = pendingInvoices.filter((invoice) => {
+    const daysUntilDue = daysUntilDate(invoice.dueDate)
+    return daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 7
+  })
+  const painOrFatigue = detectPainOrFatigue(latestCheckin)
+  const hasActiveWorkout = studentWorkouts.length > 0
+  const hasRecentAssessment = lastAssessmentDays !== null && lastAssessmentDays <= 45
+  const studentAdherence = Number(student.adherence || 0)
+  const adherence = calculateAdherenceScore({
+    logs14,
+    previousLogs14,
+    lastWorkoutDays,
+    lastCheckinDays,
+    checkins30,
+    unreadStudentMessages,
+    studentAdherence,
+  })
+  const risk = calculateAbandonmentRisk({
+    lastWorkoutDays,
+    lastCheckinDays,
+    unreadStudentMessages,
+    overdueInvoices,
+    logs14,
+    previousLogs14,
+    adherenceScore: adherence.score,
+    latestMessageNeedsReply,
+  })
+
+  const factors = []
+  const filterTags = ['todos']
+  const reasons = []
+  let primaryView = 'alunos'
+
+  if (!hasActiveWorkout) {
+    factors.push('Sem treino ativo')
+    filterTags.push('sem-treino')
+    reasons.push({ level: 'Atencao', text: 'sem treino ativo', action: 'Prescreva um treino para liberar a execucao no app.', view: 'treinos' })
+  }
+  if (lastWorkoutDays === null || lastWorkoutDays >= 10) {
+    factors.push(lastWorkoutDays === null ? 'Sem treino concluido' : `${Math.floor(lastWorkoutDays)} dias sem treinar`)
+    filterTags.push('risco-abandono')
+    reasons.push({ level: lastWorkoutDays === null || lastWorkoutDays >= 14 ? 'Urgente' : 'Atencao', text: lastWorkoutDays === null ? 'sem treino concluido registrado' : 'muitos dias sem treinar', action: 'Envie uma mensagem e ajuste a proxima sessao.', view: 'mensagens' })
+  }
+  if (lastCheckinDays === null || lastCheckinDays >= 14) {
+    factors.push(lastCheckinDays === null ? 'Sem check-in' : `${Math.floor(lastCheckinDays)} dias sem check-in`)
+    filterTags.push('sem-checkin')
+    reasons.push({ level: lastCheckinDays === null || lastCheckinDays >= 21 ? 'Atencao' : 'Acompanhar', text: 'check-in atrasado', action: 'Solicite um retorno rapido sobre treino, dieta, sono e fome.', view: 'checkins' })
+  }
+  if (adherence.score < 65 || studentAdherence < 65) {
+    factors.push(`Adesao ${adherence.score}/100`)
+    filterTags.push('baixa-adesao')
+    reasons.push({ level: adherence.score < 45 ? 'Urgente' : 'Atencao', text: 'baixa adesao', action: 'Revise volume, rotina e barreiras do aluno antes que ele desengaje.', view: 'alunos' })
+  }
+  if (painOrFatigue) {
+    factors.push('Dor ou fadiga alta')
+    filterTags.push('risco-abandono')
+    reasons.push({ level: 'Urgente', text: 'sinal de dor ou fadiga no check-in', action: 'Avalie ajuste de carga, descanso ou encaminhamento adequado.', view: 'checkins' })
+  }
+  if (unreadStudentMessages || latestMessageNeedsReply) {
+    factors.push(unreadStudentMessages ? `${unreadStudentMessages} mensagem(ns) sem resposta` : 'Aluno aguardando resposta')
+    filterTags.push('sem-resposta')
+    reasons.push({ level: unreadStudentMessages > 1 || latestMessageNeedsReply ? 'Atencao' : 'Acompanhar', text: 'mensagem pendente', action: 'Responda o aluno para manter percepcao de acompanhamento.', view: 'mensagens' })
+  }
+  if (overdueInvoices.length || student.payment === 'Pendente') {
+    factors.push('Financeiro pendente')
+    filterTags.push('financeiro')
+    reasons.push({ level: overdueInvoices.length ? 'Urgente' : 'Atencao', text: overdueInvoices.length ? 'inadimplencia' : 'pagamento pendente', action: 'Abra recebimentos, confirme pagamento ou envie cobranca personalizada.', view: 'pagamentos' })
+  } else if (dueSoonInvoices.length) {
+    factors.push('Vencimento proximo')
+    filterTags.push('financeiro')
+    reasons.push({ level: 'Acompanhar', text: 'cobranca proxima do vencimento', action: 'Prepare lembrete antes do vencimento para evitar atraso.', view: 'pagamentos' })
+  }
+  if (!hasRecentAssessment) {
+    factors.push(lastAssessmentDays === null ? 'Sem avaliacao' : 'Avaliacao antiga')
+    filterTags.push('risco-abandono')
+    reasons.push({ level: lastAssessmentDays === null ? 'Atencao' : 'Acompanhar', text: 'sem avaliacao recente', action: 'Atualize medidas e fotos para reforcar percepcao de evolucao.', view: 'avaliacoes' })
+  }
+  if (logs14 < 2 && studentLogs.length > 0) {
+    factors.push('Baixa frequencia')
+    filterTags.push('baixa-adesao')
+    reasons.push({ level: 'Atencao', text: 'baixa frequencia nas ultimas duas semanas', action: 'Reduza friccao da rotina e combine uma meta minima para a semana.', view: 'treinos' })
+  }
+
+  const mainReason = pickMainPriorityReason(reasons)
+  if (mainReason?.view) primaryView = mainReason.view
+  if (!factors.length) {
+    factors.push('Rotina regular')
+    filterTags.push('regular')
+  }
+
+  return {
+    student,
+    priority: mainReason?.level || 'Regular',
+    priorityRank: { Urgente: 0, Atencao: 1, Acompanhar: 2, Regular: 3 }[mainReason?.level || 'Regular'],
+    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operacao em dia para este aluno.',
+    recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a proxima evolucao.',
+    primaryView,
+    factors: [...new Set(factors)],
+    filterTags: [...new Set(filterTags.concat(mainReason ? [normalizePriorityFilter(mainReason.level)] : []))],
+    adherence,
+    risk,
+    pendingMessages: unreadStudentMessages,
+    financialDueSoon: dueSoonInvoices.length > 0,
+    lastActivity: lastActivityDate ? `Ultima atividade: ${formatDateTime(lastActivityDate)}` : 'Ultima atividade: sem registro',
+  }
+}
+
+function calculateAdherenceScore({ logs14, previousLogs14, lastWorkoutDays, lastCheckinDays, checkins30, unreadStudentMessages, studentAdherence }) {
+  const workoutScore = Math.min(100, Math.round((logs14 / 4) * 100))
+  const checkinScore = lastCheckinDays === null ? 35 : lastCheckinDays <= 7 ? 100 : lastCheckinDays <= 14 ? 70 : lastCheckinDays <= 21 ? 45 : 20
+  const responseScore = unreadStudentMessages ? Math.max(35, 100 - unreadStudentMessages * 20) : 100
+  const consistencyScore = studentAdherence > 0 ? clampPercent(studentAdherence) : Math.min(100, Math.round(((logs14 + checkins30) / 6) * 100))
+  const recencyScore = lastWorkoutDays === null ? 20 : lastWorkoutDays <= 3 ? 100 : lastWorkoutDays <= 7 ? 75 : lastWorkoutDays <= 14 ? 45 : 20
+  const score = clampPercent((workoutScore * 0.28) + (checkinScore * 0.2) + (responseScore * 0.16) + (consistencyScore * 0.2) + (recencyScore * 0.16))
+  const trend = logs14 - previousLogs14
+  const classification = score >= 85 ? 'excelente' : score >= 70 ? 'boa' : score >= 50 ? 'instavel' : 'baixa'
+  const reason = `Frequencia ${logs14}/14 dias, check-ins ${checkins30}/30 dias, respostas ${responseScore}/100 e consistencia ${consistencyScore}/100. Evolucao: ${trend > 0 ? `subiu ${trend}` : trend < 0 ? `caiu ${Math.abs(trend)}` : 'estavel'}.`
+
+  return { score, classification, trend, reason }
+}
+
+function calculateAbandonmentRisk({ lastWorkoutDays, lastCheckinDays, unreadStudentMessages, overdueInvoices, logs14, previousLogs14, adherenceScore, latestMessageNeedsReply }) {
+  const factors = []
+  let score = 0
+
+  if (lastWorkoutDays === null || lastWorkoutDays >= 14) {
+    score += 30
+    factors.push('muitos dias sem treinar')
+  } else if (lastWorkoutDays >= 8) {
+    score += 18
+    factors.push('queda de frequencia')
+  }
+  if (lastCheckinDays === null || lastCheckinDays >= 21) {
+    score += 22
+    factors.push('falta de check-in')
+  } else if (lastCheckinDays >= 14) {
+    score += 12
+    factors.push('check-in atrasado')
+  }
+  if (unreadStudentMessages || latestMessageNeedsReply) {
+    score += Math.min(18, 8 + unreadStudentMessages * 5)
+    factors.push('ausencia de resposta')
+  }
+  if (overdueInvoices.length) {
+    score += 24
+    factors.push('atraso financeiro')
+  }
+  if (logs14 < previousLogs14 && previousLogs14 > 0) {
+    score += 12
+    factors.push('queda de frequencia')
+  }
+  if (adherenceScore < 55) {
+    score += 14
+    factors.push('baixa adesao')
+  }
+
+  const normalizedScore = clampPercent(score)
+  const classification = normalizedScore >= 75 ? 'critico' : normalizedScore >= 55 ? 'alto' : normalizedScore >= 30 ? 'medio' : 'baixo'
+  const reason = factors.length ? `Risco ${classification}: ${[...new Set(factors)].join(', ')}.` : 'Risco baixo: rotina recente sem sinal critico.'
+
+  return { score: normalizedScore, classification, factors: [...new Set(factors)], reason }
+}
+
+function pickMainPriorityReason(reasons = []) {
+  const rank = { Urgente: 0, Atencao: 1, Acompanhar: 2 }
+  return reasons.slice().sort((a, b) => rank[a.level] - rank[b.level])[0] || null
+}
+
+function normalizePriorityFilter(priority) {
+  if (priority === 'Urgente') return 'urgente'
+  return priority === 'Atencao' ? 'atencao' : 'acompanhar'
+}
+
+function latestByDate(items = [], getDate) {
+  return items
+    .filter(Boolean)
+    .slice()
+    .sort((a, b) => new Date(getDate(b) || 0) - new Date(getDate(a) || 0))[0] || null
+}
+
+function countSince(items = [], days, getDate) {
+  return items.filter((item) => {
+    const age = safeDaysSince(getDate(item))
+    return age !== null && age <= days
+  }).length
+}
+
+function countBetweenDays(items = [], minDays, maxDays, getDate) {
+  return items.filter((item) => {
+    const age = safeDaysSince(getDate(item))
+    return age !== null && age >= minDays && age <= maxDays
+  }).length
+}
+
+function safeDaysSince(value) {
+  const days = daysSinceDate(value)
+  if (days === null || !Number.isFinite(days)) return null
+  return Math.max(0, days)
+}
+
+function daysUntilDate(value) {
+  if (!value) return null
+  const raw = String(value)
+  const normalized = raw.includes('T') ? raw : `${raw}T12:00:00`
+  const time = new Date(normalized).getTime()
+  if (Number.isNaN(time)) return null
+  return Math.ceil((time - Date.now()) / (24 * 60 * 60 * 1000))
+}
+
+function detectPainOrFatigue(checkin) {
+  if (!checkin) return false
+  const text = normalizeText(`${checkin.state || ''} ${checkin.note || ''} ${checkin.type || ''}`)
+  return checkin.state === 'Critico' || /dor|fadiga|cansad|exaust|lesao|lesion|sono ruim|muito dolor/.test(text)
 }
 
 function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointments = [], invoices = [], assessments = []) {
