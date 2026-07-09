@@ -129,13 +129,8 @@ const defaultAppAdminSettings = {
   },
 }
 const ADMIN_SETTINGS_STORAGE_KEY = 'coachfitpro-admin-settings-preview'
-const DEFAULT_ADMIN_EMAILS = ['sac@coachfitpro.com.br', 'admin@coachfitpro.com.br', 'john@coachfitpro.com.br', 'johhnsthetics@gmail.com']
-const ADMIN_EMAILS = [
-  ...DEFAULT_ADMIN_EMAILS,
-  ...(import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || '').split(','),
-]
-  .map((email) => email.trim().toLowerCase().replace(/^vite_fitcoach_admin_emails=/i, ''))
-  .filter(Boolean)
+const MASTER_ADMIN_EMAIL = 'sac@coachfitpro.com.br'
+const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
 
 const salesHeroHeadlines = [
   {
@@ -240,7 +235,7 @@ function getPossibleAccountEmails(user, sessionUser = null, session = null) {
 
 function isMasterAdmin(user, sessionUser = null, session = null) {
   const emails = getPossibleAccountEmails(user, sessionUser, session)
-  return emails.some((email) => ADMIN_EMAILS.includes(email) || email.endsWith('@coachfitpro.com.br'))
+  return emails.some((email) => ADMIN_EMAILS.includes(email))
 }
 
 const plans = [
@@ -5769,9 +5764,34 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
+  const activePlan = studentPlans[0]
+  const activeMeals = activePlan?.meals?.length || 0
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="xl:col-span-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(9,20,18,0.96),rgba(5,8,10,0.96))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
+        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-200">
+              <NavIcon name="nutrition" className="h-4 w-4" />
+              Central nutricional
+            </span>
+            <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">
+              Monte dietas claras, com macros automáticos e opções de substituição.
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
+              O treinador escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O aluno vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <NutritionQuickStat icon="nutrition" label="Biblioteca" value={`${foodDatabase.length}+`} detail="alimentos" />
+            <NutritionQuickStat icon="calendar" label="Refeições" value={activeMeals || '-'} detail="ativas" />
+            <NutritionQuickStat icon="chart" label="Plano atual" value={activePlan?.calories || selectedStudent?.calories || '-'} detail={activePlan?.protein || 'macros'} />
+          </div>
+        </div>
+      </section>
+
       <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action={`${foodDatabase.length}+ alimentos`}>
         {students.length ? (
           <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
@@ -5787,6 +5807,19 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
   )
 }
 
+function NutritionQuickStat({ icon, label, value, detail }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+      <div className="mb-3 grid h-10 w-10 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
+        <NavIcon name={icon} className="h-5 w-5" />
+      </div>
+      <p className="text-xs font-black uppercase text-zinc-400">{label}</p>
+      <p className="mt-1 text-xl font-black text-white">{value}</p>
+      <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
+    </div>
+  )
+}
+
 function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const [meals, setMeals] = useState([
     { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
@@ -5797,6 +5830,234 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const planTotals = sumMacros(meals.map(calculateMealMacros))
+  const totalMeals = meals.length
+  const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
+
+  function updateMeal(index, field, value) {
+    setMeals((current) => current.map((meal, itemIndex) => (
+      itemIndex === index ? { ...meal, [field]: value } : meal
+    )))
+  }
+
+  function replaceMealItem(mealIndex, itemIndex, nextItem) {
+    setMeals((current) => current.map((meal, currentMealIndex) => {
+      if (currentMealIndex !== mealIndex) return meal
+
+      return {
+        ...meal,
+        items: meal.items.map((item, currentItemIndex) => (
+          currentItemIndex === itemIndex ? nextItem : item
+        )),
+      }
+    }))
+  }
+
+  function addMeal() {
+    setMeals((current) => [...current, { name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
+  }
+
+  function removeMeal(index) {
+    setMeals((current) => current.filter((_, itemIndex) => itemIndex !== index))
+  }
+
+  function addMealItem(mealIndex) {
+    setMeals((current) => current.map((meal, index) => (
+      index === mealIndex
+        ? { ...meal, items: [...meal.items, { category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }
+        : meal
+    )))
+  }
+
+  function removeMealItem(mealIndex, itemIndex) {
+    setMeals((current) => current.map((meal, index) => (
+      index === mealIndex ? { ...meal, items: meal.items.filter((_, currentItemIndex) => currentItemIndex !== itemIndex) } : meal
+    )))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const filledMeals = meals
+      .filter((meal) => meal.name.trim())
+      .map((meal) => {
+        const totals = calculateMealMacros(meal)
+        return {
+          name: meal.name,
+          time: meal.time,
+          foods: meal.items
+            .filter((item) => item.foodName && Number(item.grams) > 0)
+            .map((item) => {
+              const alternatives = getEquivalentSubstitutions(item)
+              const suffix = alternatives.length
+                ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
+                : ''
+              return `${item.foodName} (${item.grams}g)${suffix}`
+            })
+            .join(', '),
+          macros: formatMacroSummary(totals),
+        }
+      })
+
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeição com alimentos e quantidades válidas.')
+      await onSaveNutritionPlan({
+        studentId: form.get('studentId')?.toString() || '',
+        title: form.get('title')?.toString() || 'Plano alimentar',
+        calories: `${Math.round(planTotals.calories)} kcal`,
+        protein: `${roundMacro(planTotals.protein)} g`,
+        notes: form.get('notes')?.toString() || '',
+        meals: filledMeals,
+      })
+      setMessage('Dieta salva com macros calculados automaticamente.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar a dieta.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
+                <NavIcon name="nutrition" className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-black text-emerald-100">Assistente inteligente de alimentos</p>
+                <p className="text-xs font-bold uppercase text-zinc-500">macros, porções e substituições em um só fluxo</p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-zinc-300">
+              Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3 lg:w-[420px]">
+            {['Escolha o alimento', 'Ajuste as gramas', 'Confira os macros'].map((step, index) => (
+              <div key={step} className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
+                <p className="mt-2 text-xs font-black text-zinc-100">{step}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <Select
+        label="Aluno"
+        name="studentId"
+        defaultValue={selectedStudent?.id}
+        options={students.map((student) => ({ label: student.name, value: student.id }))}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <Field label="Nome da dieta" name="title" defaultValue="Plano base" />
+        <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
+          <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
+          <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
+          <NutritionQuickStat icon="chart" label="Calorias" value={`${Math.round(planTotals.calories)}`} detail="kcal" />
+          <NutritionQuickStat icon="dumbbell" label="Proteína" value={`${roundMacro(planTotals.protein)} g`} detail="calculada" />
+        </div>
+      </div>
+
+      <MacroSummaryGrid totals={planTotals} />
+      <TextArea label="Observações para o aluno" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." />
+
+      <div className="space-y-4">
+        {meals.map((meal, mealIndex) => {
+          const mealTotals = calculateMealMacros(meal)
+
+          return (
+            <div key={mealIndex} className="rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4 shadow-xl shadow-black/10">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-sm font-black text-emerald-100">
+                    {mealIndex + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-black text-white">Refeição {mealIndex + 1}</p>
+                    <p className="text-xs font-bold text-zinc-500">{meal.items.length} alimento(s) neste horário</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => removeMeal(mealIndex)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
+                  Remover refeição
+                </button>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
+                <InlineInput label="Refeição" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
+                <InlineInput label="Horário" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
+              </div>
+
+              <div className="mt-4">
+                <MacroSummaryGrid totals={mealTotals} compact />
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {meal.items.map((item, itemIndex) => {
+                  const itemTotals = calculateFoodItemMacros(item)
+
+                  return (
+                    <NutritionFoodItem
+                      key={itemIndex}
+                      item={item}
+                      totals={itemTotals}
+                      onChange={(nextItem) => replaceMealItem(mealIndex, itemIndex, nextItem)}
+                      onRemove={() => removeMealItem(mealIndex, itemIndex)}
+                    />
+                  )
+                })}
+              </div>
+
+              <button type="button" onClick={() => addMealItem(mealIndex)} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15">
+                <NavIcon name="plus" className="h-4 w-4" />
+                Adicionar alimento
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={addMeal} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
+          <NavIcon name="plus" className="h-4 w-4" />
+          Adicionar refeição
+        </button>
+        <button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">
+          {saving ? 'Salvando...' : 'Salvar dieta'}
+        </button>
+      </div>
+      {message ? (
+        <p className="rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="rounded-xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">
+          {error}
+        </p>
+      ) : null}
+    </form>
+  )
+}
+
+function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan }) {
+  const [meals, setMeals] = useState([
+    { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
+    { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
+    { name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 160 }] },
+  ])
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const planTotals = sumMacros(meals.map(calculateMealMacros))
+  const totalMeals = meals.length
+  const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
 
   function updateMeal(index, field, value) {
     setMeals((current) => current.map((meal, itemIndex) => (
@@ -5984,6 +6245,105 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
 }
 
 function NutritionPlanList({ plans, selectedStudent, onArchive }) {
+  const [archivingId, setArchivingId] = useState('')
+
+  async function handleArchive(plan) {
+    if (!onArchive) return
+    if (!window.confirm(`Arquivar a dieta "${plan.title}"? Ela deixará de aparecer para o aluno.`)) return
+    setArchivingId(String(plan.id))
+    try {
+      await onArchive(plan.id)
+    } finally {
+      setArchivingId('')
+    }
+  }
+
+  if (!plans.length) {
+    return (
+      <div className="space-y-3">
+        <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
+          <Info label="Proteína da ficha" value={selectedStudent?.protein ?? '-'} />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {plans.map((plan) => {
+        const meals = Array.isArray(plan.meals) ? plan.meals : []
+
+        return (
+          <article key={plan.id} className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
+            <div className="border-b border-white/10 bg-emerald-300/[0.055] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
+                    <NavIcon name="nutrition" className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
+                    <p className="mt-1 text-sm leading-6 text-zinc-300">
+                      Plano alimentar organizado por horário, macros e substituições.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
+                    Ativa
+                  </span>
+                  {onArchive ? (
+                    <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100 disabled:opacity-50">
+                      {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <NutritionQuickStat icon="chart" label="Calorias" value={plan.calories || '-'} detail="meta diária" />
+                <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan.protein || '-'} detail="por dia" />
+                <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4">
+              {plan.notes ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p>
+                </div>
+              ) : null}
+
+              {meals.map((meal, index) => (
+                <div key={meal.id ?? `${meal.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <h5 className="break-words font-black text-white">{meal.time ? `${meal.time} - ` : ''}{meal.name}</h5>
+                        <p className="mt-2 break-words text-sm leading-6 text-zinc-300">{meal.foods}</p>
+                      </div>
+                    </div>
+                    <span className="w-fit shrink-0 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black leading-5 text-emerald-100">
+                      {meal.macros || 'Macros calculados'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
+function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(plan) {
@@ -7428,8 +7788,39 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     }
 
     if (activeTab === 'dieta') {
+      const todayPlan = studentNutritionPlans[0]
       return (
-        <StudentAppSection title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
+        <StudentAppSection title="Dieta de hoje" action={todayPlan?.calories || student.calories || 'Macros'}>
+          {todayPlan ? (
+            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 shadow-xl shadow-emerald-950/10">
+              <div className="flex items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-100">
+                  <NavIcon name="nutrition" className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-200">Plano alimentar liberado</p>
+                  <h3 className="mt-1 break-words text-xl font-black text-white">{todayPlan.title}</h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-300">
+                    Siga uma refeição por vez. As substituições ficam dentro de cada alimento para manter os macros alinhados.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                  <p className="text-xs font-bold text-zinc-500">Kcal</p>
+                  <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.calories || '-'}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                  <p className="text-xs font-bold text-zinc-500">Proteína</p>
+                  <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.protein || '-'}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                  <p className="text-xs font-bold text-zinc-500">Refeições</p>
+                  <p className="mt-1 text-sm font-black text-white">{todayPlan.meals?.length || 0}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <StudentReminderCard
             title="Lembrete de refeição"
             body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
