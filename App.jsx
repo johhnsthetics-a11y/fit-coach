@@ -209,15 +209,38 @@ function saveLocalAdminSettings(settings) {
   }
 }
 
-function isMasterAdmin(user, sessionUser = null) {
-  const email = String(
-    user?.email
-    || sessionUser?.email
-    || sessionUser?.user_metadata?.email
-    || sessionUser?.identities?.[0]?.identity_data?.email
-    || '',
-  ).trim().toLowerCase()
-  return Boolean(email && (ADMIN_EMAILS.includes(email) || email.endsWith('@coachfitpro.com.br')))
+function decodeJwtPayload(token = '') {
+  try {
+    const [, payload] = String(token).split('.')
+    if (!payload) return {}
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
+    return JSON.parse(window.atob(padded))
+  } catch {
+    return {}
+  }
+}
+
+function getPossibleAccountEmails(user, sessionUser = null, session = null) {
+  const tokenPayload = decodeJwtPayload(session?.access_token || '')
+  return [
+    user?.email,
+    user?.user_metadata?.email,
+    sessionUser?.email,
+    sessionUser?.user_metadata?.email,
+    sessionUser?.identities?.[0]?.identity_data?.email,
+    session?.user?.email,
+    session?.user?.user_metadata?.email,
+    tokenPayload.email,
+    tokenPayload.user_metadata?.email,
+  ]
+    .map((email) => String(email || '').trim().toLowerCase())
+    .filter(Boolean)
+}
+
+function isMasterAdmin(user, sessionUser = null, session = null) {
+  const emails = getPossibleAccountEmails(user, sessionUser, session)
+  return emails.some((email) => ADMIN_EMAILS.includes(email) || email.endsWith('@coachfitpro.com.br'))
 }
 
 const plans = [
@@ -648,7 +671,7 @@ export default function App() {
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
-  const masterAdmin = isMasterAdmin(data.user, data.session?.user)
+  const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
@@ -2240,6 +2263,8 @@ export default function App() {
                 settings={data.coachSettings}
                 onSave={saveCoachSettings}
                 onExport={exportAccountData}
+                masterAdmin={masterAdmin}
+                onOpenAdminMaster={() => setActiveView('admin-master')}
               />
             )}
           </div>
@@ -9631,7 +9656,7 @@ function AdminTextArea({ label, value, onChange, hint = '' }) {
   )
 }
 
-function CoachSettings({ user, settings, onSave, onExport }) {
+function CoachSettings({ user, settings, onSave, onExport, masterAdmin = false, onOpenAdminMaster }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -9810,6 +9835,22 @@ function CoachSettings({ user, settings, onSave, onExport }) {
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_0.8fr]">
+      {masterAdmin ? (
+        <section className="xl:col-span-2 rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.08] p-4 shadow-2xl shadow-emerald-950/10">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-emerald-200">Conta master reconhecida</p>
+              <h3 className="mt-1 text-xl font-black text-white">Acesso Admin Master liberado para esta conta.</h3>
+              <p className="mt-1 text-sm leading-6 text-zinc-300">
+                Use essa área para editar página de vendas, planos oficiais, branding global e acompanhar tráfego.
+              </p>
+            </div>
+            <button type="button" onClick={onOpenAdminMaster} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30 transition hover:-translate-y-0.5">
+              Abrir Admin Master
+            </button>
+          </div>
+        </section>
+      ) : null}
       <Panel title="Identidade profissional" action="Conta do treinador">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
