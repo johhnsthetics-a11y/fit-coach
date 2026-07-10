@@ -3523,15 +3523,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 })}
               </div>
 
-              <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              <div className="mt-8 grid gap-5 lg:grid-cols-3">
                 {salesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
                   return (
-                    <button
+                    <div
                       key={plan.id}
-                      type="button"
-                      onClick={() => setSelectedOfferPlanId(plan.id)}
-                      className={`group relative min-w-0 overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 ${
+                      className={`group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${
                         selected
                           ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
                           : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/30 hover:bg-white/[0.055]'
@@ -3550,25 +3548,38 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       <span className="relative mt-5 block">
                         {plan.oldPrice ? <span className="block text-sm font-bold text-zinc-500 line-through">De {plan.oldPrice}</span> : null}
                         <span className="mt-1 flex flex-wrap items-end gap-2">
-                          <span className="text-4xl font-black leading-none text-white">{plan.price}</span>
+                          <span className="text-5xl font-black leading-none text-white">{plan.price}</span>
                           <span className="pb-1 text-sm font-bold text-zinc-400">{plan.suffix}</span>
                         </span>
                         <span className="mt-2 block text-sm font-black text-emerald-100">{plan.total}</span>
                       </span>
-                      <span className="relative mt-5 block rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
-                        <span className="block text-xs font-black uppercase text-emerald-200">Por que escolher</span>
+                      <span className="relative mt-4 block min-h-20 rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                        <span className="block text-xs font-black uppercase text-emerald-200">Melhor para</span>
                         <span className="mt-2 block text-sm leading-6 text-zinc-300">{plan.bestFor}</span>
                       </span>
-                      <span className={`relative mt-5 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-black transition ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-100 group-hover:border-emerald-300/40'}`}>
-                        Ver detalhes do {plan.name}
+                      <span className="relative mt-4 grid gap-2">
+                        {plan.highlights.slice(0, 5).map((item) => (
+                          <span key={item} className="flex items-start gap-2 text-sm leading-6 text-zinc-300">
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
+                            <span>{item}</span>
+                          </span>
+                        ))}
                       </span>
-                    </button>
+                      <span className="relative mt-auto block pt-6">
+                        <button type="button" onClick={() => startPlanSignup(plan.id)} className={`w-full rounded-2xl px-4 py-4 text-sm font-black transition active:scale-[0.98] ${selected ? 'bg-emerald-300 text-zinc-950 shadow-xl shadow-emerald-950/30' : 'border border-white/10 bg-white/[0.04] text-zinc-100 hover:border-emerald-300/40 hover:bg-emerald-300/10'}`}>
+                          Assinar {plan.name}
+                        </button>
+                        <button type="button" onClick={() => setSelectedOfferPlanId(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
+                          Ver detalhes
+                        </button>
+                      </span>
+                    </div>
                   )
                 })}
               </div>
             </div>
 
-            <div className="mx-auto mt-7 grid max-w-5xl gap-5 lg:mt-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
+            <div className="mx-auto mt-7 hidden max-w-5xl gap-5 lg:mt-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
               <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-4 shadow-2xl shadow-emerald-950/25 sm:p-6">
                 <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
                 <div className="relative">
