@@ -2991,9 +2991,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ['Chat direto', 'Conversa em tempo real com envio de fotos.'],
                   ['Engajamento', 'Meta de água, calendário e desafios semanais.'],
                 ].map(([title, text]) => (
-                  <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
-                    <p className="text-sm font-black text-emerald-100">{title}</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
+                  <div key={title} className="sales-mini-card rounded-xl border border-emerald-300/20 bg-emerald-300/[0.075] p-4 shadow-lg shadow-emerald-950/15">
+                    <p className="text-sm font-black text-emerald-50">{title}</p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-zinc-200">{text}</p>
                   </div>
                 ))}
               </div>

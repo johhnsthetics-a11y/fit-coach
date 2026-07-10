@@ -805,6 +805,11 @@ textarea {
 }
 
 .sales-mini-card {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--admin-primary, #00d2b2) 13%, transparent), rgba(255, 255, 255, 0.035)),
+    color-mix(in srgb, var(--admin-sales-surface, #07110f) 92%, black);
+  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 30%, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
   transition:
     transform 220ms ease,
     border-color 220ms ease,
@@ -812,10 +817,18 @@ textarea {
     box-shadow 220ms ease;
 }
 
+.sales-mini-card p:first-child {
+  color: color-mix(in srgb, var(--admin-primary, #00d2b2) 72%, white);
+}
+
+.sales-mini-card p:last-child {
+  color: rgba(244, 244, 245, 0.82);
+}
+
 .sales-mini-card:hover {
   transform: translateY(-3px);
   border-color: rgba(0, 210, 178, 0.36);
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(0, 210, 178, 0.095);
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.2);
 }
 
