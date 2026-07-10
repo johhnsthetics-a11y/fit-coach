@@ -1492,6 +1492,7 @@ function AppContent() {
 
   async function saveWorkout(workout) {
     let savedWorkout = { ...workout, id: Date.now(), active: true }
+    const isFirstWorkout = !(data.workouts ?? []).length
 
     if (supabaseEnabled) {
       try {
@@ -1508,6 +1509,12 @@ function AppContent() {
       ...current,
       workouts: [savedWorkout, ...(current.workouts ?? [])],
     }))
+
+    recordLeadEvent(isFirstWorkout ? 'first_workout_created' : 'workout_created', {
+      studentId: savedWorkout.studentId,
+      exercises: savedWorkout.exercises?.length || 0,
+      source: workout.source || 'coach_panel',
+    })
 
     return savedWorkout
   }
@@ -1632,6 +1639,7 @@ function AppContent() {
 
   async function saveNutritionPlan(plan) {
     let savedPlan = { ...plan, id: Date.now(), active: true }
+    const isFirstPlan = !(data.nutritionPlans ?? []).length
 
     if (supabaseEnabled) {
       try {
@@ -1648,6 +1656,12 @@ function AppContent() {
       ...current,
       nutritionPlans: [savedPlan, ...(current.nutritionPlans ?? [])],
     }))
+
+    recordLeadEvent(isFirstPlan ? 'first_plan_published' : 'nutrition_plan_published', {
+      studentId: savedPlan.studentId,
+      meals: savedPlan.meals?.length || 0,
+      source: plan.source || 'coach_panel',
+    })
 
     return savedPlan
   }
@@ -2395,10 +2409,12 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 students={data.students}
                 workouts={data.workouts ?? []}
+                nutritionPlans={data.nutritionPlans ?? []}
                 workoutLogs={data.workoutLogs ?? []}
                 progressionDecisions={data.workoutProgressionDecisions ?? []}
                 exerciseLibraryItems={data.exerciseLibrary ?? []}
                 onSaveWorkout={saveWorkout}
+                onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveWorkout={archiveWorkout}
                 onApproveProgression={approveWorkoutProgression}
                 onIgnoreProgression={ignoreWorkoutProgression}
@@ -3254,6 +3270,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
+        <ExpressCreationSalesSection openAccess={openAccess} />
+
         <section id="simulador" className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
@@ -3382,6 +3400,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
+        {false && (
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal>
@@ -3408,6 +3427,43 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+        )}
+
+        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="grid gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
+            <div data-reveal>
+              <p className="text-sm font-black uppercase text-emerald-200">Depoimentos reais</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
+                Pronto para exibir prova social quando seus relatos chegarem.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-zinc-400">
+                A pagina fica preparada para mostrar avaliacoes verdadeiras, sem nomes inventados, numeros falsos ou promessas irreais.
+              </p>
+            </div>
+            <div data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/18 bg-white/[0.04] p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-white">Adicione depoimentos reais pelo painel.</p>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">
+                    Use foto, nome, profissao, contexto de uso e resultado percebido somente quando o cliente autorizar.
+                  </p>
+                </div>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Estado administrativo vazio</span>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                {['Foto e nome', 'Profissao e contexto', 'Relato autorizado'].map((item) => (
+                  <div key={item} className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300/10 text-emerald-100">
+                      <NavIcon name="check" className="h-4 w-4" />
+                    </span>
+                    <p className="mt-3 text-sm font-black text-white">{item}</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Pronto para preencher quando houver prova real.</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -3715,6 +3771,134 @@ function LegalModal({ type, onClose }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function ExpressCreationSalesSection({ openAccess }) {
+  return (
+    <section className="sales-section border-y border-emerald-300/10 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_34%),linear-gradient(135deg,rgba(2,8,8,0.96),rgba(5,8,14,0.98))] py-10 sm:py-14">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div data-reveal>
+            <p className="text-sm font-black uppercase text-emerald-300">Criação expressa</p>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
+              Crie treinos e planos em minutos, sem começar do zero.
+            </h2>
+            <p className="mt-4 text-base leading-7 text-zinc-300">
+              Use modelos, duplique estruturas, personalize rapidamente e mantenha cada aluno organizado em um só lugar.
+            </p>
+            <div className="mt-6 grid gap-3">
+              {[
+                'Monte uma vez. Personalize quando precisar. Reutilize sempre.',
+                'Ganhe tempo sem perder a individualização.',
+                'Centralize treino, alimentação e acompanhamento no mesmo fluxo.',
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-zinc-950">
+                    <NavIcon name="check" className="h-3.5 w-3.5" />
+                  </span>
+                  <p className="text-sm font-bold leading-6 text-zinc-200">{item}</p>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300 active:scale-[0.98]">
+              Criar meu primeiro treino
+            </button>
+          </div>
+
+          <div data-reveal className="grid gap-4">
+            <div className="sales-feature-card rounded-3xl border border-emerald-300/25 bg-zinc-950/78 p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
+              <div className="grid gap-3 sm:grid-cols-5">
+                {[
+                  ['01', 'Aluno'],
+                  ['02', 'Objetivo'],
+                  ['03', 'Modelo'],
+                  ['04', 'Personalização'],
+                  ['05', 'Publicação'],
+                ].map(([number, title], index) => (
+                  <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
+                    <span className={`mx-auto grid h-9 w-9 place-items-center rounded-xl text-xs font-black ${index === 4 ? 'bg-emerald-300 text-zinc-950' : 'bg-white/[0.06] text-emerald-100'}`}>{number}</span>
+                    <p className="mt-2 text-xs font-black text-zinc-200">{title}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <ComparisonCard
+                  tone="bad"
+                  title="Antes"
+                  items={['Planilhas espalhadas', 'Copiar informações manualmente', 'Procurar treinos antigos', 'Repetir o mesmo trabalho']}
+                />
+                <ComparisonCard
+                  tone="good"
+                  title="Com Coach Fit Pro"
+                  items={['Modelos reutilizáveis', 'Edição rápida', 'Histórico centralizado', 'Publicação em poucos cliques']}
+                />
+              </div>
+            </div>
+            <TimeRecoveryCalculator />
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ComparisonCard({ title, items, tone = 'good' }) {
+  const good = tone === 'good'
+  return (
+    <div className={`rounded-2xl border p-4 ${good ? 'border-emerald-300/25 bg-emerald-300/10' : 'border-rose-300/20 bg-rose-300/10'}`}>
+      <p className={`text-xs font-black uppercase ${good ? 'text-emerald-200' : 'text-rose-200'}`}>{title}</p>
+      <div className="mt-3 grid gap-2">
+        {items.map((item) => (
+          <div key={item} className="flex items-start gap-2 text-sm leading-6 text-zinc-300">
+            <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${good ? 'bg-emerald-300' : 'bg-rose-300'}`} />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TimeRecoveryCalculator() {
+  const [students, setStudents] = useState(20)
+  const [minutes, setMinutes] = useState(35)
+  const [updates, setUpdates] = useState(2)
+  const monthlyMinutes = students * minutes * updates
+  const hours = Math.floor(monthlyMinutes / 60)
+  const remainingMinutes = monthlyMinutes % 60
+
+  return (
+    <div className="sales-interactive rounded-3xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase text-emerald-200">Calculadora de tempo</p>
+          <h3 className="mt-1 text-xl font-black text-white">Quanto tempo você pode recuperar por mês?</h3>
+        </div>
+        <span className="text-xs font-bold text-zinc-500">Estimativa operacional</span>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <TimeCalcControl label="Alunos" value={students} min={1} max={120} onChange={setStudents} />
+        <TimeCalcControl label="Minutos por plano" value={minutes} min={5} max={180} onChange={setMinutes} />
+        <TimeCalcControl label="Atualizações/mês" value={updates} min={1} max={8} onChange={setUpdates} />
+      </div>
+      <div className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4">
+        <p className="text-sm font-black text-emerald-100">Hoje isso pode representar cerca de {hours}h{remainingMinutes ? ` ${remainingMinutes}min` : ''} em tarefas de montagem e ajustes.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-300">
+          Organizar e reutilizar estruturas pode reduzir tarefas repetitivas. Cada hora economizada pode ser usada para acompanhar alunos, vender consultorias ou melhorar seu serviço.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TimeCalcControl({ label, value, min, max, onChange }) {
+  return (
+    <label className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/55 p-3 text-xs font-black uppercase text-zinc-500">
+      {label}
+      <input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="accent-emerald-300" />
+      <span className="text-lg font-black text-white">{value}</span>
+    </label>
   )
 }
 
@@ -5059,7 +5243,463 @@ function AssessmentValue({ label, value, suffix, previous }) {
   )
 }
 
-function Workouts({ selectedStudent, students, workouts, workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent }) {
+const expressWorkoutBlueprints = {
+  hipertrofia: {
+    title: 'Hipertrofia estruturada',
+    focus: 'Volume progressivo, técnica e grupos principais',
+    exercises: ['Supino reto com barra', 'Remada baixa', 'Agachamento livre', 'Desenvolvimento com halteres', 'Rosca direta', 'Tríceps na polia'],
+    sets: '3-4',
+    reps: '8-12',
+    rest: '75-90s',
+  },
+  emagrecimento: {
+    title: 'Emagrecimento e condicionamento',
+    focus: 'Gasto energético, força básica e ritmo',
+    exercises: ['Agachamento livre', 'Remada baixa', 'Flexão de braços', 'Afundo com halteres', 'Prancha abdominal'],
+    sets: '3',
+    reps: '12-15',
+    rest: '45-60s',
+  },
+  forca: {
+    title: 'Força técnica',
+    focus: 'Movimentos base, carga controlada e descanso maior',
+    exercises: ['Supino reto com barra', 'Agachamento livre', 'Levantamento terra', 'Remada curvada com barra'],
+    sets: '4-5',
+    reps: '4-6',
+    rest: '120s',
+  },
+  condicionamento: {
+    title: 'Condicionamento funcional',
+    focus: 'Consistência, circuito e controle de esforço',
+    exercises: ['Leg press 45°', 'Puxada frontal', 'Desenvolvimento com halteres', 'Abdominal crunch', 'Panturrilha em pé'],
+    sets: '3',
+    reps: '12-20',
+    rest: '45s',
+  },
+  manutencao: {
+    title: 'Manutenção inteligente',
+    focus: 'Rotina sustentável, técnica e frequência',
+    exercises: ['Supino inclinado com halteres', 'Remada baixa', 'Cadeira extensora', 'Mesa flexora', 'Prancha abdominal'],
+    sets: '3',
+    reps: '10-12',
+    rest: '60-75s',
+  },
+}
+
+const expressMealBlueprints = {
+  hipertrofia: [
+    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Banana', grams: 100 }, { foodName: 'Aveia', grams: 40 }] },
+    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Azeite de Oliva', grams: 8 }] },
+    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 250 }, { foodName: 'Peito de Frango', grams: 170 }] },
+  ],
+  emagrecimento: [
+    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Mamão', grams: 150 }] },
+    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 140 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Cenoura', grams: 100 }] },
+    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 150 }, { foodName: 'Peito de Frango', grams: 150 }, { foodName: 'Pepino', grams: 100 }] },
+  ],
+  forca: [
+    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Pão Francês', grams: 50 }] },
+    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Filé Mignon', grams: 160 }] },
+    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 220 }, { foodName: 'Peito de Frango', grams: 170 }] },
+  ],
+  condicionamento: [
+    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Iogurte Natural', grams: 170 }, { foodName: 'Banana', grams: 100 }] },
+    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 170 }, { foodName: 'Peito de Frango', grams: 160 }, { foodName: 'Beterraba', grams: 90 }] },
+    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Cuscuz', grams: 150 }, { foodName: 'Ovo Inteiro', grams: 120 }] },
+  ],
+  manutencao: [
+    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Banana', grams: 100 }] },
+    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 180 }, { foodName: 'Peito de Frango', grams: 160 }] },
+    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 180 }, { foodName: 'Ovo Inteiro', grams: 100 }] },
+  ],
+}
+
+function ExpressCreationModule({ selectedStudent, students, workouts = [], nutritionPlans = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+  const [step, setStep] = useState(1)
+  const [studentId, setStudentId] = useState(selectedStudent?.id || students[0]?.id || '')
+  const [objective, setObjective] = useState('hipertrofia')
+  const [level, setLevel] = useState('intermediario')
+  const [frequency, setFrequency] = useState('4')
+  const [location, setLocation] = useState('academia completa')
+  const [mode, setMode] = useState('modelo')
+  const [mealCount, setMealCount] = useState('3')
+  const [bulkSets, setBulkSets] = useState('')
+  const [bulkReps, setBulkReps] = useState('')
+  const [bulkRest, setBulkRest] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const student = students.find((item) => String(item.id) === String(studentId)) || selectedStudent || students[0]
+  const realWorkoutModels = useMemo(() => buildExpressWorkoutModels(workouts, availableExerciseLibrary), [workouts, availableExerciseLibrary])
+  const draftWorkout = useMemo(() => buildExpressWorkoutDraft({ student, objective, level, frequency, location, mode, workouts, availableExerciseLibrary, bulkSets, bulkReps, bulkRest }), [student, objective, level, frequency, location, mode, workouts, availableExerciseLibrary, bulkSets, bulkReps, bulkRest])
+  const draftNutrition = useMemo(() => buildExpressNutritionDraft({ student, objective, mealCount }), [student, objective, mealCount])
+  const workoutSummary = summarizeExpressWorkout(draftWorkout)
+  const nutritionSummary = summarizeExpressNutrition(draftNutrition)
+  const progress = Math.round((step / 5) * 100)
+
+  useEffect(() => {
+    if (selectedStudent?.id) setStudentId(selectedStudent.id)
+  }, [selectedStudent?.id])
+
+  async function publishExpressPlan() {
+    if (!student?.id) {
+      setError('Selecione um aluno antes de publicar.')
+      return
+    }
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      const workout = await onSaveWorkout?.({ ...draftWorkout, source: 'express_creation' })
+      const nutrition = await onSaveNutritionPlan?.({ ...draftNutrition, source: 'express_creation' })
+      recordLeadEvent('express_plan_published', {
+        studentId: student.id,
+        workoutExercises: workout?.exercises?.length || draftWorkout.exercises.length,
+        meals: nutrition?.meals?.length || draftNutrition.meals.length,
+        objective,
+      })
+      setMessage('Plano publicado com sucesso. Seu aluno já pode visualizar treino e alimentação.')
+      setStep(5)
+    } catch (publishError) {
+      setError(publishError?.message || 'Não foi possível publicar agora.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.24),transparent_34%),linear-gradient(135deg,rgba(6,18,17,0.96),rgba(4,7,10,0.98))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-3xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-100">
+            <NavIcon name="plus" className="h-4 w-4" />
+            Criação expressa
+          </span>
+          <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Crie, personalize e publique treinos e planos alimentares em poucos minutos.</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
+            Menos tempo montando planilhas. Mais tempo acompanhando seus alunos. Monte uma vez, personalize quando precisar e reutilize sempre.
+          </p>
+        </div>
+        <div className="min-w-52 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-xs font-black uppercase text-zinc-500">Etapa {step} de 5</p>
+          <p className="mt-1 text-sm font-black text-emerald-100">{getExpressStepLabel(step)}</p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+            <div className="h-full rounded-full bg-emerald-300 transition-all duration-300" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/58 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+              Aluno
+              <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
+                {students.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+              Objetivo
+              <select value={objective} onChange={(event) => setObjective(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
+                {['hipertrofia', 'emagrecimento', 'forca', 'condicionamento', 'manutencao'].map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+              Nível
+              <select value={level} onChange={(event) => setLevel(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
+                {['iniciante', 'intermediario', 'avancado'].map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+              Frequência semanal
+              <select value={frequency} onChange={(event) => setFrequency(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
+                {['2', '3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} dias</option>)}
+              </select>
+            </label>
+          </div>
+          <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+            Local e equipamentos
+            <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Academia completa, casa, halteres, elásticos..." className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400" />
+          </label>
+          <div className="grid gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Base de criação</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                ['modelo', 'Usar modelo'],
+                ['zero', 'Criar do zero'],
+                ['duplicar', 'Duplicar treino'],
+                ['adaptar', 'Adaptar existente'],
+              ].map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setMode(id)} className={`rounded-xl border px-3 py-3 text-left text-sm font-black transition ${mode === id ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-50' : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-emerald-300/25'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <InlineInput label="Séries em lote" value={bulkSets} onChange={setBulkSets} />
+            <InlineInput label="Reps em lote" value={bulkReps} onChange={setBulkReps} />
+            <InlineInput label="Descanso em lote" value={bulkRest} onChange={setBulkRest} />
+          </div>
+          <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+            Refeições
+            <select value={mealCount} onChange={(event) => setMealCount(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
+              {['3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} refeições</option>)}
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <button key={item} type="button" onClick={() => setStep(item)} className={`h-9 min-w-9 rounded-full border text-xs font-black ${step === item ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 text-zinc-400'}`}>
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <ExpressSummaryMetric icon="dumbbell" label="Treino" value={`${workoutSummary.totalExercises} exercícios`} detail={`${frequency} dias/semana`} />
+            <ExpressSummaryMetric icon="muscle" label="Músculos" value={workoutSummary.topMuscles.slice(0, 2).join(', ') || '-'} detail="volume visual" />
+            <ExpressSummaryMetric icon="nutrition" label="Dieta" value={`${nutritionSummary.meals} refeições`} detail={`${nutritionSummary.calories} kcal`} />
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-200">Resumo antes de publicar</p>
+                <h4 className="mt-1 text-xl font-black text-white">Tudo pronto para revisar e enviar ao aluno.</h4>
+              </div>
+              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Autosave visual</span>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
+                <p className="text-xs font-black uppercase text-zinc-500">Treino gerado</p>
+                <h5 className="mt-1 font-black text-white">{draftWorkout.title}</h5>
+                <p className="mt-1 text-sm leading-6 text-zinc-400">{draftWorkout.focus}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {draftWorkout.exercises.slice(0, 5).map((exercise) => (
+                    <span key={exercise.name} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-zinc-300">{exercise.name}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
+                <p className="text-xs font-black uppercase text-zinc-500">Plano alimentar rápido</p>
+                <h5 className="mt-1 font-black text-white">{draftNutrition.title}</h5>
+                <p className="mt-1 text-sm leading-6 text-zinc-400">{draftNutrition.notes}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <ExerciseMetric label="Kcal" value={nutritionSummary.calories} />
+                  <ExerciseMetric label="Proteína" value={`${nutritionSummary.protein}g`} />
+                  <ExerciseMetric label="Refeições" value={nutritionSummary.meals} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+            <p className="text-sm font-black text-emerald-100">Modelos e estruturas reais</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {(realWorkoutModels.length ? realWorkoutModels : [{ id: 'empty', title: 'Nenhum modelo salvo ainda', meta: 'Os treinos criados passam a servir de base para reaproveitar estruturas.' }]).slice(0, 4).map((model) => (
+                <div key={model.id} className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                  <p className="text-sm font-black text-white">{model.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">{model.meta}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button type="button" onClick={publishExpressPlan} disabled={saving || !students.length} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60">
+              {saving ? 'Publicando...' : 'Revisar e publicar'}
+            </button>
+            <button type="button" onClick={() => setStep((current) => Math.min(5, current + 1))} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-black text-zinc-100">
+              Próxima etapa
+            </button>
+          </div>
+          {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+          {error ? <p className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ExpressSummaryMetric({ icon, label, value, detail }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+      <NavIcon name={icon} className="h-5 w-5 text-emerald-200" />
+      <p className="mt-3 text-xs font-black uppercase text-zinc-500">{label}</p>
+      <p className="mt-1 break-words text-lg font-black text-white">{value}</p>
+      <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
+    </div>
+  )
+}
+
+function getExpressStepLabel(step) {
+  return {
+    1: 'Selecionando aluno',
+    2: 'Definindo objetivo e rotina',
+    3: 'Escolhendo base e modelos',
+    4: 'Revisando treino e dieta',
+    5: 'Publicação pronta',
+  }[step] || 'Criação expressa'
+}
+
+function buildExpressWorkoutModels(workouts = [], exerciseLibraryItems = []) {
+  return workouts
+    .filter((workout) => workout?.exercises?.length)
+    .slice(0, 12)
+    .map((workout) => {
+      const enriched = workout.exercises.map((exercise) => enrichExercise(exercise, exerciseLibraryItems))
+      const muscles = summarizeExpressWorkout({ exercises: enriched }).topMuscles
+      return {
+        id: workout.id,
+        title: workout.title || 'Treino salvo',
+        workout,
+        meta: `${enriched.length} exercícios · ${muscles.slice(0, 2).join(', ') || 'músculos variados'}`,
+      }
+    })
+}
+
+function buildExpressWorkoutDraft({ student, objective, level, frequency, location, mode, workouts = [], availableExerciseLibrary = [], bulkSets = '', bulkReps = '', bulkRest = '' }) {
+  const blueprint = expressWorkoutBlueprints[objective] || expressWorkoutBlueprints.hipertrofia
+  const reusableWorkout = ['duplicar', 'adaptar'].includes(mode)
+    ? workouts.find((workout) => workout?.exercises?.length && String(workout.studentId) === String(student?.id))
+      || workouts.find((workout) => workout?.exercises?.length)
+    : null
+  const sourceExercises = reusableWorkout?.exercises?.length
+    ? reusableWorkout.exercises
+    : blueprint.exercises.map((name) => createExerciseDraft(name, {}, availableExerciseLibrary))
+  const levelAdjust = {
+    iniciante: { sets: '2-3', reps: objective === 'forca' ? '5-6' : '10-12', load: 'RPE 6-7' },
+    intermediario: { sets: blueprint.sets, reps: blueprint.reps, load: 'RPE 7-8' },
+    avancado: { sets: objective === 'forca' ? '5' : '4', reps: blueprint.reps, load: 'RPE 8' },
+  }[level] || { sets: blueprint.sets, reps: blueprint.reps, load: 'RPE 7-8' }
+  const exerciseLimit = Math.max(3, Math.min(8, Number(frequency || 4) + 2))
+  const exercises = sourceExercises.slice(0, exerciseLimit).map((exercise, index) => {
+    const enriched = enrichExercise(exercise, availableExerciseLibrary)
+    return {
+      ...enriched,
+      sets: bulkSets || enriched.sets || levelAdjust.sets,
+      reps: bulkReps || enriched.reps || levelAdjust.reps,
+      load: enriched.load || levelAdjust.load,
+      rest: bulkRest || enriched.rest || blueprint.rest,
+      instructions: [
+        enriched.instructions,
+        index === 0 ? `Criado pela Criação Expressa para ${formatUiText(objective)}. Revise técnica, limitações e resposta do aluno antes de evoluir cargas.` : '',
+      ].filter(Boolean).join('\n'),
+    }
+  })
+
+  return {
+    studentId: student?.id || '',
+    title: reusableWorkout && mode === 'duplicar' ? `${reusableWorkout.title || blueprint.title} - cópia` : blueprint.title,
+    focus: `${blueprint.focus}. Frequência: ${frequency}x/semana. Local: ${location}. Nível: ${formatUiText(level)}.`,
+    notes: [
+      'Gerado pela Criação Expressa. Revisar limitações, lesões, preferências e histórico antes de publicar ajustes finos.',
+      student?.injuries ? `Atenção a limitações: ${student.injuries}` : '',
+      student?.notes ? `Histórico do aluno: ${student.notes}` : '',
+    ].filter(Boolean).join('\n'),
+    exercises,
+  }
+}
+
+function buildExpressNutritionDraft({ student, objective, mealCount }) {
+  const blueprint = expressMealBlueprints[objective] || expressMealBlueprints.hipertrofia
+  const count = Math.max(3, Math.min(6, Number(mealCount || 3)))
+  const meals = Array.from({ length: count }).map((_, index) => {
+    const base = blueprint[index] || {
+      name: `Refeição ${index + 1}`,
+      time: '',
+      items: [{ foodName: index % 2 ? 'Peito de Frango' : 'Ovo Inteiro', grams: index % 2 ? 150 : 100 }],
+    }
+    const items = base.items.map((item) => {
+      const food = findExpressFoodByName(item.foodName)
+      return {
+        category: food?.category || 'Preparações',
+        foodName: food?.name || item.foodName,
+        grams: item.grams,
+      }
+    })
+    const totals = calculateMealMacros({ ...base, items })
+    return {
+      name: base.name,
+      time: base.time,
+      foods: items
+        .map((item) => `${item.foodName} (${item.grams}g)`)
+        .join(', '),
+      macros: formatMacroSummary(totals),
+    }
+  })
+  const totals = estimateMacrosFromPlanMeals(meals)
+
+  return {
+    studentId: student?.id || '',
+    title: `Plano alimentar rápido - ${formatUiText(objective)}`,
+    calories: `${Math.round(totals.calories)} kcal`,
+    protein: `${roundMacro(totals.protein)} g`,
+    notes: 'Estrutura criada para revisão profissional. Não substitui avaliação nutricional individual e pode ser ajustada conforme preferências, restrições e rotina do aluno.',
+    meals,
+  }
+}
+
+function summarizeExpressWorkout(workout = {}) {
+  const exercises = workout.exercises || []
+  const muscleCounts = exercises.reduce((acc, exercise) => {
+    const profile = getExerciseMuscleProfile(exercise)
+    const label = profile.primaryLabel && profile.primaryLabel !== 'Músculo alvo não identificado' ? profile.primaryLabel : (exercise.muscleGroup || 'Outros')
+    acc[label] = (acc[label] || 0) + 1
+    return acc
+  }, {})
+  return {
+    totalExercises: exercises.length,
+    topMuscles: Object.entries(muscleCounts).sort((a, b) => b[1] - a[1]).map(([name]) => name),
+    estimatedDuration: `${Math.max(25, exercises.length * 7)} min`,
+  }
+}
+
+function summarizeExpressNutrition(plan = {}) {
+  const totals = estimateMacrosFromPlanMeals(plan.meals || [])
+  return {
+    meals: plan.meals?.length || 0,
+    calories: Math.round(totals.calories),
+    protein: roundMacro(totals.protein),
+    carbs: roundMacro(totals.carbs),
+    fat: roundMacro(totals.fat),
+  }
+}
+
+function findExpressFoodByName(name) {
+  const normalized = normalizeText(name)
+  return foodDatabase.find((food) => normalizeText(food.name) === normalized)
+    || foodDatabase.find((food) => normalizeText(food.name).includes(normalized) || normalized.includes(normalizeText(food.name)))
+    || null
+}
+
+function estimateMacrosFromPlanMeals(meals = []) {
+  return meals.reduce((totals, meal) => {
+    const parsed = parseMacroSummary(meal.macros)
+    return {
+      calories: totals.calories + parsed.calories,
+      protein: totals.protein + parsed.protein,
+      carbs: totals.carbs + parsed.carbs,
+      fat: totals.fat + parsed.fat,
+    }
+  }, emptyMacros())
+}
+
+function parseMacroSummary(value = '') {
+  const text = String(value || '')
+  const numbers = text.match(/[\d,.]+/g)?.map((item) => Number(item.replace(',', '.'))) || []
+  return {
+    calories: numbers[0] || 0,
+    protein: numbers[1] || 0,
+    carbs: numbers[2] || 0,
+    fat: numbers[3] || 0,
+  }
+}
+
+function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
@@ -5068,6 +5708,18 @@ function Workouts({ selectedStudent, students, workouts, workoutLogs, progressio
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
+      <div className="xl:col-span-2">
+        <ExpressCreationModule
+          selectedStudent={selectedStudent}
+          students={students}
+          workouts={workouts}
+          nutritionPlans={nutritionPlans}
+          exerciseLibraryItems={availableExerciseLibrary}
+          onSaveWorkout={onSaveWorkout}
+          onSaveNutritionPlan={onSaveNutritionPlan}
+        />
+      </div>
+
       <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
         {students.length ? (
           <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
