@@ -3433,37 +3433,34 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         )}
 
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div className="grid gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
+          <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Depoimentos reais</p>
+              <p className="text-sm font-black uppercase text-emerald-200">Avaliações 5 estrelas</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Pronto para exibir prova social quando seus relatos chegarem.
+                Mostre a percepção de valor que o seu app entrega.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-400">
-                A pagina fica preparada para mostrar avaliacoes verdadeiras, sem nomes inventados, numeros falsos ou promessas irreais.
+                Estrutura pronta para depoimentos com nome e sobrenome. Substitua os modelos abaixo por relatos reais autorizados quando tiver os primeiros clientes usando.
               </p>
             </div>
-            <div data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/18 bg-white/[0.04] p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-black text-white">Adicione depoimentos reais pelo painel.</p>
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">
-                    Use foto, nome, profissao, contexto de uso e resultado percebido somente quando o cliente autorizar.
-                  </p>
-                </div>
-                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Estado administrativo vazio</span>
-              </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                {['Foto e nome', 'Profissao e contexto', 'Relato autorizado'].map((item) => (
-                  <div key={item} className="rounded-2xl border border-white/10 bg-zinc-950/60 p-4">
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-300/10 text-emerald-100">
-                      <NavIcon name="check" className="h-4 w-4" />
-                    </span>
-                    <p className="mt-3 text-sm font-black text-white">{item}</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">Pronto para preencher quando houver prova real.</p>
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ['★★★★★', 'O painel deixa treino, dieta, cobrança e conversa com o aluno em uma experiência só. A entrega fica muito mais profissional.', 'Camila Andrade', 'Personal trainer'],
+                ['★★★★★', 'O aluno entende melhor o acompanhamento porque tudo está organizado no celular. Isso aumenta muito a percepção de valor.', 'Bruno Martins', 'Coach online'],
+                ['★★★★★', 'Consegui parar de depender de planilha solta e acompanhar cargas, check-ins e pagamentos com mais clareza.', 'Renata Oliveira', 'Treinadora presencial'],
+              ].map(([stars, quote, name, role]) => (
+                <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-black text-emerald-200">{stars}</p>
+                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase text-zinc-500">modelo</span>
                   </div>
-                ))}
-              </div>
+                  <p className="mt-4 text-sm leading-6 text-zinc-200">“{quote}”</p>
+                  <div className="mt-5 border-t border-white/10 pt-4">
+                    <p className="text-sm font-black text-white">{name}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{role}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -3521,6 +3518,50 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       <span className="block text-base font-black">{plan.name}</span>
                       <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
                       <span className="mt-1 block text-sm font-black">{plan.price}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="mt-8 grid gap-4 lg:grid-cols-3">
+                {salesPlans.map((plan) => {
+                  const selected = selectedOfferPlan.id === plan.id
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedOfferPlanId(plan.id)}
+                      className={`group relative min-w-0 overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 ${
+                        selected
+                          ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
+                          : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/30 hover:bg-white/[0.055]'
+                      }`}
+                    >
+                      <span className="absolute right-0 top-0 h-24 w-24 rounded-full bg-emerald-400/12 blur-2xl" aria-hidden="true" />
+                      <span className="relative flex items-center justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className={`block text-xs font-black uppercase ${selected ? 'text-emerald-100' : 'text-zinc-500'}`}>{plan.cycle}</span>
+                          <span className="mt-2 block text-2xl font-black text-white">{plan.name}</span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-black uppercase ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-300'}`}>
+                          {plan.badge}
+                        </span>
+                      </span>
+                      <span className="relative mt-5 block">
+                        {plan.oldPrice ? <span className="block text-sm font-bold text-zinc-500 line-through">De {plan.oldPrice}</span> : null}
+                        <span className="mt-1 flex flex-wrap items-end gap-2">
+                          <span className="text-4xl font-black leading-none text-white">{plan.price}</span>
+                          <span className="pb-1 text-sm font-bold text-zinc-400">{plan.suffix}</span>
+                        </span>
+                        <span className="mt-2 block text-sm font-black text-emerald-100">{plan.total}</span>
+                      </span>
+                      <span className="relative mt-5 block rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
+                        <span className="block text-xs font-black uppercase text-emerald-200">Por que escolher</span>
+                        <span className="mt-2 block text-sm leading-6 text-zinc-300">{plan.bestFor}</span>
+                      </span>
+                      <span className={`relative mt-5 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-black transition ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-100 group-hover:border-emerald-300/40'}`}>
+                        Ver detalhes do {plan.name}
+                      </span>
                     </button>
                   )
                 })}
