@@ -1498,3 +1498,45 @@ function createInviteCode() {
 function isUuid(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
+export async function deleteRemoteCoachAccount({ email, confirmation }) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedConfirmation = String(confirmation || '').trim().toLowerCase()
+
+  if (!normalizedEmail || normalizedConfirmation !== normalizedEmail) {
+    throw new Error('Confirme a exclusão digitando exatamente o e-mail da conta.')
+  }
+
+  if (typeof functionRequest === 'function') {
+    return functionRequest('delete-coach-account', {
+      email: normalizedEmail,
+      confirmation: normalizedConfirmation,
+      requestedAt: new Date().toISOString(),
+    })
+  }
+
+  if (!supabaseEnabled) {
+    throw new Error('Supabase não configurado')
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-coach-account`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${sessionToken || SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email: normalizedEmail,
+      confirmation: normalizedConfirmation,
+      requestedAt: new Date().toISOString(),
+    }),
+  })
+
+  const payload = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(payload.error || payload.message || 'Não foi possível solicitar a exclusão da conta.')
+  }
+
+  return payload
+}
