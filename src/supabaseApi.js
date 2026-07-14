@@ -238,6 +238,21 @@ export async function updateRecoveredPassword(accessToken, password) {
   }
 }
 
+export async function deleteRemoteCoachAccount({ email, confirmation }) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedConfirmation = String(confirmation || '').trim().toLowerCase()
+
+  if (!normalizedEmail || normalizedConfirmation !== normalizedEmail) {
+    throw new Error('Confirme a exclusao digitando exatamente o e-mail da conta.')
+  }
+
+  return functionRequest('delete-coach-account', {
+    email: normalizedEmail,
+    confirmation: normalizedConfirmation,
+    requestedAt: new Date().toISOString(),
+  })
+}
+
 export async function refreshCoachSession(refreshToken) {
   if (!refreshToken) {
     throw new Error('Sessão sem token de renovação')
@@ -274,16 +289,18 @@ export async function loadRemoteData() {
   ])
 
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
+  const hydratedMessages = await Promise.all(messages.map(hydrateMessageRow))
+  const hydratedWorkouts = await Promise.all(workouts.map(hydrateWorkoutRow))
 
   return {
     user: users[0] ? fromUserRow(users[0]) : null,
     students: students.map(fromStudentRow),
     checkins: hydratedCheckins,
     notifications: notifications.map(fromNotificationRow),
-    workouts: workouts.map(fromWorkoutRow),
+    workouts: hydratedWorkouts,
     nutritionPlans: nutritionPlans.map(fromNutritionPlanRow),
     workoutLogs: workoutLogs.map(fromWorkoutLogRow),
-    messages: messages.map(fromMessageRow),
+    messages: hydratedMessages,
     appointments: appointments.map(fromAppointmentRow),
     invoices: invoices.map(fromInvoiceRow),
     assessments: assessments.map(fromAssessmentRow),
@@ -331,7 +348,7 @@ export async function saveRemoteLeadEvent(event) {
 export async function loadRemoteMessages(studentId = '') {
   const filter = studentId ? `&student_id=eq.${encodeURIComponent(studentId)}` : ''
   const rows = await request(`messages?select=*${filter}&order=created_at.desc`)
-  return rows.map(fromMessageRow)
+  return Promise.all(rows.map(hydrateMessageRow))
 }
 
 export async function loadRemoteStudentMessages(studentId) {
@@ -342,7 +359,7 @@ export async function loadRemoteStudentMessages(studentId) {
 export async function loadRemoteStudentMessagesByInvite(inviteCode) {
   if (!inviteCode) return []
   const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
-  return (Array.isArray(result) ? result : []).map(fromMessageRow)
+  return Promise.all((Array.isArray(result) ? result : []).map(hydrateMessageRow))
 }
 
 export async function fetchRemoteExerciseMedia(query) {
@@ -507,7 +524,7 @@ async function uploadWorkoutVideo(file, workoutId, exerciseIndex) {
     throw serviceError(response.status, message || 'Erro ao enviar vídeo do exercício')
   }
 
-  return `${SUPABASE_URL}/storage/v1/object/public/${WORKOUT_VIDEO_BUCKET}/${safeName}`
+  return safeName
 }
 
 export async function updateRemotePayment(studentId, payment) {
@@ -561,6 +578,8 @@ export async function loadRemoteStudentByInvite(code) {
   }
 
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
+  const hydratedWorkouts = await Promise.all((payload.workouts ?? []).map(hydrateWorkoutRow))
+  const hydratedMessages = await Promise.all((payload.messages ?? []).map(hydrateMessageRow))
 
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
@@ -571,10 +590,10 @@ export async function loadRemoteStudentByInvite(code) {
     student: fromStudentRow(payload.student),
     consentAccepted: Boolean(payload.consent_accepted),
     checkins: hydratedCheckins,
-    workouts: (payload.workouts ?? []).map(fromWorkoutRow),
+    workouts: hydratedWorkouts,
     nutritionPlans: (payload.nutrition_plans ?? []).map(fromNutritionPlanRow),
     workoutLogs: (payload.workout_logs ?? []).map(fromWorkoutLogRow),
-    messages: (payload.messages ?? []).map(fromMessageRow),
+    messages: hydratedMessages,
     appointments: (payload.appointments ?? []).map(fromAppointmentRow),
     invoices: (payload.invoices ?? []).map(fromInvoiceRow),
     assessments: (payload.assessments ?? []).map(fromAssessmentRow),
@@ -589,7 +608,7 @@ export async function loadRemoteStudentByInvite(code) {
 export async function acceptRemoteStudentConsent(code) {
   await rpcRequest('accept_student_consent', {
     invite_code: code,
-    consent_version_value: '1.0',
+    consent_version_value: '2026-07-13-web-pwa',
   })
 
   return loadRemoteStudentByInvite(code)
@@ -788,7 +807,7 @@ export async function saveRemoteMessage(message) {
       attachment_type: attachmentType || null,
       attachment_name: attachmentName || null,
     })
-    return fromMessageRow(Array.isArray(result) ? result[0] : result)
+    return hydrateMessageRow(Array.isArray(result) ? result[0] : result)
   }
 
   const rows = await request('messages', {
@@ -805,7 +824,7 @@ export async function saveRemoteMessage(message) {
     }),
   })
 
-  return fromMessageRow(rows[0])
+  return hydrateMessageRow(rows[0])
 }
 
 async function uploadMessageAttachment(file, studentId, inviteCode = '') {
@@ -826,7 +845,7 @@ async function uploadMessageAttachment(file, studentId, inviteCode = '') {
     throw serviceError(response.status, message || 'Erro ao enviar anexo da conversa')
   }
 
-  return `${SUPABASE_URL}/storage/v1/object/public/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`
+  return safeName
 }
 
 export async function markRemoteStudentMessagesRead(studentId) {
@@ -1123,15 +1142,55 @@ async function hydrateCheckinRow(row) {
 }
 
 async function signCheckinPhoto(storageValue) {
-  const path = extractStoragePath(storageValue)
+  return signStorageObject(PHOTO_BUCKET, storageValue, 60 * 60)
+}
+
+async function hydrateMessageRow(row) {
+  const message = fromMessageRow(row)
+  if (!message.attachmentUrl) return message
+
+  const path = extractStoragePath(message.attachmentUrl, MESSAGE_ATTACHMENT_BUCKET)
+  if (!path) return message
+
+  const signedUrl = await signStorageObject(MESSAGE_ATTACHMENT_BUCKET, path, 60 * 60).catch(() => '')
+  return {
+    ...message,
+    attachmentPath: path,
+    attachmentUrl: signedUrl || message.attachmentUrl,
+  }
+}
+
+async function hydrateWorkoutRow(row) {
+  const workout = fromWorkoutRow(row)
+  const exercises = await Promise.all(workout.exercises.map(async (exercise) => {
+    const path = extractStoragePath(exercise.videoUrl, WORKOUT_VIDEO_BUCKET)
+    if (!path || /^https?:\/\//i.test(path)) return exercise
+
+    const signedUrl = await signStorageObject(WORKOUT_VIDEO_BUCKET, path, 60 * 60).catch(() => '')
+    return {
+      ...exercise,
+      videoPath: path,
+      videoUrl: signedUrl || exercise.videoUrl,
+    }
+  }))
+
+  return { ...workout, exercises }
+}
+
+async function signStorageObject(bucket, storageValue, expiresIn = 3600) {
+  if (/^https?:\/\//i.test(String(storageValue || '')) && !String(storageValue).includes('/storage/v1/object/')) {
+    return String(storageValue)
+  }
+
+  const path = extractStoragePath(storageValue, bucket)
   if (!path) return ''
 
   const response = await fetchWithTimeout(
-    `${SUPABASE_URL}/storage/v1/object/sign/${PHOTO_BUCKET}/${encodeStoragePath(path)}`,
+    `${SUPABASE_URL}/storage/v1/object/sign/${bucket}/${encodeStoragePath(path)}`,
     {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ expiresIn: 60 * 60 }),
+      body: JSON.stringify({ expiresIn }),
     },
   )
 
@@ -1145,20 +1204,25 @@ async function signCheckinPhoto(storageValue) {
   return signedPath.startsWith('http') ? signedPath : `${SUPABASE_URL}${signedPath}`
 }
 
-function extractStoragePath(value) {
+function extractStoragePath(value, bucket = PHOTO_BUCKET) {
   if (!value) return ''
-  const publicMarker = `/storage/v1/object/public/${PHOTO_BUCKET}/`
-  const signedMarker = `/storage/v1/object/sign/${PHOTO_BUCKET}/`
-
-  if (value.includes(publicMarker)) {
-    return decodeURIComponent(value.split(publicMarker)[1].split('?')[0])
+  const normalized = String(value)
+  if (!/^https?:\/\//i.test(normalized) && !normalized.includes('/storage/v1/object/')) {
+    return normalized.replace(/^\/+/, '')
   }
 
-  if (value.includes(signedMarker)) {
-    return decodeURIComponent(value.split(signedMarker)[1].split('?')[0])
+  const publicMarker = `/storage/v1/object/public/${bucket}/`
+  const signedMarker = `/storage/v1/object/sign/${bucket}/`
+
+  if (normalized.includes(publicMarker)) {
+    return decodeURIComponent(normalized.split(publicMarker)[1].split('?')[0])
   }
 
-  return String(value).replace(/^\/+/, '')
+  if (normalized.includes(signedMarker)) {
+    return decodeURIComponent(normalized.split(signedMarker)[1].split('?')[0])
+  }
+
+  return normalized
 }
 
 function encodeStoragePath(path) {
