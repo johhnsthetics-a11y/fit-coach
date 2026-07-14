@@ -181,9 +181,31 @@ function normalizeAdminSettings(settings = {}) {
       const defaultPlan = cartpandaCheckoutPlans[index] || cartpandaCheckoutPlans.find((item) => item.id === plan.id)
       const isLegacyMonthly = plan.id === 'mensal'
         && (plan.price === 'R$ 49,90' || String(plan.total || '').includes('598,80'))
-      return isLegacyMonthly && defaultPlan
+      const mergedPlan = isLegacyMonthly && defaultPlan
         ? { ...plan, ...defaultPlan, checkoutUrl: plan.checkoutUrl || defaultPlan.checkoutUrl }
-        : plan
+        : { ...(defaultPlan || {}), ...plan }
+
+      return defaultPlan
+        ? {
+          ...mergedPlan,
+          name: mergedPlan.name || defaultPlan.name,
+          cycle: mergedPlan.cycle || defaultPlan.cycle,
+          badge: mergedPlan.badge || defaultPlan.badge,
+          price: mergedPlan.price || defaultPlan.price,
+          suffix: mergedPlan.suffix || defaultPlan.suffix,
+          oldPrice: mergedPlan.oldPrice || defaultPlan.oldPrice,
+          total: mergedPlan.total || defaultPlan.total,
+          economy: mergedPlan.economy || defaultPlan.economy,
+          equivalent: mergedPlan.equivalent || defaultPlan.equivalent,
+          checkoutUrl: mergedPlan.checkoutUrl || defaultPlan.checkoutUrl,
+          description: mergedPlan.description || defaultPlan.description,
+          bestFor: mergedPlan.bestFor || defaultPlan.bestFor,
+          operatingPromise: mergedPlan.operatingPromise || defaultPlan.operatingPromise,
+          highlights: mergedPlan.highlights?.length ? mergedPlan.highlights : defaultPlan.highlights,
+          activationPlan: mergedPlan.activationPlan?.length ? mergedPlan.activationPlan : defaultPlan.activationPlan,
+          decisionPoints: mergedPlan.decisionPoints?.length ? mergedPlan.decisionPoints : defaultPlan.decisionPoints,
+        }
+        : mergedPlan
     })
     : defaultAppAdminSettings.checkoutPlans
 
@@ -3565,9 +3587,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                           : 'border border-white/5 text-zinc-300 hover:bg-white/[0.06] hover:text-white'
                       }`}
                     >
-                      <span className="block text-base font-black">{plan.name}</span>
-                      <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
-                      <span className="mt-1 block text-sm font-black">{plan.price}</span>
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="min-w-0">
+                          <span className="block text-base font-black">{plan.name}</span>
+                          <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-400'}`}>{plan.cycle}</span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${selected ? 'bg-zinc-950/10 text-zinc-900' : 'border border-emerald-300/20 text-emerald-100'}`}>
+                          {plan.badge}
+                        </span>
+                      </span>
+                      <span className="mt-2 flex flex-wrap items-end gap-2">
+                        <span className="text-lg font-black leading-none">{plan.price}</span>
+                        <span className={`text-[11px] font-bold ${selected ? 'text-zinc-800' : 'text-zinc-400'}`}>{plan.suffix}</span>
+                      </span>
+                      <span className={`mt-1 block text-[11px] font-black ${selected ? 'text-zinc-800' : 'text-emerald-100'}`}>{plan.total}</span>
                     </button>
                   )
                 })}
@@ -3629,7 +3662,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </div>
             </div>
 
-            <div className="mx-auto mt-7 hidden max-w-5xl gap-5 lg:mt-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
+            <div className="mx-auto mt-7 grid max-w-5xl gap-5 lg:mt-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
               <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-4 shadow-2xl shadow-emerald-950/25 sm:p-6">
                 <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
                 <div className="relative">
