@@ -5,6 +5,7 @@ import {
   archiveRemoteNutritionPlan,
   archiveRemoteWorkout,
   createRemoteStudentInvite,
+  deleteRemoteCoachAccount,
   deleteRemoteStudent,
   fetchRemoteExerciseMedia,
   loadRemoteData,
@@ -143,28 +144,28 @@ const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
 
 const salesHeroHeadlines = [
   {
-    id: 'consultoria',
-    lead: 'A forma mais simples de organizar',
-    focus: 'Consultorias e Aulas',
-    proof: 'Do treino ao financeiro, tudo centralizado para entregar valor e escalar sem perder controle.',
+    id: 'crescimento',
+    lead: 'Atenda mais alunos.',
+    focus: 'Economize horas. Venda melhor.',
+    proof: 'Centralize treinos, evolução, check-ins e comunicação em uma plataforma feita para transformar sua consultoria em uma operação mais organizada, profissional e escalável.',
+  },
+  {
+    id: 'rotina',
+    lead: 'Menos tempo em tarefa repetitiva.',
+    focus: 'Mais tempo para atender e vender.',
+    proof: 'Monte treinos completos em poucos minutos, acompanhe respostas e entregue uma experiência que valoriza seu acompanhamento.',
   },
   {
     id: 'presencial',
-    lead: 'Transforme seu atendimento em uma',
-    focus: 'Experiência Premium',
-    proof: 'O aluno treina com você, acompanha no app, registra cargas e percebe mais profissionalismo.',
-  },
-  {
-    id: 'operacao',
-    lead: 'Sua operação de treinador com',
-    focus: 'Gestão de Alto Nível',
-    proof: 'Alunos, agenda, treinos, dieta, chat e cobranças organizados em um painel moderno.',
+    lead: 'Profissionalize sua aula presencial.',
+    focus: 'E também sua consultoria online.',
+    proof: 'O aluno treina com você, acompanha pelo app, registra cargas e percebe uma entrega mais clara desde o primeiro acesso.',
   },
   {
     id: 'retencao',
-    lead: 'Mais clareza para o aluno, mais',
-    focus: 'Retenção para o Coach',
-    proof: 'Rotina guiada, evolução visível e acompanhamento constante para aumentar permanência e renovação.',
+    lead: 'Mais alunos sem virar bagunça.',
+    focus: 'Mais controle para crescer.',
+    proof: 'Treinos, dieta, check-ins, chat e financeiro ficam em um fluxo único para você escalar sem perder qualidade.',
   },
 ]
 
@@ -576,7 +577,7 @@ function useStoredData() {
         saveLocalAdminSettings(normalized)
         setData((current) => ({ ...current, appAdminSettings: normalized }))
       } catch {
-        // Mantem a versao local se o celular estiver offline ou o Supabase ainda nao responder.
+        // Mantém a versão local se o celular estiver offline ou o Supabase ainda não responder.
       }
     }
 
@@ -684,6 +685,14 @@ function useStoredData() {
 }
 
 export default function App() {
+  const publicPath = window.location.pathname.toLowerCase()
+  if (['/privacidade', '/politica-de-privacidade', '/politica-privacidade'].includes(publicPath)) {
+    return <PublicLegalPage type="privacy" />
+  }
+  if (['/termos', '/termos-de-uso', '/termos-uso'].includes(publicPath)) {
+    return <PublicLegalPage type="terms" />
+  }
+
   return (
     <AppErrorBoundary>
       <AppContent />
@@ -957,7 +966,7 @@ function AppContent() {
     let attempts = 0
     setActiveView('assinatura')
     setRemoteStatus('Verificando pagamento')
-    setRemoteError('Recebemos seu retorno do checkout. Estamos conferindo a confirmação da compra automaticamente.')
+    setRemoteError('Recebemos seu retorno do checkout. O sistema está verificando a confirmação da compra automaticamente.')
 
     async function verifyPaymentReturn() {
       if (stopped) return
@@ -973,7 +982,7 @@ function AppContent() {
       } else if (attempts >= 120) {
         stopped = true
         setRemoteStatus('Aguardando confirmação do pagamento')
-        setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback aprovado, o painel será liberado.')
+        setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
       }
     }
 
@@ -1232,6 +1241,21 @@ function AppContent() {
       coachSettings: null,
       coachSubscription: null,
     }))
+  }
+
+  async function requestAccountDeletion(confirmation) {
+    if (!data.user?.email) {
+      throw new Error('Nenhum e-mail de treinador foi encontrado nesta sessao.')
+    }
+
+    await deleteRemoteCoachAccount({
+      email: data.user.email,
+      confirmation,
+    })
+
+    logout()
+    setRemoteStatus('Conta removida')
+    setRemoteError('')
   }
 
   async function refreshStoredSession(successStatus = 'Sessão renovada') {
@@ -2349,7 +2373,7 @@ function AppContent() {
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que o pagamento for aprovado.
+                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.
               </p>
             </div>
           ) : null}
@@ -2510,6 +2534,7 @@ function AppContent() {
                 settings={data.coachSettings}
                 onSave={saveCoachSettings}
                 onExport={exportAccountData}
+                onDeleteAccount={requestAccountDeletion}
                 masterAdmin={masterAdmin}
                 onOpenAdminMaster={() => setActiveView('admin-master')}
               />
@@ -2788,7 +2813,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
               Entrar
             </button>
-            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
+            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
               Começar agora
             </button>
           </div>
@@ -2813,23 +2838,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <SalesPhoneShowcase />
             </div>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-blue-500 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-blue-950/30 transition hover:-translate-y-0.5 sm:w-auto">
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5 sm:w-auto">
                 {salesSettings.salesCta || 'Começar agora'}
               </button>
-              <button type="button" onClick={() => document.getElementById('app-aluno')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-xl border border-blue-300/25 bg-white/[0.035] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-blue-300/45 sm:w-auto">
+              <button type="button" onClick={() => document.getElementById('app-aluno')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45 sm:w-auto">
                 Ver o app
               </button>
             </div>
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-400">
-              <span className="text-blue-300">✓</span>
-              <span>Sem planilha solta</span>
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-300">
+              <span className="text-emerald-300">✓</span>
+              <span>Mais alunos sem desorganização</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
-              <span>Cancele quando quiser</span>
+              <span>Treinos completos em poucos minutos</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
-              <span>Cobrança recorrente organizada</span>
+              <span>Experiência profissional para o aluno</span>
             </div>
-            <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-blue-300/25 bg-blue-400/10 px-4 py-3 text-sm font-black text-blue-100">
-              <span className="h-2 w-2 rounded-full bg-blue-300 shadow-[0_0_18px_rgba(59,130,246,0.8)]" />
+            <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-50">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(0,210,178,0.8)]" />
               + organização, + percepção de valor, + rotina profissional
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
@@ -2861,7 +2886,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               ['Sem taxa', 'por aluno cadastrado', 'cresça a carteira com previsibilidade'],
             ].map(([value, title, text]) => (
               <div key={title} data-reveal className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
-                <p className="text-xl font-black text-blue-100">{value}</p>
+                <p className="text-xl font-black text-emerald-100">{value}</p>
                 <p className="mt-2 text-sm font-black text-white">{title}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
               </div>
@@ -2871,7 +2896,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
         <section id="acesso" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
           <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
-            <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
+            <p className="text-xs font-black uppercase text-emerald-300">Acesso seguro</p>
             <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               {mode === 'forgot'
@@ -2902,7 +2927,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   key={id}
                   type="button"
                   onClick={() => setMode(id)}
-                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
+                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-emerald-400 bg-emerald-400 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
                 >
                   {label}
                 </button>
@@ -2922,7 +2947,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 </>
               )}
             </div>
-            <button disabled={loading} className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+            <button disabled={loading} className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
               {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta profissional' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
             </button>
             {mode === 'signin' ? (
@@ -2951,7 +2976,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section border-y border-white/10 bg-[#030712]/82 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto grid max-w-6xl gap-5 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-blue-200">O problema não é falta de método</p>
+              <p className="text-sm font-black uppercase text-emerald-200">O problema não é falta de método</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
                 É vender consultoria premium usando uma operação improvisada.
               </h2>
@@ -2967,7 +2992,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 ['Rotina sem clareza', 'o aluno não sabe exatamente o que fazer no dia'],
               ].map(([title, text]) => (
                 <div key={title} data-reveal className="sales-feature-card rounded-2xl border border-white/10 bg-white/[0.035] p-5">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-violet-300/25 bg-violet-400/10 text-sm font-black text-violet-100">!</span>
+                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-amber-300/25 bg-amber-400/10 text-sm font-black text-amber-100">!</span>
                   <h3 className="mt-4 text-base font-black text-white">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
                 </div>
@@ -2991,7 +3016,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ['Chat direto', 'Conversa em tempo real com envio de fotos.'],
                   ['Engajamento', 'Meta de água, calendário e desafios semanais.'],
                 ].map(([title, text]) => (
-                  <div key={title} className="sales-mini-card rounded-xl border border-emerald-300/20 bg-emerald-300/[0.075] p-4 shadow-lg shadow-emerald-950/15">
+                <div key={title} className="sales-mini-card rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.09] p-4 shadow-lg shadow-emerald-950/15">
                     <p className="text-sm font-black text-emerald-50">{title}</p>
                     <p className="mt-1 text-xs font-semibold leading-5 text-zinc-200">{text}</p>
                   </div>
@@ -3006,7 +3031,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               ].map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
                 <div key={title} className={`sales-phone-mockup ${index === 1 ? 'sm:mt-8' : ''}`}>
                   <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
                       <NavIcon name={floatingIcon} className="h-4 w-4" />
                     </span>
                     <span>
@@ -3026,11 +3051,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     <div className="sales-phone-notch" />
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">app aluno</span>
+                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">app aluno</span>
                     </div>
                     <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
                     <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
-                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-blue-500/25 to-emerald-300/10 p-3">
+                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/25 to-emerald-300/10 p-3">
                       <p className="text-xs font-black text-emerald-100">{action}</p>
                       <div className="mt-3 h-2 rounded-full bg-zinc-800">
                         <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${62 + index * 11}%` }} />
@@ -3081,7 +3106,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 ['06', 'Financeiro profissional', 'Planos próprios, cobrança, status de pagamento e comprovantes organizados para reduzir atrasos.'],
               ].map(([number, title, description], index) => (
                 <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
-                  <span className="text-xs font-black text-blue-300">{number}</span>
+                  <span className="text-xs font-black text-emerald-300">{number}</span>
                   <h3 className="mt-3 text-lg font-black">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
                 </div>
@@ -3111,7 +3136,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     <h3 className="font-black">{title}</h3>
                     <p className="mt-2 text-sm leading-6 text-zinc-400">{problem}</p>
                   </div>
-                  <span className="w-fit rounded border border-blue-300/30 bg-blue-300/10 px-3 py-2 text-xs font-black text-blue-100">{solution}</span>
+                   <span className="w-fit rounded border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">{solution}</span>
                 </div>
               ))}
             </div>
@@ -3142,7 +3167,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="rounded-2xl border border-emerald-300/20 bg-zinc-950/88 p-5 shadow-2xl shadow-black/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase text-blue-200">Dashboard financeiro</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">Dashboard financeiro</p>
                   <h3 className="mt-2 text-2xl font-black">Receita, renovações e inadimplência sob controle</h3>
                 </div>
                 <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
@@ -3176,7 +3201,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <div className="grid gap-3">
                   {[
                     ['Cobranças automáticas', 'Pix, WhatsApp e status por aluno'],
-                    ['Confirmação manual', 'coach valida e libera o acesso'],
+                    ['Liberação automática', 'pagou, confirmou e acessou'],
                     ['Planos próprios', 'mensal, semanal, semestral ou anual'],
                   ].map(([title, text]) => (
                     <div key={title} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
@@ -3217,10 +3242,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
-        <section id="app-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="experiencia-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-blue-300">Experiência do aluno</p>
+               <p className="text-sm font-semibold uppercase text-emerald-300">Experiência do aluno</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
               <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
@@ -3246,7 +3271,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section border-y border-white/10 bg-[#020816]/82 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="mx-auto max-w-3xl text-center" data-reveal>
-              <p className="text-sm font-black uppercase text-blue-200">Como funciona</p>
+               <p className="text-sm font-black uppercase text-emerald-200">Como funciona</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
                 Você profissionaliza sua operação em 3 passos.
               </h2>
@@ -3261,7 +3286,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 ['03', 'Acompanhe evolução e vendas', 'Veja cargas, check-ins, pagamentos, mensagens e progresso em uma operação única.'],
               ].map(([number, title, text]) => (
                 <div key={number} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-500 text-sm font-black text-zinc-950">{number}</span>
+                   <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400 text-sm font-black text-zinc-950">{number}</span>
                   <h3 className="mt-5 text-xl font-black text-white">{title}</h3>
                   <p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p>
                 </div>
@@ -3275,7 +3300,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="simulador" className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-blue-300">Potencial de faturamento</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Potencial de faturamento</p>
               <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
               <p className="mt-4 leading-7 text-zinc-300">
                 O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
@@ -3350,8 +3375,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <RevenueResult label="Potencial adicional" value={`+${formatCurrency(projectedIncrease)}`} accent />
               </div>
 
-              <div className="mt-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
-                <p className="text-sm font-black text-blue-100">
+              <div className="mt-4 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
+                <p className="text-sm font-black text-emerald-100">
                   Neste cenário: {projectedStudents} alunos a {formatCurrency(projectedPrice)} por mês.
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
@@ -3419,7 +3444,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 ['★★★★★', '“Registrar carga e feedback deixou minha prescrição mais inteligente. Não dependo mais de lembrar tudo.”', 'Lucas A.', 'Treinador presencial'],
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-sm font-black text-blue-100">{stars}</p>
+                  <p className="text-sm font-black text-emerald-100">{stars}</p>
                   <p className="mt-4 text-sm leading-6 text-zinc-200">{quote}</p>
                   <div className="mt-5 border-t border-white/10 pt-4">
                     <p className="text-sm font-black text-white">{name}</p>
@@ -3435,12 +3460,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Avaliações 5 estrelas</p>
+              <p className="text-sm font-black uppercase text-emerald-200">Quem usa, recomenda</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Mostre a percepção de valor que o seu app entrega.
+                Prova social para transformar confiança em decisão.
               </h2>
-              <p className="mt-4 text-base leading-7 text-zinc-400">
-                Estrutura pronta para depoimentos com nome e sobrenome. Substitua os modelos abaixo por relatos reais autorizados quando tiver os primeiros clientes usando.
+              <p className="mt-4 text-base leading-7 text-zinc-300">
+                Use este espaço com avaliações autorizadas de treinadores que já sentiram mais organização, clareza e valor percebido na entrega.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
@@ -3452,7 +3477,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-black text-emerald-200">{stars}</p>
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase text-zinc-500">modelo</span>
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">5 estrelas</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-zinc-200">“{quote}”</p>
                   <div className="mt-5 border-t border-white/10 pt-4">
@@ -3461,6 +3486,31 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="sales-section mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+          <div data-reveal className="sales-guarantee-card grid gap-6 rounded-3xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/14 via-zinc-950/95 to-zinc-950 p-5 shadow-2xl shadow-emerald-950/20 sm:p-8 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100 shadow-lg shadow-emerald-950/30">
+              <NavIcon name="shield" className="h-7 w-7" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black uppercase text-emerald-200">Garantia de liberdade</p>
+              <h2 className="mt-3 text-2xl font-black leading-tight text-white sm:text-4xl">
+                Teste o Coach Fit Pro na sua rotina por apenas R$ 9,90.
+              </h2>
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">
+                Organize seus alunos, monte treinos com mais rapidez e conheça as ferramentas na prática. Sem fidelidade e sem multa. Se a plataforma não fizer sentido para o seu negócio, cancele quando quiser diretamente pela sua conta.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {['Comece por apenas R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
+                  <span key={item} className="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.08] px-4 py-3 text-sm font-black text-emerald-50">
+                    <span className="text-emerald-300">✓</span>
+                    <span>{item}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -3482,7 +3532,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
                   <span>{question}</span>
-                  <span className="sales-faq-icon text-xl text-blue-300">+</span>
+                  <span className="sales-faq-icon text-xl text-emerald-300">+</span>
                 </summary>
                 <p className="border-t border-white/10 px-4 py-4 text-sm leading-6 text-zinc-400 sm:px-5">{answer}</p>
               </details>
@@ -3600,10 +3650,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase text-blue-300">{selectedOfferPlan.cycle}</p>
+                      <p className="text-xs font-black uppercase text-emerald-200">{selectedOfferPlan.cycle}</p>
                       <h3 className="mt-2 text-3xl font-black text-white sm:text-4xl">{selectedOfferPlan.name}</h3>
                     </div>
-                    <span className="w-fit rounded-full bg-blue-500 px-4 py-2 text-xs font-black uppercase text-white shadow-lg shadow-blue-950/30">
+                    <span className="w-fit rounded-full bg-emerald-300 px-4 py-2 text-xs font-black uppercase text-zinc-950 shadow-lg shadow-emerald-950/30">
                       {selectedOfferPlan.badge}
                     </span>
                   </div>
@@ -3630,7 +3680,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
                   <div className="sales-plan-proof mt-4 grid gap-3 lg:grid-cols-3">
                     <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/[0.11] p-4">
-                      <p className="text-xs font-black uppercase text-blue-200">Decisão inteligente</p>
+                      <p className="text-xs font-black uppercase text-emerald-100">Decisão inteligente</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-100">
                         {selectedOfferPlan.id === 'mensal'
                           ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
@@ -3662,7 +3712,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       {selectedOfferPlan.activationPlan.map((item, index) => (
                         <div key={item} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
                           <p className="mt-3 text-xs font-bold leading-5 text-zinc-300">{item}</p>
                         </div>
                       ))}
@@ -3682,7 +3732,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     ))}
                   </div>
 
-                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-blue-500 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
+                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-emerald-300 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
                     Assinar agora
                   </button>
                 </div>
@@ -3693,7 +3743,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <div className="mt-5 grid gap-3">
                   {selectedOfferPlan.highlights.map((item) => (
                     <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200">
-                      <span className="text-blue-300">✓</span>
+                      <span className="text-emerald-300">✓</span>
                       <span>{item}</span>
                     </div>
                   ))}
@@ -3704,8 +3754,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     O treinador cresce a carteira sem pagar adicional por aluno cadastrado.
                   </p>
                 </div>
-                <div className="mt-4 rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
-                  <p className="text-xs font-black uppercase text-blue-200">Próximo passo simples</p>
+                <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                  <p className="text-xs font-black uppercase text-emerald-100">Próximo passo simples</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
                     Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.
                   </p>
@@ -3715,7 +3765,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   <div className="mt-3 grid gap-2">
                     {['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'].map((item, index) => (
                       <div key={item} className="flex gap-3 text-sm leading-6 text-zinc-300">
-                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
                         <span>{item}</span>
                       </div>
                     ))}
@@ -3737,9 +3787,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div data-reveal className="overflow-hidden rounded-3xl border border-blue-300/25 bg-gradient-to-br from-blue-500/18 via-zinc-950 to-emerald-500/10 p-6 shadow-2xl shadow-blue-950/30 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-8">
+          <div data-reveal className="overflow-hidden rounded-3xl border border-emerald-300/25 bg-gradient-to-br from-emerald-500/18 via-zinc-950 to-emerald-500/10 p-6 shadow-2xl shadow-emerald-950/30 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-8">
             <div className="max-w-3xl">
-              <p className="text-sm font-black uppercase text-blue-100">Pronto para vender uma entrega mais premium?</p>
+              <p className="text-sm font-black uppercase text-emerald-100">Pronto para vender uma entrega mais premium?</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
                 Organize sua operação antes que sua agenda cresça mais do que seu controle.
               </h2>
@@ -3747,7 +3797,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 Treino, consultoria, aulas presenciais, evolução, cargas, cobrança e comunicação com o aluno em uma experiência moderna.
               </p>
             </div>
-            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-2xl bg-blue-500 px-6 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/35 transition hover:-translate-y-0.5 lg:mt-0 lg:w-auto lg:min-w-56">
+            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-2xl bg-emerald-400 px-6 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5 lg:mt-0 lg:w-auto lg:min-w-56">
               Assinar agora
             </button>
           </div>
@@ -3758,12 +3808,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
           <span>Coach Fit Pro · Gestão profissional de acompanhamento</span>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <button type="button" onClick={() => setLegalModal('terms')} className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
+            <a href="/termos-de-uso" className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
               Termos de uso
-            </button>
-            <button type="button" onClick={() => setLegalModal('privacy')} className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
+            </a>
+            <a href="/politica-de-privacidade" className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
               Privacidade
-            </button>
+            </a>
             <a href="mailto:sac@coachfitpro.com.br" className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 font-bold text-emerald-100 transition hover:border-emerald-300/50">
               Suporte
             </a>
@@ -3775,6 +3825,61 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       </footer>
       <LegalModal type={legalModal} onClose={() => setLegalModal('')} />
     </div>
+  )
+}
+
+function getLegalContent(type) {
+  const isPrivacy = type === 'privacy'
+  return {
+    title: isPrivacy ? 'Política de Privacidade' : 'Termos de Uso',
+    updatedAt: 'Atualizado em 13 de julho de 2026',
+    intro: isPrivacy
+      ? 'O Coach Fit Pro trata dados de cadastro, acompanhamento, fotos, mensagens, treinos, nutrição, check-ins, anamnese e pagamentos para operar o painel do treinador e o portal do aluno.'
+      : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional, relação com o aluno e validação técnica continuam sob responsabilidade do treinador.',
+    items: isPrivacy
+      ? [
+        'Dados sensíveis de saúde, treino, nutrição, fotos, anamnese e check-ins devem ser coletados pelo treinador somente com consentimento do aluno e finalidade de acompanhamento.',
+        'Fotos, mensagens, treinos, dietas, cargas e históricos ficam vinculados ao treinador responsável e ao aluno cadastrado, com controle de acesso por conta.',
+        'Arquivos privados devem permanecer em buckets privados do Supabase Storage e serem exibidos por links temporários assinados.',
+        'A exclusão definitiva da conta remove dados operacionais vinculados. Registros financeiros, segurança e auditoria podem ser retidos pelo prazo legal necessário.',
+        'Solicitações de acesso, correção, portabilidade ou exclusão de dados podem ser enviadas para sac@coachfitpro.com.br.',
+      ]
+      : [
+        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
+        'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
+        'O treinador é responsável por obter consentimento do aluno para registrar fotos, anamnese, check-ins, dados fitness, treino e nutrição.',
+        'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout e da conciliação do sistema.',
+        'O acesso pode ser limitado em caso de uso indevido, inadimplência, tentativa de fraude ou violação de segurança.',
+      ],
+  }
+}
+
+function PublicLegalPage({ type }) {
+  const content = getLegalContent(type)
+
+  return (
+    <main className="app-shell fit-gradient-bg min-h-screen px-4 py-8 text-zinc-100 sm:px-6">
+      <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-300/20 bg-zinc-950/92 p-5 shadow-2xl shadow-black/40 sm:p-8">
+        <a href="/" className="inline-flex rounded-full border border-white/10 px-4 py-2 text-sm font-black text-emerald-100 transition hover:border-emerald-300/40">
+          Voltar ao Coach Fit Pro
+        </a>
+        <p className="mt-8 text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
+        <h1 className="mt-2 text-3xl font-black text-white sm:text-5xl">{content.title}</h1>
+        <p className="mt-3 text-sm font-bold text-zinc-500">{content.updatedAt}</p>
+        <p className="mt-6 text-base leading-8 text-zinc-300">{content.intro}</p>
+        <div className="mt-6 grid gap-3">
+          {content.items.map((item) => (
+            <div key={item} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm leading-7 text-zinc-300">
+              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4 text-sm leading-7 text-zinc-300">
+          Contato oficial: <a href="mailto:sac@coachfitpro.com.br" className="font-black text-emerald-100">sac@coachfitpro.com.br</a>
+        </p>
+      </section>
+    </main>
   )
 }
 
@@ -3973,8 +4078,8 @@ function SalesPhoneShowcase() {
 
   const metrics = [
     ['wallet', 'R$ 12.450', 'carteira organizada'],
-    ['trophy', '+34%', 'retencao estimada'],
-    ['dashboard', '1 painel', 'treino, dieta e cobranca'],
+    ['trophy', '+34%', 'retenção estimada'],
+    ['dashboard', '1 painel', 'treino, dieta e cobrança'],
   ]
 
   return (
@@ -4003,7 +4108,7 @@ function SalesPhoneShowcase() {
           className={`sales-phone-mockup sales-hero-phone-${index + 1} ${active ? 'is-active' : ''}`}
         >
           <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
               <NavIcon name={floatingIcon} className="h-4 w-4" />
             </span>
             <span>
@@ -4023,14 +4128,14 @@ function SalesPhoneShowcase() {
             <div className="sales-phone-notch" />
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">{active ? 'ao vivo' : 'prévia'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{active ? 'ao vivo' : 'prévia'}</span>
             </div>
             <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
             <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
-            <div className="mt-4 rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500/35 to-emerald-300/10 p-3">
+            <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/35 to-emerald-300/10 p-3">
               <p className="text-xs font-black text-emerald-100">{action}</p>
               <div className="mt-3 h-2 rounded-full bg-zinc-800">
-                <div className="h-2 rounded-full bg-blue-300" style={{ width: `${68 + index * 9}%` }} />
+                <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${68 + index * 9}%` }} />
               </div>
             </div>
             <div className="mt-4 grid gap-2">
@@ -4622,7 +4727,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
         ) : selectedStudent ? (
           <>
             <StudentSnapshot student={selectedStudent} />
-            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano nao definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobranca automatica.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano nao definido', price: '0', cycle: 'mensal' }]} />
+            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobrança automática.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal' }]} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Info label="E-mail" value={selectedStudent.email} />
               <Info label="Telefone" value={selectedStudent.phone} />
@@ -4895,7 +5000,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
+    <form onSubmit={handleSubmit} className="workout-builder grid gap-4">
       <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-4 transition ${
         continuingStudent
           ? 'border-emerald-300/40 bg-emerald-300/10'
@@ -5421,16 +5526,16 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.24),transparent_34%),linear-gradient(135deg,rgba(6,18,17,0.96),rgba(4,7,10,0.98))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
+    <section className="workout-express-module overflow-hidden rounded-3xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.24),transparent_34%),linear-gradient(135deg,rgba(6,18,17,0.96),rgba(4,7,10,0.98))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-100">
             <NavIcon name="plus" className="h-4 w-4" />
             Criação expressa
           </span>
-          <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Crie, personalize e publique treinos e planos alimentares em poucos minutos.</h3>
+          <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Crie, revise e publique treinos com mais velocidade.</h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
-            Menos tempo montando planilhas. Mais tempo acompanhando seus alunos. Monte uma vez, personalize quando precisar e reutilize sempre.
+            Use modelos inteligentes, ajuste séries, repetições, descanso e mídia de execução, depois publique somente quando estiver seguro.
           </p>
         </div>
         <div className="min-w-52 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -5443,7 +5548,7 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
       </div>
 
       <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/58 p-4">
+        <div className="workout-express-controls grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/58 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
               Aluno
@@ -5475,7 +5580,7 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
             <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Academia completa, casa, halteres, elásticos..." className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400" />
           </label>
           <div className="grid gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Base de criação</p>
+             <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Base de criação</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
                 ['modelo', 'Usar modelo'],
@@ -5483,7 +5588,7 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
                 ['duplicar', 'Duplicar treino'],
                 ['adaptar', 'Adaptar existente'],
               ].map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setMode(id)} className={`rounded-xl border px-3 py-3 text-left text-sm font-black transition ${mode === id ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-50' : 'border-white/10 bg-white/[0.03] text-zinc-300 hover:border-emerald-300/25'}`}>
+                 <button key={id} type="button" onClick={() => setMode(id)} className={`min-h-14 rounded-2xl border px-3 py-3 text-left text-sm font-black transition active:scale-[0.98] ${mode === id ? 'border-emerald-300/55 bg-emerald-300/16 text-emerald-50 shadow-lg shadow-emerald-950/20' : 'border-white/10 bg-white/[0.045] text-zinc-200 hover:border-emerald-300/30 hover:bg-white/[0.06]'}`}>
                   {label}
                 </button>
               ))}
@@ -5500,9 +5605,9 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
               {['3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} refeições</option>)}
             </select>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="workout-step-tabs flex flex-wrap gap-2">
             {[1, 2, 3, 4, 5].map((item) => (
-              <button key={item} type="button" onClick={() => setStep(item)} className={`h-9 min-w-9 rounded-full border text-xs font-black ${step === item ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 text-zinc-400'}`}>
+               <button key={item} type="button" onClick={() => setStep(item)} className={`h-11 min-w-11 rounded-full border text-xs font-black transition active:scale-[0.96] ${step === item ? 'border-emerald-300 bg-emerald-300 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'border-white/10 bg-white/[0.035] text-zinc-300'}`}>
                 {item}
               </button>
             ))}
@@ -5516,13 +5621,13 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
             <ExpressSummaryMetric icon="nutrition" label="Dieta" value={`${nutritionSummary.meals} refeições`} detail={`${nutritionSummary.calories} kcal`} />
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <div className="flex items-start justify-between gap-3">
+           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-xl shadow-black/20">
+             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-black uppercase text-emerald-200">Resumo antes de publicar</p>
                 <h4 className="mt-1 text-xl font-black text-white">Tudo pronto para revisar e enviar ao aluno.</h4>
               </div>
-              <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Autosave visual</span>
+               <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Prévia automática</span>
             </div>
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
@@ -5548,7 +5653,7 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
             </div>
           </div>
 
-          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+           <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4">
             <p className="text-sm font-black text-emerald-100">Modelos e estruturas reais</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {(realWorkoutModels.length ? realWorkoutModels : [{ id: 'empty', title: 'Nenhum modelo salvo ainda', meta: 'Os treinos criados passam a servir de base para reaproveitar estruturas.' }]).slice(0, 4).map((model) => (
@@ -5561,10 +5666,10 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="button" onClick={publishExpressPlan} disabled={saving || !students.length} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60">
+             <button type="button" onClick={publishExpressPlan} disabled={saving || !students.length} className="min-h-12 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60 sm:w-auto">
               {saving ? 'Publicando...' : 'Revisar e publicar'}
             </button>
-            <button type="button" onClick={() => setStep((current) => Math.min(5, current + 1))} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-black text-zinc-100">
+             <button type="button" onClick={() => setStep((current) => Math.min(5, current + 1))} className="min-h-12 rounded-xl border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
               Próxima etapa
             </button>
           </div>
@@ -6284,18 +6389,80 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [exerciseSearch, setExerciseSearch] = useState('')
+  const [exerciseFilter, setExerciseFilter] = useState('todos')
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [favoriteExercises, setFavoriteExercises] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-exercises') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const [recentExercises, setRecentExercises] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('coachfitpro-recent-exercises') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const exerciseSuggestions = useMemo(
+    () => buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises),
+    [availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises],
+  )
+  const quickFilters = ['todos', 'peito', 'costas', 'pernas', 'ombros', 'braços', 'abdômen']
 
   useEffect(() => {
     setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
   }, [availableExerciseLibrary])
 
+  useEffect(() => {
+    setSelectedSuggestionIndex(0)
+  }, [exerciseSearch, exerciseFilter])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-favorite-exercises', JSON.stringify(favoriteExercises.slice(0, 80)))
+    } catch {
+      // Favoritos continuam funcionando na sessão mesmo se o navegador bloquear storage.
+    }
+  }, [favoriteExercises])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-recent-exercises', JSON.stringify(recentExercises.slice(0, 20)))
+    } catch {
+      // Recentes continuam funcionando na sessão mesmo se o navegador bloquear storage.
+    }
+  }, [recentExercises])
+
+  useEffect(() => {
+    function warnBeforeLeave(event) {
+      if (!hasUnsavedChanges) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', warnBeforeLeave)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
+  }, [hasUnsavedChanges])
+
+  function markWorkoutDirty() {
+    setHasUnsavedChanges(true)
+    setMessage('')
+  }
+
   function updateExercise(index, field, value) {
+    markWorkoutDirty()
     setExercises((current) => current.map((exercise, itemIndex) => (
       itemIndex === index ? { ...exercise, [field]: value } : exercise
     )))
   }
 
   function updateExerciseName(index, value) {
+    markWorkoutDirty()
     const profile = findExerciseProfile(value, availableExerciseLibrary)
     setExercises((current) => current.map((exercise, itemIndex) => {
       if (itemIndex !== index) return exercise
@@ -6314,10 +6481,71 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   }
 
   function addExercise(name = '') {
+    markWorkoutDirty()
     setExercises((current) => [...current, createExerciseDraft(name, {}, availableExerciseLibrary)])
+    if (name) {
+      setRecentExercises((current) => [name, ...current.filter((item) => normalizeText(item) !== normalizeText(name))].slice(0, 20))
+      setMessage(`Exercício "${name}" adicionado ao treino.`)
+    }
+  }
+
+  function addSuggestionExercise(exercise) {
+    if (!exercise?.name) return
+    addExercise(exercise.name)
+    setExerciseSearch('')
+  }
+
+  function toggleFavoriteExercise(name) {
+    setFavoriteExercises((current) => {
+      const exists = current.some((item) => normalizeText(item) === normalizeText(name))
+      return exists
+        ? current.filter((item) => normalizeText(item) !== normalizeText(name))
+        : [name, ...current].slice(0, 80)
+    })
+    setMessage('Favoritos atualizados.')
+  }
+
+  function handleExerciseSearchKeyDown(event) {
+    if (!exerciseSuggestions.length) return
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSelectedSuggestionIndex((current) => Math.min(current + 1, exerciseSuggestions.length - 1))
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSelectedSuggestionIndex((current) => Math.max(current - 1, 0))
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      addSuggestionExercise(exerciseSuggestions[selectedSuggestionIndex])
+    }
+  }
+
+  function duplicateExercise(index) {
+    markWorkoutDirty()
+    setExercises((current) => {
+      const source = current[index]
+      if (!source) return current
+      const copy = { ...source, name: `${source.name} - variação`, notes: source.notes || 'Ajuste a variação antes de salvar.' }
+      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
+    })
+    setMessage('Exercício duplicado para edição rápida.')
+  }
+
+  function moveExercise(index, direction) {
+    markWorkoutDirty()
+    setExercises((current) => {
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= current.length) return current
+      const next = [...current]
+      const [item] = next.splice(index, 1)
+      next.splice(nextIndex, 0, item)
+      return next
+    })
   }
 
   function updateExerciseVideoFile(index, file) {
+    markWorkoutDirty()
     setExercises((current) => current.map((exercise, itemIndex) => (
       itemIndex === index ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '' } : exercise
     )))
@@ -6365,6 +6593,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   }
 
   function removeExercise(index) {
+    markWorkoutDirty()
     setExercises((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }
 
@@ -6395,6 +6624,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         exercises: filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
       })
       setMessage('Treino salvo e liberado para o aluno.')
+      setHasUnsavedChanges(false)
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar o treino.')
     } finally {
@@ -6411,37 +6641,151 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         options={students.map((student) => ({ label: student.name, value: student.id }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Nome do treino" name="title" defaultValue="Upper A" />
-        <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" />
+        <Field label="Nome do treino" name="title" defaultValue="Upper A" onChange={markWorkoutDirty} />
+        <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" onChange={markWorkoutDirty} />
       </div>
-      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." />
+      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." onChange={markWorkoutDirty} />
 
-      <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
+      <div className="workout-exercise-picker rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.08] p-4 sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-black text-emerald-100">Biblioteca rápida</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">Escolha um movimento comum ou digite livremente no campo de exercício.</p>
+            <p className="text-sm font-black text-emerald-100">Biblioteca inteligente de exercícios</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-300">Busque por nome, músculo, equipamento ou variação. O exercício só entra no treino quando você confirmar.</p>
           </div>
-          <span className="w-fit rounded border border-emerald-300/20 px-2 py-1 text-xs font-bold text-emerald-200">{availableExerciseLibrary.length} exercícios</span>
+          <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/45 px-3 py-1 text-xs font-bold text-emerald-100">{availableExerciseLibrary.length} exercícios</span>
         </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-emerald-100">
+            Buscar exercício
+            <input
+              value={exerciseSearch}
+              onChange={(event) => setExerciseSearch(event.target.value)}
+              onKeyDown={handleExerciseSearchKeyDown}
+              placeholder="Ex.: supino, dorsal, halter, quadríceps..."
+              className="min-h-12 min-w-0 rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-3 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-300 sm:text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setAdvancedFiltersOpen((current) => !current)}
+            className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35"
+          >
+            {advancedFiltersOpen ? 'Ocultar filtros' : 'Filtros avançados'}
+          </button>
+        </div>
+
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-soft">
-          {availableExerciseLibrary.slice(0, 10).map((exercise) => (
+          {quickFilters.map((filter) => (
             <button
-              key={exercise.name}
+              key={filter}
               type="button"
-              onClick={() => addExercise(exercise.name)}
-              className="group flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/70 px-3 py-2 text-left text-xs font-bold text-zinc-200 transition duration-200 hover:-translate-y-0.5 hover:border-emerald-300/35 hover:bg-emerald-300/10 active:scale-[0.98]"
+              onClick={() => setExerciseFilter(filter)}
+              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black transition ${
+                exerciseFilter === filter
+                  ? 'border-emerald-300 bg-emerald-300 text-zinc-950'
+                  : 'border-white/10 bg-zinc-950/55 text-zinc-300 hover:border-emerald-300/30 hover:text-white'
+              }`}
+            >
+              {formatUiText(filter)}
+            </button>
+          ))}
+        </div>
+
+        {advancedFiltersOpen ? (
+          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/55 p-3 sm:grid-cols-3">
+            {['equipamento', 'músculo alvo', 'favoritos'].map((item) => (
+              <div key={item} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-xs font-black uppercase text-emerald-100">{formatUiText(item)}</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">
+                  {item === 'favoritos' ? 'Marque exercícios com estrela para reutilizar mais rápido.' : 'Digite o termo na busca para combinar filtros.'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid gap-2">
+          {exerciseSuggestions.slice(0, 8).map((exercise, suggestionIndex) => (
+            <div
+              key={exercise.name}
+              onMouseEnter={() => setSelectedSuggestionIndex(suggestionIndex)}
+              className={`group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border px-3 py-2 text-left text-xs font-bold transition duration-200 hover:-translate-y-0.5 active:scale-[0.98] ${
+                selectedSuggestionIndex === suggestionIndex
+                  ? 'border-emerald-300/45 bg-emerald-300/12 shadow-lg shadow-emerald-950/20'
+                  : 'border-white/10 bg-zinc-950/70 text-zinc-200 hover:border-emerald-300/35 hover:bg-emerald-300/10'
+              }`}
             >
               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/20 bg-emerald-300/10 text-emerald-100">
                 <MuscleMapMini exercise={exercise} />
               </span>
               <span className="min-w-0">
-                <span className="block max-w-40 truncate">+ {exercise.name}</span>
-                <span className="mt-0.5 block max-w-40 truncate text-[10px] font-bold text-zinc-500">{exercise.group || exercise.muscleGroup || 'Músculo alvo'}</span>
+                <span className="block truncate text-sm text-zinc-100"><HighlightedMatch text={exercise.name} query={exerciseSearch} /></span>
+                <span className="mt-0.5 block truncate text-[11px] font-bold text-zinc-400">
+                  {exercise.group || exercise.muscleGroup || 'Músculo alvo'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
+                </span>
+                <span className="mt-1 flex flex-wrap gap-1">
+                  {exercise.isFavorite ? <span className="rounded-full bg-amber-300/12 px-2 py-0.5 text-[10px] font-black text-amber-100">favorito</span> : null}
+                  {exercise.isRecent ? <span className="rounded-full bg-emerald-300/12 px-2 py-0.5 text-[10px] font-black text-emerald-100">recente</span> : null}
+                </span>
               </span>
-            </button>
+              <span className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  aria-label={`Favoritar ${exercise.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    toggleFavoriteExercise(exercise.name)
+                  }}
+                  className={`grid h-10 w-10 place-items-center rounded-xl border transition ${
+                    exercise.isFavorite
+                      ? 'border-amber-300/40 bg-amber-300/12 text-amber-100'
+                      : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:text-amber-100'
+                  }`}
+                >
+                  <NavIcon name="star" className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => addSuggestionExercise(exercise)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 transition hover:bg-emerald-200">
+                  Adicionar
+                </button>
+              </span>
+            </div>
           ))}
+          {!exerciseSuggestions.length ? (
+            <div className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 text-sm leading-6 text-zinc-300">
+              Nenhum exercício encontrado com esses termos. Você ainda pode adicionar um exercício personalizado e preencher manualmente.
+            </div>
+          ) : null}
         </div>
+
+        {(favoriteExercises.length || recentExercises.length) ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {favoriteExercises.length ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-xs font-black uppercase text-amber-100">Favoritos</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {favoriteExercises.slice(0, 6).map((name) => (
+                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-bold text-amber-50">
+                      + {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {recentExercises.length ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-xs font-black uppercase text-emerald-100">Usados recentemente</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {recentExercises.slice(0, 6).map((name) => (
+                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-50">
+                      + {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <datalist id="exercise-library-options">
@@ -6450,18 +6794,29 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 
       <div className="space-y-3">
         {exercises.map((exercise, index) => (
-          <div key={index} className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
+          <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
                 <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup || 'Grupo muscular identificado pelo nome'}</p>
               </div>
-              <button type="button" onClick={() => removeExercise(index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300">
-                Remover
-              </button>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <button type="button" onClick={() => moveExercise(index, -1)} disabled={index === 0} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
+                  Subir
+                </button>
+                <button type="button" onClick={() => moveExercise(index, 1)} disabled={index === exercises.length - 1} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
+                  Descer
+                </button>
+                <button type="button" onClick={() => duplicateExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100">
+                  Duplicar
+                </button>
+                <button type="button" onClick={() => removeExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/30 hover:text-rose-100">
+                  Remover
+                </button>
+              </div>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-[1.35fr_0.85fr]">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)]">
               <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
                 Nome do exercício
                 <input
@@ -6475,7 +6830,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Grupo muscular" value={exercise.muscleGroup ?? ''} onChange={(value) => updateExercise(index, 'muscleGroup', value)} />
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
               <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
               <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
@@ -6483,12 +6838,19 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
             </div>
 
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
+              <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
+              <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
+              <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
+            </div>
+
             <div className="mt-4">
               <ExerciseMuscleSummary exercise={exercise} compact />
             </div>
 
-            <details className="mt-4 rounded-md border border-white/10 bg-zinc-950/55">
-              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação e vídeo de execução</summary>
+            <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
+              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
               <div className="grid gap-3 border-t border-white/10 p-3">
                 <div className="flex flex-col gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -6541,15 +6903,20 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35">
           Adicionar exercício personalizado
         </button>
         <button disabled={saving} className="rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar treino'}
         </button>
+        {hasUnsavedChanges ? (
+          <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
+            Alterações pendentes. Salve antes de sair.
+          </span>
+        ) : null}
       </div>
       {message ? (
-        <p className="rounded-md border border-blue-300/30 bg-blue-300/10 p-3 text-sm font-bold text-blue-200">
+        <p className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
           {message}
         </p>
       ) : null}
@@ -6694,6 +7061,89 @@ function findExerciseProfile(value, library = exerciseLibrary) {
   )) ?? null
 }
 
+function getExerciseSearchText(exercise = {}) {
+  return [
+    exercise.name,
+    exercise.group,
+    exercise.muscleGroup,
+    exercise.primaryMuscle,
+    exercise.equipment,
+    exercise.category,
+    ...(exercise.aliases || []),
+    ...(Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : []),
+  ].filter(Boolean).map(normalizeText).join(' ')
+}
+
+function getExerciseSuggestionScore(exercise, query, filter = 'todos') {
+  const normalizedQuery = normalizeText(query)
+  const searchText = getExerciseSearchText(exercise)
+  const normalizedName = normalizeText(exercise.name)
+  const normalizedGroup = normalizeText(exercise.group || exercise.muscleGroup)
+  const normalizedEquipment = normalizeText(exercise.equipment)
+  const filterText = normalizeText(filter)
+
+  if (filterText && filterText !== 'todos' && !searchText.includes(filterText)) return 0
+  if (!normalizedQuery) return filterText === 'todos' ? 1 : 12
+
+  let score = 0
+  if (normalizedName === normalizedQuery) score += 120
+  if (normalizedName.startsWith(normalizedQuery)) score += 85
+  if (normalizedName.includes(normalizedQuery)) score += 60
+  if (normalizedGroup.includes(normalizedQuery)) score += 42
+  if (normalizedEquipment.includes(normalizedQuery)) score += 26
+  if ((exercise.aliases || []).some((alias) => normalizeText(alias).includes(normalizedQuery))) score += 35
+  if (searchText.includes(normalizedQuery)) score += 18
+
+  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean)
+  const matchedTokens = queryTokens.filter((token) => searchText.includes(token)).length
+  if (queryTokens.length && matchedTokens === queryTokens.length) score += 22
+  if (matchedTokens) score += matchedTokens * 6
+
+  return score
+}
+
+function buildExerciseSuggestions(library, query, filter, favorites = [], recent = []) {
+  const favoriteSet = new Set(favorites.map(normalizeText))
+  const recentSet = new Set(recent.map(normalizeText))
+
+  return (library || [])
+    .map((exercise) => {
+      const score = getExerciseSuggestionScore(exercise, query, filter)
+      const key = normalizeText(exercise.name)
+      return {
+        ...exercise,
+        suggestionScore: score + (favoriteSet.has(key) ? 8 : 0) + (recentSet.has(key) ? 5 : 0),
+        isFavorite: favoriteSet.has(key),
+        isRecent: recentSet.has(key),
+      }
+    })
+    .filter((exercise) => exercise.suggestionScore > 0)
+    .sort((a, b) => b.suggestionScore - a.suggestionScore || String(a.name).localeCompare(String(b.name)))
+    .slice(0, 12)
+}
+
+function HighlightedMatch({ text, query }) {
+  const value = String(text || '')
+  const normalizedQuery = normalizeText(query)
+  if (!value || !normalizedQuery) return value
+
+  const normalizedValue = normalizeText(value)
+  const index = normalizedValue.indexOf(normalizedQuery)
+  if (index < 0) return value
+
+  const before = value.slice(0, index)
+  const match = value.slice(index, index + normalizedQuery.length)
+  const after = value.slice(index + normalizedQuery.length)
+
+  return (
+    <>
+      {before}
+      <mark className="rounded bg-emerald-300/20 px-0.5 text-emerald-50">{match}</mark>
+      {after}
+    </>
+  )
+}
+
 function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrary) {
   const profile = findExerciseProfile(name, library)
   return {
@@ -6712,6 +7162,10 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
     videoFile: null,
     videoFileName: '',
+    cadence: '',
+    rir: '',
+    rpe: '',
+    notes: '',
     ...overrides,
   }
 }
@@ -6735,6 +7189,10 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     imageUrl: exercise.imageUrl || profile?.imageUrl || profile?.thumbnailUrl || '',
     videoFile: exercise.videoFile || null,
     videoFileName: exercise.videoFileName || '',
+    cadence: exercise.cadence || '',
+    rir: exercise.rir || '',
+    rpe: exercise.rpe || '',
+    notes: exercise.notes || '',
   }
 }
 
@@ -10497,14 +10955,14 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
       if (stopped) return
       if (result?.active) {
-        setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
+        setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
         recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
         stopped = true
       } else if (attempts >= 120) {
-        setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que o provedor enviar o pagamento aprovado, o painel será liberado.')
+        setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
         stopped = true
       } else {
-        setPaymentMessage('Aguardando confirmação do pagamento. Pode levar alguns instantes após o checkout.')
+        setPaymentMessage('Aguardando confirmação do pagamento. Use o mesmo e-mail da conta no checkout para a liberação automática funcionar.')
       }
       busy = false
     }
@@ -10558,7 +11016,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     if (!silent) setPaymentMessage('Verificando pagamento...')
     const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
     if (result?.active) {
-      setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
+      setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
       recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
     } else if (!silent) {
       setPaymentMessage('Pagamento ainda não confirmado. Use o mesmo e-mail da conta no checkout e aguarde alguns instantes.')
@@ -10832,7 +11290,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 : 'Escolha o ciclo ideal para sua operação. Todos os planos liberam o painel completo, e a confirmação da Cartpanda desbloqueia suas ferramentas automaticamente.'}
             </p>
             {!subscriptionActive ? <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">Importante para liberar automaticamente</p>
+              <p className="text-xs font-black uppercase text-amber-200">Importante para validar mais rápido</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
                 No checkout, use o mesmo e-mail cadastrado aqui no Coach Fit Pro. E-mail diferente pode impedir a liberação automática das ferramentas.
               </p>
@@ -11471,7 +11929,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     }
     const reader = new FileReader()
     reader.onload = () => updateField('logoUrl', reader.result?.toString() || '')
-    reader.onerror = () => setLogoFileError('Nao consegui ler a imagem. Tente outro arquivo.')
+    reader.onerror = () => setLogoFileError('Não consegui ler a imagem. Tente outro arquivo.')
     reader.readAsDataURL(file)
   }
 
@@ -11943,10 +12401,12 @@ function AdminTextArea({ label, value, onChange, hint = '' }) {
   )
 }
 
-function CoachSettings({ user, settings, onSave, onExport, masterAdmin = false, onOpenAdminMaster }) {
+function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, masterAdmin = false, onOpenAdminMaster }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
   const current = {
     brandName: settings?.brandName || 'FitCoach',
     publicName: settings?.publicName || user?.name || '',
@@ -12076,6 +12536,39 @@ function CoachSettings({ user, settings, onSave, onExport, masterAdmin = false, 
     }
     reader.onerror = () => setError('Não foi possível carregar esta logo.')
     reader.readAsDataURL(file)
+  }
+
+  async function handleAccountDeletion() {
+    if (masterAdmin) {
+      setError('A conta Admin Master não pode ser excluída por este painel.')
+      return
+    }
+
+    if (!onDeleteAccount) {
+      setError('A exclusão de conta ainda não está configurada neste ambiente.')
+      return
+    }
+
+    const accountEmail = String(user?.email || '').trim().toLowerCase()
+    if (String(deleteConfirmation || '').trim().toLowerCase() !== accountEmail) {
+      setError('Digite exatamente o e-mail da conta para confirmar a exclusão definitiva.')
+      return
+    }
+
+    const confirmed = window.confirm('Esta ação exclui definitivamente a conta, alunos, treinos, dietas, fotos, mensagens e históricos vinculados. Deseja continuar?')
+    if (!confirmed) return
+
+    setDeletingAccount(true)
+    setMessage('')
+    setError('')
+    try {
+      await onDeleteAccount(deleteConfirmation)
+      setMessage('Conta excluida. Voce sera redirecionado para o acesso inicial.')
+    } catch (deleteError) {
+      setError(deleteError?.message || 'Não foi possível excluir a conta agora.')
+    } finally {
+      setDeletingAccount(false)
+    }
   }
 
   async function handleSubmit(event) {
@@ -12329,6 +12822,46 @@ function CoachSettings({ user, settings, onSave, onExport, masterAdmin = false, 
           <button onClick={onExport} className="mt-4 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
             Baixar backup dos dados
           </button>
+        </Panel>
+
+        <Panel title="Exclusão definitiva da conta" action="LGPD">
+          <div className="rounded-2xl border border-rose-300/25 bg-rose-500/[0.07] p-4">
+            <p className="text-sm font-black text-rose-100">Antes de excluir, baixe o backup dos seus dados.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              A exclusão remove definitivamente a conta do treinador e os dados operacionais vinculados, incluindo alunos, fotos, anamnese, check-ins, treinos, nutrição, mensagens e cobranças internas.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-zinc-500">
+              Registros financeiros ou de segurança podem ser retidos pelo prazo legal necessário para auditoria, prevenção a fraude e obrigações fiscais.
+            </p>
+          </div>
+          {masterAdmin ? (
+            <p className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm font-bold leading-6 text-amber-100">
+              Por segurança, a conta Admin Master não pode ser excluída por este painel.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-3">
+              <button onClick={onExport} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+                Baixar backup antes de excluir
+              </button>
+              <label className="grid gap-2 text-sm font-bold text-zinc-300">
+                Digite seu e-mail para confirmar
+                <input
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  placeholder={user?.email || 'seu@email.com'}
+                  className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-rose-300 sm:text-sm"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={deletingAccount || String(deleteConfirmation || '').trim().toLowerCase() !== String(user?.email || '').trim().toLowerCase()}
+                onClick={handleAccountDeletion}
+                className="rounded-md border border-rose-300/40 bg-rose-500/12 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingAccount ? 'Excluindo conta...' : 'Excluir minha conta definitivamente'}
+              </button>
+            </div>
+          )}
         </Panel>
       </div>
     </div>
@@ -12725,6 +13258,7 @@ function NavIcon({ name, className = '' }) {
     alert: <><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" /></>,
     play: <><path d="M8 5v14l11-7Z" /></>,
     star: <><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" /></>,
+    shield: <><path d="M12 3 19 6v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3Z" /><path d="m9 12 2 2 4-5" /></>,
     check: <><path d="m20 6-11 11-5-5" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
@@ -12818,6 +13352,7 @@ function Field({
   autoComplete,
   maxLength,
   placeholder,
+  onChange,
 }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -12832,7 +13367,8 @@ function Field({
         autoComplete={autoComplete}
         maxLength={maxLength}
         placeholder={placeholder}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
+        onChange={onChange}
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
       />
     </label>
   )
@@ -12845,7 +13381,7 @@ function InlineInput({ label, value, onChange }) {
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
+        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
       />
     </label>
   )
@@ -12858,7 +13394,7 @@ function InlineSelect({ label, value, options, onChange }) {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
+        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
       >
         {options.map((option) => <option key={option} value={option}>{formatUiText(option)}</option>)}
       </select>
@@ -12875,7 +13411,7 @@ function Select({ label, name, defaultValue, value, onChange, options }) {
         value={value}
         defaultValue={defaultValue}
         onChange={onChange}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
       >
         {options.map((option) => {
           const value = typeof option === 'string' ? option : option.value
@@ -12887,22 +13423,23 @@ function Select({ label, name, defaultValue, value, onChange, options }) {
   )
 }
 
-function TextArea({ label, name, defaultValue = '' }) {
+function TextArea({ label, name, defaultValue = '', onChange }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <textarea
         name={name}
         defaultValue={defaultValue}
+        onChange={onChange}
         rows={4}
-        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
+        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
       />
     </label>
   )
 }
 
 function buildCoachActionPlan(smartAlerts = []) {
-  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliacao'].includes(alert.type))
+  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliação'].includes(alert.type))
   const hasPrescriptionGap = smartAlerts.some((alert) => ['Treino', 'Nutrição'].includes(alert.type))
   const hasOverduePayment = smartAlerts.some((alert) => alert.type === 'Financeiro')
   const hasAgenda = smartAlerts.some((alert) => alert.type === 'Agenda')
@@ -13341,9 +13878,9 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     reasons.push({ level: 'Acompanhar', text: 'cobranca proxima do vencimento', action: 'Prepare lembrete antes do vencimento para evitar atraso.', view: 'pagamentos' })
   }
   if (!hasRecentAssessment) {
-    factors.push(lastAssessmentDays === null ? 'Sem avaliacao' : 'Avaliacao antiga')
+    factors.push(lastAssessmentDays === null ? 'Sem avaliação' : 'Avaliação antiga')
     filterTags.push('risco-abandono')
-    reasons.push({ level: lastAssessmentDays === null ? 'Atencao' : 'Acompanhar', text: 'sem avaliacao recente', action: 'Atualize medidas e fotos para reforcar percepcao de evolucao.', view: 'avaliacoes' })
+    reasons.push({ level: lastAssessmentDays === null ? 'Atenção' : 'Acompanhar', text: 'sem avaliação recente', action: 'Atualize medidas e fotos para reforçar percepção de evolução.', view: 'avaliacoes' })
   }
   if (logs14 < 2 && studentLogs.length > 0) {
     factors.push('Baixa frequencia')
@@ -13362,7 +13899,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     student,
     priority: mainReason?.level || 'Regular',
     priorityRank: { Urgente: 0, Atencao: 1, Acompanhar: 2, Regular: 3 }[mainReason?.level || 'Regular'],
-    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operacao em dia para este aluno.',
+    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operação em dia para este aluno.',
     recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a proxima evolucao.',
     primaryView,
     factors: [...new Set(factors)],
@@ -13549,7 +14086,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     if (!latestAssessment || assessmentAge === null || assessmentAge > 30) {
       alerts.push({
         id: `assessment-${student.id}`,
-        type: 'Avaliacao',
+        type: 'Avaliação',
         priority: latestAssessment ? 'Medio' : 'Alto',
         title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda não tem avaliação`,
         body: latestAssessment
@@ -13982,7 +14519,7 @@ function buildCoachSettingsPayload(settings = {}, user = {}) {
     billingLogoUrl: settings?.billingLogoUrl || '',
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
-    billingMessage: settings?.billingMessage || 'Ola, {aluno}. Seu acesso esta aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Apos pagar, envie o comprovante no chat para validacao.',
+    billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
     autoBillingEnabled: settings?.autoBillingEnabled !== false,
     customPlans: getCoachPlans(settings),
     welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como voce esta evoluindo.',

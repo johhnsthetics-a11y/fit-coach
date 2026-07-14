@@ -456,14 +456,15 @@ textarea {
 .sales-page.fit-gradient-bg {
   background-color: var(--fitness-coal);
   background-image:
-    radial-gradient(circle at 10% 4%, color-mix(in srgb, var(--admin-primary, #00d2b2) 28%, transparent), transparent 28%),
-    radial-gradient(circle at 78% 2%, color-mix(in srgb, var(--admin-accent, #3b82f6) 18%, transparent), transparent 32%),
-    radial-gradient(circle at 94% 42%, color-mix(in srgb, var(--admin-primary, #00d2b2) 16%, transparent), transparent 30%),
-    linear-gradient(180deg, color-mix(in srgb, var(--admin-sales-bg, #00130f) 82%, var(--admin-primary, #00d2b2)) 0%, var(--admin-sales-bg, #000) 44%, #020504 100%);
+    radial-gradient(circle at 10% 4%, color-mix(in srgb, var(--admin-primary, #00d2b2) 34%, transparent), transparent 27%),
+    radial-gradient(circle at 78% 2%, color-mix(in srgb, var(--admin-primary, #00d2b2) 20%, transparent), transparent 32%),
+    radial-gradient(circle at 94% 42%, color-mix(in srgb, var(--admin-primary, #00d2b2) 18%, transparent), transparent 30%),
+    linear-gradient(180deg, color-mix(in srgb, var(--admin-sales-bg, #00130f) 76%, var(--admin-primary, #00d2b2)) 0%, var(--admin-sales-bg, #000) 42%, #020504 100%);
 }
 
 .sales-page .sales-header {
-  background: var(--admin-header-bg, rgba(0, 0, 0, 0.62));
+  background: color-mix(in srgb, var(--admin-header-bg, rgba(0, 0, 0, 0.62)) 86%, transparent);
+  backdrop-filter: blur(18px);
 }
 
 .sales-page .sales-section,
@@ -481,8 +482,8 @@ textarea {
 .sales-page .sales-plan-card,
 .sales-page .sales-plan-side,
 .sales-page #acesso form {
-  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 88%, transparent);
-  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 24%, rgba(255, 255, 255, 0.12));
+  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 90%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 30%, rgba(255, 255, 255, 0.16));
 }
 
 .sales-page .sales-phone-mockup,
@@ -492,8 +493,8 @@ textarea {
 .sales-page .sales-plan-mini-benefits > div,
 .sales-page .sales-plan-side > div,
 .sales-page .sales-plan-strategy {
-  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 82%, #000);
-  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 24%, rgba(255, 255, 255, 0.12));
+  background-color: color-mix(in srgb, var(--admin-sales-surface, #07110f) 86%, #000);
+  border-color: color-mix(in srgb, var(--admin-primary, #00d2b2) 30%, rgba(255, 255, 255, 0.14));
 }
 
 .sales-page button.bg-blue-500,
@@ -507,7 +508,7 @@ textarea {
 }
 
 .sales-page .sales-progress {
-  background: linear-gradient(90deg, var(--admin-primary, #00d2b2), var(--admin-accent, #3b82f6));
+  background: linear-gradient(90deg, #a7fff1, var(--admin-primary, #00d2b2), #00806c);
 }
 
 .sales-page .text-blue-100,
@@ -837,6 +838,7 @@ textarea {
   align-items: center;
   justify-items: center;
   column-gap: 0;
+  max-width: 100%;
 }
 
 .sales-hero-device {
@@ -1770,5 +1772,181 @@ textarea {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+}
+
+/* Final responsive polish for launch: keeps premium contrast without forcing cramped lines. */
+.sales-page .text-zinc-500,
+.sales-page .text-zinc-600 {
+  color: rgba(212, 212, 216, 0.72);
+}
+
+.sales-page .sales-feature-card p,
+.sales-page .sales-faq p,
+.sales-page .sales-plan-mini-benefits p,
+.sales-page .sales-plan-side p {
+  color: rgba(228, 228, 231, 0.84);
+}
+
+.sales-page .sales-objection-positive p {
+  color: rgba(236, 253, 245, 0.9);
+}
+
+.sales-page .sales-objection-warning {
+  border-color: rgba(251, 113, 133, 0.38);
+  background:
+    linear-gradient(145deg, rgba(244, 63, 94, 0.09), rgba(255, 255, 255, 0.025)),
+    rgba(12, 8, 10, 0.86);
+}
+
+.sales-page .sales-objection-warning p {
+  color: rgba(255, 228, 230, 0.86);
+}
+
+.sales-dashboard-money,
+.metric-money-value {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.workout-express-module,
+.workout-builder {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.workout-express-module select,
+.workout-express-module input,
+.workout-builder input,
+.workout-builder select,
+.workout-builder textarea {
+  border-radius: 14px;
+}
+
+.workout-exercise-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.workout-exercise-picker {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(16, 185, 129, 0.18), transparent 32%),
+    linear-gradient(145deg, rgba(6, 78, 59, 0.24), rgba(9, 9, 11, 0.78));
+}
+
+.workout-exercise-picker mark {
+  color: rgb(236, 253, 245);
+}
+
+.workout-exercise-picker button:focus-visible,
+.workout-exercise-card button:focus-visible,
+.workout-builder input:focus-visible,
+.workout-builder textarea:focus-visible,
+.workout-builder select:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.8);
+  outline-offset: 2px;
+}
+
+.sales-guarantee-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.sales-guarantee-card::before {
+  content: "";
+  position: absolute;
+  inset: -30% auto auto 18%;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.16);
+  filter: blur(52px);
+  pointer-events: none;
+}
+
+.sales-guarantee-card > * {
+  position: relative;
+}
+
+.sales-page .sales-plan-card .text-zinc-500,
+.sales-page .sales-plan-card .text-zinc-400,
+.sales-page .sales-plan-card .text-zinc-300 {
+  color: rgba(244, 244, 245, 0.82);
+}
+
+.workout-step-tabs button {
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-section {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .sales-page h1,
+  .sales-page h2 {
+    text-wrap: balance;
+  }
+
+  .sales-page .sales-rotating-headline {
+    min-height: auto;
+  }
+
+  .sales-page .sales-phone-stage {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .sales-page .sales-phone-stage > .sales-phone-mockup {
+    width: min(100%, 244px);
+  }
+
+  .workout-express-module,
+  .workout-builder {
+    border-radius: 22px;
+  }
+
+  .workout-express-controls {
+    padding: 0.875rem;
+  }
+
+  .workout-builder .scrollbar-soft {
+    scroll-snap-type: x proximity;
+  }
+
+  .workout-builder .scrollbar-soft > * {
+    scroll-snap-align: start;
+  }
+
+  .workout-exercise-picker {
+    padding-inline: 1rem;
+  }
+
+  .workout-exercise-picker [class*="grid-cols-[auto_minmax"] {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .workout-builder button,
+  .workout-builder input,
+  .workout-builder select,
+  .workout-builder textarea {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1180px) {
+  .sales-page .sales-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-page .sales-hero-device {
+    display: block;
+  }
+
+  .sales-page .sales-hero-phone-wrap {
+    max-width: 760px;
+    margin-inline: auto;
   }
 }
