@@ -5,7 +5,6 @@ import {
   archiveRemoteNutritionPlan,
   archiveRemoteWorkout,
   createRemoteStudentInvite,
-  deleteRemoteCoachAccount,
   deleteRemoteStudent,
   fetchRemoteExerciseMedia,
   loadRemoteData,
@@ -1270,7 +1269,12 @@ function AppContent() {
       throw new Error('Nenhum e-mail de treinador foi encontrado nesta sessao.')
     }
 
-    await deleteRemoteCoachAccount({
+    const api = await import('./supabaseApi')
+    if (typeof api.deleteRemoteCoachAccount !== 'function') {
+      throw new Error('A função de exclusão de conta ainda não foi publicada no arquivo de integração. Atualize o supabaseApi.js antes de usar esta ação.')
+    }
+
+    await api.deleteRemoteCoachAccount({
       email: data.user.email,
       confirmation,
     })
