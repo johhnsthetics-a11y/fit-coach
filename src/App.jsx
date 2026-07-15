@@ -2992,7 +2992,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </button>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-300">
-              <span className="text-emerald-300">âœ“</span>
+              <span className="text-emerald-300">✓</span>
               <span>Mais alunos com organização</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
               <span>Treinos completos em poucos minutos</span>
@@ -3324,7 +3324,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="grid gap-3">
               {[
                 ['Planilhas e mensagens espalhadas', 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', 'Uma ficha central por aluno'],
-                ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos e pagamentos organizados'],
+                ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos, cobranças e status em uma rotina clara'],
                 ['Aluno sem clareza do processo', 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', 'Portal próprio e rotina guiada'],
                 ['Decisões sem histórico completo', 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
               ].map(([title, problem, solution], index) => (
@@ -3703,7 +3703,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 {['Primeiro mês por R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
                   <span key={item} className="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.08] px-4 py-3 text-sm font-black text-emerald-50">
-                    <span className="text-emerald-300">âœ“</span>
+                    <span className="text-emerald-300">✓</span>
                     <span>{item}</span>
                   </span>
                 ))}
@@ -3982,7 +3982,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <div className="mt-5 grid gap-3">
                   {selectedOfferPlan.highlights.map((item) => (
                     <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200">
-                      <span className="text-emerald-300">âœ“</span>
+                      <span className="text-emerald-300">✓</span>
                       <span>{item}</span>
                     </div>
                   ))}
@@ -4421,7 +4421,7 @@ function ObjectionPoint({ text, positive = false }) {
   return (
     <div className={`flex gap-3 text-sm leading-6 ${positive ? 'text-emerald-50' : 'text-rose-50'}`}>
       <span className={`mt-2 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${positive ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'}`}>
-        {positive ? 'âœ“' : '!'}
+        {positive ? '✓' : '!'}
       </span>
       <p>{text}</p>
     </div>
@@ -11377,7 +11377,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               <div className="mt-4 grid gap-2">
                 {selectedCheckoutPlan.highlights.slice(0, 3).map((item) => (
                   <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-zinc-200">
-                    <span className="text-blue-300">âœ“</span>
+                    <span className="text-blue-300">✓</span>
                     <span>{item}</span>
                   </div>
                 ))}

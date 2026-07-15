@@ -2861,6 +2861,119 @@ textarea {
   }
 }
 
+/* Mobile safety pass: prevent clipped text, sideways scroll and oversized empty cards. */
+@media (max-width: 767px) {
+  html,
+  body,
+  #root,
+  .sales-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+  }
+
+  .sales-page *,
+  .sales-page *::before,
+  .sales-page *::after {
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .sales-page img,
+  .sales-page svg,
+  .sales-page canvas,
+  .sales-page video {
+    max-width: 100%;
+  }
+
+  .sales-page section,
+  .sales-page .sales-section,
+  .sales-page .sales-hero,
+  .sales-page .sales-header,
+  .sales-page .sales-header-inner {
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
+  .sales-page h1,
+  .sales-page h2,
+  .sales-page h3,
+  .sales-page p,
+  .sales-page span,
+  .sales-page a,
+  .sales-page button,
+  .sales-page summary {
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .sales-page .sales-hero .mt-5.flex.flex-wrap,
+  .sales-page .sales-hero .mt-7.inline-flex {
+    width: 100%;
+    align-items: flex-start;
+    border-radius: 18px;
+  }
+
+  .sales-page .sales-hero .mt-7.inline-flex {
+    display: flex;
+    line-height: 1.35;
+  }
+
+  .sales-page .sales-hero-proof {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem;
+  }
+
+  .sales-page .sales-hero-proof > div {
+    padding: 1rem;
+  }
+
+  .sales-page #mecanismo .grid.gap-3 {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .sales-page #mecanismo .grid.gap-3 > * {
+    flex: initial;
+    min-height: auto !important;
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .sales-page #mecanismo .sales-feature-card {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .sales-page #mecanismo .sales-feature-card span {
+    width: 100%;
+    line-height: 1.35;
+    white-space: normal;
+  }
+
+  .sales-page .sales-mobile-sticky-cta {
+    right: max(0.75rem, env(safe-area-inset-right));
+    left: max(0.75rem, env(safe-area-inset-left));
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  .sales-page .sales-mobile-sticky-cta button {
+    min-height: 52px;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  .sales-page .sales-mobile-sticky-cta button:first-child {
+    flex: 1 1 auto;
+  }
+
+  .sales-page .sales-mobile-sticky-cta button:last-child {
+    flex: 0 0 52px;
+  }
+}
+
 @keyframes salesMobilePlanIn {
   from {
     opacity: 0;
