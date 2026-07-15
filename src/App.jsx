@@ -143,6 +143,25 @@ const defaultLandingTextOverrides = [
 
 const ADMIN_SETTINGS_SCHEMA_VERSION = 20260715
 
+const defaultLandingVisualSettings = {
+  desktop: {
+    heroTitleSize: 'clamp(3.25rem, 4.55vw, 4.75rem)',
+    heroTitleWidth: '44rem',
+    sectionPadding: '2.5rem',
+    cardRadius: '24px',
+    planCardMinHeight: 'auto',
+    showStudentJourney: true,
+  },
+  mobile: {
+    heroTitleSize: 'clamp(2.35rem, 11.5vw, 3rem)',
+    heroTitleWidth: '100%',
+    sectionPadding: '2.5rem',
+    cardRadius: '22px',
+    planCardPadding: '1.05rem',
+    showStudentJourney: false,
+  },
+}
+
 const defaultAppAdminSettings = {
   schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
   salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
@@ -160,6 +179,7 @@ const defaultAppAdminSettings = {
   ctaColor: '#00d2b2',
   ctaTextColor: '#020617',
   headerBackgroundColor: 'rgba(0, 0, 0, 0.62)',
+  landingVisual: defaultLandingVisualSettings,
   landingTextOverrides: defaultLandingTextOverrides,
   publishedAt: '',
   checkoutPlans: cartpandaCheckoutPlans,
@@ -269,6 +289,16 @@ function normalizeAdminSettings(settings = {}) {
     ...defaultAppAdminSettings,
     ...safeSettings,
     schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
+    landingVisual: {
+      desktop: {
+        ...defaultLandingVisualSettings.desktop,
+        ...(safeSettings.landingVisual?.desktop || {}),
+      },
+      mobile: {
+        ...defaultLandingVisualSettings.mobile,
+        ...(safeSettings.landingVisual?.mobile || {}),
+      },
+    },
     landingTextOverrides,
     checkoutPlans,
     featureFlags: {
@@ -280,6 +310,7 @@ function normalizeAdminSettings(settings = {}) {
 
 function buildAdminThemeStyle(settings = {}) {
   const theme = normalizeAdminSettings(settings)
+  const visual = theme.landingVisual || defaultLandingVisualSettings
   return {
     '--admin-primary': theme.primaryColor || '#00c7a8',
     '--admin-accent': theme.accentColor || '#3b82f6',
@@ -290,6 +321,18 @@ function buildAdminThemeStyle(settings = {}) {
     '--admin-cta': theme.ctaColor || theme.primaryColor || '#00d2b2',
     '--admin-cta-text': theme.ctaTextColor || '#020617',
     '--admin-header-bg': theme.headerBackgroundColor || 'rgba(0, 0, 0, 0.62)',
+    '--admin-desktop-hero-title-size': visual.desktop?.heroTitleSize || defaultLandingVisualSettings.desktop.heroTitleSize,
+    '--admin-desktop-hero-title-width': visual.desktop?.heroTitleWidth || defaultLandingVisualSettings.desktop.heroTitleWidth,
+    '--admin-desktop-section-padding': visual.desktop?.sectionPadding || defaultLandingVisualSettings.desktop.sectionPadding,
+    '--admin-desktop-card-radius': visual.desktop?.cardRadius || defaultLandingVisualSettings.desktop.cardRadius,
+    '--admin-desktop-plan-card-min-height': visual.desktop?.planCardMinHeight || defaultLandingVisualSettings.desktop.planCardMinHeight,
+    '--admin-desktop-journey-display': visual.desktop?.showStudentJourney === false ? 'none' : 'block',
+    '--admin-mobile-hero-title-size': visual.mobile?.heroTitleSize || defaultLandingVisualSettings.mobile.heroTitleSize,
+    '--admin-mobile-hero-title-width': visual.mobile?.heroTitleWidth || defaultLandingVisualSettings.mobile.heroTitleWidth,
+    '--admin-mobile-section-padding': visual.mobile?.sectionPadding || defaultLandingVisualSettings.mobile.sectionPadding,
+    '--admin-mobile-card-radius': visual.mobile?.cardRadius || defaultLandingVisualSettings.mobile.cardRadius,
+    '--admin-mobile-plan-card-padding': visual.mobile?.planCardPadding || defaultLandingVisualSettings.mobile.planCardPadding,
+    '--admin-mobile-journey-display': visual.mobile?.showStudentJourney ? 'block' : 'none',
   }
 }
 
@@ -12290,6 +12333,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     traffic: true,
     launch: false,
     sales: true,
+    visualEditor: true,
     salesTexts: false,
     plans: false,
     branding: false,
@@ -12352,6 +12396,19 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       landingTextOverrides: (current.landingTextOverrides || []).map((item, itemIndex) => (
         itemIndex === index ? { ...item, [field]: value } : item
       )),
+    }))
+  }
+
+  function updateLandingVisual(device, field, value) {
+    setDraft((current) => ({
+      ...current,
+      landingVisual: {
+        ...current.landingVisual,
+        [device]: {
+          ...(current.landingVisual?.[device] || defaultLandingVisualSettings[device]),
+          [field]: value,
+        },
+      },
     }))
   }
 
@@ -12451,6 +12508,79 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
               <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
             </div>
             <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
+          </div>
+        </AdminAccordionSection>
+
+        <AdminAccordionSection title="Editor visual por dispositivo" action="Desktop e mobile separados" open={openSections.visualEditor} onToggle={() => toggleSection('visualEditor')}>
+          <div className="grid gap-4">
+            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
+              <p className="text-sm font-black text-emerald-100">Edite sem afetar a outra versão</p>
+              <p className="mt-2 text-xs leading-5 text-zinc-300">
+                Use os campos de Desktop para ajustar computador e notebook. Use os campos de Mobile para ajustar celular. Os valores aceitam medidas como 2.5rem, 44rem, 22px ou clamp(...).
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href="/?preview=vendas" target="_blank" rel="noreferrer" className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
+                  Prévia da página
+                </a>
+                <a href="/login?mode=signup" target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-100">
+                  Prévia do cadastro
+                </a>
+              </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase text-emerald-300">Desktop</p>
+                    <h3 className="mt-1 text-xl font-black text-white">Computador e notebook</h3>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Ajustes aplicados apenas a telas grandes.</p>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs font-black text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={draft.landingVisual?.desktop?.showStudentJourney !== false}
+                      onChange={(event) => updateLandingVisual('desktop', 'showStudentJourney', event.target.checked)}
+                      className="h-4 w-4 accent-emerald-400"
+                    />
+                    Jornada visível
+                  </label>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <AdminTextInput label="Tamanho do título" value={draft.landingVisual?.desktop?.heroTitleSize} onChange={(value) => updateLandingVisual('desktop', 'heroTitleSize', value)} hint="Exemplo: clamp(3.25rem, 4.55vw, 4.75rem)." />
+                  <AdminTextInput label="Largura máxima do título" value={draft.landingVisual?.desktop?.heroTitleWidth} onChange={(value) => updateLandingVisual('desktop', 'heroTitleWidth', value)} hint="Exemplo: 44rem. Aumente para deixar o título menos estreito." />
+                  <AdminTextInput label="Espaço entre seções" value={draft.landingVisual?.desktop?.sectionPadding} onChange={(value) => updateLandingVisual('desktop', 'sectionPadding', value)} hint="Exemplo: 2.5rem. Aumente ou reduza a rolagem." />
+                  <AdminTextInput label="Arredondamento dos cards" value={draft.landingVisual?.desktop?.cardRadius} onChange={(value) => updateLandingVisual('desktop', 'cardRadius', value)} hint="Exemplo: 24px." />
+                  <AdminTextInput label="Altura mínima dos planos" value={draft.landingVisual?.desktop?.planCardMinHeight} onChange={(value) => updateLandingVisual('desktop', 'planCardMinHeight', value)} hint="Use auto para padrão ou 520px para alinhar cards." />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase text-emerald-300">Mobile</p>
+                    <h3 className="mt-1 text-xl font-black text-white">Celular</h3>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Ajustes aplicados apenas a telas pequenas.</p>
+                  </div>
+                  <label className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs font-black text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(draft.landingVisual?.mobile?.showStudentJourney)}
+                      onChange={(event) => updateLandingVisual('mobile', 'showStudentJourney', event.target.checked)}
+                      className="h-4 w-4 accent-emerald-400"
+                    />
+                    Jornada visível
+                  </label>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <AdminTextInput label="Tamanho do título" value={draft.landingVisual?.mobile?.heroTitleSize} onChange={(value) => updateLandingVisual('mobile', 'heroTitleSize', value)} hint="Exemplo: clamp(2.35rem, 11.5vw, 3rem)." />
+                  <AdminTextInput label="Largura máxima do título" value={draft.landingVisual?.mobile?.heroTitleWidth} onChange={(value) => updateLandingVisual('mobile', 'heroTitleWidth', value)} hint="Use 100% para ocupar a largura do celular." />
+                  <AdminTextInput label="Espaço entre seções" value={draft.landingVisual?.mobile?.sectionPadding} onChange={(value) => updateLandingVisual('mobile', 'sectionPadding', value)} hint="Exemplo: 2.5rem. Reduza para uma página menor." />
+                  <AdminTextInput label="Arredondamento dos cards" value={draft.landingVisual?.mobile?.cardRadius} onChange={(value) => updateLandingVisual('mobile', 'cardRadius', value)} hint="Exemplo: 22px." />
+                  <AdminTextInput label="Espaço interno dos planos" value={draft.landingVisual?.mobile?.planCardPadding} onChange={(value) => updateLandingVisual('mobile', 'planCardPadding', value)} hint="Exemplo: 1.05rem. Reduza se o card ficar longo." />
+                </div>
+              </div>
+            </div>
           </div>
         </AdminAccordionSection>
 
