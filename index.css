@@ -6,6 +6,10 @@
   box-sizing: border-box;
 }
 
+.hidden {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   width: 100%;
@@ -3453,5 +3457,76 @@ textarea {
   .sales-page #precos .sales-plan-option-card {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* Final emerald brand correction and mobile simplification. */
+.sales-page {
+  --brand-emerald: #00D2B2;
+}
+
+.sales-page .text-emerald-50,
+.sales-page .text-emerald-100,
+.sales-page .text-emerald-200,
+.sales-page .text-emerald-300,
+.sales-page .sales-feature-card h3,
+.sales-page .sales-mini-card p:first-child,
+.sales-page .sales-faq-icon,
+.sales-page #precos .text-zinc-500.text-xs,
+.sales-page #precos .text-zinc-400.text-xs {
+  color: #00D2B2 !important;
+}
+
+.sales-page .bg-emerald-300,
+.sales-page .bg-emerald-400,
+.sales-page .bg-emerald-500,
+.sales-page button.bg-emerald-300,
+.sales-page button.bg-emerald-400,
+.sales-page button.bg-emerald-500 {
+  background-color: #00D2B2 !important;
+}
+
+.sales-page .from-emerald-300,
+.sales-page .from-emerald-400,
+.sales-page .from-emerald-500 {
+  --tw-gradient-from: #00D2B2 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(0 210 178 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.sales-page .via-emerald-500,
+.sales-page .via-emerald-400,
+.sales-page .via-emerald-300 {
+  --tw-gradient-via: #00D2B2 var(--tw-gradient-via-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to) !important;
+}
+
+.sales-page .border-emerald-300\/15,
+.sales-page .border-emerald-300\/16,
+.sales-page .border-emerald-300\/18,
+.sales-page .border-emerald-300\/20,
+.sales-page .border-emerald-300\/22,
+.sales-page .border-emerald-300\/25,
+.sales-page .border-emerald-300\/30,
+.sales-page .border-emerald-300\/35,
+.sales-page .border-emerald-300\/40,
+.sales-page .border-emerald-300\/45,
+.sales-page .border-emerald-300\/50,
+.sales-page .border-emerald-300\/60 {
+  border-color: rgba(0, 210, 178, 0.36) !important;
+}
+
+.sales-page #precos .sales-plan-option-card.is-selected {
+  border-color: rgba(0, 210, 178, 0.72) !important;
+  box-shadow: 0 22px 58px rgba(0, 210, 178, 0.2) !important;
+}
+
+.sales-page #precos .sales-plan-tab.is-active {
+  background: #00D2B2 !important;
+  color: #02110d !important;
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-journey-section {
+    display: none !important;
   }
 }
