@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -56,21 +56,21 @@ const cartpandaCheckoutPlans = [
   {
     id: 'mensal',
     name: 'Mensal',
-    cycle: 'cobrança mensal',
-    badge: 'Primeiro mês R$ 9,90',
+    cycle: 'cobranÃ§a mensal',
+    badge: 'Primeiro mÃªs R$ 9,90',
     price: 'R$ 9,90',
-    suffix: 'no 1º mês',
+    suffix: 'no 1Âº mÃªs',
     oldPrice: 'R$ 49,90',
-    total: 'Depois R$ 49,90/mês',
-    economy: 'Economize R$ 40,00 na ativação',
+    total: 'Depois R$ 49,90/mÃªs',
+    economy: 'Economize R$ 40,00 na ativaÃ§Ã£o',
     equivalent: 'sem compromisso de ciclo longo',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
-    description: 'Comece pagando pouco no primeiro mês, valide a operação com alunos reais e mantenha liberdade para continuar mês a mês.',
-    highlights: ['Primeiro mês por R$ 9,90', 'Depois R$ 49,90/mês', 'Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
-    bestFor: 'Coach que quer entrar com baixo risco, testar a experiência premium com os primeiros alunos e validar o impacto antes de assumir um ciclo maior.',
-    operatingPromise: 'A oferta de entrada reduz a barreira para começar agora. Você ativa a estrutura, organiza os alunos atuais e decide a continuidade com dados reais da operação.',
-    activationPlan: ['Ativar o primeiro mês promocional', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
-    decisionPoints: ['R$ 9,90 para começar', 'baixo risco de entrada', 'renovação mensal depois'],
+    description: 'Comece pagando pouco no primeiro mÃªs, valide a operaÃ§Ã£o com alunos reais e mantenha liberdade para continuar mÃªs a mÃªs.',
+    highlights: ['Primeiro mÃªs por R$ 9,90', 'Depois R$ 49,90/mÃªs', 'Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'LiberaÃ§Ã£o automÃ¡tica apÃ³s pagamento'],
+    bestFor: 'Coach que quer entrar com baixo risco, testar a experiÃªncia premium com os primeiros alunos e validar o impacto antes de assumir um ciclo maior.',
+    operatingPromise: 'A oferta de entrada reduz a barreira para comeÃ§ar agora. VocÃª ativa a estrutura, organiza os alunos atuais e decide a continuidade com dados reais da operaÃ§Ã£o.',
+    activationPlan: ['Ativar o primeiro mÃªs promocional', 'Cadastrar planos prÃ³prios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
+    decisionPoints: ['R$ 9,90 para comeÃ§ar', 'baixo risco de entrada', 'renovaÃ§Ã£o mensal depois'],
   },
   {
     id: 'semestral',
@@ -80,16 +80,16 @@ const cartpandaCheckoutPlans = [
     price: 'R$ 239,40',
     suffix: '/semestre',
     oldPrice: 'R$ 299,40',
-    total: 'Equivale a R$ 39,90/mês',
+    total: 'Equivale a R$ 39,90/mÃªs',
     economy: 'Economize R$ 60,00',
-    equivalent: 'melhor equilíbrio entre economia e flexibilidade',
+    equivalent: 'melhor equilÃ­brio entre economia e flexibilidade',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211373219:1?subscription=4479',
     description: 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
-    highlights: ['Acesso completo ao painel', 'Menos renovações no ano', 'Rotina financeira previsível', 'Boa opção para equipes em crescimento'],
-    bestFor: 'Coach que já tem carteira ativa e quer estruturar a operação sem ficar repensando assinatura todo mês.',
-    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, ganhar controle e aumentar percepção de valor.',
-    activationPlan: ['Ativar o semestre com economia', 'Organizar alunos por planos e vencimentos', 'Criar rotina de treinos, dieta, check-ins e cobrança'],
-    decisionPoints: ['equilíbrio ideal', 'economia sem travar por um ano', 'mais previsibilidade'],
+    highlights: ['Acesso completo ao painel', 'Menos renovaÃ§Ãµes no ano', 'Rotina financeira previsÃ­vel', 'Boa opÃ§Ã£o para equipes em crescimento'],
+    bestFor: 'Coach que jÃ¡ tem carteira ativa e quer estruturar a operaÃ§Ã£o sem ficar repensando assinatura todo mÃªs.',
+    operatingPromise: 'Seis meses dÃ£o tempo para padronizar atendimento, ganhar controle e aumentar percepÃ§Ã£o de valor.',
+    activationPlan: ['Ativar o semestre com economia', 'Organizar alunos por planos e vencimentos', 'Criar rotina de treinos, dieta, check-ins e cobranÃ§a'],
+    decisionPoints: ['equilÃ­brio ideal', 'economia sem travar por um ano', 'mais previsibilidade'],
   },
   {
     id: 'anual',
@@ -99,24 +99,24 @@ const cartpandaCheckoutPlans = [
     price: 'R$ 358,80',
     suffix: '/ano',
     oldPrice: 'R$ 598,80',
-    total: 'Equivale a R$ 29,90/mês',
+    total: 'Equivale a R$ 29,90/mÃªs',
     economy: 'Economize R$ 240,00',
     equivalent: 'menor custo para operar o ano inteiro',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
-    description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
-    highlights: ['Acesso completo por 12 meses', 'Planejamento de longo prazo', 'Foco em escala e retenção', 'Melhor para operações maduras'],
-    bestFor: 'Coach que quer operar o ano inteiro com menor custo mensal e foco em escala, retenção e rotina de equipe.',
-    operatingPromise: 'O ciclo anual transforma o app em infraestrutura fixa da operação, com menor custo equivalente por mês.',
-    activationPlan: ['Ativar o ano com maior economia', 'Migrar a carteira em ondas semanais', 'Usar financeiro, ranking e indicadores para gestão contínua'],
+    description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operaÃ§Ã£o.',
+    highlights: ['Acesso completo por 12 meses', 'Planejamento de longo prazo', 'Foco em escala e retenÃ§Ã£o', 'Melhor para operaÃ§Ãµes maduras'],
+    bestFor: 'Coach que quer operar o ano inteiro com menor custo mensal e foco em escala, retenÃ§Ã£o e rotina de equipe.',
+    operatingPromise: 'O ciclo anual transforma o app em infraestrutura fixa da operaÃ§Ã£o, com menor custo equivalente por mÃªs.',
+    activationPlan: ['Ativar o ano com maior economia', 'Migrar a carteira em ondas semanais', 'Usar financeiro, ranking e indicadores para gestÃ£o contÃ­nua'],
     decisionPoints: ['maior economia', 'menor custo mensal', 'estrutura para longo prazo'],
   },
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
 const defaultAppAdminSettings = {
   salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
-  salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
-  salesCta: 'Começar por R$ 9,90',
-  announcement: 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.',
+  salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evoluÃ§Ã£o dos alunos e entregue uma experiÃªncia que valoriza sua consultoria.',
+  salesCta: 'ComeÃ§ar por R$ 9,90',
+  announcement: 'Sem planilha solta. Sem cobranÃ§a perdida. Sem aluno perguntando onde estÃ¡ o treino.',
   logoUrl: '',
   salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
   primaryColor: '#00c7a8',
@@ -228,7 +228,7 @@ function saveLocalAdminSettings(settings) {
   try {
     window.localStorage.setItem(ADMIN_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
   } catch {
-    // Mantem a edição local no estado mesmo se o navegador bloquear storage.
+    // Mantem a ediÃ§Ã£o local no estado mesmo se o navegador bloquear storage.
   }
 }
 
@@ -267,64 +267,64 @@ function isMasterAdmin(user, sessionUser = null, session = null) {
 }
 
 const plans = [
-  { name: 'Acompanhamento mensal', price: 'R$ 197', cycle: 'mensal', duration: '1 mês', features: 'Plano padrão configurável pelo treinador' },
+  { name: 'Acompanhamento mensal', price: 'R$ 197', cycle: 'mensal', duration: '1 mÃªs', features: 'Plano padrÃ£o configurÃ¡vel pelo treinador' },
 ]
 
 const navItems = [
-  { id: 'visao', label: 'Visão geral', icon: 'dashboard', tone: 'emerald' },
+  { id: 'visao', label: 'VisÃ£o geral', icon: 'dashboard', tone: 'emerald' },
   { id: 'agenda', label: 'Agenda', icon: 'calendar', tone: 'sky' },
   { id: 'alunos', label: 'Alunos', icon: 'users', tone: 'cyan' },
-  { id: 'avaliacoes', label: 'Avaliações', icon: 'chart', tone: 'amber' },
+  { id: 'avaliacoes', label: 'AvaliaÃ§Ãµes', icon: 'chart', tone: 'amber' },
   { id: 'treinos', label: 'Treinos', icon: 'dumbbell', tone: 'lime' },
-  { id: 'nutricao', label: 'Nutrição', icon: 'nutrition', tone: 'orange' },
+  { id: 'nutricao', label: 'NutriÃ§Ã£o', icon: 'nutrition', tone: 'orange' },
   { id: 'checkins', label: 'Check-ins', icon: 'camera', tone: 'rose' },
   { id: 'pagamentos', label: 'Recebimentos', icon: 'wallet', tone: 'green' },
-  { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
+  { id: 'notificacoes', label: 'NotificaÃ§Ãµes', icon: 'bell', tone: 'yellow' },
   { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
-  { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
+  { id: 'aluno-app', label: 'Ãrea do aluno', icon: 'phone', tone: 'teal' },
   { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
 
 const workoutPlan = [
   { day: 'Segunda', focus: 'Upper A', items: 'Supino, remada, desenvolvimento', status: 'Publicado' },
-  { day: 'Terça', focus: 'Cardio Z2', items: '35 min de esteira + mobilidade', status: 'Publicado' },
+  { day: 'TerÃ§a', focus: 'Cardio Z2', items: '35 min de esteira + mobilidade', status: 'Publicado' },
   { day: 'Quarta', focus: 'Lower A', items: 'Agachamento, stiff, panturrilha', status: 'Revisar carga' },
   { day: 'Quinta', focus: 'Descanso ativo', items: 'Passos, alongamento, sono', status: 'Publicado' },
 ]
 
 const exerciseLibrary = [
-  { name: 'Supino reto com barra', group: 'Peitoral', equipment: 'Barra e banco', cues: 'Pés firmes, escápulas apoiadas e barra descendo com controle até a linha média do peito.', aliases: ['supino reto', 'bench press'] },
-  { name: 'Supino inclinado com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Mantenha o peito aberto, antebraços alinhados e evite perder a posição dos ombros.', aliases: ['supino inclinado'] },
-  { name: 'Crucifixo com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Cotovelos levemente flexionados e amplitude controlada sem forçar a articulação do ombro.', aliases: ['crucifixo'] },
-  { name: 'Flexão de braços', group: 'Peitoral', equipment: 'Peso corporal', cues: 'Corpo alinhado, abdômen ativo e cotovelos acompanhando a linha natural dos ombros.', aliases: ['flexao', 'flexão'] },
-  { name: 'Puxada frontal', group: 'Costas', equipment: 'Polia alta', cues: 'Inicie deprimindo as escápulas e puxe a barra em direção à parte superior do peito.', aliases: ['puxada alta', 'pulley frente'] },
-  { name: 'Remada baixa', group: 'Costas', equipment: 'Polia baixa', cues: 'Tronco estável, peito aberto e cotovelos conduzindo o movimento para trás.', aliases: ['remada sentada'] },
-  { name: 'Remada curvada com barra', group: 'Costas', equipment: 'Barra', cues: 'Quadril para trás, coluna neutra e barra aproximando-se do abdômen sem balanço.', aliases: ['remada curvada'] },
-  { name: 'Barra fixa', group: 'Costas', equipment: 'Barra fixa', cues: 'Evite impulso, mantenha o tronco firme e conduza o peito em direção à barra.', aliases: ['pull up', 'barra'] },
-  { name: 'Desenvolvimento com halteres', group: 'Ombros', equipment: 'Halteres', cues: 'Abdômen ativo, punhos alinhados e subida sem compensar com a lombar.', aliases: ['desenvolvimento', 'shoulder press'] },
-  { name: 'Elevação lateral', group: 'Ombros', equipment: 'Halteres', cues: 'Eleve pelos cotovelos até a linha dos ombros, sem embalo e com carga controlada.', aliases: ['elevacao lateral'] },
-  { name: 'Rosca direta', group: 'Bíceps', equipment: 'Barra', cues: 'Cotovelos próximos ao tronco e movimento sem inclinar o corpo para gerar impulso.', aliases: ['rosca barra'] },
-  { name: 'Rosca alternada', group: 'Bíceps', equipment: 'Halteres', cues: 'Mantenha o braço estável e controle completamente a fase de descida.', aliases: ['rosca com halteres'] },
-  { name: 'Tríceps na polia', group: 'Tríceps', equipment: 'Polia', cues: 'Cotovelos fixos, ombros baixos e extensão completa sem movimentar o tronco.', aliases: ['triceps pulley', 'tríceps pulley'] },
-  { name: 'Tríceps francês', group: 'Tríceps', equipment: 'Halter', cues: 'Mantenha os cotovelos apontados à frente e evite compensação lombar.', aliases: ['triceps frances'] },
-  { name: 'Agachamento livre', group: 'Quadríceps e glúteos', equipment: 'Barra', cues: 'Pés firmes, joelhos acompanhando a direção dos pés e coluna neutra durante toda a amplitude.', aliases: ['agachamento', 'back squat'] },
-  { name: 'Leg press 45°', group: 'Quadríceps e glúteos', equipment: 'Leg press', cues: 'Lombar apoiada, joelhos alinhados e descida apenas até manter a pelve estável.', aliases: ['leg press'] },
-  { name: 'Cadeira extensora', group: 'Quadríceps', equipment: 'Máquina', cues: 'Ajuste o eixo ao joelho, estabilize o quadril e controle a descida.', aliases: ['extensora'] },
-  { name: 'Mesa flexora', group: 'Posteriores de coxa', equipment: 'Máquina', cues: 'Quadril apoiado, abdômen ativo e flexão sem tirar o tronco do banco.', aliases: ['flexora deitada'] },
-  { name: 'Stiff com barra', group: 'Posteriores e glúteos', equipment: 'Barra', cues: 'Empurre o quadril para trás, mantenha a barra próxima às pernas e preserve a coluna neutra.', aliases: ['stiff', 'romeno'] },
-  { name: 'Levantamento terra', group: 'Posteriores e costas', equipment: 'Barra', cues: 'Barra próxima ao corpo, tronco firme e força aplicada pelo chão sem arredondar a coluna.', aliases: ['terra', 'deadlift'] },
-  { name: 'Afundo com halteres', group: 'Quadríceps e glúteos', equipment: 'Halteres', cues: 'Passo estável, tronco organizado e joelho dianteiro acompanhando a ponta do pé.', aliases: ['afundo', 'passada'] },
-  { name: 'Elevação pélvica', group: 'Glúteos', equipment: 'Banco e barra', cues: 'Queixo levemente recolhido, costelas baixas e extensão do quadril sem hiperestender a lombar.', aliases: ['hip thrust'] },
-  { name: 'Panturrilha em pé', group: 'Panturrilhas', equipment: 'Máquina ou peso corporal', cues: 'Use amplitude completa, pause no topo e controle a descida sem quicar.', aliases: ['panturrilha'] },
-  { name: 'Prancha abdominal', group: 'Core', equipment: 'Peso corporal', cues: 'Contraia glúteos e abdômen, mantendo cabeça, tronco e quadril alinhados.', aliases: ['prancha'] },
-  { name: 'Abdominal crunch', group: 'Core', equipment: 'Peso corporal', cues: 'Aproxime costelas e pelve sem puxar a cabeça e retorne de forma controlada.', aliases: ['abdominal'] },
+  { name: 'Supino reto com barra', group: 'Peitoral', equipment: 'Barra e banco', cues: 'PÃ©s firmes, escÃ¡pulas apoiadas e barra descendo com controle atÃ© a linha mÃ©dia do peito.', aliases: ['supino reto', 'bench press'] },
+  { name: 'Supino inclinado com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Mantenha o peito aberto, antebraÃ§os alinhados e evite perder a posiÃ§Ã£o dos ombros.', aliases: ['supino inclinado'] },
+  { name: 'Crucifixo com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Cotovelos levemente flexionados e amplitude controlada sem forÃ§ar a articulaÃ§Ã£o do ombro.', aliases: ['crucifixo'] },
+  { name: 'FlexÃ£o de braÃ§os', group: 'Peitoral', equipment: 'Peso corporal', cues: 'Corpo alinhado, abdÃ´men ativo e cotovelos acompanhando a linha natural dos ombros.', aliases: ['flexao', 'flexÃ£o'] },
+  { name: 'Puxada frontal', group: 'Costas', equipment: 'Polia alta', cues: 'Inicie deprimindo as escÃ¡pulas e puxe a barra em direÃ§Ã£o Ã  parte superior do peito.', aliases: ['puxada alta', 'pulley frente'] },
+  { name: 'Remada baixa', group: 'Costas', equipment: 'Polia baixa', cues: 'Tronco estÃ¡vel, peito aberto e cotovelos conduzindo o movimento para trÃ¡s.', aliases: ['remada sentada'] },
+  { name: 'Remada curvada com barra', group: 'Costas', equipment: 'Barra', cues: 'Quadril para trÃ¡s, coluna neutra e barra aproximando-se do abdÃ´men sem balanÃ§o.', aliases: ['remada curvada'] },
+  { name: 'Barra fixa', group: 'Costas', equipment: 'Barra fixa', cues: 'Evite impulso, mantenha o tronco firme e conduza o peito em direÃ§Ã£o Ã  barra.', aliases: ['pull up', 'barra'] },
+  { name: 'Desenvolvimento com halteres', group: 'Ombros', equipment: 'Halteres', cues: 'AbdÃ´men ativo, punhos alinhados e subida sem compensar com a lombar.', aliases: ['desenvolvimento', 'shoulder press'] },
+  { name: 'ElevaÃ§Ã£o lateral', group: 'Ombros', equipment: 'Halteres', cues: 'Eleve pelos cotovelos atÃ© a linha dos ombros, sem embalo e com carga controlada.', aliases: ['elevacao lateral'] },
+  { name: 'Rosca direta', group: 'BÃ­ceps', equipment: 'Barra', cues: 'Cotovelos prÃ³ximos ao tronco e movimento sem inclinar o corpo para gerar impulso.', aliases: ['rosca barra'] },
+  { name: 'Rosca alternada', group: 'BÃ­ceps', equipment: 'Halteres', cues: 'Mantenha o braÃ§o estÃ¡vel e controle completamente a fase de descida.', aliases: ['rosca com halteres'] },
+  { name: 'TrÃ­ceps na polia', group: 'TrÃ­ceps', equipment: 'Polia', cues: 'Cotovelos fixos, ombros baixos e extensÃ£o completa sem movimentar o tronco.', aliases: ['triceps pulley', 'trÃ­ceps pulley'] },
+  { name: 'TrÃ­ceps francÃªs', group: 'TrÃ­ceps', equipment: 'Halter', cues: 'Mantenha os cotovelos apontados Ã  frente e evite compensaÃ§Ã£o lombar.', aliases: ['triceps frances'] },
+  { name: 'Agachamento livre', group: 'QuadrÃ­ceps e glÃºteos', equipment: 'Barra', cues: 'PÃ©s firmes, joelhos acompanhando a direÃ§Ã£o dos pÃ©s e coluna neutra durante toda a amplitude.', aliases: ['agachamento', 'back squat'] },
+  { name: 'Leg press 45Â°', group: 'QuadrÃ­ceps e glÃºteos', equipment: 'Leg press', cues: 'Lombar apoiada, joelhos alinhados e descida apenas atÃ© manter a pelve estÃ¡vel.', aliases: ['leg press'] },
+  { name: 'Cadeira extensora', group: 'QuadrÃ­ceps', equipment: 'MÃ¡quina', cues: 'Ajuste o eixo ao joelho, estabilize o quadril e controle a descida.', aliases: ['extensora'] },
+  { name: 'Mesa flexora', group: 'Posteriores de coxa', equipment: 'MÃ¡quina', cues: 'Quadril apoiado, abdÃ´men ativo e flexÃ£o sem tirar o tronco do banco.', aliases: ['flexora deitada'] },
+  { name: 'Stiff com barra', group: 'Posteriores e glÃºteos', equipment: 'Barra', cues: 'Empurre o quadril para trÃ¡s, mantenha a barra prÃ³xima Ã s pernas e preserve a coluna neutra.', aliases: ['stiff', 'romeno'] },
+  { name: 'Levantamento terra', group: 'Posteriores e costas', equipment: 'Barra', cues: 'Barra prÃ³xima ao corpo, tronco firme e forÃ§a aplicada pelo chÃ£o sem arredondar a coluna.', aliases: ['terra', 'deadlift'] },
+  { name: 'Afundo com halteres', group: 'QuadrÃ­ceps e glÃºteos', equipment: 'Halteres', cues: 'Passo estÃ¡vel, tronco organizado e joelho dianteiro acompanhando a ponta do pÃ©.', aliases: ['afundo', 'passada'] },
+  { name: 'ElevaÃ§Ã£o pÃ©lvica', group: 'GlÃºteos', equipment: 'Banco e barra', cues: 'Queixo levemente recolhido, costelas baixas e extensÃ£o do quadril sem hiperestender a lombar.', aliases: ['hip thrust'] },
+  { name: 'Panturrilha em pÃ©', group: 'Panturrilhas', equipment: 'MÃ¡quina ou peso corporal', cues: 'Use amplitude completa, pause no topo e controle a descida sem quicar.', aliases: ['panturrilha'] },
+  { name: 'Prancha abdominal', group: 'Core', equipment: 'Peso corporal', cues: 'Contraia glÃºteos e abdÃ´men, mantendo cabeÃ§a, tronco e quadril alinhados.', aliases: ['prancha'] },
+  { name: 'Abdominal crunch', group: 'Core', equipment: 'Peso corporal', cues: 'Aproxime costelas e pelve sem puxar a cabeÃ§a e retorne de forma controlada.', aliases: ['abdominal'] },
 ]
 
 const mealPlan = [
-  { meal: 'Café da manhã', foods: 'Ovos, aveia, banana, café', macros: '42P / 74C / 18G' },
-  { meal: 'Almoço', foods: 'Arroz, frango, feijão, salada', macros: '58P / 96C / 16G' },
-  { meal: 'Pré-treino', foods: 'Iogurte, mel, granola', macros: '26P / 61C / 8G' },
+  { meal: 'CafÃ© da manhÃ£', foods: 'Ovos, aveia, banana, cafÃ©', macros: '42P / 74C / 18G' },
+  { meal: 'AlmoÃ§o', foods: 'Arroz, frango, feijÃ£o, salada', macros: '58P / 96C / 16G' },
+  { meal: 'PrÃ©-treino', foods: 'Iogurte, mel, granola', macros: '26P / 61C / 8G' },
   { meal: 'Jantar', foods: 'Patinho, batata, legumes', macros: '52P / 68C / 14G' },
 ]
 
@@ -332,32 +332,32 @@ const foodDatabase = [
   { name: 'Ovo Inteiro', category: 'Ovos', calories: 155, protein: 13, carbs: 1.1, fat: 11, fiber: 0, sodium: 124 },
   { name: 'Clara de Ovo', category: 'Ovos', calories: 52, protein: 11, carbs: 0.7, fat: 0.2, fiber: 0, sodium: 166 },
   { name: 'Gema de Ovo', category: 'Ovos', calories: 322, protein: 16, carbs: 3.6, fat: 27, fiber: 0, sodium: 48 },
-  { name: 'Leite Integral', category: 'Laticínios', calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3, fiber: 0, sodium: 43 },
-  { name: 'Leite Desnatado', category: 'Laticínios', calories: 34, protein: 3.4, carbs: 5, fat: 0.1, fiber: 0, sodium: 44 },
-  { name: 'Iogurte Natural', category: 'Laticínios', calories: 59, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0, sodium: 36 },
-  { name: 'Queijo Cottage', category: 'Laticínios', calories: 98, protein: 11.1, carbs: 3.4, fat: 4.3, fiber: 0, sodium: 364 },
-  { name: 'Queijo Mussarela', category: 'Laticínios', calories: 280, protein: 28, carbs: 3, fat: 17, fiber: 0, sodium: 627 },
+  { name: 'Leite Integral', category: 'LaticÃ­nios', calories: 61, protein: 3.2, carbs: 4.8, fat: 3.3, fiber: 0, sodium: 43 },
+  { name: 'Leite Desnatado', category: 'LaticÃ­nios', calories: 34, protein: 3.4, carbs: 5, fat: 0.1, fiber: 0, sodium: 44 },
+  { name: 'Iogurte Natural', category: 'LaticÃ­nios', calories: 59, protein: 3.5, carbs: 4.7, fat: 3.3, fiber: 0, sodium: 36 },
+  { name: 'Queijo Cottage', category: 'LaticÃ­nios', calories: 98, protein: 11.1, carbs: 3.4, fat: 4.3, fiber: 0, sodium: 364 },
+  { name: 'Queijo Mussarela', category: 'LaticÃ­nios', calories: 280, protein: 28, carbs: 3, fat: 17, fiber: 0, sodium: 627 },
   { name: 'Peito de Frango', category: 'Carnes', calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, sodium: 74 },
   { name: 'Peito de Peru', category: 'Carnes', calories: 135, protein: 29, carbs: 0, fat: 1, fiber: 0, sodium: 55 },
-  { name: 'Filé Mignon', category: 'Carnes', calories: 220, protein: 26, carbs: 0, fat: 12, fiber: 0, sodium: 62 },
-  { name: 'Coxão Mole', category: 'Carnes', calories: 219, protein: 29, carbs: 0, fat: 8, fiber: 0, sodium: 58 },
+  { name: 'FilÃ© Mignon', category: 'Carnes', calories: 220, protein: 26, carbs: 0, fat: 12, fiber: 0, sodium: 62 },
+  { name: 'CoxÃ£o Mole', category: 'Carnes', calories: 219, protein: 29, carbs: 0, fat: 8, fiber: 0, sodium: 58 },
   { name: 'Atum', category: 'Peixes', calories: 132, protein: 28, carbs: 0, fat: 1, fiber: 0, sodium: 37 },
   { name: 'Sardinha', category: 'Peixes', calories: 208, protein: 25, carbs: 0, fat: 11, fiber: 0, sodium: 307 },
-  { name: 'Camarão', category: 'Frutos do Mar', calories: 99, protein: 24, carbs: 0.2, fat: 0.3, fiber: 0, sodium: 111 },
+  { name: 'CamarÃ£o', category: 'Frutos do Mar', calories: 99, protein: 24, carbs: 0.2, fat: 0.3, fiber: 0, sodium: 111 },
   { name: 'Arroz Branco', category: 'Carboidratos', calories: 130, protein: 2.7, carbs: 28, fat: 0.3, fiber: 0.4, sodium: 1 },
   { name: 'Batata Doce', category: 'Carboidratos', calories: 86, protein: 1.6, carbs: 20, fat: 0.1, fiber: 3, sodium: 55 },
-  { name: 'Macarrão Cozido', category: 'Carboidratos', calories: 158, protein: 5.8, carbs: 31, fat: 0.9, fiber: 1.8, sodium: 1 },
-  { name: 'Pão Francês', category: 'Carboidratos', calories: 300, protein: 8, carbs: 58, fat: 3, fiber: 2, sodium: 648 },
+  { name: 'MacarrÃ£o Cozido', category: 'Carboidratos', calories: 158, protein: 5.8, carbs: 31, fat: 0.9, fiber: 1.8, sodium: 1 },
+  { name: 'PÃ£o FrancÃªs', category: 'Carboidratos', calories: 300, protein: 8, carbs: 58, fat: 3, fiber: 2, sodium: 648 },
   { name: 'Tapioca', category: 'Carboidratos', calories: 358, protein: 0.2, carbs: 88, fat: 0, fiber: 0.9, sodium: 1 },
   { name: 'Cuscuz', category: 'Carboidratos', calories: 112, protein: 3.8, carbs: 23, fat: 0.2, fiber: 1.7, sodium: 2 },
-  { name: 'Feijão Preto', category: 'Leguminosas', calories: 132, protein: 8.9, carbs: 24, fat: 0.5, fiber: 8.7, sodium: 1 },
-  { name: 'Feijão Carioca', category: 'Leguminosas', calories: 127, protein: 8.7, carbs: 22.8, fat: 0.5, fiber: 8.5, sodium: 2 },
+  { name: 'FeijÃ£o Preto', category: 'Leguminosas', calories: 132, protein: 8.9, carbs: 24, fat: 0.5, fiber: 8.7, sodium: 1 },
+  { name: 'FeijÃ£o Carioca', category: 'Leguminosas', calories: 127, protein: 8.7, carbs: 22.8, fat: 0.5, fiber: 8.5, sodium: 2 },
   { name: 'Lentilha', category: 'Leguminosas', calories: 116, protein: 9, carbs: 20, fat: 0.4, fiber: 8, sodium: 2 },
-  { name: 'Grão de Bico', category: 'Leguminosas', calories: 164, protein: 8.9, carbs: 27.4, fat: 2.6, fiber: 7.6, sodium: 7 },
+  { name: 'GrÃ£o de Bico', category: 'Leguminosas', calories: 164, protein: 8.9, carbs: 27.4, fat: 2.6, fiber: 7.6, sodium: 7 },
   { name: 'Banana', category: 'Frutas', calories: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6, sodium: 1 },
-  { name: 'Maçã', category: 'Frutas', calories: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4, sodium: 1 },
+  { name: 'MaÃ§Ã£', category: 'Frutas', calories: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4, sodium: 1 },
   { name: 'Morango', category: 'Frutas', calories: 32, protein: 0.7, carbs: 7.7, fat: 0.3, fiber: 2, sodium: 1 },
-  { name: 'Mamão', category: 'Frutas', calories: 43, protein: 0.5, carbs: 11, fat: 0.3, fiber: 1.7, sodium: 8 },
+  { name: 'MamÃ£o', category: 'Frutas', calories: 43, protein: 0.5, carbs: 11, fat: 0.3, fiber: 1.7, sodium: 8 },
   { name: 'Abacate', category: 'Frutas', calories: 160, protein: 2, carbs: 9, fat: 15, fiber: 7, sodium: 7 },
   { name: 'Cenoura', category: 'Vegetais', calories: 41, protein: 0.9, carbs: 10, fat: 0.2, fiber: 2.8, sodium: 69 },
   { name: 'Beterraba', category: 'Vegetais', calories: 43, protein: 1.6, carbs: 10, fat: 0.2, fiber: 2.8, sodium: 78 },
@@ -370,13 +370,13 @@ const foodDatabase = [
   { name: 'Creatina', category: 'Suplementos', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0 },
   { name: 'Maltodextrina', category: 'Suplementos', calories: 380, protein: 0, carbs: 95, fat: 0, fiber: 0, sodium: 10 },
   { name: 'Dextrose', category: 'Suplementos', calories: 400, protein: 0, carbs: 100, fat: 0, fiber: 0, sodium: 0 },
-  { name: 'Hipercalórico', category: 'Suplementos', calories: 390, protein: 25, carbs: 60, fat: 5, fiber: 2, sodium: 120 },
+  { name: 'HipercalÃ³rico', category: 'Suplementos', calories: 390, protein: 25, carbs: 60, fat: 5, fiber: 2, sodium: 120 },
 ]
 
 const expandedFoodDatabase = [
   ['Whey Protein Concentrado', 'Suplementos', 402, 80, 8, 6, 0, 180, ['whey', 'whey concentrado']],
   ['Whey Protein Isolado', 'Suplementos', 370, 90, 2, 1, 0, 160, ['whey isolado']],
-  ['Caseína', 'Suplementos', 365, 82, 8, 2, 0, 180, ['caseina']],
+  ['CaseÃ­na', 'Suplementos', 365, 82, 8, 2, 0, 180, ['caseina']],
   ['Aveia em Flocos', 'Carboidratos', 394, 13.9, 66.6, 8.5, 9.1, 5, ['aveia', 'flocos de aveia']],
   ['Granola Tradicional', 'Carboidratos', 471, 10, 64, 20, 7, 80, ['granola']],
   ['Arroz Integral Cozido', 'Carboidratos', 124, 2.6, 25.8, 1, 2.7, 1, ['arroz integral']],
@@ -385,27 +385,27 @@ const expandedFoodDatabase = [
   ['Mandioca Cozida', 'Carboidratos', 125, 0.6, 30.1, 0.3, 1.6, 1, ['mandioca', 'aipim', 'macaxeira']],
   ['Inhame Cozido', 'Carboidratos', 118, 1.5, 27.9, 0.2, 4.1, 9, ['inhame']],
   ['Quinoa Cozida', 'Carboidratos', 120, 4.4, 21.3, 1.9, 2.8, 7, ['quinoa']],
-  ['Pão Integral', 'Carboidratos', 247, 13, 41, 4.2, 7, 490, ['pao integral']],
-  ['Pão de Forma', 'Carboidratos', 265, 9, 49, 3.2, 2.7, 491, ['pao de forma']],
-  ['Pão de Queijo', 'Carboidratos', 363, 5.1, 34.2, 22.7, 0.6, 773, ['pao de queijo']],
+  ['PÃ£o Integral', 'Carboidratos', 247, 13, 41, 4.2, 7, 490, ['pao integral']],
+  ['PÃ£o de Forma', 'Carboidratos', 265, 9, 49, 3.2, 2.7, 491, ['pao de forma']],
+  ['PÃ£o de Queijo', 'Carboidratos', 363, 5.1, 34.2, 22.7, 0.6, 773, ['pao de queijo']],
   ['Cereal de Milho', 'Carboidratos', 357, 7.5, 84, 0.4, 3, 729, ['sucrilhos', 'cereal matinal']],
   ['Patinho Grelhado', 'Carnes', 219, 35.9, 0, 7.3, 0, 60, ['patinho', 'carne patinho']],
-  ['Acém Cozido', 'Carnes', 215, 26.7, 0, 11.9, 0, 58, ['acem']],
-  ['Músculo Cozido', 'Carnes', 194, 31.2, 0, 6.7, 0, 66, ['musculo bovino', 'musculo']],
-  ['Carne Moída Magra', 'Carnes', 212, 26, 0, 12, 0, 66, ['carne moida']],
-  ['Lombo Suíno Assado', 'Carnes', 210, 29, 0, 9, 0, 62, ['lombo suino', 'lombo de porco']],
+  ['AcÃ©m Cozido', 'Carnes', 215, 26.7, 0, 11.9, 0, 58, ['acem']],
+  ['MÃºsculo Cozido', 'Carnes', 194, 31.2, 0, 6.7, 0, 66, ['musculo bovino', 'musculo']],
+  ['Carne MoÃ­da Magra', 'Carnes', 212, 26, 0, 12, 0, 66, ['carne moida']],
+  ['Lombo SuÃ­no Assado', 'Carnes', 210, 29, 0, 9, 0, 62, ['lombo suino', 'lombo de porco']],
   ['Peito de Frango Desfiado', 'Carnes', 163, 31, 0, 3.5, 0, 73, ['frango desfiado', 'frango cozido']],
   ['Coxa de Frango sem Pele', 'Carnes', 209, 26, 0, 10.9, 0, 90, ['coxa de frango']],
-  ['Tilápia Grelhada', 'Peixes', 128, 26.2, 0, 2.7, 0, 56, ['tilapia', 'file de tilapia']],
-  ['Salmão Grelhado', 'Peixes', 206, 22.1, 0, 12.4, 0, 61, ['salmao']],
+  ['TilÃ¡pia Grelhada', 'Peixes', 128, 26.2, 0, 2.7, 0, 56, ['tilapia', 'file de tilapia']],
+  ['SalmÃ£o Grelhado', 'Peixes', 206, 22.1, 0, 12.4, 0, 61, ['salmao']],
   ['Merluza Cozida', 'Peixes', 121, 26, 0, 1.6, 0, 70, ['merluza']],
   ['Omelete Simples', 'Ovos', 154, 10.6, 0.7, 11.7, 0, 155, ['omelete']],
-  ['Iogurte Grego Natural', 'Laticínios', 97, 9, 3.9, 5, 0, 36, ['iogurte grego']],
-  ['Iogurte Proteico', 'Laticínios', 68, 10, 5, 0.8, 0, 55, ['iogurte protein']],
-  ['Queijo Minas Frescal', 'Laticínios', 264, 17.4, 3.2, 20.2, 0, 450, ['queijo minas']],
-  ['Ricota', 'Laticínios', 174, 11.3, 3, 13, 0, 84, []],
-  ['Requeijão Light', 'Laticínios', 180, 10, 6, 13, 0, 560, ['requeijao light']],
-  ['Feijão Branco Cozido', 'Leguminosas', 139, 9.7, 25.1, 0.4, 6.3, 5, ['feijao branco']],
+  ['Iogurte Grego Natural', 'LaticÃ­nios', 97, 9, 3.9, 5, 0, 36, ['iogurte grego']],
+  ['Iogurte Proteico', 'LaticÃ­nios', 68, 10, 5, 0.8, 0, 55, ['iogurte protein']],
+  ['Queijo Minas Frescal', 'LaticÃ­nios', 264, 17.4, 3.2, 20.2, 0, 450, ['queijo minas']],
+  ['Ricota', 'LaticÃ­nios', 174, 11.3, 3, 13, 0, 84, []],
+  ['RequeijÃ£o Light', 'LaticÃ­nios', 180, 10, 6, 13, 0, 560, ['requeijao light']],
+  ['FeijÃ£o Branco Cozido', 'Leguminosas', 139, 9.7, 25.1, 0.4, 6.3, 5, ['feijao branco']],
   ['Ervilha Cozida', 'Leguminosas', 84, 5.4, 15, 0.4, 5.5, 3, ['ervilha']],
   ['Soja Cozida', 'Leguminosas', 173, 16.6, 9.9, 9, 6, 1, ['soja']],
   ['Laranja', 'Frutas', 47, 0.9, 11.8, 0.1, 2.4, 0, []],
@@ -415,8 +415,8 @@ const expandedFoodDatabase = [
   ['Abacaxi', 'Frutas', 50, 0.5, 13.1, 0.1, 1.4, 1, []],
   ['Melancia', 'Frutas', 30, 0.6, 7.6, 0.2, 0.4, 1, []],
   ['Kiwi', 'Frutas', 61, 1.1, 14.7, 0.5, 3, 3, []],
-  ['Açaí sem Açúcar', 'Frutas', 70, 1, 6, 5, 2.6, 7, ['acai', 'polpa de acai']],
-  ['Brócolis Cozido', 'Vegetais', 35, 2.4, 7.2, 0.4, 3.3, 41, ['brocolis']],
+  ['AÃ§aÃ­ sem AÃ§Ãºcar', 'Frutas', 70, 1, 6, 5, 2.6, 7, ['acai', 'polpa de acai']],
+  ['BrÃ³colis Cozido', 'Vegetais', 35, 2.4, 7.2, 0.4, 3.3, 41, ['brocolis']],
   ['Couve Cozida', 'Vegetais', 36, 2.5, 7.3, 0.5, 2.6, 30, ['couve']],
   ['Espinafre Cozido', 'Vegetais', 23, 3, 3.8, 0.3, 2.4, 70, ['espinafre']],
   ['Alface', 'Vegetais', 15, 1.4, 2.9, 0.2, 1.3, 28, []],
@@ -424,14 +424,14 @@ const expandedFoodDatabase = [
   ['Couve-flor Cozida', 'Vegetais', 25, 1.9, 5, 0.3, 2, 30, ['couve flor']],
   ['Pasta de Amendoim Integral', 'Oleaginosas', 588, 25, 20, 50, 6, 17, ['pasta de amendoim']],
   ['Amendoim Torrado', 'Oleaginosas', 606, 22.5, 18.7, 54, 7.8, 6, ['amendoim']],
-  ['Amêndoas', 'Oleaginosas', 579, 21.2, 21.6, 49.9, 12.5, 1, ['amendoas']],
-  ['Castanha-do-Pará', 'Oleaginosas', 659, 14.3, 11.7, 67.1, 7.5, 3, ['castanha do para']],
+  ['AmÃªndoas', 'Oleaginosas', 579, 21.2, 21.6, 49.9, 12.5, 1, ['amendoas']],
+  ['Castanha-do-ParÃ¡', 'Oleaginosas', 659, 14.3, 11.7, 67.1, 7.5, 3, ['castanha do para']],
   ['Chia', 'Sementes', 486, 16.5, 42.1, 30.7, 34.4, 16, []],
-  ['Linhaça', 'Sementes', 534, 18.3, 28.9, 42.2, 27.3, 30, ['linhaca']],
-  ['Mel', 'Açúcares', 304, 0.3, 82.4, 0, 0.2, 4, []],
+  ['LinhaÃ§a', 'Sementes', 534, 18.3, 28.9, 42.2, 27.3, 30, ['linhaca']],
+  ['Mel', 'AÃ§Ãºcares', 304, 0.3, 82.4, 0, 0.2, 4, []],
   ['Chocolate 70% Cacau', 'Doces', 598, 7.8, 45.9, 42.6, 10.9, 20, ['chocolate 70', 'chocolate amargo']],
-  ['Café sem Açúcar', 'Bebidas', 2, 0.1, 0, 0, 0, 2, ['cafe preto', 'cafe sem acucar', 'cafe']],
-  ['Água de Coco', 'Bebidas', 19, 0.7, 3.7, 0.2, 1.1, 105, ['agua de coco']],
+  ['CafÃ© sem AÃ§Ãºcar', 'Bebidas', 2, 0.1, 0, 0, 0, 2, ['cafe preto', 'cafe sem acucar', 'cafe']],
+  ['Ãgua de Coco', 'Bebidas', 19, 0.7, 3.7, 0.2, 1.1, 105, ['agua de coco']],
   ['Suco de Laranja Natural', 'Bebidas', 45, 0.7, 10.4, 0.2, 0.2, 1, ['suco de laranja']],
 ].map(([name, category, calories, protein, carbs, fat, fiber, sodium, aliases]) => ({
   name, category, calories, protein, carbs, fat, fiber, sodium, aliases,
@@ -439,14 +439,14 @@ const expandedFoodDatabase = [
 
 foodDatabase.push(...expandedFoodDatabase)
 
-const foodCategories = [...new Set([...foodDatabase.map((food) => food.category), 'Preparações'])]
+const foodCategories = [...new Set([...foodDatabase.map((food) => food.category), 'PreparaÃ§Ãµes'])]
 
 const foodEstimateRules = [
   { keywords: ['whey', 'proteina em po', 'protein'], category: 'Suplementos', macros: { calories: 400, protein: 78, carbs: 8, fat: 6, fiber: 0, sodium: 180 } },
   { keywords: ['aveia'], category: 'Carboidratos', macros: { calories: 389, protein: 16.9, carbs: 66.3, fat: 6.9, fiber: 10.6, sodium: 2 } },
   { keywords: ['patinho'], category: 'Carnes', macros: { calories: 219, protein: 35.9, carbs: 0, fat: 7.3, fiber: 0, sodium: 60 } },
-  { keywords: ['tilapia', 'tilápia'], category: 'Peixes', macros: { calories: 96, protein: 20.1, carbs: 0, fat: 1.7, fiber: 0, sodium: 52 } },
-  { keywords: ['salmao', 'salmão'], category: 'Peixes', macros: { calories: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, sodium: 59 } },
+  { keywords: ['tilapia', 'tilÃ¡pia'], category: 'Peixes', macros: { calories: 96, protein: 20.1, carbs: 0, fat: 1.7, fiber: 0, sodium: 52 } },
+  { keywords: ['salmao', 'salmÃ£o'], category: 'Peixes', macros: { calories: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, sodium: 59 } },
   { keywords: ['mandioca', 'aipim', 'macaxeira'], category: 'Carboidratos', macros: { calories: 125, protein: 0.6, carbs: 30, fat: 0.3, fiber: 1.6, sodium: 1 } },
   { keywords: ['inhame'], category: 'Carboidratos', macros: { calories: 118, protein: 1.5, carbs: 28, fat: 0.2, fiber: 4.1, sodium: 9 } },
   { keywords: ['banana prata', 'banana nanica'], category: 'Frutas', macros: { calories: 89, protein: 1.1, carbs: 23, fat: 0.3, fiber: 2.6, sodium: 1 } },
@@ -455,11 +455,11 @@ const foodEstimateRules = [
   { keywords: ['omelete'], category: 'Ovos', macros: { calories: 154, protein: 10.6, carbs: 0.7, fat: 11.7, fiber: 0, sodium: 155 } },
   { keywords: ['hamburguer caseiro'], category: 'Carnes', macros: { calories: 250, protein: 26, carbs: 2, fat: 15, fiber: 0, sodium: 280 } },
   { keywords: ['frango empanado'], category: 'Carnes', macros: { calories: 260, protein: 25, carbs: 12, fat: 12, fiber: 0.8, sodium: 420 } },
-  { keywords: ['arroz com frango', 'galinhada'], category: 'Preparações', macros: { calories: 170, protein: 10, carbs: 22, fat: 4.5, fiber: 1.2, sodium: 210 } },
-  { keywords: ['feijoada'], category: 'Preparações', macros: { calories: 146, protein: 8.7, carbs: 11.6, fat: 7.1, fiber: 5.1, sodium: 340 } },
-  { keywords: ['lasanha'], category: 'Preparações', macros: { calories: 170, protein: 9, carbs: 16, fat: 8, fiber: 1.2, sodium: 400 } },
-  { keywords: ['pizza'], category: 'Preparações', macros: { calories: 266, protein: 11, carbs: 33, fat: 10, fiber: 2.3, sodium: 600 } },
-  { keywords: ['sanduiche natural'], category: 'Preparações', macros: { calories: 210, protein: 14, carbs: 25, fat: 6, fiber: 2.5, sodium: 390 } },
+  { keywords: ['arroz com frango', 'galinhada'], category: 'PreparaÃ§Ãµes', macros: { calories: 170, protein: 10, carbs: 22, fat: 4.5, fiber: 1.2, sodium: 210 } },
+  { keywords: ['feijoada'], category: 'PreparaÃ§Ãµes', macros: { calories: 146, protein: 8.7, carbs: 11.6, fat: 7.1, fiber: 5.1, sodium: 340 } },
+  { keywords: ['lasanha'], category: 'PreparaÃ§Ãµes', macros: { calories: 170, protein: 9, carbs: 16, fat: 8, fiber: 1.2, sodium: 400 } },
+  { keywords: ['pizza'], category: 'PreparaÃ§Ãµes', macros: { calories: 266, protein: 11, carbs: 33, fat: 10, fiber: 2.3, sodium: 600 } },
+  { keywords: ['sanduiche natural'], category: 'PreparaÃ§Ãµes', macros: { calories: 210, protein: 14, carbs: 25, fat: 6, fiber: 2.5, sodium: 390 } },
   { keywords: ['vitamina de banana'], category: 'Bebidas', macros: { calories: 105, protein: 3.2, carbs: 19, fat: 2.2, fiber: 1.2, sodium: 35 } },
 ]
 
@@ -544,10 +544,10 @@ function useStoredData() {
     }
   })
   const [remoteStatus, setRemoteStatus] = useState(
-    supabaseEnabled ? 'Conectando Supabase' : productionWithoutSupabase ? 'Configuração pendente' : 'Banco local',
+    supabaseEnabled ? 'Conectando Supabase' : productionWithoutSupabase ? 'ConfiguraÃ§Ã£o pendente' : 'Banco local',
   )
   const [remoteError, setRemoteError] = useState(
-    productionWithoutSupabase ? 'As variáveis do Supabase ainda não foram configuradas nesta publicação.' : '',
+    productionWithoutSupabase ? 'As variÃ¡veis do Supabase ainda nÃ£o foram configuradas nesta publicaÃ§Ã£o.' : '',
   )
 
   useEffect(() => {
@@ -561,7 +561,7 @@ function useStoredData() {
         setData((current) => ({ ...current, appAdminSettings: normalized }))
       })
       .catch(() => {
-        // O app continua usando as configurações padrão até o SQL do Admin Master ser aplicado.
+        // O app continua usando as configuraÃ§Ãµes padrÃ£o atÃ© o SQL do Admin Master ser aplicado.
       })
     return () => {
       active = false
@@ -580,7 +580,7 @@ function useStoredData() {
         saveLocalAdminSettings(normalized)
         setData((current) => ({ ...current, appAdminSettings: normalized }))
       } catch {
-        // Mantém a versão local se o celular estiver offline ou o Supabase ainda não responder.
+        // MantÃ©m a versÃ£o local se o celular estiver offline ou o Supabase ainda nÃ£o responder.
       }
     }
 
@@ -647,26 +647,26 @@ function useStoredData() {
                   session: nextSession,
                   user: current.user ?? nextSession.user,
                 }))
-                setRemoteStatus('Sessão renovada')
+                setRemoteStatus('SessÃ£o renovada')
                 setRemoteError('')
               })
               .catch(() => {
                 if (!active) return
                 setSupabaseSession('')
                 setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
-                setRemoteStatus('Sessão expirada')
-                setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+                setRemoteStatus('SessÃ£o expirada')
+                setRemoteError('Sua sessÃ£o expirou. Entre novamente para continuar.')
               })
             return
           }
 
           setSupabaseSession('')
           setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
-          setRemoteStatus('Sessão expirada')
-          setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+          setRemoteStatus('SessÃ£o expirada')
+          setRemoteError('Sua sessÃ£o expirou. Entre novamente para continuar.')
           return
         }
-        setRemoteStatus('Supabase indisponível')
+        setRemoteStatus('Supabase indisponÃ­vel')
         setRemoteError(message)
       })
 
@@ -680,7 +680,7 @@ function useStoredData() {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prepareDataForStorage(data)))
     } catch {
       setRemoteStatus('Armazenamento do navegador cheio')
-      setRemoteError('Alguns dados temporários não puderam ser mantidos neste navegador. Seus registros salvos no Supabase continuam seguros.')
+      setRemoteError('Alguns dados temporÃ¡rios nÃ£o puderam ser mantidos neste navegador. Seus registros salvos no Supabase continuam seguros.')
     }
   }, [data])
 
@@ -722,7 +722,7 @@ class AppErrorBoundary extends Component {
         createdAt: new Date().toISOString(),
       }))
     } catch {
-      // A tela de contingência continua funcionando mesmo se o navegador bloquear storage.
+      // A tela de contingÃªncia continua funcionando mesmo se o navegador bloquear storage.
     }
   }
 
@@ -737,7 +737,7 @@ class AppErrorBoundary extends Component {
           </div>
           <h1 className="mt-5 text-2xl font-black text-white">Algo saiu do lugar, mas seus dados continuam seguros.</h1>
           <p className="mt-3 text-sm leading-6 text-zinc-400">
-            O Coach Fit Pro registrou o erro localmente para diagnóstico. Atualize a página para tentar novamente.
+            O Coach Fit Pro registrou o erro localmente para diagnÃ³stico. Atualize a pÃ¡gina para tentar novamente.
           </p>
           <button
             type="button"
@@ -859,7 +859,7 @@ function AppContent() {
       : Date.now() + 45 * 60 * 1000
     const refreshDelay = Math.max(expiresAt - Date.now() - 60 * 1000, 30 * 1000)
     const timer = window.setTimeout(() => {
-      refreshStoredSession('Sessão renovada automaticamente')
+      refreshStoredSession('SessÃ£o renovada automaticamente')
     }, refreshDelay)
 
     return () => window.clearTimeout(timer)
@@ -878,7 +878,7 @@ function AppContent() {
     } catch (error) {
       const message = error?.message || ''
       if (/jwt expired|PGRST303/i.test(message) && data.session?.refresh_token) {
-        await refreshStoredSession('Sessão renovada')
+        await refreshStoredSession('SessÃ£o renovada')
         remoteData = await loadRemoteData()
       } else {
         if (!silent) handleRemoteError(error, 'Erro ao atualizar painel')
@@ -926,7 +926,7 @@ function AppContent() {
       setRemoteError('')
       if (goToOverviewOnActive) setActiveView('visao')
     } else if (!silent) {
-      setRemoteStatus('Aguardando confirmação do pagamento')
+      setRemoteStatus('Aguardando confirmaÃ§Ã£o do pagamento')
       setRemoteError('')
     }
 
@@ -969,7 +969,7 @@ function AppContent() {
     let attempts = 0
     setActiveView('assinatura')
     setRemoteStatus('Verificando pagamento')
-    setRemoteError('Recebemos seu retorno do checkout. O sistema está verificando a confirmação da compra automaticamente.')
+    setRemoteError('Recebemos seu retorno do checkout. O sistema estÃ¡ verificando a confirmaÃ§Ã£o da compra automaticamente.')
 
     async function verifyPaymentReturn() {
       if (stopped) return
@@ -984,8 +984,8 @@ function AppContent() {
         setRemoteError('')
       } else if (attempts >= 120) {
         stopped = true
-        setRemoteStatus('Aguardando confirmação do pagamento')
-        setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
+        setRemoteStatus('Aguardando confirmaÃ§Ã£o do pagamento')
+        setRemoteError('O checkout foi concluÃ­do, mas a confirmaÃ§Ã£o ainda nÃ£o chegou. Assim que a Cartpanda enviar o postback vÃ¡lido, o painel serÃ¡ liberado automaticamente.')
       }
     }
 
@@ -1052,7 +1052,7 @@ function AppContent() {
       } catch (error) {
         if (!active) return
         if (/jwt expired|PGRST303/i.test(error?.message || '')) {
-          handleRemoteError(error, 'Sessão expirada')
+          handleRemoteError(error, 'SessÃ£o expirada')
         }
       }
     }
@@ -1139,7 +1139,7 @@ function AppContent() {
     const user = { name, email, role: 'Coach principal' }
 
     if (productionWithoutSupabase) {
-      setRemoteStatus('Configuração pendente')
+      setRemoteStatus('ConfiguraÃ§Ã£o pendente')
       setRemoteError('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Cloudflare antes de liberar o acesso.')
       return false
     }
@@ -1147,15 +1147,15 @@ function AppContent() {
     if (mode === 'forgot') {
       if (!email) {
         setRemoteStatus('Informe o e-mail')
-        setRemoteError('Digite o e-mail cadastrado para receber o link de recuperação de senha.')
+        setRemoteError('Digite o e-mail cadastrado para receber o link de recuperaÃ§Ã£o de senha.')
         return false
       }
       try {
         await requestCoachPasswordReset(email)
-        setRemoteStatus('E-mail de recuperação enviado')
+        setRemoteStatus('E-mail de recuperaÃ§Ã£o enviado')
         setRemoteError('Abra o link recebido no e-mail para cadastrar uma nova senha.')
       } catch (error) {
-        setRemoteStatus('Erro na recuperação de senha')
+        setRemoteStatus('Erro na recuperaÃ§Ã£o de senha')
         setRemoteError(error.message)
       }
       return false
@@ -1253,7 +1253,7 @@ function AppContent() {
 
     const api = await import('./supabaseApi')
     if (typeof api.deleteRemoteCoachAccount !== 'function') {
-      throw new Error('A função de exclusão de conta ainda não foi publicada no arquivo de integração. Atualize o supabaseApi.js antes de usar esta ação.')
+      throw new Error('A funÃ§Ã£o de exclusÃ£o de conta ainda nÃ£o foi publicada no arquivo de integraÃ§Ã£o. Atualize o supabaseApi.js antes de usar esta aÃ§Ã£o.')
     }
 
     await api.deleteRemoteCoachAccount({
@@ -1266,9 +1266,9 @@ function AppContent() {
     setRemoteError('')
   }
 
-  async function refreshStoredSession(successStatus = 'Sessão renovada') {
+  async function refreshStoredSession(successStatus = 'SessÃ£o renovada') {
     if (!data.session?.refresh_token) {
-      throw new Error('Sessão expirada')
+      throw new Error('SessÃ£o expirada')
     }
 
     const nextSession = await refreshCoachSession(data.session.refresh_token)
@@ -1288,22 +1288,22 @@ function AppContent() {
 
     if (message.includes('JWT expired') || message.includes('PGRST303')) {
       if (data.session?.refresh_token) {
-        refreshStoredSession('Sessão renovada')
+        refreshStoredSession('SessÃ£o renovada')
           .then(() => {
-            setRemoteError('Sessão renovada. Tente a ação novamente.')
+            setRemoteError('SessÃ£o renovada. Tente a aÃ§Ã£o novamente.')
           })
           .catch(() => {
             setSupabaseSession('')
-            setRemoteStatus('Sessão expirada')
-            setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+            setRemoteStatus('SessÃ£o expirada')
+            setRemoteError('Sua sessÃ£o expirou. Entre novamente para continuar.')
             setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
           })
         return
       }
 
       setSupabaseSession('')
-      setRemoteStatus('Sessão expirada')
-      setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+      setRemoteStatus('SessÃ£o expirada')
+      setRemoteError('Sua sessÃ£o expirou. Entre novamente para continuar.')
       setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
       return
     }
@@ -1345,7 +1345,7 @@ function AppContent() {
           try {
             createdInvite = await createRemoteStudentInvite(savedStudent.id, data.user?.id)
           } catch (inviteError) {
-            setRemoteStatus('Aluno salvo, mas o código não foi gerado')
+            setRemoteStatus('Aluno salvo, mas o cÃ³digo nÃ£o foi gerado')
             setRemoteError(inviteError.message)
           }
         }
@@ -1378,13 +1378,13 @@ function AppContent() {
           ...(planChanged ? [{
             id: Date.now() + 2,
             title: 'Plano do aluno atualizado',
-            body: `${savedStudent.name} agora está no plano ${savedStudent.plan}. Próxima cobrança estimada: ${formatDate(nextBillingDate)}.`,
+            body: `${savedStudent.name} agora estÃ¡ no plano ${savedStudent.plan}. PrÃ³xima cobranÃ§a estimada: ${formatDate(nextBillingDate)}.`,
             read: false,
           }] : []),
           {
             id: Date.now() + 1,
             title: exists ? 'Aluno atualizado' : 'Aluno cadastrado',
-            body: createdInvite ? `${student.name} - código ${createdInvite.code}` : student.name,
+            body: createdInvite ? `${student.name} - cÃ³digo ${createdInvite.code}` : student.name,
             read: false,
           },
           ...current.notifications,
@@ -1405,11 +1405,11 @@ function AppContent() {
           ...(current.invites ?? []).filter((invite) => String(invite.studentId) !== String(studentId)),
         ],
       }))
-      setRemoteStatus('Código do aluno gerado')
+      setRemoteStatus('CÃ³digo do aluno gerado')
       setRemoteError('')
       return createdInvite
     } catch (error) {
-      handleRemoteError(error, 'Erro ao gerar código do aluno')
+      handleRemoteError(error, 'Erro ao gerar cÃ³digo do aluno')
       throw error
     }
   }
@@ -1418,7 +1418,7 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         await deleteRemoteStudent(studentId)
-        setRemoteStatus('Aluno excluído')
+        setRemoteStatus('Aluno excluÃ­do')
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao excluir aluno')
@@ -1441,7 +1441,7 @@ function AppContent() {
       invites: current.invites.filter((item) => !belongsToStudent(item)),
       anamneses: current.anamneses.filter((item) => !belongsToStudent(item)),
       notifications: [
-        { id: Date.now(), title: 'Aluno excluído', body: 'O perfil e os registros vinculados foram removidos.', read: false },
+        { id: Date.now(), title: 'Aluno excluÃ­do', body: 'O perfil e os registros vinculados foram removidos.', read: false },
         ...current.notifications,
       ],
     }))
@@ -1510,7 +1510,7 @@ function AppContent() {
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao atualizar notificações')
+        handleRemoteError(error, 'Erro ao atualizar notificaÃ§Ãµes')
         return false
       }
     }
@@ -1582,11 +1582,11 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         savedDecision = await saveRemoteWorkoutProgressionDecision(savedDecision, data.user?.id)
-        setRemoteStatus('Progressão registrada')
+        setRemoteStatus('ProgressÃ£o registrada')
         setRemoteError('')
       } catch (error) {
-        setRemoteStatus('Progressão salva localmente')
-        setRemoteError('Rode a migration de progressão para manter o histórico também no Supabase.')
+        setRemoteStatus('ProgressÃ£o salva localmente')
+        setRemoteError('Rode a migration de progressÃ£o para manter o histÃ³rico tambÃ©m no Supabase.')
       }
     }
 
@@ -1600,7 +1600,7 @@ function AppContent() {
 
   async function approveWorkoutProgression(recommendation, editedTarget = null) {
     const workout = data.workouts.find((item) => String(item.id) === String(recommendation.workoutId))
-    if (!workout) throw new Error('Treino original não encontrado.')
+    if (!workout) throw new Error('Treino original nÃ£o encontrado.')
     const nextTarget = editedTarget || recommendation.nextTarget
     const nextWorkout = buildWorkoutFromProgression(workout, recommendation, nextTarget)
     const savedWorkout = await saveWorkout(nextWorkout)
@@ -1640,7 +1640,7 @@ function AppContent() {
       && workout.active !== false
       && (workout.exercises || []).some((exercise) => normalizeText(exercise.name) === normalizeText(decision.exerciseName))
     ))
-    if (!activeWorkout) throw new Error('Treino ativo para desfazer não encontrado.')
+    if (!activeWorkout) throw new Error('Treino ativo para desfazer nÃ£o encontrado.')
     const recommendation = {
       workoutId: activeWorkout.id,
       studentId: decision.studentId,
@@ -1648,8 +1648,8 @@ function AppContent() {
       previousTarget: decision.nextTarget,
       nextTarget: decision.previousTarget,
       action: 'undo',
-      suggestion: 'desfazer progressão',
-      reason: 'Reversão manual solicitada pelo treinador.',
+      suggestion: 'desfazer progressÃ£o',
+      reason: 'ReversÃ£o manual solicitada pelo treinador.',
       confidence: 'manual',
     }
     const revertedWorkout = buildWorkoutFromProgression(activeWorkout, recommendation, decision.previousTarget)
@@ -1660,8 +1660,8 @@ function AppContent() {
       workoutId: activeWorkout.id,
       exerciseName: decision.exerciseName,
       action: 'undo',
-      suggestion: 'desfazer alteração',
-      reason: 'Treinador desfez a decisão anterior.',
+      suggestion: 'desfazer alteraÃ§Ã£o',
+      reason: 'Treinador desfez a decisÃ£o anterior.',
       confidence: 'manual',
       status: 'undone',
       previousTarget: decision.nextTarget,
@@ -1724,7 +1724,7 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         savedLog = await saveRemoteWorkoutLog(log)
-        setRemoteStatus('Treino concluído')
+        setRemoteStatus('Treino concluÃ­do')
         setRemoteError('')
       } catch (error) {
         const offlineLike = !navigator.onLine || /network|fetch|internet|failed to fetch|conectar/i.test(error?.message || '')
@@ -1738,7 +1738,7 @@ function AppContent() {
           syncStatus: 'pending',
         }
         setRemoteStatus('Treino salvo offline')
-        setRemoteError('Quando a internet voltar, confira a conexão antes de registrar o próximo treino.')
+        setRemoteError('Quando a internet voltar, confira a conexÃ£o antes de registrar o prÃ³ximo treino.')
       }
     }
 
@@ -1818,10 +1818,10 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         savedInvoice = await saveRemoteInvoice(invoice, data.user?.id)
-        setRemoteStatus('Cobrança criada')
+        setRemoteStatus('CobranÃ§a criada')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao criar cobrança')
+        handleRemoteError(error, 'Erro ao criar cobranÃ§a')
         throw error
       }
     }
@@ -1830,7 +1830,7 @@ function AppContent() {
       ...current,
       invoices: [savedInvoice, ...(current.invoices ?? [])],
       notifications: [
-        { id: Date.now() + 1, title: 'Nova cobrança', body: `${savedInvoice.planName} - ${formatCurrency(savedInvoice.amount)}`, read: false },
+        { id: Date.now() + 1, title: 'Nova cobranÃ§a', body: `${savedInvoice.planName} - ${formatCurrency(savedInvoice.amount)}`, read: false },
         ...current.notifications,
       ],
     }))
@@ -1849,10 +1849,10 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         savedAssessment = await saveRemoteAssessment(assessment, data.user?.id)
-        setRemoteStatus('Avaliação salva')
+        setRemoteStatus('AvaliaÃ§Ã£o salva')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao salvar avaliação')
+        handleRemoteError(error, 'Erro ao salvar avaliaÃ§Ã£o')
         throw error
       }
     }
@@ -1870,7 +1870,7 @@ function AppContent() {
           : student
       )),
       notifications: [
-        { id: Date.now() + 1, title: 'Avaliação registrada', body: `Peso ${formatNumber(savedAssessment.weightKg)} kg`, read: false },
+        { id: Date.now() + 1, title: 'AvaliaÃ§Ã£o registrada', body: `Peso ${formatNumber(savedAssessment.weightKg)} kg`, read: false },
         ...current.notifications,
       ],
     }))
@@ -1959,10 +1959,10 @@ function AppContent() {
             paymentSyncError = error
           }
         }
-        setRemoteStatus('Cobrança atualizada')
+        setRemoteStatus('CobranÃ§a atualizada')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao atualizar cobrança')
+        handleRemoteError(error, 'Erro ao atualizar cobranÃ§a')
         return false
       }
     }
@@ -1989,7 +1989,7 @@ function AppContent() {
       }
     })
     if (paymentSyncError) {
-      handleRemoteError(paymentSyncError, 'Cobrança paga, mas o status do aluno não foi sincronizado')
+      handleRemoteError(paymentSyncError, 'CobranÃ§a paga, mas o status do aluno nÃ£o foi sincronizado')
       return 'partial'
     }
     return true
@@ -2001,7 +2001,7 @@ function AppContent() {
       ...message,
       id: Date.now(),
       coachId: message.coachId ?? data.user?.id,
-      body: message.body?.trim() || (localAttachmentUrl ? (message.attachmentFile?.type?.startsWith('audio/') || message.attachmentType?.startsWith('audio/') ? 'Áudio enviado' : 'Foto enviada') : ''),
+      body: message.body?.trim() || (localAttachmentUrl ? (message.attachmentFile?.type?.startsWith('audio/') || message.attachmentType?.startsWith('audio/') ? 'Ãudio enviado' : 'Foto enviada') : ''),
       read: message.sender === 'coach',
       attachmentUrl: localAttachmentUrl,
       attachmentType: message.attachmentFile?.type || message.attachmentType || '',
@@ -2076,7 +2076,7 @@ function AppContent() {
       return latestMessages
     } catch (error) {
       if (/jwt expired|PGRST303/i.test(error?.message || '')) {
-        handleRemoteError(error, 'Sessão expirada')
+        handleRemoteError(error, 'SessÃ£o expirada')
       }
       return []
     }
@@ -2244,7 +2244,7 @@ function AppContent() {
 
   const activeNavItem = visibleNavItems.find((item) => item.id === activeView) ?? visibleNavItems[0]
   const activeNavTone = getNavToneClasses(activeNavItem?.tone)
-  const viewTitle = activeNavItem?.label ?? 'Visão geral'
+  const viewTitle = activeNavItem?.label ?? 'VisÃ£o geral'
 
   return (
     <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
@@ -2257,7 +2257,7 @@ function AppContent() {
           className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-[0px] text-white"
         >
           <NavIcon name="menu" className="h-5 w-5" />
-          â˜°
+          Ã¢ËœÂ°
         </button>
       </div>
 
@@ -2284,12 +2284,12 @@ function AppContent() {
               className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-[0px] text-zinc-300 lg:hidden"
             >
               <NavIcon name="close" className="h-5 w-5" />
-              ×
+              Ã—
             </button>
           </div>
 
           <div className="mb-2 mt-2 flex items-center justify-between px-1">
-            <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
+            <p className="text-[11px] font-black uppercase text-zinc-500">NavegaÃ§Ã£o</p>
             <span className="hidden text-[10px] font-bold text-zinc-600 lg:inline">role para ver tudo</span>
           </div>
           <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 content-start gap-1.5 overflow-y-auto pr-1">
@@ -2351,7 +2351,7 @@ function AppContent() {
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-                Gerencie alunos, prescrições, evolução, agenda, comunicação e financeiro em um único lugar.
+                Gerencie alunos, prescriÃ§Ãµes, evoluÃ§Ã£o, agenda, comunicaÃ§Ã£o e financeiro em um Ãºnico lugar.
               </p>
             </div>
 
@@ -2371,7 +2371,7 @@ function AppContent() {
                 onClick={() => setActiveView('assinatura')}
                 className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
               >
-                <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
+                <span className="block text-[10px] font-black uppercase text-emerald-300">PrÃ³xima cobranÃ§a</span>
                 <span className="mt-0.5 block">{coachBillingCycle.daysRemaining} {coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
               </button>
             </div>
@@ -2381,16 +2381,16 @@ function AppContent() {
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.
+                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmaÃ§Ã£o e libera o painel assim que a Cartpanda aprovar.
               </p>
             </div>
           ) : null}
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Alunos ativos" value={data.students.length} detail={`${paidStudents} com plano pago`} />
-            <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
+            <Metric label="ConstÃ¢ncia mÃ©dia" value={`${averageAdherence}%`} detail="treino + dieta" />
             <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
-            <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
+            <Metric label="NotificaÃ§Ãµes" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
           </section>
 
           <div className="mt-5 xl:mt-6">
@@ -2564,8 +2564,8 @@ function AppLoading() {
         <div className="mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
           <span className="block h-full w-1/2 animate-pulse rounded bg-emerald-400" />
         </div>
-        <p className="mt-4 text-sm font-bold text-emerald-100">Carregando sua operação...</p>
-        <p className="mt-2 text-xs leading-5 text-zinc-500">Sincronizando alunos, prescrições e agenda.</p>
+        <p className="mt-4 text-sm font-bold text-emerald-100">Carregando sua operaÃ§Ã£o...</p>
+        <p className="mt-2 text-xs leading-5 text-zinc-500">Sincronizando alunos, prescriÃ§Ãµes e agenda.</p>
       </section>
     </main>
   )
@@ -2594,7 +2594,7 @@ function PasswordRecovery({ onSave }) {
       return
     }
     if (password !== confirmation) {
-      setError('As senhas informadas não são iguais.')
+      setError('As senhas informadas nÃ£o sÃ£o iguais.')
       return
     }
 
@@ -2603,7 +2603,7 @@ function PasswordRecovery({ onSave }) {
     try {
       await onSave(password)
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível atualizar a senha.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel atualizar a senha.')
     } finally {
       setSaving(false)
     }
@@ -2615,9 +2615,9 @@ function PasswordRecovery({ onSave }) {
         <div className="flex justify-center">
           <BrandLockup subtitle="Coach Fit Pro" />
         </div>
-        <p className="mt-6 text-xs font-black uppercase text-emerald-300">Recuperação de acesso</p>
+        <p className="mt-6 text-xs font-black uppercase text-emerald-300">RecuperaÃ§Ã£o de acesso</p>
         <h1 className="mt-2 text-2xl font-black">Cadastre sua nova senha</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Use pelo menos 6 caracteres e evite senhas utilizadas em outros serviços.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Use pelo menos 6 caracteres e evite senhas utilizadas em outros serviÃ§os.</p>
         <div className="mt-5 grid gap-4">
           <Field label="Nova senha" name="password" type="password" defaultValue="" />
           <Field label="Confirmar nova senha" name="confirmation" type="password" defaultValue="" />
@@ -2638,6 +2638,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
+  const [salesMenuOpen, setSalesMenuOpen] = useState(false)
   const [journeyStepIndex, setJourneyStepIndex] = useState(0)
   const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
   const [legalModal, setLegalModal] = useState('')
@@ -2661,69 +2662,81 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     {
       label: 'Treino enviado',
       icon: 'dumbbell',
-      title: 'Prescrição clara e organizada.',
-      description: 'O aluno recebe exercícios, séries, repetições, cargas, descanso e orientações em um único lugar.',
+      title: 'PrescriÃ§Ã£o clara e organizada.',
+      description: 'O aluno recebe exercÃ­cios, sÃ©ries, repetiÃ§Ãµes, cargas, descanso e orientaÃ§Ãµes em um Ãºnico lugar.',
       event: 'Treino enviado',
       status: 'Novo plano ativo',
-      panelTitle: 'Treino C · Pernas',
-      panelMeta: '7 exercícios · foco em quadríceps e posterior',
-      items: ['Agachamento livre · 4x10 · 80 kg', 'Leg press · 4x12 · 160 kg', 'Cadeira extensora · 3x12 · 45 kg'],
-      insight: 'Orientações, descanso e cargas ficam no mesmo fluxo do aluno.',
+      panelTitle: 'Treino C Â· Pernas',
+      panelMeta: '7 exercÃ­cios Â· foco em quadrÃ­ceps e posterior',
+      items: ['Agachamento livre Â· 4x10 Â· 80 kg', 'Leg press Â· 4x12 Â· 160 kg', 'Cadeira extensora Â· 3x12 Â· 45 kg'],
+      insight: 'OrientaÃ§Ãµes, descanso e cargas ficam no mesmo fluxo do aluno.',
     },
     {
-      label: 'Execução registrada',
+      label: 'ExecuÃ§Ã£o registrada',
       icon: 'activity',
-      title: 'Cada treino gera informação.',
-      description: 'O aluno registra sua execução e o treinador acompanha cargas, repetições e desempenho.',
+      title: 'Cada treino gera informaÃ§Ã£o.',
+      description: 'O aluno registra sua execuÃ§Ã£o e o treinador acompanha cargas, repetiÃ§Ãµes e desempenho.',
       event: 'Carga atualizada',
       status: 'Registro recebido',
-      panelTitle: 'Execução do treino',
-      panelMeta: 'Séries concluídas, carga e percepção de esforço',
-      items: ['Agachamento · 80 kg · 10/10/9/8 reps', 'RPE médio 8 · descanso 90s', 'Observação: manter carga no próximo treino'],
-      insight: 'Histórico de carga ajuda o treinador a decidir progressões com mais segurança.',
+      panelTitle: 'ExecuÃ§Ã£o do treino',
+      panelMeta: 'SÃ©ries concluÃ­das, carga e percepÃ§Ã£o de esforÃ§o',
+      items: ['Agachamento Â· 80 kg Â· 10/10/9/8 reps', 'RPE mÃ©dio 8 Â· descanso 90s', 'ObservaÃ§Ã£o: manter carga no prÃ³ximo treino'],
+      insight: 'HistÃ³rico de carga ajuda o treinador a decidir progressÃµes com mais seguranÃ§a.',
     },
     {
       label: 'Check-in recebido',
       icon: 'check',
-      title: 'Evolução sem depender de mensagens espalhadas.',
-      description: 'Fotos, medidas, respostas e observações ficam organizadas no histórico do aluno.',
+      title: 'EvoluÃ§Ã£o sem depender de mensagens espalhadas.',
+      description: 'Fotos, medidas, respostas e observaÃ§Ãµes ficam organizadas no histÃ³rico do aluno.',
       event: 'Check-in recebido',
       status: 'Feedback semanal',
       panelTitle: 'Check-in semanal',
-      panelMeta: 'Sono, rotina, dores, medidas e observações',
-      items: ['Sono: 7h · energia boa', 'Fadiga: moderada · dor: baixa', 'Fotos e medidas anexadas ao histórico'],
-      insight: 'O treinador enxerga contexto antes de ajustar treino ou alimentação.',
+      panelMeta: 'Sono, rotina, dores, medidas e observaÃ§Ãµes',
+      items: ['Sono: 7h Â· energia boa', 'Fadiga: moderada Â· dor: baixa', 'Fotos e medidas anexadas ao histÃ³rico'],
+      insight: 'O treinador enxerga contexto antes de ajustar treino ou alimentaÃ§Ã£o.',
     },
     {
       label: 'Ajuste realizado',
       icon: 'settings',
-      title: 'Decisões mais rápidas e personalizadas.',
-      description: 'Com todas as informações centralizadas, o treinador ajusta treino e acompanhamento com mais segurança.',
+      title: 'DecisÃµes mais rÃ¡pidas e personalizadas.',
+      description: 'Com todas as informaÃ§Ãµes centralizadas, o treinador ajusta treino e acompanhamento com mais seguranÃ§a.',
       event: 'Feedback enviado',
       status: 'Ajuste publicado',
-      panelTitle: 'Atualização do plano',
+      panelTitle: 'AtualizaÃ§Ã£o do plano',
       panelMeta: 'Nova meta definida pelo treinador',
-      items: ['Aumentar repetições no leg press', 'Manter carga no agachamento', 'Adicionar observação técnica no treino'],
-      insight: 'O aluno recebe a atualização sem perder o histórico do que já foi feito.',
+      items: ['Aumentar repetiÃ§Ãµes no leg press', 'Manter carga no agachamento', 'Adicionar observaÃ§Ã£o tÃ©cnica no treino'],
+      insight: 'O aluno recebe a atualizaÃ§Ã£o sem perder o histÃ³rico do que jÃ¡ foi feito.',
     },
     {
-      label: 'Evolução acompanhada',
+      label: 'EvoluÃ§Ã£o acompanhada',
       icon: 'chart',
       title: 'Valor que o aluno consegue perceber.',
-      description: 'O histórico transforma pequenas evoluções em uma experiência profissional e aumenta a percepção de acompanhamento.',
-      event: 'Evolução acompanhada',
-      status: 'Progresso visível',
-      panelTitle: 'Linha de evolução',
+      description: 'O histÃ³rico transforma pequenas evoluÃ§Ãµes em uma experiÃªncia profissional e aumenta a percepÃ§Ã£o de acompanhamento.',
+      event: 'EvoluÃ§Ã£o acompanhada',
+      status: 'Progresso visÃ­vel',
+      panelTitle: 'Linha de evoluÃ§Ã£o',
       panelMeta: 'Treino, check-in, carga e feedback conectados',
-      items: ['Frequência: 4 treinos na semana', 'Carga total em alta no ciclo', 'Feedback mensal pronto para revisão'],
-      insight: 'A entrega fica visível, organizada e fácil de justificar na renovação.',
+      items: ['FrequÃªncia: 4 treinos na semana', 'Carga total em alta no ciclo', 'Feedback mensal pronto para revisÃ£o'],
+      insight: 'A entrega fica visÃ­vel, organizada e fÃ¡cil de justificar na renovaÃ§Ã£o.',
     },
   ]
   const activeJourneyStep = studentJourneySteps[journeyStepIndex] || studentJourneySteps[0]
+  const salesHeaderNavItems = [
+    ['SoluÃ§Ã£o', 'recursos'],
+    ['Aplicativo', 'app-aluno'],
+    ['Resultados', 'simulador'],
+    ['Planos', 'precos'],
+    ['DÃºvidas', 'duvidas'],
+  ]
 
   function selectJourneyStep(index) {
     setJourneyUserInteracted(true)
     setJourneyStepIndex(index)
+  }
+
+  function scrollToSalesTarget(target, block = 'start') {
+    setSalesMenuOpen(false)
+    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block })
   }
 
   useEffect(() => {
@@ -2830,6 +2843,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [])
 
   function openAccess(nextMode) {
+    setSalesMenuOpen(false)
     if (!isLoginRoute) {
       window.location.href = `/login?mode=${nextMode}`
       return
@@ -2884,33 +2898,68 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} style={buildAdminThemeStyle(salesSettings)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
-          <BrandLockup compact subtitle="Coach Fit Pro" />
-          <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
-            {[
-              ['Solução', 'recursos'],
-              ['Aplicativo', 'app-aluno'],
-              ['Resultados', 'simulador'],
-              ['Planos', 'precos'],
-              ['Dúvidas', 'duvidas'],
-            ].map(([label, target]) => (
+        <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
+          <button
+            type="button"
+            onClick={() => scrollToSalesTarget('sales-page')}
+            className="sales-header-logo-link"
+            aria-label="Ir para o inicio da pagina Coach Fit Pro"
+          >
+            <BrandLockup compact subtitle="Coach Fit Pro" />
+          </button>
+
+          <nav className="sales-header-nav hidden items-center justify-center gap-1 text-sm font-black text-zinc-300 lg:flex" aria-label="Navegacao principal">
+            {salesHeaderNavItems.map(([label, target]) => (
               <button
                 key={target}
                 type="button"
-                onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onClick={() => scrollToSalesTarget(target)}
                 className="rounded-xl px-4 py-3 transition hover:bg-white/[0.08] hover:text-white"
               >
                 {label}
               </button>
             ))}
           </nav>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
+
+          <div className="sales-header-actions flex items-center justify-end gap-2">
+            <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white lg:inline-flex">
               Entrar
             </button>
-            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
+            <button type="button" onClick={() => scrollToSalesTarget('precos')} className="hidden rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 lg:inline-flex">
               Começar por R$ 9,90
             </button>
+            <button
+              type="button"
+              className="sales-mobile-menu-button inline-flex items-center justify-center rounded-xl border border-emerald-300/20 bg-white/[0.045] p-3 text-emerald-50 transition hover:border-emerald-300/45 hover:bg-emerald-300/10 lg:hidden"
+              onClick={() => setSalesMenuOpen((current) => !current)}
+              aria-label={salesMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={salesMenuOpen}
+              aria-controls="sales-mobile-menu"
+            >
+              <NavIcon name={salesMenuOpen ? 'close' : 'menu'} className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <div id="sales-mobile-menu" className={`sales-mobile-menu lg:hidden ${salesMenuOpen ? 'is-open' : ''}`}>
+          <div className="mx-auto grid max-w-[1280px] gap-2 px-4 pb-4 sm:px-6">
+            {salesHeaderNavItems.map(([label, target]) => (
+              <button
+                key={target}
+                type="button"
+                onClick={() => scrollToSalesTarget(target)}
+                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10"
+              >
+                {label}
+              </button>
+            ))}
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => openAccess('signin')} className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-white/[0.07]">
+                Entrar
+              </button>
+              <button type="button" onClick={() => scrollToSalesTarget('precos')} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:bg-emerald-300">
+                Começar por R$ 9,90
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -2926,7 +2975,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof mt-4 max-w-xl text-base font-medium leading-7 text-zinc-300 sm:text-lg">
               <span>{activeHeroHeadline.proof}</span>
               <span className="hidden">
-              Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
+              Gerencie alunos, treinos, dieta e cobranÃ§a recorrente em uma plataforma com cara de app. Menos caos. Mais retenÃ§Ã£o. Mais valor percebido.
                 </span>
             </p>
             <div data-reveal className="sales-hero-device-mobile mt-5 lg:hidden">
@@ -2941,22 +2990,22 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </button>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-300">
-              <span className="text-emerald-300">✓</span>
-              <span>Mais alunos com organização</span>
+              <span className="text-emerald-300">âœ“</span>
+              <span>Mais alunos com organizaÃ§Ã£o</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
               <span>Treinos completos em poucos minutos</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
-              <span>Experiência profissional para o aluno</span>
+              <span>ExperiÃªncia profissional para o aluno</span>
             </div>
             <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-50">
               <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(0,210,178,0.8)]" />
-              + organização, + percepção de valor, + rotina profissional
+              + organizaÃ§Ã£o, + percepÃ§Ã£o de valor, + rotina profissional
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
               {[
-                ['Treino', 'execução guiada e histórico'],
-                ['Nutrição', 'macros e substituições'],
-                ['Financeiro', 'cobranças e status'],
+                ['Treino', 'execuÃ§Ã£o guiada e histÃ³rico'],
+                ['NutriÃ§Ã£o', 'macros e substituiÃ§Ãµes'],
+                ['Financeiro', 'cobranÃ§as e status'],
               ].map(([title, text], index) => (
                 <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                   <span className="text-xs font-black text-emerald-200">0{index + 1}</span>
@@ -2975,10 +3024,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
           <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/25 backdrop-blur sm:grid-cols-4 sm:p-5">
             {[
-              ['★★★★★', 'Avaliação visual premium', 'experiência que aumenta percepção de valor'],
-              ['Um painel', 'para centralizar toda a operação', 'menos WhatsApp, menos planilha, menos improviso'],
-              ['Aplicativo do aluno', 'toda a rotina no celular', 'treino, dieta, fatura e chat em um só lugar'],
-              ['Sem taxa', 'por aluno cadastrado', 'cresça a carteira com previsibilidade'],
+              ['â˜…â˜…â˜…â˜…â˜…', 'AvaliaÃ§Ã£o visual premium', 'experiÃªncia que aumenta percepÃ§Ã£o de valor'],
+              ['Um painel', 'para centralizar toda a operaÃ§Ã£o', 'menos WhatsApp, menos planilha, menos improviso'],
+              ['Aplicativo do aluno', 'toda a rotina no celular', 'treino, dieta, fatura e chat em um sÃ³ lugar'],
+              ['Sem taxa', 'por aluno cadastrado', 'cresÃ§a a carteira com previsibilidade'],
             ].map(([value, title, text]) => (
               <div key={title} data-reveal className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
                 <p className="text-xl font-black text-emerald-100">{value}</p>
@@ -2993,21 +3042,21 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="acesso" className="mx-auto grid min-h-[calc(100vh-88px)] max-w-4xl place-items-center px-4 py-10 sm:px-6">
           <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
             <p className="text-xs font-black uppercase text-emerald-300">Acesso seguro</p>
-            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar por R$ 9,90' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
+            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'ComeÃ§ar por R$ 9,90' : mode === 'student' ? 'Ãrea do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               {mode === 'forgot'
                 ? 'Enviaremos um link seguro para o e-mail cadastrado.'
-                : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'}
+                : 'Coach acessa com e-mail e senha. Aluno utiliza o cÃ³digo enviado pelo treinador.'}
             </p>
             {remoteError ? (
               <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-3">
-                <p className="text-xs font-black uppercase text-amber-200">Atenção</p>
+                <p className="text-xs font-black uppercase text-amber-200">AtenÃ§Ã£o</p>
                 <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
               </div>
             ) : null}
             {mode === 'forgot' ? (
               <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                <p className="text-sm font-black text-emerald-100">Recuperação automática</p>
+                <p className="text-sm font-black text-emerald-100">RecuperaÃ§Ã£o automÃ¡tica</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-300">
                   Enviaremos um link seguro para o e-mail cadastrado. Ao abrir o link, o treinador cria uma nova senha e volta ao painel normalmente.
                 </p>
@@ -3032,7 +3081,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="mt-6 space-y-4">
               <input type="hidden" name="mode" value={mode} />
               {mode === 'student' ? (
-                <Field label="Código de acesso" name="inviteCode" defaultValue="" />
+                <Field label="CÃ³digo de acesso" name="inviteCode" defaultValue="" />
               ) : mode === 'forgot' ? (
                 <Field label="E-mail cadastrado" name="email" type="email" defaultValue="" />
               ) : (
@@ -3044,7 +3093,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               )}
             </div>
             <button disabled={loading} className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
+              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link de recuperaÃ§Ã£o' : 'Entrar'}
             </button>
             {mode === 'signin' ? (
               <button type="button" onClick={() => setMode('forgot')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-emerald-200">
@@ -3063,7 +3112,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             ) : null}
             {mode === 'signup' ? (
               <p className="mt-4 text-xs leading-5 text-zinc-500">
-                Se a confirmação por e-mail estiver ativa, confirme sua conta antes do primeiro acesso.
+                Se a confirmaÃ§Ã£o por e-mail estiver ativa, confirme sua conta antes do primeiro acesso.
               </p>
             ) : null}
           </form>
@@ -3073,20 +3122,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section border-y border-white/10 bg-[#030712]/82 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto grid max-w-6xl gap-5 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">O problema não é falta de esforço.</p>
+              <p className="text-sm font-black uppercase text-emerald-200">O problema nÃ£o Ã© falta de esforÃ§o.</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                É vender consultoria premium usando uma operação improvisada.
+                Ã‰ vender consultoria premium usando uma operaÃ§Ã£o improvisada.
               </h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-zinc-400">
-                O aluno esquece carga, perde mensagem, não vê evolução e o treinador fica preso em cobrança manual, prints e processos espalhados.
+                O aluno esquece carga, perde mensagem, nÃ£o vÃª evoluÃ§Ã£o e o treinador fica preso em cobranÃ§a manual, prints e processos espalhados.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                ['Sem histórico de carga', 'o aluno treina, mas não enxerga progressão real'],
-                ['Cobrança espalhada', 'vencimentos e comprovantes ficam soltos no WhatsApp'],
-                ['Evolução invisível', 'foto, medida e feedback não viram argumento de retenção'],
-                ['Rotina sem clareza', 'o aluno não sabe exatamente o que fazer no dia'],
+                ['Sem histÃ³rico de carga', 'o aluno treina, mas nÃ£o enxerga progressÃ£o real'],
+                ['CobranÃ§a espalhada', 'vencimentos e comprovantes ficam soltos no WhatsApp'],
+                ['EvoluÃ§Ã£o invisÃ­vel', 'foto, medida e feedback nÃ£o viram argumento de retenÃ§Ã£o'],
+                ['Rotina sem clareza', 'o aluno nÃ£o sabe exatamente o que fazer no dia'],
               ].map(([title, text]) => (
                 <div key={title} data-reveal className="sales-feature-card rounded-2xl border border-white/10 bg-white/[0.035] p-5">
                   <span className="grid h-9 w-9 place-items-center rounded-xl border border-amber-300/25 bg-amber-400/10 text-sm font-black text-amber-100">!</span>
@@ -3104,10 +3153,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <p className="text-sm font-black uppercase text-emerald-300">ACOMPANHAMENTO CONECTADO</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">Um painel. Toda a jornada do aluno.</h2>
               <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-zinc-300 sm:text-lg">
-                Do treino ao feedback, cada etapa fica conectada. O aluno sabe o que fazer e você sabe exatamente o que acompanhar e ajustar.
+                Do treino ao feedback, cada etapa fica conectada. O aluno sabe o que fazer e vocÃª sabe exatamente o que acompanhar e ajustar.
               </p>
               <p className="mt-5 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-50">
-                O aluno recebe clareza. O treinador mantém o controle.
+                O aluno recebe clareza. O treinador mantÃ©m o controle.
               </p>
             </div>
 
@@ -3160,7 +3209,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                 </div>
 
-                <div className="sales-journey-product-panel" aria-label={`Prévia do Coach Fit Pro: ${activeJourneyStep.label}`}>
+                <div className="sales-journey-product-panel" aria-label={`PrÃ©via do Coach Fit Pro: ${activeJourneyStep.label}`}>
                   <div className="sales-journey-panel-bar">
                     <span className="flex items-center gap-2 text-xs font-black uppercase text-emerald-100">
                       <NavIcon name={activeJourneyStep.icon} className="h-4 w-4" />
@@ -3185,13 +3234,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       </div>
                     </div>
                     <div className="sales-journey-board-side">
-                      <p className="text-xs font-black uppercase text-zinc-400">Próxima ação</p>
+                      <p className="text-xs font-black uppercase text-zinc-400">PrÃ³xima aÃ§Ã£o</p>
                       <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
                         <p className="text-lg font-black text-white">{activeJourneyStep.event}</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-300">A etapa fica registrada no histórico do aluno e aparece para o treinador acompanhar.</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">A etapa fica registrada no histÃ³rico do aluno e aparece para o treinador acompanhar.</p>
                       </div>
                       <div className="mt-4 grid gap-2">
-                        {['Histórico vinculado', 'Ação rastreável', 'Aluno orientado'].map((item) => (
+                        {['HistÃ³rico vinculado', 'AÃ§Ã£o rastreÃ¡vel', 'Aluno orientado'].map((item) => (
                           <span key={item} className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-xs font-black text-emerald-50">
                             {item}
                           </span>
@@ -3203,7 +3252,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </div>
 
               <div className="sales-journey-events" aria-hidden="true">
-                {['Treino concluído', 'Check-in recebido', 'Carga atualizada', 'Feedback enviado'].map((event, index) => (
+                {['Treino concluÃ­do', 'Check-in recebido', 'Carga atualizada', 'Feedback enviado'].map((event, index) => (
                   <span key={event} className={`sales-journey-event event-${index + 1}`}>
                     <span className="h-2 w-2 rounded-full bg-emerald-300" />
                     {event}
@@ -3214,9 +3263,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
             <div data-reveal className="grid gap-3 md:grid-cols-3">
               {[
-                ['Tudo centralizado', 'Treinos, check-ins, evolução e comunicação.'],
-                ['Histórico contínuo', 'Cada atualização permanece vinculada ao aluno.'],
-                ['Mais valor percebido', 'Uma experiência que demonstra acompanhamento profissional.'],
+                ['Tudo centralizado', 'Treinos, check-ins, evoluÃ§Ã£o e comunicaÃ§Ã£o.'],
+                ['HistÃ³rico contÃ­nuo', 'Cada atualizaÃ§Ã£o permanece vinculada ao aluno.'],
+                ['Mais valor percebido', 'Uma experiÃªncia que demonstra acompanhamento profissional.'],
               ].map(([title, text]) => (
                 <div key={title} className="sales-journey-benefit rounded-2xl border border-emerald-300/18 bg-white/[0.035] p-5">
                   <p className="text-base font-black text-white">{title}</p>
@@ -3227,7 +3276,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
             <div data-reveal className="flex flex-col justify-center gap-3 sm:flex-row">
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5">
-                Começar por R$ 9,90
+                ComeÃ§ar por R$ 9,90
               </button>
               <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45">
                 Ver como funciona
@@ -3238,18 +3287,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Solução completa</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A estrutura que transforma atendimento em operação.</h2>
-              <p className="mt-4 leading-7 text-zinc-400">O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">SoluÃ§Ã£o completa</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A estrutura que transforma atendimento em operaÃ§Ã£o.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dÃ¡ ao aluno a sensaÃ§Ã£o de estar dentro de uma consultoria realmente profissional.</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['01', 'Treinos personalizados', 'Prescrição por aluno, com exercícios, séries, carga, vídeo e notas para cada fase do acompanhamento.'],
-                ['02', 'Registro de cargas', 'O aluno registra execução e o treinador acompanha progressão sem depender de memória ou papel.'],
-                ['03', 'Evolução visual', 'Fotos, medidas, check-ins e gráficos ajudam a provar resultado e aumentar retenção.'],
-                ['04', 'Planejamento inteligente', 'Agenda, desafios, lembretes, meta de água e rotina semanal para manter consistência.'],
-                ['05', 'Histórico de performance', 'Cada treino, feedback e avaliação fica registrado para decisões melhores no próximo ciclo.'],
-                ['06', 'Financeiro profissional', 'Planos próprios, cobrança, status de pagamento e comprovantes organizados para reduzir atrasos.'],
+                ['01', 'Treinos personalizados', 'PrescriÃ§Ã£o por aluno, com exercÃ­cios, sÃ©ries, carga, vÃ­deo e notas para cada fase do acompanhamento.'],
+                ['02', 'Registro de cargas', 'O aluno registra execuÃ§Ã£o e o treinador acompanha progressÃ£o sem depender de memÃ³ria ou papel.'],
+                ['03', 'EvoluÃ§Ã£o visual', 'Fotos, medidas, check-ins e grÃ¡ficos ajudam a provar resultado e aumentar retenÃ§Ã£o.'],
+                ['04', 'Planejamento inteligente', 'Agenda, desafios, lembretes, meta de Ã¡gua e rotina semanal para manter consistÃªncia.'],
+                ['05', 'HistÃ³rico de performance', 'Cada treino, feedback e avaliaÃ§Ã£o fica registrado para decisÃµes melhores no prÃ³ximo ciclo.'],
+                ['06', 'Financeiro profissional', 'Planos prÃ³prios, cobranÃ§a, status de pagamento e comprovantes organizados para reduzir atrasos.'],
               ].map(([number, title, description], index) => (
                 <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
                   <span className="text-xs font-black text-emerald-300">{number}</span>
@@ -3264,18 +3313,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="mecanismo" className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal className="lg:sticky lg:top-28">
-              <p className="text-sm font-semibold uppercase text-emerald-300">O custo invisível do improviso</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu método pode ser excelente e ainda parecer menor do que realmente é.</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">O custo invisÃ­vel do improviso</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu mÃ©todo pode ser excelente e ainda parecer menor do que realmente Ã©.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e perde força na hora de justificar preço, renovar e escalar.
+                Quando cada informaÃ§Ã£o fica em um lugar, o coach trabalha mais, responde as mesmas dÃºvidas e perde forÃ§a na hora de justificar preÃ§o, renovar e escalar.
               </p>
             </div>
             <div className="grid gap-3">
               {[
                 ['Planilhas e mensagens espalhadas', 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', 'Uma ficha central por aluno'],
-                ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos e pagamentos organizados'],
-                ['Aluno sem clareza do processo', 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', 'Portal próprio e rotina guiada'],
-                ['Decisões sem histórico completo', 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
+                ['CobranÃ§a manual e atrasos', 'Sem uma visÃ£o financeira, acompanhar vencimentos depende da memÃ³ria do coach.', 'Planos e pagamentos organizados'],
+                ['Aluno sem clareza do processo', 'Treino, dieta e orientaÃ§Ãµes se misturam, reduzindo a percepÃ§Ã£o de acompanhamento.', 'Portal prÃ³prio e rotina guiada'],
+                ['DecisÃµes sem histÃ³rico completo', 'Sem fotos, medidas, constÃ¢ncia e relatos lado a lado, ajustar o plano fica mais difÃ­cil.', 'EvoluÃ§Ã£o registrada e comparÃ¡vel'],
               ].map(([title, problem, solution], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div>
@@ -3292,16 +3341,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/80 py-10 sm:py-14">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Motor de recorrência</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Organização, cobrança e retenção trabalhando no mesmo fluxo.</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">Motor de recorrÃªncia</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">OrganizaÃ§Ã£o, cobranÃ§a e retenÃ§Ã£o trabalhando no mesmo fluxo.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                O Coach Fit Pro não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.
+                O Coach Fit Pro nÃ£o Ã© apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovaÃ§Ãµes para o treinador enxergar onde estÃ¡ ganhando, onde estÃ¡ perdendo e onde precisa agir.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 {[
                   ['Centraliza', 'Fim do PDF, Excel e mensagem perdida.'],
-                  ['Cobra', 'Vencimentos, Pix e validação em um só lugar.'],
-                  ['Retém', 'Desafios, feedbacks e evolução mantêm o aluno ativo.'],
+                  ['Cobra', 'Vencimentos, Pix e validaÃ§Ã£o em um sÃ³ lugar.'],
+                  ['RetÃ©m', 'Desafios, feedbacks e evoluÃ§Ã£o mantÃªm o aluno ativo.'],
                 ].map(([title, text]) => (
                   <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
                     <p className="text-sm font-black text-emerald-100">{title}</p>
@@ -3314,14 +3363,14 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase text-emerald-200">Dashboard financeiro</p>
-                  <h3 className="mt-2 text-2xl font-black">Receita, renovações e inadimplência sob controle</h3>
+                  <h3 className="mt-2 text-2xl font-black">Receita, renovaÃ§Ãµes e inadimplÃªncia sob controle</h3>
                 </div>
                 <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
                 {[
-                  ['Recebido no mês', 'R$ 8.940', '+18%'],
-                  ['Renovações próximas', '32', '7 dias'],
+                  ['Recebido no mÃªs', 'R$ 8.940', '+18%'],
+                  ['RenovaÃ§Ãµes prÃ³ximas', '32', '7 dias'],
                   ['A receber', 'R$ 2.310', 'pendente'],
                   ['Alunos liberados', '94%', 'pagos'],
                 ].map(([label, value, detail]) => (
@@ -3357,7 +3406,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ))}
                 </div>
               </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.</p>
+              <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os nÃºmeros vÃªm dos recebimentos cadastrados pelo treinador.</p>
             </div>
           </div>
         </section>
@@ -3366,16 +3415,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Antes e depois</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.</h2>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferenÃ§a nÃ£o estÃ¡ apenas na ferramenta. EstÃ¡ na forma como o aluno percebe seu serviÃ§o.</h2>
             </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ['Cadastro', 'Formulários e mensagens soltas', 'Código, consentimento e continuidade'],
-                ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
-                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
-                ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
-                ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
-                ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
+                ['Cadastro', 'FormulÃ¡rios e mensagens soltas', 'CÃ³digo, consentimento e continuidade'],
+                ['PrescriÃ§Ã£o', 'Arquivos separados', 'Treino e dieta no portal'],
+                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histÃ³rico'],
+                ['EvoluÃ§Ã£o', 'Fotos na galeria', 'AvaliaÃ§Ãµes e grÃ¡ficos'],
+                ['Financeiro', 'Agenda ou memÃ³ria', 'CobranÃ§as e vencimentos'],
+                ['ComunicaÃ§Ã£o', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
               ].map(([item, before, after]) => (
                 <div key={item} data-reveal className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-[#05070d]/85 p-4">
                   <p className="text-xs font-black uppercase text-cyan-300">{item}</p>
@@ -3391,19 +3440,19 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="experiencia-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
-               <p className="text-sm font-semibold uppercase text-emerald-300">Experiência do aluno</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
-              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
+               <p className="text-sm font-semibold uppercase text-emerald-300">ExperiÃªncia do aluno</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno nÃ£o entra em â€œmais uma planilhaâ€. Ele entra no seu ecossistema.</h2>
+              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso prÃ³prio para consultar treino, dieta, compromissos, cobranÃ§as, desafios, meta de Ã¡gua e falar com o coach.</p>
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
                 Profissionalizar meu acompanhamento
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                ['Primeiro acesso', 'Código individual, consentimento e anamnese guiada.'],
-                ['Rotina diária', 'Treino, alimentação, água e desafios sempre disponíveis no celular.'],
-                ['Prestação de contas', 'Check-ins, fotos, feedbacks e conclusão de treinos registrados.'],
-                ['Proximidade', 'Chat em tempo real, agenda e orientações em um só ambiente.'],
+                ['Primeiro acesso', 'CÃ³digo individual, consentimento e anamnese guiada.'],
+                ['Rotina diÃ¡ria', 'Treino, alimentaÃ§Ã£o, Ã¡gua e desafios sempre disponÃ­veis no celular.'],
+                ['PrestaÃ§Ã£o de contas', 'Check-ins, fotos, feedbacks e conclusÃ£o de treinos registrados.'],
+                ['Proximidade', 'Chat em tempo real, agenda e orientaÃ§Ãµes em um sÃ³ ambiente.'],
               ].map(([title, text], index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card rounded-md border border-white/10 bg-zinc-950/70 p-5">
                   <h3 className="font-black text-emerald-200">{title}</h3>
@@ -3419,7 +3468,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="mx-auto max-w-3xl text-center" data-reveal>
                <p className="text-sm font-black uppercase text-emerald-200">Como funciona</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Você profissionaliza sua operação em 3 passos.
+                VocÃª profissionaliza sua operaÃ§Ã£o em 3 passos.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-400">
                 Sem precisar parar sua rotina. Comece com os alunos ativos e evolua o processo aos poucos.
@@ -3427,9 +3476,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div className="mt-9 grid gap-4 md:grid-cols-3">
               {[
-                ['01', 'Crie seu painel', 'Configure sua conta, identidade profissional, planos e forma de cobrança.'],
-                ['02', 'Cadastre alunos e objetivos', 'Envie convites, organize histórico, prescreva treino, dieta e rotina semanal.'],
-                ['03', 'Acompanhe evolução e vendas', 'Veja cargas, check-ins, pagamentos, mensagens e progresso em uma operação única.'],
+                ['01', 'Crie seu painel', 'Configure sua conta, identidade profissional, planos e forma de cobranÃ§a.'],
+                ['02', 'Cadastre alunos e objetivos', 'Envie convites, organize histÃ³rico, prescreva treino, dieta e rotina semanal.'],
+                ['03', 'Acompanhe evoluÃ§Ã£o e vendas', 'Veja cargas, check-ins, pagamentos, mensagens e progresso em uma operaÃ§Ã£o Ãºnica.'],
               ].map(([number, title, text]) => (
                 <div key={number} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-6">
                    <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400 text-sm font-black text-zinc-950">{number}</span>
@@ -3447,16 +3496,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Potencial de faturamento</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operaÃ§Ã£o fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
               <p className="mt-4 leading-7 text-zinc-300">
-                O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
+                O Coach Fit Pro reÃºne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiÃªncia do aluno, histÃ³rico, comunicaÃ§Ã£o, financeiro e capacidade para atender uma carteira maior.
               </p>
               <div className="mt-6 grid gap-3">
                 {[
                   ['Mais capacidade', 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.'],
-                  ['Maior valor percebido', 'Um portal completo torna visível tudo que existe dentro do acompanhamento.'],
-                  ['Mais retenção', 'Rotina, check-ins e evolução ajudam o aluno a permanecer conectado ao processo.'],
-                  ['Receita previsível', 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.'],
+                  ['Maior valor percebido', 'Um portal completo torna visÃ­vel tudo que existe dentro do acompanhamento.'],
+                  ['Mais retenÃ§Ã£o', 'Rotina, check-ins e evoluÃ§Ã£o ajudam o aluno a permanecer conectado ao processo.'],
+                  ['Receita previsÃ­vel', 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.'],
                 ].map(([title, text], index) => (
                   <div key={title} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="flex gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
                     <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded ${index % 2 ? 'bg-emerald-700' : 'bg-emerald-400'}`} />
@@ -3472,10 +3521,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="sales-interactive rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
               <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase text-emerald-200">Simulador de cenário</p>
-                  <h3 className="mt-2 text-2xl font-black">Quanto sua operação pode movimentar?</h3>
+                  <p className="text-xs font-black uppercase text-emerald-200">Simulador de cenÃ¡rio</p>
+                  <h3 className="mt-2 text-2xl font-black">Quanto sua operaÃ§Ã£o pode movimentar?</h3>
                 </div>
-                <span className="text-xs text-zinc-500">Estimativa, não garantia de resultado</span>
+                <span className="text-xs text-zinc-500">Estimativa, nÃ£o garantia de resultado</span>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -3497,7 +3546,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   onChange={(value) => setRevenueScenario((current) => ({ ...current, monthlyPrice: value }))}
                 />
                 <RevenueControl
-                  label="Novos alunos possíveis"
+                  label="Novos alunos possÃ­veis"
                   value={revenueScenario.additionalStudents}
                   min={0}
                   max={50}
@@ -3505,7 +3554,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   onChange={(value) => setRevenueScenario((current) => ({ ...current, additionalStudents: value }))}
                 />
                 <RevenueControl
-                  label="Valorização por aluno"
+                  label="ValorizaÃ§Ã£o por aluno"
                   value={revenueScenario.priceIncrease}
                   min={0}
                   max={500}
@@ -3517,21 +3566,21 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 <RevenueResult label="Faturamento atual" value={formatCurrency(currentRevenue)} />
-                <RevenueResult label="Cenário projetado" value={formatCurrency(projectedRevenue)} highlight />
+                <RevenueResult label="CenÃ¡rio projetado" value={formatCurrency(projectedRevenue)} highlight />
                 <RevenueResult label="Potencial adicional" value={`+${formatCurrency(projectedIncrease)}`} accent />
               </div>
 
               <div className="mt-4 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
                 <p className="text-sm font-black text-emerald-100">
-                  Neste cenário: {projectedStudents} alunos a {formatCurrency(projectedPrice)} por mês.
+                  Neste cenÃ¡rio: {projectedStudents} alunos a {formatCurrency(projectedPrice)} por mÃªs.
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Isso representa um potencial de {projectedPercent}% sobre o faturamento atual. O resultado real depende da sua oferta, mercado, aquisição, retenção e execução.
+                  Isso representa um potencial de {projectedPercent}% sobre o faturamento atual. O resultado real depende da sua oferta, mercado, aquisiÃ§Ã£o, retenÃ§Ã£o e execuÃ§Ã£o.
                 </p>
               </div>
 
               <button type="button" onClick={() => openAccess('signup')} className="mt-5 w-full rounded-md bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800 px-5 py-3 text-sm font-black text-white">
-                Estruturar minha operação para crescer
+                Estruturar minha operaÃ§Ã£o para crescer
               </button>
             </div>
           </div>
@@ -3541,29 +3590,29 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Feito para a rotina real do coach</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Uma boa plataforma precisa se adaptar ao seu método, não substituir sua identidade.</h2>
-              <p className="mt-4 leading-7 text-zinc-400">Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Uma boa plataforma precisa se adaptar ao seu mÃ©todo, nÃ£o substituir sua identidade.</h2>
+              <p className="mt-4 leading-7 text-zinc-400">VocÃª mantÃ©m sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.</p>
             </div>
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
               <div data-reveal className="sales-objection-positive rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-emerald-300">O Coach Fit Pro faz sentido para você que</p>
+                <p className="text-xs font-black uppercase text-emerald-300">O Coach Fit Pro faz sentido para vocÃª que</p>
                 <div className="mt-4 grid gap-3">
                   {[
-                    'Atende alunos online, presencialmente ou de forma híbrida.',
+                    'Atende alunos online, presencialmente ou de forma hÃ­brida.',
                     'Quer reduzir tarefas repetitivas sem perder proximidade.',
-                    'Precisa organizar treino, dieta, evolução e financeiro.',
+                    'Precisa organizar treino, dieta, evoluÃ§Ã£o e financeiro.',
                     'Deseja aumentar o valor percebido do acompanhamento.',
                   ].map((item) => <ObjectionPoint key={item} text={item} positive />)}
                 </div>
               </div>
               <div data-reveal className="sales-objection-warning rounded-md border border-rose-400/25 bg-rose-500/[0.06] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-rose-200">Pontos importantes antes de começar</p>
+                <p className="text-xs font-black uppercase text-rose-200">Pontos importantes antes de comeÃ§ar</p>
                 <div className="mt-4 grid gap-3">
                   {[
-                    'Não substitui sua análise e sua responsabilidade profissional.',
-                    'Não garante faturamento sem posicionamento e execução.',
-                    'Não obriga você a migrar todos os alunos de uma vez.',
-                    'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
+                    'NÃ£o substitui sua anÃ¡lise e sua responsabilidade profissional.',
+                    'NÃ£o garante faturamento sem posicionamento e execuÃ§Ã£o.',
+                    'NÃ£o obriga vocÃª a migrar todos os alunos de uma vez.',
+                    'NÃ£o limita exercÃ­cios ou alimentos apenas aos itens da biblioteca.',
                   ].map((item) => <ObjectionPoint key={item} text={item} />)}
                 </div>
               </div>
@@ -3577,17 +3626,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal>
               <p className="text-sm font-black uppercase text-emerald-200">Depoimentos de uso</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                A sensação para o coach é parar de apagar incêndio.
+                A sensaÃ§Ã£o para o coach Ã© parar de apagar incÃªndio.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-400">
-                Exemplos realistas do tipo de transformação operacional que buscamos entregar para treinadores.
+                Exemplos realistas do tipo de transformaÃ§Ã£o operacional que buscamos entregar para treinadores.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {[
-                ['★★★★★', '“Antes eu perdia cobrança no WhatsApp. Agora sei quem pagou, quem está pendente e consigo agir rápido.”', 'Marina C.', 'Personal trainer'],
-                ['★★★★★', '“O aluno sente que recebeu um app meu. A percepção de valor mudou muito na renovação.”', 'Rafael M.', 'Treinador on-line'],
-                ['★★★★★', '“Registrar carga e feedback deixou minha prescrição mais inteligente. Não dependo mais de lembrar tudo.”', 'Lucas A.', 'Treinador presencial'],
+                ['â˜…â˜…â˜…â˜…â˜…', 'â€œAntes eu perdia cobranÃ§a no WhatsApp. Agora sei quem pagou, quem estÃ¡ pendente e consigo agir rÃ¡pido.â€', 'Marina C.', 'Personal trainer'],
+                ['â˜…â˜…â˜…â˜…â˜…', 'â€œO aluno sente que recebeu um app meu. A percepÃ§Ã£o de valor mudou muito na renovaÃ§Ã£o.â€', 'Rafael M.', 'Treinador on-line'],
+                ['â˜…â˜…â˜…â˜…â˜…', 'â€œRegistrar carga e feedback deixou minha prescriÃ§Ã£o mais inteligente. NÃ£o dependo mais de lembrar tudo.â€', 'Lucas A.', 'Treinador presencial'],
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                   <p className="text-sm font-black text-emerald-100">{stars}</p>
@@ -3606,26 +3655,26 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Prova social que aumenta confiança</p>
+              <p className="text-sm font-black uppercase text-emerald-200">Prova social que aumenta confianÃ§a</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.
+                Treinadores percebem valor quando a entrega fica clara, organizada e fÃ¡cil de acompanhar.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-300">
-                O Coach Fit Pro foi pensado para transformar tarefas espalhadas em uma experiência profissional: o aluno entende o que fazer, o treinador enxerga o que está acontecendo e a consultoria passa a parecer tão premium quanto o método entregue.
+                O Coach Fit Pro foi pensado para transformar tarefas espalhadas em uma experiÃªncia profissional: o aluno entende o que fazer, o treinador enxerga o que estÃ¡ acontecendo e a consultoria passa a parecer tÃ£o premium quanto o mÃ©todo entregue.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {[
-                ['★★★★★', 'O painel reúne treino, dieta, cobrança e comunicação com o aluno em um único lugar. A rotina fica muito mais organizada.', 'Camila Andrade', 'Personal trainer'],
-                ['★★★★★', 'Consigo acompanhar melhor meus alunos pelo celular e visualizar o que está pendente sem depender de planilhas e mensagens espalhadas.', 'Bruno Martins', 'Treinador on-line'],
-                ['★★★★★', 'Ficou muito mais fácil acompanhar cargas, check-ins, pagamentos e evolução sem precisar procurar informações em vários lugares.', 'Renata Oliveira', 'Treinadora presencial'],
+                ['â˜…â˜…â˜…â˜…â˜…', 'O painel reÃºne treino, dieta, cobranÃ§a e comunicaÃ§Ã£o com o aluno em um Ãºnico lugar. A rotina fica muito mais organizada.', 'Camila Andrade', 'Personal trainer'],
+                ['â˜…â˜…â˜…â˜…â˜…', 'Consigo acompanhar melhor meus alunos pelo celular e visualizar o que estÃ¡ pendente sem depender de planilhas e mensagens espalhadas.', 'Bruno Martins', 'Treinador on-line'],
+                ['â˜…â˜…â˜…â˜…â˜…', 'Ficou muito mais fÃ¡cil acompanhar cargas, check-ins, pagamentos e evoluÃ§Ã£o sem precisar procurar informaÃ§Ãµes em vÃ¡rios lugares.', 'Renata Oliveira', 'Treinadora presencial'],
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-black text-emerald-200">{stars}</p>
                     <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">5 estrelas</span>
                   </div>
-                  <p className="mt-4 text-sm leading-6 text-zinc-200">“{quote}”</p>
+                  <p className="mt-4 text-sm leading-6 text-zinc-200">â€œ{quote}â€</p>
                   <div className="mt-5 border-t border-white/10 pt-4">
                     <p className="text-sm font-black text-white">{name}</p>
                     <p className="mt-1 text-xs text-zinc-500">{role}</p>
@@ -3644,15 +3693,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="min-w-0">
               <p className="text-sm font-black uppercase text-emerald-200">COMECE COM LIBERDADE TOTAL</p>
               <h2 className="mt-3 text-2xl font-black leading-tight text-white sm:text-4xl">
-                Teste o Coach Fit Pro na sua rotina por R$ 9,90 no primeiro mês.
+                Teste o Coach Fit Pro na sua rotina por R$ 9,90 no primeiro mÃªs.
               </h2>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">
-                Organize seus alunos, monte treinos com mais rapidez e conheça as ferramentas na prática. Sem fidelidade e sem multa. Se a plataforma não fizer sentido para o seu negócio, cancele quando quiser diretamente pela sua conta.
+                Organize seus alunos, monte treinos com mais rapidez e conheÃ§a as ferramentas na prÃ¡tica. Sem fidelidade e sem multa. Se a plataforma nÃ£o fizer sentido para o seu negÃ³cio, cancele quando quiser diretamente pela sua conta.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {['Primeiro mês por R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
+                {['Primeiro mÃªs por R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
                   <span key={item} className="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.08] px-4 py-3 text-sm font-black text-emerald-50">
-                    <span className="text-emerald-300">✓</span>
+                    <span className="text-emerald-300">âœ“</span>
                     <span>{item}</span>
                   </span>
                 ))}
@@ -3663,17 +3712,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
         <section id="duvidas" className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center" data-reveal>
-            <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o Coach Fit Pro</h2>
+            <p className="text-sm font-semibold uppercase text-emerald-200">DÃºvidas antes de comeÃ§ar</p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que vocÃª precisa saber sobre o Coach Fit Pro</h2>
           </div>
           <div className="mt-9 grid gap-3">
             {[
-              ['Meus alunos precisam instalar alguma coisa?', 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.'],
-              ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O Coach Fit Pro organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
-              ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
-              ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
-              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
-              ['Quais planos estão disponíveis?', 'Você pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutrição, cobranças, chat e acompanhamento em um só lugar. O valor e a condição de cada plano aparecem na etapa de pagamento da Cartpanda.'],
+              ['Meus alunos precisam instalar alguma coisa?', 'NÃ£o. O acesso funciona pelo navegador no celular ou computador, usando o cÃ³digo individual enviado pelo coach.'],
+              ['JÃ¡ uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua Ãºtil para contato rÃ¡pido. O Coach Fit Pro organiza o que precisa permanecer acessÃ­vel e consultÃ¡vel: prescriÃ§Ã£o, histÃ³rico, check-ins, medidas, agenda e financeiro.'],
+              ['Vou precisar cadastrar tudo novamente?', 'VocÃª pode comeÃ§ar com os alunos ativos e preencher as informaÃ§Ãµes conforme usa. NÃ£o Ã© necessÃ¡rio interromper seu atendimento para organizar toda a carteira.'],
+              ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operaÃ§Ã£o onde vocÃª estiver.'],
+              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'NÃ£o. VocÃª pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha seguranÃ§a.'],
+              ['Quais planos estÃ£o disponÃ­veis?', 'VocÃª pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutriÃ§Ã£o, cobranÃ§as, chat e acompanhamento em um sÃ³ lugar. O valor e a condiÃ§Ã£o de cada plano aparecem na etapa de pagamento da Cartpanda.'],
             ].map(([question, answer], index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
@@ -3691,7 +3740,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="mx-auto max-w-4xl text-center">
               <p className="text-sm font-black uppercase text-emerald-300">Planos Coach Fit Pro</p>
               <h2 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
-                Comece hoje. Cresça no seu ritmo.
+                Comece hoje. CresÃ§a no seu ritmo.
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
                 Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
@@ -3804,10 +3853,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   <div>
                     <p className="text-xs font-black uppercase text-emerald-200">Primeiro passo com baixo risco</p>
                     <h3 className="mt-2 text-2xl font-black leading-tight text-white sm:text-3xl">
-                      Comece pelo mensal por R$ 9,90 no primeiro mês ou escolha um ciclo com mais economia.
+                      Comece pelo mensal por R$ 9,90 no primeiro mÃªs ou escolha um ciclo com mais economia.
                     </h3>
                     <p className="mt-3 text-sm leading-6 text-zinc-300">
-                      Todos os ciclos liberam o painel, o aplicativo do aluno, treinos, nutrição, chat, check-ins, cobranças e acompanhamento. Não há taxa adicional por aluno cadastrado.
+                      Todos os ciclos liberam o painel, o aplicativo do aluno, treinos, nutriÃ§Ã£o, chat, check-ins, cobranÃ§as e acompanhamento. NÃ£o hÃ¡ taxa adicional por aluno cadastrado.
                     </p>
                   </div>
                   <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="rounded-2xl bg-emerald-300 px-6 py-4 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5">
@@ -3824,11 +3873,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   <div className="sales-plan-strategy mb-4 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <div>
                       <p className="text-xs font-black uppercase text-emerald-100">
-                        {selectedOfferPlan.id === 'mensal' ? 'Oferta de entrada' : 'Condição estratégica'}
+                        {selectedOfferPlan.id === 'mensal' ? 'Oferta de entrada' : 'CondiÃ§Ã£o estratÃ©gica'}
                       </p>
                       <p className="mt-2 text-sm font-bold leading-6 text-emerald-50">
                         {selectedOfferPlan.id === 'mensal'
-                          ? 'Ative o primeiro mês por R$ 9,90. Depois, a continuidade fica em R$ 49,90/mês.'
+                          ? 'Ative o primeiro mÃªs por R$ 9,90. Depois, a continuidade fica em R$ 49,90/mÃªs.'
                           : `${selectedOfferPlan.economy}. Acesso completo, sem taxa extra por aluno cadastrado.`}
                       </p>
                     </div>
@@ -3868,12 +3917,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
                   <div className="sales-plan-proof mt-4 grid gap-3 lg:grid-cols-3">
                     <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/[0.11] p-4">
-                      <p className="text-xs font-black uppercase text-emerald-100">Decisão inteligente</p>
+                      <p className="text-xs font-black uppercase text-emerald-100">DecisÃ£o inteligente</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-100">
                         {selectedOfferPlan.id === 'mensal'
-                          ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
+                          ? 'Perfeito para testar a operaÃ§Ã£o sem travar caixa e jÃ¡ sentir a diferenÃ§a na entrega.'
                           : selectedOfferPlan.id === 'semestral'
-                            ? 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.'
+                            ? 'DÃ¡ tempo para implantar, ajustar o processo e medir retenÃ§Ã£o com mais tranquilidade.'
                             : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
                       </p>
                     </div>
@@ -3882,9 +3931,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       <p className="mt-2 text-sm font-semibold leading-6 text-white">{selectedOfferPlan.bestFor}</p>
                     </div>
                     <div className="rounded-xl border border-emerald-300/30 bg-emerald-300/[0.12] p-4">
-                      <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
+                      <p className="text-xs font-black uppercase text-emerald-200">O que vocÃª destrava</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-100">
-                        Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.
+                        Painel do coach, app do aluno, treino, nutriÃ§Ã£o, financeiro, chat, agenda, desafios, Ã¡gua, check-ins e evoluÃ§Ã£o.
                       </p>
                     </div>
                   </div>
@@ -3895,7 +3944,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                         <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
                         <p className="mt-2 text-sm leading-6 text-zinc-100">{selectedOfferPlan.operatingPromise}</p>
                       </div>
-                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberação automática</span>
+                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberaÃ§Ã£o automÃ¡tica</span>
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       {selectedOfferPlan.activationPlan.map((item, index) => (
@@ -3909,8 +3958,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
                   <div className="sales-plan-mini-benefits mt-5 grid gap-3 sm:grid-cols-3">
                     {[
-                      ['Entrega premium', 'treino, dieta, check-ins e chat em um só fluxo'],
-                      ['Mais percepção', 'o aluno sente que está dentro de uma operação profissional'],
+                      ['Entrega premium', 'treino, dieta, check-ins e chat em um sÃ³ fluxo'],
+                      ['Mais percepÃ§Ã£o', 'o aluno sente que estÃ¡ dentro de uma operaÃ§Ã£o profissional'],
                       ['Mais controle', 'processos organizados para vender e acompanhar melhor'],
                     ].map(([title, text]) => (
                       <div key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
@@ -3931,7 +3980,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <div className="mt-5 grid gap-3">
                   {selectedOfferPlan.highlights.map((item) => (
                     <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200">
-                      <span className="text-emerald-300">✓</span>
+                      <span className="text-emerald-300">âœ“</span>
                       <span>{item}</span>
                     </div>
                   ))}
@@ -3943,13 +3992,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </p>
                 </div>
                 <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-emerald-100">Próximo passo simples</p>
+                  <p className="text-xs font-black uppercase text-emerald-100">PrÃ³ximo passo simples</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    Crie sua conta, escolha o ciclo e o painel é liberado assim que a Cartpanda aprovar o pagamento.
+                    Crie sua conta, escolha o ciclo e o painel Ã© liberado assim que a Cartpanda aprovar o pagamento.
                   </p>
                 </div>
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs font-black uppercase text-zinc-400">Implantação prática</p>
+                  <p className="text-xs font-black uppercase text-zinc-400">ImplantaÃ§Ã£o prÃ¡tica</p>
                   <div className="mt-3 grid gap-2">
                     {['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'].map((item, index) => (
                       <div key={item} className="flex gap-3 text-sm leading-6 text-zinc-300">
@@ -3979,10 +4028,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="max-w-3xl">
               <p className="text-sm font-black uppercase text-emerald-100">Pronto para vender uma entrega mais premium?</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Organize sua operação antes que sua agenda cresça mais do que seu controle.
+                Organize sua operaÃ§Ã£o antes que sua agenda cresÃ§a mais do que seu controle.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-300">
-                Treino, consultoria, aulas presenciais, evolução, cargas, cobrança e comunicação com o aluno em uma experiência moderna.
+                Treino, consultoria, aulas presenciais, evoluÃ§Ã£o, cargas, cobranÃ§a e comunicaÃ§Ã£o com o aluno em uma experiÃªncia moderna.
               </p>
             </div>
             <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-2xl bg-emerald-400 px-6 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5 lg:mt-0 lg:w-auto lg:min-w-56">
@@ -3994,7 +4043,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
       <footer className="border-t border-white/10 bg-[#05070d] px-4 py-6 text-center text-xs text-zinc-500">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <span>Coach Fit Pro · Gestão profissional de acompanhamento</span>
+          <span>Coach Fit Pro Â· GestÃ£o profissional de acompanhamento</span>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <a href="/termos-de-uso" className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
               Termos de uso
@@ -4008,7 +4057,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </div>
         <span className="sr-only">
-        Coach Fit Pro · Gestão profissional de acompanhamento
+        Coach Fit Pro Â· GestÃ£o profissional de acompanhamento
         </span>
       </footer>
       <LegalModal type={legalModal} onClose={() => setLegalModal('')} />
@@ -4019,25 +4068,25 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 function getLegalContent(type) {
   const isPrivacy = type === 'privacy'
   return {
-    title: isPrivacy ? 'Política de Privacidade' : 'Termos de Uso',
+    title: isPrivacy ? 'PolÃ­tica de Privacidade' : 'Termos de Uso',
     updatedAt: 'Atualizado em 13 de julho de 2026',
     intro: isPrivacy
-      ? 'O Coach Fit Pro trata dados de cadastro, acompanhamento, fotos, mensagens, treinos, nutrição, check-ins, anamnese e pagamentos para operar o painel do treinador e o portal do aluno.'
-      : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional, relação com o aluno e validação técnica continuam sob responsabilidade do treinador.',
+      ? 'O Coach Fit Pro trata dados de cadastro, acompanhamento, fotos, mensagens, treinos, nutriÃ§Ã£o, check-ins, anamnese e pagamentos para operar o painel do treinador e o portal do aluno.'
+      : 'O Coach Fit Pro Ã© uma plataforma de organizaÃ§Ã£o para treinadores. A prescriÃ§Ã£o, orientaÃ§Ã£o profissional, relaÃ§Ã£o com o aluno e validaÃ§Ã£o tÃ©cnica continuam sob responsabilidade do treinador.',
     items: isPrivacy
       ? [
-        'Dados sensíveis de saúde, treino, nutrição, fotos, anamnese e check-ins devem ser coletados pelo treinador somente com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, mensagens, treinos, dietas, cargas e históricos ficam vinculados ao treinador responsável e ao aluno cadastrado, com controle de acesso por conta.',
-        'Arquivos privados devem permanecer em buckets privados do Supabase Storage e serem exibidos por links temporários assinados.',
-        'A exclusão definitiva da conta remove dados operacionais vinculados. Registros financeiros, segurança e auditoria podem ser retidos pelo prazo legal necessário.',
-        'Solicitações de acesso, correção, portabilidade ou exclusão de dados podem ser enviadas para sac@coachfitpro.com.br.',
+        'Dados sensÃ­veis de saÃºde, treino, nutriÃ§Ã£o, fotos, anamnese e check-ins devem ser coletados pelo treinador somente com consentimento do aluno e finalidade de acompanhamento.',
+        'Fotos, mensagens, treinos, dietas, cargas e histÃ³ricos ficam vinculados ao treinador responsÃ¡vel e ao aluno cadastrado, com controle de acesso por conta.',
+        'Arquivos privados devem permanecer em buckets privados do Supabase Storage e serem exibidos por links temporÃ¡rios assinados.',
+        'A exclusÃ£o definitiva da conta remove dados operacionais vinculados. Registros financeiros, seguranÃ§a e auditoria podem ser retidos pelo prazo legal necessÃ¡rio.',
+        'SolicitaÃ§Ãµes de acesso, correÃ§Ã£o, portabilidade ou exclusÃ£o de dados podem ser enviadas para sac@coachfitpro.com.br.',
       ]
       : [
-        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
-        'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
-        'O treinador é responsável por obter consentimento do aluno para registrar fotos, anamnese, check-ins, dados fitness, treino e nutrição.',
-        'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout e da conciliação do sistema.',
-        'O acesso pode ser limitado em caso de uso indevido, inadimplência, tentativa de fraude ou violação de segurança.',
+        'O treinador deve usar o sistema de forma Ã©tica, profissional e conforme as regras da sua Ã¡rea de atuaÃ§Ã£o.',
+        'A plataforma nÃ£o substitui avaliaÃ§Ã£o mÃ©dica, nutricional ou fÃ­sica quando ela for necessÃ¡ria.',
+        'O treinador Ã© responsÃ¡vel por obter consentimento do aluno para registrar fotos, anamnese, check-ins, dados fitness, treino e nutriÃ§Ã£o.',
+        'Pagamentos, planos e liberaÃ§Ãµes podem depender da confirmaÃ§Ã£o do provedor de checkout e da conciliaÃ§Ã£o do sistema.',
+        'O acesso pode ser limitado em caso de uso indevido, inadimplÃªncia, tentativa de fraude ou violaÃ§Ã£o de seguranÃ§a.',
       ],
   }
 }
@@ -4078,19 +4127,19 @@ function LegalModal({ type, onClose }) {
   const title = isPrivacy ? 'Privacidade e dados' : 'Termos de uso'
   const intro = isPrivacy
     ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar o painel do treinador e o acesso do aluno.'
-    : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional e relação com o aluno continuam sob responsabilidade do treinador.'
+    : 'O Coach Fit Pro Ã© uma plataforma de organizaÃ§Ã£o para treinadores. A prescriÃ§Ã£o, orientaÃ§Ã£o profissional e relaÃ§Ã£o com o aluno continuam sob responsabilidade do treinador.'
   const items = isPrivacy
     ? [
-        'Dados sensíveis devem ser usados apenas com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, check-ins e mensagens ficam vinculados ao treinador responsável e ao aluno cadastrado.',
-        'Chaves de API e integrações ficam protegidas no ambiente seguro da Supabase, não no navegador do usuário.',
-        'Solicitações sobre dados podem ser enviadas para sac@coachfitpro.com.br.',
+        'Dados sensÃ­veis devem ser usados apenas com consentimento do aluno e finalidade de acompanhamento.',
+        'Fotos, check-ins e mensagens ficam vinculados ao treinador responsÃ¡vel e ao aluno cadastrado.',
+        'Chaves de API e integraÃ§Ãµes ficam protegidas no ambiente seguro da Supabase, nÃ£o no navegador do usuÃ¡rio.',
+        'SolicitaÃ§Ãµes sobre dados podem ser enviadas para sac@coachfitpro.com.br.',
       ]
     : [
-        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
-        'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
-        'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout.',
-        'O acesso pode ser limitado em caso de uso indevido, inadimplência ou violação de segurança.',
+        'O treinador deve usar o sistema de forma Ã©tica, profissional e conforme as regras da sua Ã¡rea de atuaÃ§Ã£o.',
+        'A plataforma nÃ£o substitui avaliaÃ§Ã£o mÃ©dica, nutricional ou fÃ­sica quando ela for necessÃ¡ria.',
+        'Pagamentos, planos e liberaÃ§Ãµes podem depender da confirmaÃ§Ã£o do provedor de checkout.',
+        'O acesso pode ser limitado em caso de uso indevido, inadimplÃªncia ou violaÃ§Ã£o de seguranÃ§a.',
       ]
 
   return (
@@ -4102,7 +4151,7 @@ function LegalModal({ type, onClose }) {
             <h2 className="mt-2 text-2xl font-black">{title}</h2>
           </div>
           <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 text-xl font-black text-zinc-300 transition hover:border-emerald-300/40 hover:text-white" aria-label="Fechar">
-            ×
+            Ã—
           </button>
         </div>
         <p className="mt-5 text-sm leading-7 text-zinc-300">{intro}</p>
@@ -4125,18 +4174,18 @@ function ExpressCreationSalesSection({ openAccess }) {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div data-reveal>
-            <p className="text-sm font-black uppercase text-emerald-300">Criação expressa</p>
+            <p className="text-sm font-black uppercase text-emerald-300">CriaÃ§Ã£o expressa</p>
             <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-              Crie treinos e planejamentos em minutos, sem começar do zero.
+              Crie treinos e planejamentos em minutos, sem comeÃ§ar do zero.
             </h2>
             <p className="mt-4 text-base leading-7 text-zinc-300">
-              Use modelos, duplique estruturas, personalize rapidamente e mantenha cada aluno organizado em um só lugar.
+              Use modelos, duplique estruturas, personalize rapidamente e mantenha cada aluno organizado em um sÃ³ lugar.
             </p>
             <div className="mt-6 grid gap-3">
               {[
                 'Monte uma vez, personalize quando precisar e reutilize sempre.',
-                'Ganhe tempo sem perder a individualização.',
-                'Centralize treino, alimentação e acompanhamento no mesmo fluxo.',
+                'Ganhe tempo sem perder a individualizaÃ§Ã£o.',
+                'Centralize treino, alimentaÃ§Ã£o e acompanhamento no mesmo fluxo.',
               ].map((item) => (
                 <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-zinc-950">
@@ -4147,7 +4196,7 @@ function ExpressCreationSalesSection({ openAccess }) {
               ))}
             </div>
             <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300 active:scale-[0.98]">
-              Começar a criar meus treinos
+              ComeÃ§ar a criar meus treinos
             </button>
           </div>
 
@@ -4158,8 +4207,8 @@ function ExpressCreationSalesSection({ openAccess }) {
                   ['01', 'Aluno'],
                   ['02', 'Objetivo'],
                   ['03', 'Modelo'],
-                  ['04', 'Personalização'],
-                  ['05', 'Publicação'],
+                  ['04', 'PersonalizaÃ§Ã£o'],
+                  ['05', 'PublicaÃ§Ã£o'],
                 ].map(([number, title], index) => (
                   <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
                     <span className={`mx-auto grid h-9 w-9 place-items-center rounded-xl text-xs font-black ${index === 4 ? 'bg-emerald-300 text-zinc-950' : 'bg-white/[0.06] text-emerald-100'}`}>{number}</span>
@@ -4171,12 +4220,12 @@ function ExpressCreationSalesSection({ openAccess }) {
                 <ComparisonCard
                   tone="bad"
                   title="Antes"
-                  items={['Planilhas espalhadas', 'Copiar informações manualmente', 'Procurar treinos antigos', 'Repetir o mesmo trabalho']}
+                  items={['Planilhas espalhadas', 'Copiar informaÃ§Ãµes manualmente', 'Procurar treinos antigos', 'Repetir o mesmo trabalho']}
                 />
                 <ComparisonCard
                   tone="good"
                   title="Com Coach Fit Pro"
-                  items={['Modelos reutilizáveis', 'Edição rápida', 'Histórico centralizado', 'Publicação em poucos cliques']}
+                  items={['Modelos reutilizÃ¡veis', 'EdiÃ§Ã£o rÃ¡pida', 'HistÃ³rico centralizado', 'PublicaÃ§Ã£o em poucos cliques']}
                 />
               </div>
             </div>
@@ -4218,19 +4267,19 @@ function TimeRecoveryCalculator() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-black uppercase text-emerald-200">Calculadora de tempo</p>
-          <h3 className="mt-1 text-xl font-black text-white">Quanto tempo você pode recuperar por mês?</h3>
+          <h3 className="mt-1 text-xl font-black text-white">Quanto tempo vocÃª pode recuperar por mÃªs?</h3>
         </div>
         <span className="text-xs font-bold text-zinc-500">Estimativa operacional</span>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <TimeCalcControl label="Alunos" value={students} min={1} max={120} onChange={setStudents} />
         <TimeCalcControl label="Minutos por plano" value={minutes} min={5} max={180} onChange={setMinutes} />
-        <TimeCalcControl label="Atualizações/mês" value={updates} min={1} max={8} onChange={setUpdates} />
+        <TimeCalcControl label="AtualizaÃ§Ãµes/mÃªs" value={updates} min={1} max={8} onChange={setUpdates} />
       </div>
       <div className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4">
         <p className="text-sm font-black text-emerald-100">Hoje isso pode representar cerca de {hours}h{remainingMinutes ? ` ${remainingMinutes}min` : ''} em tarefas de montagem e ajustes.</p>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
-          Organizar e reutilizar estruturas pode reduzir tarefas repetitivas. Cada hora economizada pode ser usada para acompanhar alunos, vender consultorias ou melhorar seu serviço.
+          Organizar e reutilizar estruturas pode reduzir tarefas repetitivas. Cada hora economizada pode ser usada para acompanhar alunos, vender consultorias ou melhorar seu serviÃ§o.
         </p>
       </div>
     </div>
@@ -4259,19 +4308,19 @@ function SalesStat({ value, label }) {
 function SalesPhoneShowcase() {
   const [activeIndex, setActiveIndex] = useState(1)
   const screens = [
-    ['Início do aluno', 'Olá, aluno', 'Semana, água e desafios', 'Meta do dia em progresso', ['Treino concluído: +80 XP', 'Água 1,8L / 2,5L', 'Desafio semanal 3/5'], 'trophy', '+80 XP', 'ranking atualizado'],
-    ['Treino de hoje', 'LEGS', 'Carga por exercício', 'Registrar série realizada', ['Agachamento: 80 kg', 'Leg press: 160 kg', 'Cadeira extensora: 45 kg'], 'dumbbell', 'Treino', 'em execução'],
-    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovações', 'Cobranças organizadas', ['Pagamentos confirmados', 'Renovações próximas', 'Pendências visíveis'], 'wallet', 'Financeiro', 'organizado'],
+    ['InÃ­cio do aluno', 'OlÃ¡, aluno', 'Semana, Ã¡gua e desafios', 'Meta do dia em progresso', ['Treino concluÃ­do: +80 XP', 'Ãgua 1,8L / 2,5L', 'Desafio semanal 3/5'], 'trophy', '+80 XP', 'ranking atualizado'],
+    ['Treino de hoje', 'LEGS', 'Carga por exercÃ­cio', 'Registrar sÃ©rie realizada', ['Agachamento: 80 kg', 'Leg press: 160 kg', 'Cadeira extensora: 45 kg'], 'dumbbell', 'Treino', 'em execuÃ§Ã£o'],
+    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovaÃ§Ãµes', 'CobranÃ§as organizadas', ['Pagamentos confirmados', 'RenovaÃ§Ãµes prÃ³ximas', 'PendÃªncias visÃ­veis'], 'wallet', 'Financeiro', 'organizado'],
   ]
 
   const metrics = [
-    ['dashboard', 'Painel único', 'treino, dieta e cobrança'],
-    ['trophy', 'Evolução', 'check-ins e progresso'],
+    ['dashboard', 'Painel Ãºnico', 'treino, dieta e cobranÃ§a'],
+    ['trophy', 'EvoluÃ§Ã£o', 'check-ins e progresso'],
     ['message', 'Aluno ativo', 'rotina guiada no celular'],
   ]
 
   return (
-    <div className="sales-hero-phone-wrap" aria-label="Prévia do aplicativo Coach Fit Pro">
+    <div className="sales-hero-phone-wrap" aria-label="PrÃ©via do aplicativo Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
       {metrics.map(([icon, value, label], index) => (
         <div key={label} className={`sales-showcase-metric metric-${index + 1}`}>
@@ -4316,7 +4365,7 @@ function SalesPhoneShowcase() {
             <div className="sales-phone-notch" />
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{active ? 'ao vivo' : 'prévia'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{active ? 'ao vivo' : 'prÃ©via'}</span>
             </div>
             <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
             <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
@@ -4336,7 +4385,7 @@ function SalesPhoneShowcase() {
             </div>
             <div className="sales-phone-bottom-nav">
               {[
-                ['dashboard', 'Início'],
+                ['dashboard', 'InÃ­cio'],
                 ['wallet', 'Fatura'],
                 ['dumbbell', 'Treino'],
                 ['message', 'Chat'],
@@ -4351,7 +4400,7 @@ function SalesPhoneShowcase() {
         </button>
         )
       })}
-      <div className="sales-showcase-tabs" aria-label="Selecionar prévia">
+      <div className="sales-showcase-tabs" aria-label="Selecionar prÃ©via">
         {screens.map((screen, index) => (
           <button
             key={screen[1]}
@@ -4370,7 +4419,7 @@ function ObjectionPoint({ text, positive = false }) {
   return (
     <div className={`flex gap-3 text-sm leading-6 ${positive ? 'text-emerald-50' : 'text-rose-50'}`}>
       <span className={`mt-2 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${positive ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'}`}>
-        {positive ? '✓' : '!'}
+        {positive ? 'âœ“' : '!'}
       </span>
       <p>{text}</p>
     </div>
@@ -4408,7 +4457,7 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
     <div className={`rounded-md border p-4 ${tone}`}>
       <p className="text-xs font-bold text-zinc-400">{label}</p>
       <p className="mt-2 break-words text-xl font-black text-white">{value}</p>
-      <p className="mt-1 text-xs text-zinc-500">por mês</p>
+      <p className="mt-1 text-xs text-zinc-500">por mÃªs</p>
     </div>
   )
 }
@@ -4417,13 +4466,13 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
   if (!selectedStudent) {
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Comece sua operação" action="Primeiros passos">
+        <Panel title="Comece sua operaÃ§Ã£o" action="Primeiros passos">
           <div className="mb-4 overflow-hidden rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase text-emerald-200">Ativação guiada</p>
+                <p className="text-xs font-black uppercase text-emerald-200">AtivaÃ§Ã£o guiada</p>
                 <p className="mt-1 text-sm leading-6 text-zinc-200">
-                  Comece pelo essencial: marca, primeiro aluno, entrega inicial e convite. Em poucos minutos o painel já fica pronto para operar.
+                  Comece pelo essencial: marca, primeiro aluno, entrega inicial e convite. Em poucos minutos o painel jÃ¡ fica pronto para operar.
                 </p>
               </div>
               <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/60 px-3 py-1 text-xs font-black text-emerald-100">4 etapas</span>
@@ -4434,9 +4483,9 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
           </div>
 
           <div className="mb-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3">
-            <p className="text-xs font-black uppercase text-emerald-200">Validação manual</p>
+            <p className="text-xs font-black uppercase text-emerald-200">ValidaÃ§Ã£o manual</p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">
-              Quando o aluno solicitar validação, confira o Pix/comprovante e clique em confirmar. O sistema marca como pago e libera o acesso do aluno.
+              Quando o aluno solicitar validaÃ§Ã£o, confira o Pix/comprovante e clique em confirmar. O sistema marca como pago e libera o acesso do aluno.
             </p>
           </div>
 
@@ -4444,7 +4493,7 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
             {[
               ['1', 'Configure sua identidade', 'Preencha marca, nome profissional, CREF e WhatsApp.', 'configuracoes'],
               ['2', 'Cadastre o primeiro aluno', 'Registre objetivo, plano, contato e dados iniciais.', 'alunos'],
-              ['3', 'Monte o acompanhamento', 'Crie treino, dieta, avaliação, agenda e cobrança.', 'treinos'],
+              ['3', 'Monte o acompanhamento', 'Crie treino, dieta, avaliaÃ§Ã£o, agenda e cobranÃ§a.', 'treinos'],
               ['4', 'Envie o convite', 'Teste o portal do aluno e o consentimento de dados.', 'aluno-app'],
             ].map(([number, title, description, view]) => (
               <button
@@ -4469,14 +4518,14 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
           <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
             <p className="font-black text-blue-200">Nenhum dado demonstrativo</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Sua conta está vazia e preparada para receber somente alunos reais da sua operação.
+              Sua conta estÃ¡ vazia e preparada para receber somente alunos reais da sua operaÃ§Ã£o.
             </p>
           </div>
           <div className="mt-4 grid gap-3">
             {[
               ['Treino', 'publique o primeiro treino antes de convidar'],
               ['Dieta', 'cadastre pelo menos uma rotina alimentar'],
-              ['Cobrança', 'configure Pix e mensagem padrão'],
+              ['CobranÃ§a', 'configure Pix e mensagem padrÃ£o'],
             ].map(([title, text]) => (
               <div key={title} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
                 <p className="text-sm font-black text-white">{title}</p>
@@ -4513,13 +4562,13 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
           onMessageStudent={(studentId) => openStudentFromPriority(studentId, 'mensagens')}
         />
       </div>
-      <Panel title="Evolução corporal" action={`${assessmentData.length} avaliações`}>
+      <Panel title="EvoluÃ§Ã£o corporal" action={`${assessmentData.length} avaliaÃ§Ãµes`}>
         {assessmentData.length ? (
           <Suspense fallback={<ChartLoading />}>
             <AssessmentChart data={assessmentData} weightLabel="Peso (kg)" bodyFatLabel="Gordura (%)" />
           </Suspense>
         ) : (
-          <Empty text="Registre avaliações para visualizar a evolução real do aluno." />
+          <Empty text="Registre avaliaÃ§Ãµes para visualizar a evoluÃ§Ã£o real do aluno." />
         )}
       </Panel>
 
@@ -4536,7 +4585,7 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
             <RevenueChart data={revenueChartData} />
           </Suspense>
         ) : (
-          <Empty text="Marque cobranças como pagas para formar o gráfico de receita." />
+          <Empty text="Marque cobranÃ§as como pagas para formar o grÃ¡fico de receita." />
         )}
       </Panel>
 
@@ -4547,12 +4596,12 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
               <SmartAlertCard key={alert.id} alert={alert} compact onOpen={() => setActiveView(alert.view)} />
             ))
           ) : (
-            <Empty text="Nenhuma prioridade crítica agora." />
+            <Empty text="Nenhuma prioridade crÃ­tica agora." />
           )}
         </div>
       </Panel>
 
-      <Panel title="Radar de retenção" action="Diferencial">
+      <Panel title="Radar de retenÃ§Ã£o" action="Diferencial">
         <CoachRetentionRadar
           selectedStudent={selectedStudent}
           action={actionPlan[0]}
@@ -4561,7 +4610,7 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
         />
       </Panel>
 
-      <Panel title="Próximas ações inteligentes" action="Coach OS">
+      <Panel title="PrÃ³ximas aÃ§Ãµes inteligentes" action="Coach OS">
         <div className="grid gap-3">
           {actionPlan.map((item) => (
             <button
@@ -4584,17 +4633,17 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
 }
 
 function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
-  const retentionStatus = alertCount > 2 ? 'Atenção alta' : alertCount > 0 ? 'Acompanhar hoje' : 'Carteira estável'
+  const retentionStatus = alertCount > 2 ? 'AtenÃ§Ã£o alta' : alertCount > 0 ? 'Acompanhar hoje' : 'Carteira estÃ¡vel'
   const retentionCopy = alertCount > 2
-    ? 'Existem sinais que podem virar abandono se o coach não agir hoje.'
+    ? 'Existem sinais que podem virar abandono se o coach nÃ£o agir hoje.'
     : alertCount > 0
-      ? 'Uma ação rápida agora aumenta percepção de cuidado.'
-      : 'Use o momento para mandar feedback proativo e reforçar resultado.'
+      ? 'Uma aÃ§Ã£o rÃ¡pida agora aumenta percepÃ§Ã£o de cuidado.'
+      : 'Use o momento para mandar feedback proativo e reforÃ§ar resultado.'
 
   return (
     <div className="grid gap-4">
       <div className="rounded-lg border border-[#00c7a8]/25 bg-[#00c7a8]/10 p-4">
-        <p className="text-xs font-black uppercase text-[#9fffe8]">Próxima melhor ação</p>
+        <p className="text-xs font-black uppercase text-[#9fffe8]">PrÃ³xima melhor aÃ§Ã£o</p>
         <h4 className="mt-2 text-xl font-black text-white">{action?.title || 'Enviar feedback proativo'}</h4>
         <p className="mt-2 text-sm leading-6 text-zinc-300">{action?.body || retentionCopy}</p>
         <button type="button" onClick={onOpen} className="mt-4 rounded-lg bg-[#00c7a8] px-4 py-3 text-sm font-black text-black transition active:scale-[0.98]">
@@ -4655,14 +4704,14 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
         status: 'Agendado',
         location: form.get('location')?.toString() || '',
         notes: [
-          form.get('setsLog')?.toString() ? `Séries/cargas: ${form.get('setsLog')?.toString()}` : '',
+          form.get('setsLog')?.toString() ? `SÃ©ries/cargas: ${form.get('setsLog')?.toString()}` : '',
           form.get('notes')?.toString() || '',
         ].filter(Boolean).join('\n'),
       })
       formElement.reset()
       setMessage('Compromisso adicionado na agenda.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o compromisso.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar o compromisso.')
     } finally {
       setSaving(false)
     }
@@ -4673,7 +4722,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
     setError('')
     try {
       const updated = await onUpdateStatus(appointmentId, status)
-      if (!updated) setError('Não foi possível atualizar este compromisso.')
+      if (!updated) setError('NÃ£o foi possÃ­vel atualizar este compromisso.')
     } finally {
       setUpdatingId('')
     }
@@ -4685,9 +4734,9 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
         <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
             <p className="text-xs font-black uppercase text-blue-200">Agenda do coach</p>
-            <h2 className="mt-2 text-2xl font-black text-white">Organize check-ins, avaliações, chamadas e revisões sem misturar com o chat.</h2>
+            <h2 className="mt-2 text-2xl font-black text-white">Organize check-ins, avaliaÃ§Ãµes, chamadas e revisÃµes sem misturar com o chat.</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Use esta área para marcar compromissos que precisam de data, horário e acompanhamento. O aluno visualiza a agenda no portal dele.
+              Use esta Ã¡rea para marcar compromissos que precisam de data, horÃ¡rio e acompanhamento. O aluno visualiza a agenda no portal dele.
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -4696,7 +4745,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               <p className="mt-1 text-2xl font-black text-white">{todayAppointments.length}</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-              <p className="text-xs font-black uppercase text-zinc-500">Próximos</p>
+              <p className="text-xs font-black uppercase text-zinc-500">PrÃ³ximos</p>
               <p className="mt-1 text-2xl font-black text-blue-200">{nextAppointments.length}</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
@@ -4716,13 +4765,13 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               options={students.map((student) => ({ label: student.name, value: student.id }))}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Título" name="title" defaultValue="Acompanhamento" />
-              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliação', 'Check-in', 'Chamada', 'Revisão de treino', 'Revisão de dieta', 'Outro']} />
+              <Field label="TÃ­tulo" name="title" defaultValue="Acompanhamento" />
+              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'AvaliaÃ§Ã£o', 'Check-in', 'Chamada', 'RevisÃ£o de treino', 'RevisÃ£o de dieta', 'Outro']} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Data e horário" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
+              <Field label="Data e horÃ¡rio" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
               <Select
-                label="Duração"
+                label="DuraÃ§Ã£o"
                 name="durationMinutes"
                 defaultValue="30"
                 options={[
@@ -4734,7 +4783,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
               />
             </div>
             <Field label="Local ou link" name="location" defaultValue="Online" />
-            <TextArea label="Observações" name="notes" defaultValue="Revisar progresso, constância e próximos ajustes." />
+            <TextArea label="ObservaÃ§Ãµes" name="notes" defaultValue="Revisar progresso, constÃ¢ncia e prÃ³ximos ajustes." />
             <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
               {saving ? 'Salvando...' : 'Agendar compromisso'}
             </button>
@@ -4843,9 +4892,9 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
     setAccessError('')
     try {
       await onSave({ ...selectedStudent, accessOverrideUntil: until })
-      setAccessMessage(`Acesso liberado até ${formatFullDateTime(until)}.`)
+      setAccessMessage(`Acesso liberado atÃ© ${formatFullDateTime(until)}.`)
     } catch (error) {
-      setAccessError(error?.message || 'Não foi possível liberar o acesso do aluno.')
+      setAccessError(error?.message || 'NÃ£o foi possÃ­vel liberar o acesso do aluno.')
     } finally {
       setAccessSaving(false)
     }
@@ -4858,9 +4907,9 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
     setAccessError('')
     try {
       await onSave({ ...selectedStudent, accessOverrideUntil: '' })
-      setAccessMessage('Liberação temporária removida.')
+      setAccessMessage('LiberaÃ§Ã£o temporÃ¡ria removida.')
     } catch (error) {
-      setAccessError(error?.message || 'Não foi possível remover a liberação.')
+      setAccessError(error?.message || 'NÃ£o foi possÃ­vel remover a liberaÃ§Ã£o.')
     } finally {
       setAccessSaving(false)
     }
@@ -4899,7 +4948,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
         </div>
       </Panel>
 
-      <Panel title="Ficha e edição" action={selectedStudent?.phase ?? 'Novo'}>
+      <Panel title="Ficha e ediÃ§Ã£o" action={selectedStudent?.phase ?? 'Novo'}>
         {editing ? (
           <StudentForm
             student={editing}
@@ -4915,25 +4964,25 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
         ) : selectedStudent ? (
           <>
             <StudentSnapshot student={selectedStudent} />
-            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobrança automática.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal' }]} />
+            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano nÃ£o definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobranÃ§a automÃ¡tica.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano nÃ£o definido', price: '0', cycle: 'mensal' }]} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Info label="E-mail" value={selectedStudent.email} />
               <Info label="Telefone" value={selectedStudent.phone} />
-              <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'Não informado'} />
+              <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'NÃ£o informado'} />
               <Info label="Plano" value={selectedStudent.plan} />
               <Info label="Pagamento" value={selectedStudent.payment} />
-              <Info label="Meta de água" value={selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'} />
-              <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
-              <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
+              <Info label="Meta de Ã¡gua" value={selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'} />
+              <Info label="LiberaÃ§Ã£o temporÃ¡ria" value={selectedStudent.accessOverrideUntil ? `AtÃ© ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberaÃ§Ã£o ativa'} />
+              <Info label="PrÃ³ximo check-in" value={selectedStudent.nextCheckin} />
             </div>
             <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
               <p className="text-xs font-black uppercase text-amber-200">Acesso do aluno</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
-                Se o aluno estiver pendente, o portal bloqueia treino, dieta e progresso. Você pode liberar temporariamente em casos de exceção.
+                Se o aluno estiver pendente, o portal bloqueia treino, dieta e progresso. VocÃª pode liberar temporariamente em casos de exceÃ§Ã£o.
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
-                  Dias de liberação
+                  Dias de liberaÃ§Ã£o
                   <input
                     type="number"
                     min="1"
@@ -4946,21 +4995,21 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
                 <button type="button" disabled={accessSaving} onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md bg-amber-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
                   {accessSaving ? 'Salvando...' : 'Liberar acesso'}
                 </button>
-                <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberação</button>
+                <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberaÃ§Ã£o</button>
               </div>
               {accessMessage ? <p className="mt-3 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{accessMessage}</p> : null}
               {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
             </div>
             <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">Código de acesso do aluno</p>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">CÃ³digo de acesso do aluno</p>
               {selectedInvite ? (
                 <>
                   <p className="mt-2 select-all text-2xl font-black text-white">{selectedInvite.code}</p>
-                  <p className="mt-2 text-sm text-zinc-300">O aluno usa este código na opção “Aluno” da tela de entrada.</p>
+                  <p className="mt-2 text-sm text-zinc-300">O aluno usa este cÃ³digo na opÃ§Ã£o â€œAlunoâ€ da tela de entrada.</p>
                 </>
               ) : (
                 <>
-                  <p className="mt-2 text-sm text-amber-200">Código ainda não disponível.</p>
+                  <p className="mt-2 text-sm text-amber-200">CÃ³digo ainda nÃ£o disponÃ­vel.</p>
                   <button
                     type="button"
                     disabled={generatingCode}
@@ -4978,7 +5027,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
                     }}
                     className="mt-3 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60"
                   >
-                    {generatingCode ? 'Gerando código...' : 'Gerar código agora'}
+                    {generatingCode ? 'Gerando cÃ³digo...' : 'Gerar cÃ³digo agora'}
                   </button>
                   {inviteError ? <p className="mt-2 text-sm text-red-200">{inviteError}</p> : null}
                 </>
@@ -4995,7 +5044,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
                 type="button"
                 disabled={deleting}
                 onClick={async () => {
-                  const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
+                  const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta aÃ§Ã£o nÃ£o pode ser desfeita.`)
                   if (!confirmed) return
                   setDeleting(true)
                   setInviteError('')
@@ -5003,7 +5052,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
                     await onDelete(selectedStudent.id)
                     setSavedInvite(null)
                   } catch (error) {
-                    setInviteError(error?.message || 'Não foi possível excluir o aluno.')
+                    setInviteError(error?.message || 'NÃ£o foi possÃ­vel excluir o aluno.')
                   } finally {
                     setDeleting(false)
                   }
@@ -5029,7 +5078,7 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
       {ranking.length ? (
         <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
           <div className="rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-300/12 via-white/[0.035] to-blue-400/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Pódio de evolução</p>
+            <p className="text-xs font-black uppercase text-emerald-200">PÃ³dio de evoluÃ§Ã£o</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {ranking.slice(0, 3).map((item, index) => (
                 <button
@@ -5075,14 +5124,14 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                     <p className="truncate text-sm font-black text-white">{item.student.name}</p>
                     <p className="shrink-0 text-sm font-black text-emerald-100">{item.xp} XP</p>
                   </div>
-                  <p className="mt-1 truncate text-xs text-zinc-500">{item.levelName} · {item.completedCount} treinos concluídos</p>
+                  <p className="mt-1 truncate text-xs text-zinc-500">{item.levelName} Â· {item.completedCount} treinos concluÃ­dos</p>
                 </div>
               </button>
             ))}
           </div>
         </div>
       ) : (
-        <Empty text="Cadastre alunos e registre treinos concluídos para montar o ranking." />
+        <Empty text="Cadastre alunos e registre treinos concluÃ­dos para montar o ranking." />
       )}
     </Panel>
   )
@@ -5146,7 +5195,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
     const form = new FormData(event.currentTarget)
     const cpf = form.get('cpf')?.toString().trim() || ''
     if (cpf && cpf.replace(/\D/g, '').length !== 11) {
-      setError('Confira o CPF: ele deve ter 11 números.')
+      setError('Confira o CPF: ele deve ter 11 nÃºmeros.')
       return
     }
     setSaving(true)
@@ -5181,7 +5230,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
         requireAnamnesis: !continuingStudent,
       })
     } catch (saveError) {
-      setError(saveError.message || 'Não foi possível salvar o aluno.')
+      setError(saveError.message || 'NÃ£o foi possÃ­vel salvar o aluno.')
     } finally {
       setSaving(false)
     }
@@ -5201,19 +5250,19 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
           className="mt-1 h-5 w-5 shrink-0 accent-emerald-500"
         />
         <span className="min-w-0">
-          <span className="block font-black text-zinc-100">Aluno já acompanhado</span>
+          <span className="block font-black text-zinc-100">Aluno jÃ¡ acompanhado</span>
           <span className="mt-1 block text-sm leading-6 text-zinc-400">
-            Use para transferir um aluno atual para o Coach Fit Pro. Ele aceitará o consentimento e entrará direto no portal, sem preencher uma nova anamnese.
+            Use para transferir um aluno atual para o Coach Fit Pro. Ele aceitarÃ¡ o consentimento e entrarÃ¡ direto no portal, sem preencher uma nova anamnese.
           </span>
         </span>
       </label>
       {continuingStudent ? (
         <div className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50">
-          Depois do cadastro, registre treino, alimentação, avaliações e próximos acompanhamentos nas áreas correspondentes.
+          Depois do cadastro, registre treino, alimentaÃ§Ã£o, avaliaÃ§Ãµes e prÃ³ximos acompanhamentos nas Ã¡reas correspondentes.
         </div>
       ) : (
         <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4 text-sm leading-6 text-blue-50">
-          Como este é um aluno novo, a anamnese será solicitada no primeiro acesso após o consentimento.
+          Como este Ã© um aluno novo, a anamnese serÃ¡ solicitada no primeiro acesso apÃ³s o consentimento.
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -5221,7 +5270,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
         <Field label="E-mail" name="email" type="email" defaultValue={student.email} autoComplete="email" />
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
-        <Field label="Meta de água por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
+        <Field label="Meta de Ã¡gua por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
         <Select label="Pagamento" name="payment" defaultValue={student.payment} options={['Pago', 'Pendente']} />
       </div>
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
@@ -5382,9 +5431,9 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
         restingHeartRate: form.get('restingHeartRate')?.toString() || '',
         notes: form.get('notes')?.toString() || '',
       })
-      setMessage('Avaliação registrada com sucesso.')
+      setMessage('AvaliaÃ§Ã£o registrada com sucesso.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar a avaliação.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar a avaliaÃ§Ã£o.')
     } finally {
       setSaving(false)
     }
@@ -5393,7 +5442,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
   return (
     <div className="grid gap-4 lg:gap-6">
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Panel title="Nova avaliação" action="Medidas corporais">
+        <Panel title="Nova avaliaÃ§Ã£o" action="Medidas corporais">
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
               <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -5408,7 +5457,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
                 </select>
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Data da avaliação" name="assessedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                <Field label="Data da avaliaÃ§Ã£o" name="assessedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
                 <Field label="Peso (kg)" name="weightKg" type="number" defaultValue={parseMetric(student?.weight)} />
                 <Field label="Altura (cm)" name="heightCm" type="number" defaultValue="175" />
                 <Field label="Gordura corporal (%)" name="bodyFatPercent" type="number" defaultValue={parseMetric(student?.bodyFat)} required={false} />
@@ -5418,29 +5467,29 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
                 <Field label="Abdomen (cm)" name="abdomenCm" type="number" required={false} />
                 <Field label="Quadril (cm)" name="hipCm" type="number" required={false} />
                 <Field label="Peitoral (cm)" name="chestCm" type="number" required={false} />
-                <Field label="Braço (cm)" name="armCm" type="number" required={false} />
+                <Field label="BraÃ§o (cm)" name="armCm" type="number" required={false} />
                 <Field label="Coxa (cm)" name="thighCm" type="number" required={false} />
                 <Field label="Panturrilha (cm)" name="calfCm" type="number" required={false} />
                 <Field label="FC repouso" name="restingHeartRate" type="number" required={false} />
               </div>
-              <TextArea label="Parecer do coach" name="notes" defaultValue="Registrar evolução, pontos de atenção e próximo objetivo." />
+              <TextArea label="Parecer do coach" name="notes" defaultValue="Registrar evoluÃ§Ã£o, pontos de atenÃ§Ã£o e prÃ³ximo objetivo." />
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-                {saving ? 'Salvando...' : 'Salvar avaliação'}
+                {saving ? 'Salvando...' : 'Salvar avaliaÃ§Ã£o'}
               </button>
               {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
               {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
             </form>
           ) : (
-            <Empty text="Cadastre um aluno antes de registrar avaliações." />
+            <Empty text="Cadastre um aluno antes de registrar avaliaÃ§Ãµes." />
           )}
         </Panel>
 
-        <Panel title={`Evolução - ${student?.name ?? 'Aluno'}`} action={`${studentAssessments.length} registros`}>
+        <Panel title={`EvoluÃ§Ã£o - ${student?.name ?? 'Aluno'}`} action={`${studentAssessments.length} registros`}>
           <AssessmentProgress assessments={studentAssessments} student={student} detailed />
         </Panel>
       </div>
 
-      <Panel title="Histórico de avaliações" action="Comparativo">
+      <Panel title="HistÃ³rico de avaliaÃ§Ãµes" action="Comparativo">
         <div className="grid gap-3 lg:grid-cols-2">
           {studentAssessments.length ? (
             studentAssessments.map((assessment, index) => (
@@ -5451,7 +5500,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
               />
             ))
           ) : (
-            <Empty text="Nenhuma avaliação registrada para este aluno." />
+            <Empty text="Nenhuma avaliaÃ§Ã£o registrada para este aluno." />
           )}
         </div>
       </Panel>
@@ -5489,7 +5538,7 @@ function AssessmentProgress({ assessments, student, detailed = false, checkins =
             <PhotoCompareCard label="Registro atual" item={latestPhoto} />
           </div>
         ) : (
-          <Empty text="A evolução detalhada aparecerá depois da primeira avaliação ou de dois check-ins com foto." />
+          <Empty text="A evoluÃ§Ã£o detalhada aparecerÃ¡ depois da primeira avaliaÃ§Ã£o ou de dois check-ins com foto." />
         )}
       </div>
     )
@@ -5527,7 +5576,7 @@ function AssessmentProgress({ assessments, student, detailed = false, checkins =
         </Suspense>
       ) : null}
       <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
-        <p className="text-xs font-black uppercase tracking-normal text-blue-200">Leitura da evolução</p>
+        <p className="text-xs font-black uppercase tracking-normal text-blue-200">Leitura da evoluÃ§Ã£o</p>
         <p className="mt-2 text-sm leading-6 text-zinc-200">{insight}</p>
       </div>
     </div>
@@ -5567,7 +5616,7 @@ function AssessmentCard({ assessment, previous }) {
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <AssessmentValue label="Gordura" value={assessment.bodyFatPercent} suffix="%" previous={previous?.bodyFatPercent} />
         <AssessmentValue label="Cintura" value={assessment.waistCm} suffix=" cm" previous={previous?.waistCm} />
-        <AssessmentValue label="Braço" value={assessment.armCm} suffix=" cm" previous={previous?.armCm} />
+        <AssessmentValue label="BraÃ§o" value={assessment.armCm} suffix=" cm" previous={previous?.armCm} />
         <AssessmentValue label="Coxa" value={assessment.thighCm} suffix=" cm" previous={previous?.thighCm} />
       </div>
     </div>
@@ -5591,22 +5640,22 @@ function AssessmentValue({ label, value, suffix, previous }) {
 const expressWorkoutBlueprints = {
   hipertrofia: {
     title: 'Hipertrofia estruturada',
-    focus: 'Volume progressivo, técnica e grupos principais',
-    exercises: ['Supino reto com barra', 'Remada baixa', 'Agachamento livre', 'Desenvolvimento com halteres', 'Rosca direta', 'Tríceps na polia'],
+    focus: 'Volume progressivo, tÃ©cnica e grupos principais',
+    exercises: ['Supino reto com barra', 'Remada baixa', 'Agachamento livre', 'Desenvolvimento com halteres', 'Rosca direta', 'TrÃ­ceps na polia'],
     sets: '3-4',
     reps: '8-12',
     rest: '75-90s',
   },
   emagrecimento: {
     title: 'Emagrecimento e condicionamento',
-    focus: 'Gasto energético, força básica e ritmo',
-    exercises: ['Agachamento livre', 'Remada baixa', 'Flexão de braços', 'Afundo com halteres', 'Prancha abdominal'],
+    focus: 'Gasto energÃ©tico, forÃ§a bÃ¡sica e ritmo',
+    exercises: ['Agachamento livre', 'Remada baixa', 'FlexÃ£o de braÃ§os', 'Afundo com halteres', 'Prancha abdominal'],
     sets: '3',
     reps: '12-15',
     rest: '45-60s',
   },
   forca: {
-    title: 'Força técnica',
+    title: 'ForÃ§a tÃ©cnica',
     focus: 'Movimentos base, carga controlada e descanso maior',
     exercises: ['Supino reto com barra', 'Agachamento livre', 'Levantamento terra', 'Remada curvada com barra'],
     sets: '4-5',
@@ -5615,15 +5664,15 @@ const expressWorkoutBlueprints = {
   },
   condicionamento: {
     title: 'Condicionamento funcional',
-    focus: 'Consistência, circuito e controle de esforço',
-    exercises: ['Leg press 45°', 'Puxada frontal', 'Desenvolvimento com halteres', 'Abdominal crunch', 'Panturrilha em pé'],
+    focus: 'ConsistÃªncia, circuito e controle de esforÃ§o',
+    exercises: ['Leg press 45Â°', 'Puxada frontal', 'Desenvolvimento com halteres', 'Abdominal crunch', 'Panturrilha em pÃ©'],
     sets: '3',
     reps: '12-20',
     rest: '45s',
   },
   manutencao: {
-    title: 'Manutenção inteligente',
-    focus: 'Rotina sustentável, técnica e frequência',
+    title: 'ManutenÃ§Ã£o inteligente',
+    focus: 'Rotina sustentÃ¡vel, tÃ©cnica e frequÃªncia',
     exercises: ['Supino inclinado com halteres', 'Remada baixa', 'Cadeira extensora', 'Mesa flexora', 'Prancha abdominal'],
     sets: '3',
     reps: '10-12',
@@ -5633,28 +5682,28 @@ const expressWorkoutBlueprints = {
 
 const expressMealBlueprints = {
   hipertrofia: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Banana', grams: 100 }, { foodName: 'Aveia', grams: 40 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Azeite de Oliva', grams: 8 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Banana', grams: 100 }, { foodName: 'Aveia', grams: 40 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Azeite de Oliva', grams: 8 }] },
     { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 250 }, { foodName: 'Peito de Frango', grams: 170 }] },
   ],
   emagrecimento: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Mamão', grams: 150 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 140 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Cenoura', grams: 100 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'MamÃ£o', grams: 150 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 140 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Cenoura', grams: 100 }] },
     { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 150 }, { foodName: 'Peito de Frango', grams: 150 }, { foodName: 'Pepino', grams: 100 }] },
   ],
   forca: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Pão Francês', grams: 50 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Filé Mignon', grams: 160 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'PÃ£o FrancÃªs', grams: 50 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'FilÃ© Mignon', grams: 160 }] },
     { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 220 }, { foodName: 'Peito de Frango', grams: 170 }] },
   ],
   condicionamento: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Iogurte Natural', grams: 170 }, { foodName: 'Banana', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 170 }, { foodName: 'Peito de Frango', grams: 160 }, { foodName: 'Beterraba', grams: 90 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ foodName: 'Iogurte Natural', grams: 170 }, { foodName: 'Banana', grams: 100 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 170 }, { foodName: 'Peito de Frango', grams: 160 }, { foodName: 'Beterraba', grams: 90 }] },
     { name: 'Jantar', time: '20:00', items: [{ foodName: 'Cuscuz', grams: 150 }, { foodName: 'Ovo Inteiro', grams: 120 }] },
   ],
   manutencao: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Banana', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 180 }, { foodName: 'Peito de Frango', grams: 160 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Banana', grams: 100 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 180 }, { foodName: 'Peito de Frango', grams: 160 }] },
     { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 180 }, { foodName: 'Ovo Inteiro', grams: 100 }] },
   ],
 }
@@ -5704,10 +5753,10 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
         meals: nutrition?.meals?.length || draftNutrition.meals.length,
         objective,
       })
-      setMessage('Plano publicado com sucesso. Seu aluno já pode visualizar treino e alimentação.')
+      setMessage('Plano publicado com sucesso. Seu aluno jÃ¡ pode visualizar treino e alimentaÃ§Ã£o.')
       setStep(5)
     } catch (publishError) {
-      setError(publishError?.message || 'Não foi possível publicar agora.')
+      setError(publishError?.message || 'NÃ£o foi possÃ­vel publicar agora.')
     } finally {
       setSaving(false)
     }
@@ -5719,11 +5768,11 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
         <div className="max-w-3xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-100">
             <NavIcon name="plus" className="h-4 w-4" />
-            Criação expressa
+            CriaÃ§Ã£o expressa
           </span>
           <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Crie, revise e publique treinos com mais velocidade.</h3>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
-            Use modelos inteligentes, ajuste séries, repetições, descanso e mídia de execução, depois publique somente quando estiver seguro.
+            Use modelos inteligentes, ajuste sÃ©ries, repetiÃ§Ãµes, descanso e mÃ­dia de execuÃ§Ã£o, depois publique somente quando estiver seguro.
           </p>
         </div>
         <div className="min-w-52 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -5751,13 +5800,13 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
               </select>
             </label>
             <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-              Nível
+              NÃ­vel
               <select value={level} onChange={(event) => setLevel(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
                 {['iniciante', 'intermediario', 'avancado'].map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-              Frequência semanal
+              FrequÃªncia semanal
               <select value={frequency} onChange={(event) => setFrequency(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
                 {['2', '3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} dias</option>)}
               </select>
@@ -5765,10 +5814,10 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
           </div>
           <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
             Local e equipamentos
-            <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Academia completa, casa, halteres, elásticos..." className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400" />
+            <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Academia completa, casa, halteres, elÃ¡sticos..." className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400" />
           </label>
           <div className="grid gap-2">
-             <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Base de criação</p>
+             <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Base de criaÃ§Ã£o</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {[
                 ['modelo', 'Usar modelo'],
@@ -5783,14 +5832,14 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <InlineInput label="Séries em lote" value={bulkSets} onChange={setBulkSets} />
+            <InlineInput label="SÃ©ries em lote" value={bulkSets} onChange={setBulkSets} />
             <InlineInput label="Reps em lote" value={bulkReps} onChange={setBulkReps} />
             <InlineInput label="Descanso em lote" value={bulkRest} onChange={setBulkRest} />
           </div>
           <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-            Refeições
+            RefeiÃ§Ãµes
             <select value={mealCount} onChange={(event) => setMealCount(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
-              {['3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} refeições</option>)}
+              {['3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} refeiÃ§Ãµes</option>)}
             </select>
           </label>
           <div className="workout-step-tabs flex flex-wrap gap-2">
@@ -5804,9 +5853,9 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
 
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-3">
-            <ExpressSummaryMetric icon="dumbbell" label="Treino" value={`${workoutSummary.totalExercises} exercícios`} detail={`${frequency} dias/semana`} />
-            <ExpressSummaryMetric icon="muscle" label="Músculos" value={workoutSummary.topMuscles.slice(0, 2).join(', ') || '-'} detail="volume visual" />
-            <ExpressSummaryMetric icon="nutrition" label="Dieta" value={`${nutritionSummary.meals} refeições`} detail={`${nutritionSummary.calories} kcal`} />
+            <ExpressSummaryMetric icon="dumbbell" label="Treino" value={`${workoutSummary.totalExercises} exercÃ­cios`} detail={`${frequency} dias/semana`} />
+            <ExpressSummaryMetric icon="muscle" label="MÃºsculos" value={workoutSummary.topMuscles.slice(0, 2).join(', ') || '-'} detail="volume visual" />
+            <ExpressSummaryMetric icon="nutrition" label="Dieta" value={`${nutritionSummary.meals} refeiÃ§Ãµes`} detail={`${nutritionSummary.calories} kcal`} />
           </div>
 
            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-xl shadow-black/20">
@@ -5815,7 +5864,7 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
                 <p className="text-xs font-black uppercase text-emerald-200">Resumo antes de publicar</p>
                 <h4 className="mt-1 text-xl font-black text-white">Tudo pronto para revisar e enviar ao aluno.</h4>
               </div>
-               <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Prévia automática</span>
+               <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">PrÃ©via automÃ¡tica</span>
             </div>
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
@@ -5829,13 +5878,13 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
                 </div>
               </div>
               <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
-                <p className="text-xs font-black uppercase text-zinc-500">Plano alimentar rápido</p>
+                <p className="text-xs font-black uppercase text-zinc-500">Plano alimentar rÃ¡pido</p>
                 <h5 className="mt-1 font-black text-white">{draftNutrition.title}</h5>
                 <p className="mt-1 text-sm leading-6 text-zinc-400">{draftNutrition.notes}</p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <ExerciseMetric label="Kcal" value={nutritionSummary.calories} />
-                  <ExerciseMetric label="Proteína" value={`${nutritionSummary.protein}g`} />
-                  <ExerciseMetric label="Refeições" value={nutritionSummary.meals} />
+                  <ExerciseMetric label="ProteÃ­na" value={`${nutritionSummary.protein}g`} />
+                  <ExerciseMetric label="RefeiÃ§Ãµes" value={nutritionSummary.meals} />
                 </div>
               </div>
             </div>
@@ -5858,7 +5907,7 @@ function ExpressCreationModule({ selectedStudent, students, workouts = [], nutri
               {saving ? 'Publicando...' : 'Revisar e publicar'}
             </button>
              <button type="button" onClick={() => setStep((current) => Math.min(5, current + 1))} className="min-h-12 rounded-xl border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
-              Próxima etapa
+              PrÃ³xima etapa
             </button>
           </div>
           {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
@@ -5886,8 +5935,8 @@ function getExpressStepLabel(step) {
     2: 'Definindo objetivo e rotina',
     3: 'Escolhendo base e modelos',
     4: 'Revisando treino e dieta',
-    5: 'Publicação pronta',
-  }[step] || 'Criação expressa'
+    5: 'PublicaÃ§Ã£o pronta',
+  }[step] || 'CriaÃ§Ã£o expressa'
 }
 
 function buildExpressWorkoutModels(workouts = [], exerciseLibraryItems = []) {
@@ -5901,7 +5950,7 @@ function buildExpressWorkoutModels(workouts = [], exerciseLibraryItems = []) {
         id: workout.id,
         title: workout.title || 'Treino salvo',
         workout,
-        meta: `${enriched.length} exercícios · ${muscles.slice(0, 2).join(', ') || 'músculos variados'}`,
+        meta: `${enriched.length} exercÃ­cios Â· ${muscles.slice(0, 2).join(', ') || 'mÃºsculos variados'}`,
       }
     })
 }
@@ -5931,19 +5980,19 @@ function buildExpressWorkoutDraft({ student, objective, level, frequency, locati
       rest: bulkRest || enriched.rest || blueprint.rest,
       instructions: [
         enriched.instructions,
-        index === 0 ? `Criado pela Criação Expressa para ${formatUiText(objective)}. Revise técnica, limitações e resposta do aluno antes de evoluir cargas.` : '',
+        index === 0 ? `Criado pela CriaÃ§Ã£o Expressa para ${formatUiText(objective)}. Revise tÃ©cnica, limitaÃ§Ãµes e resposta do aluno antes de evoluir cargas.` : '',
       ].filter(Boolean).join('\n'),
     }
   })
 
   return {
     studentId: student?.id || '',
-    title: reusableWorkout && mode === 'duplicar' ? `${reusableWorkout.title || blueprint.title} - cópia` : blueprint.title,
-    focus: `${blueprint.focus}. Frequência: ${frequency}x/semana. Local: ${location}. Nível: ${formatUiText(level)}.`,
+    title: reusableWorkout && mode === 'duplicar' ? `${reusableWorkout.title || blueprint.title} - cÃ³pia` : blueprint.title,
+    focus: `${blueprint.focus}. FrequÃªncia: ${frequency}x/semana. Local: ${location}. NÃ­vel: ${formatUiText(level)}.`,
     notes: [
-      'Gerado pela Criação Expressa. Revisar limitações, lesões, preferências e histórico antes de publicar ajustes finos.',
-      student?.injuries ? `Atenção a limitações: ${student.injuries}` : '',
-      student?.notes ? `Histórico do aluno: ${student.notes}` : '',
+      'Gerado pela CriaÃ§Ã£o Expressa. Revisar limitaÃ§Ãµes, lesÃµes, preferÃªncias e histÃ³rico antes de publicar ajustes finos.',
+      student?.injuries ? `AtenÃ§Ã£o a limitaÃ§Ãµes: ${student.injuries}` : '',
+      student?.notes ? `HistÃ³rico do aluno: ${student.notes}` : '',
     ].filter(Boolean).join('\n'),
     exercises,
   }
@@ -5954,14 +6003,14 @@ function buildExpressNutritionDraft({ student, objective, mealCount }) {
   const count = Math.max(3, Math.min(6, Number(mealCount || 3)))
   const meals = Array.from({ length: count }).map((_, index) => {
     const base = blueprint[index] || {
-      name: `Refeição ${index + 1}`,
+      name: `RefeiÃ§Ã£o ${index + 1}`,
       time: '',
       items: [{ foodName: index % 2 ? 'Peito de Frango' : 'Ovo Inteiro', grams: index % 2 ? 150 : 100 }],
     }
     const items = base.items.map((item) => {
       const food = findExpressFoodByName(item.foodName)
       return {
-        category: food?.category || 'Preparações',
+        category: food?.category || 'PreparaÃ§Ãµes',
         foodName: food?.name || item.foodName,
         grams: item.grams,
       }
@@ -5980,10 +6029,10 @@ function buildExpressNutritionDraft({ student, objective, mealCount }) {
 
   return {
     studentId: student?.id || '',
-    title: `Plano alimentar rápido - ${formatUiText(objective)}`,
+    title: `Plano alimentar rÃ¡pido - ${formatUiText(objective)}`,
     calories: `${Math.round(totals.calories)} kcal`,
     protein: `${roundMacro(totals.protein)} g`,
-    notes: 'Estrutura criada para revisão profissional. Não substitui avaliação nutricional individual e pode ser ajustada conforme preferências, restrições e rotina do aluno.',
+    notes: 'Estrutura criada para revisÃ£o profissional. NÃ£o substitui avaliaÃ§Ã£o nutricional individual e pode ser ajustada conforme preferÃªncias, restriÃ§Ãµes e rotina do aluno.',
     meals,
   }
 }
@@ -5992,7 +6041,7 @@ function summarizeExpressWorkout(workout = {}) {
   const exercises = workout.exercises || []
   const muscleCounts = exercises.reduce((acc, exercise) => {
     const profile = getExerciseMuscleProfile(exercise)
-    const label = profile.primaryLabel && profile.primaryLabel !== 'Músculo alvo não identificado' ? profile.primaryLabel : (exercise.muscleGroup || 'Outros')
+    const label = profile.primaryLabel && profile.primaryLabel !== 'MÃºsculo alvo nÃ£o identificado' ? profile.primaryLabel : (exercise.muscleGroup || 'Outros')
     acc[label] = (acc[label] || 0) + 1
     return acc
   }, {})
@@ -6090,11 +6139,11 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
         />
       </div>
 
-      <Panel title="Notas de carga" action="Progressão">
+      <Panel title="Notas de carga" action="ProgressÃ£o">
         <LoadNotesPanel student={selectedStudent} logs={studentLogs} onSaveStudent={onSaveStudent} />
       </Panel>
 
-      <Panel title="Histórico de execução" action={`${studentLogs.length} registros`}>
+      <Panel title="HistÃ³rico de execuÃ§Ã£o" action={`${studentLogs.length} registros`}>
         <WorkoutLogList logs={studentLogs} />
       </Panel>
     </div>
@@ -6124,20 +6173,20 @@ function WorkoutProgressionRecommendations({ student, workouts, logs, decisions 
     setError('')
     try {
       await onApprove?.(recommendation, editedTarget)
-      setMessage('Progressão aprovada. Uma nova versão do treino foi criada e a anterior foi arquivada.')
+      setMessage('ProgressÃ£o aprovada. Uma nova versÃ£o do treino foi criada e a anterior foi arquivada.')
     } catch (approveError) {
-      setError(approveError?.message || 'Não foi possível aprovar a progressão.')
+      setError(approveError?.message || 'NÃ£o foi possÃ­vel aprovar a progressÃ£o.')
     } finally {
       setBusyKey('')
     }
   }
 
   async function handleEdit(recommendation) {
-    const sets = window.prompt('Séries alvo', recommendation.nextTarget.sets || recommendation.exercise.sets || '')
+    const sets = window.prompt('SÃ©ries alvo', recommendation.nextTarget.sets || recommendation.exercise.sets || '')
     if (sets === null) return
-    const reps = window.prompt('Repetições alvo', recommendation.nextTarget.reps || recommendation.exercise.reps || '')
+    const reps = window.prompt('RepetiÃ§Ãµes alvo', recommendation.nextTarget.reps || recommendation.exercise.reps || '')
     if (reps === null) return
-    const load = window.prompt('Carga / esforço alvo', recommendation.nextTarget.load || recommendation.exercise.load || '')
+    const load = window.prompt('Carga / esforÃ§o alvo', recommendation.nextTarget.load || recommendation.exercise.load || '')
     if (load === null) return
     await handleApprove(recommendation, { ...recommendation.nextTarget, sets, reps, load })
   }
@@ -6148,9 +6197,9 @@ function WorkoutProgressionRecommendations({ student, workouts, logs, decisions 
     setError('')
     try {
       await onIgnore?.(recommendation)
-      setMessage('Sugestão ignorada e registrada no histórico.')
+      setMessage('SugestÃ£o ignorada e registrada no histÃ³rico.')
     } catch (ignoreError) {
-      setError(ignoreError?.message || 'Não foi possível ignorar a sugestão.')
+      setError(ignoreError?.message || 'NÃ£o foi possÃ­vel ignorar a sugestÃ£o.')
     } finally {
       setBusyKey('')
     }
@@ -6162,18 +6211,18 @@ function WorkoutProgressionRecommendations({ student, workouts, logs, decisions 
     setError('')
     try {
       await onUndo?.(decision)
-      setMessage('Alteração desfeita. Uma nova versão com a meta anterior foi criada.')
+      setMessage('AlteraÃ§Ã£o desfeita. Uma nova versÃ£o com a meta anterior foi criada.')
     } catch (undoError) {
-      setError(undoError?.message || 'Não foi possível desfazer esta alteração.')
+      setError(undoError?.message || 'NÃ£o foi possÃ­vel desfazer esta alteraÃ§Ã£o.')
     } finally {
       setBusyKey('')
     }
   }
 
   return (
-    <Panel title="Recomendações de progressão" action={`${recommendations.length} sugestões`}>
+    <Panel title="RecomendaÃ§Ãµes de progressÃ£o" action={`${recommendations.length} sugestÃµes`}>
       {!student ? (
-        <Empty text="Selecione um aluno para analisar progressão de treino." />
+        <Empty text="Selecione um aluno para analisar progressÃ£o de treino." />
       ) : loading ? (
         <div className="grid gap-3 md:grid-cols-2">
           {[1, 2].map((item) => <div key={item} className="h-44 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />)}
@@ -6196,11 +6245,11 @@ function WorkoutProgressionRecommendations({ student, workouts, logs, decisions 
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <ExerciseMetric label="Carga atual" value={recommendation.previousTarget.load || '-'} />
                 <ExerciseMetric label="Reps alvo" value={recommendation.previousTarget.reps || '-'} />
-                <ExerciseMetric label="Séries" value={recommendation.previousTarget.sets || '-'} />
+                <ExerciseMetric label="SÃ©ries" value={recommendation.previousTarget.sets || '-'} />
               </div>
 
               <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                <p className="text-xs font-black uppercase text-zinc-500">Sugestão</p>
+                <p className="text-xs font-black uppercase text-zinc-500">SugestÃ£o</p>
                 <p className="mt-1 text-sm font-black text-emerald-100">{recommendation.suggestion}</p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">{recommendation.reason}</p>
               </div>
@@ -6220,17 +6269,17 @@ function WorkoutProgressionRecommendations({ student, workouts, logs, decisions 
           ))}
         </div>
       ) : (
-        <Empty text="Dados insuficientes para sugerir progressão. Peça ao aluno para registrar cargas, repetições, RPE/RIR e concluir mais treinos." />
+        <Empty text="Dados insuficientes para sugerir progressÃ£o. PeÃ§a ao aluno para registrar cargas, repetiÃ§Ãµes, RPE/RIR e concluir mais treinos." />
       )}
 
       {recentDecisions.length ? (
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-black uppercase text-zinc-500">Histórico recente de decisões</p>
+          <p className="text-xs font-black uppercase text-zinc-500">HistÃ³rico recente de decisÃµes</p>
           <div className="mt-3 grid gap-2">
             {recentDecisions.map((decision) => (
               <div key={decision.id} className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-white">{decision.exerciseName} · {formatUiText(decision.status)}</p>
+                  <p className="text-sm font-black text-white">{decision.exerciseName} Â· {formatUiText(decision.status)}</p>
                   <p className="mt-1 text-xs leading-5 text-zinc-400">{decision.suggestion || decision.reason}</p>
                 </div>
                 {decision.status === 'approved' ? (
@@ -6298,9 +6347,9 @@ function buildExerciseProgressionRecommendation({ student, workout, exercise, in
     nextTarget: previousTarget,
     action: 'insufficient',
     suggestion: 'dados insuficientes',
-    reason: 'Ainda não há registros suficientes de carga, repetições, RPE/RIR ou histórico recente para sugerir mudança com segurança.',
-    confidence: 'baixa confiança',
-    recentPerformance: sessions.length ? summarizeExerciseSessions(sessions) : 'Sem histórico específico deste exercício.',
+    reason: 'Ainda nÃ£o hÃ¡ registros suficientes de carga, repetiÃ§Ãµes, RPE/RIR ou histÃ³rico recente para sugerir mudanÃ§a com seguranÃ§a.',
+    confidence: 'baixa confianÃ§a',
+    recentPerformance: sessions.length ? summarizeExerciseSessions(sessions) : 'Sem histÃ³rico especÃ­fico deste exercÃ­cio.',
   }
 
   if (sessions.length < 2) return base
@@ -6321,45 +6370,45 @@ function buildExerciseProgressionRecommendation({ student, workout, exercise, in
   const nextTarget = { ...previousTarget }
   let action = 'maintain'
   let suggestion = 'manter treino atual'
-  let reason = 'Desempenho recente está estável. Mantenha o alvo e observe a próxima sessão.'
-  let confidence = sessions.length >= 3 ? 'média confiança' : 'baixa confiança'
+  let reason = 'Desempenho recente estÃ¡ estÃ¡vel. Mantenha o alvo e observe a prÃ³xima sessÃ£o.'
+  let confidence = sessions.length >= 3 ? 'mÃ©dia confianÃ§a' : 'baixa confianÃ§a'
 
   if (performanceDrop && (highRpe || lowRir || lowFrequency)) {
     action = 'deload'
     suggestion = 'sugerir deload'
     nextTarget.load = reduceLoadTarget(exercise.load || latest.loadText || '', 7)
-    reason = 'Houve queda de desempenho em sessões recentes combinada com esforço alto ou baixa frequência. Recomendo reduzir carga por uma sessão e priorizar recuperação.'
-    confidence = 'alta confiança'
+    reason = 'Houve queda de desempenho em sessÃµes recentes combinada com esforÃ§o alto ou baixa frequÃªncia. Recomendo reduzir carga por uma sessÃ£o e priorizar recuperaÃ§Ã£o.'
+    confidence = 'alta confianÃ§a'
   } else if (highRpe || lowRir) {
     action = 'maintain_or_reduce'
     suggestion = latest.failed ? 'reduzir carga' : 'manter carga'
     nextTarget.load = latest.failed ? reduceLoadTarget(exercise.load || latest.loadText || '', 5) : previousTarget.load
-    reason = 'O aluno registrou RPE alto ou RIR baixo. Subir carga agora pode piorar técnica ou recuperação.'
-    confidence = sessions.length >= 3 ? 'alta confiança' : 'média confiança'
+    reason = 'O aluno registrou RPE alto ou RIR baixo. Subir carga agora pode piorar tÃ©cnica ou recuperaÃ§Ã£o.'
+    confidence = sessions.length >= 3 ? 'alta confianÃ§a' : 'mÃ©dia confianÃ§a'
   } else if (hitTarget && highRir) {
     action = 'increase_load'
     suggestion = 'aumentar carga'
     nextTarget.load = increaseLoadTarget(exercise.load || latest.loadText || '', 3)
-    reason = 'O aluno atingiu a meta de repetições com RIR alto. Há margem para um aumento leve e controlado de carga.'
-    confidence = 'alta confiança'
+    reason = 'O aluno atingiu a meta de repetiÃ§Ãµes com RIR alto. HÃ¡ margem para um aumento leve e controlado de carga.'
+    confidence = 'alta confianÃ§a'
   } else if (hitTarget && avgRpe !== null && avgRpe <= 8) {
     action = 'increase_reps'
-    suggestion = 'aumentar repetições'
+    suggestion = 'aumentar repetiÃ§Ãµes'
     nextTarget.reps = increaseRepTarget(exercise.reps)
-    reason = 'Meta atingida com esforço controlado. Aumentar repetições é uma progressão segura antes de subir carga.'
-    confidence = sessions.length >= 3 ? 'alta confiança' : 'média confiança'
+    reason = 'Meta atingida com esforÃ§o controlado. Aumentar repetiÃ§Ãµes Ã© uma progressÃ£o segura antes de subir carga.'
+    confidence = sessions.length >= 3 ? 'alta confianÃ§a' : 'mÃ©dia confianÃ§a'
   } else if (avgReps !== null && getTargetTopReps(exercise.reps) && avgReps < getTargetTopReps(exercise.reps) - 2) {
     action = 'reduce_reps'
-    suggestion = 'reduzir repetições'
+    suggestion = 'reduzir repetiÃ§Ãµes'
     nextTarget.reps = reduceRepTarget(exercise.reps)
-    reason = 'As repetições realizadas ficaram abaixo da meta. Reduzir a faixa ajuda a preservar execução e aderência.'
-    confidence = 'média confiança'
+    reason = 'As repetiÃ§Ãµes realizadas ficaram abaixo da meta. Reduzir a faixa ajuda a preservar execuÃ§Ã£o e aderÃªncia.'
+    confidence = 'mÃ©dia confianÃ§a'
   } else if (sessions.length >= 3 && !performanceDrop && !highRpe && !lowRir && frequency14 >= 3) {
     action = 'add_set'
-    suggestion = 'adicionar série'
+    suggestion = 'adicionar sÃ©rie'
     nextTarget.sets = increaseSetTarget(exercise.sets)
-    reason = 'Frequência recente está boa e não há sinal de esforço excessivo. Uma série extra pode aumentar estímulo sem trocar o exercício.'
-    confidence = 'média confiança'
+    reason = 'FrequÃªncia recente estÃ¡ boa e nÃ£o hÃ¡ sinal de esforÃ§o excessivo. Uma sÃ©rie extra pode aumentar estÃ­mulo sem trocar o exercÃ­cio.'
+    confidence = 'mÃ©dia confianÃ§a'
   }
 
   return {
@@ -6384,11 +6433,11 @@ function parseExercisePerformanceFromLog(log, exerciseName) {
   const source = exerciseLine || notes
   if (!source) return null
   const repsMatch = source.match(/(\d{1,2})\s*(?:rep|reps|x)/i)
-  const setsMatch = source.match(/(\d{1,2})\s*x\s*\d{1,2}/i) || source.match(/(\d{1,2})\s*(?:serie|series|s[eé]ries)/i)
+  const setsMatch = source.match(/(\d{1,2})\s*x\s*\d{1,2}/i) || source.match(/(\d{1,2})\s*(?:serie|series|s[eÃ©]ries)/i)
   const loadMatch = source.match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(?:kg|kgs|quilos?)/i)
   const rpeMatch = source.match(/rpe\s*([0-9]{1,2}(?:[,.]\d)?)/i)
   const rirMatch = source.match(/rir\s*([0-9]{1,2}(?:[,.]\d)?)/i)
-  const failed = /falh|nao consegui|não consegui|travou|dor|muito pesado/i.test(source) || log.effort === 'Muito forte'
+  const failed = /falh|nao consegui|nÃ£o consegui|travou|dor|muito pesado/i.test(source) || log.effort === 'Muito forte'
 
   return {
     date: log.completedAt,
@@ -6412,15 +6461,15 @@ function summarizeExerciseSessions(sessions = []) {
     latest?.rir !== null && latest?.rir !== undefined ? `RIR ${formatNumber(latest.rir)}` : null,
   ].filter(Boolean)
   return parts.length
-    ? `Última sessão: ${parts.join(' · ')}. Histórico analisado: ${sessions.length} sessão(ões).`
-    : `Histórico analisado: ${sessions.length} sessão(ões), mas com poucos dados objetivos.`
+    ? `Ãšltima sessÃ£o: ${parts.join(' Â· ')}. HistÃ³rico analisado: ${sessions.length} sessÃ£o(Ãµes).`
+    : `HistÃ³rico analisado: ${sessions.length} sessÃ£o(Ãµes), mas com poucos dados objetivos.`
 }
 
 function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
   const targetName = normalizeText(recommendation.exercise.name)
   const exercises = (workout.exercises || []).map((exercise) => {
     if (normalizeText(exercise.name) !== targetName) return exercise
-    const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
+    const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} sÃ©ries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme tÃ©cnica'}.`
     return {
       ...exercise,
       sets: nextTarget.sets || exercise.sets,
@@ -6432,7 +6481,7 @@ function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
 
   return {
     studentId: workout.studentId,
-    title: `${workout.title} · progressão`,
+    title: `${workout.title} Â· progressÃ£o`,
     focus: workout.focus,
     notes: [workout.notes, `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`].filter(Boolean).join('\n'),
     exercises,
@@ -6486,21 +6535,21 @@ function reduceLoadTarget(value, percent = 5) {
 
 function increaseRepTarget(value) {
   const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
-  if (!numbers.length) return value ? `${value} +1 rep` : 'aumentar 1 repetição'
+  if (!numbers.length) return value ? `${value} +1 rep` : 'aumentar 1 repetiÃ§Ã£o'
   const updated = numbers.map((item) => item + 1)
   return updated.length >= 2 ? `${updated[0]}-${updated[1]}` : String(updated[0])
 }
 
 function reduceRepTarget(value) {
   const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
-  if (!numbers.length) return value ? `${value} -1 rep` : 'reduzir 1 repetição'
+  if (!numbers.length) return value ? `${value} -1 rep` : 'reduzir 1 repetiÃ§Ã£o'
   const updated = numbers.map((item) => Math.max(1, item - 1))
   return updated.length >= 2 ? `${updated[0]}-${updated[1]}` : String(updated[0])
 }
 
 function increaseSetTarget(value) {
   const match = String(value || '').match(/\d+/)
-  if (!match) return value ? `${value} +1 série` : '4'
+  if (!match) return value ? `${value} +1 sÃ©rie` : '4'
   return String(Number(match[0]) + 1)
 }
 
@@ -6511,10 +6560,10 @@ function LoadNotesPanel({ student, logs, onSaveStudent }) {
   const latestLogs = logs.slice(0, 4)
   const latestEffort = latestLogs[0]?.effort || ''
   const suggestion = latestEffort.includes('Leve')
-    ? 'Próximo treino: considere subir 2% a 5% na carga principal.'
+    ? 'PrÃ³ximo treino: considere subir 2% a 5% na carga principal.'
     : latestEffort.includes('Forte')
-      ? 'Próximo treino: mantenha a carga e busque execução mais limpa antes de subir.'
-      : 'Próximo treino: se as repetições baterem com boa técnica, progrida aos poucos.'
+      ? 'PrÃ³ximo treino: mantenha a carga e busque execuÃ§Ã£o mais limpa antes de subir.'
+      : 'PrÃ³ximo treino: se as repetiÃ§Ãµes baterem com boa tÃ©cnica, progrida aos poucos.'
 
   useEffect(() => {
     setNotes(student?.loadNotes || '')
@@ -6538,14 +6587,14 @@ function LoadNotesPanel({ student, logs, onSaveStudent }) {
   return (
     <div className="grid gap-4">
       <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-4">
-        <p className="text-xs font-black uppercase text-emerald-200">Sugestão automática</p>
+        <p className="text-xs font-black uppercase text-emerald-200">SugestÃ£o automÃ¡tica</p>
         <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
       </div>
       <textarea
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
         rows={5}
-        placeholder="Ex.: supino 30 kg por lado com RPE 8; manter carga até completar 10 reps limpas."
+        placeholder="Ex.: supino 30 kg por lado com RPE 8; manter carga atÃ© completar 10 reps limpas."
         className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none focus:border-blue-500"
       />
       <button type="button" disabled={saving} onClick={handleSave} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
@@ -6557,7 +6606,7 @@ function LoadNotesPanel({ student, logs, onSaveStudent }) {
           {latestLogs.map((log) => (
             <div key={log.id} className="rounded-md border border-white/10 bg-white/[0.03] p-3">
               <p className="text-sm font-black">{log.title}</p>
-              <p className="mt-1 text-xs text-zinc-400">{formatDateTime(log.completedAt)} | Esforço: {log.effort || '-'}</p>
+              <p className="mt-1 text-xs text-zinc-400">{formatDateTime(log.completedAt)} | EsforÃ§o: {log.effort || '-'}</p>
             </div>
           ))}
         </div>
@@ -6600,7 +6649,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     () => buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises),
     [availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises],
   )
-  const quickFilters = ['todos', 'peito', 'costas', 'pernas', 'ombros', 'braços', 'abdômen']
+  const quickFilters = ['todos', 'peito', 'costas', 'pernas', 'ombros', 'braÃ§os', 'abdÃ´men']
 
   useEffect(() => {
     setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
@@ -6614,7 +6663,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     try {
       window.localStorage.setItem('coachfitpro-favorite-exercises', JSON.stringify(favoriteExercises.slice(0, 80)))
     } catch {
-      // Favoritos continuam funcionando na sessão mesmo se o navegador bloquear storage.
+      // Favoritos continuam funcionando na sessÃ£o mesmo se o navegador bloquear storage.
     }
   }, [favoriteExercises])
 
@@ -6622,7 +6671,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     try {
       window.localStorage.setItem('coachfitpro-recent-exercises', JSON.stringify(recentExercises.slice(0, 20)))
     } catch {
-      // Recentes continuam funcionando na sessão mesmo se o navegador bloquear storage.
+      // Recentes continuam funcionando na sessÃ£o mesmo se o navegador bloquear storage.
     }
   }, [recentExercises])
 
@@ -6673,7 +6722,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     setExercises((current) => [...current, createExerciseDraft(name, {}, availableExerciseLibrary)])
     if (name) {
       setRecentExercises((current) => [name, ...current.filter((item) => normalizeText(item) !== normalizeText(name))].slice(0, 20))
-      setMessage(`Exercício "${name}" adicionado ao treino.`)
+      setMessage(`ExercÃ­cio "${name}" adicionado ao treino.`)
     }
   }
 
@@ -6714,10 +6763,10 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     setExercises((current) => {
       const source = current[index]
       if (!source) return current
-      const copy = { ...source, name: `${source.name} - variação`, notes: source.notes || 'Ajuste a variação antes de salvar.' }
+      const copy = { ...source, name: `${source.name} - variaÃ§Ã£o`, notes: source.notes || 'Ajuste a variaÃ§Ã£o antes de salvar.' }
       return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
     })
-    setMessage('Exercício duplicado para edição rápida.')
+    setMessage('ExercÃ­cio duplicado para ediÃ§Ã£o rÃ¡pida.')
   }
 
   function moveExercise(index, direction) {
@@ -6742,11 +6791,11 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   async function resolveExerciseFromApi(index) {
     const exercise = exercises[index]
     if (!exercise?.name?.trim()) {
-      setError('Digite o nome do exercício antes de buscar na AscendAPI.')
+      setError('Digite o nome do exercÃ­cio antes de buscar na AscendAPI.')
       return
     }
     if (!supabaseEnabled) {
-      setError('Conecte o Supabase para buscar exercícios pela AscendAPI.')
+      setError('Conecte o Supabase para buscar exercÃ­cios pela AscendAPI.')
       return
     }
 
@@ -6772,9 +6821,9 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
           }
           : item
       )))
-      setMessage(apiExercise.videoUrl ? 'Exercício encontrado com mídia da AscendAPI.' : 'Exercício encontrado. A API não enviou vídeo para este item, então o app usará a ficha técnica.')
+      setMessage(apiExercise.videoUrl ? 'ExercÃ­cio encontrado com mÃ­dia da AscendAPI.' : 'ExercÃ­cio encontrado. A API nÃ£o enviou vÃ­deo para este item, entÃ£o o app usarÃ¡ a ficha tÃ©cnica.')
     } catch (apiError) {
-      setError(apiError?.message || 'Não foi possível buscar este exercício na AscendAPI.')
+      setError(apiError?.message || 'NÃ£o foi possÃ­vel buscar este exercÃ­cio na AscendAPI.')
     } finally {
       setResolvingExerciseIndex(null)
     }
@@ -6796,7 +6845,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       return
     }
     if (!filledExercises.length) {
-      setError('Adicione pelo menos um exercício ao treino.')
+      setError('Adicione pelo menos um exercÃ­cio ao treino.')
       return
     }
 
@@ -6814,7 +6863,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       setMessage('Treino salvo e liberado para o aluno.')
       setHasUnsavedChanges(false)
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o treino.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar o treino.')
     } finally {
       setSaving(false)
     }
@@ -6832,25 +6881,25 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         <Field label="Nome do treino" name="title" defaultValue="Upper A" onChange={markWorkoutDirty} />
         <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" onChange={markWorkoutDirty} />
       </div>
-      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." onChange={markWorkoutDirty} />
+      <TextArea label="ObservaÃ§Ãµes" name="notes" defaultValue="Aquecimento antes das sÃ©ries principais. Registrar cargas no fim do treino." onChange={markWorkoutDirty} />
 
       <div className="workout-exercise-picker rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.08] p-4 sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-black text-emerald-100">Biblioteca inteligente de exercícios</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-300">Busque por nome, músculo, equipamento ou variação. O exercício só entra no treino quando você confirmar.</p>
+            <p className="text-sm font-black text-emerald-100">Biblioteca inteligente de exercÃ­cios</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-300">Busque por nome, mÃºsculo, equipamento ou variaÃ§Ã£o. O exercÃ­cio sÃ³ entra no treino quando vocÃª confirmar.</p>
           </div>
-          <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/45 px-3 py-1 text-xs font-bold text-emerald-100">{availableExerciseLibrary.length} exercícios</span>
+          <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/45 px-3 py-1 text-xs font-bold text-emerald-100">{availableExerciseLibrary.length} exercÃ­cios</span>
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-emerald-100">
-            Buscar exercício
+            Buscar exercÃ­cio
             <input
               value={exerciseSearch}
               onChange={(event) => setExerciseSearch(event.target.value)}
               onKeyDown={handleExerciseSearchKeyDown}
-              placeholder="Ex.: supino, dorsal, halter, quadríceps..."
+              placeholder="Ex.: supino, dorsal, halter, quadrÃ­ceps..."
               className="min-h-12 min-w-0 rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-3 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-300 sm:text-sm"
             />
           </label>
@@ -6859,7 +6908,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
             onClick={() => setAdvancedFiltersOpen((current) => !current)}
             className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35"
           >
-            {advancedFiltersOpen ? 'Ocultar filtros' : 'Filtros avançados'}
+            {advancedFiltersOpen ? 'Ocultar filtros' : 'Filtros avanÃ§ados'}
           </button>
         </div>
 
@@ -6882,11 +6931,11 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 
         {advancedFiltersOpen ? (
           <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/55 p-3 sm:grid-cols-3">
-            {['equipamento', 'músculo alvo', 'favoritos'].map((item) => (
+            {['equipamento', 'mÃºsculo alvo', 'favoritos'].map((item) => (
               <div key={item} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
                 <p className="text-xs font-black uppercase text-emerald-100">{formatUiText(item)}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  {item === 'favoritos' ? 'Marque exercícios com estrela para reutilizar mais rápido.' : 'Digite o termo na busca para combinar filtros.'}
+                  {item === 'favoritos' ? 'Marque exercÃ­cios com estrela para reutilizar mais rÃ¡pido.' : 'Digite o termo na busca para combinar filtros.'}
                 </p>
               </div>
             ))}
@@ -6910,7 +6959,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <span className="min-w-0">
                 <span className="block truncate text-sm text-zinc-100"><HighlightedMatch text={exercise.name} query={exerciseSearch} /></span>
                 <span className="mt-0.5 block truncate text-[11px] font-bold text-zinc-400">
-                  {exercise.group || exercise.muscleGroup || 'Músculo alvo'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
+                  {exercise.group || exercise.muscleGroup || 'MÃºsculo alvo'}{exercise.equipment ? ` Â· ${exercise.equipment}` : ''}
                 </span>
                 <span className="mt-1 flex flex-wrap gap-1">
                   {exercise.isFavorite ? <span className="rounded-full bg-amber-300/12 px-2 py-0.5 text-[10px] font-black text-amber-100">favorito</span> : null}
@@ -6941,7 +6990,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
           ))}
           {!exerciseSuggestions.length ? (
             <div className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 text-sm leading-6 text-zinc-300">
-              Nenhum exercício encontrado com esses termos. Você ainda pode adicionar um exercício personalizado e preencher manualmente.
+              Nenhum exercÃ­cio encontrado com esses termos. VocÃª ainda pode adicionar um exercÃ­cio personalizado e preencher manualmente.
             </div>
           ) : null}
         </div>
@@ -6985,7 +7034,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
           <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                <p className="text-xs font-black uppercase text-emerald-300">ExercÃ­cio {String(index + 1).padStart(2, '0')}</p>
                 <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup || 'Grupo muscular identificado pelo nome'}</p>
               </div>
               <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -7006,12 +7055,12 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)]">
               <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                Nome do exercício
+                Nome do exercÃ­cio
                 <input
                   list="exercise-library-options"
                   value={exercise.name}
                   onChange={(event) => updateExerciseName(index, event.target.value)}
-                  placeholder="Digite ou escolha um exercício"
+                  placeholder="Digite ou escolha um exercÃ­cio"
                   className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
                 />
               </label>
@@ -7019,18 +7068,18 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
-              <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
-              <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
+              <InlineInput label="SÃ©ries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
+              <InlineInput label="RepetiÃ§Ãµes" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
+              <InlineInput label="Carga / esforÃ§o" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
               <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
               <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
+              <InlineInput label="CadÃªncia" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
               <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
               <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
-              <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
+              <InlineInput label="Nota rÃ¡pida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
             </div>
 
             <div className="mt-4">
@@ -7038,13 +7087,13 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
             </div>
 
             <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
-              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
+              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">OrientaÃ§Ã£o, vÃ­deo e mÃ­dia de execuÃ§Ã£o</summary>
               <div className="grid gap-3 border-t border-white/10 p-3">
                 <div className="flex flex-col gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-black text-emerald-100">Buscar mídia profissional</p>
+                    <p className="text-sm font-black text-emerald-100">Buscar mÃ­dia profissional</p>
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
-                      Puxa vídeo, imagem, músculo-alvo e instruções pela AscendAPI. Use quando quiser completar o exercício automaticamente.
+                      Puxa vÃ­deo, imagem, mÃºsculo-alvo e instruÃ§Ãµes pela AscendAPI. Use quando quiser completar o exercÃ­cio automaticamente.
                     </p>
                   </div>
                   <button
@@ -7057,7 +7106,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                   </button>
                 </div>
                 <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                  Orientações técnicas
+                  OrientaÃ§Ãµes tÃ©cnicas
                   <textarea
                     value={exercise.instructions ?? ''}
                     onChange={(event) => updateExercise(index, 'instructions', event.target.value)}
@@ -7066,9 +7115,9 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                   />
                 </label>
                 <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
-                  <InlineInput label="Link de vídeo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
+                  <InlineInput label="Link de vÃ­deo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
                   <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    Upload do vídeo do coach
+                    Upload do vÃ­deo do coach
                     <input
                       type="file"
                       accept="video/mp4,video/webm,video/quicktime,video/*"
@@ -7076,7 +7125,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                       className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950"
                     />
                     <span className="text-[11px] normal-case leading-4 tracking-normal text-zinc-500">
-                      {exercise.videoFileName || 'Opcional. Se não enviar, o app usa o vídeo da biblioteca ou uma ficha técnica do movimento.'}
+                      {exercise.videoFileName || 'Opcional. Se nÃ£o enviar, o app usa o vÃ­deo da biblioteca ou uma ficha tÃ©cnica do movimento.'}
                     </span>
                   </label>
                 </div>
@@ -7092,14 +7141,14 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35">
-          Adicionar exercício personalizado
+          Adicionar exercÃ­cio personalizado
         </button>
         <button disabled={saving} className="rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar treino'}
         </button>
         {hasUnsavedChanges ? (
           <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
-            Alterações pendentes. Salve antes de sair.
+            AlteraÃ§Ãµes pendentes. Salve antes de sair.
           </span>
         ) : null}
       </div>
@@ -7122,7 +7171,7 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(workout) {
-    if (!window.confirm(`Arquivar o treino “${workout.title}”? Ele deixará de aparecer para o aluno.`)) return
+    if (!window.confirm(`Arquivar o treino â€œ${workout.title}â€? Ele deixarÃ¡ de aparecer para o aluno.`)) return
     setArchivingId(String(workout.id))
     try {
       await onArchive(workout.id)
@@ -7168,12 +7217,12 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
                 <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                      <p className="text-xs font-black uppercase text-emerald-300">ExercÃ­cio {String(index + 1).padStart(2, '0')}</p>
                       <h5 className="mt-1 text-base font-black text-white">{enriched.name}</h5>
-                      <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
+                      <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` Â· ${enriched.equipment}` : ''}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                      <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
+                      <ExerciseMetric label="SÃ©ries" value={enriched.sets || '-'} />
                       <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
                       <ExerciseMetric label="Carga" value={enriched.load || '-'} />
                       <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
@@ -7418,7 +7467,7 @@ function getVideoEmbedUrl(value) {
 }
 
 function getExerciseVideoUrl(exercise) {
-  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
+  const query = `${exercise.name || 'exercÃ­cio de musculaÃ§Ã£o'} execuÃ§Ã£o correta tÃ©cnica`
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
 }
 
@@ -7430,7 +7479,7 @@ function ExerciseYouTubeLink({ exercise, compact = false }) {
       rel="noreferrer"
       className={`inline-flex min-h-10 items-center justify-center rounded-md border border-red-300/25 bg-red-400/10 px-3 py-2 text-center text-xs font-black text-red-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
     >
-      Ver execução no YouTube
+      Ver execuÃ§Ã£o no YouTube
     </a>
   )
 }
@@ -7456,26 +7505,26 @@ function ExerciseMetric({ label, value }) {
 }
 
 const muscleConfig = {
-  peitoral: { label: 'Peitoral', view: 'front', aliases: ['peito', 'chest', 'pectoral', 'pectorals', 'peitoral maior'], description: 'Região principal dos movimentos de empurrar.' },
-  'peitoral-superior': { label: 'Peitoral superior', view: 'front', aliases: ['peito superior', 'upper chest', 'incline chest', 'upper pectoral'], description: 'Foco na porção clavicular do peitoral.' },
-  costas: { label: 'Costas', view: 'back', aliases: ['back', 'upper back', 'costas altas', 'meio das costas'], description: 'Região ampla de puxadas e remadas.' },
-  dorsal: { label: 'Dorsal', view: 'back', aliases: ['lats', 'latissimus', 'latissimo', 'latíssimo', 'grande dorsal'], description: 'Responsável por puxadas e controle escapular.' },
-  trapezio: { label: 'Trapézio', view: 'back', aliases: ['trapézio', 'traps', 'trap', 'trapezius'], description: 'Estabiliza escápulas e parte superior das costas.' },
-  lombar: { label: 'Lombar', view: 'back', aliases: ['lower back', 'erectors', 'eretores', 'lombares'], description: 'Estabilização da coluna e extensão de quadril.' },
-  'deltoide-anterior': { label: 'Deltoide anterior', view: 'front', aliases: ['ombro anterior', 'front delt', 'anterior deltoid'], description: 'Atua em empurradas e elevação frontal.' },
-  'deltoide-lateral': { label: 'Deltoide lateral', view: 'front', aliases: ['ombro lateral', 'side delt', 'lateral deltoid', 'ombros'], description: 'Dá suporte às elevações laterais e abdução do ombro.' },
+  peitoral: { label: 'Peitoral', view: 'front', aliases: ['peito', 'chest', 'pectoral', 'pectorals', 'peitoral maior'], description: 'RegiÃ£o principal dos movimentos de empurrar.' },
+  'peitoral-superior': { label: 'Peitoral superior', view: 'front', aliases: ['peito superior', 'upper chest', 'incline chest', 'upper pectoral'], description: 'Foco na porÃ§Ã£o clavicular do peitoral.' },
+  costas: { label: 'Costas', view: 'back', aliases: ['back', 'upper back', 'costas altas', 'meio das costas'], description: 'RegiÃ£o ampla de puxadas e remadas.' },
+  dorsal: { label: 'Dorsal', view: 'back', aliases: ['lats', 'latissimus', 'latissimo', 'latÃ­ssimo', 'grande dorsal'], description: 'ResponsÃ¡vel por puxadas e controle escapular.' },
+  trapezio: { label: 'TrapÃ©zio', view: 'back', aliases: ['trapÃ©zio', 'traps', 'trap', 'trapezius'], description: 'Estabiliza escÃ¡pulas e parte superior das costas.' },
+  lombar: { label: 'Lombar', view: 'back', aliases: ['lower back', 'erectors', 'eretores', 'lombares'], description: 'EstabilizaÃ§Ã£o da coluna e extensÃ£o de quadril.' },
+  'deltoide-anterior': { label: 'Deltoide anterior', view: 'front', aliases: ['ombro anterior', 'front delt', 'anterior deltoid'], description: 'Atua em empurradas e elevaÃ§Ã£o frontal.' },
+  'deltoide-lateral': { label: 'Deltoide lateral', view: 'front', aliases: ['ombro lateral', 'side delt', 'lateral deltoid', 'ombros'], description: 'DÃ¡ suporte Ã s elevaÃ§Ãµes laterais e abduÃ§Ã£o do ombro.' },
   'deltoide-posterior': { label: 'Deltoide posterior', view: 'back', aliases: ['ombro posterior', 'rear delt', 'posterior deltoid'], description: 'Ajuda em remadas, puxadas e postura escapular.' },
-  biceps: { label: 'Bíceps', view: 'front', aliases: ['bíceps', 'biceps', 'bicep'], description: 'Flexão de cotovelo e apoio nas puxadas.' },
-  triceps: { label: 'Tríceps', view: 'back', aliases: ['tríceps', 'triceps', 'tricep'], description: 'Extensão de cotovelo e finalização das empurradas.' },
-  antebraco: { label: 'Antebraço', view: 'front', aliases: ['antebraço', 'forearm', 'forearms', 'grip'], description: 'Pegada, punho e estabilidade de carga.' },
-  abdomen: { label: 'Abdômen', view: 'front', aliases: ['abdomen', 'abdômen', 'abs', 'core', 'abdominal'], description: 'Controle do tronco e estabilidade.' },
-  obliquos: { label: 'Oblíquos', view: 'front', aliases: ['oblíquos', 'obliques', 'lateral abdomen'], description: 'Rotação, anti-rotação e estabilidade lateral.' },
-  gluteos: { label: 'Glúteos', view: 'back', aliases: ['glúteos', 'gluteos', 'glutes', 'glute', 'gluteus'], description: 'Extensão de quadril e potência de membros inferiores.' },
-  quadriceps: { label: 'Quadríceps', view: 'front', aliases: ['quadríceps', 'quadriceps', 'quads', 'coxa anterior'], description: 'Extensão de joelho e base de agachamentos.' },
-  'posterior-coxa': { label: 'Posterior de coxa', view: 'back', aliases: ['posterior de coxa', 'posteriores', 'hamstrings', 'isquiotibiais', 'coxa posterior'], description: 'Flexão de joelho e extensão de quadril.' },
+  biceps: { label: 'BÃ­ceps', view: 'front', aliases: ['bÃ­ceps', 'biceps', 'bicep'], description: 'FlexÃ£o de cotovelo e apoio nas puxadas.' },
+  triceps: { label: 'TrÃ­ceps', view: 'back', aliases: ['trÃ­ceps', 'triceps', 'tricep'], description: 'ExtensÃ£o de cotovelo e finalizaÃ§Ã£o das empurradas.' },
+  antebraco: { label: 'AntebraÃ§o', view: 'front', aliases: ['antebraÃ§o', 'forearm', 'forearms', 'grip'], description: 'Pegada, punho e estabilidade de carga.' },
+  abdomen: { label: 'AbdÃ´men', view: 'front', aliases: ['abdomen', 'abdÃ´men', 'abs', 'core', 'abdominal'], description: 'Controle do tronco e estabilidade.' },
+  obliquos: { label: 'OblÃ­quos', view: 'front', aliases: ['oblÃ­quos', 'obliques', 'lateral abdomen'], description: 'RotaÃ§Ã£o, anti-rotaÃ§Ã£o e estabilidade lateral.' },
+  gluteos: { label: 'GlÃºteos', view: 'back', aliases: ['glÃºteos', 'gluteos', 'glutes', 'glute', 'gluteus'], description: 'ExtensÃ£o de quadril e potÃªncia de membros inferiores.' },
+  quadriceps: { label: 'QuadrÃ­ceps', view: 'front', aliases: ['quadrÃ­ceps', 'quadriceps', 'quads', 'coxa anterior'], description: 'ExtensÃ£o de joelho e base de agachamentos.' },
+  'posterior-coxa': { label: 'Posterior de coxa', view: 'back', aliases: ['posterior de coxa', 'posteriores', 'hamstrings', 'isquiotibiais', 'coxa posterior'], description: 'FlexÃ£o de joelho e extensÃ£o de quadril.' },
   adutores: { label: 'Adutores', view: 'front', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
   abdutores: { label: 'Abdutores', view: 'front', aliases: ['abdutor', 'abdutores', 'abductors', 'outer thigh'], description: 'Estabilidade lateral do quadril.' },
-  panturrilhas: { label: 'Panturrilhas', view: 'back', aliases: ['panturrilha', 'calves', 'calf', 'gastrocnemius', 'soleus'], description: 'Elevação do calcanhar e estabilidade do tornozelo.' },
+  panturrilhas: { label: 'Panturrilhas', view: 'back', aliases: ['panturrilha', 'calves', 'calf', 'gastrocnemius', 'soleus'], description: 'ElevaÃ§Ã£o do calcanhar e estabilidade do tornozelo.' },
 }
 
 const muscleAliasMap = Object.entries(muscleConfig).reduce((map, [key, config]) => {
@@ -7487,16 +7536,16 @@ const muscleAliasMap = Object.entries(muscleConfig).reduce((map, [key, config]) 
 
 const exerciseNameMuscleRules = [
   { match: ['supino inclinado'], primary: 'peitoral-superior', secondary: ['peitoral', 'deltoide-anterior', 'triceps'] },
-  { match: ['supino', 'crucifixo', 'flexao', 'flexão'], primary: 'peitoral', secondary: ['deltoide-anterior', 'triceps'] },
+  { match: ['supino', 'crucifixo', 'flexao', 'flexÃ£o'], primary: 'peitoral', secondary: ['deltoide-anterior', 'triceps'] },
   { match: ['puxada', 'barra fixa', 'pulley'], primary: 'dorsal', secondary: ['costas', 'biceps'] },
   { match: ['remada'], primary: 'costas', secondary: ['dorsal', 'biceps', 'deltoide-posterior'] },
   { match: ['desenvolvimento'], primary: 'deltoide-anterior', secondary: ['deltoide-lateral', 'triceps'] },
-  { match: ['elevacao lateral', 'elevação lateral'], primary: 'deltoide-lateral', secondary: ['deltoide-anterior'] },
+  { match: ['elevacao lateral', 'elevaÃ§Ã£o lateral'], primary: 'deltoide-lateral', secondary: ['deltoide-anterior'] },
   { match: ['rosca'], primary: 'biceps', secondary: ['antebraco'] },
-  { match: ['triceps', 'tríceps'], primary: 'triceps', secondary: ['antebraco'] },
+  { match: ['triceps', 'trÃ­ceps'], primary: 'triceps', secondary: ['antebraco'] },
   { match: ['agachamento', 'leg press', 'extensora', 'afundo', 'passada'], primary: 'quadriceps', secondary: ['gluteos', 'adutores'] },
   { match: ['flexora', 'stiff', 'terra', 'romeno'], primary: 'posterior-coxa', secondary: ['gluteos', 'lombar'] },
-  { match: ['elevacao pelvica', 'elevação pélvica', 'hip thrust'], primary: 'gluteos', secondary: ['posterior-coxa'] },
+  { match: ['elevacao pelvica', 'elevaÃ§Ã£o pÃ©lvica', 'hip thrust'], primary: 'gluteos', secondary: ['posterior-coxa'] },
   { match: ['panturrilha'], primary: 'panturrilhas', secondary: [] },
   { match: ['prancha', 'abdominal', 'crunch'], primary: 'abdomen', secondary: ['obliquos'] },
 ]
@@ -7558,7 +7607,7 @@ function getExerciseMuscleProfile(exercise = {}) {
   return {
     primaryMuscle,
     secondaryMuscles,
-    primaryLabel: muscleConfig[primaryMuscle]?.label || 'Músculo alvo não identificado',
+    primaryLabel: muscleConfig[primaryMuscle]?.label || 'MÃºsculo alvo nÃ£o identificado',
     secondaryLabels: secondaryMuscles.map((muscle) => muscleConfig[muscle]?.label).filter(Boolean),
     view: muscleConfig[primaryMuscle]?.view || secondaryMuscles.map((muscle) => muscleConfig[muscle]?.view).find(Boolean) || 'front',
   }
@@ -7594,7 +7643,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
     <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Músculo alvo</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">MÃºsculo alvo</p>
           <p className="mt-1 text-sm font-black text-white">{profile.primaryLabel}</p>
         </div>
         <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-black uppercase text-zinc-300">{view === 'back' ? 'traseira' : 'frontal'}</span>
@@ -7624,7 +7673,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
         {profile.secondaryLabels.length ? (
           <p className="text-xs leading-5 text-zinc-400">Auxiliares: {profile.secondaryLabels.join(', ')}</p>
         ) : (
-          <p className="text-xs leading-5 text-zinc-500">Sem músculos auxiliares definidos para este exercício.</p>
+          <p className="text-xs leading-5 text-zinc-500">Sem mÃºsculos auxiliares definidos para este exercÃ­cio.</p>
         )}
         <p className="min-h-5 text-xs leading-5 text-emerald-100">
           {hoveredConfig ? `${hoveredConfig.label}: ${hoveredConfig.description}` : 'Toque ou passe o mouse no mapa para ver detalhes.'}
@@ -7663,7 +7712,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
     return {
       role: 'img',
       tabIndex: 0,
-      'aria-label': `${muscleConfig[key]?.label || key}${state === 'primary' ? ', músculo principal' : state === 'secondary' ? ', músculo auxiliar' : ''}`,
+      'aria-label': `${muscleConfig[key]?.label || key}${state === 'primary' ? ', mÃºsculo principal' : state === 'secondary' ? ', mÃºsculo auxiliar' : ''}`,
       onMouseEnter: () => onHover(key),
       onMouseLeave: () => onHover(''),
       onFocus: () => onHover(key),
@@ -7682,19 +7731,19 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       <ellipse cx="43" cy="34" rx="8" ry="7" {...regionProps('peitoral')}><title>Peitoral</title></ellipse>
       <ellipse cx="57" cy="34" rx="8" ry="7" {...regionProps('peitoral')}><title>Peitoral</title></ellipse>
       <path d="M39 27h22l-4 5H43Z" {...regionProps('peitoral-superior')}><title>Peitoral superior</title></path>
-      <path d="M43 44h14l3 25H40Z" {...regionProps('abdomen')}><title>Abdômen</title></path>
-      <path d="M36 44h7l-3 24h-6Z" {...regionProps('obliquos')}><title>Oblíquos</title></path>
-      <path d="M57 44h7l2 24h-6Z" {...regionProps('obliquos')}><title>Oblíquos</title></path>
+      <path d="M43 44h14l3 25H40Z" {...regionProps('abdomen')}><title>AbdÃ´men</title></path>
+      <path d="M36 44h7l-3 24h-6Z" {...regionProps('obliquos')}><title>OblÃ­quos</title></path>
+      <path d="M57 44h7l2 24h-6Z" {...regionProps('obliquos')}><title>OblÃ­quos</title></path>
       <ellipse cx="32" cy="30" rx="6" ry="8" {...regionProps('deltoide-anterior')}><title>Deltoide anterior</title></ellipse>
       <ellipse cx="68" cy="30" rx="6" ry="8" {...regionProps('deltoide-anterior')}><title>Deltoide anterior</title></ellipse>
       <ellipse cx="29" cy="36" rx="5" ry="9" {...regionProps('deltoide-lateral')}><title>Deltoide lateral</title></ellipse>
       <ellipse cx="71" cy="36" rx="5" ry="9" {...regionProps('deltoide-lateral')}><title>Deltoide lateral</title></ellipse>
-      <path d="M24 44h9l-5 21h-8Z" {...regionProps('biceps')}><title>Bíceps</title></path>
-      <path d="M67 44h9l4 21h-8Z" {...regionProps('biceps')}><title>Bíceps</title></path>
-      <path d="M18 66h10l-3 19h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M72 66h10l2 19h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M35 84h14l-4 35H33l-4-20Z" {...regionProps('quadriceps')}><title>Quadríceps</title></path>
-      <path d="M51 84h14l6 15-4 20H55Z" {...regionProps('quadriceps')}><title>Quadríceps</title></path>
+      <path d="M24 44h9l-5 21h-8Z" {...regionProps('biceps')}><title>BÃ­ceps</title></path>
+      <path d="M67 44h9l4 21h-8Z" {...regionProps('biceps')}><title>BÃ­ceps</title></path>
+      <path d="M18 66h10l-3 19h-9Z" {...regionProps('antebraco')}><title>AntebraÃ§o</title></path>
+      <path d="M72 66h10l2 19h-9Z" {...regionProps('antebraco')}><title>AntebraÃ§o</title></path>
+      <path d="M35 84h14l-4 35H33l-4-20Z" {...regionProps('quadriceps')}><title>QuadrÃ­ceps</title></path>
+      <path d="M51 84h14l6 15-4 20H55Z" {...regionProps('quadriceps')}><title>QuadrÃ­ceps</title></path>
       <path d="M47 86h6l-1 31h-4Z" {...regionProps('adutores')}><title>Adutores</title></path>
       <path d="M31 88h6l-6 25-4-12Z" {...regionProps('abdutores')}><title>Abdutores</title></path>
       <path d="M63 88h6l4 13-4 12Z" {...regionProps('abdutores')}><title>Abdutores</title></path>
@@ -7708,15 +7757,15 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       <path d="M39 24h22l7 31-8 17H40l-8-17Z" {...regionProps('costas')}><title>Costas</title></path>
       <path d="M34 35h13l-8 32-9-16Z" {...regionProps('dorsal')}><title>Dorsal</title></path>
       <path d="M53 35h13l4 16-9 16Z" {...regionProps('dorsal')}><title>Dorsal</title></path>
-      <path d="M41 23h18l-5 12h-8Z" {...regionProps('trapezio')}><title>Trapézio</title></path>
+      <path d="M41 23h18l-5 12h-8Z" {...regionProps('trapezio')}><title>TrapÃ©zio</title></path>
       <path d="M42 63h16l3 15H39Z" {...regionProps('lombar')}><title>Lombar</title></path>
       <ellipse cx="31" cy="32" rx="6" ry="9" {...regionProps('deltoide-posterior')}><title>Deltoide posterior</title></ellipse>
       <ellipse cx="69" cy="32" rx="6" ry="9" {...regionProps('deltoide-posterior')}><title>Deltoide posterior</title></ellipse>
-      <path d="M23 44h9l-5 24h-9Z" {...regionProps('triceps')}><title>Tríceps</title></path>
-      <path d="M68 44h9l5 24h-9Z" {...regionProps('triceps')}><title>Tríceps</title></path>
-      <path d="M18 68h10l-3 18h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M72 68h10l2 18h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M36 78h28l4 17-18 8-18-8Z" {...regionProps('gluteos')}><title>Glúteos</title></path>
+      <path d="M23 44h9l-5 24h-9Z" {...regionProps('triceps')}><title>TrÃ­ceps</title></path>
+      <path d="M68 44h9l5 24h-9Z" {...regionProps('triceps')}><title>TrÃ­ceps</title></path>
+      <path d="M18 68h10l-3 18h-9Z" {...regionProps('antebraco')}><title>AntebraÃ§o</title></path>
+      <path d="M72 68h10l2 18h-9Z" {...regionProps('antebraco')}><title>AntebraÃ§o</title></path>
+      <path d="M36 78h28l4 17-18 8-18-8Z" {...regionProps('gluteos')}><title>GlÃºteos</title></path>
       <path d="M34 95h14l-3 24H33l-4-19Z" {...regionProps('posterior-coxa')}><title>Posterior de coxa</title></path>
       <path d="M52 95h14l5 5-4 19H55Z" {...regionProps('posterior-coxa')}><title>Posterior de coxa</title></path>
       <path d="M34 119h12l-2 10H32Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
@@ -7748,7 +7797,7 @@ function ExerciseMuscleSummary({ exercise, compact = false }) {
           </span>
           <div>
             <p className="text-xs font-black uppercase text-zinc-500">Auxiliares</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{profile.secondaryLabels.length ? profile.secondaryLabels.join(', ') : 'Não definidos'}</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{profile.secondaryLabels.length ? profile.secondaryLabels.join(', ') : 'NÃ£o definidos'}</p>
           </div>
         </div>
         <div className="flex items-start gap-3">
@@ -7756,7 +7805,7 @@ function ExerciseMuscleSummary({ exercise, compact = false }) {
             <NavIcon name="bulb" className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Dica técnica</p>
+            <p className="text-xs font-black uppercase text-zinc-500">Dica tÃ©cnica</p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">{getExerciseTechniqueTip(exercise)}</p>
           </div>
         </div>
@@ -7777,35 +7826,35 @@ function ExerciseMuscleSummary({ exercise, compact = false }) {
 function getExerciseTechniqueTip(exercise = {}) {
   const profile = getExerciseMuscleProfile(exercise)
   const tips = {
-    peitoral: 'Mantenha escápulas firmes e controle a descida antes de empurrar.',
+    peitoral: 'Mantenha escÃ¡pulas firmes e controle a descida antes de empurrar.',
     'peitoral-superior': 'Use banco inclinado sem perder a linha do punho com o cotovelo.',
-    costas: 'Puxe com os cotovelos e mantenha o tronco estável.',
-    dorsal: 'Comece deprimindo as escápulas antes de puxar.',
-    quadriceps: 'Joelhos acompanham a direção dos pés durante toda a repetição.',
-    gluteos: 'Finalize contraindo glúteos sem hiperestender a lombar.',
-    'posterior-coxa': 'Empurre o quadril para trás e preserve a coluna neutra.',
-    biceps: 'Cotovelos próximos ao tronco e descida controlada.',
-    triceps: 'Cotovelos estáveis e extensão completa com controle.',
-    abdomen: 'Contraia o abdômen e evite compensar com pescoço ou lombar.',
+    costas: 'Puxe com os cotovelos e mantenha o tronco estÃ¡vel.',
+    dorsal: 'Comece deprimindo as escÃ¡pulas antes de puxar.',
+    quadriceps: 'Joelhos acompanham a direÃ§Ã£o dos pÃ©s durante toda a repetiÃ§Ã£o.',
+    gluteos: 'Finalize contraindo glÃºteos sem hiperestender a lombar.',
+    'posterior-coxa': 'Empurre o quadril para trÃ¡s e preserve a coluna neutra.',
+    biceps: 'Cotovelos prÃ³ximos ao tronco e descida controlada.',
+    triceps: 'Cotovelos estÃ¡veis e extensÃ£o completa com controle.',
+    abdomen: 'Contraia o abdÃ´men e evite compensar com pescoÃ§o ou lombar.',
   }
-  return tips[profile.primaryMuscle] || exercise.instructions || 'Execute com amplitude controlada, respiração organizada e técnica acima da carga.'
+  return tips[profile.primaryMuscle] || exercise.instructions || 'Execute com amplitude controlada, respiraÃ§Ã£o organizada e tÃ©cnica acima da carga.'
 }
 
 function getExerciseCommonMistake(exercise = {}) {
   const profile = getExerciseMuscleProfile(exercise)
   const mistakes = {
-    peitoral: 'Perder a posição dos ombros ou quicar a carga no peito.',
+    peitoral: 'Perder a posiÃ§Ã£o dos ombros ou quicar a carga no peito.',
     'peitoral-superior': 'Inclinar demais o banco e transformar em movimento de ombro.',
     costas: 'Puxar com impulso e deixar os ombros subirem.',
-    dorsal: 'Dobrar o tronco para terminar a repetição.',
+    dorsal: 'Dobrar o tronco para terminar a repetiÃ§Ã£o.',
     quadriceps: 'Fechar os joelhos para dentro ou perder controle na descida.',
     gluteos: 'Compensar com lombar no final do movimento.',
     'posterior-coxa': 'Arredondar a coluna para buscar mais amplitude.',
-    biceps: 'Balançar o tronco para subir a carga.',
-    triceps: 'Abrir os cotovelos e perder tensão no alvo.',
-    abdomen: 'Prender a respiração e perder alinhamento do tronco.',
+    biceps: 'BalanÃ§ar o tronco para subir a carga.',
+    triceps: 'Abrir os cotovelos e perder tensÃ£o no alvo.',
+    abdomen: 'Prender a respiraÃ§Ã£o e perder alinhamento do tronco.',
   }
-  return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execução prescrita.'
+  return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execuÃ§Ã£o prescrita.'
 }
 
 function ExerciseMedia({ exercise, compact = false }) {
@@ -7816,7 +7865,7 @@ function ExerciseMedia({ exercise, compact = false }) {
   if (videoUrl && isDirectVideoUrl(videoUrl)) {
     return (
       <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execuÃ§Ã£o dentro do app</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <video
             src={videoUrl}
@@ -7833,11 +7882,11 @@ function ExerciseMedia({ exercise, compact = false }) {
   if (embedUrl) {
     return (
       <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execuÃ§Ã£o dentro do app</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <iframe
             src={embedUrl}
-            title={`Execução de ${exercise.name}`}
+            title={`ExecuÃ§Ã£o de ${exercise.name}`}
             loading="lazy"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -7856,7 +7905,7 @@ function ExerciseMedia({ exercise, compact = false }) {
         rel="noreferrer"
         className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
       >
-        Abrir vídeo indicado pelo coach
+        Abrir vÃ­deo indicado pelo coach
       </a>
     )
   }
@@ -7865,14 +7914,14 @@ function ExerciseMedia({ exercise, compact = false }) {
 }
 
 function ExerciseTechniqueCard({ exercise, compact = false }) {
-  const target = exercise.muscleGroup || 'Músculo alvo'
+  const target = exercise.muscleGroup || 'MÃºsculo alvo'
   const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
   return (
     <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
           {imageUrl ? (
-            <img src={imageUrl} alt={`Execução de ${exercise.name}`} className="h-full w-full object-cover" />
+            <img src={imageUrl} alt={`ExecuÃ§Ã£o de ${exercise.name}`} className="h-full w-full object-cover" />
           ) : (
             <>
               <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
@@ -7888,12 +7937,12 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase text-emerald-200">Vídeo ainda não cadastrado na biblioteca</p>
+          <p className="text-xs font-black uppercase text-emerald-200">VÃ­deo ainda nÃ£o cadastrado na biblioteca</p>
           <p className="mt-1 text-sm leading-6 text-zinc-300">
-            {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
+            {exercise.instructions || 'Siga a execuÃ§Ã£o prescrita pelo treinador e registre a carga usada no final da sÃ©rie.'}
           </p>
           <p className="mt-2 text-xs leading-5 text-zinc-500">
-            O treinador pode vincular um vídeo próprio ou um vídeo da biblioteca para este exercício aparecer aqui.
+            O treinador pode vincular um vÃ­deo prÃ³prio ou um vÃ­deo da biblioteca para este exercÃ­cio aparecer aqui.
           </p>
           <a
             href={getExerciseVideoUrl(exercise)}
@@ -7901,7 +7950,7 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
             rel="noreferrer"
             className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100"
           >
-            Buscar execução no YouTube
+            Buscar execuÃ§Ã£o no YouTube
           </a>
         </div>
       </div>
@@ -7911,7 +7960,7 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
 
 function WorkoutLogList({ logs }) {
   if (!logs.length) {
-    return <Empty text="Nenhum treino concluído ainda." />
+    return <Empty text="Nenhum treino concluÃ­do ainda." />
   }
 
   return (
@@ -7922,7 +7971,7 @@ function WorkoutLogList({ logs }) {
             <div>
               <h4 className="font-black">{log.title}</h4>
               <p className="mt-1 text-sm text-zinc-400">
-                {formatDateTime(log.completedAt)} {log.effort ? `| Esforço: ${log.effort}` : ''}
+                {formatDateTime(log.completedAt)} {log.effort ? `| EsforÃ§o: ${log.effort}` : ''}
               </p>
               {log.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{log.notes}</p> : null}
             </div>
@@ -7958,10 +8007,10 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
         effort: form.get('effort')?.toString() || 'Moderado',
         notes: [form.get('setsLog')?.toString(), form.get('notes')?.toString()].filter(Boolean).join('\n\n') || '',
       })
-      setMessage('Treino concluído. +80 XP adicionados ao ranking de evolução.')
+      setMessage('Treino concluÃ­do. +80 XP adicionados ao ranking de evoluÃ§Ã£o.')
       formElement.reset()
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível concluir o treino.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel concluir o treino.')
     } finally {
       setSaving(false)
     }
@@ -7969,11 +8018,11 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 grid gap-3 rounded-md border border-blue-300/20 bg-blue-300/5 p-4">
-      <Select label="Esforço percebido" name="effort" defaultValue="Moderado" options={['Leve', 'Moderado', 'Forte', 'Muito forte']} />
-      <TextArea label="Séries e cargas realizadas" name="setsLog" defaultValue="Ex.: supino 4x10 com 30 kg; remada 4x12 com 45 kg." />
-      <TextArea label="Observação do treino" name="notes" defaultValue="Carga usada, dificuldade, dor, energia ou algo importante." />
+      <Select label="EsforÃ§o percebido" name="effort" defaultValue="Moderado" options={['Leve', 'Moderado', 'Forte', 'Muito forte']} />
+      <TextArea label="SÃ©ries e cargas realizadas" name="setsLog" defaultValue="Ex.: supino 4x10 com 30 kg; remada 4x12 com 45 kg." />
+      <TextArea label="ObservaÃ§Ã£o do treino" name="notes" defaultValue="Carga usada, dificuldade, dor, energia ou algo importante." />
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-        {saving ? 'Salvando...' : 'Marcar treino como concluído'}
+        {saving ? 'Salvando...' : 'Marcar treino como concluÃ­do'}
       </button>
       {message ? <p className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
@@ -8016,11 +8065,11 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
         effort,
         notes: loadNotes.length
           ? `Cargas registradas pelo aluno:\n${loadNotes.join('\n')}`
-          : 'Treino concluído pelo aluno no app.',
+          : 'Treino concluÃ­do pelo aluno no app.',
       })
-      setMessage('Treino concluído. +80 XP adicionados ao ranking e ao histórico de evolução.')
+      setMessage('Treino concluÃ­do. +80 XP adicionados ao ranking e ao histÃ³rico de evoluÃ§Ã£o.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível concluir o treino.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel concluir o treino.')
     } finally {
       setSaving(false)
     }
@@ -8031,7 +8080,7 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase text-emerald-200">{preview ? 'Prévia do aluno' : 'Execução do treino'}</p>
+            <p className="text-xs font-black uppercase text-emerald-200">{preview ? 'PrÃ©via do aluno' : 'ExecuÃ§Ã£o do treino'}</p>
             <h4 className="mt-1 text-xl font-black text-white">{workout.title}</h4>
             <p className="mt-1 text-sm leading-6 text-zinc-300">{workout.focus || student.goal || 'Plano do dia'}</p>
           </div>
@@ -8048,14 +8097,14 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
             <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition duration-200 hover:border-emerald-300/25 active:scale-[0.995]">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                  <p className="text-xs font-black uppercase text-emerald-300">ExercÃ­cio {String(index + 1).padStart(2, '0')}</p>
                   <h5 className="mt-1 text-lg font-black text-white">{exercise.name}</h5>
                   <p className="mt-1 text-sm text-zinc-400">
-                    {exercise.muscleGroup || 'Movimento personalizado'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
+                    {exercise.muscleGroup || 'Movimento personalizado'}{exercise.equipment ? ` Â· ${exercise.equipment}` : ''}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                  <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+                  <ExerciseMetric label="SÃ©ries" value={exercise.sets || '-'} />
                   <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
                   <ExerciseMetric label="Carga alvo" value={exercise.load || '-'} />
                   <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
@@ -8093,13 +8142,13 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
           ))}
         </div>
       ) : (
-        <Empty text="Este treino ainda não possui exercícios cadastrados." />
+        <Empty text="Este treino ainda nÃ£o possui exercÃ­cios cadastrados." />
       )}
 
       {!preview ? (
         <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
           <label className="grid gap-2 text-sm font-bold text-zinc-300">
-            Como foi o esforço?
+            Como foi o esforÃ§o?
             <select
               value={effort}
               onChange={(event) => setEffort(event.target.value)}
@@ -8141,16 +8190,16 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
               Central nutricional
             </span>
             <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">
-              Monte dietas claras, com macros automáticos e opções de substituição.
+              Monte dietas claras, com macros automÃ¡ticos e opÃ§Ãµes de substituiÃ§Ã£o.
             </h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
-              O treinador escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O aluno vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
+              O treinador escolhe alimentos, ajusta gramas e entrega um plano fÃ¡cil de seguir. O aluno vÃª refeiÃ§Ãµes organizadas, horÃ¡rios, macros e alternativas sem se perder no celular.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <NutritionQuickStat icon="nutrition" label="Biblioteca" value={`${foodDatabase.length}+`} detail="alimentos" />
-            <NutritionQuickStat icon="calendar" label="Refeições" value={activeMeals || '-'} detail="ativas" />
+            <NutritionQuickStat icon="calendar" label="RefeiÃ§Ãµes" value={activeMeals || '-'} detail="ativas" />
             <NutritionQuickStat icon="chart" label="Plano atual" value={activePlan?.calories || selectedStudent?.calories || '-'} detail={activePlan?.protein || 'macros'} />
           </div>
         </div>
@@ -8186,8 +8235,8 @@ function NutritionQuickStat({ icon, label, value, detail }) {
 
 function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const [meals, setMeals] = useState([
-    { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
     { name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 160 }] },
   ])
   const [saving, setSaving] = useState(false)
@@ -8217,7 +8266,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   }
 
   function addMeal() {
-    setMeals((current) => [...current, { name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
+    setMeals((current) => [...current, { name: 'Nova refeiÃ§Ã£o', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
   }
 
   function removeMeal(index) {
@@ -8253,7 +8302,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
             .map((item) => {
               const alternatives = getEquivalentSubstitutions(item)
               const suffix = alternatives.length
-                ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
+                ? ` | SubstituiÃ§Ãµes: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
                 : ''
               return `${item.foodName} (${item.grams}g)${suffix}`
             })
@@ -8266,7 +8315,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
     setMessage('')
     setError('')
     try {
-      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeição com alimentos e quantidades válidas.')
+      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeiÃ§Ã£o com alimentos e quantidades vÃ¡lidas.')
       await onSaveNutritionPlan({
         studentId: form.get('studentId')?.toString() || '',
         title: form.get('title')?.toString() || 'Plano alimentar',
@@ -8277,7 +8326,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       })
       setMessage('Dieta salva com macros calculados automaticamente.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar a dieta.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar a dieta.')
     } finally {
       setSaving(false)
     }
@@ -8294,11 +8343,11 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
               </span>
               <div>
                 <p className="font-black text-emerald-100">Assistente inteligente de alimentos</p>
-                <p className="text-xs font-bold uppercase text-zinc-500">macros, porções e substituições em um só fluxo</p>
+                <p className="text-xs font-bold uppercase text-zinc-500">macros, porÃ§Ãµes e substituiÃ§Ãµes em um sÃ³ fluxo</p>
               </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
+              Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteÃ­na, carboidratos, gordura, fibra e sÃ³dio automaticamente.
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3 lg:w-[420px]">
@@ -8322,15 +8371,15 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Field label="Nome da dieta" name="title" defaultValue="Plano base" />
         <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
-          <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
+          <NutritionQuickStat icon="calendar" label="RefeiÃ§Ãµes" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
           <NutritionQuickStat icon="chart" label="Calorias" value={`${Math.round(planTotals.calories)}`} detail="kcal" />
-          <NutritionQuickStat icon="dumbbell" label="Proteína" value={`${roundMacro(planTotals.protein)} g`} detail="calculada" />
+          <NutritionQuickStat icon="dumbbell" label="ProteÃ­na" value={`${roundMacro(planTotals.protein)} g`} detail="calculada" />
         </div>
       </div>
 
       <MacroSummaryGrid totals={planTotals} />
-      <TextArea label="Observações para o aluno" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." />
+      <TextArea label="ObservaÃ§Ãµes para o aluno" name="notes" defaultValue="Manter Ã¡gua e fibras. Reportar fome, sono e digestÃ£o no check-in." />
 
       <div className="space-y-4">
         {meals.map((meal, mealIndex) => {
@@ -8344,18 +8393,18 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
                     {mealIndex + 1}
                   </span>
                   <div>
-                    <p className="text-sm font-black text-white">Refeição {mealIndex + 1}</p>
-                    <p className="text-xs font-bold text-zinc-500">{meal.items.length} alimento(s) neste horário</p>
+                    <p className="text-sm font-black text-white">RefeiÃ§Ã£o {mealIndex + 1}</p>
+                    <p className="text-xs font-bold text-zinc-500">{meal.items.length} alimento(s) neste horÃ¡rio</p>
                   </div>
                 </div>
                 <button type="button" onClick={() => removeMeal(mealIndex)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
-                  Remover refeição
+                  Remover refeiÃ§Ã£o
                 </button>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
-                <InlineInput label="Refeição" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
-                <InlineInput label="Horário" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
+                <InlineInput label="RefeiÃ§Ã£o" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
+                <InlineInput label="HorÃ¡rio" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
               </div>
 
               <div className="mt-4">
@@ -8390,7 +8439,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={addMeal} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
           <NavIcon name="plus" className="h-4 w-4" />
-          Adicionar refeição
+          Adicionar refeiÃ§Ã£o
         </button>
         <button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar dieta'}
@@ -8412,8 +8461,8 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
 
 function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan }) {
   const [meals, setMeals] = useState([
-    { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
+    { name: 'CafÃ© da manhÃ£', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
+    { name: 'AlmoÃ§o', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
     { name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 160 }] },
   ])
   const [saving, setSaving] = useState(false)
@@ -8456,7 +8505,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
   }
 
   function addMeal() {
-    setMeals((current) => [...current, { name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
+    setMeals((current) => [...current, { name: 'Nova refeiÃ§Ã£o', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
   }
 
   function removeMeal(index) {
@@ -8492,7 +8541,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
             .map((item) => {
               const alternatives = getEquivalentSubstitutions(item)
               const suffix = alternatives.length
-                ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
+                ? ` | SubstituiÃ§Ãµes: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
                 : ''
               return `${item.foodName} (${item.grams}g)${suffix}`
             })
@@ -8505,7 +8554,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
     setMessage('')
     setError('')
     try {
-      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeição com alimentos e quantidades válidas.')
+      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeiÃ§Ã£o com alimentos e quantidades vÃ¡lidas.')
       await onSaveNutritionPlan({
         studentId: form.get('studentId')?.toString() || '',
         title: form.get('title')?.toString() || 'Plano alimentar',
@@ -8516,7 +8565,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
       })
       setMessage('Dieta salva com macros calculados automaticamente.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar a dieta.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar a dieta.')
     } finally {
       setSaving(false)
     }
@@ -8527,7 +8576,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
       <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
         <p className="font-black text-blue-100">Assistente inteligente de alimentos</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
-          Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
+          Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteÃ­na, carboidratos, gordura, fibra e sÃ³dio automaticamente.
         </p>
       </div>
       <Select
@@ -8539,10 +8588,10 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Nome da dieta" name="title" defaultValue="Plano base" />
         <Info label="Calorias calculadas" value={`${Math.round(planTotals.calories)} kcal`} />
-        <Info label="Proteína calculada" value={`${roundMacro(planTotals.protein)} g`} />
+        <Info label="ProteÃ­na calculada" value={`${roundMacro(planTotals.protein)} g`} />
       </div>
       <MacroSummaryGrid totals={planTotals} />
-      <TextArea label="Observações" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." />
+      <TextArea label="ObservaÃ§Ãµes" name="notes" defaultValue="Manter Ã¡gua e fibras. Reportar fome, sono e digestÃ£o no check-in." />
 
       <div className="space-y-4">
         {meals.map((meal, mealIndex) => {
@@ -8551,10 +8600,10 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
           return (
             <div key={mealIndex} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
               <div className="grid gap-3 sm:grid-cols-[1fr_160px_auto]">
-                <InlineInput label="Refeição" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
-                <InlineInput label="Horário" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
+                <InlineInput label="RefeiÃ§Ã£o" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
+                <InlineInput label="HorÃ¡rio" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
                 <button type="button" onClick={() => removeMeal(mealIndex)} className="self-end rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">
-                  Remover refeição
+                  Remover refeiÃ§Ã£o
                 </button>
               </div>
 
@@ -8588,7 +8637,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
 
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={addMeal} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-          Adicionar refeição
+          Adicionar refeiÃ§Ã£o
         </button>
         <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar dieta'}
@@ -8613,7 +8662,7 @@ function NutritionPlanList({ plans, selectedStudent, onArchive }) {
 
   async function handleArchive(plan) {
     if (!onArchive) return
-    if (!window.confirm(`Arquivar a dieta "${plan.title}"? Ela deixará de aparecer para o aluno.`)) return
+    if (!window.confirm(`Arquivar a dieta "${plan.title}"? Ela deixarÃ¡ de aparecer para o aluno.`)) return
     setArchivingId(String(plan.id))
     try {
       await onArchive(plan.id)
@@ -8628,7 +8677,7 @@ function NutritionPlanList({ plans, selectedStudent, onArchive }) {
         <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
         <div className="grid gap-3 sm:grid-cols-2">
           <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
-          <Info label="Proteína da ficha" value={selectedStudent?.protein ?? '-'} />
+          <Info label="ProteÃ­na da ficha" value={selectedStudent?.protein ?? '-'} />
         </div>
       </div>
     )
@@ -8650,7 +8699,7 @@ function NutritionPlanList({ plans, selectedStudent, onArchive }) {
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      Plano alimentar organizado por horário, macros e substituições.
+                      Plano alimentar organizado por horÃ¡rio, macros e substituiÃ§Ãµes.
                     </p>
                   </div>
                 </div>
@@ -8667,16 +8716,16 @@ function NutritionPlanList({ plans, selectedStudent, onArchive }) {
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <NutritionQuickStat icon="chart" label="Calorias" value={plan.calories || '-'} detail="meta diária" />
-                <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan.protein || '-'} detail="por dia" />
-                <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
+                <NutritionQuickStat icon="chart" label="Calorias" value={plan.calories || '-'} detail="meta diÃ¡ria" />
+                <NutritionQuickStat icon="dumbbell" label="ProteÃ­na" value={plan.protein || '-'} detail="por dia" />
+                <NutritionQuickStat icon="calendar" label="RefeiÃ§Ãµes" value={meals.length || '-'} detail="organizadas" />
               </div>
             </div>
 
             <div className="space-y-3 p-4">
               {plan.notes ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">OrientaÃ§Ã£o do coach</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p>
                 </div>
               ) : null}
@@ -8711,7 +8760,7 @@ function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(plan) {
-    if (!window.confirm(`Arquivar a dieta “${plan.title}”? Ela deixará de aparecer para o aluno.`)) return
+    if (!window.confirm(`Arquivar a dieta â€œ${plan.title}â€? Ela deixarÃ¡ de aparecer para o aluno.`)) return
     setArchivingId(String(plan.id))
     try {
       await onArchive(plan.id)
@@ -8726,7 +8775,7 @@ function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
         <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
         <div className="grid gap-3 sm:grid-cols-2">
           <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
-          <Info label="Proteína da ficha" value={selectedStudent?.protein ?? '-'} />
+          <Info label="ProteÃ­na da ficha" value={selectedStudent?.protein ?? '-'} />
         </div>
       </div>
     )
@@ -8859,7 +8908,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
               setSuggestionsOpen(true)
             }}
             onBlur={() => window.setTimeout(() => setSuggestionsOpen(false), 120)}
-            placeholder="Ex.: tilápia grelhada, aveia ou feijoada"
+            placeholder="Ex.: tilÃ¡pia grelhada, aveia ou feijoada"
             autoComplete="off"
             className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
@@ -8885,7 +8934,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
               )) : (
                 <div className="px-3 py-3">
                   <p className="text-sm font-bold text-amber-200">Alimento novo</p>
-                  <p className="mt-1 text-xs leading-5 text-zinc-400">Continue digitando livremente. Os macros serão estimados e poderão ser ajustados abaixo.</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">Continue digitando livremente. Os macros serÃ£o estimados e poderÃ£o ser ajustados abaixo.</p>
                 </div>
               )}
             </div>
@@ -8906,8 +8955,8 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
             {Math.round(totals.calories)} kcal | P {roundMacro(totals.protein)}g | C {roundMacro(totals.carbs)}g | G {roundMacro(totals.fat)}g
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Valores para {Number(item.grams) || 0}g · confiança {Math.round(intelligence.confidence * 100)}%
-            {recognizedFood && normalizeText(recognizedFood.name) !== normalizeText(item.foodName) ? ` · referência: ${recognizedFood.name}` : ''}
+            Valores para {Number(item.grams) || 0}g Â· confianÃ§a {Math.round(intelligence.confidence * 100)}%
+            {recognizedFood && normalizeText(recognizedFood.name) !== normalizeText(item.foodName) ? ` Â· referÃªncia: ${recognizedFood.name}` : ''}
           </p>
         </div>
         {estimatedFood && !recognizedFood ? (
@@ -8929,7 +8978,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
           <InlineInput label="Carbo/100g" value={item.customMacros?.carbs ?? 0} onChange={(value) => setManualMacro('carbs', value)} />
           <InlineInput label="Gord/100g" value={item.customMacros?.fat ?? 0} onChange={(value) => setManualMacro('fat', value)} />
           <InlineInput label="Fibra/100g" value={item.customMacros?.fiber ?? 0} onChange={(value) => setManualMacro('fiber', value)} />
-          <InlineInput label="Sódio/100g" value={item.customMacros?.sodium ?? 0} onChange={(value) => setManualMacro('sodium', value)} />
+          <InlineInput label="SÃ³dio/100g" value={item.customMacros?.sodium ?? 0} onChange={(value) => setManualMacro('sodium', value)} />
         </div>
       ) : null}
       {recognizedFood && !manualMode ? (
@@ -8943,8 +8992,8 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
       ) : null}
       <div className="mt-3 rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Substituições equivalentes</p>
-          <span className="text-[11px] font-bold text-zinc-500">mantendo o plano próximo dos mesmos macros</span>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">SubstituiÃ§Ãµes equivalentes</p>
+          <span className="text-[11px] font-bold text-zinc-500">mantendo o plano prÃ³ximo dos mesmos macros</span>
         </div>
         {substitutions.length ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -8970,7 +9019,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-xs leading-5 text-zinc-500">Digite um alimento e quantidade para o app sugerir substituições.</p>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">Digite um alimento e quantidade para o app sugerir substituiÃ§Ãµes.</p>
         )}
       </div>
     </div>
@@ -8988,7 +9037,7 @@ function Checkins({ checkins, students, onAddCheckin }) {
         )}
       </Panel>
 
-      <Panel title="Histórico de check-ins" action={`${checkins.length} registros`}>
+      <Panel title="HistÃ³rico de check-ins" action={`${checkins.length} registros`}>
         {checkins.length ? (
           <div className="grid gap-3">
             {checkins.map((item) => {
@@ -9064,7 +9113,7 @@ function StudentPortalPreview({
   const inviteUrl = invite ? `${window.location.origin}${window.location.pathname}?invite=${invite.code}` : ''
 
   if (!student) {
-    return <Empty text="Cadastre ou selecione um aluno para visualizar a área do aluno." />
+    return <Empty text="Cadastre ou selecione um aluno para visualizar a Ã¡rea do aluno." />
   }
 
   async function generateInvite() {
@@ -9084,11 +9133,11 @@ function StudentPortalPreview({
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <Panel title={`Portal do aluno - ${student.name}`} action="Prévia do app">
+      <Panel title={`Portal do aluno - ${student.name}`} action="PrÃ©via do app">
         <div className="grid gap-4 md:grid-cols-3">
           <Info label="Objetivo" value={student.goal} />
           <Info label="Treino atual" value={student.workout} />
-          <Info label="Próximo check-in" value={student.nextCheckin} />
+          <Info label="PrÃ³ximo check-in" value={student.nextCheckin} />
         </div>
 
         <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
@@ -9104,7 +9153,7 @@ function StudentPortalPreview({
               <div>
                 <p className="text-sm font-black">Convite do aluno</p>
                 <p className="mt-1 text-sm text-zinc-400">
-                  Gere um código para o aluno acessar a área dele pela tela inicial.
+                  Gere um cÃ³digo para o aluno acessar a Ã¡rea dele pela tela inicial.
                 </p>
               </div>
               <button onClick={generateInvite} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
@@ -9113,13 +9162,13 @@ function StudentPortalPreview({
             </div>
             {invite ? (
               <div className="mt-4 rounded-md border border-amber-300/30 bg-amber-300/10 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">Código de acesso</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">CÃ³digo de acesso</p>
                 <p className="mt-2 select-all text-2xl font-black text-amber-100">{invite.code}</p>
                 <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-amber-200">Link direto</p>
                 <p className="mt-2 select-all break-all rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-100">
                   {inviteUrl}
                 </p>
-                <p className="mt-2 text-sm text-zinc-300">Envie o link ou o código para o aluno.</p>
+                <p className="mt-2 text-sm text-zinc-300">Envie o link ou o cÃ³digo para o aluno.</p>
               </div>
             ) : null}
           </div>
@@ -9139,7 +9188,7 @@ function StudentPortalPreview({
         />
       </Panel>
 
-      <Panel title="Próximos compromissos" action={`${studentAppointments.length} agendados`}>
+      <Panel title="PrÃ³ximos compromissos" action={`${studentAppointments.length} agendados`}>
         <div className="grid gap-3">
           {studentAppointments.length ? (
             studentAppointments.slice(0, 4).map((appointment) => (
@@ -9161,7 +9210,7 @@ function StudentPortalPreview({
         </div>
       </Panel>
 
-      <Panel title="Financeiro" action={`${studentInvoices.length} cobranças`}>
+      <Panel title="Financeiro" action={`${studentInvoices.length} cobranÃ§as`}>
         <div className="grid gap-3">
           {studentInvoices.length ? (
             studentInvoices.slice(0, 4).map((invoice) => (
@@ -9178,7 +9227,7 @@ function StudentPortalPreview({
               </div>
             ))
           ) : (
-            <Empty text="Nenhuma cobrança registrada." />
+            <Empty text="Nenhuma cobranÃ§a registrada." />
           )}
         </div>
       </Panel>
@@ -9189,7 +9238,7 @@ function StudentPortalPreview({
             <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
               <p className="text-xs font-black uppercase text-emerald-200">O que o aluno enxerga</p>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Esta prévia mostra a tela de execução do treino com vídeo, orientação e campo de carga que o aluno registra no celular.
+                Esta prÃ©via mostra a tela de execuÃ§Ã£o do treino com vÃ­deo, orientaÃ§Ã£o e campo de carga que o aluno registra no celular.
               </p>
             </div>
         <StudentWorkoutExecution
@@ -9235,11 +9284,11 @@ function StudentPortalPreview({
         <AssessmentProgress assessments={studentAssessments} student={student} checkins={studentCheckins} />
       </Panel>
 
-      <Panel title="Treinos concluídos" action={`${studentWorkoutLogs.length} registros`}>
+      <Panel title="Treinos concluÃ­dos" action={`${studentWorkoutLogs.length} registros`}>
         <WorkoutLogList logs={studentWorkoutLogs} />
       </Panel>
 
-      <Panel title="Histórico enviado" action="Últimos registros">
+      <Panel title="HistÃ³rico enviado" action="Ãšltimos registros">
         <div className="space-y-3">
           {studentCheckins.length ? (
             studentCheckins.slice(0, 4).map((item) => (
@@ -9251,7 +9300,7 @@ function StudentPortalPreview({
               </div>
             ))
           ) : (
-            <Empty text="Este aluno ainda não enviou check-ins." />
+            <Empty text="Este aluno ainda nÃ£o enviou check-ins." />
           )}
         </div>
       </Panel>
@@ -9285,13 +9334,13 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
     const isImage = file.type.startsWith('image/')
     const isAudio = file.type.startsWith('audio/')
     if (!isImage && !isAudio) {
-      setError('Selecione uma imagem ou áudio válido.')
+      setError('Selecione uma imagem ou Ã¡udio vÃ¡lido.')
       event.target.value = ''
       return
     }
     const maxSize = isAudio ? 20 * 1024 * 1024 : 8 * 1024 * 1024
     if (file.size > maxSize) {
-      setError(isAudio ? 'O áudio deve ter no máximo 20 MB.' : 'A foto deve ter no máximo 8 MB.')
+      setError(isAudio ? 'O Ã¡udio deve ter no mÃ¡ximo 20 MB.' : 'A foto deve ter no mÃ¡ximo 8 MB.')
       event.target.value = ''
       return
     }
@@ -9326,7 +9375,7 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
       setDraft('')
       clearAttachment()
     } catch (sendError) {
-      setError(sendError?.message || 'Não foi possível enviar a mensagem.')
+      setError(sendError?.message || 'NÃ£o foi possÃ­vel enviar a mensagem.')
     } finally {
       setSending(false)
     }
@@ -9345,7 +9394,7 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
                   : 'mr-auto max-w-[92%] border-white/10 bg-white/[0.04]'
               }`}
             >
-              <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{message.sender === 'student' ? 'Você' : 'Coach'}</p>
+              <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{message.sender === 'student' ? 'VocÃª' : 'Coach'}</p>
               {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
               <MessageAttachment message={message} />
               <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
@@ -9371,7 +9420,7 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
               {attachmentFile?.type?.startsWith('audio/') ? (
                 <audio controls src={attachmentPreview} className="w-full max-w-xs" />
               ) : (
-                <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+                <img src={attachmentPreview} alt="PrÃ©via da foto" className="h-20 w-20 rounded-md object-cover" />
               )}
               <div className="min-w-0 flex-1">
                 <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Anexo selecionado'}</p>
@@ -9384,7 +9433,7 @@ function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullSc
         ) : null}
         <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
           <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
-            Foto/áudio
+            Foto/Ã¡udio
             <input type="file" accept="image/*,audio/*" onChange={handleAttachment} className="hidden" />
           </label>
           <AudioRecorderButton
@@ -9451,7 +9500,7 @@ function AudioRecorderButton({ onAudio, onError }) {
 
   async function startRecording() {
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      onError?.('Seu navegador não liberou gravação de áudio. Anexe um arquivo de áudio pelo botão Foto/áudio.')
+      onError?.('Seu navegador nÃ£o liberou gravaÃ§Ã£o de Ã¡udio. Anexe um arquivo de Ã¡udio pelo botÃ£o Foto/Ã¡udio.')
       return
     }
     try {
@@ -9474,7 +9523,7 @@ function AudioRecorderButton({ onAudio, onError }) {
       setRecording(true)
       onError?.('')
     } catch {
-      onError?.('Não foi possível acessar o microfone. Confira a permissão do navegador.')
+      onError?.('NÃ£o foi possÃ­vel acessar o microfone. Confira a permissÃ£o do navegador.')
     }
   }
 
@@ -9486,7 +9535,7 @@ function AudioRecorderButton({ onAudio, onError }) {
 
   return (
     <button type="button" onClick={recording ? stopRecording : startRecording} className={`min-h-11 rounded-md border px-4 py-3 text-sm font-black ${recording ? 'border-rose-300/40 bg-rose-300/10 text-rose-100' : 'border-white/10 text-zinc-200'}`}>
-      {recording ? 'Parar áudio' : 'Gravar áudio'}
+      {recording ? 'Parar Ã¡udio' : 'Gravar Ã¡udio'}
     </button>
   )
 }
@@ -9510,15 +9559,15 @@ function StudentConsent({ access, onAccept, onExit, error }) {
         <div className="mt-7 h-px bg-white/10" />
         <h1 className="mt-2 text-3xl font-black">Consentimento de dados</h1>
         <p className="mt-2 text-sm leading-6 text-zinc-400">
-          Olá, {access.student.name}. Antes de acessar seu acompanhamento, precisamos registrar sua autorização.
+          OlÃ¡, {access.student.name}. Antes de acessar seu acompanhamento, precisamos registrar sua autorizaÃ§Ã£o.
         </p>
 
         <div className="mt-6 grid gap-3">
           {[
-            'Dados de cadastro, treinos, dieta e comunicação.',
-            'Peso, medidas corporais, fotos e informações de saúde fornecidas por você.',
+            'Dados de cadastro, treinos, dieta e comunicaÃ§Ã£o.',
+            'Peso, medidas corporais, fotos e informaÃ§Ãµes de saÃºde fornecidas por vocÃª.',
             'Uso dos dados exclusivamente para acompanhamento pelo seu treinador.',
-            'Possibilidade de solicitar correção ou exclusão dos seus dados ao treinador.',
+            'Possibilidade de solicitar correÃ§Ã£o ou exclusÃ£o dos seus dados ao treinador.',
           ].map((text) => (
             <div key={text} className="rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">
               {text}
@@ -9527,7 +9576,7 @@ function StudentConsent({ access, onAccept, onExit, error }) {
         </div>
 
         <p className="mt-5 text-xs leading-5 text-zinc-500">
-          Ao continuar, você confirma que leu e aceita o tratamento dessas informações para a prestação do acompanhamento contratado.
+          Ao continuar, vocÃª confirma que leu e aceita o tratamento dessas informaÃ§Ãµes para a prestaÃ§Ã£o do acompanhamento contratado.
         </p>
         {error ? <p className="mt-4 text-sm font-bold text-amber-200">{error}</p> : null}
 
@@ -9587,7 +9636,7 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-300">Primeiro acesso</p>
             <h1 className="mt-2 text-2xl font-black sm:text-3xl">Anamnese de {access.student.name}</h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Estas informações serão enviadas com segurança ao seu coach para personalizar treino e alimentação.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Estas informaÃ§Ãµes serÃ£o enviadas com seguranÃ§a ao seu coach para personalizar treino e alimentaÃ§Ã£o.</p>
           </div>
           <BrandLockup subtitle="Coach Fit Pro" />
         </div>
@@ -9596,36 +9645,36 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
           <h2 className="font-black text-blue-200">Perfil e objetivo</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Data de nascimento" name="birthDate" type="date" />
-            <Field label="Profissão" name="occupation" />
-            <Select label="Experiência com treino" name="trainingExperience" defaultValue="Iniciante" options={['Nunca treinei', 'Iniciante', 'Intermediário', 'Avançado']} />
-            <Select label="Frequência disponível" name="trainingFrequency" defaultValue="3 vezes por semana" options={['1 vez por semana', '2 vezes por semana', '3 vezes por semana', '4 vezes por semana', '5 vezes por semana', '6 ou mais vezes']} />
+            <Field label="ProfissÃ£o" name="occupation" />
+            <Select label="ExperiÃªncia com treino" name="trainingExperience" defaultValue="Iniciante" options={['Nunca treinei', 'Iniciante', 'IntermediÃ¡rio', 'AvanÃ§ado']} />
+            <Select label="FrequÃªncia disponÃ­vel" name="trainingFrequency" defaultValue="3 vezes por semana" options={['1 vez por semana', '2 vezes por semana', '3 vezes por semana', '4 vezes por semana', '5 vezes por semana', '6 ou mais vezes']} />
           </div>
           <TextArea label="Objetivo principal e resultado esperado" name="primaryGoal" defaultValue="" />
         </section>
 
         <section className="grid gap-4 border-t border-white/10 pt-5">
-          <h2 className="font-black text-red-200">Saúde e segurança</h2>
+          <h2 className="font-black text-red-200">SaÃºde e seguranÃ§a</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextArea label="Lesões atuais ou anteriores" name="injuries" defaultValue="Nenhuma" />
-            <TextArea label="Doenças ou condições de saúde" name="healthConditions" defaultValue="Nenhuma" />
+            <TextArea label="LesÃµes atuais ou anteriores" name="injuries" defaultValue="Nenhuma" />
+            <TextArea label="DoenÃ§as ou condiÃ§Ãµes de saÃºde" name="healthConditions" defaultValue="Nenhuma" />
             <TextArea label="Medicamentos em uso" name="medications" defaultValue="Nenhum" />
             <TextArea label="Cirurgias realizadas" name="surgeries" defaultValue="Nenhuma" />
           </div>
-          <TextArea label="Dores, limitações ou exercícios que causam desconforto" name="pain" defaultValue="Nenhuma" />
-          <Field label="Contato de emergência" name="emergencyContact" />
+          <TextArea label="Dores, limitaÃ§Ãµes ou exercÃ­cios que causam desconforto" name="pain" defaultValue="Nenhuma" />
+          <Field label="Contato de emergÃªncia" name="emergencyContact" />
         </section>
 
         <section className="grid gap-4 border-t border-white/10 pt-5">
-          <h2 className="font-black text-emerald-200">Rotina e hábitos</h2>
+          <h2 className="font-black text-emerald-200">Rotina e hÃ¡bitos</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Horas de sono" name="sleepHours" />
             <Select label="Qualidade do sono" name="sleepQuality" defaultValue="Regular" options={['Ruim', 'Regular', 'Boa', 'Excelente']} />
-            <Select label="Nível de estresse" name="stressLevel" defaultValue="Moderado" options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
-            <Field label="Água por dia" name="waterIntake" defaultValue="2 litros" />
+            <Select label="NÃ­vel de estresse" name="stressLevel" defaultValue="Moderado" options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
+            <Field label="Ãgua por dia" name="waterIntake" defaultValue="2 litros" />
           </div>
-          <TextArea label="Restrições, alergias ou preferências alimentares" name="foodRestrictions" defaultValue="Nenhuma" />
-          <TextArea label="Como é sua rotina diária?" name="routine" defaultValue="" />
-          <TextArea label="Outras informações importantes" name="observations" defaultValue="" />
+          <TextArea label="RestriÃ§Ãµes, alergias ou preferÃªncias alimentares" name="foodRestrictions" defaultValue="Nenhuma" />
+          <TextArea label="Como Ã© sua rotina diÃ¡ria?" name="routine" defaultValue="" />
+          <TextArea label="Outras informaÃ§Ãµes importantes" name="observations" defaultValue="" />
         </section>
 
         {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
@@ -9648,7 +9697,7 @@ function ProfessionalAnamnesisSummary({ anamnesis, student }) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="font-black text-blue-100">Aluno transferido</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-300">Anamnese dispensada pelo coach. Use avaliações, histórico de treino e evolução atual para continuar o acompanhamento.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-300">Anamnese dispensada pelo coach. Use avaliaÃ§Ãµes, histÃ³rico de treino e evoluÃ§Ã£o atual para continuar o acompanhamento.</p>
             </div>
             <Badge tone="Baixo">Liberado</Badge>
           </div>
@@ -9659,18 +9708,18 @@ function ProfessionalAnamnesisSummary({ anamnesis, student }) {
     return (
       <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4">
         <p className="font-black text-amber-100">Anamnese pendente</p>
-        <p className="mt-1 text-sm leading-6 text-zinc-300">O aluno preencherá a anamnese no primeiro acesso. Até lá, mantenha treino, carga e dieta em uma abordagem conservadora.</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">O aluno preencherÃ¡ a anamnese no primeiro acesso. AtÃ© lÃ¡, mantenha treino, carga e dieta em uma abordagem conservadora.</p>
       </div>
     )
   }
 
   const riskFlags = [
-    hasUsefulAnamnesisValue(anamnesis.injuries) ? 'Lesões relatadas' : '',
-    hasUsefulAnamnesisValue(anamnesis.pain) ? 'Dor ou limitação' : '',
-    hasUsefulAnamnesisValue(anamnesis.healthConditions) ? 'Condição de saúde' : '',
+    hasUsefulAnamnesisValue(anamnesis.injuries) ? 'LesÃµes relatadas' : '',
+    hasUsefulAnamnesisValue(anamnesis.pain) ? 'Dor ou limitaÃ§Ã£o' : '',
+    hasUsefulAnamnesisValue(anamnesis.healthConditions) ? 'CondiÃ§Ã£o de saÃºde' : '',
     hasUsefulAnamnesisValue(anamnesis.medications) ? 'Medicamento em uso' : '',
     ['Alto', 'Muito alto'].includes(anamnesis.stressLevel) ? 'Estresse elevado' : '',
-    ['Ruim', 'Regular'].includes(anamnesis.sleepQuality) ? 'Sono exige atenção' : '',
+    ['Ruim', 'Regular'].includes(anamnesis.sleepQuality) ? 'Sono exige atenÃ§Ã£o' : '',
   ].filter(Boolean)
   const readinessScore = Math.max(0, 100 - riskFlags.length * 12)
   const sections = [
@@ -9679,40 +9728,40 @@ function ProfessionalAnamnesisSummary({ anamnesis, student }) {
       tone: 'blue',
       items: [
         ['Objetivo principal', anamnesis.primaryGoal],
-        ['Profissão / rotina de trabalho', anamnesis.occupation],
-        ['Experiência com treino', anamnesis.trainingExperience],
-        ['Frequência disponível', anamnesis.trainingFrequency],
+        ['ProfissÃ£o / rotina de trabalho', anamnesis.occupation],
+        ['ExperiÃªncia com treino', anamnesis.trainingExperience],
+        ['FrequÃªncia disponÃ­vel', anamnesis.trainingFrequency],
       ],
     },
     {
-      title: 'Saúde e segurança',
+      title: 'SaÃºde e seguranÃ§a',
       tone: riskFlags.length ? 'rose' : 'emerald',
       items: [
-        ['Lesões atuais ou anteriores', anamnesis.injuries || 'Nenhuma relatada'],
-        ['Dores ou limitações', anamnesis.pain || 'Nenhuma relatada'],
-        ['Condições de saúde', anamnesis.healthConditions || 'Nenhuma relatada'],
+        ['LesÃµes atuais ou anteriores', anamnesis.injuries || 'Nenhuma relatada'],
+        ['Dores ou limitaÃ§Ãµes', anamnesis.pain || 'Nenhuma relatada'],
+        ['CondiÃ§Ãµes de saÃºde', anamnesis.healthConditions || 'Nenhuma relatada'],
         ['Medicamentos', anamnesis.medications || 'Nenhum relatado'],
         ['Cirurgias', anamnesis.surgeries || 'Nenhuma relatada'],
-        ['Contato de emergência', anamnesis.emergencyContact || 'Não informado'],
+        ['Contato de emergÃªncia', anamnesis.emergencyContact || 'NÃ£o informado'],
       ],
     },
     {
-      title: 'Sono, estresse e hidratação',
+      title: 'Sono, estresse e hidrataÃ§Ã£o',
       tone: 'sky',
       items: [
         ['Horas de sono', anamnesis.sleepHours],
         ['Qualidade do sono', anamnesis.sleepQuality],
-        ['Nível de estresse', anamnesis.stressLevel],
-        ['Água por dia', anamnesis.waterIntake],
+        ['NÃ­vel de estresse', anamnesis.stressLevel],
+        ['Ãgua por dia', anamnesis.waterIntake],
       ],
     },
     {
-      title: 'Nutrição e rotina',
+      title: 'NutriÃ§Ã£o e rotina',
       tone: 'orange',
       items: [
-        ['Restrições, alergias ou preferências', anamnesis.foodRestrictions || 'Nenhuma relatada'],
-        ['Rotina diária', anamnesis.routine],
-        ['Observações importantes', anamnesis.observations || 'Sem observações adicionais'],
+        ['RestriÃ§Ãµes, alergias ou preferÃªncias', anamnesis.foodRestrictions || 'Nenhuma relatada'],
+        ['Rotina diÃ¡ria', anamnesis.routine],
+        ['ObservaÃ§Ãµes importantes', anamnesis.observations || 'Sem observaÃ§Ãµes adicionais'],
       ],
     },
   ]
@@ -9729,9 +9778,9 @@ function ProfessionalAnamnesisSummary({ anamnesis, student }) {
           <Badge tone="Baixo">Completa</Badge>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <AnamnesisStat label="Prontidão" value={`${readinessScore}%`} tone={readinessScore >= 80 ? 'emerald' : readinessScore >= 55 ? 'amber' : 'rose'} />
-          <AnamnesisStat label="Pontos de atenção" value={riskFlags.length || '0'} tone={riskFlags.length ? 'amber' : 'emerald'} />
-          <AnamnesisStat label="Frequência" value={anamnesis.trainingFrequency || '-'} tone="blue" />
+          <AnamnesisStat label="ProntidÃ£o" value={`${readinessScore}%`} tone={readinessScore >= 80 ? 'emerald' : readinessScore >= 55 ? 'amber' : 'rose'} />
+          <AnamnesisStat label="Pontos de atenÃ§Ã£o" value={riskFlags.length || '0'} tone={riskFlags.length ? 'amber' : 'emerald'} />
+          <AnamnesisStat label="FrequÃªncia" value={anamnesis.trainingFrequency || '-'} tone="blue" />
         </div>
       </div>
 
@@ -9747,8 +9796,8 @@ function ProfessionalAnamnesisSummary({ anamnesis, student }) {
           </div>
         ) : (
           <div className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Sem alerta crítico informado</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">Ainda assim, confirme execução, dor e tolerância de carga nos primeiros treinos.</p>
+            <p className="text-xs font-black uppercase text-emerald-200">Sem alerta crÃ­tico informado</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Ainda assim, confirme execuÃ§Ã£o, dor e tolerÃ¢ncia de carga nos primeiros treinos.</p>
           </div>
         )}
 
@@ -9762,7 +9811,7 @@ function ProfessionalAnamnesisSummary({ anamnesis, student }) {
 
 function hasUsefulAnamnesisValue(value) {
   const normalized = String(value || '').trim().toLowerCase()
-  return Boolean(normalized && !['-', 'nao', 'não', 'nenhum', 'nenhuma', 'n/a'].includes(normalized))
+  return Boolean(normalized && !['-', 'nao', 'nÃ£o', 'nenhum', 'nenhuma', 'n/a'].includes(normalized))
 }
 
 function AnamnesisStat({ label, value, tone = 'emerald' }) {
@@ -9797,7 +9846,7 @@ function AnamnesisSection({ title, tone = 'emerald', items = [] }) {
         {items.map(([label, value]) => (
           <div key={label} className="rounded-md border border-white/10 bg-zinc-950/55 p-3">
             <p className="text-[10px] font-black uppercase text-zinc-500">{label}</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-100">{value || 'Não informado'}</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-100">{value || 'NÃ£o informado'}</p>
           </div>
         ))}
       </div>
@@ -9824,7 +9873,7 @@ function StudentAnamnesisSummary({ anamnesis, student }) {
     return (
       <div className="rounded-md border border-amber-300/30 bg-amber-300/10 p-4">
         <p className="font-black text-amber-100">Anamnese pendente</p>
-        <p className="mt-1 text-sm leading-6 text-zinc-300">O aluno preencherá a anamnese no primeiro acesso após aceitar o consentimento.</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">O aluno preencherÃ¡ a anamnese no primeiro acesso apÃ³s aceitar o consentimento.</p>
       </div>
     )
   }
@@ -9840,16 +9889,16 @@ function StudentAnamnesisSummary({ anamnesis, student }) {
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Info label="Objetivo" value={anamnesis.primaryGoal || '-'} />
-        <Info label="Experiência" value={`${anamnesis.trainingExperience || '-'} · ${anamnesis.trainingFrequency || '-'}`} />
-        <Info label="Lesões e dores" value={[anamnesis.injuries, anamnesis.pain].filter(Boolean).join(' | ') || 'Nenhuma'} />
-        <Info label="Condições e medicamentos" value={[anamnesis.healthConditions, anamnesis.medications].filter(Boolean).join(' | ') || 'Nenhum'} />
-        <Info label="Sono e estresse" value={`${anamnesis.sleepHours || '-'} · sono ${anamnesis.sleepQuality || '-'} · estresse ${anamnesis.stressLevel || '-'}`} />
-        <Info label="Alimentação" value={anamnesis.foodRestrictions || 'Nenhuma restrição'} />
+        <Info label="ExperiÃªncia" value={`${anamnesis.trainingExperience || '-'} Â· ${anamnesis.trainingFrequency || '-'}`} />
+        <Info label="LesÃµes e dores" value={[anamnesis.injuries, anamnesis.pain].filter(Boolean).join(' | ') || 'Nenhuma'} />
+        <Info label="CondiÃ§Ãµes e medicamentos" value={[anamnesis.healthConditions, anamnesis.medications].filter(Boolean).join(' | ') || 'Nenhum'} />
+        <Info label="Sono e estresse" value={`${anamnesis.sleepHours || '-'} Â· sono ${anamnesis.sleepQuality || '-'} Â· estresse ${anamnesis.stressLevel || '-'}`} />
+        <Info label="AlimentaÃ§Ã£o" value={anamnesis.foodRestrictions || 'Nenhuma restriÃ§Ã£o'} />
       </div>
       <div className="mt-3 grid gap-3">
-        <Row title="Rotina" meta={anamnesis.routine || 'Não informada'} badge={anamnesis.occupation || 'Aluno'} />
-        <Row title="Observações" meta={anamnesis.observations || 'Sem observações adicionais'} badge="Relato" />
-        <Row title="Contato de emergência" meta={anamnesis.emergencyContact || 'Não informado'} badge="Segurança" />
+        <Row title="Rotina" meta={anamnesis.routine || 'NÃ£o informada'} badge={anamnesis.occupation || 'Aluno'} />
+        <Row title="ObservaÃ§Ãµes" meta={anamnesis.observations || 'Sem observaÃ§Ãµes adicionais'} badge="Relato" />
+        <Row title="Contato de emergÃªncia" meta={anamnesis.emergencyContact || 'NÃ£o informado'} badge="SeguranÃ§a" />
       </div>
     </div>
   )
@@ -9957,7 +10006,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   const waterStorageKey = `fitcoach-water-${student?.id || 'aluno'}-${waterStorageDate}`
   const [waterMl, setWaterMl] = useState(0)
   const navItems = [
-    { id: 'inicio', label: 'Início', icon: 'dashboard', tone: 'emerald' },
+    { id: 'inicio', label: 'InÃ­cio', icon: 'dashboard', tone: 'emerald' },
     { id: 'treino', label: 'Treino', icon: 'dumbbell', tone: 'lime' },
     { id: 'dieta', label: 'Dieta', icon: 'nutrition', tone: 'orange' },
     { id: 'checkin', label: 'Check-in', icon: 'camera', tone: 'rose' },
@@ -9965,7 +10014,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     { id: 'pagamentos', label: 'Fatura', icon: 'wallet', tone: 'green' },
     { id: 'agenda', label: 'Agenda', icon: 'calendar', tone: 'sky' },
     { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
-    { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
+    { id: 'historico', label: 'HistÃ³rico', icon: 'dashboard', tone: 'slate' },
   ]
   const bottomNavItems = [
     navItems.find((item) => item.id === 'inicio'),
@@ -10038,7 +10087,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     setWorkoutClock(Date.now())
     if (!workoutStartNotified) {
       setWorkoutStartNotified(true)
-      sendLocalNotification('Treino iniciado', `${student.name} começou o treino.`)
+      sendLocalNotification('Treino iniciado', `${student.name} comeÃ§ou o treino.`)
       onSendMessage?.({
         studentId: student.id,
         sender: 'student',
@@ -10054,7 +10103,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     await onSendMessage?.({
       studentId: student.id,
       sender: 'student',
-      body: `${student.name} concluiu o treino ${log.title}. Esforço: ${log.effort}.${log.notes ? ` Observação: ${log.notes}` : ''}`,
+      body: `${student.name} concluiu o treino ${log.title}. EsforÃ§o: ${log.effort}.${log.notes ? ` ObservaÃ§Ã£o: ${log.notes}` : ''}`,
     }).catch(() => {})
     setWorkoutStartedAt(null)
     setWorkoutElapsedSeconds(0)
@@ -10122,7 +10171,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                 {workoutStartedAt ? 'Pausar treino' : 'Iniciar treino'}
               </button>
             </div>
-            <p className="mt-2 text-xs leading-5 text-zinc-400">Ao iniciar, o contador ajuda você a acompanhar o tempo total da sessão.</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-400">Ao iniciar, o contador ajuda vocÃª a acompanhar o tempo total da sessÃ£o.</p>
           </div>
           {studentWorkouts.length ? (
             <>
@@ -10146,7 +10195,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               ) : null}
             </>
           ) : (
-            <Empty text="Seu treino ainda não foi liberado pelo coach." />
+            <Empty text="Seu treino ainda nÃ£o foi liberado pelo coach." />
           )}
         </StudentAppSection>
       )
@@ -10166,7 +10215,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                   <p className="text-xs font-black uppercase text-emerald-200">Plano alimentar liberado</p>
                   <h3 className="mt-1 break-words text-xl font-black text-white">{todayPlan.title}</h3>
                   <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    Siga uma refeição por vez. As substituições ficam dentro de cada alimento para manter os macros alinhados.
+                    Siga uma refeiÃ§Ã£o por vez. As substituiÃ§Ãµes ficam dentro de cada alimento para manter os macros alinhados.
                   </p>
                 </div>
               </div>
@@ -10176,22 +10225,22 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                   <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.calories || '-'}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Proteína</p>
+                  <p className="text-xs font-bold text-zinc-500">ProteÃ­na</p>
                   <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.protein || '-'}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Refeições</p>
+                  <p className="text-xs font-bold text-zinc-500">RefeiÃ§Ãµes</p>
                   <p className="mt-1 text-sm font-black text-white">{todayPlan.meals?.length || 0}</p>
                 </div>
               </div>
             </div>
           ) : null}
           <StudentReminderCard
-            title="Lembrete de refeição"
-            body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
+            title="Lembrete de refeiÃ§Ã£o"
+            body={`${student.name}, confira sua refeiÃ§Ã£o no Coach Fit Pro para manter os macros do dia.`}
             action="Ativar lembrete"
           />
-          {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
+          {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda nÃ£o foi liberada pelo coach." />}
         </StudentAppSection>
       )
     }
@@ -10217,7 +10266,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
 
     if (activeTab === 'agenda') {
       return (
-        <StudentAppSection title="Agenda" action={`${studentAppointments.length} próximos`}>
+        <StudentAppSection title="Agenda" action={`${studentAppointments.length} prÃ³ximos`}>
           {nextAppointment ? <div className="rounded-md border border-white/10 bg-white/[0.035] p-4"><h4 className="font-black">{nextAppointment.title}</h4><p className="mt-1 text-sm text-zinc-400">{nextAppointment.type} - {nextAppointment.durationMinutes} min</p><p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(nextAppointment.startsAt)}</p><p className="mt-1 text-sm text-zinc-400">{nextAppointment.location || 'Local a confirmar'}</p></div> : <Empty text="Nenhum compromisso futuro agendado." />}
         </StudentAppSection>
       )
@@ -10228,7 +10277,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     }
 
     return (
-      <StudentAppSection title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
+      <StudentAppSection title="HistÃ³rico" action={`${studentWorkoutLogs.length} treinos`}>
         <WorkoutLogList logs={studentWorkoutLogs} />
         {checkins.length ? <div className="mt-4 space-y-3">{checkins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
       </StudentAppSection>
@@ -10262,7 +10311,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
               </button>
             </div>
             <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
-              <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
+              <p className="text-xs font-black uppercase text-emerald-200">Ãrea do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
             </div>
@@ -10277,19 +10326,19 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    <span className="text-zinc-500">›</span>
+                    <span className="text-zinc-500">â€º</span>
                   </button>
                 )
               })}
             </div>
             {!appInstalled ? (
               <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
-                <p className="text-xs font-black uppercase text-blue-200">Acesso rápido</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-300">Adicione o Coach Fit Pro na tela inicial para abrir sem digitar o código toda hora.</p>
+                <p className="text-xs font-black uppercase text-blue-200">Acesso rÃ¡pido</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-300">Adicione o Coach Fit Pro na tela inicial para abrir sem digitar o cÃ³digo toda hora.</p>
                 {installPrompt ? (
                   <button type="button" onClick={installStudentApp} className="mt-3 w-full rounded-md bg-emerald-400 px-3 py-2.5 text-xs font-black text-zinc-950">Adicionar no celular</button>
                 ) : (
-                  <p className="mt-3 text-xs leading-5 text-zinc-400">No iPhone: toque em compartilhar e depois em Adicionar à Tela de Início.</p>
+                  <p className="mt-3 text-xs leading-5 text-zinc-400">No iPhone: toque em compartilhar e depois em Adicionar Ã  Tela de InÃ­cio.</p>
                 )}
               </div>
             ) : null}
@@ -10303,7 +10352,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           <div className="rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
             <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
             <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
-              <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
+              <p className="text-xs font-black uppercase text-emerald-200">Ãrea do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
             <div className="mt-4 grid gap-2">
@@ -10325,11 +10374,11 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
             {!appInstalled ? (
               <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
                 <p className="text-xs font-black uppercase text-blue-200">Instalar no celular</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">O aluno abre pelo ícone e continua com o acesso salvo.</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">O aluno abre pelo Ã­cone e continua com o acesso salvo.</p>
                 {installPrompt ? (
                   <button type="button" onClick={installStudentApp} className="mt-3 w-full rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">Adicionar app</button>
                 ) : (
-                  <p className="mt-3 text-xs leading-5 text-zinc-500">No iPhone, use compartilhar e Adicionar à Tela de Início.</p>
+                  <p className="mt-3 text-xs leading-5 text-zinc-500">No iPhone, use compartilhar e Adicionar Ã  Tela de InÃ­cio.</p>
                 )}
               </div>
             ) : null}
@@ -10352,7 +10401,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                     {installPrompt ? (
                       <button type="button" onClick={installStudentApp} className="rounded-md bg-emerald-400 px-4 py-2.5 text-xs font-black text-zinc-950">Adicionar</button>
                     ) : (
-                      <p className="max-w-xs text-xs leading-5 text-zinc-400">No iPhone: compartilhar &gt; Adicionar à Tela de Início.</p>
+                      <p className="max-w-xs text-xs leading-5 text-zinc-400">No iPhone: compartilhar &gt; Adicionar Ã  Tela de InÃ­cio.</p>
                     )}
                   </div>
                 </div>
@@ -10396,13 +10445,13 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
   const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent })
   const nextAction = nextWorkout
-    ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
+    ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano estÃ¡ pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextAppointment
-      ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
-      : { title: 'Abrir chat com o coach', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
+      ? { title: 'Ver prÃ³ximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
+      : { title: 'Abrir chat com o coach', body: 'Envie uma dÃºvida ou retorno rÃ¡pido.', tab: 'mensagens', icon: 'message' }
 
   return (
-    <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
+    <StudentAppSection title={`OlÃ¡, ${firstName}`} action="Seu plano">
       <div className="grid gap-4">
         <button type="button" onClick={() => onOpenTab(nextAction.tab)} className="flex items-center gap-3 rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4 text-left transition hover:border-emerald-200/45">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
@@ -10418,17 +10467,17 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
         <div className="overflow-hidden rounded-xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/12 via-zinc-950 to-blue-500/10 p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
+              <p className="text-xs font-black uppercase text-emerald-200">Ranking de evoluÃ§Ã£o</p>
               <div className="mb-3">
                 <RankMedal icon={reward.levelIcon} label={reward.levelName} />
               </div>
               <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluÃ­do soma pontos e aproxima vocÃª do prÃ³ximo selo.</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
-              <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
+              <p className="text-xs font-black uppercase text-zinc-500">PrÃ³ximo selo</p>
               <p className="mt-1 text-lg font-black text-emerald-100">{reward.nextLevelName}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-500">{reward.remainingXp > 0 ? `faltam ${reward.remainingXp} XP` : 'ranking máximo'}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">{reward.remainingXp > 0 ? `faltam ${reward.remainingXp} XP` : 'ranking mÃ¡ximo'}</p>
             </div>
           </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40">
@@ -10463,7 +10512,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
         <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase text-emerald-300">Calendário semanal</p>
+              <p className="text-xs font-black uppercase text-emerald-300">CalendÃ¡rio semanal</p>
               <p className="mt-1 text-sm text-zinc-400">{completedThisWeek} de {weeklyTarget} treinos do desafio da semana</p>
             </div>
             <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{weeklyPercent}%</span>
@@ -10488,9 +10537,9 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta e ganhe bônus de XP.'} tone="emerald" />
-          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" />
-          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? '+40 XP de rotina liberado hoje.' : 'Meta de água definida pelo coach.'} tone="cyan" />
+          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bÃ´nus liberado.' : 'Complete a meta e ganhe bÃ´nus de XP.'} tone="emerald" />
+          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bÃ´nus liberado.' : 'ConsistÃªncia acumulada no mÃªs gera selo especial.'} tone="sky" />
+          <StudentChallengeCard title="HidrataÃ§Ã£o" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? '+40 XP de rotina liberado hoje.' : 'Meta de Ã¡gua definida pelo coach.'} tone="cyan" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -10532,19 +10581,19 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
     levelName: current.name,
     levelIcon: current.icon,
     levelTone: current.tone,
-    nextLevelName: next?.name || 'Ranking máximo',
+    nextLevelName: next?.name || 'Ranking mÃ¡ximo',
     remainingXp,
     progress: Math.min(100, Math.max(0, progress)),
     badges: [
-      { label: 'Treino', done: completedThisWeek >= 3, detail: completedThisWeek >= 3 ? '+120 XP de bônus semanal' : 'complete 3 treinos na semana' },
-      { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? '+25 XP de hidratação' : 'bata 80% da meta de água' },
-      { label: 'Consistência', done: completedThisMonth >= 8, detail: completedThisMonth >= 8 ? 'ritmo forte no mês' : 'alcance 8 treinos no mês' },
-      { label: 'Evolução', done: completedThisMonth >= 12, detail: completedThisMonth >= 12 ? '+300 XP de bônus mensal' : 'busque 12 treinos no mês' },
+      { label: 'Treino', done: completedThisWeek >= 3, detail: completedThisWeek >= 3 ? '+120 XP de bÃ´nus semanal' : 'complete 3 treinos na semana' },
+      { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? '+25 XP de hidrataÃ§Ã£o' : 'bata 80% da meta de Ã¡gua' },
+      { label: 'ConsistÃªncia', done: completedThisMonth >= 8, detail: completedThisMonth >= 8 ? 'ritmo forte no mÃªs' : 'alcance 8 treinos no mÃªs' },
+      { label: 'EvoluÃ§Ã£o', done: completedThisMonth >= 12, detail: completedThisMonth >= 12 ? '+300 XP de bÃ´nus mensal' : 'busque 12 treinos no mÃªs' },
     ],
     sources: [
-      { label: 'Treinos concluídos', value: `+${workoutXp} XP`, detail: '80 XP por treino finalizado' },
-      { label: 'Bônus semanal', value: `+${weeklyBonusXp} XP`, detail: 'meta mínima de treinos da semana' },
-      { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
+      { label: 'Treinos concluÃ­dos', value: `+${workoutXp} XP`, detail: '80 XP por treino finalizado' },
+      { label: 'BÃ´nus semanal', value: `+${weeklyBonusXp} XP`, detail: 'meta mÃ­nima de treinos da semana' },
+      { label: 'BÃ´nus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mÃªs' },
     ],
   }
 }
@@ -10590,7 +10639,7 @@ function buildStudentWeekProgress(logs = []) {
   const today = new Date()
   const monday = getWeekStart(today)
   const completedKeys = new Set(logs.map((log) => toLocalDateKey(log.completedAt)).filter(Boolean))
-  const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+  const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'SÃ¡b', 'Dom']
 
   return labels.map((label, index) => {
     const date = new Date(monday)
@@ -10683,7 +10732,7 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase text-sky-200">Meta de água</p>
+              <p className="text-xs font-black uppercase text-sky-200">Meta de Ã¡gua</p>
               <h3 className="mt-1 text-2xl font-black text-white">{currentLiters} L / {goalLiters} L</h3>
             </div>
             <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-xs font-black text-sky-100">
@@ -10691,7 +10740,7 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-zinc-300">
-            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida pelo coach.` : 'Meta concluída hoje. Excelente consistência.'}
+            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida pelo coach.` : 'Meta concluÃ­da hoje. Excelente consistÃªncia.'}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <button type="button" onClick={() => onAddWater(250)} className="rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
@@ -10713,14 +10762,14 @@ function StudentPaymentLock({ coachSettings, onOpenPayments, onOpenChat }) {
     <StudentAppSection title="Acesso pausado" action="Fatura">
       <div className="rounded-md border p-4" style={{ borderColor: `${billingBrand.primaryColor}55`, background: `linear-gradient(135deg, ${billingBrand.primaryColor}18, ${billingBrand.accentColor}12)` }}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-black uppercase" style={{ color: billingBrand.primaryColor }}>Área temporariamente pausada</p>
+          <p className="text-xs font-black uppercase" style={{ color: billingBrand.primaryColor }}>Ãrea temporariamente pausada</p>
           {billingBrand.logoUrl ? (
             <img src={billingBrand.logoUrl} alt={coachSettings?.brandName || 'Logo do coach'} className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
           ) : null}
         </div>
-        <h3 className="mt-2 text-2xl font-black text-white">Resolva sua fatura para liberar esta área.</h3>
+        <h3 className="mt-2 text-2xl font-black text-white">Resolva sua fatura para liberar esta Ã¡rea.</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
-          Os detalhes de assinatura, Pix, extrato e comprovante ficam concentrados na aba Fatura para não misturar cobrança com treino, dieta ou progresso.
+          Os detalhes de assinatura, Pix, extrato e comprovante ficam concentrados na aba Fatura para nÃ£o misturar cobranÃ§a com treino, dieta ou progresso.
         </p>
       </div>
 
@@ -10754,7 +10803,7 @@ function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessa
     await onSendMessage?.({
       studentId: student.id,
       sender: 'student',
-      body: `Solicitação de validação de pagamento: ${student.name} informou que pagou. Cobrança: ${invoiceSummary}. Coach, confirme em Recebimentos para liberar o acesso.`,
+      body: `SolicitaÃ§Ã£o de validaÃ§Ã£o de pagamento: ${student.name} informou que pagou. CobranÃ§a: ${invoiceSummary}. Coach, confirme em Recebimentos para liberar o acesso.`,
     }).catch(() => {})
     setNoticeSending(false)
     setNoticeSent(true)
@@ -10763,7 +10812,7 @@ function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessa
   return (
     <StudentAppSection title="Fatura" action={`${visibleInvoices.length} registros`}>
       <div className="grid gap-3 sm:grid-cols-3">
-        <StudentStatusCard label="Já pago" value={formatCurrency(paidTotal)} detail="Histórico confirmado" />
+        <StudentStatusCard label="JÃ¡ pago" value={formatCurrency(paidTotal)} detail="HistÃ³rico confirmado" />
         <StudentStatusCard label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
         <StudentStatusCard label="Pix" value={coachSettings?.pixKey || '-'} detail={coachSettings?.publicName || 'Coach'} />
       </div>
@@ -10779,13 +10828,13 @@ function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessa
         ) : null}
       </div>
       <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-        <p className="text-xs font-black uppercase text-zinc-400">{pendingInvoices.length ? 'Como a liberação funciona' : 'Assinatura em dia'}</p>
+        <p className="text-xs font-black uppercase text-zinc-400">{pendingInvoices.length ? 'Como a liberaÃ§Ã£o funciona' : 'Assinatura em dia'}</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
           {pendingInvoices.length
-            ? 'Pague pelo Pix do coach, envie o comprovante no chat e toque em “Avisei que paguei”. O treinador confirma em Recebimentos e o acesso é liberado.'
-            : 'Nenhuma cobrança em aberto no momento. Quando houver uma nova fatura, ela aparecerá somente nesta área.'}
+            ? 'Pague pelo Pix do coach, envie o comprovante no chat e toque em â€œAvisei que pagueiâ€. O treinador confirma em Recebimentos e o acesso Ã© liberado.'
+            : 'Nenhuma cobranÃ§a em aberto no momento. Quando houver uma nova fatura, ela aparecerÃ¡ somente nesta Ã¡rea.'}
         </p>
-        {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">Solicitação enviada ao treinador.</p> : null}
+        {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">SolicitaÃ§Ã£o enviada ao treinador.</p> : null}
       </div>
 
       <div className="mt-5 grid gap-3">
@@ -10818,9 +10867,9 @@ function WorkoutFeedbackPrompt({ prompt, student, onSend, onClose }) {
   return (
     <div className="mb-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
       <p className="text-xs font-black uppercase text-blue-200">{label}</p>
-      <h3 className="mt-2 text-lg font-black">Como foi sua evolução até aqui?</h3>
+      <h3 className="mt-2 text-lg font-black">Como foi sua evoluÃ§Ã£o atÃ© aqui?</h3>
       <p className="mt-1 text-sm leading-6 text-zinc-300">
-        Você completou {prompt.count} treinos. Envie um retorno rápido para o coach ajustar carga, dieta e próximos passos.
+        VocÃª completou {prompt.count} treinos. Envie um retorno rÃ¡pido para o coach ajustar carga, dieta e prÃ³ximos passos.
       </p>
       <textarea
         value={feedback}
@@ -10830,7 +10879,7 @@ function WorkoutFeedbackPrompt({ prompt, student, onSend, onClose }) {
         className="mt-3 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-blue-500"
       />
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <button type="button" onClick={() => onSend(`${label} de ${student.name}: ${feedback || 'Aluno solicitou revisão do plano.'}`)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+        <button type="button" onClick={() => onSend(`${label} de ${student.name}: ${feedback || 'Aluno solicitou revisÃ£o do plano.'}`)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           Enviar feedback
         </button>
         <button type="button" onClick={onClose} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
@@ -10907,7 +10956,7 @@ function printStudentPaymentStatement(student, invoices, coachSettings) {
           <div class="card"><strong>Pix</strong><div>${escapeStatementHtml(coachSettings?.pixKey || '-')}</div></div>
         </div>
         <table>
-          <thead><tr><th>Descrição</th><th>Vencimento</th><th>Status</th><th>Valor</th></tr></thead>
+          <thead><tr><th>DescriÃ§Ã£o</th><th>Vencimento</th><th>Status</th><th>Valor</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="4">Nenhum registro.</td></tr>'}</tbody>
         </table>
       </body>
@@ -10948,7 +10997,7 @@ function StudentChatScreen({ student, coachId, messages, onSendMessage, onRefres
         <div className="border-b border-white/10 bg-emerald-400/10 p-4">
           <p className="text-xs font-black uppercase text-emerald-200">Conversa com o coach</p>
           <h2 className="mt-1 text-lg font-black">{student.name}</h2>
-          <p className="mt-1 text-xs text-zinc-400">Envie dúvidas, retornos rápidos e observações do dia.</p>
+          <p className="mt-1 text-xs text-zinc-400">Envie dÃºvidas, retornos rÃ¡pidos e observaÃ§Ãµes do dia.</p>
         </div>
         <div className="min-h-0 flex-1 overflow-hidden p-3">
           <StudentMessagePanel student={student} coachId={coachId} messages={messages} onSendMessage={onSendMessage} fullScreen />
@@ -10979,12 +11028,12 @@ function CheckinForm({ students, onAddCheckin }) {
     const file = event.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      setError('Selecione um arquivo de imagem válido.')
+      setError('Selecione um arquivo de imagem vÃ¡lido.')
       event.target.value = ''
       return
     }
     if (file.size > 8 * 1024 * 1024) {
-      setError('A foto deve ter no máximo 8 MB.')
+      setError('A foto deve ter no mÃ¡ximo 8 MB.')
       event.target.value = ''
       return
     }
@@ -10992,7 +11041,7 @@ function CheckinForm({ students, onAddCheckin }) {
     setPhotoFile(file)
     const reader = new FileReader()
     reader.onload = () => setPhoto(reader.result.toString())
-    reader.onerror = () => setError('Não foi possível ler esta imagem.')
+    reader.onerror = () => setError('NÃ£o foi possÃ­vel ler esta imagem.')
     reader.readAsDataURL(file)
   }
 
@@ -11021,7 +11070,7 @@ function CheckinForm({ students, onAddCheckin }) {
       setMessage('Check-in salvo com sucesso.')
       if (savedCheckin?.uploadWarning) setWarning(savedCheckin.uploadWarning)
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o check-in.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar o check-in.')
     } finally {
       setSaving(false)
     }
@@ -11041,12 +11090,12 @@ function CheckinForm({ students, onAddCheckin }) {
       <Field label="Prazo" name="due" defaultValue="Hoje" />
       <Select label="Status" name="state" defaultValue="Recebido" options={['Recebido', 'Pendente', 'Critico']} />
       <Field label="Peso informado" name="weight" defaultValue="84,0 kg" />
-      <TextArea label="Observações" name="note" defaultValue="Registrar avaliação do coach." />
+      <TextArea label="ObservaÃ§Ãµes" name="note" defaultValue="Registrar avaliaÃ§Ã£o do coach." />
       <label className="grid gap-2 text-sm font-bold text-zinc-300">
         Foto do check-in
         <input type="file" accept="image/*" onChange={handlePhoto} className="rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-300" />
       </label>
-      {photo ? <img src={photo} alt="Prévia" className="h-44 rounded-md object-cover" /> : null}
+      {photo ? <img src={photo} alt="PrÃ©via" className="h-44 rounded-md object-cover" /> : null}
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando...' : 'Salvar check-in'}
       </button>
@@ -11110,7 +11159,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     ? formatCurrency(billingCycle.isPromotional ? firstMonthPrice : regularPrice)
     : selectedCheckoutPlan.price
   const selectedCycleSuffix = selectedCheckoutPlan.id === 'mensal'
-    ? (billingCycle.isPromotional ? 'no 1º mês' : '/mês')
+    ? (billingCycle.isPromotional ? 'no 1Âº mÃªs' : '/mÃªs')
     : selectedCheckoutPlan.suffix
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
   const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
@@ -11143,14 +11192,14 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
       if (stopped) return
       if (result?.active) {
-        setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
+        setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com seguranÃ§a.')
         recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
         stopped = true
       } else if (attempts >= 120) {
-        setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
+        setPaymentMessage('Ainda aguardando a confirmaÃ§Ã£o do checkout. Assim que a Cartpanda enviar o postback vÃ¡lido, o painel serÃ¡ liberado automaticamente.')
         stopped = true
       } else {
-        setPaymentMessage('Aguardando confirmação do pagamento. Use o mesmo e-mail da conta no checkout para a liberação automática funcionar.')
+        setPaymentMessage('Aguardando confirmaÃ§Ã£o do pagamento. Use o mesmo e-mail da conta no checkout para a liberaÃ§Ã£o automÃ¡tica funcionar.')
       }
       busy = false
     }
@@ -11204,10 +11253,10 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     if (!silent) setPaymentMessage('Verificando pagamento...')
     const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
     if (result?.active) {
-      setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
+      setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com seguranÃ§a.')
       recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
     } else if (!silent) {
-      setPaymentMessage('Pagamento ainda não confirmado. Use o mesmo e-mail da conta no checkout e aguarde alguns instantes.')
+      setPaymentMessage('Pagamento ainda nÃ£o confirmado. Use o mesmo e-mail da conta no checkout e aguarde alguns instantes.')
     }
     setCheckingPayment(false)
   }
@@ -11226,7 +11275,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     chooseCheckoutPlan(planId)
     setCheckoutStarted(true)
     recordLeadEvent('checkout_clicked', { planId, checkoutUrl: currentCheckoutUrl })
-    setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
+    setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberaÃ§Ã£o serÃ¡ verificada automaticamente.')
   }
 
   if (!subscriptionActive) {
@@ -11235,12 +11284,12 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
         <section className="overflow-hidden rounded-2xl border border-emerald-400/25 bg-zinc-950/90 shadow-2xl shadow-black/35">
           <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.72fr)] lg:items-start">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-blue-300">Ativação da conta</p>
+              <p className="text-xs font-black uppercase text-blue-300">AtivaÃ§Ã£o da conta</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">
-                Falta só escolher o ciclo e ativar seu Coach Fit Pro.
+                Falta sÃ³ escolher o ciclo e ativar seu Coach Fit Pro.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-                Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
+                VocÃª jÃ¡ criou sua conta. Agora confirme o plano, faÃ§a o pagamento com o mesmo e-mail cadastrado e o painel serÃ¡ liberado automaticamente assim que a Cartpanda aprovar.
               </p>
 
               <div className="mt-5 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
@@ -11268,7 +11317,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/12 via-white/[0.035] to-zinc-950 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase text-emerald-200">Escolha estratégica</p>
+                    <p className="text-xs font-black uppercase text-emerald-200">Escolha estratÃ©gica</p>
                     <p className="mt-2 text-sm font-semibold leading-6 text-zinc-100">{selectedCheckoutPlan.bestFor}</p>
                   </div>
                   <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">sem taxa por aluno</span>
@@ -11284,9 +11333,9 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {[
-                  ['1', 'Conta criada', 'seus dados já estão salvos'],
+                  ['1', 'Conta criada', 'seus dados jÃ¡ estÃ£o salvos'],
                   ['2', 'Plano escolhido', selectedCheckoutPlan.name],
-                  ['3', 'Liberação automática', 'após aprovação do pagamento'],
+                  ['3', 'LiberaÃ§Ã£o automÃ¡tica', 'apÃ³s aprovaÃ§Ã£o do pagamento'],
                 ].map(([step, title, text]) => (
                   <div key={step} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
                     <span className="inline-grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{step}</span>
@@ -11326,7 +11375,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               <div className="mt-4 grid gap-2">
                 {selectedCheckoutPlan.highlights.slice(0, 3).map((item) => (
                   <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-zinc-200">
-                    <span className="text-blue-300">✓</span>
+                    <span className="text-blue-300">âœ“</span>
                     <span>{item}</span>
                   </div>
                 ))}
@@ -11343,13 +11392,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               </a>
 
               <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-xl border border-blue-300/25 bg-blue-300/10 px-4 py-3 text-sm font-black text-blue-100 disabled:cursor-wait disabled:opacity-60">
-                {checkingPayment ? 'Verificando...' : 'Já paguei, verificar liberação'}
+                {checkingPayment ? 'Verificando...' : 'JÃ¡ paguei, verificar liberaÃ§Ã£o'}
               </button>
 
               {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{paymentMessage}</p> : null}
 
               <p className="mt-4 text-xs leading-5 text-zinc-500">
-                Use o mesmo e-mail da conta no pagamento para a liberação automática funcionar.
+                Use o mesmo e-mail da conta no pagamento para a liberaÃ§Ã£o automÃ¡tica funcionar.
               </p>
             </div>
           </div>
@@ -11369,8 +11418,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
               {subscriptionActive
-                ? 'Sua conta está ativa. Continue cadastrando alunos, planos, treinos, dietas, cobranças e acompanhamentos sem sair do Coach Fit Pro.'
-                : <>Você começa por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mês</strong>. Depois, a mensalidade fica em {formatCurrency(regularPrice)} por mês, mantendo todas as ferramentas liberadas para operar com previsibilidade.</>}
+                ? 'Sua conta estÃ¡ ativa. Continue cadastrando alunos, planos, treinos, dietas, cobranÃ§as e acompanhamentos sem sair do Coach Fit Pro.'
+                : <>VocÃª comeÃ§a por apenas <strong className="text-emerald-200">{formatCurrency(firstMonthPrice)} no primeiro mÃªs</strong>. Depois, a mensalidade fica em {formatCurrency(regularPrice)} por mÃªs, mantendo todas as ferramentas liberadas para operar com previsibilidade.</>}
             </p>
             <div className={`mt-4 inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase ${
               subscriptionActive
@@ -11381,15 +11430,15 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             </div>
           </div>
           <div className="min-w-0 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro fechamento' : 'Próximo fechamento'}</p>
+            <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro fechamento' : 'PrÃ³ximo fechamento'}</p>
             <p className="mt-2 break-words text-4xl font-black text-white">{formatCurrency(currentBillingTotal)}</p>
             <p className="mt-2 text-xs leading-5 text-emerald-100">
               {billingCycle.isPromotional
-                ? 'Condição especial de entrada ativa neste ciclo.'
+                ? 'CondiÃ§Ã£o especial de entrada ativa neste ciclo.'
                 : `${formatCurrency(regularPrice)} de mensalidade fixa.`}
             </p>
             <div className="mt-4 border-t border-emerald-300/20 pt-4">
-              <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança em</p>
+              <p className="text-xs font-black uppercase text-emerald-200">PrÃ³xima cobranÃ§a em</p>
               <p className="mt-1 text-2xl font-black text-white">{billingCycle.daysRemaining} {billingCycle.daysRemaining === 1 ? 'dia' : 'dias'}</p>
               <p className="mt-1 text-xs text-zinc-400">{formatFullDateTime(billingCycle.nextBillingAt)}</p>
             </div>
@@ -11397,23 +11446,23 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
         </div>
 
         <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
-          <SubscriptionMetric label="Alunos ativos" value={activeStudents.length} detail="incluídos no cálculo" tone="cyan" />
+          <SubscriptionMetric label="Alunos ativos" value={activeStudents.length} detail="incluÃ­dos no cÃ¡lculo" tone="cyan" />
           <SubscriptionMetric label="Receita estimada" value={formatCurrency(estimatedRevenue)} detail="valor mensal da carteira" tone="emerald" />
-          <SubscriptionMetric label="Recebido no mês" value={formatCurrency(receivedThisMonth)} detail="cobranças marcadas como pagas" tone="amber" />
-          <SubscriptionMetric label="Você mantém" value={formatCurrency(retainedRevenue)} detail="após a cobrança regular estimada" tone="emerald" />
+          <SubscriptionMetric label="Recebido no mÃªs" value={formatCurrency(receivedThisMonth)} detail="cobranÃ§as marcadas como pagas" tone="amber" />
+          <SubscriptionMetric label="VocÃª mantÃ©m" value={formatCurrency(retainedRevenue)} detail="apÃ³s a cobranÃ§a regular estimada" tone="emerald" />
         </div>
       </section>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel title="Composição da cobrança" action={`Fecha em ${formatDate(closingDate.toISOString())}`}>
+        <Panel title="ComposiÃ§Ã£o da cobranÃ§a" action={`Fecha em ${formatDate(closingDate.toISOString())}`}>
           <div className="grid gap-3">
-            <BillingLine label="Mensalidade do primeiro mês" value={formatCurrency(firstMonthPrice)} note="Condição especial de entrada" />
-            <BillingLine label="Mensalidade após o primeiro mês" value={formatCurrency(regularPrice)} note="Valor fixo mensal" />
+            <BillingLine label="Mensalidade do primeiro mÃªs" value={formatCurrency(firstMonthPrice)} note="CondiÃ§Ã£o especial de entrada" />
+            <BillingLine label="Mensalidade apÃ³s o primeiro mÃªs" value={formatCurrency(regularPrice)} note="Valor fixo mensal" />
             <div className="mt-1 rounded-md border border-emerald-300/30 bg-emerald-400/10 p-4">
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-200">Próximos fechamentos</p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-400">Mensalidade fixa para manter sua operação previsível.</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">PrÃ³ximos fechamentos</p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-400">Mensalidade fixa para manter sua operaÃ§Ã£o previsÃ­vel.</p>
                 </div>
                 <p className="break-words text-3xl font-black text-white">{formatCurrency(regularTotal)}</p>
               </div>
@@ -11428,7 +11477,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 <div key={student.id} className="flex min-w-0 flex-col gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="break-words text-sm font-black text-zinc-200">{student.name}</p>
-                    <p className="mt-1 break-words text-xs text-zinc-500">{student.plan} · mensalidade de {formatCurrency(student.monthlyValue)}</p>
+                    <p className="mt-1 break-words text-xs text-zinc-500">{student.plan} Â· mensalidade de {formatCurrency(student.monthlyValue)}</p>
                   </div>
                   <div className="shrink-0 text-left sm:text-right">
                     <p className="text-xs text-zinc-500">Plano mensal</p>
@@ -11452,20 +11501,20 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-amber-200">Atenção de cobrança</p>
+                  <p className="text-xs font-black uppercase text-amber-200">AtenÃ§Ã£o de cobranÃ§a</p>
                   <p className="mt-2 text-2xl font-black text-white">{students.filter((student) => student.payment !== 'Pago' && student.status !== 'Inativo').length}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-400">Alunos ativos que ainda precisam de confirmação de pagamento.</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400">Alunos ativos que ainda precisam de confirmaÃ§Ã£o de pagamento.</p>
                 </div>
                 <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
                   <p className="text-xs font-black uppercase text-blue-200">Planos configurados</p>
                   <p className="mt-2 text-2xl font-black text-white">{coachPlans.length}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-400">Mantenha nomes, valores e ciclos atualizados para não perder previsibilidade.</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400">Mantenha nomes, valores e ciclos atualizados para nÃ£o perder previsibilidade.</p>
                 </div>
               </div>
               <div className="rounded-md border border-white/10 bg-white/[0.035] p-4">
-                <p className="text-xs font-black uppercase text-zinc-400">Próxima ação recomendada</p>
+                <p className="text-xs font-black uppercase text-zinc-400">PrÃ³xima aÃ§Ã£o recomendada</p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Revise alunos pendentes, envie cobrança pelo sistema e confirme como pago quando receber. Isso mantém o portal do aluno alinhado com a realidade financeira da carteira.
+                  Revise alunos pendentes, envie cobranÃ§a pelo sistema e confirme como pago quando receber. Isso mantÃ©m o portal do aluno alinhado com a realidade financeira da carteira.
                 </p>
               </div>
             </div>
@@ -11474,13 +11523,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
           <Panel title="Pagamento da assinatura" action={subscriptionActive ? 'Conta ativa' : 'Oferta ativa'}>
             <p className="text-sm leading-6 text-zinc-400">
               {subscriptionActive
-                ? 'Sua assinatura está confirmada. Se você acabou de pagar e ainda vê alguma área bloqueada, toque em atualizar status.'
-                : 'Escolha o ciclo ideal para sua operação. Todos os planos liberam o painel completo, e a confirmação da Cartpanda desbloqueia suas ferramentas automaticamente.'}
+                ? 'Sua assinatura estÃ¡ confirmada. Se vocÃª acabou de pagar e ainda vÃª alguma Ã¡rea bloqueada, toque em atualizar status.'
+                : 'Escolha o ciclo ideal para sua operaÃ§Ã£o. Todos os planos liberam o painel completo, e a confirmaÃ§Ã£o da Cartpanda desbloqueia suas ferramentas automaticamente.'}
             </p>
             {!subscriptionActive ? <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">Importante para validar mais rápido</p>
+              <p className="text-xs font-black uppercase text-amber-200">Importante para validar mais rÃ¡pido</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
-                No checkout, use o mesmo e-mail cadastrado aqui no Coach Fit Pro. E-mail diferente pode impedir a liberação automática das ferramentas.
+                No checkout, use o mesmo e-mail cadastrado aqui no Coach Fit Pro. E-mail diferente pode impedir a liberaÃ§Ã£o automÃ¡tica das ferramentas.
               </p>
             </div> : null}
             {!subscriptionActive && checkoutPlans.length ? (
@@ -11527,7 +11576,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               </div>
             ) : !subscriptionActive ? (
               <button type="button" disabled className="mt-4 w-full rounded-md bg-zinc-800 px-4 py-3 text-sm font-black text-zinc-500">
-                Pagamento em configuração
+                Pagamento em configuraÃ§Ã£o
               </button>
             ) : null}
             <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-md border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 disabled:cursor-wait disabled:opacity-60">
@@ -11535,9 +11584,9 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
             </button>
             {paymentMessage ? <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-zinc-300">{paymentMessage}</p> : null}
             <button type="button" onClick={copyBillingSummary} className="mt-3 w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-              {copied ? 'Resumo copiado' : 'Copiar resumo da cobrança'}
+              {copied ? 'Resumo copiado' : 'Copiar resumo da cobranÃ§a'}
             </button>
-            <p className="mt-3 text-xs leading-5 text-zinc-500">Depois do checkout, o app verifica a assinatura automaticamente quando você voltar para esta aba e também pelo botão de atualização.</p>
+            <p className="mt-3 text-xs leading-5 text-zinc-500">Depois do checkout, o app verifica a assinatura automaticamente quando vocÃª voltar para esta aba e tambÃ©m pelo botÃ£o de atualizaÃ§Ã£o.</p>
           </Panel>
         </div>
       </div>
@@ -11659,7 +11708,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     setMessage('')
     setError('')
     try {
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Informe um valor de cobrança maior que zero.')
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('Informe um valor de cobranÃ§a maior que zero.')
       await onSaveInvoice({
         studentId: form.get('studentId')?.toString() || '',
         planName: form.get('planName')?.toString() || coachPlans[0]?.name || 'Acompanhamento',
@@ -11672,13 +11721,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
       if (student?.payment === 'Pago') {
         const paymentUpdated = await onUpdatePayment(student.id, 'Pendente')
         if (!paymentUpdated) {
-          setError('A cobrança foi criada, mas o status financeiro do aluno não pôde ser atualizado.')
+          setError('A cobranÃ§a foi criada, mas o status financeiro do aluno nÃ£o pÃ´de ser atualizado.')
         }
       }
       formElement.reset()
-      setMessage('Cobrança criada com sucesso.')
+      setMessage('CobranÃ§a criada com sucesso.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível criar a cobrança.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel criar a cobranÃ§a.')
     } finally {
       setSaving(false)
     }
@@ -11690,9 +11739,9 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     try {
       const updated = await onUpdateInvoiceStatus(invoiceId, status, paymentMethod)
       if (updated === 'partial') {
-        setError('A cobrança foi atualizada, mas o status financeiro do aluno não pôde ser sincronizado.')
+        setError('A cobranÃ§a foi atualizada, mas o status financeiro do aluno nÃ£o pÃ´de ser sincronizado.')
       } else if (!updated) {
-        setError('Não foi possível atualizar esta cobrança.')
+        setError('NÃ£o foi possÃ­vel atualizar esta cobranÃ§a.')
       }
     } finally {
       setUpdatingId('')
@@ -11713,7 +11762,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     ))
 
     if (!chargeableStudents.length) {
-      if (!silent) setMessage('Nenhum aluno pendente sem cobrança em aberto.')
+      if (!silent) setMessage('Nenhum aluno pendente sem cobranÃ§a em aberto.')
       return
     }
 
@@ -11735,9 +11784,9 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           paymentMethod: 'Pix',
         })
       }
-      setMessage(`${chargeableStudents.length} cobrança(s) criada(s) automaticamente conforme o ciclo do plano.`)
+      setMessage(`${chargeableStudents.length} cobranÃ§a(s) criada(s) automaticamente conforme o ciclo do plano.`)
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível gerar as cobranças automáticas.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel gerar as cobranÃ§as automÃ¡ticas.')
     } finally {
       setSaving(false)
     }
@@ -11761,27 +11810,27 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase text-emerald-300">Dashboard financeiro</p>
-            <h3 className="mt-2 text-2xl font-black text-white">Vendas, renovações e previsibilidade</h3>
+            <h3 className="mt-2 text-2xl font-black text-white">Vendas, renovaÃ§Ãµes e previsibilidade</h3>
           </div>
           <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${activeStudents} aluno(s) ativos`} />
-          <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
+          <Metric label="Vendas no mÃªs" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
           <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
           <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
-          <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
+          <Metric label="RenovaÃ§Ãµes 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
           <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${paidStudents} aluno(s) liberados`} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase text-blue-200">Previsão dos próximos 30 dias</p>
+                <p className="text-xs font-black uppercase text-blue-200">PrevisÃ£o dos prÃ³ximos 30 dias</p>
                 <p className="mt-2 text-3xl font-black text-white">{formatCurrency(forecast30Days)}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-zinc-500">Carteira ativa/mês</p>
+                <p className="text-xs text-zinc-500">Carteira ativa/mÃªs</p>
                 <p className="mt-1 text-lg font-black text-emerald-200">{formatCurrency(activePlanRevenue)}</p>
               </div>
             </div>
@@ -11807,22 +11856,22 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
       <section className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-amber-200">Cobrança automática dos alunos</p>
+            <p className="text-xs font-black uppercase text-amber-200">CobranÃ§a automÃ¡tica dos alunos</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">
-              O sistema identifica alunos pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
+              O sistema identifica alunos pendentes sem cobranÃ§a aberta, cria a cobranÃ§a pelo ciclo do plano e bloqueia o acesso atÃ© a validaÃ§Ã£o.
             </p>
             <p className="hidden">
-              Pix: {coachSettings?.pixKey || 'cadastre em Gerenciamento'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
+              Pix: {coachSettings?.pixKey || 'cadastre em Gerenciamento'} | WhatsApp: {coachSettings?.whatsapp || 'nÃ£o informado'}
             </p>
           </div>
           <button type="button" disabled={saving} onClick={handleCreateAutoCharges} className="rounded-md bg-amber-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
-            Gerar cobranças pendentes
+            Gerar cobranÃ§as pendentes
           </button>
         </div>
       </section>
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <Panel title="Gerar cobrança" action="Financeiro">
+        <Panel title="Gerar cobranÃ§a" action="Financeiro">
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
               <Select
@@ -11859,7 +11908,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
               </div>
               <Field
                 key={`desc-${selectedBillingStudent?.id || 'none'}-${selectedBillingPlan?.name || 'plan'}`}
-                label="Descrição"
+                label="DescriÃ§Ã£o"
                 name="description"
                 defaultValue={buildBillingMessage(getBillingMessageTemplateForPlan(selectedBillingPlan, coachSettings), {
                   student: selectedBillingStudent,
@@ -11870,20 +11919,20 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                 })}
               />
               <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança estimada</p>
+                <p className="text-xs font-black uppercase text-emerald-200">PrÃ³xima cobranÃ§a estimada</p>
                 <p className="mt-1 text-lg font-black text-white">{formatDate(selectedBillingDueDate)}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  Calculada pelo plano do aluno, ciclo cadastrado e histórico de cobranças já registradas.
+                  Calculada pelo plano do aluno, ciclo cadastrado e histÃ³rico de cobranÃ§as jÃ¡ registradas.
                 </p>
               </div>
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-                {saving ? 'Gerando...' : 'Gerar cobrança'}
+                {saving ? 'Gerando...' : 'Gerar cobranÃ§a'}
               </button>
               {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
               {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
             </form>
           ) : (
-            <Empty text="Cadastre um aluno antes de gerar cobranças." />
+            <Empty text="Cadastre um aluno antes de gerar cobranÃ§as." />
           )}
 
           <div className="mt-5 grid gap-3">
@@ -11893,7 +11942,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                   <div>
                     <h4 className="font-black">{plan.name}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{plan.features}</p>
-                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {plan.students} aluno(s) ativo(s)</p>
+                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} Â· {plan.students} aluno(s) ativo(s)</p>
                   </div>
                   <span className="text-right text-lg font-black text-blue-300">{formatCurrency(plan.billingValue)}</span>
                 </div>
@@ -11902,7 +11951,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           </div>
         </Panel>
 
-        <Panel title="Histórico de cobranças" action={`${visibleInvoices.length} registros`}>
+        <Panel title="HistÃ³rico de cobranÃ§as" action={`${visibleInvoices.length} registros`}>
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {['Todos', 'Pendente', 'Pago', 'Atrasado', 'Cancelado'].map((option) => (
               <button
@@ -11935,7 +11984,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                         <p className="mt-1 text-sm text-zinc-400">{invoice.description}</p>
                         <p className="mt-3 text-xl font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
                         <p className="mt-1 text-sm text-zinc-400">Vence em {formatDate(invoice.dueDate)}</p>
-                        {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)} via {invoice.paymentMethod || 'não informado'}</p> : null}
+                        {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)} via {invoice.paymentMethod || 'nÃ£o informado'}</p> : null}
                       </div>
 
                       {!['Pago', 'Cancelado'].includes(invoice.status) ? (
@@ -11953,7 +12002,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                 )
               })
             ) : (
-              <Empty text="Nenhuma cobrança encontrada neste filtro." />
+              <Empty text="Nenhuma cobranÃ§a encontrada neste filtro." />
             )}
           </div>
         </Panel>
@@ -12000,7 +12049,7 @@ function PaymentStatus({ status }) {
 
 function Notifications({ notifications, onReadAll }) {
   return (
-    <Panel title="Central de notificações" action={`${notifications.filter((item) => !item.read).length} não lidas`}>
+    <Panel title="Central de notificaÃ§Ãµes" action={`${notifications.filter((item) => !item.read).length} nÃ£o lidas`}>
       <button onClick={onReadAll} className="mb-4 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
         Marcar tudo como lido
       </button>
@@ -12028,12 +12077,12 @@ function SmartNotifications({ notifications, smartAlerts, onReadAll, onOpenView 
               <SmartAlertCard key={alert.id} alert={alert} onOpen={() => onOpenView(alert.view)} />
             ))
           ) : (
-            <Empty text="Tudo em ordem com pagamentos, check-ins e prescrições." />
+            <Empty text="Tudo em ordem com pagamentos, check-ins e prescriÃ§Ãµes." />
           )}
         </div>
       </Panel>
 
-      <Panel title="Central de notificações" action={`${unread} não lidas`}>
+      <Panel title="Central de notificaÃ§Ãµes" action={`${unread} nÃ£o lidas`}>
         <button onClick={onReadAll} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 sm:w-auto">
           Marcar tudo como lido
         </button>
@@ -12046,7 +12095,7 @@ function SmartNotifications({ notifications, smartAlerts, onReadAll, onOpenView 
               </div>
             ))
           ) : (
-            <Empty text="Nenhuma notificação registrada ainda." />
+            <Empty text="Nenhuma notificaÃ§Ã£o registrada ainda." />
           )}
         </div>
       </Panel>
@@ -12117,7 +12166,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     }
     const reader = new FileReader()
     reader.onload = () => updateField('logoUrl', reader.result?.toString() || '')
-    reader.onerror = () => setLogoFileError('Não consegui ler a imagem. Tente outro arquivo.')
+    reader.onerror = () => setLogoFileError('NÃ£o consegui ler a imagem. Tente outro arquivo.')
     reader.readAsDataURL(file)
   }
 
@@ -12155,7 +12204,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     setMessage('')
     try {
       await onSave(draft)
-      setMessage('Gerenciamento salvo. As próximas visitas já usam esta versão.')
+      setMessage('Gerenciamento salvo. As prÃ³ximas visitas jÃ¡ usam esta versÃ£o.')
     } finally {
       setSaving(false)
     }
@@ -12163,7 +12212,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
   function resetDefaults() {
     setDraft(defaultAppAdminSettings)
-    setMessage('Padrão carregado. Clique em salvar para publicar.')
+    setMessage('PadrÃ£o carregado. Clique em salvar para publicar.')
   }
 
   function toggleSection(section) {
@@ -12178,7 +12227,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
             <p className="text-xs font-black uppercase text-emerald-300">Admin Master</p>
             <h2 className="mt-2 text-3xl font-black text-white">Controle central do Coach Fit Pro.</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-              Edite página de vendas, planos oficiais, links de checkout, cores e módulos sem precisar subir código no GitHub.
+              Edite pÃ¡gina de vendas, planos oficiais, links de checkout, cores e mÃ³dulos sem precisar subir cÃ³digo no GitHub.
             </p>
           </div>
           <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
@@ -12195,27 +12244,27 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       </section>
 
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
-        <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
+        <AdminAccordionSection title="SaÃºde do sistema" action="DiagnÃ³stico rÃ¡pido" open={openSections.health} onToggle={() => toggleSection('health')}>
           <AdminSystemHealthPanel remoteStatus={remoteStatus} remoteError={remoteError} settings={draft} />
         </AdminAccordionSection>
 
-        <AdminAccordionSection title="Tráfego e conversões" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
+        <AdminAccordionSection title="TrÃ¡fego e conversÃµes" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
           <AdminTrafficPanel />
         </AdminAccordionSection>
 
-        <AdminAccordionSection title="Checklist de lançamento" action="Operação pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
+        <AdminAccordionSection title="Checklist de lanÃ§amento" action="OperaÃ§Ã£o pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
           <AdminLaunchChecklist />
         </AdminAccordionSection>
 
-        <AdminAccordionSection title="Página de vendas" action="Textos principais" open={openSections.sales} onToggle={() => toggleSection('sales')}>
+        <AdminAccordionSection title="PÃ¡gina de vendas" action="Textos principais" open={openSections.sales} onToggle={() => toggleSection('sales')}>
           <div className="grid gap-4">
-            <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
-            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: mais controle, mais organização e melhor experiência para o aluno." />
+            <AdminTextInput label="TÃ­tulo principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
+            <AdminTextArea label="DescriÃ§Ã£o principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: mais controle, mais organizaÃ§Ã£o e melhor experiÃªncia para o aluno." />
             <div className="grid gap-4 sm:grid-cols-2">
-              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar por R$ 9,90." />
-              <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
+              <AdminTextInput label="Texto do botÃ£o principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma aÃ§Ã£o simples, como Escolher meu plano ou ComeÃ§ar por R$ 9,90." />
+              <AdminTextInput label="Aviso abaixo do botÃ£o" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexÃ­veis ou pagamento seguro." />
             </div>
-            <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
+            <AdminTextInput label="Texto de confianÃ§a" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforÃ§o de seguranÃ§a perto da oferta. Mantenha curto." />
           </div>
         </AdminAccordionSection>
 
@@ -12234,20 +12283,20 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                   <AdminTextInput label="Nome" value={plan.name} onChange={(value) => updatePlan(index, 'name', value)} />
                   <AdminTextInput label="Ciclo" value={plan.cycle} onChange={(value) => updatePlan(index, 'cycle', value)} />
                   <AdminTextInput label="Selo do card" value={plan.badge} onChange={(value) => updatePlan(index, 'badge', value)} />
-                  <AdminTextInput label="Preço" value={plan.price} onChange={(value) => updatePlan(index, 'price', value)} />
-                  <AdminTextInput label="Complemento do preço" value={plan.suffix} onChange={(value) => updatePlan(index, 'suffix', value)} />
-                  <AdminTextInput label="Preço antigo" value={plan.oldPrice || ''} onChange={(value) => updatePlan(index, 'oldPrice', value)} />
+                  <AdminTextInput label="PreÃ§o" value={plan.price} onChange={(value) => updatePlan(index, 'price', value)} />
+                  <AdminTextInput label="Complemento do preÃ§o" value={plan.suffix} onChange={(value) => updatePlan(index, 'suffix', value)} />
+                  <AdminTextInput label="PreÃ§o antigo" value={plan.oldPrice || ''} onChange={(value) => updatePlan(index, 'oldPrice', value)} />
                   <AdminTextInput label="Comparativo" value={plan.total} onChange={(value) => updatePlan(index, 'total', value)} />
                   <AdminTextInput label="Vantagem" value={plan.economy} onChange={(value) => updatePlan(index, 'economy', value)} />
-                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} hint="Cole o link completo do checkout. Recomendado: começar por https://pagamento.coachfitpro.com.br/checkout/." />
+                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} hint="Cole o link completo do checkout. Recomendado: comeÃ§ar por https://pagamento.coachfitpro.com.br/checkout/." />
                 </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                  <AdminTextArea label="Descrição" value={plan.description} onChange={(value) => updatePlan(index, 'description', value)} />
+                  <AdminTextArea label="DescriÃ§Ã£o" value={plan.description} onChange={(value) => updatePlan(index, 'description', value)} />
                   <AdminTextArea label="Melhor para" value={plan.bestFor} onChange={(value) => updatePlan(index, 'bestFor', value)} />
                   <AdminTextArea label="Promessa operacional" value={plan.operatingPromise} onChange={(value) => updatePlan(index, 'operatingPromise', value)} />
                   <AdminTextArea label="Itens inclusos, um por linha" value={(plan.highlights || []).join('\n')} onChange={(value) => updatePlanList(index, 'highlights', value)} />
-                  <AdminTextArea label="Passos de implantação, um por linha" value={(plan.activationPlan || []).join('\n')} onChange={(value) => updatePlanList(index, 'activationPlan', value)} />
-                  <AdminTextArea label="Gatilhos do plano, separados por vírgula" value={(plan.decisionPoints || []).join(', ')} onChange={(value) => updatePlanList(index, 'decisionPoints', value, ',')} />
+                  <AdminTextArea label="Passos de implantaÃ§Ã£o, um por linha" value={(plan.activationPlan || []).join('\n')} onChange={(value) => updatePlanList(index, 'activationPlan', value)} />
+                  <AdminTextArea label="Gatilhos do plano, separados por vÃ­rgula" value={(plan.decisionPoints || []).join(', ')} onChange={(value) => updatePlanList(index, 'decisionPoints', value, ',')} />
                 </div>
               </div>
             ))}
@@ -12269,42 +12318,42 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                 ))}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <AdminTextInput type="color" label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Destaques, ícones e detalhes de marca." />
+                <AdminTextInput type="color" label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Destaques, Ã­cones e detalhes de marca." />
                 <AdminTextInput type="color" label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} hint="Contraste para bordas, selos e efeitos." />
               </div>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <AdminTextInput type="color" label="Fundo do app" value={draft.appBackgroundColor} onChange={(value) => updateField('appBackgroundColor', value)} hint="Fundo quando coach e aluno estão logados." />
-                <AdminTextInput type="color" label="Fundo da página de vendas" value={draft.salesBackgroundColor} onChange={(value) => updateField('salesBackgroundColor', value)} hint="Base do site público." />
-                <AdminTextInput type="color" label="Fundo dos cards" value={draft.salesSurfaceColor} onChange={(value) => updateField('salesSurfaceColor', value)} hint="Cards, boxes e áreas com vidro." />
+                <AdminTextInput type="color" label="Fundo do app" value={draft.appBackgroundColor} onChange={(value) => updateField('appBackgroundColor', value)} hint="Fundo quando coach e aluno estÃ£o logados." />
+                <AdminTextInput type="color" label="Fundo da pÃ¡gina de vendas" value={draft.salesBackgroundColor} onChange={(value) => updateField('salesBackgroundColor', value)} hint="Base do site pÃºblico." />
+                <AdminTextInput type="color" label="Fundo dos cards" value={draft.salesSurfaceColor} onChange={(value) => updateField('salesSurfaceColor', value)} hint="Cards, boxes e Ã¡reas com vidro." />
                 <AdminTextInput type="color" label="Texto principal" value={draft.salesTextColor} onChange={(value) => updateField('salesTextColor', value)} hint="Use cor clara para fundo escuro." />
-                <AdminTextInput type="color" label="Cor dos botões CTA" value={draft.ctaColor} onChange={(value) => updateField('ctaColor', value)} hint="Botão de compra e cadastro." />
-                <AdminTextInput type="color" label="Texto dos botões CTA" value={draft.ctaTextColor} onChange={(value) => updateField('ctaTextColor', value)} hint="Preto em botão claro costuma funcionar bem." />
-                <AdminTextInput label="Fundo do cabeçalho" value={draft.headerBackgroundColor} onChange={(value) => updateField('headerBackgroundColor', value)} hint="Aceita rgba. Exemplo: rgba(0, 0, 0, 0.70)." />
+                <AdminTextInput type="color" label="Cor dos botÃµes CTA" value={draft.ctaColor} onChange={(value) => updateField('ctaColor', value)} hint="BotÃ£o de compra e cadastro." />
+                <AdminTextInput type="color" label="Texto dos botÃµes CTA" value={draft.ctaTextColor} onChange={(value) => updateField('ctaTextColor', value)} hint="Preto em botÃ£o claro costuma funcionar bem." />
+                <AdminTextInput label="Fundo do cabeÃ§alho" value={draft.headerBackgroundColor} onChange={(value) => updateField('headerBackgroundColor', value)} hint="Aceita rgba. Exemplo: rgba(0, 0, 0, 0.70)." />
               </div>
-              <AdminTextInput label="URL da logotipo principal" value={draft.logoUrl} onChange={(value) => updateField('logoUrl', value)} hint="Opcional. Use PNG horizontal com fundo transparente. Se deixar vazio, o app usa a logo padrão." />
+              <AdminTextInput label="URL da logotipo principal" value={draft.logoUrl} onChange={(value) => updateField('logoUrl', value)} hint="Opcional. Use PNG horizontal com fundo transparente. Se deixar vazio, o app usa a logo padrÃ£o." />
               <label className="grid gap-2 text-sm font-bold text-zinc-300">
                 Enviar logotipo
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} className="rounded-xl border border-dashed border-white/15 bg-zinc-950 px-3 py-3 text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-black file:text-zinc-950" />
-                <span className="text-xs font-medium leading-5 text-zinc-500">Recomendação: imagem horizontal, até 700 KB, preferencialmente PNG/WebP transparente para combinar com o fundo preto.</span>
+                <span className="text-xs font-medium leading-5 text-zinc-500">RecomendaÃ§Ã£o: imagem horizontal, atÃ© 700 KB, preferencialmente PNG/WebP transparente para combinar com o fundo preto.</span>
                 {logoFileError ? <span className="text-xs font-bold text-amber-200">{logoFileError}</span> : null}
               </label>
             </div>
             <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: `linear-gradient(135deg, ${draft.primaryColor}22, ${draft.accentColor}22)` }}>
-              <p className="text-sm font-black text-white">Prévia do visual</p>
+              <p className="text-sm font-black text-white">PrÃ©via do visual</p>
               <div className="mt-3 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-black/35 p-4">
-                <img src={draft.logoUrl || fitCoachLogo} alt="Prévia da logotipo" className="max-h-16 max-w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]" />
+                <img src={draft.logoUrl || fitCoachLogo} alt="PrÃ©via da logotipo" className="max-h-16 max-w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]" />
               </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-400">Salve para publicar a logo e as cores nos acessos novos. Se a logo ficar apagada no preto, use uma versão clara ou com contorno.</p>
+              <p className="mt-3 text-xs leading-5 text-zinc-400">Salve para publicar a logo e as cores nos acessos novos. Se a logo ficar apagada no preto, use uma versÃ£o clara ou com contorno.</p>
             </div>
           </AdminAccordionSection>
 
-          <AdminAccordionSection title="Módulos ativos" action="Funcionalidades" open={openSections.modules} onToggle={() => toggleSection('modules')}>
+          <AdminAccordionSection title="MÃ³dulos ativos" action="Funcionalidades" open={openSections.modules} onToggle={() => toggleSection('modules')}>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ['studentXp', 'XP e selos do aluno'],
                 ['financialDashboard', 'Dashboard financeiro'],
-                ['salesSimulator', 'Simulador da página inicial'],
-                ['waterGoal', 'Meta de água interativa'],
+                ['salesSimulator', 'Simulador da pÃ¡gina inicial'],
+                ['waterGoal', 'Meta de Ã¡gua interativa'],
               ].map(([key, label]) => (
                 <label key={key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
                   <span className="text-sm font-black text-zinc-100">{label}</span>
@@ -12321,7 +12370,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={resetDefaults} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-              Restaurar padrão
+              Restaurar padrÃ£o
             </button>
             <button disabled={saving} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
               {saving ? 'Salvando...' : 'Salvar Admin Master'}
@@ -12379,7 +12428,7 @@ function AdminSystemHealthPanel({ remoteStatus, remoteError, settings }) {
         <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.075] p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase text-amber-100">Último erro capturado</p>
+              <p className="text-xs font-black uppercase text-amber-100">Ãšltimo erro capturado</p>
               <p className="mt-2 break-words text-sm font-bold text-white">{lastError.message}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{formatDateTime(lastError.createdAt)}</p>
             </div>
@@ -12390,8 +12439,8 @@ function AdminSystemHealthPanel({ remoteStatus, remoteError, settings }) {
         </div>
       ) : (
         <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
-          <p className="text-sm font-black text-emerald-100">Nenhum erro crítico registrado neste navegador.</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-400">Se alguma tela quebrar, o diagnóstico aparece aqui para facilitar a correção.</p>
+          <p className="text-sm font-black text-emerald-100">Nenhum erro crÃ­tico registrado neste navegador.</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">Se alguma tela quebrar, o diagnÃ³stico aparece aqui para facilitar a correÃ§Ã£o.</p>
         </div>
       )}
     </div>
@@ -12426,7 +12475,7 @@ function AdminTrafficPanel() {
       } catch {
         if (!active) return
         setEvents(localEvents)
-        setStatus('Mostrando eventos locais. Rode o SQL de tráfego para salvar tudo no Supabase.')
+        setStatus('Mostrando eventos locais. Rode o SQL de trÃ¡fego para salvar tudo no Supabase.')
       }
     }
 
@@ -12441,14 +12490,14 @@ function AdminTrafficPanel() {
   function clearLocalEvents() {
     saveStoredLeadEvents([])
     setEvents([])
-    setStatus('Histórico local limpo. Os eventos do Supabase permanecem salvos.')
+    setStatus('HistÃ³rico local limpo. Os eventos do Supabase permanecem salvos.')
   }
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-col gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/8 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase text-emerald-200">Captação em tempo real</p>
+          <p className="text-xs font-black uppercase text-emerald-200">CaptaÃ§Ã£o em tempo real</p>
           <p className="mt-1 text-sm leading-6 text-zinc-300">{status}</p>
         </div>
         <button type="button" onClick={clearLocalEvents} className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:bg-white/[0.04] sm:w-auto">
@@ -12458,11 +12507,11 @@ function AdminTrafficPanel() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
-          ['Visitas', snapshot.visits, 'Entradas na página'],
+          ['Visitas', snapshot.visits, 'Entradas na pÃ¡gina'],
           ['Planos escolhidos', snapshot.planSelections, 'Cliques em oferta'],
           ['Cadastros', snapshot.signups, 'Conta iniciada'],
           ['Checkouts', snapshot.checkouts, 'Compra aberta'],
-          ['Pagamentos', snapshot.payments, 'Liberação detectada'],
+          ['Pagamentos', snapshot.payments, 'LiberaÃ§Ã£o detectada'],
         ].map(([label, value, detail]) => (
           <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
             <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
@@ -12480,16 +12529,16 @@ function AdminTrafficPanel() {
             <p className="mt-2 text-sm leading-6 text-zinc-400">{snapshot.lastCampaign}</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <p className="text-xs font-black uppercase text-zinc-500">Plano com mais intenção</p>
+            <p className="text-xs font-black uppercase text-zinc-500">Plano com mais intenÃ§Ã£o</p>
             <h4 className="mt-2 text-xl font-black text-white">{snapshot.topPlan}</h4>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Use esse sinal para ajustar anúncios, criativos e destaque dos planos.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">Use esse sinal para ajustar anÃºncios, criativos e destaque dos planos.</p>
           </div>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase text-zinc-500">Últimos eventos</p>
+              <p className="text-xs font-black uppercase text-zinc-500">Ãšltimos eventos</p>
               <h4 className="mt-1 font-black text-white">Jornada do lead</h4>
             </div>
             <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{events.length} registros</span>
@@ -12506,7 +12555,7 @@ function AdminTrafficPanel() {
                 </p>
               </div>
             )) : (
-              <Empty text="Assim que alguém entrar por campanha, escolher plano ou abrir checkout, os eventos aparecem aqui." />
+              <Empty text="Assim que alguÃ©m entrar por campanha, escolher plano ou abrir checkout, os eventos aparecem aqui." />
             )}
           </div>
         </div>
@@ -12518,11 +12567,11 @@ function AdminTrafficPanel() {
 function AdminLaunchChecklist() {
   const attribution = getStoredLeadAttribution()
   const checks = [
-    { title: 'Domínio principal', status: 'Ativo', detail: 'coachfitpro.com.br e app.coachfitpro.com.br configurados para o app.' },
-    { title: 'Checkout Cartpanda', status: 'Ativo', detail: 'Planos mensal, semestral e anual vinculados aos botões da página.' },
+    { title: 'DomÃ­nio principal', status: 'Ativo', detail: 'coachfitpro.com.br e app.coachfitpro.com.br configurados para o app.' },
+    { title: 'Checkout Cartpanda', status: 'Ativo', detail: 'Planos mensal, semestral e anual vinculados aos botÃµes da pÃ¡gina.' },
     { title: 'Webhook de pagamento', status: 'Conferir', detail: 'Teste um pagamento real sempre que trocar checkout, produto ou postback.' },
-    { title: 'UTM e campanhas', status: attribution.firstSeenAt ? 'Capturando' : 'Pronto', detail: 'Links com utm_source, utm_campaign ou cid são enviados para o checkout.' },
-    { title: 'Suporte e termos', status: 'Ativo', detail: 'Rodapé com Termos, Privacidade e Suporte para reduzir dúvidas antes da compra.' },
+    { title: 'UTM e campanhas', status: attribution.firstSeenAt ? 'Capturando' : 'Pronto', detail: 'Links com utm_source, utm_campaign ou cid sÃ£o enviados para o checkout.' },
+    { title: 'Suporte e termos', status: 'Ativo', detail: 'RodapÃ© com Termos, Privacidade e Suporte para reduzir dÃºvidas antes da compra.' },
   ]
 
   return (
@@ -12605,10 +12654,10 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     billingLogoUrl: settings?.billingLogoUrl || '',
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
-    billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
+    billingMessage: settings?.billingMessage || 'OlÃ¡, {aluno}. Seu acesso estÃ¡ aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. ApÃ³s pagar, envie o comprovante no chat para validaÃ§Ã£o.',
     autoBillingEnabled: settings?.autoBillingEnabled !== false,
     customPlans: getCoachPlans(settings),
-    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
+    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como vocÃª estÃ¡ evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
   }
   const [billingLogoUrl, setBillingLogoUrl] = useState(current.billingLogoUrl)
@@ -12654,7 +12703,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
       setMessage(successMessage)
       return savedPlans
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar os planos agora.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar os planos agora.')
       throw saveError
     } finally {
       setSaving(false)
@@ -12668,7 +12717,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
       return
     }
     if (getPlanBillingAmount(normalizedPlan.name, [normalizedPlan]) <= 0) {
-      setError('Informe o valor que você cobra neste plano.')
+      setError('Informe o valor que vocÃª cobra neste plano.')
       return
     }
 
@@ -12708,12 +12757,12 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     const file = event.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      setError('Selecione uma imagem válida para a logo.')
+      setError('Selecione uma imagem vÃ¡lida para a logo.')
       event.target.value = ''
       return
     }
     if (file.size > 900 * 1024) {
-      setError('Use uma logo com até 900 KB para manter o app rápido.')
+      setError('Use uma logo com atÃ© 900 KB para manter o app rÃ¡pido.')
       event.target.value = ''
       return
     }
@@ -12722,28 +12771,28 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
       setBillingLogoUrl(reader.result.toString())
       setError('')
     }
-    reader.onerror = () => setError('Não foi possível carregar esta logo.')
+    reader.onerror = () => setError('NÃ£o foi possÃ­vel carregar esta logo.')
     reader.readAsDataURL(file)
   }
 
   async function handleAccountDeletion() {
     if (masterAdmin) {
-      setError('A conta Admin Master não pode ser excluída por este painel.')
+      setError('A conta Admin Master nÃ£o pode ser excluÃ­da por este painel.')
       return
     }
 
     if (!onDeleteAccount) {
-      setError('A exclusão de conta ainda não está configurada neste ambiente.')
+      setError('A exclusÃ£o de conta ainda nÃ£o estÃ¡ configurada neste ambiente.')
       return
     }
 
     const accountEmail = String(user?.email || '').trim().toLowerCase()
     if (String(deleteConfirmation || '').trim().toLowerCase() !== accountEmail) {
-      setError('Digite exatamente o e-mail da conta para confirmar a exclusão definitiva.')
+      setError('Digite exatamente o e-mail da conta para confirmar a exclusÃ£o definitiva.')
       return
     }
 
-    const confirmed = window.confirm('Esta ação exclui definitivamente a conta, alunos, treinos, dietas, fotos, mensagens e históricos vinculados. Deseja continuar?')
+    const confirmed = window.confirm('Esta aÃ§Ã£o exclui definitivamente a conta, alunos, treinos, dietas, fotos, mensagens e histÃ³ricos vinculados. Deseja continuar?')
     if (!confirmed) return
 
     setDeletingAccount(true)
@@ -12753,7 +12802,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
       await onDeleteAccount(deleteConfirmation)
       setMessage('Conta excluida. Voce sera redirecionado para o acesso inicial.')
     } catch (deleteError) {
-      setError(deleteError?.message || 'Não foi possível excluir a conta agora.')
+      setError(deleteError?.message || 'NÃ£o foi possÃ­vel excluir a conta agora.')
     } finally {
       setDeletingAccount(false)
     }
@@ -12784,7 +12833,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
       })
       setMessage('Gerenciamento profissional atualizado.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o gerenciamento.')
+      setError(saveError?.message || 'NÃ£o foi possÃ­vel salvar o gerenciamento.')
     } finally {
       setSaving(false)
     }
@@ -12794,9 +12843,9 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     { label: 'Nome profissional', ready: Boolean(settings?.publicName) },
     { label: 'Marca do treinador', ready: Boolean(settings?.brandName) },
     { label: 'WhatsApp de suporte', ready: Boolean(settings?.whatsapp) },
-    { label: 'Chave Pix para cobranças', ready: Boolean(settings?.pixKey) },
-    { label: 'Planos próprios', ready: getCoachPlans(settings).length > 0 },
-    { label: 'Marca da cobrança', ready: Boolean(settings?.billingMessage || settings?.billingLogoUrl) },
+    { label: 'Chave Pix para cobranÃ§as', ready: Boolean(settings?.pixKey) },
+    { label: 'Planos prÃ³prios', ready: getCoachPlans(settings).length > 0 },
+    { label: 'Marca da cobranÃ§a', ready: Boolean(settings?.billingMessage || settings?.billingLogoUrl) },
     { label: 'Registro profissional', ready: Boolean(settings?.cref) },
     { label: 'Mensagem para alunos', ready: Boolean(settings?.welcomeMessage) },
   ]
@@ -12810,7 +12859,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
               <p className="text-xs font-black uppercase text-emerald-200">Conta master reconhecida</p>
               <h3 className="mt-1 text-xl font-black text-white">Acesso Admin Master liberado para esta conta.</h3>
               <p className="mt-1 text-sm leading-6 text-zinc-300">
-                Use essa área para editar página de vendas, planos oficiais, branding global e acompanhar tráfego.
+                Use essa Ã¡rea para editar pÃ¡gina de vendas, planos oficiais, branding global e acompanhar trÃ¡fego.
               </p>
             </div>
             <button type="button" onClick={onOpenAdminMaster} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30 transition hover:-translate-y-0.5">
@@ -12823,46 +12872,46 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome da marca" name="brandName" defaultValue={current.brandName} />
-            <Field label="Nome público" name="publicName" defaultValue={current.publicName} />
+            <Field label="Nome pÃºblico" name="publicName" defaultValue={current.publicName} />
             <Field label="CREF ou registro" name="cref" defaultValue={current.cref} required={false} />
             <Field label="WhatsApp" name="whatsapp" defaultValue={current.whatsapp} required={false} />
             <Field label="E-mail de suporte" name="supportEmail" type="email" defaultValue={current.supportEmail} />
-            <Field label="Chave Pix para cobranças" name="pixKey" defaultValue={current.pixKey} required={false} />
+            <Field label="Chave Pix para cobranÃ§as" name="pixKey" defaultValue={current.pixKey} required={false} />
           </div>
           <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
           <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-black text-emerald-100">Marca da cobrança do aluno</p>
+                <p className="text-sm font-black text-emerald-100">Marca da cobranÃ§a do aluno</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  Personalize a tela que o aluno inadimplente vê: logo, cor e mensagem com a linguagem do seu atendimento.
+                  Personalize a tela que o aluno inadimplente vÃª: logo, cor e mensagem com a linguagem do seu atendimento.
                 </p>
               </div>
               {billingLogoUrl ? (
-                <img src={billingLogoUrl} alt="Logo da cobrança" className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
+                <img src={billingLogoUrl} alt="Logo da cobranÃ§a" className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
               ) : null}
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-bold text-zinc-300">
-                Logo da cobrança
+                Logo da cobranÃ§a
                 <input type="file" accept="image/*" onChange={handleBillingLogoFile} className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950" />
               </label>
               <Field label="Link da logo (opcional)" name="billingLogoUrlDisplay" defaultValue={billingLogoUrl} required={false} placeholder="Cole uma URL ou envie arquivo ao lado" />
-              <Field label="Cor principal da cobrança" name="billingPrimaryColor" type="color" defaultValue={current.billingPrimaryColor} />
+              <Field label="Cor principal da cobranÃ§a" name="billingPrimaryColor" type="color" defaultValue={current.billingPrimaryColor} />
               <Field label="Cor de apoio" name="billingAccentColor" type="color" defaultValue={current.billingAccentColor} />
             </div>
             <p className="mt-3 text-xs leading-5 text-zinc-500">
-              Variáveis disponíveis: {'{aluno}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'}, {'{email}'}.
+              VariÃ¡veis disponÃ­veis: {'{aluno}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'}, {'{email}'}.
             </p>
-            <TextArea label="Mensagem de cobrança para o aluno" name="billingMessage" defaultValue={current.billingMessage} />
+            <TextArea label="Mensagem de cobranÃ§a para o aluno" name="billingMessage" defaultValue={current.billingMessage} />
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm font-black text-zinc-100">Planos e valores do treinador</p>
             <p className="hidden">
-              Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | Descrição. Ciclos aceitos: semanal, mensal, semestral ou anual.
+              Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | DescriÃ§Ã£o. Ciclos aceitos: semanal, mensal, semestral ou anual.
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">
-              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobrança automaticamente.
+              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobranÃ§a automaticamente.
             </p>
             <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
               <div className="grid gap-3 lg:grid-cols-[1fr_0.72fr_0.7fr]">
@@ -12889,7 +12938,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                 <input value={planDraft.features} onChange={(event) => updatePlanDraft('features', event.target.value)} placeholder="Ex: treino, dieta, check-in semanal e suporte" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
               </label>
               <label className="mt-3 grid gap-2 text-sm font-bold text-zinc-300">
-                Mensagem de cobrança deste plano
+                Mensagem de cobranÃ§a deste plano
                 <textarea
                   value={planDraft.billingMessage}
                   onChange={(event) => updatePlanDraft('billingMessage', event.target.value)}
@@ -12898,7 +12947,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                   className="min-h-28 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base leading-6 text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
                 />
                 <span className="text-xs leading-5 text-zinc-500">
-                  Use variáveis como {'{aluno}'}, {'{plano}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'} e {'{email}'}.
+                  Use variÃ¡veis como {'{aluno}'}, {'{plano}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'} e {'{email}'}.
                 </span>
               </label>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -12907,7 +12956,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                 </button>
                 {editingPlanIndex >= 0 ? (
                   <button type="button" disabled={saving} onClick={resetPlanDraft} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:opacity-60">
-                    Cancelar edição
+                    Cancelar ediÃ§Ã£o
                   </button>
                 ) : null}
               </div>
@@ -12920,7 +12969,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                   <p className="text-sm font-black text-white">{plan.name}</p>
                   <p className="mt-2 text-xs leading-5 text-zinc-500">{plan.features || 'Plano do treinador'}</p>
                   <p className="mt-2 text-xs font-bold text-cyan-100">
-                    {plan.billingMessage ? 'Mensagem de cobrança personalizada' : 'Usa a mensagem padrão de cobrança'}
+                    {plan.billingMessage ? 'Mensagem de cobranÃ§a personalizada' : 'Usa a mensagem padrÃ£o de cobranÃ§a'}
                   </p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <button type="button" disabled={saving} onClick={() => editPlanDraft(plan, index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60">
@@ -12930,7 +12979,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                       Remover
                     </button>
                   </div>
-                  <p className="mt-1 text-xs font-bold text-emerald-200">{formatCurrency(getPlanBillingAmount(plan.name, [plan]))} · {getPlanCycleLabel(plan)}</p>
+                  <p className="mt-1 text-xs font-bold text-emerald-200">{formatCurrency(getPlanBillingAmount(plan.name, [plan]))} Â· {getPlanCycleLabel(plan)}</p>
                 </div>
               ))}
             </div>
@@ -12942,11 +12991,11 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                 className="mt-1 h-4 w-4 accent-emerald-400"
               />
               <span>
-                <strong className="block text-emerald-100">Cobrança automática dos alunos</strong>
-                <span className="block">Quando um aluno ficar pendente, o app cria a cobrança usando o valor do plano dele.</span>
+                <strong className="block text-emerald-100">CobranÃ§a automÃ¡tica dos alunos</strong>
+                <span className="block">Quando um aluno ficar pendente, o app cria a cobranÃ§a usando o valor do plano dele.</span>
                 <span className="hidden">
-                <strong className="block text-emerald-100">Gerar cobranças automaticamente</strong>
-                O sistema cria cobranças para alunos pendentes sem cobrança em aberto, usando o valor e o ciclo do plano cadastrado.
+                <strong className="block text-emerald-100">Gerar cobranÃ§as automaticamente</strong>
+                O sistema cria cobranÃ§as para alunos pendentes sem cobranÃ§a em aberto, usando o valor e o ciclo do plano cadastrado.
                 </span>
               </span>
             </label>
@@ -12960,7 +13009,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
       </Panel>
 
       <div className="grid gap-4 lg:gap-6">
-        <Panel title="Como o aluno vê" action="Prévia">
+        <Panel title="Como o aluno vÃª" action="PrÃ©via">
           <p className="text-xs font-bold uppercase tracking-normal text-blue-300">Acompanhamento online</p>
           <h3 className="mt-2 text-3xl font-black">{current.brandName}</h3>
           <p className="mt-2 text-sm text-zinc-400">{current.publicName}{current.cref ? ` - ${current.cref}` : ''}</p>
@@ -12969,20 +13018,20 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
             <p className="mt-2 text-sm leading-6 text-zinc-200">{current.welcomeMessage}</p>
           </div>
           <div className="mt-4 grid gap-2 text-sm text-zinc-400">
-            <p>{current.whatsapp || 'WhatsApp ainda não informado'}</p>
+            <p>{current.whatsapp || 'WhatsApp ainda nÃ£o informado'}</p>
             <p>{current.supportEmail}</p>
-            <p>{current.pixKey ? `Pix: ${current.pixKey}` : 'Chave Pix ainda não informada'}</p>
+            <p>{current.pixKey ? `Pix: ${current.pixKey}` : 'Chave Pix ainda nÃ£o informada'}</p>
           </div>
         </Panel>
 
-        <Panel title="Prévia da cobrança" action="Branding">
+        <Panel title="PrÃ©via da cobranÃ§a" action="Branding">
           <div className="rounded-md border p-4" style={{ borderColor: `${current.billingPrimaryColor}55`, background: `linear-gradient(135deg, ${current.billingPrimaryColor}20, ${current.billingAccentColor}18)` }}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase" style={{ color: current.billingPrimaryColor }}>Pagamento pendente</p>
                 <h3 className="mt-1 text-xl font-black text-white">{current.brandName}</h3>
               </div>
-              {billingLogoUrl ? <img src={billingLogoUrl} alt="Logo da cobrança" className="h-14 max-w-36 rounded-md bg-white object-contain p-2" /> : null}
+              {billingLogoUrl ? <img src={billingLogoUrl} alt="Logo da cobranÃ§a" className="h-14 max-w-36 rounded-md bg-white object-contain p-2" /> : null}
             </div>
             <p className="mt-4 text-sm leading-6 text-zinc-200">
               {buildBillingMessage(getBillingMessageTemplateForPlan(planEditorPlans[0], current), {
@@ -12996,7 +13045,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
           </div>
         </Panel>
 
-        <Panel title="Prontidão da conta" action={`${readiness.filter((item) => item.ready).length}/${readiness.length}`}>
+        <Panel title="ProntidÃ£o da conta" action={`${readiness.filter((item) => item.ready).length}/${readiness.length}`}>
           <div className="grid gap-2">
             {readiness.map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-md border border-white/10 bg-white/[0.03] p-3">
@@ -13012,19 +13061,19 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
           </button>
         </Panel>
 
-        <Panel title="Exclusão definitiva da conta" action="LGPD">
+        <Panel title="ExclusÃ£o definitiva da conta" action="LGPD">
           <div className="rounded-2xl border border-rose-300/25 bg-rose-500/[0.07] p-4">
             <p className="text-sm font-black text-rose-100">Antes de excluir, baixe o backup dos seus dados.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              A exclusão remove definitivamente a conta do treinador e os dados operacionais vinculados, incluindo alunos, fotos, anamnese, check-ins, treinos, nutrição, mensagens e cobranças internas.
+              A exclusÃ£o remove definitivamente a conta do treinador e os dados operacionais vinculados, incluindo alunos, fotos, anamnese, check-ins, treinos, nutriÃ§Ã£o, mensagens e cobranÃ§as internas.
             </p>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Registros financeiros ou de segurança podem ser retidos pelo prazo legal necessário para auditoria, prevenção a fraude e obrigações fiscais.
+              Registros financeiros ou de seguranÃ§a podem ser retidos pelo prazo legal necessÃ¡rio para auditoria, prevenÃ§Ã£o a fraude e obrigaÃ§Ãµes fiscais.
             </p>
           </div>
           {masterAdmin ? (
             <p className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm font-bold leading-6 text-amber-100">
-              Por segurança, a conta Admin Master não pode ser excluída por este painel.
+              Por seguranÃ§a, a conta Admin Master nÃ£o pode ser excluÃ­da por este painel.
             </p>
           ) : (
             <div className="mt-4 grid gap-3">
@@ -13113,13 +13162,13 @@ function Messages({ students, messages, selectedStudent: selectedStudentFromDash
     const isImage = file.type.startsWith('image/')
     const isAudio = file.type.startsWith('audio/')
     if (!isImage && !isAudio) {
-      setError('Selecione uma imagem ou áudio válido.')
+      setError('Selecione uma imagem ou Ã¡udio vÃ¡lido.')
       event.target.value = ''
       return
     }
     const maxSize = isAudio ? 20 * 1024 * 1024 : 8 * 1024 * 1024
     if (file.size > maxSize) {
-      setError(isAudio ? 'O áudio deve ter no máximo 20 MB.' : 'A foto deve ter no máximo 8 MB.')
+      setError(isAudio ? 'O Ã¡udio deve ter no mÃ¡ximo 20 MB.' : 'A foto deve ter no mÃ¡ximo 8 MB.')
       event.target.value = ''
       return
     }
@@ -13153,7 +13202,7 @@ function Messages({ students, messages, selectedStudent: selectedStudentFromDash
       setDraft('')
       clearAttachment()
     } catch (sendError) {
-      setError(sendError?.message || 'Não foi possível enviar a mensagem.')
+      setError(sendError?.message || 'NÃ£o foi possÃ­vel enviar a mensagem.')
     } finally {
       setSending(false)
     }
@@ -13194,7 +13243,7 @@ function Messages({ students, messages, selectedStudent: selectedStudentFromDash
           <p className="text-xs font-black uppercase tracking-normal text-blue-200">Resposta sugerida</p>
           <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
           <button onClick={() => setDraft(suggestion)} className="mt-3 rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
-            Usar sugestão
+            Usar sugestÃ£o
           </button>
         </div>
 
@@ -13235,7 +13284,7 @@ function Messages({ students, messages, selectedStudent: selectedStudentFromDash
                 {attachmentFile?.type?.startsWith('audio/') ? (
                   <audio controls src={attachmentPreview} className="w-full max-w-xs" />
                 ) : (
-                  <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
+                  <img src={attachmentPreview} alt="PrÃ©via da foto" className="h-20 w-20 rounded-md object-cover" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Anexo selecionado'}</p>
@@ -13248,7 +13297,7 @@ function Messages({ students, messages, selectedStudent: selectedStudentFromDash
           ) : null}
             <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
             <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
-              Foto/áudio
+              Foto/Ã¡udio
               <input type="file" accept="image/*,audio/*" onChange={handleAttachment} className="hidden" />
             </label>
             <AudioRecorderButton
@@ -13291,7 +13340,7 @@ function createBlankStudent() {
     calories: '',
     protein: '',
     workout: '',
-    lastMessage: 'Cadastro concluído. Acompanhamento aguardando configuração.',
+    lastMessage: 'Cadastro concluÃ­do. Acompanhamento aguardando configuraÃ§Ã£o.',
     requireAnamnesis: true,
     accessOverrideUntil: '',
     loadNotes: '',
@@ -13302,7 +13351,7 @@ function createBlankStudent() {
 function ChartLoading() {
   return (
     <div className="grid h-64 min-w-0 place-items-center rounded-md border border-white/10 bg-white/[0.025] sm:h-72">
-      <p className="text-sm font-bold text-zinc-500">Carregando gráfico...</p>
+      <p className="text-sm font-bold text-zinc-500">Carregando grÃ¡fico...</p>
     </div>
   )
 }
@@ -13500,7 +13549,7 @@ function StudentSnapshot({ student }) {
         <div className="h-2 rounded bg-blue-500" style={{ width: `${clampPercent(student.adherence)}%` }} />
       </div>
       <div className="mt-2 flex justify-between text-xs text-zinc-400">
-        <span>Constância</span>
+        <span>ConstÃ¢ncia</span>
         <span>{clampPercent(student.adherence)}%</span>
       </div>
       <p className="mt-5 rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">{student.lastMessage}</p>
@@ -13628,8 +13677,8 @@ function TextArea({ label, name, defaultValue = '', onChange }) {
 }
 
 function buildCoachActionPlan(smartAlerts = []) {
-  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliação'].includes(alert.type))
-  const hasPrescriptionGap = smartAlerts.some((alert) => ['Treino', 'Nutrição'].includes(alert.type))
+  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'AvaliaÃ§Ã£o'].includes(alert.type))
+  const hasPrescriptionGap = smartAlerts.some((alert) => ['Treino', 'NutriÃ§Ã£o'].includes(alert.type))
   const hasOverduePayment = smartAlerts.some((alert) => alert.type === 'Financeiro')
   const hasAgenda = smartAlerts.some((alert) => alert.type === 'Agenda')
 
@@ -13638,7 +13687,7 @@ function buildCoachActionPlan(smartAlerts = []) {
   if (hasHighRisk) {
     actions.push({
       title: 'Priorize alunos que podem perder ritmo',
-      body: 'Comece pelos alertas de risco alto, check-ins críticos e avaliações atrasadas. Isso protege resultado e retenção.',
+      body: 'Comece pelos alertas de risco alto, check-ins crÃ­ticos e avaliaÃ§Ãµes atrasadas. Isso protege resultado e retenÃ§Ã£o.',
       view: 'notificacoes',
       tone: 'bg-rose-300',
     })
@@ -13646,7 +13695,7 @@ function buildCoachActionPlan(smartAlerts = []) {
 
   if (hasPrescriptionGap) {
     actions.push({
-      title: 'Complete o plano antes do próximo acesso',
+      title: 'Complete o plano antes do prÃ³ximo acesso',
       body: 'Treino e dieta completos fazem o aluno perceber acompanhamento real logo que entra no aplicativo.',
       view: 'treinos',
       tone: 'bg-emerald-300',
@@ -13656,7 +13705,7 @@ function buildCoachActionPlan(smartAlerts = []) {
   if (hasOverduePayment) {
     actions.push({
       title: 'Recupere receita pendente',
-      body: 'Cobranças atrasadas aparecem antes de virarem perda. Abra recebimentos e resolva os casos críticos.',
+      body: 'CobranÃ§as atrasadas aparecem antes de virarem perda. Abra recebimentos e resolva os casos crÃ­ticos.',
       view: 'pagamentos',
       tone: 'bg-amber-300',
     })
@@ -13664,8 +13713,8 @@ function buildCoachActionPlan(smartAlerts = []) {
 
   if (hasAgenda) {
     actions.push({
-      title: 'Confirme os próximos compromissos',
-      body: 'Revisar agenda nas próximas 24 horas reduz faltas e melhora a experiência do aluno.',
+      title: 'Confirme os prÃ³ximos compromissos',
+      body: 'Revisar agenda nas prÃ³ximas 24 horas reduz faltas e melhora a experiÃªncia do aluno.',
       view: 'agenda',
       tone: 'bg-cyan-300',
     })
@@ -13674,15 +13723,15 @@ function buildCoachActionPlan(smartAlerts = []) {
   if (!actions.length) {
     actions.push({
       title: 'Carteira sob controle',
-      body: 'Sem prioridade crítica agora. Use esse momento para revisar evolução, preparar próximos ajustes e mandar feedbacks.',
+      body: 'Sem prioridade crÃ­tica agora. Use esse momento para revisar evoluÃ§Ã£o, preparar prÃ³ximos ajustes e mandar feedbacks.',
       view: 'mensagens',
       tone: 'bg-emerald-300',
     })
   }
 
   actions.push({
-    title: 'Mantenha comunicação ativa',
-    body: 'Uma mensagem curta no momento certo aumenta percepção de cuidado e reduz abandono silencioso.',
+    title: 'Mantenha comunicaÃ§Ã£o ativa',
+    body: 'Uma mensagem curta no momento certo aumenta percepÃ§Ã£o de cuidado e reduz abandono silencioso.',
     view: 'mensagens',
     tone: 'bg-blue-300',
   })
@@ -13697,10 +13746,10 @@ function DailyIntelligenceSummary({ dashboard, onOpenView }) {
   return (
     <Panel title="Resumo inteligente do dia" action="Prioridades reais">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <PrioritySummaryMetric label="Alunos em risco" value={summary.riskStudents || 0} detail="abandono médio, alto ou crítico" tone="rose" />
-        <PrioritySummaryMetric label="Sem treino ativo" value={summary.withoutWorkout || 0} detail="precisam de prescrição" tone="amber" />
+        <PrioritySummaryMetric label="Alunos em risco" value={summary.riskStudents || 0} detail="abandono mÃ©dio, alto ou crÃ­tico" tone="rose" />
+        <PrioritySummaryMetric label="Sem treino ativo" value={summary.withoutWorkout || 0} detail="precisam de prescriÃ§Ã£o" tone="amber" />
         <PrioritySummaryMetric label="Check-ins pendentes" value={summary.pendingCheckins || 0} detail="retornos a revisar" tone="cyan" />
-        <PrioritySummaryMetric label="Cobranças próximas" value={summary.upcomingCharges || 0} detail="vencem em até 7 dias" tone="emerald" />
+        <PrioritySummaryMetric label="CobranÃ§as prÃ³ximas" value={summary.upcomingCharges || 0} detail="vencem em atÃ© 7 dias" tone="emerald" />
         <PrioritySummaryMetric label="Mensagens pendentes" value={summary.pendingMessages || 0} detail="alunos aguardando resposta" tone="blue" />
       </div>
 
@@ -13716,12 +13765,12 @@ function DailyIntelligenceSummary({ dashboard, onOpenView }) {
             <h4 className="mt-2 text-sm font-black text-white">{action.title}</h4>
             <p className="mt-1 text-xs leading-5 text-zinc-400">{action.body}</p>
             <span className="mt-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-black text-emerald-100 group-hover:border-emerald-300/35">
-              Abrir ação
+              Abrir aÃ§Ã£o
             </span>
           </button>
         )) : (
           <div className="lg:col-span-3">
-            <Empty text="Nenhuma ação urgente agora. Acompanhe check-ins, treinos e mensagens para manter a carteira aquecida." />
+            <Empty text="Nenhuma aÃ§Ã£o urgente agora. Acompanhe check-ins, treinos e mensagens para manter a carteira aquecida." />
           </div>
         )}
       </div>
@@ -13754,7 +13803,7 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
   const filters = [
     ['todos', 'Todos'],
     ['urgente', 'Urgente'],
-    ['baixa-adesao', 'Baixa adesão'],
+    ['baixa-adesao', 'Baixa adesÃ£o'],
     ['risco-abandono', 'Risco de abandono'],
     ['sem-treino', 'Sem treino'],
     ['sem-checkin', 'Sem check-in'],
@@ -13771,7 +13820,7 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
   const filteredItems = items.filter((item) => filter === 'todos' || item.filterTags.includes(filter))
 
   return (
-    <Panel title="Alunos que precisam de atenção" action={`${filteredItems.length} no filtro`}>
+    <Panel title="Alunos que precisam de atenÃ§Ã£o" action={`${filteredItems.length} no filtro`}>
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-soft">
         {filters.map(([id, label]) => (
           <button
@@ -13836,7 +13885,7 @@ function PriorityStudentCard({ item, onOpenStudent, onMessageStudent }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <ScoreBox label="Adesão" value={item.adherence.score} detail={item.adherence.classification} tone={item.adherence.score < 55 ? 'rose' : item.adherence.score < 75 ? 'amber' : 'emerald'} />
+        <ScoreBox label="AdesÃ£o" value={item.adherence.score} detail={item.adherence.classification} tone={item.adherence.score < 55 ? 'rose' : item.adherence.score < 75 ? 'amber' : 'emerald'} />
         <ScoreBox label="Risco" value={item.risk.score} detail={item.risk.classification} tone={item.risk.classification === 'critico' || item.risk.classification === 'alto' ? 'rose' : item.risk.classification === 'medio' ? 'amber' : 'emerald'} />
       </div>
 
@@ -14067,9 +14116,9 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     reasons.push({ level: 'Acompanhar', text: 'cobranca proxima do vencimento', action: 'Prepare lembrete antes do vencimento para evitar atraso.', view: 'pagamentos' })
   }
   if (!hasRecentAssessment) {
-    factors.push(lastAssessmentDays === null ? 'Sem avaliação' : 'Avaliação antiga')
+    factors.push(lastAssessmentDays === null ? 'Sem avaliaÃ§Ã£o' : 'AvaliaÃ§Ã£o antiga')
     filterTags.push('risco-abandono')
-    reasons.push({ level: lastAssessmentDays === null ? 'Atenção' : 'Acompanhar', text: 'sem avaliação recente', action: 'Atualize medidas e fotos para reforçar percepção de evolução.', view: 'avaliacoes' })
+    reasons.push({ level: lastAssessmentDays === null ? 'AtenÃ§Ã£o' : 'Acompanhar', text: 'sem avaliaÃ§Ã£o recente', action: 'Atualize medidas e fotos para reforÃ§ar percepÃ§Ã£o de evoluÃ§Ã£o.', view: 'avaliacoes' })
   }
   if (logs14 < 2 && studentLogs.length > 0) {
     factors.push('Baixa frequencia')
@@ -14088,7 +14137,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     student,
     priority: mainReason?.level || 'Regular',
     priorityRank: { Urgente: 0, Atencao: 1, Acompanhar: 2, Regular: 3 }[mainReason?.level || 'Regular'],
-    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operação em dia para este aluno.',
+    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'OperaÃ§Ã£o em dia para este aluno.',
     recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a proxima evolucao.',
     primaryView,
     factors: [...new Set(factors)],
@@ -14224,8 +14273,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `payment-${student.id}`,
         type: 'Financeiro',
         priority: 'Alto',
-        title: `${student.name} está com pagamento pendente`,
-        body: `${student.plan} precisa de acompanhamento para evitar atraso de renovação.`,
+        title: `${student.name} estÃ¡ com pagamento pendente`,
+        body: `${student.plan} precisa de acompanhamento para evitar atraso de renovaÃ§Ã£o.`,
         action: 'Abrir pagamentos',
         view: 'pagamentos',
       })
@@ -14236,8 +14285,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `risk-${student.id}`,
         type: 'Acompanhamento',
         priority: student.risk === 'Alto' || adherence < 70 ? 'Alto' : 'Medio',
-        title: `${student.name} precisa de atenção`,
-        body: `Status ${formatUiText(student.status)}, risco ${formatUiText(student.risk)} e constância de ${adherence || 0}%.`,
+        title: `${student.name} precisa de atenÃ§Ã£o`,
+        body: `Status ${formatUiText(student.status)}, risco ${formatUiText(student.risk)} e constÃ¢ncia de ${adherence || 0}%.`,
         action: 'Abrir alunos',
         view: 'alunos',
       })
@@ -14248,8 +14297,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `workout-${student.id}`,
         type: 'Treino',
         priority: 'Medio',
-        title: `${student.name} ainda não tem treino salvo`,
-        body: 'Prescreva um treino para liberar o plano na área do aluno.',
+        title: `${student.name} ainda nÃ£o tem treino salvo`,
+        body: 'Prescreva um treino para liberar o plano na Ã¡rea do aluno.',
         action: 'Abrir treinos',
         view: 'treinos',
       })
@@ -14258,11 +14307,11 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     if (!hasNutrition) {
       alerts.push({
         id: `nutrition-${student.id}`,
-        type: 'Nutrição',
+        type: 'NutriÃ§Ã£o',
         priority: 'Medio',
-        title: `${student.name} ainda não tem dieta salva`,
+        title: `${student.name} ainda nÃ£o tem dieta salva`,
         body: 'Crie uma dieta com macros calculados para acompanhar a meta do aluno.',
-        action: 'Abrir nutrição',
+        action: 'Abrir nutriÃ§Ã£o',
         view: 'nutricao',
       })
     }
@@ -14275,13 +14324,13 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     if (!latestAssessment || assessmentAge === null || assessmentAge > 30) {
       alerts.push({
         id: `assessment-${student.id}`,
-        type: 'Avaliação',
+        type: 'AvaliaÃ§Ã£o',
         priority: latestAssessment ? 'Medio' : 'Alto',
-        title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda não tem avaliação`,
+        title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda nÃ£o tem avaliaÃ§Ã£o`,
         body: latestAssessment
-          ? `Última avaliação em ${formatDate(latestAssessment.assessedAt)}.`
-          : 'Registre as medidas iniciais para criar uma linha de evolução.',
-        action: 'Abrir avaliações',
+          ? `Ãšltima avaliaÃ§Ã£o em ${formatDate(latestAssessment.assessedAt)}.`
+          : 'Registre as medidas iniciais para criar uma linha de evoluÃ§Ã£o.',
+        action: 'Abrir avaliaÃ§Ãµes',
         view: 'avaliacoes',
       })
     }
@@ -14296,7 +14345,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         type: 'Check-in',
         priority: checkin.state === 'Critico' ? 'Alto' : 'Medio',
         title: `${student?.name ?? 'Aluno'} tem check-in ${formatUiText(String(checkin.state)).toLowerCase()}`,
-        body: `${checkin.type} - ${checkin.due}. ${checkin.note || 'Revise o retorno e registre o próximo ajuste.'}`,
+        body: `${checkin.type} - ${checkin.due}. ${checkin.note || 'Revise o retorno e registre o prÃ³ximo ajuste.'}`,
         action: 'Abrir check-ins',
         view: 'checkins',
       })
@@ -14318,7 +14367,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         type: 'Agenda',
         priority: appointment.status === 'Confirmado' ? 'Baixo' : 'Medio',
         title: `${appointment.title} com ${student?.name ?? 'aluno'}`,
-        body: `${formatDateTime(appointment.startsAt)} - ${appointment.location || 'Local não informado'}.`,
+        body: `${formatDateTime(appointment.startsAt)} - ${appointment.location || 'Local nÃ£o informado'}.`,
         action: 'Abrir agenda',
         view: 'agenda',
       })
@@ -14333,7 +14382,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `invoice-${invoice.id}`,
         type: 'Financeiro',
         priority: 'Alto',
-        title: `${student?.name ?? 'Aluno'} tem cobrança atrasada`,
+        title: `${student?.name ?? 'Aluno'} tem cobranÃ§a atrasada`,
         body: `${formatCurrency(invoice.amount)} venceu em ${formatDate(invoice.dueDate)}.`,
         action: 'Abrir pagamentos',
         view: 'pagamentos',
@@ -14348,7 +14397,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
 function buildMessageSuggestion(student) {
   if (!student) return 'Me envie seu retorno de hoje com treino, dieta, sono e fome para eu ajustar seu plano.'
 
-  return `Recebi, ${student.name}. Continue seguindo o plano combinado, registre treino e alimentação no app e me envie qualquer dificuldade no check-in para eu ajustar o acompanhamento com precisão.`
+  return `Recebi, ${student.name}. Continue seguindo o plano combinado, registre treino e alimentaÃ§Ã£o no app e me envie qualquer dificuldade no check-in para eu ajustar o acompanhamento com precisÃ£o.`
 }
 
 function Empty({ text }) {
@@ -14358,11 +14407,11 @@ function Empty({ text }) {
 function MacroSummaryGrid({ totals, compact = false }) {
   const items = [
     ['Kcal', Math.round(totals.calories)],
-    ['Proteína', `${roundMacro(totals.protein)}g`],
+    ['ProteÃ­na', `${roundMacro(totals.protein)}g`],
     ['Carbo', `${roundMacro(totals.carbs)}g`],
     ['Gordura', `${roundMacro(totals.fat)}g`],
     ['Fibra', `${roundMacro(totals.fiber)}g`],
-    ['Sódio', `${Math.round(totals.sodium)}mg`],
+    ['SÃ³dio', `${Math.round(totals.sodium)}mg`],
   ]
 
   return (
@@ -14481,8 +14530,8 @@ function getFoodSuggestions(query, category) {
   const normalizedQuery = normalizeText(query)
   const commonFoods = [
     'Arroz Branco', 'Peito de Frango', 'Ovo Inteiro', 'Aveia em Flocos',
-    'Banana', 'Batata Doce', 'Patinho Grelhado', 'Feijão Carioca',
-    'Pão Integral', 'Iogurte Natural', 'Tilápia Grelhada', 'Whey Protein Concentrado',
+    'Banana', 'Batata Doce', 'Patinho Grelhado', 'FeijÃ£o Carioca',
+    'PÃ£o Integral', 'Iogurte Natural', 'TilÃ¡pia Grelhada', 'Whey Protein Concentrado',
   ]
 
   return foodDatabase
@@ -14615,7 +14664,7 @@ function roundMacro(value) {
 function formatDateTime(value) {
   if (!value) return 'Sem data'
   const date = parseDisplayDate(value)
-  if (!date) return 'Data inválida'
+  if (!date) return 'Data invÃ¡lida'
 
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
@@ -14636,9 +14685,9 @@ function formatWorkoutTimer(totalSeconds) {
 }
 
 function formatFullDateTime(value) {
-  if (!value) return 'Data não informada'
+  if (!value) return 'Data nÃ£o informada'
   const date = parseDisplayDate(value)
-  if (!date) return 'Data inválida'
+  if (!date) return 'Data invÃ¡lida'
 
   return new Intl.DateTimeFormat('pt-BR', {
     weekday: 'short',
@@ -14652,7 +14701,7 @@ function formatFullDateTime(value) {
 function formatDate(value) {
   if (!value) return 'Sem data'
   const date = parseDisplayDate(value, true)
-  return date ? new Intl.DateTimeFormat('pt-BR').format(date) : 'Data inválida'
+  return date ? new Intl.DateTimeFormat('pt-BR').format(date) : 'Data invÃ¡lida'
 }
 
 function formatCurrency(value) {
@@ -14708,7 +14757,7 @@ function buildCoachSettingsPayload(settings = {}, user = {}) {
     billingLogoUrl: settings?.billingLogoUrl || '',
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
-    billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
+    billingMessage: settings?.billingMessage || 'OlÃ¡, {aluno}. Seu acesso estÃ¡ aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. ApÃ³s pagar, envie o comprovante no chat para validaÃ§Ã£o.',
     autoBillingEnabled: settings?.autoBillingEnabled !== false,
     customPlans: getCoachPlans(settings),
     welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como voce esta evoluindo.',
@@ -14786,10 +14835,10 @@ function normalizePlanCycle(value) {
 
 function getPlanCycleLabel(plan) {
   const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
-  if (cycle === 'semanal') return 'cobrança semanal'
-  if (cycle === 'semestral') return 'cobrança semestral'
-  if (cycle === 'anual') return 'cobrança anual'
-  return 'cobrança mensal'
+  if (cycle === 'semanal') return 'cobranÃ§a semanal'
+  if (cycle === 'semestral') return 'cobranÃ§a semestral'
+  if (cycle === 'anual') return 'cobranÃ§a anual'
+  return 'cobranÃ§a mensal'
 }
 
 function getBillingBrand(settings) {
@@ -14806,15 +14855,15 @@ function getBillingMessageTemplateForPlan(plan, coachSettings) {
 }
 
 function buildBillingMessage(template, { student, amount, dueDate, coachSettings, plan }) {
-  const fallback = 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para o coach validar.'
+  const fallback = 'OlÃ¡, {aluno}. Seu acesso estÃ¡ aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. ApÃ³s pagar, envie o comprovante no chat para o coach validar.'
   return String(template || fallback)
     .replaceAll('{aluno}', student?.name || 'aluno')
     .replaceAll('{plano}', plan?.name || student?.plan || 'acompanhamento')
     .replaceAll('{valor}', formatCurrency(amount || 0))
     .replaceAll('{vencimento}', dueDate ? formatDate(dueDate) : 'a combinar')
-    .replaceAll('{pix}', coachSettings?.pixKey || 'Pix não informado')
-    .replaceAll('{whatsapp}', coachSettings?.whatsapp || 'WhatsApp não informado')
-    .replaceAll('{email}', coachSettings?.supportEmail || 'e-mail não informado')
+    .replaceAll('{pix}', coachSettings?.pixKey || 'Pix nÃ£o informado')
+    .replaceAll('{whatsapp}', coachSettings?.whatsapp || 'WhatsApp nÃ£o informado')
+    .replaceAll('{email}', coachSettings?.supportEmail || 'e-mail nÃ£o informado')
 }
 
 function formatPercent(value) {
@@ -14853,7 +14902,7 @@ function getSubscriptionStatusLabel(subscription) {
   if (isCoachSubscriptionActive(subscription)) return 'Assinatura ativa'
   if (['pending', 'pendente', 'waiting_payment', 'aguardando_pagamento', 'trial'].includes(status)) return 'Aguardando pagamento'
   if (['expired', 'cancelled', 'canceled', 'cancelado', 'vencido'].includes(status)) return 'Assinatura pausada'
-  return subscription?.status ? `Status: ${subscription.status}` : 'Aguardando ativação'
+  return subscription?.status ? `Status: ${subscription.status}` : 'Aguardando ativaÃ§Ã£o'
 }
 
 function normalizeCheckoutUrl(value) {
@@ -14989,7 +15038,7 @@ function buildLeadTrafficSnapshot(events = []) {
   }, {})
   const topPlanEntry = Object.entries(planCounts).sort((a, b) => b[1] - a[1])[0]
   const latestAttribution = events.find((event) => event.attribution && Object.keys(event.attribution).length)?.attribution || getStoredLeadAttribution()
-  const source = latestAttribution.utm_source || latestAttribution.src || latestAttribution.referrer || 'Direto / orgânico'
+  const source = latestAttribution.utm_source || latestAttribution.src || latestAttribution.referrer || 'Direto / orgÃ¢nico'
   const campaign = latestAttribution.utm_campaign || latestAttribution.campaign || latestAttribution.cid || 'Sem campanha identificada'
 
   return {
@@ -15006,7 +15055,7 @@ function buildLeadTrafficSnapshot(events = []) {
 
 function formatLeadEventType(type) {
   const labels = {
-    visit: 'Visita na página',
+    visit: 'Visita na pÃ¡gina',
     plan_selected: 'Plano escolhido',
     signup_submitted: 'Cadastro iniciado',
     checkout_clicked: 'Checkout aberto',
@@ -15025,7 +15074,7 @@ function formatLeadEventDetail(event = {}) {
   if (email) parts.push(`E-mail: ${email}`)
   if (source) parts.push(`Origem: ${source}`)
   if (campaign) parts.push(`Campanha: ${campaign}`)
-  return parts.length ? parts.join(' · ') : 'Evento registrado sem campanha identificada.'
+  return parts.length ? parts.join(' Â· ') : 'Evento registrado sem campanha identificada.'
 }
 
 function loadLastAppError() {
@@ -15049,8 +15098,8 @@ function buildSystemHealthChecks({ remoteStatus = '', remoteError = '', checkout
     {
       title: 'Supabase',
       status: supabaseOk ? 'ok' : supabaseEnabled ? 'warning' : 'danger',
-      label: supabaseOk ? 'ok' : supabaseEnabled ? 'atenção' : 'pendente',
-      detail: supabaseOk ? 'Banco conectado e sessão operacional.' : supabaseEnabled ? 'Existe conexão, mas há aviso recente no app.' : 'Variáveis do Supabase não encontradas nesta publicação.',
+      label: supabaseOk ? 'ok' : supabaseEnabled ? 'atenÃ§Ã£o' : 'pendente',
+      detail: supabaseOk ? 'Banco conectado e sessÃ£o operacional.' : supabaseEnabled ? 'Existe conexÃ£o, mas hÃ¡ aviso recente no app.' : 'VariÃ¡veis do Supabase nÃ£o encontradas nesta publicaÃ§Ã£o.',
     },
     {
       title: 'Checkout Cartpanda',
@@ -15059,22 +15108,22 @@ function buildSystemHealthChecks({ remoteStatus = '', remoteError = '', checkout
       detail: hasCartpandaPlans ? 'Planos oficiais apontam para checkouts Cartpanda.' : 'Revise os links dos planos oficiais no Admin Master.',
     },
     {
-      title: 'Liberação automática',
+      title: 'LiberaÃ§Ã£o automÃ¡tica',
       status: webhookLikelyOk ? 'ok' : 'warning',
       label: webhookLikelyOk ? 'ok' : 'testar',
-      detail: webhookLikelyOk ? 'Nenhum erro recente de confirmação de pagamento.' : 'Faça um teste de compra para confirmar o postback.',
+      detail: webhookLikelyOk ? 'Nenhum erro recente de confirmaÃ§Ã£o de pagamento.' : 'FaÃ§a um teste de compra para confirmar o postback.',
     },
     {
-      title: 'Ícone e PWA',
+      title: 'Ãcone e PWA',
       status: hasLogoIcon ? 'ok' : 'warning',
       label: hasLogoIcon ? 'ok' : 'revisar',
-      detail: 'Favicon e ícone instalável usam a logo abreviada do Coach Fit Pro.',
+      detail: 'Favicon e Ã­cone instalÃ¡vel usam a logo abreviada do Coach Fit Pro.',
     },
     {
-      title: 'Erros críticos',
+      title: 'Erros crÃ­ticos',
       status: lastError ? 'warning' : 'ok',
-      label: lastError ? 'atenção' : 'limpo',
-      detail: lastError ? 'Há um erro capturado neste navegador para revisar.' : 'Nenhuma falha crítica capturada localmente.',
+      label: lastError ? 'atenÃ§Ã£o' : 'limpo',
+      detail: lastError ? 'HÃ¡ um erro capturado neste navegador para revisar.' : 'Nenhuma falha crÃ­tica capturada localmente.',
     },
   ]
 }
@@ -15157,9 +15206,9 @@ function calculateBmi(weightKg, heightCm) {
 }
 
 function buildAssessmentInsight(first, latest) {
-  if (!first || !latest) return 'Registre novas avaliações para formar uma leitura comparativa.'
+  if (!first || !latest) return 'Registre novas avaliaÃ§Ãµes para formar uma leitura comparativa.'
   if (String(first.id) === String(latest.id)) {
-    return 'Avaliação inicial registrada. Ela será a base para os próximos comparativos.'
+    return 'AvaliaÃ§Ã£o inicial registrada. Ela serÃ¡ a base para os prÃ³ximos comparativos.'
   }
 
   const weightChange = Number(latest.weightKg || 0) - Number(first.weightKg || 0)
@@ -15172,8 +15221,8 @@ function buildAssessmentInsight(first, latest) {
   if (first.waistCm && latest.waistCm) parts.push(`cintura ${describeChange(waistChange, 'cm')}`)
 
   return parts.length
-    ? `Desde a primeira avaliação: ${parts.join(', ')}. Use a tendência junto do desempenho e da constância para decidir o próximo ajuste.`
-    : 'As avaliações existem, mas ainda faltam medidas equivalentes para gerar um comparativo.'
+    ? `Desde a primeira avaliaÃ§Ã£o: ${parts.join(', ')}. Use a tendÃªncia junto do desempenho e da constÃ¢ncia para decidir o prÃ³ximo ajuste.`
+    : 'As avaliaÃ§Ãµes existem, mas ainda faltam medidas equivalentes para gerar um comparativo.'
 }
 
 function describeChange(value, unit) {
@@ -15307,15 +15356,15 @@ function getDueDateForPlan(plan) {
 function formatUiText(value) {
   if (typeof value !== 'string') return value
   const labels = {
-    Medio: 'Médio',
-    Critico: 'Crítico',
-    Atencao: 'Atenção',
-    Concluido: 'Concluído',
-    Proximos: 'Próximos',
-    Concluidos: 'Concluídos',
-    Avaliacao: 'Avaliação',
-    Inicio: 'Início',
-    Previa: 'Prévia',
+    Medio: 'MÃ©dio',
+    Critico: 'CrÃ­tico',
+    Atencao: 'AtenÃ§Ã£o',
+    Concluido: 'ConcluÃ­do',
+    Proximos: 'PrÃ³ximos',
+    Concluidos: 'ConcluÃ­dos',
+    Avaliacao: 'AvaliaÃ§Ã£o',
+    Inicio: 'InÃ­cio',
+    Previa: 'PrÃ©via',
     Configuracoes: 'Gerenciamento',
   }
   return labels[value] ?? value
