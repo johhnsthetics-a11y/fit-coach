@@ -2761,6 +2761,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
+  const [signupPlanId, setSignupPlanId] = useState(() => {
+    try {
+      return window.localStorage.getItem(SELECTED_CHECKOUT_PLAN_KEY) || 'mensal'
+    } catch {
+      return 'mensal'
+    }
+  })
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
   const [journeyStepIndex, setJourneyStepIndex] = useState(0)
   const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
@@ -2782,6 +2789,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     })
   }, [salesPlans])
   const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
+  const signupPlan = orderedSalesPlans.find((plan) => plan.id === signupPlanId) || orderedSalesPlans[0]
+  const signupTitle = mode === 'signup'
+    ? signupPlan?.id === 'mensal'
+      ? 'Começar por R$ 9,90'
+      : `Criar conta para o plano ${signupPlan?.name || 'selecionado'}`
+    : mode === 'student'
+      ? 'Área do aluno'
+      : mode === 'forgot'
+        ? 'Recuperar senha'
+        : 'Entrar no painel'
+  const signupDescription = mode === 'signup'
+    ? signupPlan?.id === 'mensal'
+      ? 'Crie sua conta e ative o primeiro mês promocional por R$ 9,90 usando o mesmo e-mail no checkout.'
+      : `Crie sua conta e siga para o checkout do plano ${signupPlan?.name || 'selecionado'} usando o mesmo e-mail cadastrado.`
+    : mode === 'forgot'
+      ? 'Enviaremos um link seguro para o e-mail cadastrado.'
+      : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -3024,6 +3048,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   function startPlanSignup(planId) {
     captureLeadAttribution()
     recordLeadEvent('plan_selected', { planId })
+    setSignupPlanId(planId)
     try {
       window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
     } catch {
@@ -3181,11 +3206,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="acesso" className="mx-auto grid min-h-[calc(100vh-88px)] max-w-4xl place-items-center px-4 py-10 sm:px-6">
           <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
             <p className="text-xs font-black uppercase text-emerald-300">Acesso seguro</p>
-            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar por R$ 9,90' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
+            <h2 className="mt-2 text-3xl font-black">{signupTitle}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              {mode === 'forgot'
-                ? 'Enviaremos um link seguro para o e-mail cadastrado.'
-                : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'}
+              {signupDescription}
             </p>
             {remoteError ? (
               <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-3">
