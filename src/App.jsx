@@ -112,6 +112,34 @@ const cartpandaCheckoutPlans = [
   },
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
+const defaultLandingTextOverrides = [
+  { id: 'hero-kicker', label: 'Hero: texto superior', source: 'Para personal, coach, consultoria online e aulas presenciais', replacement: 'Para personal, coach, consultoria online e aulas presenciais', color: '#00D2B2', enabled: true },
+  { id: 'hero-lead', label: 'Hero: primeira linha do título', source: 'Menos tarefas repetitivas.', replacement: 'Menos tarefas repetitivas.', color: '#ffffff', enabled: true },
+  { id: 'hero-focus', label: 'Hero: destaque do título', source: 'Mais tempo para atender e vender.', replacement: 'Mais tempo para atender e vender.', color: '#00D2B2', enabled: true },
+  { id: 'hero-subtitle', label: 'Hero: subtítulo', source: 'Monte treinos em minutos, acompanhe seus alunos e valorize sua consultoria.', replacement: 'Monte treinos em minutos, acompanhe seus alunos e valorize sua consultoria.', color: '#d1d5db', enabled: true },
+  { id: 'hero-primary-cta', label: 'Botão principal', source: 'Escolher meu plano', replacement: 'Escolher meu plano', color: '#02110d', enabled: true },
+  { id: 'hero-secondary-cta', label: 'Botão secundário', source: 'Ver como funciona', replacement: 'Ver como funciona', color: '#ffffff', enabled: true },
+  { id: 'hero-badge', label: 'Faixa de prova', source: '+ organização, + percepção de valor, + rotina profissional', replacement: '+ organização, + percepção de valor, + rotina profissional', color: '#ffffff', enabled: true },
+  { id: 'proof-title', label: 'Cards iniciais: avaliação', source: 'Avaliação visual premium', replacement: 'Avaliação visual premium', color: '#ffffff', enabled: true },
+  { id: 'proof-panel', label: 'Cards iniciais: painel', source: 'Um painel', replacement: 'Um painel', color: '#ffffff', enabled: true },
+  { id: 'problem-kicker', label: 'Problema: etiqueta', source: 'O problema não é falta de método', replacement: 'O problema não é falta de método', color: '#00D2B2', enabled: true },
+  { id: 'problem-title', label: 'Problema: título', source: 'É vender consultoria premium usando uma operação improvisada.', replacement: 'É vender consultoria premium usando uma operação improvisada.', color: '#ffffff', enabled: true },
+  { id: 'solution-kicker', label: 'Solução: etiqueta', source: 'Solução completa', replacement: 'Solução completa', color: '#00D2B2', enabled: true },
+  { id: 'solution-title', label: 'Solução: título', source: 'A estrutura que transforma atendimento em operação.', replacement: 'A estrutura que transforma atendimento em operação.', color: '#ffffff', enabled: true },
+  { id: 'mechanism-kicker', label: 'Mecanismo: etiqueta', source: 'O custo invisível do improviso', replacement: 'O custo invisível do improviso', color: '#00D2B2', enabled: true },
+  { id: 'mechanism-title', label: 'Mecanismo: título', source: 'Seu método pode ser excelente e ainda parecer menor do que realmente é.', replacement: 'Seu método pode ser excelente e ainda parecer menor do que realmente é.', color: '#ffffff', enabled: true },
+  { id: 'financial-kicker', label: 'Financeiro: etiqueta', source: 'Motor de recorrência', replacement: 'Motor de recorrência', color: '#00D2B2', enabled: true },
+  { id: 'financial-title', label: 'Financeiro: título', source: 'Organização, cobrança e retenção trabalhando no mesmo fluxo.', replacement: 'Organização, cobrança e retenção trabalhando no mesmo fluxo.', color: '#ffffff', enabled: true },
+  { id: 'simulator-kicker', label: 'Simulador: etiqueta', source: 'Potencial de faturamento', replacement: 'Potencial de faturamento', color: '#00D2B2', enabled: true },
+  { id: 'simulator-title', label: 'Simulador: título', source: 'Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.', replacement: 'Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.', color: '#ffffff', enabled: true },
+  { id: 'testimonials-kicker', label: 'Depoimentos: etiqueta', source: 'Prova social que aumenta confiança', replacement: 'Prova social que aumenta confiança', color: '#00D2B2', enabled: true },
+  { id: 'testimonials-title', label: 'Depoimentos: título', source: 'Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.', replacement: 'Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.', color: '#ffffff', enabled: true },
+  { id: 'faq-kicker', label: 'Dúvidas: etiqueta', source: 'Dúvidas antes de começar', replacement: 'Dúvidas antes de começar', color: '#00D2B2', enabled: true },
+  { id: 'faq-title', label: 'Dúvidas: título', source: 'O que você precisa saber sobre o Coach Fit Pro', replacement: 'O que você precisa saber sobre o Coach Fit Pro', color: '#ffffff', enabled: true },
+  { id: 'plans-kicker', label: 'Planos: etiqueta', source: 'Planos Coach Fit Pro', replacement: 'Planos Coach Fit Pro', color: '#00D2B2', enabled: true },
+  { id: 'plans-title', label: 'Planos: título', source: 'Comece hoje. Cresça no seu ritmo.', replacement: 'Comece hoje. Cresça no seu ritmo.', color: '#ffffff', enabled: true },
+  { id: 'final-title', label: 'CTA final', source: 'Organize sua operação antes que sua agenda cresça mais do que seu controle.', replacement: 'Organize sua operação antes que sua agenda cresça mais do que seu controle.', color: '#ffffff', enabled: true },
+]
 const defaultAppAdminSettings = {
   salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
   salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
@@ -128,6 +156,7 @@ const defaultAppAdminSettings = {
   ctaColor: '#00d2b2',
   ctaTextColor: '#020617',
   headerBackgroundColor: 'rgba(0, 0, 0, 0.62)',
+  landingTextOverrides: defaultLandingTextOverrides,
   publishedAt: '',
   checkoutPlans: cartpandaCheckoutPlans,
   featureFlags: {
@@ -151,6 +180,30 @@ const salesHeroHeadlines = [
 ]
 
 function normalizeAdminSettings(settings = {}) {
+  const defaultTextOverridesById = Object.fromEntries(defaultLandingTextOverrides.map((item) => [item.id, item]))
+  const incomingTextOverrides = Array.isArray(settings.landingTextOverrides) ? settings.landingTextOverrides : []
+  const incomingTextOverridesById = Object.fromEntries(incomingTextOverrides.filter((item) => item?.id).map((item) => [item.id, item]))
+  const customTextOverrides = incomingTextOverrides.filter((item) => item?.custom && item?.id && !defaultTextOverridesById[item.id])
+  const landingTextOverrides = [
+    ...defaultLandingTextOverrides.map((item) => ({
+      ...item,
+      ...(incomingTextOverridesById[item.id] || {}),
+      source: incomingTextOverridesById[item.id]?.source || item.source,
+      replacement: incomingTextOverridesById[item.id]?.replacement ?? item.replacement,
+      color: incomingTextOverridesById[item.id]?.color || item.color,
+      enabled: incomingTextOverridesById[item.id]?.enabled ?? item.enabled,
+    })),
+    ...customTextOverrides.map((item) => ({
+      id: item.id,
+      label: item.label || 'Texto personalizado',
+      source: item.source || '',
+      replacement: item.replacement ?? item.source ?? '',
+      color: item.color || '#00D2B2',
+      enabled: item.enabled ?? true,
+      custom: true,
+    })),
+  ]
+
   const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
     ? settings.checkoutPlans.map((plan, index) => ({
       ...cartpandaCheckoutPlans[index],
@@ -193,6 +246,7 @@ function normalizeAdminSettings(settings = {}) {
   return {
     ...defaultAppAdminSettings,
     ...settings,
+    landingTextOverrides,
     checkoutPlans,
     featureFlags: {
       ...defaultAppAdminSettings.featureFlags,
@@ -230,6 +284,53 @@ function saveLocalAdminSettings(settings) {
   } catch {
     // Mantem a edição local no estado mesmo se o navegador bloquear storage.
   }
+}
+
+function applyLandingTextOverrides(root, overrides = []) {
+  if (!root || !Array.isArray(overrides) || !overrides.length) return
+
+  const activeOverrides = overrides
+    .filter((item) => item?.enabled !== false && item?.source && (item.replacement || item.color))
+    .map((item) => ({
+      source: String(item.source || '').trim(),
+      replacement: String(item.replacement ?? item.source ?? '').trim(),
+      color: String(item.color || '').trim(),
+    }))
+    .filter((item) => item.source)
+
+  if (!activeOverrides.length) return
+
+  const blockedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION'])
+  const walker = document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement
+      if (!parent || blockedTags.has(parent.tagName)) return window.NodeFilter.FILTER_REJECT
+      if (!node.nodeValue || !node.nodeValue.trim()) return window.NodeFilter.FILTER_REJECT
+      return window.NodeFilter.FILTER_ACCEPT
+    },
+  })
+
+  const textNodes = []
+  while (walker.nextNode()) textNodes.push(walker.currentNode)
+
+  textNodes.forEach((node) => {
+    const parent = node.parentElement
+    if (!parent) return
+
+    activeOverrides.forEach((item) => {
+      if (!node.nodeValue.includes(item.source)) return
+
+      if (item.replacement && item.replacement !== item.source) {
+        node.nodeValue = node.nodeValue.replaceAll(item.source, item.replacement)
+      }
+
+      if (item.color) {
+        parent.style.color = item.color
+        parent.style.webkitTextFillColor = item.color
+        parent.style.backgroundImage = 'none'
+      }
+    })
+  })
 }
 
 function decodeJwtPayload(token = '') {
@@ -2872,6 +2973,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       window.removeEventListener('resize', updateScrollEffects)
     }
   }, [])
+
+  useEffect(() => {
+    const page = document.getElementById('sales-page')
+    if (!page) return undefined
+
+    const timer = window.setTimeout(() => {
+      applyLandingTextOverrides(page, salesSettings.landingTextOverrides)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [salesSettings.landingTextOverrides, heroHeadlineIndex, selectedOfferPlanId, journeyStepIndex, mode])
 
   function openAccess(nextMode) {
     if (!isLoginRoute) {
@@ -12132,6 +12244,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     traffic: true,
     launch: false,
     sales: true,
+    salesTexts: false,
     plans: false,
     branding: false,
     modules: false,
@@ -12185,6 +12298,40 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       .map((item) => item.trim())
       .filter(Boolean)
     updatePlan(planIndex, field, items)
+  }
+
+  function updateLandingTextOverride(index, field, value) {
+    setDraft((current) => ({
+      ...current,
+      landingTextOverrides: (current.landingTextOverrides || []).map((item, itemIndex) => (
+        itemIndex === index ? { ...item, [field]: value } : item
+      )),
+    }))
+  }
+
+  function addLandingTextOverride() {
+    setDraft((current) => ({
+      ...current,
+      landingTextOverrides: [
+        ...(current.landingTextOverrides || []),
+        {
+          id: `custom-${Date.now()}`,
+          label: 'Texto personalizado',
+          source: '',
+          replacement: '',
+          color: '#00D2B2',
+          enabled: true,
+          custom: true,
+        },
+      ],
+    }))
+  }
+
+  function removeLandingTextOverride(index) {
+    setDraft((current) => ({
+      ...current,
+      landingTextOverrides: (current.landingTextOverrides || []).filter((_, itemIndex) => itemIndex !== index),
+    }))
   }
 
   function applyVisualPreset(preset) {
@@ -12258,6 +12405,69 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
               <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
             </div>
             <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
+          </div>
+        </AdminAccordionSection>
+
+        <AdminAccordionSection title="Editor completo da página inicial" action={`${draft.landingTextOverrides?.length || 0} textos e cores`} open={openSections.salesTexts} onToggle={() => toggleSection('salesTexts')}>
+          <div className="grid gap-4">
+            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
+              <p className="text-sm font-black text-emerald-100">Como usar</p>
+              <p className="mt-2 text-xs leading-5 text-zinc-300">
+                Edite o texto novo e a cor. O campo “texto que aparece hoje” é usado para localizar a frase na página. Para um texto novo que não está na lista, clique em adicionar texto e cole a frase exatamente como aparece na página.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {(draft.landingTextOverrides || []).map((item, index) => (
+                <div key={item.id || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase text-emerald-300">{item.label || 'Texto da página inicial'}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">Afeta a página inicial de vendas quando o texto for encontrado.</p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs font-black text-zinc-200">
+                        <input
+                          type="checkbox"
+                          checked={item.enabled !== false}
+                          onChange={(event) => updateLandingTextOverride(index, 'enabled', event.target.checked)}
+                          className="h-4 w-4 accent-emerald-400"
+                        />
+                        Ativo
+                      </label>
+                      {item.custom ? (
+                        <button type="button" onClick={() => removeLandingTextOverride(index)} className="rounded-xl border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-xs font-black text-rose-100">
+                          Remover
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_150px]">
+                    <AdminTextArea
+                      label="Texto que aparece hoje"
+                      value={item.source}
+                      onChange={(value) => updateLandingTextOverride(index, 'source', value)}
+                      hint="Para localizar corretamente, mantenha igual ao texto exibido na página."
+                    />
+                    <AdminTextArea
+                      label="Novo texto"
+                      value={item.replacement}
+                      onChange={(value) => updateLandingTextOverride(index, 'replacement', value)}
+                      hint="Esse será o texto mostrado ao visitante."
+                    />
+                    <AdminTextInput
+                      type="color"
+                      label="Cor deste texto"
+                      value={item.color || '#00D2B2'}
+                      onChange={(value) => updateLandingTextOverride(index, 'color', value)}
+                      hint="Escolha a cor exata deste texto."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addLandingTextOverride} className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:border-emerald-300/50 hover:bg-emerald-300/15">
+              Adicionar texto personalizado
+            </button>
           </div>
         </AdminAccordionSection>
 
