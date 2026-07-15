@@ -1921,6 +1921,248 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+@media (max-width: 767px) {
+  .coach-auth-shell {
+    background-color: #020504;
+    background-image:
+      radial-gradient(circle at 12% 0%, rgba(0, 210, 178, 0.2), transparent 30%),
+      radial-gradient(circle at 85% 18%, rgba(0, 210, 178, 0.12), transparent 34%),
+      linear-gradient(180deg, #061512 0%, #020504 58%, #000 100%);
+  }
+
+  .coach-auth-shell .coach-mobile-header {
+    padding-top: calc(0.55rem + env(safe-area-inset-top));
+    padding-inline: 0.85rem;
+    background:
+      linear-gradient(180deg, rgba(2, 5, 4, 0.96), rgba(2, 5, 4, 0.82));
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+  }
+
+  .coach-auth-shell .coach-auth-main {
+    padding: 0.9rem 0.85rem calc(7.2rem + env(safe-area-inset-bottom));
+  }
+
+  .coach-auth-shell .coach-mobile-page-header {
+    margin-bottom: 0.85rem;
+    border-radius: 24px;
+    border-color: rgba(0, 210, 178, 0.2);
+    background:
+      radial-gradient(circle at top left, rgba(0, 210, 178, 0.16), transparent 36%),
+      linear-gradient(145deg, rgba(10, 18, 17, 0.94), rgba(2, 5, 4, 0.86));
+    padding: 1rem;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header h2 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: clamp(1.75rem, 8vw, 2.35rem);
+    line-height: 1.02;
+    letter-spacing: 0;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header p {
+    max-width: 100%;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgba(228, 228, 231, 0.82);
+  }
+
+  .coach-auth-shell .coach-mobile-page-header > div:last-child {
+    gap: 0.55rem;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header > div:last-child > button {
+    flex: 1 1 100%;
+    min-width: 0;
+    border-radius: 16px;
+  }
+
+  .coach-mobile-quick-actions {
+    position: relative;
+  }
+
+  .coach-mobile-action-card {
+    min-height: 72px;
+    border-color: rgba(0, 210, 178, 0.18);
+    background:
+      linear-gradient(145deg, rgba(0, 210, 178, 0.1), rgba(255, 255, 255, 0.035));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .coach-mobile-action-card:active {
+    transform: scale(0.985);
+    border-color: rgba(0, 210, 178, 0.42);
+    background:
+      linear-gradient(145deg, rgba(0, 210, 178, 0.18), rgba(255, 255, 255, 0.055));
+  }
+
+  .coach-auth-shell .coach-metric-card {
+    border-radius: 20px;
+    border-color: rgba(255, 255, 255, 0.09);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+    padding: 0.95rem;
+  }
+
+  .coach-auth-shell .coach-metric-card p:first-child {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+  }
+
+  .coach-auth-shell .coach-metric-card h3 {
+    font-size: clamp(1.55rem, 8vw, 2.1rem);
+    line-height: 1;
+  }
+
+  .coach-auth-shell .coach-metric-card p:last-child {
+    color: rgba(110, 231, 183, 0.92);
+  }
+
+  .coach-mobile-bottom-nav {
+    position: fixed;
+    z-index: 48;
+    right: max(0.65rem, env(safe-area-inset-right));
+    bottom: calc(0.55rem + env(safe-area-inset-bottom));
+    left: max(0.65rem, env(safe-area-inset-left));
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.25rem;
+    border: 1px solid rgba(0, 210, 178, 0.18);
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, rgba(10, 18, 17, 0.93), rgba(2, 5, 4, 0.92));
+    padding: 0.42rem;
+    box-shadow:
+      0 22px 60px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(18px);
+  }
+
+  .coach-mobile-bottom-button {
+    display: grid;
+    min-width: 0;
+    min-height: 58px;
+    place-items: center;
+    gap: 0.22rem;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    color: rgba(228, 228, 231, 0.74);
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1;
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      background-color 180ms ease,
+      color 180ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .coach-mobile-bottom-button svg {
+    color: currentColor;
+  }
+
+  .coach-mobile-bottom-button.is-active {
+    border-color: rgba(0, 210, 178, 0.36);
+    background: rgba(0, 210, 178, 0.14);
+    color: #a7fff2;
+  }
+
+  .coach-mobile-bottom-button:active {
+    transform: scale(0.96);
+  }
+
+  .coach-mobile-bottom-button:disabled {
+    opacity: 0.45;
+  }
+
+  .coach-auth-shell button,
+  .coach-auth-shell a,
+  .coach-auth-shell summary {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .coach-auth-shell button,
+  .coach-auth-shell input,
+  .coach-auth-shell select,
+  .coach-auth-shell textarea {
+    min-height: 44px;
+  }
+
+  .coach-auth-shell input,
+  .coach-auth-shell select,
+  .coach-auth-shell textarea {
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .coach-auth-shell textarea {
+    min-height: 96px;
+  }
+
+  .coach-auth-shell form,
+  .coach-auth-shell section,
+  .coach-auth-shell article,
+  .coach-auth-shell .workout-builder,
+  .coach-auth-shell .workout-express-module {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .coach-auth-shell .workout-builder,
+  .coach-auth-shell .workout-express-module {
+    border-radius: 24px;
+  }
+
+  .coach-auth-shell .workout-exercise-card,
+  .coach-auth-shell .workout-exercise-picker,
+  .coach-auth-shell details,
+  .coach-auth-shell form > div {
+    max-width: 100%;
+  }
+
+  .coach-auth-shell .workout-exercise-card {
+    border-radius: 20px;
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      background-color 180ms ease;
+  }
+
+  .coach-auth-shell .workout-exercise-card:active {
+    transform: scale(0.99);
+    border-color: rgba(0, 210, 178, 0.36);
+  }
+
+  .coach-auth-shell table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .coach-auth-shell .scrollbar-soft {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .coach-auth-shell [class*="grid-cols-"],
+  .coach-auth-shell [class*="xl:grid-cols-"],
+  .coach-auth-shell [class*="lg:grid-cols-"] {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-mobile-action-card,
+  .coach-mobile-bottom-button,
+  .coach-auth-shell .workout-exercise-card {
+    transition: none;
+  }
+}
+
 .workout-express-module,
 .workout-builder {
   max-width: 100%;

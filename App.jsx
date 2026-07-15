@@ -2441,10 +2441,28 @@ function AppContent() {
   const activeNavItem = visibleNavItems.find((item) => item.id === activeView) ?? visibleNavItems[0]
   const activeNavTone = getNavToneClasses(activeNavItem?.tone)
   const viewTitle = activeNavItem?.label ?? 'Visão geral'
+  const coachMobileBottomItems = ['visao', 'alunos', 'treinos', 'nutricao']
+    .map((id) => visibleNavItems.find((item) => item.id === id))
+    .filter(Boolean)
+  const coachMobileNavLabels = {
+    visao: 'Início',
+    alunos: 'Alunos',
+    treinos: 'Treino',
+    nutricao: 'Dieta',
+  }
+  const coachMobileQuickActions = [
+    { id: 'treinos', label: 'Criar treino', icon: 'dumbbell', hint: 'prescrição' },
+    { id: 'nutricao', label: 'Criar dieta', icon: 'nutrition', hint: 'macros' },
+    { id: 'alunos', label: 'Novo aluno', icon: 'users', hint: 'cadastro' },
+    { id: 'agenda', label: 'Agenda', icon: 'calendar', hint: 'rotina' },
+  ].map((action) => {
+    const navItem = visibleNavItems.find((item) => item.id === action.id)
+    return navItem ? { ...action, navItem } : null
+  }).filter(Boolean)
 
   return (
-    <div className="app-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
+    <div className="app-shell coach-auth-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
+      <div className="coach-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
         <button
           type="button"
@@ -2535,9 +2553,9 @@ function AppContent() {
           </button>
       </aside>
 
-        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
+        <main className="coach-auth-main min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
-          <header className="mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
+          <header className="coach-mobile-page-header mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
               <div className="mb-3 flex items-center gap-3">
                 <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
@@ -2572,6 +2590,35 @@ function AppContent() {
               </button>
             </div>
           </header>
+
+          <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label="Ações rápidas do treinador">
+            {coachMobileQuickActions.map((action) => {
+              const isLocked = shouldLockCoachTools && action.id !== 'assinatura' && action.id !== 'admin-master'
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => {
+                    if (isLocked) return
+                    setActiveView(action.id)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="coach-mobile-action-card min-w-0 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-100">
+                      <NavIcon name={action.icon} className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black text-white">{action.label}</span>
+                      <span className="block truncate text-[11px] font-bold uppercase text-emerald-200/80">{action.hint}</span>
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </section>
 
           {shouldLockCoachTools ? (
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
@@ -2746,6 +2793,37 @@ function AppContent() {
           </div>
           </div>
         </main>
+      <nav className="coach-mobile-bottom-nav lg:hidden" aria-label="Navegação rápida do treinador">
+        {coachMobileBottomItems.map((item) => {
+          const isActive = activeView === item.id
+          const isLocked = shouldLockCoachTools && item.id !== 'assinatura' && item.id !== 'admin-master'
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={isActive ? 'page' : undefined}
+              disabled={isLocked}
+              onClick={() => {
+                if (isLocked) return
+                setActiveView(item.id)
+                setMobileMenuOpen(false)
+              }}
+              className={`coach-mobile-bottom-button ${isActive ? 'is-active' : ''}`}
+            >
+              <NavIcon name={item.icon} className="h-5 w-5" />
+              <span>{coachMobileNavLabels[item.id] || item.label}</span>
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="coach-mobile-bottom-button"
+        >
+          <NavIcon name="menu" className="h-5 w-5" />
+          <span>Menu</span>
+        </button>
+      </nav>
     </div>
   )
 }
@@ -13923,7 +14001,7 @@ function NavIcon({ name, className = '' }) {
 
 function Metric({ label, value, detail }) {
   return (
-    <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+    <div className="coach-metric-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
       <p className="text-sm text-zinc-400">{label}</p>
       <h3 className="metric-money-value mt-2 font-black sm:mt-3">{value}</h3>
       <p className="mt-2 text-xs font-semibold text-blue-300">{detail}</p>
