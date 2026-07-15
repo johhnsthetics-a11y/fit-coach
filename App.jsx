@@ -2637,7 +2637,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
-  const planCarouselRef = useRef(null)
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
   const [journeyStepIndex, setJourneyStepIndex] = useState(0)
   const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
@@ -2659,7 +2658,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     })
   }, [salesPlans])
   const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
-  const selectedOfferPlanIndex = Math.max(0, orderedSalesPlans.findIndex((plan) => plan.id === selectedOfferPlan.id))
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -2747,55 +2745,34 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block })
   }
 
-  function scrollOfferPlanIntoView(planId, behavior = 'smooth') {
-    const carousel = planCarouselRef.current
-    if (!carousel) return
-
-    const card = carousel.querySelector(`[data-plan-id="${planId}"]`)
-    if (!card) return
-
-    const left = card.offsetLeft - ((carousel.clientWidth - card.clientWidth) / 2)
-    carousel.scrollTo({ left: Math.max(0, left), behavior })
-  }
-
-  function selectOfferPlan(planId, behavior = 'smooth') {
+  function selectOfferPlan(planId) {
     setSelectedOfferPlanId(planId)
-    window.setTimeout(() => scrollOfferPlanIntoView(planId, behavior), 20)
   }
 
-  function handlePlanCarouselScroll() {
-    const carousel = planCarouselRef.current
-    if (!carousel || window.innerWidth >= 768) return
+  function handlePlanSelectorKeyDown(event, planId) {
+    const currentIndex = orderedSalesPlans.findIndex((plan) => plan.id === planId)
+    if (currentIndex < 0) return
 
-    const cards = [...carousel.querySelectorAll('[data-plan-id]')]
-    const center = carousel.scrollLeft + (carousel.clientWidth / 2)
-    const closest = cards.reduce((current, card) => {
-      const cardCenter = card.offsetLeft + (card.clientWidth / 2)
-      const distance = Math.abs(cardCenter - center)
-      return !current || distance < current.distance ? { id: card.dataset.planId, distance } : current
-    }, null)
-
-    if (closest?.id && closest.id !== selectedOfferPlanId) {
-      setSelectedOfferPlanId(closest.id)
+    const lastIndex = orderedSalesPlans.length - 1
+    const keyActions = {
+      ArrowRight: Math.min(currentIndex + 1, lastIndex),
+      ArrowDown: Math.min(currentIndex + 1, lastIndex),
+      ArrowLeft: Math.max(currentIndex - 1, 0),
+      ArrowUp: Math.max(currentIndex - 1, 0),
+      Home: 0,
+      End: lastIndex,
     }
-  }
 
-  function moveOfferPlan(direction) {
-    const nextIndex = Math.min(Math.max(selectedOfferPlanIndex + direction, 0), orderedSalesPlans.length - 1)
-    const nextPlan = orderedSalesPlans[nextIndex]
+    if (!(event.key in keyActions)) return
+
+    event.preventDefault()
+    const nextPlan = orderedSalesPlans[keyActions[event.key]]
     if (nextPlan) selectOfferPlan(nextPlan.id)
   }
 
   useEffect(() => {
     captureLeadAttribution()
   }, [])
-
-  useEffect(() => {
-    if (window.innerWidth >= 768) return undefined
-    const timer = window.setTimeout(() => scrollOfferPlanIntoView('semestral', 'auto'), 120)
-    return () => window.clearTimeout(timer)
-  }, [orderedSalesPlans.length])
-
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -3773,7 +3750,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
               </p>
 
-              <div className="mx-auto mt-7 grid max-w-3xl gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30 sm:grid-cols-3">
+              <div className="sales-plan-tabs mx-auto mt-7" role="tablist" aria-label="Selecionar ciclo do plano">
                 {orderedSalesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
                   return (
@@ -3781,48 +3758,39 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       key={plan.id}
                       type="button"
                       onClick={() => selectOfferPlan(plan.id)}
-                      aria-controls="sales-plan-carousel"
-                      aria-pressed={selected}
-                      className={`min-h-16 rounded-xl px-3 py-3 text-left transition ${
-                        selected
-                          ? 'bg-emerald-400 text-zinc-950 shadow-xl shadow-emerald-950/35 ring-2 ring-emerald-200/40'
-                          : 'border border-white/5 text-zinc-300 hover:bg-white/[0.06] hover:text-white'
-                      }`}
+                      onKeyDown={(event) => handlePlanSelectorKeyDown(event, plan.id)}
+                      id={`sales-plan-tab-${plan.id}`}
+                      role="tab"
+                      aria-controls={`sales-plan-card-${plan.id}`}
+                      aria-selected={selected}
+                      tabIndex={selected ? 0 : -1}
+                      className={`sales-plan-tab ${selected ? 'is-active' : ''}`}
                     >
-                      <span className="flex items-start justify-between gap-2">
-                        <span className="min-w-0">
-                          <span className="block text-base font-black">{plan.name}</span>
-                          <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-400'}`}>{plan.cycle}</span>
-                        </span>
-                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase ${selected ? 'bg-zinc-950/10 text-zinc-900' : 'border border-emerald-300/20 text-emerald-100'}`}>
-                          {plan.badge}
-                        </span>
-                      </span>
-                      <span className="mt-2 flex flex-wrap items-end gap-2">
-                        <span className="text-lg font-black leading-none">{plan.price}</span>
-                        <span className={`text-[11px] font-bold ${selected ? 'text-zinc-800' : 'text-zinc-400'}`}>{plan.suffix}</span>
-                      </span>
-                      <span className={`mt-1 block text-[11px] font-black ${selected ? 'text-zinc-800' : 'text-emerald-100'}`}>{plan.total}</span>
+                      {plan.name}
                     </button>
                   )
                 })}
               </div>
 
               <div
-                id="sales-plan-carousel"
-                ref={planCarouselRef}
-                onScroll={handlePlanCarouselScroll}
-                className="sales-plan-carousel mt-8 grid gap-5 lg:grid-cols-3"
+                id="sales-plan-list"
+                className="sales-plan-list mt-8 grid gap-5 lg:grid-cols-3"
                 aria-label="Planos disponíveis do Coach Fit Pro"
               >
                 {orderedSalesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
+                  const remainingPlanIds = orderedSalesPlans.filter((item) => item.id !== selectedOfferPlan.id).map((item) => item.id)
+                  const mobileOrder = selected ? 0 : remainingPlanIds.indexOf(plan.id) + 1
                   const visibleHighlights = plan.highlights.slice(0, 3)
                   const expandedBenefits = [...plan.highlights.slice(3), ...plan.activationPlan]
                   return (
                     <div
                       key={plan.id}
                       data-plan-id={plan.id}
+                      id={`sales-plan-card-${plan.id}`}
+                      role="region"
+                      aria-labelledby={`sales-plan-tab-${plan.id}`}
+                      style={{ '--mobile-plan-order': mobileOrder }}
                       className={`sales-plan-option-card ${selected ? 'is-selected' : ''} group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${
                         selected
                           ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
@@ -3836,7 +3804,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                           <span className="mt-2 block text-2xl font-black text-white">{plan.name}</span>
                         </span>
                         <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-black uppercase ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-300'}`}>
-                          {plan.badge}
+                          {selected ? 'Selecionado' : plan.badge}
                         </span>
                       </span>
                       <span className="relative mt-5 block">
@@ -3877,34 +3845,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                         <button type="button" onClick={() => startPlanSignup(plan.id)} className={`w-full rounded-2xl px-4 py-4 text-sm font-black transition active:scale-[0.98] ${selected ? 'bg-emerald-300 text-zinc-950 shadow-xl shadow-emerald-950/30' : 'border border-white/10 bg-white/[0.04] text-zinc-100 hover:border-emerald-300/40 hover:bg-emerald-300/10'}`}>
                           Escolher este plano
                         </button>
-                        <button type="button" onClick={() => selectOfferPlan(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
-                          Ver detalhes
-                        </button>
+                        {!selected ? (
+                          <button type="button" onClick={() => selectOfferPlan(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
+                            Destacar este plano
+                          </button>
+                        ) : null}
                       </span>
                     </div>
                   )
                 })}
-              </div>
-
-              <div className="sales-plan-carousel-controls mt-5 items-center justify-center gap-3" aria-label="Navegar pelos planos">
-                <button type="button" onClick={() => moveOfferPlan(-1)} className="sales-plan-nav-button" aria-label="Ver plano anterior" disabled={selectedOfferPlanIndex === 0}>
-                  {'‹'}
-                </button>
-                <div className="flex items-center gap-2">
-                  {orderedSalesPlans.map((plan) => (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => selectOfferPlan(plan.id)}
-                      className={`sales-plan-dot ${selectedOfferPlan.id === plan.id ? 'is-active' : ''}`}
-                      aria-label={`Ver plano ${plan.name}`}
-                      aria-current={selectedOfferPlan.id === plan.id ? 'true' : undefined}
-                    />
-                  ))}
-                </div>
-                <button type="button" onClick={() => moveOfferPlan(1)} className="sales-plan-nav-button" aria-label="Ver próximo plano" disabled={selectedOfferPlanIndex >= orderedSalesPlans.length - 1}>
-                  {'›'}
-                </button>
               </div>
 
               <div className="mt-7 rounded-3xl border border-emerald-300/22 bg-gradient-to-br from-emerald-300/12 via-zinc-950/80 to-zinc-950 p-5 text-left shadow-2xl shadow-emerald-950/18 sm:p-6">
@@ -3929,21 +3878,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-4 shadow-2xl shadow-emerald-950/25 sm:p-6">
                 <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
                 <div className="relative">
-                  <div className="sales-plan-strategy mb-4 grid gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <div>
-                      <p className="text-xs font-black uppercase text-emerald-100">
-                        {selectedOfferPlan.id === 'mensal' ? 'Oferta de entrada' : 'Condição estratégica'}
-                      </p>
-                      <p className="mt-2 text-sm font-bold leading-6 text-emerald-50">
-                        {selectedOfferPlan.id === 'mensal'
-                          ? 'Ative o primeiro mês por R$ 9,90. Depois, a continuidade fica em R$ 49,90/mês.'
-                          : `${selectedOfferPlan.economy}. Acesso completo, sem taxa extra por aluno cadastrado.`}
-                      </p>
-                    </div>
-                    <span className="w-fit rounded-full border border-emerald-200/25 bg-zinc-950/70 px-4 py-2 text-xs font-black uppercase text-emerald-100">
-                      Sem taxa por aluno
-                    </span>
-                  </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-xs font-black uppercase text-emerald-200">{selectedOfferPlan.cycle}</p>
