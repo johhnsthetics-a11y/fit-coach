@@ -15179,3 +15179,4 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
