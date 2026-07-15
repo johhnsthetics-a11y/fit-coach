@@ -142,6 +142,7 @@ const defaultLandingTextOverrides = [
 ]
 
 const ADMIN_SETTINGS_SCHEMA_VERSION = 20260715
+const LANDING_PAGE_SCHEMA_VERSION = 2
 
 const defaultLandingVisualSettings = {
   desktop: {
@@ -150,7 +151,7 @@ const defaultLandingVisualSettings = {
     sectionPadding: '2.5rem',
     cardRadius: '24px',
     planCardMinHeight: 'auto',
-    showStudentJourney: true,
+    showStudentJourney: false,
   },
   mobile: {
     heroTitleSize: 'clamp(2.35rem, 11.5vw, 3rem)',
@@ -164,6 +165,7 @@ const defaultLandingVisualSettings = {
 
 const defaultAppAdminSettings = {
   schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
+  landingPageSchemaVersion: LANDING_PAGE_SCHEMA_VERSION,
   salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
   salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
   salesCta: 'Começar por R$ 9,90',
@@ -205,7 +207,9 @@ const salesHeroHeadlines = [
 
 function normalizeAdminSettings(settings = {}) {
   const settingsVersion = Number(settings.schemaVersion || 0)
+  const landingPageVersion = Number(settings.landingPageSchemaVersion || 0)
   const legacySettings = !settingsVersion || settingsVersion < ADMIN_SETTINGS_SCHEMA_VERSION
+  const legacyLandingSettings = !landingPageVersion || landingPageVersion < LANDING_PAGE_SCHEMA_VERSION
   const safeSettings = { ...(settings || {}) }
 
   if (legacySettings) {
@@ -220,6 +224,10 @@ function normalizeAdminSettings(settings = {}) {
     delete safeSettings.ctaColor
     delete safeSettings.ctaTextColor
     delete safeSettings.headerBackgroundColor
+  }
+
+  if (legacyLandingSettings) {
+    delete safeSettings.landingVisual
   }
 
   const defaultTextOverridesById = Object.fromEntries(defaultLandingTextOverrides.map((item) => [item.id, item]))
@@ -285,20 +293,41 @@ function normalizeAdminSettings(settings = {}) {
     })
     : defaultAppAdminSettings.checkoutPlans
 
+  const landingVisual = {
+    desktop: {
+      ...defaultLandingVisualSettings.desktop,
+      ...(safeSettings.landingVisual?.desktop || {}),
+      // A Jornada do Aluno foi removida do desktop. Configuracoes antigas do Admin Master
+      // nao podem restaurar essa secao depois da primeira renderizacao.
+      showStudentJourney: false,
+    },
+    mobile: {
+      ...defaultLandingVisualSettings.mobile,
+      ...(safeSettings.landingVisual?.mobile || {}),
+    },
+  }
+
   return {
     ...defaultAppAdminSettings,
-    ...safeSettings,
     schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
-    landingVisual: {
-      desktop: {
-        ...defaultLandingVisualSettings.desktop,
-        ...(safeSettings.landingVisual?.desktop || {}),
-      },
-      mobile: {
-        ...defaultLandingVisualSettings.mobile,
-        ...(safeSettings.landingVisual?.mobile || {}),
-      },
-    },
+    landingPageSchemaVersion: LANDING_PAGE_SCHEMA_VERSION,
+    salesHeadline: safeSettings.salesHeadline || defaultAppAdminSettings.salesHeadline,
+    salesSubheadline: safeSettings.salesSubheadline || defaultAppAdminSettings.salesSubheadline,
+    salesCta: safeSettings.salesCta || defaultAppAdminSettings.salesCta,
+    announcement: safeSettings.announcement || defaultAppAdminSettings.announcement,
+    logoUrl: safeSettings.logoUrl || defaultAppAdminSettings.logoUrl,
+    salesTrustText: safeSettings.salesTrustText || defaultAppAdminSettings.salesTrustText,
+    primaryColor: safeSettings.primaryColor || defaultAppAdminSettings.primaryColor,
+    accentColor: safeSettings.accentColor || defaultAppAdminSettings.accentColor,
+    appBackgroundColor: safeSettings.appBackgroundColor || defaultAppAdminSettings.appBackgroundColor,
+    salesBackgroundColor: safeSettings.salesBackgroundColor || defaultAppAdminSettings.salesBackgroundColor,
+    salesSurfaceColor: safeSettings.salesSurfaceColor || defaultAppAdminSettings.salesSurfaceColor,
+    salesTextColor: safeSettings.salesTextColor || defaultAppAdminSettings.salesTextColor,
+    ctaColor: safeSettings.ctaColor || defaultAppAdminSettings.ctaColor,
+    ctaTextColor: safeSettings.ctaTextColor || defaultAppAdminSettings.ctaTextColor,
+    headerBackgroundColor: safeSettings.headerBackgroundColor || defaultAppAdminSettings.headerBackgroundColor,
+    publishedAt: safeSettings.publishedAt || defaultAppAdminSettings.publishedAt,
+    landingVisual,
     landingTextOverrides,
     checkoutPlans,
     featureFlags: {
