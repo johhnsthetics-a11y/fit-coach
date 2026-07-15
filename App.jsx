@@ -98,9 +98,9 @@ const cartpandaCheckoutPlans = [
     badge: 'Maior economia',
     price: 'R$ 358,80',
     suffix: '/ano',
-    oldPrice: 'R$ 598,00',
+    oldPrice: 'R$ 598,80',
     total: 'Equivale a R$ 29,90/mês',
-    economy: 'Economize R$ 239,20',
+    economy: 'Economize R$ 240,00',
     equivalent: 'menor custo para operar o ano inteiro',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
     description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
@@ -113,9 +113,9 @@ const cartpandaCheckoutPlans = [
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
 const defaultAppAdminSettings = {
-  salesHeadline: 'A forma mais simples de organizar sua consultoria online.',
-  salesSubheadline: 'Gerencie alunos, treino, dieta, cobrança recorrente e evolução em uma plataforma com experiência de app. Menos caos, mais previsibilidade e uma entrega que parece premium desde o primeiro acesso.',
-  salesCta: 'Começar agora',
+  salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
+  salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
+  salesCta: 'Começar por R$ 9,90',
   announcement: 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.',
   logoUrl: '',
   salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
@@ -143,28 +143,10 @@ const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
 
 const salesHeroHeadlines = [
   {
-    id: 'crescimento',
-    lead: 'Atenda mais alunos.',
-    focus: 'Economize horas. Venda melhor.',
-    proof: 'Centralize treinos, evolução, check-ins e comunicação em uma plataforma feita para transformar sua consultoria em uma operação mais organizada, profissional e escalável.',
-  },
-  {
-    id: 'rotina',
-    lead: 'Menos tempo em tarefa repetitiva.',
+    id: 'rotina-profissional',
+    lead: 'Menos tempo em tarefas repetitivas.',
     focus: 'Mais tempo para atender e vender.',
-    proof: 'Monte treinos completos em poucos minutos, acompanhe respostas e entregue uma experiência que valoriza seu acompanhamento.',
-  },
-  {
-    id: 'presencial',
-    lead: 'Profissionalize sua aula presencial.',
-    focus: 'E também sua consultoria online.',
-    proof: 'O aluno treina com você, acompanha pelo app, registra cargas e percebe uma entrega mais clara desde o primeiro acesso.',
-  },
-  {
-    id: 'retencao',
-    lead: 'Mais alunos sem virar bagunça.',
-    focus: 'Mais controle para crescer.',
-    proof: 'Treinos, dieta, check-ins, chat e financeiro ficam em um fluxo único para você escalar sem perder qualidade.',
+    proof: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
   },
 ]
 
@@ -2650,7 +2632,9 @@ function PasswordRecovery({ onSave }) {
 }
 
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings }) {
-  const [mode, setMode] = useState('signin')
+  const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
+  const initialMode = new URLSearchParams(window.location.search).get('mode')
+  const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
@@ -2765,6 +2749,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [])
 
   function openAccess(nextMode) {
+    if (!isLoginRoute) {
+      window.location.href = `/login?mode=${nextMode}`
+      return
+    }
     setMode(nextMode)
     window.setTimeout(() => document.getElementById('acesso')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
   }
@@ -2812,7 +2800,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className="sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100" style={buildAdminThemeStyle(salesSettings)}>
+    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} style={buildAdminThemeStyle(salesSettings)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
@@ -2820,9 +2808,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
             {[
               ['Solução', 'recursos'],
-              ['App', 'app-aluno'],
+              ['Aplicativo', 'app-aluno'],
               ['Resultados', 'simulador'],
-              ['Preços', 'precos'],
+              ['Planos', 'precos'],
               ['Dúvidas', 'duvidas'],
             ].map(([label, target]) => (
               <button
@@ -2840,7 +2828,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               Entrar
             </button>
             <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
-              Começar agora
+              Começar por R$ 9,90
             </button>
           </div>
         </div>
@@ -2849,7 +2837,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       <main>
         <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.84fr)_minmax(520px,1.16fr)] lg:px-10 lg:pb-14 lg:pt-10 xl:gap-12">
           <div className="min-w-0" data-reveal>
-            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-emerald-100">Para personal, coach, consultoria online e aulas presenciais</p>
+            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-emerald-100">Para personal trainers, treinadores e consultorias on-line</p>
             <h1 className="sales-rotating-headline mt-5 max-w-5xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]" aria-live="polite">
               <span key={`lead-${activeHeroHeadline.id}`} className="sales-rotating-line">{activeHeroHeadline.lead}</span>
               <span key={`focus-${activeHeroHeadline.id}`} className="sales-rotating-focus mt-2 block bg-gradient-to-r from-emerald-100 via-emerald-300 to-cyan-100 bg-clip-text text-transparent">{activeHeroHeadline.focus}</span>
@@ -2865,15 +2853,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5 sm:w-auto">
-                {salesSettings.salesCta || 'Começar agora'}
+                {salesSettings.salesCta || 'Começar por R$ 9,90'}
               </button>
               <button type="button" onClick={() => document.getElementById('app-aluno')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45 sm:w-auto">
-                Ver o app
+                Ver como funciona
               </button>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-300">
               <span className="text-emerald-300">✓</span>
-              <span>Mais alunos sem desorganização</span>
+              <span>Mais alunos com organização</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
               <span>Treinos completos em poucos minutos</span>
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
@@ -2907,8 +2895,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/25 backdrop-blur sm:grid-cols-4 sm:p-5">
             {[
               ['★★★★★', 'Avaliação visual premium', 'experiência que aumenta percepção de valor'],
-              ['1 painel', 'operação centralizada', 'menos WhatsApp, menos planilha, menos improviso'],
-              ['App aluno', 'rotina no celular', 'treino, dieta, fatura e chat em um só lugar'],
+              ['Um painel', 'para centralizar toda a operação', 'menos WhatsApp, menos planilha, menos improviso'],
+              ['Aplicativo do aluno', 'toda a rotina no celular', 'treino, dieta, fatura e chat em um só lugar'],
               ['Sem taxa', 'por aluno cadastrado', 'cresça a carteira com previsibilidade'],
             ].map(([value, title, text]) => (
               <div key={title} data-reveal className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
@@ -2920,10 +2908,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
-        <section id="acesso" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+        {isLoginRoute ? (
+        <section id="acesso" className="mx-auto grid min-h-[calc(100vh-88px)] max-w-4xl place-items-center px-4 py-10 sm:px-6">
           <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
             <p className="text-xs font-black uppercase text-emerald-300">Acesso seguro</p>
-            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
+            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar por R$ 9,90' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               {mode === 'forgot'
                 ? 'Enviaremos um link seguro para o e-mail cadastrado.'
@@ -2974,7 +2963,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               )}
             </div>
             <button disabled={loading} className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta profissional' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
+              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
             </button>
             {mode === 'signin' ? (
               <button type="button" onClick={() => setMode('forgot')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-emerald-200">
@@ -2998,11 +2987,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             ) : null}
           </form>
         </section>
+        ) : null}
 
         <section className="sales-section border-y border-white/10 bg-[#030712]/82 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto grid max-w-6xl gap-5 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">O problema não é falta de método</p>
+              <p className="text-sm font-black uppercase text-emerald-200">O problema não é falta de esforço.</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
                 É vender consultoria premium usando uma operação improvisada.
               </h2>
@@ -3031,7 +3021,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
             <div data-reveal>
               <p className="text-sm font-semibold uppercase text-emerald-300">Visual de aplicativo</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Mostre para o aluno que ele está dentro de um acompanhamento premium.</h2>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Mostre ao aluno que ele está dentro de um acompanhamento premium.</h2>
               <p className="mt-4 leading-7 text-zinc-400">
                 As telas foram pensadas para celular, com ações simples, feedback visual e informação separada por contexto. O aluno abre, entende o que precisa fazer e registra a rotina sem se perder.
               </p>
@@ -3039,8 +3029,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 {[
                   ['Treino guiado', 'Iniciar treino, pausar, registrar carga e concluir.'],
                   ['Dieta clara', 'Refeições, macros e substituições equivalentes.'],
+                  ['Check-ins', 'Fotos, medidas e feedbacks organizados.'],
                   ['Chat direto', 'Conversa em tempo real com envio de fotos.'],
-                  ['Engajamento', 'Meta de água, calendário e desafios semanais.'],
+                  ['Evolução registrada', 'Histórico visual para decisões melhores.'],
+                  ['Rotina organizada', 'Meta de água, calendário e desafios semanais.'],
                 ].map(([title, text]) => (
                 <div key={title} className="sales-mini-card rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.09] p-4 shadow-lg shadow-emerald-950/15">
                     <p className="text-sm font-black text-emerald-50">{title}</p>
@@ -3466,7 +3458,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="grid gap-4 md:grid-cols-3">
               {[
                 ['★★★★★', '“Antes eu perdia cobrança no WhatsApp. Agora sei quem pagou, quem está pendente e consigo agir rápido.”', 'Marina C.', 'Personal trainer'],
-                ['★★★★★', '“O aluno sente que recebeu um app meu. A percepção de valor mudou muito na renovação.”', 'Rafael M.', 'Coach online'],
+                ['★★★★★', '“O aluno sente que recebeu um app meu. A percepção de valor mudou muito na renovação.”', 'Rafael M.', 'Treinador on-line'],
                 ['★★★★★', '“Registrar carga e feedback deixou minha prescrição mais inteligente. Não dependo mais de lembrar tudo.”', 'Lucas A.', 'Treinador presencial'],
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-5">
@@ -3488,17 +3480,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal>
               <p className="text-sm font-black uppercase text-emerald-200">Quem usa, recomenda</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Prova social para transformar confiança em decisão.
+                Experiências que refletem a rotina de quem atende alunos.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-300">
-                Use este espaço com avaliações autorizadas de treinadores que já sentiram mais organização, clareza e valor percebido na entrega.
+                Exemplos ilustrativos de como a plataforma pode organizar a rotina de treinadores. Substitua por avaliações reais e autorizadas antes de campanhas comerciais.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {[
-                ['★★★★★', 'O painel deixa treino, dieta, cobrança e conversa com o aluno em uma experiência só. A entrega fica muito mais profissional.', 'Camila Andrade', 'Personal trainer'],
-                ['★★★★★', 'O aluno entende melhor o acompanhamento porque tudo está organizado no celular. Isso aumenta muito a percepção de valor.', 'Bruno Martins', 'Coach online'],
-                ['★★★★★', 'Consegui parar de depender de planilha solta e acompanhar cargas, check-ins e pagamentos com mais clareza.', 'Renata Oliveira', 'Treinadora presencial'],
+                ['★★★★★', 'O painel reúne treino, dieta, cobrança e comunicação com o aluno em um único lugar. A rotina fica muito mais organizada.', 'Camila Andrade', 'Personal trainer'],
+                ['★★★★★', 'Consigo acompanhar melhor meus alunos pelo celular e visualizar o que está pendente sem depender de planilhas e mensagens espalhadas.', 'Bruno Martins', 'Treinador on-line'],
+                ['★★★★★', 'Ficou muito mais fácil acompanhar cargas, check-ins, pagamentos e evolução sem precisar procurar informações em vários lugares.', 'Renata Oliveira', 'Treinadora presencial'],
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
                   <div className="flex items-center justify-between gap-3">
@@ -3516,21 +3508,21 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
-        <section className="sales-section mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+        <section className="hidden sales-section mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
           <div data-reveal className="sales-guarantee-card grid gap-6 rounded-3xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/14 via-zinc-950/95 to-zinc-950 p-5 shadow-2xl shadow-emerald-950/20 sm:p-8 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
             <div className="grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100 shadow-lg shadow-emerald-950/30">
               <NavIcon name="shield" className="h-7 w-7" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-black uppercase text-emerald-200">Garantia de liberdade</p>
+              <p className="text-sm font-black uppercase text-emerald-200">COMECE COM LIBERDADE TOTAL</p>
               <h2 className="mt-3 text-2xl font-black leading-tight text-white sm:text-4xl">
-                Teste o Coach Fit Pro na sua rotina por apenas R$ 9,90.
+                Teste o Coach Fit Pro na sua rotina por R$ 9,90 no primeiro mês.
               </h2>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">
                 Organize seus alunos, monte treinos com mais rapidez e conheça as ferramentas na prática. Sem fidelidade e sem multa. Se a plataforma não fizer sentido para o seu negócio, cancele quando quiser diretamente pela sua conta.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {['Comece por apenas R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
+                {['Primeiro mês por R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
                   <span key={item} className="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.08] px-4 py-3 text-sm font-black text-emerald-50">
                     <span className="text-emerald-300">✓</span>
                     <span>{item}</span>
@@ -3571,7 +3563,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div className="mx-auto max-w-4xl text-center">
               <p className="text-sm font-black uppercase text-emerald-300">Planos Coach Fit Pro</p>
               <h2 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
-                Comece hoje. Escale no seu ritmo.
+                Comece hoje. Cresça no seu ritmo.
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
                 Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
@@ -3616,7 +3608,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   return (
                     <div
                       key={plan.id}
-                      className={`group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${
+                      className={`group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${plan.id === 'semestral' ? 'order-first lg:order-none' : ''} ${
                         selected
                           ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
                           : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/30 hover:bg-white/[0.055]'
@@ -3652,9 +3644,23 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                           </span>
                         ))}
                       </span>
+                      <details className="relative mt-4 rounded-2xl border border-emerald-300/16 bg-emerald-300/[0.055]">
+                        <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-black text-emerald-50">
+                          <span>O que acontece depois</span>
+                          <span className="text-lg text-emerald-200">+</span>
+                        </summary>
+                        <div className="grid gap-2 border-t border-emerald-300/12 px-4 py-3">
+                          {plan.activationPlan.slice(0, 3).map((item, index) => (
+                            <span key={item} className="flex gap-3 text-xs font-semibold leading-5 text-zinc-200">
+                              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-[10px] font-black text-zinc-950">{index + 1}</span>
+                              <span>{item}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </details>
                       <span className="relative mt-auto block pt-6">
                         <button type="button" onClick={() => startPlanSignup(plan.id)} className={`w-full rounded-2xl px-4 py-4 text-sm font-black transition active:scale-[0.98] ${selected ? 'bg-emerald-300 text-zinc-950 shadow-xl shadow-emerald-950/30' : 'border border-white/10 bg-white/[0.04] text-zinc-100 hover:border-emerald-300/40 hover:bg-emerald-300/10'}`}>
-                          Assinar {plan.name}
+                          Escolher este plano
                         </button>
                         <button type="button" onClick={() => setSelectedOfferPlanId(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
                           Ver detalhes
@@ -3664,9 +3670,26 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   )
                 })}
               </div>
+
+              <div className="mt-7 rounded-3xl border border-emerald-300/22 bg-gradient-to-br from-emerald-300/12 via-zinc-950/80 to-zinc-950 p-5 text-left shadow-2xl shadow-emerald-950/18 sm:p-6">
+                <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+                  <div>
+                    <p className="text-xs font-black uppercase text-emerald-200">Primeiro passo com baixo risco</p>
+                    <h3 className="mt-2 text-2xl font-black leading-tight text-white sm:text-3xl">
+                      Comece pelo mensal por R$ 9,90 no primeiro mês ou escolha um ciclo com mais economia.
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-zinc-300">
+                      Todos os ciclos liberam o painel, o aplicativo do aluno, treinos, nutrição, chat, check-ins, cobranças e acompanhamento. Não há taxa adicional por aluno cadastrado.
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="rounded-2xl bg-emerald-300 px-6 py-4 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5">
+                    Ativar plano escolhido
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="mx-auto mt-7 grid max-w-5xl gap-5 lg:mt-9 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
+            <div className="hidden">
               <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-4 shadow-2xl shadow-emerald-950/25 sm:p-6">
                 <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
                 <div className="relative">
@@ -3770,7 +3793,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
 
                   <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-emerald-300 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
-                    Assinar agora
+                    Escolher este plano
                   </button>
                 </div>
               </div>
@@ -3794,7 +3817,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                   <p className="text-xs font-black uppercase text-emerald-100">Próximo passo simples</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.
+                    Crie sua conta, escolha o ciclo e o painel é liberado assim que a Cartpanda aprovar o pagamento.
                   </p>
                 </div>
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -3835,7 +3858,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </p>
             </div>
             <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-2xl bg-emerald-400 px-6 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5 lg:mt-0 lg:w-auto lg:min-w-56">
-              Assinar agora
+              Escolher este plano
             </button>
           </div>
         </section>
@@ -3976,14 +3999,14 @@ function ExpressCreationSalesSection({ openAccess }) {
           <div data-reveal>
             <p className="text-sm font-black uppercase text-emerald-300">Criação expressa</p>
             <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-              Crie treinos e planos em minutos, sem começar do zero.
+              Crie treinos e planejamentos em minutos, sem começar do zero.
             </h2>
             <p className="mt-4 text-base leading-7 text-zinc-300">
               Use modelos, duplique estruturas, personalize rapidamente e mantenha cada aluno organizado em um só lugar.
             </p>
             <div className="mt-6 grid gap-3">
               {[
-                'Monte uma vez. Personalize quando precisar. Reutilize sempre.',
+                'Monte uma vez, personalize quando precisar e reutilize sempre.',
                 'Ganhe tempo sem perder a individualização.',
                 'Centralize treino, alimentação e acompanhamento no mesmo fluxo.',
               ].map((item) => (
@@ -3996,7 +4019,7 @@ function ExpressCreationSalesSection({ openAccess }) {
               ))}
             </div>
             <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300 active:scale-[0.98]">
-              Criar meu primeiro treino
+              Começar a criar meus treinos
             </button>
           </div>
 
@@ -4116,7 +4139,7 @@ function SalesPhoneShowcase() {
   const metrics = [
     ['wallet', 'R$ 12.450', 'carteira organizada'],
     ['trophy', '+34%', 'retenção estimada'],
-    ['dashboard', '1 painel', 'treino, dieta e cobrança'],
+    ['dashboard', 'Um painel', 'treino, dieta e cobrança'],
   ]
 
   return (
@@ -12061,7 +12084,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
             <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
             <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: mais controle, mais organização e melhor experiência para o aluno." />
             <div className="grid gap-4 sm:grid-cols-2">
-              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar agora." />
+              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar por R$ 9,90." />
               <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
             </div>
             <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />

@@ -1452,6 +1452,16 @@ textarea {
     rgba(76, 5, 25, 0.16);
 }
 
+.sales-login-route main > section:not(#acesso) {
+  display: none !important;
+}
+
+.sales-login-route #acesso {
+  min-height: calc(100vh - 86px);
+  padding-top: clamp(2rem, 5vw, 4rem);
+  padding-bottom: clamp(2rem, 5vw, 4rem);
+}
+
 .interactive-surface {
   --pointer-x: 50%;
   --pointer-y: 50%;
