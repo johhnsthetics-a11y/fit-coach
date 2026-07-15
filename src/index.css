@@ -3525,6 +3525,22 @@ textarea {
   color: #02110d !important;
 }
 
+.sales-page .text-emerald-100,
+.sales-page .text-emerald-200,
+.sales-page .text-emerald-300,
+.sales-page .text-cyan-200,
+.sales-page .text-cyan-300 {
+  color: #00D2B2 !important;
+}
+
+.sales-page #precos .sales-plan-side {
+  display: none !important;
+}
+
+.sales-page #precos .lg\:grid-cols-\[1\.25fr_0\.75fr\] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
 @media (max-width: 767px) {
   .sales-page .sales-journey-section {
     display: none !important;

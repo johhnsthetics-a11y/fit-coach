@@ -140,7 +140,11 @@ const defaultLandingTextOverrides = [
   { id: 'plans-title', label: 'Planos: título', source: 'Comece hoje. Cresça no seu ritmo.', replacement: 'Comece hoje. Cresça no seu ritmo.', color: '#ffffff', enabled: true },
   { id: 'final-title', label: 'CTA final', source: 'Organize sua operação antes que sua agenda cresça mais do que seu controle.', replacement: 'Organize sua operação antes que sua agenda cresça mais do que seu controle.', color: '#ffffff', enabled: true },
 ]
+
+const ADMIN_SETTINGS_SCHEMA_VERSION = 20260715
+
 const defaultAppAdminSettings = {
+  schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
   salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
   salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
   salesCta: 'Começar por R$ 9,90',
@@ -180,18 +184,36 @@ const salesHeroHeadlines = [
 ]
 
 function normalizeAdminSettings(settings = {}) {
+  const settingsVersion = Number(settings.schemaVersion || 0)
+  const legacySettings = !settingsVersion || settingsVersion < ADMIN_SETTINGS_SCHEMA_VERSION
+  const safeSettings = { ...(settings || {}) }
+
+  if (legacySettings) {
+    delete safeSettings.salesHeadline
+    delete safeSettings.salesSubheadline
+    delete safeSettings.salesCta
+    delete safeSettings.announcement
+    delete safeSettings.salesTrustText
+    delete safeSettings.salesBackgroundColor
+    delete safeSettings.salesSurfaceColor
+    delete safeSettings.salesTextColor
+    delete safeSettings.ctaColor
+    delete safeSettings.ctaTextColor
+    delete safeSettings.headerBackgroundColor
+  }
+
   const defaultTextOverridesById = Object.fromEntries(defaultLandingTextOverrides.map((item) => [item.id, item]))
-  const incomingTextOverrides = Array.isArray(settings.landingTextOverrides) ? settings.landingTextOverrides : []
+  const incomingTextOverrides = Array.isArray(safeSettings.landingTextOverrides) ? safeSettings.landingTextOverrides : []
   const incomingTextOverridesById = Object.fromEntries(incomingTextOverrides.filter((item) => item?.id).map((item) => [item.id, item]))
   const customTextOverrides = incomingTextOverrides.filter((item) => item?.custom && item?.id && !defaultTextOverridesById[item.id])
   const landingTextOverrides = [
     ...defaultLandingTextOverrides.map((item) => ({
       ...item,
-      ...(incomingTextOverridesById[item.id] || {}),
-      source: incomingTextOverridesById[item.id]?.source || item.source,
-      replacement: incomingTextOverridesById[item.id]?.replacement ?? item.replacement,
-      color: incomingTextOverridesById[item.id]?.color || item.color,
-      enabled: incomingTextOverridesById[item.id]?.enabled ?? item.enabled,
+      ...(!legacySettings ? (incomingTextOverridesById[item.id] || {}) : {}),
+      source: !legacySettings ? (incomingTextOverridesById[item.id]?.source || item.source) : item.source,
+      replacement: !legacySettings ? (incomingTextOverridesById[item.id]?.replacement ?? item.replacement) : item.replacement,
+      color: !legacySettings ? (incomingTextOverridesById[item.id]?.color || item.color) : item.color,
+      enabled: !legacySettings ? (incomingTextOverridesById[item.id]?.enabled ?? item.enabled) : item.enabled,
     })),
     ...customTextOverrides.map((item) => ({
       id: item.id,
@@ -204,8 +226,8 @@ function normalizeAdminSettings(settings = {}) {
     })),
   ]
 
-  const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
-    ? settings.checkoutPlans.map((plan, index) => ({
+  const checkoutPlans = Array.isArray(safeSettings.checkoutPlans) && safeSettings.checkoutPlans.length
+    ? safeSettings.checkoutPlans.map((plan, index) => ({
       ...cartpandaCheckoutPlans[index],
       ...plan,
       highlights: Array.isArray(plan.highlights) ? plan.highlights : (typeof plan.highlights === 'string' ? plan.highlights.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.highlights || []),
@@ -245,7 +267,8 @@ function normalizeAdminSettings(settings = {}) {
 
   return {
     ...defaultAppAdminSettings,
-    ...settings,
+    ...safeSettings,
+    schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
     landingTextOverrides,
     checkoutPlans,
     featureFlags: {

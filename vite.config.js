@@ -20,6 +20,19 @@ export default defineConfig({
   plugins: [react(), removeCloudflareRedirects()],
   publicDir: 'public',
   build: {
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) {
+            return 'charts-vendor'
+          }
+          return undefined
+        },
+      },
+    },
   },
 })

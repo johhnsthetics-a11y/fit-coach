@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "node scripts/typecheck.mjs",
+    "test": "node scripts/smoke-test.mjs",
     "preview": "pnpm run build && pnpm dlx wrangler@4 dev",
     "deploy": "pnpm run build && pnpm dlx wrangler@4 deploy"
   },
