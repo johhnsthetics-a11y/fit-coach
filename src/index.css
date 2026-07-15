@@ -1873,7 +1873,18 @@ textarea {
 /* Final responsive polish for launch: keeps premium contrast without forcing cramped lines. */
 .sales-page .text-zinc-500,
 .sales-page .text-zinc-600 {
-  color: rgba(212, 212, 216, 0.72);
+  color: rgba(167, 243, 208, 0.82);
+}
+
+.sales-page .text-zinc-400 {
+  color: rgba(228, 228, 231, 0.82);
+}
+
+.sales-page p.text-sm.font-black.uppercase,
+.sales-page p.text-xs.font-black.uppercase,
+.sales-page .sales-journey-board-main > p,
+.sales-page .sales-journey-board-side > p {
+  color: rgba(110, 231, 183, 0.95);
 }
 
 .sales-page .sales-feature-card p,
@@ -2168,7 +2179,7 @@ textarea {
   .sales-page .sales-hero {
     gap: 1.1rem;
     padding-top: 1.1rem;
-    padding-bottom: 2rem;
+    padding-bottom: 1.35rem;
   }
 
   .sales-page .sales-rotating-headline {
@@ -2188,7 +2199,8 @@ textarea {
   }
 
   .sales-page .sales-hero-phone-wrap {
-    min-height: clamp(25.5rem, 110vw, 31rem);
+    min-height: clamp(27rem, 118vw, 32rem);
+    margin-bottom: 0.4rem;
   }
 
   .sales-page .sales-hero-phone-wrap::before {
@@ -2197,7 +2209,12 @@ textarea {
 
   .sales-page .sales-hero-phone-wrap .sales-phone-mockup {
     top: 2rem;
-    width: min(72vw, 252px);
+    width: min(68vw, 238px);
+  }
+
+  .sales-page .sales-phone-screen {
+    min-height: clamp(20.8rem, 88vw, 24.25rem);
+    padding-top: 42px;
   }
 
   .sales-page .sales-hero-phone-wrap .sales-hero-phone-1,
@@ -2258,11 +2275,11 @@ textarea {
   }
 
   .sales-page .sales-hero-phone-wrap {
-    min-height: 24.5rem;
+    min-height: 27rem;
   }
 
   .sales-page .sales-hero-phone-wrap .sales-phone-mockup {
-    width: min(76vw, 232px);
+    width: min(68vw, 218px);
   }
 }
 
@@ -2571,12 +2588,16 @@ textarea {
 
 @media (max-width: 767px) {
   .sales-page .sales-journey-section {
-    padding-top: 2.6rem;
-    padding-bottom: 2.6rem;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .sales-page .sales-journey-section > .grid {
+    gap: 1.05rem;
   }
 
   .sales-page .sales-journey-console {
-    border-radius: 24px;
+    border-radius: 22px;
   }
 
   .sales-page .sales-journey-tabs {
@@ -2602,17 +2623,66 @@ textarea {
   }
 
   .sales-page .sales-journey-panel {
-    gap: 1rem;
+    gap: 0.8rem;
+    padding: 0.75rem;
+  }
+
+  .sales-page .sales-journey-copy h3 {
+    margin-top: 0.55rem;
+    font-size: clamp(1.35rem, 6.5vw, 1.85rem) !important;
+  }
+
+  .sales-page .sales-journey-copy p {
+    margin-top: 0.65rem;
+    line-height: 1.55;
+  }
+
+  .sales-page .sales-journey-insight-card {
+    margin-top: 0.8rem;
     padding: 0.85rem;
+  }
+
+  .sales-page .sales-journey-insight-card p:last-child {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .sales-page .sales-journey-panel-bar,
   .sales-page .sales-journey-board {
-    padding: 0.85rem;
+    padding: 0.75rem;
   }
 
   .sales-page .sales-journey-board {
     grid-template-columns: 1fr;
+  }
+
+  .sales-page .sales-journey-board-main,
+  .sales-page .sales-journey-board-side {
+    padding: 0.85rem;
+    border-radius: 16px;
+  }
+
+  .sales-page .sales-journey-board-main h4 {
+    font-size: 1.25rem;
+    line-height: 1.15;
+  }
+
+  .sales-page .sales-journey-row {
+    padding: 0.56rem 0;
+    gap: 0.6rem;
+    font-size: 0.76rem;
+  }
+
+  .sales-page .sales-journey-row span:first-child {
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 10px;
+  }
+
+  .sales-page .sales-journey-board-side {
+    display: none;
   }
 
   .sales-page .sales-journey-events {
@@ -2625,6 +2695,14 @@ textarea {
     border-radius: 14px;
     padding: 0.68rem 0.72rem;
     font-size: 0.68rem;
+  }
+
+  .sales-page .sales-journey-section .md\:grid-cols-3 {
+    display: none;
+  }
+
+  .sales-page .sales-journey-section .flex.flex-col.justify-center {
+    display: none;
   }
 }
 
@@ -2989,6 +3067,262 @@ textarea {
   .sales-page .sales-journey-tab,
   .sales-page .sales-journey-progress > span,
   .sales-page .sales-journey-benefit {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Final mobile conversion polish: no floating purchase button, cleaner mockups and shorter app journey. */
+@media (max-width: 767px) {
+  .sales-mobile-sticky-cta {
+    display: none !important;
+  }
+
+  .sales-page .sales-hero {
+    gap: 0.75rem !important;
+    padding-bottom: 1.15rem !important;
+  }
+
+  .sales-page .sales-hero-device-mobile {
+    margin-top: 0.55rem !important;
+    margin-bottom: 0.65rem !important;
+  }
+
+  .sales-page .sales-hero-phone-wrap {
+    min-height: clamp(28rem, 126vw, 33rem) !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-phone-mockup {
+    width: min(66vw, 236px) !important;
+  }
+
+  .sales-page .sales-phone-screen {
+    min-height: clamp(20.5rem, 86vw, 24rem) !important;
+  }
+
+  .sales-page .sales-showcase-tabs {
+    bottom: 0.25rem !important;
+  }
+
+  .sales-page .sales-journey-section {
+    padding-top: 1.9rem !important;
+    padding-bottom: 1.9rem !important;
+  }
+
+  .sales-page .sales-journey-section > .grid {
+    gap: 1rem !important;
+  }
+
+  .sales-page .sales-journey-section .mx-auto.max-w-4xl p:not(:first-child) {
+    margin-top: 0.7rem;
+  }
+
+  .sales-page .sales-journey-section .mx-auto.max-w-4xl p:last-child {
+    display: none;
+  }
+
+  .sales-page .sales-journey-console {
+    border-radius: 22px !important;
+  }
+
+  .sales-page .sales-journey-panel {
+    gap: 0.7rem !important;
+    padding: 0.72rem !important;
+  }
+
+  .sales-page .sales-journey-copy h3 {
+    margin-top: 0.55rem !important;
+    font-size: clamp(1.35rem, 6.2vw, 1.72rem) !important;
+  }
+
+  .sales-page .sales-journey-copy p {
+    line-height: 1.5 !important;
+  }
+
+  .sales-page .sales-journey-insight-card {
+    margin-top: 0.75rem !important;
+    padding: 0.82rem !important;
+  }
+
+  .sales-page .sales-journey-board {
+    padding: 0.72rem !important;
+  }
+
+  .sales-page .sales-journey-board-main {
+    padding: 0.82rem !important;
+    border-radius: 16px !important;
+  }
+
+  .sales-page .sales-journey-board-side,
+  .sales-page .sales-journey-tags,
+  .sales-page .sales-journey-section .sales-journey-benefit,
+  .sales-page .sales-journey-section .flex.flex-col.justify-center {
+    display: none !important;
+  }
+
+  .sales-page .sales-journey-board-main h4 {
+    font-size: 1.22rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .sales-page .sales-journey-board-main > p:nth-of-type(2) {
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+
+  .sales-page .sales-journey-board-main .mt-5 {
+    margin-top: 0.75rem !important;
+  }
+
+  .sales-page .sales-journey-row {
+    padding: 0.5rem 0 !important;
+    font-size: 0.74rem !important;
+  }
+
+  .sales-page .sales-journey-events {
+    grid-template-columns: 1fr 1fr !important;
+    padding: 0 0.72rem 0.72rem !important;
+  }
+}
+
+/* Plans section: compact desktop cards and mobile swipe carousel. */
+.sales-page #precos .sales-plan-carousel {
+  align-items: stretch;
+}
+
+.sales-page #precos .sales-plan-option-card {
+  display: flex !important;
+  min-height: 100%;
+}
+
+.sales-page #precos .sales-plan-option-card details {
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.sales-page #precos .sales-plan-option-card details[open] {
+  border-color: rgba(110, 231, 183, 0.34);
+  background: rgba(16, 185, 129, 0.09);
+}
+
+.sales-plan-carousel-controls {
+  display: none;
+}
+
+.sales-plan-nav-button {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 231, 183, 0.22);
+  background: rgba(5, 18, 15, 0.82);
+  color: rgb(209, 250, 229);
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, opacity 180ms ease;
+}
+
+.sales-plan-nav-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(110, 231, 183, 0.5);
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.sales-plan-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.sales-plan-dot {
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 231, 183, 0.25);
+  background: rgba(255, 255, 255, 0.16);
+  transition: width 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.sales-plan-dot.is-active {
+  width: 1.65rem;
+  border-color: rgba(110, 231, 183, 0.8);
+  background: linear-gradient(90deg, #34d399, #00c7a8);
+}
+
+@media (min-width: 1024px) {
+  .sales-page #precos .sales-plan-carousel {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sales-page #precos .sales-plan-option-card {
+    height: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .sales-page #precos {
+    overflow-x: hidden;
+  }
+
+  .sales-page #precos .mx-auto.mt-7.grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .sales-page #precos .sales-plan-carousel {
+    display: flex !important;
+    gap: 0.9rem !important;
+    margin-inline: -1rem;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0 1rem 0.75rem;
+    scroll-padding-inline: 1rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sales-page #precos .sales-plan-carousel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sales-page #precos .sales-plan-option-card {
+    flex: 0 0 min(88vw, 24rem);
+    margin-top: 0 !important;
+    min-height: auto !important;
+    padding: 1.1rem !important;
+    scroll-snap-align: center;
+    transform: none;
+  }
+
+  .sales-page #precos .sales-plan-option-card.is-selected {
+    transform: translateY(-2px);
+  }
+
+  .sales-page #precos .sales-plan-option-card .text-5xl {
+    font-size: clamp(2.35rem, 12vw, 3.1rem) !important;
+  }
+
+  .sales-page #precos .sales-plan-option-card details:not([open]) {
+    max-height: none;
+  }
+
+  .sales-page #precos .sales-plan-option-card details summary {
+    min-height: 46px;
+  }
+
+  .sales-plan-carousel-controls {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page #precos .sales-plan-option-card,
+  .sales-plan-nav-button,
+  .sales-plan-dot {
     transition: none !important;
     animation: none !important;
   }

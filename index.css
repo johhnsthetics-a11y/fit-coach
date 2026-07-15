@@ -3186,3 +3186,144 @@ textarea {
     padding: 0 0.72rem 0.72rem !important;
   }
 }
+
+/* Plans section: compact desktop cards and mobile swipe carousel. */
+.sales-page #precos .sales-plan-carousel {
+  align-items: stretch;
+}
+
+.sales-page #precos .sales-plan-option-card {
+  display: flex !important;
+  min-height: 100%;
+}
+
+.sales-page #precos .sales-plan-option-card details {
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.sales-page #precos .sales-plan-option-card details[open] {
+  border-color: rgba(110, 231, 183, 0.34);
+  background: rgba(16, 185, 129, 0.09);
+}
+
+.sales-plan-carousel-controls {
+  display: none;
+}
+
+.sales-plan-nav-button {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 231, 183, 0.22);
+  background: rgba(5, 18, 15, 0.82);
+  color: rgb(209, 250, 229);
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, opacity 180ms ease;
+}
+
+.sales-plan-nav-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(110, 231, 183, 0.5);
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.sales-plan-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.sales-plan-dot {
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 999px;
+  border: 1px solid rgba(110, 231, 183, 0.25);
+  background: rgba(255, 255, 255, 0.16);
+  transition: width 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.sales-plan-dot.is-active {
+  width: 1.65rem;
+  border-color: rgba(110, 231, 183, 0.8);
+  background: linear-gradient(90deg, #34d399, #00c7a8);
+}
+
+@media (min-width: 1024px) {
+  .sales-page #precos .sales-plan-carousel {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sales-page #precos .sales-plan-option-card {
+    height: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .sales-page #precos {
+    overflow-x: hidden;
+  }
+
+  .sales-page #precos .mx-auto.mt-7.grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+
+  .sales-page #precos .sales-plan-carousel {
+    display: flex !important;
+    gap: 0.9rem !important;
+    margin-inline: -1rem;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0 1rem 0.75rem;
+    scroll-padding-inline: 1rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sales-page #precos .sales-plan-carousel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sales-page #precos .sales-plan-option-card {
+    flex: 0 0 min(88vw, 24rem);
+    margin-top: 0 !important;
+    min-height: auto !important;
+    padding: 1.1rem !important;
+    scroll-snap-align: center;
+    transform: none;
+  }
+
+  .sales-page #precos .sales-plan-option-card.is-selected {
+    transform: translateY(-2px);
+  }
+
+  .sales-page #precos .sales-plan-option-card .text-5xl {
+    font-size: clamp(2.35rem, 12vw, 3.1rem) !important;
+  }
+
+  .sales-page #precos .sales-plan-option-card details:not([open]) {
+    max-height: none;
+  }
+
+  .sales-page #precos .sales-plan-option-card details summary {
+    min-height: 46px;
+  }
+
+  .sales-plan-carousel-controls {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page #precos .sales-plan-option-card,
+  .sales-plan-nav-button,
+  .sales-plan-dot {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -2637,9 +2637,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
+  const planCarouselRef = useRef(null)
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
-  const [salesMobileCtaVisible, setSalesMobileCtaVisible] = useState(false)
-  const [salesMobileCtaDismissed, setSalesMobileCtaDismissed] = useState(false)
   const [journeyStepIndex, setJourneyStepIndex] = useState(0)
   const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
   const [legalModal, setLegalModal] = useState('')
@@ -2651,7 +2650,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   })
   const salesSettings = normalizeAdminSettings(appAdminSettings)
   const salesPlans = salesSettings.checkoutPlans
-  const selectedOfferPlan = salesPlans.find((plan) => plan.id === selectedOfferPlanId) || salesPlans[1] || salesPlans[0]
+  const orderedSalesPlans = useMemo(() => {
+    const preferredOrder = ['mensal', 'semestral', 'anual']
+    return [...salesPlans].sort((a, b) => {
+      const aIndex = preferredOrder.includes(a.id) ? preferredOrder.indexOf(a.id) : preferredOrder.length
+      const bIndex = preferredOrder.includes(b.id) ? preferredOrder.indexOf(b.id) : preferredOrder.length
+      return aIndex - bIndex
+    })
+  }, [salesPlans])
+  const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
+  const selectedOfferPlanIndex = Math.max(0, orderedSalesPlans.findIndex((plan) => plan.id === selectedOfferPlan.id))
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -2739,35 +2747,55 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block })
   }
 
+  function scrollOfferPlanIntoView(planId, behavior = 'smooth') {
+    const carousel = planCarouselRef.current
+    if (!carousel) return
+
+    const card = carousel.querySelector(`[data-plan-id="${planId}"]`)
+    if (!card) return
+
+    const left = card.offsetLeft - ((carousel.clientWidth - card.clientWidth) / 2)
+    carousel.scrollTo({ left: Math.max(0, left), behavior })
+  }
+
+  function selectOfferPlan(planId, behavior = 'smooth') {
+    setSelectedOfferPlanId(planId)
+    window.setTimeout(() => scrollOfferPlanIntoView(planId, behavior), 20)
+  }
+
+  function handlePlanCarouselScroll() {
+    const carousel = planCarouselRef.current
+    if (!carousel || window.innerWidth >= 768) return
+
+    const cards = [...carousel.querySelectorAll('[data-plan-id]')]
+    const center = carousel.scrollLeft + (carousel.clientWidth / 2)
+    const closest = cards.reduce((current, card) => {
+      const cardCenter = card.offsetLeft + (card.clientWidth / 2)
+      const distance = Math.abs(cardCenter - center)
+      return !current || distance < current.distance ? { id: card.dataset.planId, distance } : current
+    }, null)
+
+    if (closest?.id && closest.id !== selectedOfferPlanId) {
+      setSelectedOfferPlanId(closest.id)
+    }
+  }
+
+  function moveOfferPlan(direction) {
+    const nextIndex = Math.min(Math.max(selectedOfferPlanIndex + direction, 0), orderedSalesPlans.length - 1)
+    const nextPlan = orderedSalesPlans[nextIndex]
+    if (nextPlan) selectOfferPlan(nextPlan.id)
+  }
+
   useEffect(() => {
     captureLeadAttribution()
   }, [])
 
-
   useEffect(() => {
-    if (salesMobileCtaDismissed || isLoginRoute) {
-      setSalesMobileCtaVisible(false)
-      return undefined
-    }
+    if (window.innerWidth >= 768) return undefined
+    const timer = window.setTimeout(() => scrollOfferPlanIntoView('semestral', 'auto'), 120)
+    return () => window.clearTimeout(timer)
+  }, [orderedSalesPlans.length])
 
-    function updateMobileCta() {
-      const isMobile = window.innerWidth < 768
-      const pricing = document.getElementById('precos')
-      const pricingTop = pricing?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY
-      const passedHero = window.scrollY > Math.max(360, window.innerHeight * 0.62)
-      const nearPlans = pricingTop < window.innerHeight * 0.82
-      setSalesMobileCtaVisible(isMobile && passedHero && !nearPlans)
-    }
-
-    updateMobileCta()
-    window.addEventListener('scroll', updateMobileCta, { passive: true })
-    window.addEventListener('resize', updateMobileCta)
-
-    return () => {
-      window.removeEventListener('scroll', updateMobileCta)
-      window.removeEventListener('resize', updateMobileCta)
-    }
-  }, [isLoginRoute, salesMobileCtaDismissed])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -2926,7 +2954,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
           <button
             type="button"
-            onClick={() => scrollToSalesTarget('sales-page')}
+            onClick={() => {
+              if (isLoginRoute) {
+                window.location.href = '/'
+                return
+              }
+              scrollToSalesTarget('sales-page')
+            }}
             className="sales-header-logo-link"
             aria-label="Ir para o início da página Coach Fit Pro"
           >
@@ -2956,15 +2990,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </div>
       </header>
-
-      <div className={`sales-mobile-sticky-cta md:hidden ${salesMobileCtaVisible ? 'is-visible' : ''}`} aria-hidden={!salesMobileCtaVisible}>
-        <button type="button" onClick={() => scrollToSalesTarget('precos')} className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30">
-          Começar por R$ 9,90
-        </button>
-        <button type="button" onClick={() => setSalesMobileCtaDismissed(true)} className="rounded-2xl border border-white/10 bg-zinc-950/90 p-3 text-zinc-200" aria-label="Fechar chamada de assinatura">
-          <NavIcon name="close" className="h-5 w-5" />
-        </button>
-      </div>
 
       <main>
         <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-5 px-4 pb-7 pt-6 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.44fr)_minmax(560px,0.56fr)] lg:px-10 lg:pb-8 lg:pt-6 xl:gap-8">
@@ -3155,7 +3180,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <p className="text-sm font-black uppercase text-emerald-300">ACOMPANHAMENTO CONECTADO</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">Um painel. Toda a jornada do aluno.</h2>
               <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-zinc-300 sm:text-lg">
-                Do treino ao feedback, cada etapa fica conectada. O aluno sabe o que fazer e você sabe exatamente o que acompanhar e ajustar.
+                Do treino ao feedback, cada etapa fica conectada em uma rotina simples para o aluno e clara para o treinador.
               </p>
               <p className="mt-5 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-50">
                 O aluno recebe clareza. O treinador mantém o controle.
@@ -3205,7 +3230,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                   <h3 className="mt-4 text-2xl font-black leading-tight text-white sm:text-4xl">{activeJourneyStep.title}</h3>
                   <p className="mt-4 text-sm leading-7 text-zinc-300 sm:text-base">{activeJourneyStep.description}</p>
-                  <div className="mt-5 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.07] p-4">
+                  <div className="sales-journey-insight-card mt-5 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.07] p-4">
                     <p className="text-xs font-black uppercase text-emerald-100">Por que isso muda a entrega</p>
                     <p className="mt-2 text-sm leading-6 text-zinc-200">{activeJourneyStep.insight}</p>
                   </div>
@@ -3221,7 +3246,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                   <div className="sales-journey-board">
                     <div className="sales-journey-board-main">
-                      <p className="text-xs font-black uppercase text-zinc-400">Aluno demonstrativo</p>
+                      <p className="text-xs font-black uppercase text-emerald-200">Prévia do aluno</p>
                       <h4 className="mt-2 text-2xl font-black text-white">{activeJourneyStep.panelTitle}</h4>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">{activeJourneyStep.panelMeta}</p>
                       <div className="mt-5 grid gap-3">
@@ -3241,7 +3266,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                         <p className="text-lg font-black text-white">{activeJourneyStep.event}</p>
                         <p className="mt-2 text-sm leading-6 text-zinc-300">A etapa fica registrada no histórico do aluno e aparece para o treinador acompanhar.</p>
                       </div>
-                      <div className="mt-4 grid gap-2">
+                      <div className="sales-journey-tags mt-4 grid gap-2">
                         {['Histórico vinculado', 'Ação rastreável', 'Aluno orientado'].map((item) => (
                           <span key={item} className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-xs font-black text-emerald-50">
                             {item}
@@ -3641,7 +3666,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 ['★★★★★', '“Registrar carga e feedback deixou minha prescrição mais inteligente. Não dependo mais de lembrar tudo.”', 'Lucas A.', 'Treinador presencial'],
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-sm font-black text-emerald-100">{stars}</p>
+                  <p className="text-sm font-black text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.55)]">{stars}</p>
                   <p className="mt-4 text-sm leading-6 text-zinc-200">{quote}</p>
                   <div className="mt-5 border-t border-white/10 pt-4">
                     <p className="text-sm font-black text-white">{name}</p>
@@ -3673,7 +3698,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               ].map(([stars, quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-black text-emerald-200">{stars}</p>
+                    <p className="text-sm font-black text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.55)]">{stars}</p>
                     <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">5 estrelas</span>
                   </div>
                   <p className="mt-4 text-sm leading-6 text-zinc-200">“{quote}”</p>
@@ -3749,13 +3774,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </p>
 
               <div className="mx-auto mt-7 grid max-w-3xl gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30 sm:grid-cols-3">
-                {salesPlans.map((plan) => {
+                {orderedSalesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
                   return (
                     <button
                       key={plan.id}
                       type="button"
-                      onClick={() => setSelectedOfferPlanId(plan.id)}
+                      onClick={() => selectOfferPlan(plan.id)}
+                      aria-controls="sales-plan-carousel"
+                      aria-pressed={selected}
                       className={`min-h-16 rounded-xl px-3 py-3 text-left transition ${
                         selected
                           ? 'bg-emerald-400 text-zinc-950 shadow-xl shadow-emerald-950/35 ring-2 ring-emerald-200/40'
@@ -3781,13 +3808,22 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 })}
               </div>
 
-              <div className="mt-8 grid gap-5 lg:grid-cols-3">
-                {salesPlans.map((plan) => {
+              <div
+                id="sales-plan-carousel"
+                ref={planCarouselRef}
+                onScroll={handlePlanCarouselScroll}
+                className="sales-plan-carousel mt-8 grid gap-5 lg:grid-cols-3"
+                aria-label="Planos disponíveis do Coach Fit Pro"
+              >
+                {orderedSalesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
+                  const visibleHighlights = plan.highlights.slice(0, 3)
+                  const expandedBenefits = [...plan.highlights.slice(3), ...plan.activationPlan]
                   return (
                     <div
                       key={plan.id}
-                      className={`sales-plan-option-card ${selected ? 'is-selected' : ''} group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${plan.id === 'semestral' ? 'order-first lg:order-none' : ''} ${
+                      data-plan-id={plan.id}
+                      className={`sales-plan-option-card ${selected ? 'is-selected' : ''} group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${
                         selected
                           ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
                           : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/30 hover:bg-white/[0.055]'
@@ -3816,7 +3852,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                         <span className="mt-2 block text-sm leading-6 text-zinc-300">{plan.bestFor}</span>
                       </span>
                       <span className="relative mt-4 grid gap-2">
-                        {plan.highlights.slice(0, 5).map((item) => (
+                        {visibleHighlights.map((item) => (
                           <span key={item} className="flex items-start gap-2 text-sm leading-6 text-zinc-300">
                             <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
                             <span>{item}</span>
@@ -3825,11 +3861,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       </span>
                       <details className="relative mt-4 rounded-2xl border border-emerald-300/16 bg-emerald-300/[0.055]">
                         <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-black text-emerald-50">
-                          <span>O que acontece depois</span>
+                          <span>Ver todos os benefícios</span>
                           <span className="text-lg text-emerald-200">+</span>
                         </summary>
                         <div className="grid gap-2 border-t border-emerald-300/12 px-4 py-3">
-                          {plan.activationPlan.slice(0, 3).map((item, index) => (
+                          {expandedBenefits.map((item, index) => (
                             <span key={item} className="flex gap-3 text-xs font-semibold leading-5 text-zinc-200">
                               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-[10px] font-black text-zinc-950">{index + 1}</span>
                               <span>{item}</span>
@@ -3841,13 +3877,34 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                         <button type="button" onClick={() => startPlanSignup(plan.id)} className={`w-full rounded-2xl px-4 py-4 text-sm font-black transition active:scale-[0.98] ${selected ? 'bg-emerald-300 text-zinc-950 shadow-xl shadow-emerald-950/30' : 'border border-white/10 bg-white/[0.04] text-zinc-100 hover:border-emerald-300/40 hover:bg-emerald-300/10'}`}>
                           Escolher este plano
                         </button>
-                        <button type="button" onClick={() => setSelectedOfferPlanId(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
+                        <button type="button" onClick={() => selectOfferPlan(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
                           Ver detalhes
                         </button>
                       </span>
                     </div>
                   )
                 })}
+              </div>
+
+              <div className="sales-plan-carousel-controls mt-5 items-center justify-center gap-3" aria-label="Navegar pelos planos">
+                <button type="button" onClick={() => moveOfferPlan(-1)} className="sales-plan-nav-button" aria-label="Ver plano anterior" disabled={selectedOfferPlanIndex === 0}>
+                  {'‹'}
+                </button>
+                <div className="flex items-center gap-2">
+                  {orderedSalesPlans.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => selectOfferPlan(plan.id)}
+                      className={`sales-plan-dot ${selectedOfferPlan.id === plan.id ? 'is-active' : ''}`}
+                      aria-label={`Ver plano ${plan.name}`}
+                      aria-current={selectedOfferPlan.id === plan.id ? 'true' : undefined}
+                    />
+                  ))}
+                </div>
+                <button type="button" onClick={() => moveOfferPlan(1)} className="sales-plan-nav-button" aria-label="Ver próximo plano" disabled={selectedOfferPlanIndex >= orderedSalesPlans.length - 1}>
+                  {'›'}
+                </button>
               </div>
 
               <div className="mt-7 rounded-3xl border border-emerald-300/22 bg-gradient-to-br from-emerald-300/12 via-zinc-950/80 to-zinc-950 p-5 text-left shadow-2xl shadow-emerald-950/18 sm:p-6">
