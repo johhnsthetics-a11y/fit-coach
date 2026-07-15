@@ -144,9 +144,9 @@ const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
 const salesHeroHeadlines = [
   {
     id: 'rotina-profissional',
-    lead: 'Menos tempo em tarefas repetitivas.',
+    lead: 'Menos tarefas repetitivas.',
     focus: 'Mais tempo para atender e vender.',
-    proof: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
+    proof: 'Monte treinos em minutos, acompanhe seus alunos e valorize sua consultoria.',
   },
 ]
 
@@ -2835,14 +2835,14 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       </header>
 
       <main>
-        <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-8 px-4 pb-10 pt-8 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.84fr)_minmax(520px,1.16fr)] lg:px-10 lg:pb-14 lg:pt-10 xl:gap-12">
+        <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-5 px-4 pb-7 pt-6 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.44fr)_minmax(560px,0.56fr)] lg:px-10 lg:pb-8 lg:pt-6 xl:gap-8">
           <div className="min-w-0" data-reveal>
             <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-emerald-100">Para personal trainers, treinadores e consultorias on-line</p>
-            <h1 className="sales-rotating-headline mt-5 max-w-5xl text-4xl font-black leading-[0.96] sm:text-6xl lg:text-[5.25rem]" aria-live="polite">
+            <h1 className="sales-rotating-headline mt-4 max-w-5xl font-black" aria-live="polite">
               <span key={`lead-${activeHeroHeadline.id}`} className="sales-rotating-line">{activeHeroHeadline.lead}</span>
               <span key={`focus-${activeHeroHeadline.id}`} className="sales-rotating-focus mt-2 block bg-gradient-to-r from-emerald-100 via-emerald-300 to-cyan-100 bg-clip-text text-transparent">{activeHeroHeadline.focus}</span>
             </h1>
-            <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof mt-5 max-w-2xl text-base font-medium leading-7 text-zinc-300 sm:text-xl">
+            <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof mt-4 max-w-xl text-base font-medium leading-7 text-zinc-300 sm:text-lg">
               <span>{activeHeroHeadline.proof}</span>
               <span className="hidden">
               Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
@@ -2851,9 +2851,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="sales-hero-device-mobile mt-5 lg:hidden">
               <SalesPhoneShowcase />
             </div>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5 sm:w-auto">
-                {salesSettings.salesCta || 'Começar por R$ 9,90'}
+                Escolher meu plano
               </button>
               <button type="button" onClick={() => document.getElementById('app-aluno')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45 sm:w-auto">
                 Ver como funciona
@@ -4133,13 +4133,13 @@ function SalesPhoneShowcase() {
   const screens = [
     ['Início do aluno', 'Olá, aluno', 'Semana, água e desafios', 'Meta do dia em progresso', ['Treino concluído: +80 XP', 'Água 1,8L / 2,5L', 'Desafio semanal 3/5'], 'trophy', '+80 XP', 'ranking atualizado'],
     ['Treino de hoje', 'LEGS', 'Carga por exercício', 'Registrar série realizada', ['Agachamento: 80 kg', 'Leg press: 160 kg', 'Cadeira extensora: 45 kg'], 'dumbbell', 'Treino', 'em execução'],
-    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovações', 'Cobrança automática', ['R$ 8.940 recebidos', '32 renovações próximas', '94% pagos'], 'wallet', 'R$ 8.940', 'recebido no mês'],
+    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovações', 'Cobranças organizadas', ['Pagamentos confirmados', 'Renovações próximas', 'Pendências visíveis'], 'wallet', 'Financeiro', 'organizado'],
   ]
 
   const metrics = [
-    ['wallet', 'R$ 12.450', 'carteira organizada'],
-    ['trophy', '+34%', 'retenção estimada'],
-    ['dashboard', 'Um painel', 'treino, dieta e cobrança'],
+    ['dashboard', 'Painel único', 'treino, dieta e cobrança'],
+    ['trophy', 'Evolução', 'check-ins e progresso'],
+    ['message', 'Aluno ativo', 'rotina guiada no celular'],
   ]
 
   return (

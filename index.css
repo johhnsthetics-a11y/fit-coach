@@ -1957,3 +1957,233 @@ textarea {
     margin-inline: auto;
   }
 }
+
+/* Hero-only refinement: compact first fold with taller, more realistic app mockups. */
+.sales-page .sales-hero {
+  align-items: center;
+  overflow-x: clip;
+}
+
+.sales-page .sales-rotating-headline {
+  min-height: auto;
+  max-width: 46rem;
+  font-size: clamp(2.4rem, 7.5vw, 4.75rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.sales-page .sales-rotating-line,
+.sales-page .sales-rotating-focus {
+  max-width: 100%;
+}
+
+.sales-page .sales-rotating-proof {
+  max-width: 34rem;
+}
+
+.sales-page .sales-hero-phone-wrap {
+  min-height: clamp(31rem, 45vw, 41.5rem);
+}
+
+.sales-page .sales-hero-phone-wrap::before {
+  inset: 0.25rem 0 1.4rem;
+}
+
+.sales-page .sales-hero-phone-wrap .sales-phone-mockup {
+  top: clamp(1.8rem, 4vw, 3.1rem);
+  width: min(45%, 318px);
+}
+
+.sales-page .sales-hero-phone-wrap .sales-hero-phone-1,
+.sales-page .sales-hero-phone-wrap .sales-hero-phone-1:hover {
+  transform: translateX(-116%) translateY(34px) scale(0.98) rotate(-8deg);
+}
+
+.sales-page .sales-hero-phone-wrap .sales-hero-phone-2,
+.sales-page .sales-hero-phone-wrap .sales-hero-phone-2:hover {
+  transform: translateX(-50%) scale(1.22) rotate(0deg);
+}
+
+.sales-page .sales-hero-phone-wrap .sales-hero-phone-3,
+.sales-page .sales-hero-phone-wrap .sales-hero-phone-3:hover {
+  transform: translateX(15%) translateY(38px) scale(1) rotate(8deg);
+}
+
+.sales-page .sales-hero-phone-wrap .sales-phone-mockup.is-active,
+.sales-page .sales-hero-phone-wrap .sales-phone-mockup.is-active:hover {
+  transform: translateX(-50%) translateY(-4px) scale(1.24) rotate(0deg);
+}
+
+.sales-page .sales-phone-mockup {
+  border-radius: 46px;
+  padding: 10px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.045) 32%, rgba(0, 210, 178, 0.08)),
+    linear-gradient(90deg, #05070d, #111827 48%, #020617);
+  box-shadow:
+    0 30px 86px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 0 5px rgba(0, 0, 0, 0.58);
+}
+
+.sales-page .sales-phone-screen {
+  min-height: clamp(24.5rem, 37vw, 29rem);
+  border-radius: 36px;
+  padding-top: 46px;
+}
+
+.sales-page .sales-phone-screen::before {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  content: "";
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.14), transparent 18%, transparent 62%, rgba(255, 255, 255, 0.04)),
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.12), transparent 30%);
+  mix-blend-mode: screen;
+}
+
+@media (min-width: 1024px) {
+  .sales-page .sales-hero {
+    grid-template-columns: minmax(0, 0.44fr) minmax(560px, 0.56fr);
+    gap: clamp(1.25rem, 3vw, 2rem);
+    padding-top: clamp(1.5rem, 2.5vw, 2.2rem);
+    padding-bottom: clamp(1.8rem, 2.6vw, 2.5rem);
+  }
+
+  .sales-page .sales-rotating-headline {
+    font-size: clamp(3.25rem, 4.55vw, 4.75rem);
+    max-width: 44rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .sales-page .sales-hero {
+    grid-template-columns: minmax(0, 0.43fr) minmax(640px, 0.57fr);
+  }
+}
+
+@media (max-width: 1180px) {
+  .sales-page .sales-hero-phone-wrap {
+    min-height: clamp(30rem, 66vw, 38rem);
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-phone-mockup {
+    width: min(42vw, 292px);
+  }
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-hero {
+    gap: 1.1rem;
+    padding-top: 1.1rem;
+    padding-bottom: 2rem;
+  }
+
+  .sales-page .sales-rotating-headline {
+    font-size: clamp(2.35rem, 11.5vw, 3rem);
+    line-height: 1.01;
+    max-width: 100%;
+  }
+
+  .sales-page .sales-rotating-proof {
+    max-width: 100%;
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .sales-page .sales-hero-device-mobile {
+    margin-top: 0.95rem;
+  }
+
+  .sales-page .sales-hero-phone-wrap {
+    min-height: clamp(25.5rem, 110vw, 31rem);
+  }
+
+  .sales-page .sales-hero-phone-wrap::before {
+    inset: 0.25rem 0 1rem;
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-phone-mockup {
+    top: 2rem;
+    width: min(72vw, 252px);
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-hero-phone-1,
+  .sales-page .sales-hero-phone-wrap .sales-hero-phone-1:hover {
+    transform: translateX(-72%) translateY(22px) scale(0.82) rotate(-8deg);
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-hero-phone-2,
+  .sales-page .sales-hero-phone-wrap .sales-hero-phone-2:hover {
+    transform: translateX(-50%) scale(1.02);
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-hero-phone-3,
+  .sales-page .sales-hero-phone-wrap .sales-hero-phone-3:hover {
+    transform: translateX(-28%) translateY(28px) scale(0.82) rotate(8deg);
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-phone-mockup.is-active,
+  .sales-page .sales-hero-phone-wrap .sales-phone-mockup.is-active:hover {
+    transform: translateX(-50%) translateY(-2px) scale(1.04) rotate(0deg);
+  }
+
+  .sales-page .sales-showcase-metric {
+    min-width: 144px;
+    max-width: 168px;
+    gap: 7px;
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .sales-page .sales-showcase-metric strong {
+    font-size: 0.8rem;
+  }
+
+  .sales-page .sales-showcase-metric small {
+    font-size: 0.62rem;
+  }
+
+  .sales-page .sales-showcase-metric.metric-1 {
+    top: 18px;
+    left: 0;
+  }
+
+  .sales-page .sales-showcase-metric.metric-2 {
+    top: 74px;
+    right: 0;
+  }
+
+  .sales-page .sales-showcase-metric.metric-3 {
+    right: 4%;
+    bottom: 38px;
+  }
+}
+
+@media (max-width: 360px) {
+  .sales-page .sales-rotating-headline {
+    font-size: clamp(2.15rem, 11vw, 2.55rem);
+  }
+
+  .sales-page .sales-hero-phone-wrap {
+    min-height: 24.5rem;
+  }
+
+  .sales-page .sales-hero-phone-wrap .sales-phone-mockup {
+    width: min(76vw, 232px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page .sales-phone-mockup,
+  .sales-page .sales-showcase-metric,
+  .sales-page .sales-floating-badge,
+  .sales-page .sales-showcase-tab {
+    transition: none !important;
+    animation: none !important;
+  }
+}
