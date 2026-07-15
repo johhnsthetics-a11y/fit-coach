@@ -3124,7 +3124,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5 sm:w-auto">
                 Escolher meu plano
               </button>
-              <button type="button" onClick={() => document.getElementById('app-aluno')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45 sm:w-auto">
+              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45 sm:w-auto">
                 Ver como funciona
               </button>
             </div>
