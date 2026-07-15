@@ -3105,6 +3105,38 @@ textarea {
     min-height: clamp(20.5rem, 86vw, 24rem) !important;
   }
 
+  .sales-page .sales-hero-phone-wrap {
+    overflow: hidden !important;
+    padding-inline: 0.15rem !important;
+  }
+
+  .sales-page .sales-phone-mockup {
+    border-radius: 42px !important;
+    padding: 8px !important;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.045) 30%, rgba(0, 210, 178, 0.08)),
+      linear-gradient(180deg, #111827, #020617 62%, #020617) !important;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+      inset 0 0 0 3px rgba(0, 0, 0, 0.75),
+      0 26px 70px rgba(0, 0, 0, 0.58),
+      0 0 34px rgba(0, 210, 178, 0.2) !important;
+  }
+
+  .sales-page .sales-phone-screen {
+    border-radius: 34px !important;
+    background:
+      linear-gradient(180deg, rgba(0, 210, 178, 0.13), rgba(3, 7, 18, 0.16) 26%, rgba(3, 7, 18, 0.96)),
+      radial-gradient(circle at 50% 0%, rgba(0, 210, 178, 0.2), transparent 42%),
+      #050807 !important;
+  }
+
+  .sales-page .sales-floating-badge.left,
+  .sales-page .sales-floating-badge.right,
+  .sales-page .sales-showcase-metric {
+    display: none !important;
+  }
+
   .sales-page .sales-showcase-tabs {
     bottom: 0.25rem !important;
   }
