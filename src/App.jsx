@@ -2921,7 +2921,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const activeJourneyStep = studentJourneySteps[journeyStepIndex] || studentJourneySteps[0]
   const salesHeaderNavItems = [
     ['Solução', 'recursos'],
-    ['Aplicativo', 'app-aluno'],
+    ['Aplicativo', 'experiencia-aluno'],
     ['Resultados', 'simulador'],
     ['Planos', 'precos'],
     ['Dúvidas', 'duvidas'],
