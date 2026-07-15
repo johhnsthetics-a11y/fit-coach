@@ -2638,7 +2638,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
-  const [salesMenuOpen, setSalesMenuOpen] = useState(false)
+  const [salesMobileCtaVisible, setSalesMobileCtaVisible] = useState(false)
+  const [salesMobileCtaDismissed, setSalesMobileCtaDismissed] = useState(false)
   const [journeyStepIndex, setJourneyStepIndex] = useState(0)
   const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
   const [legalModal, setLegalModal] = useState('')
@@ -2722,11 +2723,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   ]
   const activeJourneyStep = studentJourneySteps[journeyStepIndex] || studentJourneySteps[0]
   const salesHeaderNavItems = [
-    ['SoluÃ§Ã£o', 'recursos'],
+    ['Solução', 'recursos'],
     ['Aplicativo', 'app-aluno'],
     ['Resultados', 'simulador'],
     ['Planos', 'precos'],
-    ['DÃºvidas', 'duvidas'],
+    ['Dúvidas', 'duvidas'],
   ]
 
   function selectJourneyStep(index) {
@@ -2735,13 +2736,38 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   function scrollToSalesTarget(target, block = 'start') {
-    setSalesMenuOpen(false)
     document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block })
   }
 
   useEffect(() => {
     captureLeadAttribution()
   }, [])
+
+
+  useEffect(() => {
+    if (salesMobileCtaDismissed || isLoginRoute) {
+      setSalesMobileCtaVisible(false)
+      return undefined
+    }
+
+    function updateMobileCta() {
+      const isMobile = window.innerWidth < 768
+      const pricing = document.getElementById('precos')
+      const pricingTop = pricing?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY
+      const passedHero = window.scrollY > Math.max(360, window.innerHeight * 0.62)
+      const nearPlans = pricingTop < window.innerHeight * 0.82
+      setSalesMobileCtaVisible(isMobile && passedHero && !nearPlans)
+    }
+
+    updateMobileCta()
+    window.addEventListener('scroll', updateMobileCta, { passive: true })
+    window.addEventListener('resize', updateMobileCta)
+
+    return () => {
+      window.removeEventListener('scroll', updateMobileCta)
+      window.removeEventListener('resize', updateMobileCta)
+    }
+  }, [isLoginRoute, salesMobileCtaDismissed])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -2843,7 +2869,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [])
 
   function openAccess(nextMode) {
-    setSalesMenuOpen(false)
     if (!isLoginRoute) {
       window.location.href = `/login?mode=${nextMode}`
       return
@@ -2903,12 +2928,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             type="button"
             onClick={() => scrollToSalesTarget('sales-page')}
             className="sales-header-logo-link"
-            aria-label="Ir para o inicio da pagina Coach Fit Pro"
+            aria-label="Ir para o inÃ­cio da pÃ¡gina Coach Fit Pro"
           >
             <BrandLockup compact subtitle="Coach Fit Pro" />
           </button>
 
-          <nav className="sales-header-nav hidden items-center justify-center gap-1 text-sm font-black text-zinc-300 lg:flex" aria-label="Navegacao principal">
+          <nav className="sales-header-nav hidden items-center justify-center gap-1 text-sm font-black text-zinc-300 lg:flex" aria-label="NavegaÃ§Ã£o principal">
             {salesHeaderNavItems.map(([label, target]) => (
               <button
                 key={target}
@@ -2922,47 +2947,24 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </nav>
 
           <div className="sales-header-actions flex items-center justify-end gap-2">
-            <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white lg:inline-flex">
+            <button type="button" onClick={() => openAccess('signin')} className="rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
               Entrar
             </button>
             <button type="button" onClick={() => scrollToSalesTarget('precos')} className="hidden rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 lg:inline-flex">
-              Começar por R$ 9,90
+              ComeÃ§ar por R$ 9,90
             </button>
-            <button
-              type="button"
-              className="sales-mobile-menu-button inline-flex items-center justify-center rounded-xl border border-emerald-300/20 bg-white/[0.045] p-3 text-emerald-50 transition hover:border-emerald-300/45 hover:bg-emerald-300/10 lg:hidden"
-              onClick={() => setSalesMenuOpen((current) => !current)}
-              aria-label={salesMenuOpen ? 'Fechar menu' : 'Abrir menu'}
-              aria-expanded={salesMenuOpen}
-              aria-controls="sales-mobile-menu"
-            >
-              <NavIcon name={salesMenuOpen ? 'close' : 'menu'} className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-        <div id="sales-mobile-menu" className={`sales-mobile-menu lg:hidden ${salesMenuOpen ? 'is-open' : ''}`}>
-          <div className="mx-auto grid max-w-[1280px] gap-2 px-4 pb-4 sm:px-6">
-            {salesHeaderNavItems.map(([label, target]) => (
-              <button
-                key={target}
-                type="button"
-                onClick={() => scrollToSalesTarget(target)}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10"
-              >
-                {label}
-              </button>
-            ))}
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button type="button" onClick={() => openAccess('signin')} className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-white/[0.07]">
-                Entrar
-              </button>
-              <button type="button" onClick={() => scrollToSalesTarget('precos')} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:bg-emerald-300">
-                Começar por R$ 9,90
-              </button>
-            </div>
           </div>
         </div>
       </header>
+
+      <div className={`sales-mobile-sticky-cta md:hidden ${salesMobileCtaVisible ? 'is-visible' : ''}`} aria-hidden={!salesMobileCtaVisible}>
+        <button type="button" onClick={() => scrollToSalesTarget('precos')} className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30">
+          ComeÃ§ar por R$ 9,90
+        </button>
+        <button type="button" onClick={() => setSalesMobileCtaDismissed(true)} className="rounded-2xl border border-white/10 bg-zinc-950/90 p-3 text-zinc-200" aria-label="Fechar chamada de assinatura">
+          <NavIcon name="close" className="h-5 w-5" />
+        </button>
+      </div>
 
       <main>
         <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-5 px-4 pb-7 pt-6 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.44fr)_minmax(560px,0.56fr)] lg:px-10 lg:pb-8 lg:pt-6 xl:gap-8">
@@ -3785,7 +3787,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   return (
                     <div
                       key={plan.id}
-                      className={`group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${plan.id === 'semestral' ? 'order-first lg:order-none' : ''} ${
+                      className={`sales-plan-option-card ${selected ? 'is-selected' : ''} group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${plan.id === 'semestral' ? 'order-first lg:order-none' : ''} ${
                         selected
                           ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
                           : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/30 hover:bg-white/[0.055]'
