@@ -3478,12 +3478,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Quem usa, recomenda</p>
+              <p className="text-sm font-black uppercase text-emerald-200">Prova social que aumenta confiança</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Experiências que refletem a rotina de quem atende alunos.
+                Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.
               </h2>
               <p className="mt-4 text-base leading-7 text-zinc-300">
-                Exemplos ilustrativos de como a plataforma pode organizar a rotina de treinadores. Substitua por avaliações reais e autorizadas antes de campanhas comerciais.
+                O Coach Fit Pro foi pensado para transformar tarefas espalhadas em uma experiência profissional: o aluno entende o que fazer, o treinador enxerga o que está acontecendo e a consultoria passa a parecer tão premium quanto o método entregue.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
