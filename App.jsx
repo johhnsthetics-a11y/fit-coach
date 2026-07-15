@@ -2638,6 +2638,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
+  const [journeyStepIndex, setJourneyStepIndex] = useState(0)
+  const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
   const [legalModal, setLegalModal] = useState('')
   const [revenueScenario, setRevenueScenario] = useState({
     students: 20,
@@ -2655,6 +2657,74 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const projectedIncrease = projectedRevenue - currentRevenue
   const projectedPercent = currentRevenue ? Math.round((projectedIncrease / currentRevenue) * 100) : 0
   const activeHeroHeadline = salesHeroHeadlines[heroHeadlineIndex % salesHeroHeadlines.length]
+  const studentJourneySteps = [
+    {
+      label: 'Treino enviado',
+      icon: 'dumbbell',
+      title: 'Prescrição clara e organizada.',
+      description: 'O aluno recebe exercícios, séries, repetições, cargas, descanso e orientações em um único lugar.',
+      event: 'Treino enviado',
+      status: 'Novo plano ativo',
+      panelTitle: 'Treino C · Pernas',
+      panelMeta: '7 exercícios · foco em quadríceps e posterior',
+      items: ['Agachamento livre · 4x10 · 80 kg', 'Leg press · 4x12 · 160 kg', 'Cadeira extensora · 3x12 · 45 kg'],
+      insight: 'Orientações, descanso e cargas ficam no mesmo fluxo do aluno.',
+    },
+    {
+      label: 'Execução registrada',
+      icon: 'activity',
+      title: 'Cada treino gera informação.',
+      description: 'O aluno registra sua execução e o treinador acompanha cargas, repetições e desempenho.',
+      event: 'Carga atualizada',
+      status: 'Registro recebido',
+      panelTitle: 'Execução do treino',
+      panelMeta: 'Séries concluídas, carga e percepção de esforço',
+      items: ['Agachamento · 80 kg · 10/10/9/8 reps', 'RPE médio 8 · descanso 90s', 'Observação: manter carga no próximo treino'],
+      insight: 'Histórico de carga ajuda o treinador a decidir progressões com mais segurança.',
+    },
+    {
+      label: 'Check-in recebido',
+      icon: 'check',
+      title: 'Evolução sem depender de mensagens espalhadas.',
+      description: 'Fotos, medidas, respostas e observações ficam organizadas no histórico do aluno.',
+      event: 'Check-in recebido',
+      status: 'Feedback semanal',
+      panelTitle: 'Check-in semanal',
+      panelMeta: 'Sono, rotina, dores, medidas e observações',
+      items: ['Sono: 7h · energia boa', 'Fadiga: moderada · dor: baixa', 'Fotos e medidas anexadas ao histórico'],
+      insight: 'O treinador enxerga contexto antes de ajustar treino ou alimentação.',
+    },
+    {
+      label: 'Ajuste realizado',
+      icon: 'settings',
+      title: 'Decisões mais rápidas e personalizadas.',
+      description: 'Com todas as informações centralizadas, o treinador ajusta treino e acompanhamento com mais segurança.',
+      event: 'Feedback enviado',
+      status: 'Ajuste publicado',
+      panelTitle: 'Atualização do plano',
+      panelMeta: 'Nova meta definida pelo treinador',
+      items: ['Aumentar repetições no leg press', 'Manter carga no agachamento', 'Adicionar observação técnica no treino'],
+      insight: 'O aluno recebe a atualização sem perder o histórico do que já foi feito.',
+    },
+    {
+      label: 'Evolução acompanhada',
+      icon: 'chart',
+      title: 'Valor que o aluno consegue perceber.',
+      description: 'O histórico transforma pequenas evoluções em uma experiência profissional e aumenta a percepção de acompanhamento.',
+      event: 'Evolução acompanhada',
+      status: 'Progresso visível',
+      panelTitle: 'Linha de evolução',
+      panelMeta: 'Treino, check-in, carga e feedback conectados',
+      items: ['Frequência: 4 treinos na semana', 'Carga total em alta no ciclo', 'Feedback mensal pronto para revisão'],
+      insight: 'A entrega fica visível, organizada e fácil de justificar na renovação.',
+    },
+  ]
+  const activeJourneyStep = studentJourneySteps[journeyStepIndex] || studentJourneySteps[0]
+
+  function selectJourneyStep(index) {
+    setJourneyUserInteracted(true)
+    setJourneyStepIndex(index)
+  }
 
   useEffect(() => {
     captureLeadAttribution()
@@ -2667,6 +2737,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (journeyUserInteracted) return undefined
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
+
+    const timer = window.setInterval(() => {
+      setJourneyStepIndex((current) => (current + 1) % studentJourneySteps.length)
+    }, 5000)
+
+    return () => window.clearInterval(timer)
+  }, [journeyUserInteracted, studentJourneySteps.length])
 
   useEffect(() => {
     const page = document.getElementById('sales-page')
@@ -3017,96 +3098,143 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
-        <section id="app-aluno" className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
-            <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Visual de aplicativo</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Mostre ao aluno que ele está dentro de um acompanhamento premium.</h2>
-              <p className="mt-4 leading-7 text-zinc-400">
-                As telas foram pensadas para celular, com ações simples, feedback visual e informação separada por contexto. O aluno abre, entende o que precisa fazer e registra a rotina sem se perder.
+        <section id="app-aluno" className="sales-section sales-journey-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="grid gap-8">
+            <div data-reveal className="mx-auto max-w-4xl text-center">
+              <p className="text-sm font-black uppercase text-emerald-300">ACOMPANHAMENTO CONECTADO</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">Um painel. Toda a jornada do aluno.</h2>
+              <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-zinc-300 sm:text-lg">
+                Do treino ao feedback, cada etapa fica conectada. O aluno sabe o que fazer e você sabe exatamente o que acompanhar e ajustar.
               </p>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {[
-                  ['Treino guiado', 'Iniciar treino, pausar, registrar carga e concluir.'],
-                  ['Dieta clara', 'Refeições, macros e substituições equivalentes.'],
-                  ['Check-ins', 'Fotos, medidas e feedbacks organizados.'],
-                  ['Chat direto', 'Conversa em tempo real com envio de fotos.'],
-                  ['Evolução registrada', 'Histórico visual para decisões melhores.'],
-                  ['Rotina organizada', 'Meta de água, calendário e desafios semanais.'],
-                ].map(([title, text]) => (
-                <div key={title} className="sales-mini-card rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.09] p-4 shadow-lg shadow-emerald-950/15">
-                    <p className="text-sm font-black text-emerald-50">{title}</p>
-                    <p className="mt-1 text-xs font-semibold leading-5 text-zinc-200">{text}</p>
-                  </div>
-                ))}
-              </div>
+              <p className="mt-5 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-50">
+                O aluno recebe clareza. O treinador mantém o controle.
+              </p>
             </div>
-            <div data-reveal className="sales-phone-stage grid gap-2 sm:grid-cols-3">
-              {[
-                ['Hoje', 'Olá, Élinton', 'Calendário semanal · meta do dia', 'Desafio semanal 3/5', ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], 'trophy', '+80 XP', 'ranking atualizado'],
-                ['Treino', 'Treino C', 'Legs · 7 exercícios', 'Treino iniciado · 23:14', ['Agachamento 4x10', 'Leg press 4x12', 'Cadeira flexora 3x12'], 'dumbbell', 'Treino', 'enviado'],
-                ['Chat e check-in', 'Feedback enviado', 'Conversa direta com o coach', 'Foto e evolução recebidas', ['Foto enviada', 'Dúvida respondida', 'Plano alimentar ativo'], 'message', 'Check-in', 'recebido'],
-              ].map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => (
-                <div key={title} className={`sales-phone-mockup ${index === 1 ? 'sm:mt-8' : ''}`}>
-                  <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
-                      <NavIcon name={floatingIcon} className="h-4 w-4" />
-                    </span>
-                    <span>
-                      <strong>{floatingTitle}</strong>
-                      <small>{floatingText}</small>
-                    </span>
-                  </div>
-                  <div className="sales-phone-screen">
-                    <div className="sales-phone-statusbar" aria-hidden="true">
-                      <span>09:30</span>
-                      <span className="sales-phone-status-icons">
-                        <span className="sales-signal" />
-                        <span className="sales-wifi" />
-                        <span className="sales-battery" />
+
+            <div data-reveal className="sales-journey-console sales-interactive">
+              <div className="sales-journey-tabs" role="tablist" aria-label="Etapas da jornada do aluno">
+                {studentJourneySteps.map((step, index) => {
+                  const active = journeyStepIndex === index
+                  return (
+                    <button
+                      key={step.label}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      aria-controls="sales-journey-panel"
+                      id={`sales-journey-tab-${index}`}
+                      onClick={() => selectJourneyStep(index)}
+                      className={`sales-journey-tab ${active ? 'is-active' : ''}`}
+                    >
+                      <span className="sales-journey-tab-index">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="sales-journey-tab-icon">
+                        <NavIcon name={step.icon} className="h-4 w-4" />
                       </span>
-                    </div>
-                    <div className="sales-phone-notch" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">app aluno</span>
-                    </div>
-                    <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
-                    <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
-                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/25 to-emerald-300/10 p-3">
-                      <p className="text-xs font-black text-emerald-100">{action}</p>
-                      <div className="mt-3 h-2 rounded-full bg-zinc-800">
-                        <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${62 + index * 11}%` }} />
+                      <span className="sales-journey-tab-label">{step.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="sales-journey-progress" aria-hidden="true">
+                <span style={{ width: `${((journeyStepIndex + 1) / studentJourneySteps.length) * 100}%` }} />
+              </div>
+
+              <div
+                id="sales-journey-panel"
+                role="tabpanel"
+                aria-labelledby={`sales-journey-tab-${journeyStepIndex}`}
+                className="sales-journey-panel"
+                key={activeJourneyStep.label}
+              >
+                <div className="sales-journey-copy">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="sales-journey-live-dot" />
+                    <span className="text-xs font-black uppercase text-emerald-200">{activeJourneyStep.status}</span>
+                  </div>
+                  <h3 className="mt-4 text-2xl font-black leading-tight text-white sm:text-4xl">{activeJourneyStep.title}</h3>
+                  <p className="mt-4 text-sm leading-7 text-zinc-300 sm:text-base">{activeJourneyStep.description}</p>
+                  <div className="mt-5 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.07] p-4">
+                    <p className="text-xs font-black uppercase text-emerald-100">Por que isso muda a entrega</p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-200">{activeJourneyStep.insight}</p>
+                  </div>
+                </div>
+
+                <div className="sales-journey-product-panel" aria-label={`Prévia do Coach Fit Pro: ${activeJourneyStep.label}`}>
+                  <div className="sales-journey-panel-bar">
+                    <span className="flex items-center gap-2 text-xs font-black uppercase text-emerald-100">
+                      <NavIcon name={activeJourneyStep.icon} className="h-4 w-4" />
+                      {activeJourneyStep.label}
+                    </span>
+                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-black text-emerald-100">Coach Fit Pro</span>
+                  </div>
+                  <div className="sales-journey-board">
+                    <div className="sales-journey-board-main">
+                      <p className="text-xs font-black uppercase text-zinc-400">Aluno demonstrativo</p>
+                      <h4 className="mt-2 text-2xl font-black text-white">{activeJourneyStep.panelTitle}</h4>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">{activeJourneyStep.panelMeta}</p>
+                      <div className="mt-5 grid gap-3">
+                        {activeJourneyStep.items.map((item) => (
+                          <div key={item} className="sales-journey-row">
+                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-300/12 text-emerald-100">
+                              <NavIcon name="check" className="h-4 w-4" />
+                            </span>
+                            <span>{item}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="mt-4 grid gap-2">
-                      {rows.map((row) => (
-                        <div key={row} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
-                          <span className="text-[10px] font-bold text-zinc-200">{row}</span>
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="sales-phone-bottom-nav">
-                      {[
-                        ['dashboard', 'Início'],
-                        ['wallet', 'Fatura'],
-                        ['message', 'Chat'],
-                        ['menu', 'Menu'],
-                      ].map(([icon, label]) => (
-                        <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
-                          <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
-                          {label}
-                        </span>
-                      ))}
+                    <div className="sales-journey-board-side">
+                      <p className="text-xs font-black uppercase text-zinc-400">Próxima ação</p>
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+                        <p className="text-lg font-black text-white">{activeJourneyStep.event}</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">A etapa fica registrada no histórico do aluno e aparece para o treinador acompanhar.</p>
+                      </div>
+                      <div className="mt-4 grid gap-2">
+                        {['Histórico vinculado', 'Ação rastreável', 'Aluno orientado'].map((item) => (
+                          <span key={item} className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-xs font-black text-emerald-50">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="sales-journey-events" aria-hidden="true">
+                {['Treino concluído', 'Check-in recebido', 'Carga atualizada', 'Feedback enviado'].map((event, index) => (
+                  <span key={event} className={`sales-journey-event event-${index + 1}`}>
+                    <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                    {event}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div data-reveal className="grid gap-3 md:grid-cols-3">
+              {[
+                ['Tudo centralizado', 'Treinos, check-ins, evolução e comunicação.'],
+                ['Histórico contínuo', 'Cada atualização permanece vinculada ao aluno.'],
+                ['Mais valor percebido', 'Uma experiência que demonstra acompanhamento profissional.'],
+              ].map(([title, text]) => (
+                <div key={title} className="sales-journey-benefit rounded-2xl border border-emerald-300/18 bg-white/[0.035] p-5">
+                  <p className="text-base font-black text-white">{title}</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">{text}</p>
+                </div>
               ))}
+            </div>
+
+            <div data-reveal className="flex flex-col justify-center gap-3 sm:flex-row">
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5">
+                Começar por R$ 9,90
+              </button>
+              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45">
+                Ver como funciona
+              </button>
             </div>
           </div>
         </section>
-
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
@@ -13320,6 +13448,7 @@ function NavIcon({ name, className = '' }) {
     star: <><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" /></>,
     shield: <><path d="M12 3 19 6v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3Z" /><path d="m9 12 2 2 4-5" /></>,
     check: <><path d="m20 6-11 11-5-5" /></>,
+    activity: <><path d="M22 12h-4l-3 8-6-16-3 8H2" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
     menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
