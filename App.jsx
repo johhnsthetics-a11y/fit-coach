@@ -6402,7 +6402,18 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
   const studentLogs = workoutLogs.filter((log) => String(log.studentId) === String(selectedStudent?.id))
 
   return (
-    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
+    <>
+    <MobileWorkoutManager
+      selectedStudent={selectedStudent}
+      students={students}
+      workouts={workouts}
+      studentWorkouts={studentWorkouts}
+      exerciseLibraryItems={availableExerciseLibrary}
+      onSaveWorkout={onSaveWorkout}
+      onArchiveWorkout={onArchiveWorkout}
+    />
+
+    <div className="hidden gap-4 md:grid lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
       <div className="xl:col-span-2">
         <ExpressCreationModule
           selectedStudent={selectedStudent}
@@ -6448,7 +6459,635 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
         <WorkoutLogList logs={studentLogs} />
       </Panel>
     </div>
+    </>
   )
+}
+
+function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+  const [tab, setTab] = useState('library')
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('todos')
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState(studentWorkouts[0]?.id || workouts.find((workout) => workout.active !== false)?.id || '')
+  const [selectedStudentId, setSelectedStudentId] = useState(selectedStudent?.id || students[0]?.id || '')
+  const [expandedDay, setExpandedDay] = useState(0)
+  const [showCreator, setShowCreator] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [draft, setDraft] = useState(() => createMobileWorkoutDraft(selectedStudent, availableExerciseLibrary))
+
+  useEffect(() => {
+    setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
+  }, [selectedStudent?.id, students])
+
+  useEffect(() => {
+    if (studentWorkouts[0]?.id) setSelectedWorkoutId(studentWorkouts[0].id)
+  }, [studentWorkouts])
+
+  const activeWorkouts = useMemo(
+    () => (workouts || []).filter((workout) => workout.active !== false),
+    [workouts],
+  )
+  const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
+  const selectedWorkout = activeWorkouts.find((workout) => String(workout.id) === String(selectedWorkoutId)) || studentWorkouts[0] || filteredWorkouts[0] || activeWorkouts[0] || null
+  const selectedWorkoutDays = useMemo(() => buildMobileWorkoutDays(selectedWorkout, availableExerciseLibrary), [selectedWorkout, availableExerciseLibrary])
+  const studentWorkoutRows = useMemo(
+    () => students.map((student) => {
+      const assigned = activeWorkouts.filter((workout) => String(workout.studentId) === String(student.id))
+      const latest = assigned[0] || null
+      return { student, assigned, latest }
+    }),
+    [students, activeWorkouts],
+  )
+  const filteredStudentRows = useMemo(() => {
+    const normalized = normalizeText(search)
+    return studentWorkoutRows.filter(({ student, latest }) => {
+      const matchesSearch = !normalized || normalizeText(student.name).includes(normalized) || normalizeText(latest?.title || '').includes(normalized)
+      if (!matchesSearch) return false
+      if (filter === 'sem-treino') return !latest
+      if (filter === 'com-treino') return Boolean(latest)
+      return true
+    })
+  }, [studentWorkoutRows, search, filter])
+
+  function resetDraftFromWorkout(workout = null) {
+    const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+    setDraft({
+      title: workout?.title ? `${workout.title} - cópia` : 'Novo treino',
+      focus: workout?.focus || selectedStudent?.goal || 'Hipertrofia',
+      level: workout?.level || selectedStudent?.level || 'Intermediário',
+      frequency: inferWorkoutFrequency(workout),
+      status: 'Rascunho',
+      days: days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : createDefaultWorkoutDays(availableExerciseLibrary),
+    })
+    setShowCreator(true)
+    setTab('library')
+    setMessage(workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : '')
+  }
+
+  function updateDraft(field, value) {
+    setDraft((current) => ({ ...current, [field]: value }))
+    setError('')
+  }
+
+  function updateDraftDay(dayIndex, field, value) {
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => index === dayIndex ? { ...day, [field]: value } : day),
+    }))
+  }
+
+  function addDraftDay() {
+    setDraft((current) => ({
+      ...current,
+      days: [...current.days, { id: Date.now(), day: 'Novo dia', focus: 'Foco do treino', exercises: [createExerciseDraft('Supino reto com barra', {}, availableExerciseLibrary)] }],
+    }))
+    setExpandedDay(draft.days.length)
+  }
+
+  function duplicateDraftDay(dayIndex) {
+    setDraft((current) => {
+      const day = current.days[dayIndex]
+      if (!day) return current
+      const copy = { ...day, id: Date.now(), day: `${day.day} - cópia`, exercises: day.exercises.map((exercise) => ({ ...exercise, id: `${exercise.id || exercise.name}-${Date.now()}` })) }
+      return { ...current, days: [...current.days.slice(0, dayIndex + 1), copy, ...current.days.slice(dayIndex + 1)] }
+    })
+    setMessage('Dia duplicado para edição rápida.')
+  }
+
+  function moveDraftDay(dayIndex, direction) {
+    setDraft((current) => {
+      const nextIndex = dayIndex + direction
+      if (nextIndex < 0 || nextIndex >= current.days.length) return current
+      const days = [...current.days]
+      const [day] = days.splice(dayIndex, 1)
+      days.splice(nextIndex, 0, day)
+      return { ...current, days }
+    })
+  }
+
+  function removeDraftDay(dayIndex) {
+    if (!window.confirm('Excluir este dia do treino?')) return
+    setDraft((current) => ({ ...current, days: current.days.filter((_, index) => index !== dayIndex) }))
+  }
+
+  function updateDraftExercise(dayIndex, exerciseIndex, field, value) {
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => {
+        if (index !== dayIndex) return day
+        return {
+          ...day,
+          exercises: day.exercises.map((exercise, currentExerciseIndex) => {
+            if (currentExerciseIndex !== exerciseIndex) return exercise
+            if (field === 'name') {
+              return enrichExercise({ ...exercise, name: value }, availableExerciseLibrary)
+            }
+            return { ...exercise, [field]: value }
+          }),
+        }
+      }),
+    }))
+  }
+
+  function addDraftExercise(dayIndex, name = 'Novo exercício') {
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => (
+        index === dayIndex
+          ? { ...day, exercises: [...day.exercises, createExerciseDraft(name, {}, availableExerciseLibrary)] }
+          : day
+      )),
+    }))
+  }
+
+  function duplicateDraftExercise(dayIndex, exerciseIndex) {
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => {
+        if (index !== dayIndex) return day
+        const source = day.exercises[exerciseIndex]
+        if (!source) return day
+        const copy = { ...source, name: `${source.name} - variação` }
+        return { ...day, exercises: [...day.exercises.slice(0, exerciseIndex + 1), copy, ...day.exercises.slice(exerciseIndex + 1)] }
+      }),
+    }))
+  }
+
+  function moveDraftExercise(dayIndex, exerciseIndex, direction) {
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => {
+        if (index !== dayIndex) return day
+        const nextIndex = exerciseIndex + direction
+        if (nextIndex < 0 || nextIndex >= day.exercises.length) return day
+        const exercises = [...day.exercises]
+        const [exercise] = exercises.splice(exerciseIndex, 1)
+        exercises.splice(nextIndex, 0, exercise)
+        return { ...day, exercises }
+      }),
+    }))
+  }
+
+  function removeDraftExercise(dayIndex, exerciseIndex) {
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => index === dayIndex ? { ...day, exercises: day.exercises.filter((_, currentExerciseIndex) => currentExerciseIndex !== exerciseIndex) } : day),
+    }))
+  }
+
+  async function saveDraft(status = 'Publicado') {
+    const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
+    const filledExercises = draft.days.flatMap((day) => (
+      day.exercises
+        .filter((exercise) => exercise.name?.trim())
+        .map((exercise) => enrichExercise({
+          ...exercise,
+          day: day.day,
+          dayFocus: day.focus,
+          notes: [exercise.notes, day.day ? `Dia: ${day.day}` : '', day.focus ? `Foco: ${day.focus}` : ''].filter(Boolean).join(' | '),
+        }, availableExerciseLibrary))
+    ))
+
+    if (!studentId) {
+      setError('Cadastre ou selecione um aluno antes de publicar o treino.')
+      return
+    }
+    if (!filledExercises.length) {
+      setError('Adicione pelo menos um exercício antes de salvar.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const saved = await onSaveWorkout?.({
+        studentId,
+        title: draft.title || 'Treino',
+        focus: draft.focus || '',
+        level: draft.level,
+        frequency: draft.frequency,
+        status,
+        notes: `Organização por dias: ${draft.days.map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
+        days: draft.days,
+        exercises: filledExercises,
+        source: 'mobile_workout_manager',
+      })
+      setSelectedWorkoutId(saved?.id || selectedWorkoutId)
+      setMessage(status === 'Rascunho' ? 'Rascunho salvo para continuar depois.' : 'Treino publicado e atribuído ao aluno.')
+      setShowCreator(false)
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar o treino.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function duplicateForSelectedStudent(workout) {
+    if (!workout) return
+    const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
+    if (!studentId) {
+      setError('Selecione um aluno para atribuir este treino.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const saved = await onSaveWorkout?.({
+        ...workout,
+        id: undefined,
+        studentId,
+        title: `${workout.title || 'Treino'} - personalizado`,
+        source: 'mobile_library_duplicate',
+      })
+      setSelectedWorkoutId(saved?.id || '')
+      setMessage('Treino duplicado e atribuído ao aluno selecionado.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível duplicar este treino.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function archiveSelectedWorkout(workout) {
+    if (!workout?.id || !onArchiveWorkout) return
+    if (!window.confirm(`Arquivar o treino "${workout.title}"?`)) return
+    setSaving(true)
+    setError('')
+    try {
+      await onArchiveWorkout(workout.id)
+      setMessage('Treino arquivado.')
+    } catch (archiveError) {
+      setError(archiveError?.message || 'Não foi possível arquivar o treino.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="mobile-workout-manager md:hidden">
+      <div className="mobile-workout-hero">
+        <div>
+          <p className="mobile-workout-kicker">Treinos no celular</p>
+          <h3>Biblioteca, alunos e dias em uma tela clara.</h3>
+          <p>Monte modelos, duplique para alunos e organize cada sessão por dia da semana sem se perder.</p>
+        </div>
+        <button type="button" onClick={() => resetDraftFromWorkout(null)} className="mobile-workout-primary">
+          <NavIcon name="plus" className="h-4 w-4" />
+          Criar treino
+        </button>
+      </div>
+
+      <div className="mobile-workout-tabs" role="tablist" aria-label="Treinos">
+        <button type="button" aria-selected={tab === 'library'} onClick={() => setTab('library')} className={tab === 'library' ? 'is-active' : ''}>Biblioteca</button>
+        <button type="button" aria-selected={tab === 'students'} onClick={() => setTab('students')} className={tab === 'students' ? 'is-active' : ''}>Alunos</button>
+      </div>
+
+      <div className="mobile-workout-search">
+        <NavIcon name="chart" className="h-4 w-4" />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === 'library' ? 'Buscar treino, foco ou objetivo' : 'Buscar aluno ou treino'} />
+      </div>
+
+      <div className="mobile-workout-filters">
+        {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
+          <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
+            {formatUiText(item)}
+          </button>
+        ))}
+        {filter !== 'todos' || search ? (
+          <button type="button" onClick={() => { setFilter('todos'); setSearch('') }}>Limpar</button>
+        ) : null}
+      </div>
+
+      {tab === 'library' ? (
+        <div className="mobile-workout-stack">
+          <div className="mobile-workout-section-title">
+            <span>Modelos e treinos recentes</span>
+            <small>{filteredWorkouts.length} encontrados</small>
+          </div>
+          {filteredWorkouts.length ? filteredWorkouts.slice(0, 10).map((workout) => {
+            const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+            const isSelected = String(selectedWorkout?.id) === String(workout.id)
+            return (
+              <article key={workout.id} className={`mobile-workout-card ${isSelected ? 'is-selected' : ''}`}>
+                <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setShowCreator(false) }} className="mobile-workout-card-main">
+                  <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
+                  <span>
+                    <strong>{workout.title || 'Treino sem nome'}</strong>
+                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)} · {days.length || 1} dia(s)</small>
+                    <small>{(workout.exercises || []).length} exercício(s) · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                  </span>
+                </button>
+                <details className="mobile-workout-menu">
+                  <summary aria-label="Abrir ações do treino">⋮</summary>
+                  <div>
+                    <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setShowCreator(false) }}>Abrir</button>
+                    <button type="button" onClick={() => resetDraftFromWorkout(workout)}>Duplicar e editar</button>
+                    <button type="button" onClick={() => duplicateForSelectedStudent(workout)}>Atribuir ao aluno</button>
+                    <button type="button" onClick={() => archiveSelectedWorkout(workout)}>Arquivar</button>
+                  </div>
+                </details>
+              </article>
+            )
+          }) : (
+            <div className="mobile-workout-empty">
+              <strong>Nenhum treino encontrado.</strong>
+              <span>Crie um novo treino ou limpe os filtros para ver todos.</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mobile-workout-stack">
+          <div className="mobile-workout-section-title">
+            <span>Treinos dos alunos</span>
+            <small>{filteredStudentRows.length} aluno(s)</small>
+          </div>
+          <label className="mobile-workout-select-label">
+            Aluno para novas atribuições
+            <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)}>
+              {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
+            </select>
+          </label>
+          {filteredStudentRows.map(({ student, latest, assigned }) => (
+            <article key={student.id} className="mobile-workout-card">
+              <button type="button" onClick={() => { if (latest) { setSelectedWorkoutId(latest.id); setTab('library') } }} className="mobile-workout-card-main">
+                <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
+                <span>
+                  <strong>{student.name}</strong>
+                  <small>{latest?.title || 'Sem treino ativo'}</small>
+                  <small>{assigned.length} treino(s) · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
+                </span>
+              </button>
+              <button type="button" onClick={() => { setSelectedStudentId(student.id); resetDraftFromWorkout(latest) }} className="mobile-workout-mini-action">
+                {latest ? 'Personalizar' : 'Criar'}
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {selectedWorkout && !showCreator ? (
+        <div className="mobile-workout-detail">
+          <div className="mobile-workout-detail-head">
+            <div>
+              <p>{String(selectedWorkout.status || 'Publicado')}</p>
+              <h4>{selectedWorkout.title || 'Treino selecionado'}</h4>
+              <span>{selectedWorkout.focus || 'Objetivo não informado'} · {inferWorkoutFrequency(selectedWorkout)}</span>
+            </div>
+            <button type="button" onClick={() => resetDraftFromWorkout(selectedWorkout)}>Editar cópia</button>
+          </div>
+          <div className="mobile-workout-days">
+            {selectedWorkoutDays.map((day, dayIndex) => (
+              <article key={day.id || dayIndex} className="mobile-workout-day-card">
+                <button type="button" onClick={() => setExpandedDay(expandedDay === dayIndex ? -1 : dayIndex)}>
+                  <span>
+                    <strong>{day.day}</strong>
+                    <small>{day.focus}</small>
+                  </span>
+                  <span>{day.exercises.length} exercício(s)</span>
+                </button>
+                {expandedDay === dayIndex ? (
+                  <div className="mobile-workout-exercises">
+                    {day.exercises.map((exercise, exerciseIndex) => {
+                      const enriched = enrichExercise(exercise, availableExerciseLibrary)
+                      return (
+                        <div key={`${enriched.name}-${exerciseIndex}`} className="mobile-workout-exercise-row">
+                          <span><NavIcon name="dumbbell" className="h-4 w-4" /></span>
+                          <div>
+                            <strong>{enriched.name}</strong>
+                            <small>{enriched.muscleGroup || enriched.primaryMuscle || 'Grupo muscular'} · {enriched.sets || '-'}x {enriched.reps || '-'}</small>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {showCreator ? (
+        <div className="mobile-workout-creator">
+          <div className="mobile-workout-creator-head">
+            <div>
+              <p>Fluxo rápido</p>
+              <h4>Criar treino</h4>
+            </div>
+            <button type="button" onClick={() => setShowCreator(false)}>Fechar</button>
+          </div>
+          <div className="mobile-workout-form-grid">
+            <label>Nome<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} /></label>
+            <label>Objetivo<input value={draft.focus} onChange={(event) => updateDraft('focus', event.target.value)} /></label>
+            <label>Nível<input value={draft.level} onChange={(event) => updateDraft('level', event.target.value)} /></label>
+            <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} /></label>
+          </div>
+          <div className="mobile-workout-days">
+            {draft.days.map((day, dayIndex) => (
+              <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
+                <div className="mobile-workout-day-edit-head">
+                  <input value={day.day} onChange={(event) => updateDraftDay(dayIndex, 'day', event.target.value)} aria-label="Dia do treino" />
+                  <input value={day.focus} onChange={(event) => updateDraftDay(dayIndex, 'focus', event.target.value)} aria-label="Foco do dia" />
+                </div>
+                <div className="mobile-workout-day-actions">
+                  <button type="button" onClick={() => moveDraftDay(dayIndex, -1)} disabled={dayIndex === 0}>Subir</button>
+                  <button type="button" onClick={() => moveDraftDay(dayIndex, 1)} disabled={dayIndex === draft.days.length - 1}>Descer</button>
+                  <button type="button" onClick={() => duplicateDraftDay(dayIndex)}>Duplicar</button>
+                  <button type="button" onClick={() => removeDraftDay(dayIndex)}>Excluir</button>
+                </div>
+                <div className="mobile-workout-exercises">
+                  {day.exercises.map((exercise, exerciseIndex) => (
+                    <div key={`${exercise.name}-${exerciseIndex}`} className="mobile-workout-exercise-editor">
+                      <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
+                      <div>
+                        <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
+                        <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
+                        <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
+                        <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
+                      </div>
+                      <div className="mobile-workout-day-actions">
+                        <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
+                        <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
+                        <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
+                        <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => addDraftExercise(dayIndex)} className="mobile-workout-secondary-action">+ Adicionar exercício</button>
+              </article>
+            ))}
+          </div>
+          <button type="button" onClick={addDraftDay} className="mobile-workout-secondary-action">+ Adicionar dia</button>
+          <div className="mobile-workout-save-bar">
+            <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>Salvar rascunho</button>
+            <button type="button" disabled={saving} onClick={() => saveDraft('Publicado')}>{saving ? 'Salvando...' : 'Publicar'}</button>
+          </div>
+        </div>
+      ) : null}
+
+      <datalist id="mobile-exercise-library">
+        {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
+      </datalist>
+
+      {message ? <p className="mobile-workout-feedback success">{message}</p> : null}
+      {error ? <p className="mobile-workout-feedback error">{error}</p> : null}
+    </section>
+  )
+}
+
+function createMobileWorkoutDraft(student, library = exerciseLibrary) {
+  return {
+    title: student?.workout || 'Novo treino',
+    focus: student?.goal || 'Hipertrofia',
+    level: student?.level || 'Intermediário',
+    frequency: '3x por semana',
+    status: 'Rascunho',
+    days: createDefaultWorkoutDays(library),
+  }
+}
+
+function createDefaultWorkoutDays(library = exerciseLibrary) {
+  return [
+    {
+      id: 'segunda',
+      day: 'Segunda-feira',
+      focus: 'Peito e tríceps',
+      exercises: [
+        createExerciseDraft('Supino reto com barra', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '90s' }, library),
+        createExerciseDraft('Tríceps corda', { sets: '3', reps: '10-12', load: 'RPE 8', rest: '60s' }, library),
+      ],
+    },
+    {
+      id: 'quarta',
+      day: 'Quarta-feira',
+      focus: 'Costas e bíceps',
+      exercises: [
+        createExerciseDraft('Remada baixa', { sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' }, library),
+        createExerciseDraft('Rosca direta', { sets: '3', reps: '10-12', load: 'RPE 8', rest: '60s' }, library),
+      ],
+    },
+    {
+      id: 'sexta',
+      day: 'Sexta-feira',
+      focus: 'Pernas',
+      exercises: [
+        createExerciseDraft('Agachamento livre', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '120s' }, library),
+        createExerciseDraft('Cadeira extensora', { sets: '3', reps: '12-15', load: 'RPE 8', rest: '60s' }, library),
+      ],
+    },
+  ]
+}
+
+function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
+  if (!workout) return []
+  if (Array.isArray(workout.days) && workout.days.length) {
+    return workout.days.map((day, index) => ({
+      id: day.id || `${day.day || 'dia'}-${index}`,
+      day: day.day || `Dia ${index + 1}`,
+      focus: day.focus || day.title || workout.focus || 'Treino',
+      exercises: (day.exercises || []).map((exercise) => enrichExercise(exercise, library)),
+    }))
+  }
+
+  const exercises = (workout.exercises || []).map((exercise) => enrichExercise(exercise, library))
+  const groups = exercises.reduce((acc, exercise) => {
+    const day = exercise.day || exercise.weekday || exercise.trainingDay || 'Treino principal'
+    if (!acc[day]) acc[day] = []
+    acc[day].push(exercise)
+    return acc
+  }, {})
+  const entries = Object.entries(groups)
+  if (entries.length > 1) {
+    return entries.map(([day, dayExercises], index) => ({
+      id: `${day}-${index}`,
+      day,
+      focus: dayExercises[0]?.dayFocus || workout.focus || summarizeWorkoutFocus(dayExercises),
+      exercises: dayExercises,
+    }))
+  }
+
+  if (!exercises.length) {
+    return [{
+      id: 'sem-exercicios',
+      day: 'Treino principal',
+      focus: workout.focus || 'Sem exercícios cadastrados',
+      exercises: [],
+    }]
+  }
+
+  return [{
+    id: 'treino-principal',
+    day: inferWorkoutDayName(workout),
+    focus: workout.focus || summarizeWorkoutFocus(exercises),
+    exercises,
+  }]
+}
+
+function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
+  const normalizedSearch = normalizeText(search)
+  return workouts.filter((workout) => {
+    const text = normalizeText([
+      workout.title,
+      workout.focus,
+      workout.level,
+      workout.status,
+      workout.notes,
+      ...(workout.exercises || []).map((exercise) => exercise.name),
+    ].filter(Boolean).join(' '))
+    const matchesSearch = !normalizedSearch || text.includes(normalizedSearch)
+    if (!matchesSearch) return false
+    if (filter === 'todos') return true
+    if (filter === 'publicado') return normalizeText(workout.status || 'publicado').includes('publicado') || workout.active !== false
+    return text.includes(normalizeText(filter))
+  })
+}
+
+function inferWorkoutDayName(workout) {
+  const text = normalizeText(`${workout?.title || ''} ${workout?.focus || ''} ${workout?.notes || ''}`)
+  const days = [
+    ['segunda', 'Segunda-feira'],
+    ['terca', 'Terça-feira'],
+    ['terça', 'Terça-feira'],
+    ['quarta', 'Quarta-feira'],
+    ['quinta', 'Quinta-feira'],
+    ['sexta', 'Sexta-feira'],
+    ['sabado', 'Sábado'],
+    ['sábado', 'Sábado'],
+    ['domingo', 'Domingo'],
+  ]
+  return days.find(([key]) => text.includes(normalizeText(key)))?.[1] || 'Treino principal'
+}
+
+function inferWorkoutFrequency(workout) {
+  const text = `${workout?.frequency || ''} ${workout?.focus || ''} ${workout?.title || ''}`
+  const match = text.match(/(\d)\s*x/i)
+  if (match) return `${match[1]}x por semana`
+  const dayCount = buildMobileWorkoutDays(workout).length
+  return dayCount > 1 ? `${dayCount}x por semana` : 'Frequência livre'
+}
+
+function inferWorkoutLevel(workout) {
+  const text = normalizeText(`${workout?.level || ''} ${workout?.focus || ''} ${workout?.notes || ''}`)
+  if (text.includes('iniciante')) return 'Iniciante'
+  if (text.includes('avancado') || text.includes('avançado')) return 'Avançado'
+  return 'Intermediário'
+}
+
+function summarizeWorkoutFocus(exercises = []) {
+  const muscles = exercises
+    .map((exercise) => exercise.muscleGroup || exercise.primaryMuscle || '')
+    .filter(Boolean)
+  return muscles.length ? [...new Set(muscles)].slice(0, 2).join(' + ') : 'Treino personalizado'
+}
+
+function getInitials(value = '') {
+  const parts = String(value || 'Aluno').trim().split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'AL'
 }
 
 function WorkoutProgressionRecommendations({ student, workouts, logs, decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {

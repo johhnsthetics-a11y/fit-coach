@@ -2153,6 +2153,507 @@ textarea {
   .coach-auth-shell [class*="lg:grid-cols-"] {
     min-width: 0;
   }
+
+  .mobile-workout-manager {
+    display: grid;
+    gap: 0.9rem;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-workout-hero,
+  .mobile-workout-detail,
+  .mobile-workout-creator {
+    border: 1px solid rgba(0, 210, 178, 0.18);
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(0, 210, 178, 0.18), transparent 38%),
+      linear-gradient(145deg, rgba(10, 18, 17, 0.96), rgba(2, 5, 4, 0.92));
+    box-shadow:
+      0 20px 55px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  }
+
+  .mobile-workout-hero {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .mobile-workout-kicker,
+  .mobile-workout-detail-head p,
+  .mobile-workout-creator-head p {
+    margin: 0;
+    color: #79fff0;
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobile-workout-hero h3,
+  .mobile-workout-detail-head h4,
+  .mobile-workout-creator-head h4 {
+    margin: 0.3rem 0 0;
+    color: #fff;
+    font-size: clamp(1.5rem, 7vw, 2.05rem);
+    font-weight: 950;
+    line-height: 1.02;
+    letter-spacing: 0;
+  }
+
+  .mobile-workout-hero p:not(.mobile-workout-kicker) {
+    margin: 0.55rem 0 0;
+    color: rgba(228, 228, 231, 0.82);
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .mobile-workout-primary,
+  .mobile-workout-secondary-action,
+  .mobile-workout-save-bar button:last-child {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border-radius: 18px;
+    background: #00d2b2;
+    color: #020504;
+    font-size: 0.9rem;
+    font-weight: 950;
+    transition: transform 170ms ease, filter 170ms ease;
+  }
+
+  .mobile-workout-primary:active,
+  .mobile-workout-secondary-action:active,
+  .mobile-workout-save-bar button:active {
+    transform: scale(0.98);
+  }
+
+  .mobile-workout-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.35rem;
+  }
+
+  .mobile-workout-tabs button,
+  .mobile-workout-filters button,
+  .mobile-workout-menu button,
+  .mobile-workout-mini-action,
+  .mobile-workout-detail-head button,
+  .mobile-workout-creator-head button,
+  .mobile-workout-day-actions button,
+  .mobile-workout-save-bar button:first-child {
+    min-height: 44px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(244, 244, 245, 0.86);
+    font-size: 0.8rem;
+    font-weight: 900;
+    transition: transform 170ms ease, border-color 170ms ease, background-color 170ms ease, color 170ms ease;
+  }
+
+  .mobile-workout-tabs button.is-active,
+  .mobile-workout-filters button.is-active {
+    border-color: rgba(0, 210, 178, 0.5);
+    background: #00d2b2;
+    color: #020504;
+  }
+
+  .mobile-workout-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0 0.85rem;
+    color: #a7fff2;
+  }
+
+  .mobile-workout-search input,
+  .mobile-workout-select-label select,
+  .mobile-workout-form-grid input,
+  .mobile-workout-day-edit-head input,
+  .mobile-workout-exercise-editor input {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    outline: none;
+  }
+
+  .mobile-workout-search input::placeholder,
+  .mobile-workout-exercise-editor input::placeholder {
+    color: rgba(228, 228, 231, 0.5);
+  }
+
+  .mobile-workout-filters {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    scrollbar-width: none;
+  }
+
+  .mobile-workout-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-workout-filters button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 0.85rem;
+    font-size: 0.72rem;
+  }
+
+  .mobile-workout-stack {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .mobile-workout-section-title {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 950;
+  }
+
+  .mobile-workout-section-title small {
+    color: rgba(110, 231, 183, 0.86);
+    font-size: 0.72rem;
+    font-weight: 900;
+  }
+
+  .mobile-workout-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 0.55rem;
+  }
+
+  .mobile-workout-card.is-selected {
+    border-color: rgba(0, 210, 178, 0.48);
+    background: rgba(0, 210, 178, 0.1);
+  }
+
+  .mobile-workout-card-main {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.8rem;
+    text-align: left;
+  }
+
+  .mobile-workout-avatar {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border: 1px solid rgba(0, 210, 178, 0.26);
+    border-radius: 16px;
+    background: rgba(0, 210, 178, 0.13);
+    color: #a7fff2;
+    font-size: 0.78rem;
+    font-weight: 950;
+  }
+
+  .mobile-workout-card strong {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 950;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-workout-card small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(228, 228, 231, 0.68);
+    font-size: 0.74rem;
+    font-weight: 750;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-workout-menu {
+    position: relative;
+  }
+
+  .mobile-workout-menu summary {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    list-style: none;
+    border-radius: 15px;
+    color: #fff;
+    font-size: 1.35rem;
+    font-weight: 950;
+  }
+
+  .mobile-workout-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-workout-menu div {
+    position: absolute;
+    z-index: 8;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    display: grid;
+    min-width: 180px;
+    gap: 0.35rem;
+    border: 1px solid rgba(0, 210, 178, 0.2);
+    border-radius: 18px;
+    background: rgba(2, 5, 4, 0.98);
+    padding: 0.45rem;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+  }
+
+  .mobile-workout-mini-action {
+    padding: 0 0.8rem;
+  }
+
+  .mobile-workout-empty,
+  .mobile-workout-feedback {
+    display: grid;
+    gap: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 1rem;
+    color: rgba(228, 228, 231, 0.78);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  .mobile-workout-empty strong {
+    color: #fff;
+  }
+
+  .mobile-workout-select-label,
+  .mobile-workout-form-grid label {
+    display: grid;
+    gap: 0.35rem;
+    color: rgba(110, 231, 183, 0.92);
+    font-size: 0.7rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobile-workout-select-label select,
+  .mobile-workout-form-grid input,
+  .mobile-workout-day-edit-head input,
+  .mobile-workout-exercise-editor input {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(2, 5, 4, 0.72);
+    padding: 0 0.85rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .mobile-workout-detail,
+  .mobile-workout-creator {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.85rem;
+  }
+
+  .mobile-workout-detail-head,
+  .mobile-workout-creator-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .mobile-workout-detail-head span {
+    display: block;
+    margin-top: 0.35rem;
+    color: rgba(228, 228, 231, 0.72);
+    font-size: 0.82rem;
+    font-weight: 750;
+    line-height: 1.45;
+  }
+
+  .mobile-workout-detail-head button,
+  .mobile-workout-creator-head button {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 0.8rem;
+    font-size: 0.72rem;
+  }
+
+  .mobile-workout-days {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .mobile-workout-day-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 0.65rem;
+  }
+
+  .mobile-workout-day-card > button {
+    display: flex;
+    width: 100%;
+    min-height: 54px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    text-align: left;
+  }
+
+  .mobile-workout-day-card strong {
+    display: block;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 950;
+    line-height: 1.2;
+  }
+
+  .mobile-workout-day-card small,
+  .mobile-workout-day-card > button > span:last-child {
+    color: rgba(228, 228, 231, 0.68);
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .mobile-workout-exercises {
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.65rem;
+  }
+
+  .mobile-workout-exercise-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: center;
+    border-radius: 16px;
+    background: rgba(2, 5, 4, 0.55);
+    padding: 0.65rem;
+  }
+
+  .mobile-workout-exercise-row > span {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(0, 210, 178, 0.12);
+    color: #a7fff2;
+  }
+
+  .mobile-workout-exercise-row strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-workout-form-grid {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .mobile-workout-day-edit-head {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .mobile-workout-day-actions {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding: 0.55rem 0 0.2rem;
+    scrollbar-width: none;
+  }
+
+  .mobile-workout-day-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-workout-day-actions button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 0.75rem;
+    font-size: 0.68rem;
+  }
+
+  .mobile-workout-exercise-editor {
+    display: grid;
+    gap: 0.5rem;
+    border-radius: 18px;
+    background: rgba(2, 5, 4, 0.55);
+    padding: 0.6rem;
+  }
+
+  .mobile-workout-exercise-editor > div:first-of-type {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .mobile-workout-secondary-action {
+    width: 100%;
+    background: rgba(0, 210, 178, 0.14);
+    color: #a7fff2;
+    border: 1px solid rgba(0, 210, 178, 0.28);
+  }
+
+  .mobile-workout-save-bar {
+    position: sticky;
+    z-index: 4;
+    bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 0.5rem;
+    border: 1px solid rgba(0, 210, 178, 0.16);
+    border-radius: 22px;
+    background: rgba(2, 5, 4, 0.92);
+    padding: 0.45rem;
+    backdrop-filter: blur(16px);
+  }
+
+  .mobile-workout-feedback.success {
+    border-color: rgba(0, 210, 178, 0.3);
+    color: #a7fff2;
+  }
+
+  .mobile-workout-feedback.error {
+    border-color: rgba(251, 113, 133, 0.3);
+    color: #fecdd3;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
