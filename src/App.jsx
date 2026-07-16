@@ -6486,6 +6486,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
   const [exercisePickerEquipmentFilter, setExercisePickerEquipmentFilter] = useState('todos')
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
+  const [dayEditor, setDayEditor] = useState(null)
+  const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
 
   useEffect(() => {
     setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
@@ -6575,15 +6577,47 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   }
 
   function addDraftDay() {
-    setDraft((current) => ({
-      ...current,
-      days: [...current.days, { id: Date.now(), day: inferNextWorkoutDay(current.days.length, current.organization), focus: 'Foco do treino', exercises: [], guidance: '' }],
-    }))
-    setExpandedDay(draft.days.length)
+    openDayEditor(null)
+  }
+
+  function openDayEditor(dayIndex = null) {
+    const day = dayIndex === null ? null : draft.days[dayIndex]
+    setDayEditor({
+      index: dayIndex,
+      day: day?.day || inferNextWorkoutDay(draft.days.length, draft.organization),
+      focus: day?.focus || '',
+      guidance: day?.guidance || '',
+      copyFrom: '',
+    })
+  }
+
+  function saveDayEditor() {
+    if (!dayEditor) return
+    const shouldCopy = dayEditor.copyFrom !== ''
+    setDraft((current) => {
+      const copiedDay = shouldCopy ? current.days[Number(dayEditor.copyFrom)] : null
+      const nextDay = {
+        id: dayEditor.index === null ? Date.now() : current.days[dayEditor.index]?.id,
+        day: dayEditor.day || inferNextWorkoutDay(current.days.length, current.organization),
+        focus: dayEditor.focus || 'Foco do treino',
+        guidance: dayEditor.guidance || '',
+        exercises: dayEditor.index === null
+          ? (copiedDay?.exercises || []).map((exercise) => ({ ...exercise }))
+          : current.days[dayEditor.index]?.exercises || [],
+      }
+      if (dayEditor.index === null) return { ...current, days: [...current.days, nextDay] }
+      return { ...current, days: current.days.map((day, index) => index === dayEditor.index ? { ...day, ...nextDay } : day) }
+    })
+    const nextIndex = dayEditor.index === null ? draft.days.length : dayEditor.index
+    setExpandedDay(nextIndex)
+    setActiveDayIndex(nextIndex)
+    setDayEditor(null)
     setCreatorStep('days')
+    setMessage('Dia salvo na rotina.')
   }
 
   function duplicateDraftDay(dayIndex) {
+    if (!window.confirm('Duplicar este dia com todos os exercícios?')) return
     setDraft((current) => {
       const day = current.days[dayIndex]
       if (!day) return current
@@ -6647,6 +6681,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setExercisePickerTab('coachfit')
     setExercisePickerMuscleFilter('todos')
     setExercisePickerEquipmentFilter('todos')
+    setCustomExerciseDraft(createExerciseDraft(''))
   }
 
   function closeExercisePicker() {
@@ -6725,6 +6760,84 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setMessage(file ? 'Vídeo anexado. Ele será enviado quando o treino for salvo.' : 'Vídeo removido deste exercício.')
   }
 
+  function updateCustomExerciseDraft(field, value) {
+    setCustomExerciseDraft((current) => ({ ...current, [field]: value }))
+  }
+
+  function updateCustomExerciseVideoFile(file) {
+    if (file && !String(file.type || '').startsWith('video/')) {
+      setError('Envie um arquivo de vídeo válido.')
+      return
+    }
+    if (file && file.size > 120 * 1024 * 1024) {
+      setError('O vídeo precisa ter até 120 MB para manter o envio estável no celular.')
+      return
+    }
+    setCustomExerciseDraft((current) => ({
+      ...current,
+      videoFile: file || null,
+      videoFileName: file?.name || '',
+      videoPreviewUrl: file ? URL.createObjectURL(file) : '',
+      isCustom: true,
+    }))
+    setError('')
+  }
+
+  function addCustomExerciseToDay() {
+    if (exercisePickerDayIndex === null) return
+    const name = customExerciseDraft.name?.trim()
+    if (!name) {
+      setError('Informe o nome do exercício personalizado.')
+      return
+    }
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => index === exercisePickerDayIndex
+        ? { ...day, exercises: [...day.exercises, enrichExercise({ ...customExerciseDraft, name, isCustom: true }, availableExerciseLibrary)] }
+        : day),
+    }))
+    setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
+    setMessage('Exercício personalizado adicionado ao dia.')
+    closeExercisePicker()
+  }
+
+  function continueCreatorFlow() {
+    if (creatorStep === 'info') {
+      if (!draft.title?.trim() || !draft.focus?.trim() || !draft.level?.trim()) {
+        setError('Preencha nome, objetivo e nível para continuar.')
+        return
+      }
+      setError('')
+      setCreatorStep('days')
+      return
+    }
+    if (creatorStep === 'days') {
+      if (!draft.days.length) {
+        openDayEditor(null)
+        return
+      }
+      setActiveDayIndex(draft.days[0] ? 0 : null)
+      setCreatorStep('exercises')
+      return
+    }
+    if (creatorStep === 'exercises') {
+      setCreatorStep('review')
+      return
+    }
+    if (creatorStep === 'review') {
+      if (!window.confirm('Publicar este treino para o aluno?')) return
+      saveDraft('Publicado')
+    }
+  }
+
+  function getCreatorPrimaryLabel() {
+    if (saving) return 'Salvando...'
+    if (creatorStep === 'info') return 'Continuar'
+    if (creatorStep === 'days') return draft.days.length ? 'Continuar para exercícios' : 'Adicionar primeiro dia'
+    if (creatorStep === 'exercises') return 'Revisar treino'
+    return 'Publicar treino'
+  }
+
   function duplicateDraftExercise(dayIndex, exerciseIndex) {
     setDraft((current) => ({
       ...current,
@@ -6777,7 +6890,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       setError('Cadastre ou selecione um aluno antes de publicar o treino.')
       return
     }
-    if (!filledExercises.length) {
+    if (!filledExercises.length && status !== 'Rascunho') {
       setError('Adicione pelo menos um exercício antes de salvar.')
       return
     }
@@ -6791,7 +6904,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         title: draft.title || 'Treino',
         focus: draft.focus || '',
         level: draft.level,
-        frequency: draft.frequency,
+        frequency: draft.frequency || `${draft.days.length} dia(s) por semana`,
         status,
         organization: draft.organization,
         displayMode: draft.displayMode,
@@ -6853,13 +6966,21 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     }
   }
 
+  const creatorSteps = [
+    ['info', 'Informações'],
+    ['days', 'Dias'],
+    ['exercises', 'Exercícios'],
+    ['review', 'Revisão'],
+  ]
+  const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
+
   return (
     <section className="mobile-workout-manager md:hidden">
+      {!showCreator ? (
+        <>
       <div className="mobile-workout-hero">
         <div>
-          <p className="mobile-workout-kicker">Treinos no celular</p>
-          <h3>Biblioteca, alunos e dias em uma tela clara.</h3>
-          <p>Monte modelos, duplique para alunos e organize cada sessão por dia da semana sem se perder.</p>
+          <h3>Treinos</h3>
         </div>
         <button type="button" onClick={() => resetDraftFromWorkout(null)} className="mobile-workout-primary">
           <NavIcon name="plus" className="h-4 w-4" />
@@ -7005,9 +7126,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           </div>
         </div>
       ) : null}
+        </>
+      ) : null}
 
       {showCreator ? (
-        <div className="mobile-workout-creator">
+        <div className="mobile-workout-creator mobile-workout-creator-full">
           <div className="mobile-workout-creator-head">
             <div>
               <p>Fluxo rápido</p>
@@ -7016,13 +7139,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             <button type="button" onClick={() => setShowCreator(false)}>Fechar</button>
           </div>
           <div className="mobile-workout-stepper" aria-label="Etapas de criação">
-            {[
-              ['info', 'Informações'],
-              ['days', 'Dias'],
-              ['exercises', 'Exercícios'],
-              ['review', 'Revisão'],
-            ].map(([step, label], index) => (
-              <button key={step} type="button" className={creatorStep === step ? 'is-active' : ''} onClick={() => setCreatorStep(step)}>
+            {creatorSteps.map(([step, label], index) => (
+              <button key={step} type="button" disabled={index > currentCreatorStepIndex} className={creatorStep === step ? 'is-active' : ''} onClick={() => setCreatorStep(step)}>
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 {label}
               </button>
@@ -7035,25 +7153,29 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 <label>Nome da rotina<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Ex.: Semanal 5x" /></label>
                 <label>Objetivo<input value={draft.focus} onChange={(event) => updateDraft('focus', event.target.value)} placeholder="Hipertrofia, definição..." /></label>
                 <label>Nível<input value={draft.level} onChange={(event) => updateDraft('level', event.target.value)} placeholder="Iniciante, intermediário..." /></label>
-                <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} placeholder="Ex.: 5x por semana" /></label>
               </div>
-              <div className="mobile-workout-choice-grid">
-                <span>Organização</span>
-                {['Dias da semana', 'Numérico'].map((item) => (
-                  <button key={item} type="button" className={draft.organization === item ? 'is-active' : ''} onClick={() => updateDraft('organization', item)}>{item}</button>
-                ))}
-              </div>
-              <div className="mobile-workout-choice-grid">
-                <span>Mostrar para o aluno</span>
-                {['Sempre visível para o aluno', 'Após publicar', 'Ocultar até liberar'].map((item) => (
-                  <button key={item} type="button" className={draft.displayMode === item ? 'is-active' : ''} onClick={() => updateDraft('displayMode', item)}>{item}</button>
-                ))}
-              </div>
-              <label className="mobile-workout-textarea-label">
-                Orientações gerais
-                <textarea value={draft.guidance || ''} onChange={(event) => updateDraft('guidance', event.target.value)} rows={3} placeholder="Aquecimento, descanso, observações gerais..." />
-              </label>
-              <button type="button" className="mobile-workout-primary" onClick={() => setCreatorStep('days')}>Continuar</button>
+              <details className="mobile-workout-advanced-options">
+                <summary>Mais opções</summary>
+                <div className="mobile-workout-form-grid">
+                  <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} placeholder="Calculada pelos dias adicionados" /></label>
+                </div>
+                <div className="mobile-workout-choice-grid">
+                  <span>Organização</span>
+                  {['Dias da semana', 'Numérico'].map((item) => (
+                    <button key={item} type="button" className={draft.organization === item ? 'is-active' : ''} onClick={() => updateDraft('organization', item)}>{item}</button>
+                  ))}
+                </div>
+                <div className="mobile-workout-choice-grid">
+                  <span>Mostrar para o aluno</span>
+                  {['Sempre visível para o aluno', 'Após publicar', 'Ocultar até liberar'].map((item) => (
+                    <button key={item} type="button" className={draft.displayMode === item ? 'is-active' : ''} onClick={() => updateDraft('displayMode', item)}>{item}</button>
+                  ))}
+                </div>
+                <label className="mobile-workout-textarea-label">
+                  Orientações gerais
+                  <textarea value={draft.guidance || ''} onChange={(event) => updateDraft('guidance', event.target.value)} rows={3} placeholder="Aquecimento, descanso, observações gerais..." />
+                </label>
+              </details>
             </div>
           ) : null}
 
@@ -7069,26 +7191,31 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 <div className="mobile-workout-days">
                   {draft.days.map((day, dayIndex) => (
                     <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
-                      <div className="mobile-workout-day-edit-head">
-                        <input value={day.day} onChange={(event) => updateDraftDay(dayIndex, 'day', event.target.value)} aria-label="Dia do treino" />
-                        <input value={day.focus} onChange={(event) => updateDraftDay(dayIndex, 'focus', event.target.value)} aria-label="Foco do dia" />
-                      </div>
-                      <div className="mobile-workout-day-meta">
+                      <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setCreatorStep('exercises') }}>
+                        <span>
+                          <strong>{day.day}</strong>
+                          <small>{day.focus || 'Foco do treino'}</small>
+                        </span>
                         <span>{day.exercises.length} exercício(s)</span>
-                        <button type="button" onClick={() => { setExpandedDay(dayIndex); setCreatorStep('exercises') }}>Abrir dia</button>
-                      </div>
-                      <div className="mobile-workout-day-actions">
-                        <button type="button" onClick={() => moveDraftDay(dayIndex, -1)} disabled={dayIndex === 0}>Subir</button>
-                        <button type="button" onClick={() => moveDraftDay(dayIndex, 1)} disabled={dayIndex === draft.days.length - 1}>Descer</button>
-                        <button type="button" onClick={() => duplicateDraftDay(dayIndex)}>Duplicar</button>
-                        <button type="button" onClick={() => removeDraftDay(dayIndex)}>Excluir</button>
+                      </button>
+                      <div className="mobile-workout-day-footer">
+                        <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setCreatorStep('exercises') }}>Abrir dia</button>
+                        <details className="mobile-workout-menu">
+                          <summary aria-label="Ações do dia">⋮</summary>
+                          <div>
+                            <button type="button" onClick={() => openDayEditor(dayIndex)}>Editar</button>
+                            <button type="button" onClick={() => moveDraftDay(dayIndex, -1)} disabled={dayIndex === 0}>Subir</button>
+                            <button type="button" onClick={() => moveDraftDay(dayIndex, 1)} disabled={dayIndex === draft.days.length - 1}>Descer</button>
+                            <button type="button" onClick={() => duplicateDraftDay(dayIndex)}>Duplicar</button>
+                            <button type="button" onClick={() => removeDraftDay(dayIndex)}>Excluir</button>
+                          </div>
+                        </details>
                       </div>
                     </article>
                   ))}
                 </div>
               )}
               <button type="button" onClick={addDraftDay} className="mobile-workout-secondary-action">+ Adicionar dia</button>
-              <button type="button" className="mobile-workout-primary" onClick={() => setCreatorStep('exercises')}>Continuar para exercícios</button>
             </div>
           ) : null}
 
@@ -7099,93 +7226,40 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <strong>Adicione um dia antes dos exercícios.</strong>
                   <button type="button" onClick={() => setCreatorStep('days')} className="mobile-workout-primary">Criar dia</button>
                 </div>
-              ) : (
+              ) : activeDayIndex === null || !draft.days[activeDayIndex] ? (
                 <div className="mobile-workout-days">
                   {draft.days.map((day, dayIndex) => (
-                    <article key={day.id || dayIndex} className={`mobile-workout-day-card is-editing ${expandedDay === dayIndex ? 'is-selected' : ''}`}>
-                      <button type="button" onClick={() => { setExpandedDay(dayIndex); setExpandedExerciseKey('') }}>
+                    <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
+                      <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setExpandedExerciseKey('') }}>
                         <span>
                           <strong>{day.day}</strong>
                           <small>{day.focus}</small>
                         </span>
                         <span>{day.exercises.length} exercício(s)</span>
                       </button>
-                      {expandedDay === dayIndex ? (
-                        <>
-                          {!day.exercises.length ? (
-                            <div className="mobile-workout-empty">
-                              <strong>Esse dia ainda está vazio.</strong>
-                              <span>Adicione exercícios pela biblioteca e configure tudo em poucos toques.</span>
-                            </div>
-                          ) : null}
-                          <div className="mobile-workout-exercises">
-                            {day.exercises.map((exercise, exerciseIndex) => (
-                              <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
-                                <button
-                                  type="button"
-                                  className="mobile-workout-exercise-accordion"
-                                  onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
-                                >
-                                  <span className="mobile-workout-drag-handle">↕</span>
-                                  <span>
-                                    <strong>{exercise.name || 'Novo exercício'}</strong>
-                                    <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
-                                  </span>
-                                  <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
-                                </button>
-                                {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
-                                  <div className="mobile-workout-exercise-fields">
-                                    <ExerciseMedia exercise={exercise} compact />
-                                    <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
-                                    <div>
-                                      <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
-                                      <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
-                                      <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
-                                      <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
-                                    </div>
-                                    <div>
-                                      <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
-                                      <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
-                                      <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
-                                      <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
-                                    </div>
-                                    <div className="mobile-workout-preset-row">
-                                      {[
-                                        ['padrao', '3 × 12'],
-                                        ['piramideCrescente', 'Pirâmide +'],
-                                        ['piramideDecrescente', 'Pirâmide -'],
-                                        ['dropSet', 'Drop set'],
-                                        ['falhaUltima', 'Falha final'],
-                                      ].map(([preset, label]) => (
-                                        <button key={preset} type="button" onClick={() => applyExercisePreset(dayIndex, exerciseIndex, preset)}>{label}</button>
-                                      ))}
-                                    </div>
-                                    <label className="mobile-workout-file-label">
-                                      Vídeo próprio
-                                      <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateDraftExerciseVideoFile(dayIndex, exerciseIndex, event.target.files?.[0] || null)} />
-                                      <span>{exercise.videoFileName || 'Grave pela câmera ou escolha da galeria.'}</span>
-                                    </label>
-                                    <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
-                                    <div className="mobile-workout-day-actions">
-                                      <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
-                                      <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
-                                      <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
-                                      <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
-                                      <button type="button" onClick={() => { setExpandedExerciseKey(''); setMessage('Exercício salvo no rascunho.') }}>Salvar</button>
-                                    </div>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                          <button type="button" onClick={() => openExercisePicker(dayIndex)} className="mobile-workout-secondary-action">+ Adicionar exercício</button>
-                        </>
-                      ) : null}
                     </article>
                   ))}
                 </div>
+              ) : (
+                <MobileWorkoutEditableDay
+                  day={draft.days[activeDayIndex]}
+                  dayIndex={activeDayIndex}
+                  expandedExerciseKey={expandedExerciseKey}
+                  setExpandedExerciseKey={setExpandedExerciseKey}
+                  updateDraftExercise={updateDraftExercise}
+                  moveDraftExercise={moveDraftExercise}
+                  duplicateDraftExercise={duplicateDraftExercise}
+                  removeDraftExercise={removeDraftExercise}
+                  applyExercisePreset={applyExercisePreset}
+                  updateDraftExerciseVideoFile={updateDraftExerciseVideoFile}
+                  openExercisePicker={openExercisePicker}
+                  onBack={() => {
+                    setActiveDayIndex(null)
+                    setExpandedExerciseKey('')
+                  }}
+                  onEditDay={() => openDayEditor(activeDayIndex)}
+                />
               )}
-              <button type="button" className="mobile-workout-primary" onClick={() => setCreatorStep('review')}>Revisar treino</button>
             </div>
           ) : null}
 
@@ -7199,11 +7273,15 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               </div>
               <div className="mobile-workout-days">
                 {draft.days.map((day) => (
-                  <article key={day.id} className="mobile-workout-day-card">
-                    <button type="button">
+                  <article key={day.id} className={`mobile-workout-day-card ${day.exercises.length ? '' : 'has-warning'}`}>
+                    <button type="button" onClick={() => {
+                      const index = draft.days.findIndex((item) => item.id === day.id)
+                      setActiveDayIndex(index >= 0 ? index : 0)
+                      setCreatorStep('exercises')
+                    }}>
                       <span>
                         <strong>{day.day}</strong>
-                        <small>{day.focus}</small>
+                        <small>{day.exercises.length ? day.focus : 'Este dia ainda não possui exercícios.'}</small>
                       </span>
                       <span>{day.exercises.length} exercício(s)</span>
                     </button>
@@ -7214,8 +7292,41 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           ) : null}
           <div className="mobile-workout-save-bar">
             <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>Salvar rascunho</button>
-            <button type="button" disabled={saving} onClick={() => saveDraft('Publicado')}>{saving ? 'Salvando...' : 'Publicar'}</button>
+            <button type="button" disabled={saving} onClick={continueCreatorFlow}>{getCreatorPrimaryLabel()}</button>
           </div>
+        </div>
+      ) : null}
+
+      {dayEditor ? (
+        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setDayEditor(null)}>
+          <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Editar dia do treino" onClick={(event) => event.stopPropagation()}>
+            <div className="mobile-workout-sheet-handle" />
+            <div className="mobile-workout-creator-head">
+              <div>
+                <p>{dayEditor.index === null ? 'Novo dia' : 'Editar dia'}</p>
+                <h4>{dayEditor.day || 'Dia do treino'}</h4>
+              </div>
+              <button type="button" onClick={() => setDayEditor(null)}>Fechar</button>
+            </div>
+            <div className="mobile-workout-form-grid">
+              <label>Dia<input value={dayEditor.day} onChange={(event) => setDayEditor((current) => ({ ...current, day: event.target.value }))} placeholder="Segunda-feira ou Dia 1" /></label>
+              <label>Nome/foco<input value={dayEditor.focus} onChange={(event) => setDayEditor((current) => ({ ...current, focus: event.target.value }))} placeholder="Peito e tríceps" /></label>
+            </div>
+            <label className="mobile-workout-textarea-label">
+              Orientação do dia
+              <textarea value={dayEditor.guidance} onChange={(event) => setDayEditor((current) => ({ ...current, guidance: event.target.value }))} rows={3} placeholder="Opcional. Ex.: priorizar execução, aquecimento ou observações." />
+            </label>
+            {draft.days.length && dayEditor.index === null ? (
+              <label className="mobile-workout-select-label">
+                Copiar exercícios de outro dia
+                <select value={dayEditor.copyFrom} onChange={(event) => setDayEditor((current) => ({ ...current, copyFrom: event.target.value }))}>
+                  <option value="">Não copiar</option>
+                  {draft.days.map((day, index) => <option key={day.id || index} value={index}>{day.day} - {day.focus}</option>)}
+                </select>
+              </label>
+            ) : null}
+            <button type="button" className="mobile-workout-primary" onClick={saveDayEditor}>Salvar dia</button>
+          </section>
         </div>
       ) : null}
 
@@ -7247,6 +7358,28 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               </select>
               <button type="button" onClick={() => { setExercisePickerMuscleFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
             </div>
+            <details className="mobile-workout-custom-exercise">
+              <summary>Criar exercício</summary>
+              <div>
+                <div className="mobile-workout-form-grid">
+                  <label>Nome<input value={customExerciseDraft.name || ''} onChange={(event) => updateCustomExerciseDraft('name', event.target.value)} placeholder="Ex.: Supino com pausa" /></label>
+                  <label>Grupo muscular<input value={customExerciseDraft.muscleGroup || ''} onChange={(event) => updateCustomExerciseDraft('muscleGroup', event.target.value)} placeholder="Peitoral" /></label>
+                  <label>Equipamento<input value={customExerciseDraft.equipment || ''} onChange={(event) => updateCustomExerciseDraft('equipment', event.target.value)} placeholder="Barra, halter..." /></label>
+                  <label>Categoria<input value={customExerciseDraft.category || ''} onChange={(event) => updateCustomExerciseDraft('category', event.target.value)} placeholder="Força, máquina..." /></label>
+                </div>
+                <label className="mobile-workout-textarea-label">
+                  Instruções
+                  <textarea value={customExerciseDraft.instructions || ''} onChange={(event) => updateCustomExerciseDraft('instructions', event.target.value)} rows={3} placeholder="Dica curta de execução." />
+                </label>
+                <label className="mobile-workout-file-label">
+                  Vídeo do exercício
+                  <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateCustomExerciseVideoFile(event.target.files?.[0] || null)} />
+                  <span>{customExerciseDraft.videoFileName || 'Grave agora ou escolha da galeria.'}</span>
+                </label>
+                {customExerciseDraft.videoPreviewUrl ? <ExerciseMedia exercise={customExerciseDraft} compact /> : null}
+                <button type="button" className="mobile-workout-primary" onClick={addCustomExerciseToDay}>Salvar e adicionar ao dia</button>
+              </div>
+            </details>
             <div className="mobile-workout-picker-results">
               {exercisePickerResults.map((exercise) => {
                 const selected = exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(exercise.name))
@@ -7359,6 +7492,107 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
             </article>
           )
         })}
+      </div>
+    </section>
+  )
+}
+
+function MobileWorkoutEditableDay({
+  day,
+  dayIndex,
+  expandedExerciseKey,
+  setExpandedExerciseKey,
+  updateDraftExercise,
+  moveDraftExercise,
+  duplicateDraftExercise,
+  removeDraftExercise,
+  applyExercisePreset,
+  updateDraftExerciseVideoFile,
+  openExercisePicker,
+  onBack,
+  onEditDay,
+}) {
+  return (
+    <section className="mobile-workout-day-screen mobile-workout-day-editor-screen">
+      <div className="mobile-workout-day-screen-head">
+        <button type="button" onClick={onBack}>Voltar</button>
+        <div>
+          <p>Dia {dayIndex + 1}</p>
+          <h4>{day.day}</h4>
+          <span>{day.focus} · {day.exercises.length} exercício(s)</span>
+        </div>
+      </div>
+      <div className="mobile-workout-day-open-actions">
+        <button type="button" className="mobile-workout-secondary-action" onClick={() => openExercisePicker(dayIndex)}>
+          {day.exercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
+        </button>
+        <button type="button" onClick={onEditDay}>Editar dia</button>
+      </div>
+      {!day.exercises.length ? (
+        <div className="mobile-workout-empty">
+          <strong>Este dia ainda não possui exercícios.</strong>
+          <span>Adicione exercícios pela biblioteca e eles ficarão vinculados somente a este dia.</span>
+        </div>
+      ) : null}
+      <div className="mobile-workout-exercises">
+        {day.exercises.map((exercise, exerciseIndex) => (
+          <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
+            <button
+              type="button"
+              className="mobile-workout-exercise-accordion"
+              onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
+            >
+              <span className="mobile-workout-drag-handle">↕</span>
+              <span>
+                <strong>{exercise.name || 'Novo exercício'}</strong>
+                <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
+              </span>
+              <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
+            </button>
+            {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
+              <div className="mobile-workout-exercise-fields">
+                <ExerciseMedia exercise={exercise} compact />
+                <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
+                <div>
+                  <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
+                  <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
+                  <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
+                  <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
+                </div>
+                <div>
+                  <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
+                  <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
+                  <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
+                  <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
+                </div>
+                <div className="mobile-workout-preset-row">
+                  {[
+                    ['padrao', '3 × 12'],
+                    ['piramideCrescente', 'Pirâmide +'],
+                    ['piramideDecrescente', 'Pirâmide -'],
+                    ['dropSet', 'Drop set'],
+                    ['falhaUltima', 'Falha final'],
+                  ].map(([preset, label]) => (
+                    <button key={preset} type="button" onClick={() => applyExercisePreset(dayIndex, exerciseIndex, preset)}>{label}</button>
+                  ))}
+                </div>
+                <label className="mobile-workout-file-label">
+                  Vídeo próprio
+                  <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateDraftExerciseVideoFile(dayIndex, exerciseIndex, event.target.files?.[0] || null)} />
+                  <span>{exercise.videoFileName || 'Grave pela câmera ou escolha da galeria.'}</span>
+                </label>
+                <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
+                <div className="mobile-workout-day-actions">
+                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
+                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
+                  <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
+                  <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
+                  <button type="button" onClick={() => setExpandedExerciseKey('')}>Salvar</button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ))}
       </div>
     </section>
   )
