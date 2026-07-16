@@ -6853,10 +6853,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [creatorStep, setCreatorStep] = useState('info')
   const [exercisePickerTab, setExercisePickerTab] = useState('coachfit')
   const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
-  const [exercisePickerEquipmentFilter, setExercisePickerEquipmentFilter] = useState('todos')
   const [exercisePickerObjectiveFilter, setExercisePickerObjectiveFilter] = useState('todos')
-  const [exercisePickerLevelFilter, setExercisePickerLevelFilter] = useState('todos')
-  const [exercisePickerMechanicFilter, setExercisePickerMechanicFilter] = useState('todos')
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
   const [dayEditor, setDayEditor] = useState(null)
   const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
@@ -6936,37 +6933,28 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)))
     return ['todos', ...values.slice(0, 18)]
   }, [availableExerciseLibrary])
-  const exercisePickerEquipmentOptions = useMemo(() => {
-    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.equipment).filter(Boolean)))
-    return ['todos', ...values.slice(0, 18)]
-  }, [availableExerciseLibrary])
   const exercisePickerObjectiveOptions = useMemo(() => {
-    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.objective || exercise.category).filter(Boolean)))
-    return ['todos', ...values.slice(0, 14)]
-  }, [availableExerciseLibrary])
-  const exercisePickerLevelOptions = useMemo(() => {
-    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.level).filter(Boolean)))
-    return ['todos', ...values.slice(0, 8)]
-  }, [availableExerciseLibrary])
-  const exercisePickerMechanicOptions = useMemo(() => {
-    const values = Array.from(new Set(availableExerciseLibrary.flatMap((exercise) => [exercise.mechanic, exercise.laterality, exercise.composition, exercise.movementType]).filter(Boolean)))
-    return ['todos', ...values.slice(0, 20)]
+    const defaults = ['Treino em Casa', 'Mobilidade', 'Alongamento', 'Pilates Solo', 'MAT Pilates', 'Elástico', 'Laboral', 'Funcional', 'Aquecimento', 'Cardio', 'Peso Corporal', 'Reabilitação', 'Máquina', 'Barra', 'Halteres', 'Cabos', 'Kettlebell', 'TRX']
+    const values = Array.from(new Set([
+      ...defaults,
+      ...availableExerciseLibrary.flatMap((exercise) => [exercise.category, exercise.equipment]).filter(Boolean),
+    ]))
+    return ['todos', ...values.slice(0, 22)]
   }, [availableExerciseLibrary])
   const exercisePickerResults = useMemo(() => {
     const muscleFilter = exercisePickerMuscleFilter === 'todos' ? 'todos' : exercisePickerMuscleFilter
+    const favoriteSet = new Set(favoriteExerciseNames.map(normalizeText))
     return buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, muscleFilter, favoriteExerciseNames, recentExerciseNames)
       .filter((exercise) => {
-        const matchesEquipment = exercisePickerEquipmentFilter === 'todos' || normalizeText(exercise.equipment).includes(normalizeText(exercisePickerEquipmentFilter))
-        const matchesObjective = exercisePickerObjectiveFilter === 'todos' || normalizeText(`${exercise.objective || ''} ${exercise.category || ''}`).includes(normalizeText(exercisePickerObjectiveFilter))
-        const matchesLevel = exercisePickerLevelFilter === 'todos' || normalizeText(exercise.level).includes(normalizeText(exercisePickerLevelFilter))
-        const matchesMechanic = exercisePickerMechanicFilter === 'todos' || normalizeText(`${exercise.mechanic || ''} ${exercise.laterality || ''} ${exercise.composition || ''} ${exercise.movementType || ''}`).includes(normalizeText(exercisePickerMechanicFilter))
-        const matchesTab = exercisePickerTab === 'coachfit'
-          ? true
-          : exercise.isCustom || normalizeText(exercise.source).includes('custom')
-        return matchesEquipment && matchesObjective && matchesLevel && matchesMechanic && matchesTab
+        const categoryText = normalizeText(`${exercise.category || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
+        const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
+        const matchesCategory = exercisePickerObjectiveFilter === 'todos' || categoryText.includes(normalizeText(exercisePickerObjectiveFilter))
+        const matchesFavorites = exercisePickerTab !== 'favorites' || favoriteSet.has(normalizeText(exercise.name))
+        const matchesMine = exercisePickerTab !== 'mine' || isCustomExercise
+        return matchesCategory && matchesFavorites && matchesMine
       })
       .slice(0, 36)
-  }, [availableExerciseLibrary, exercisePickerEquipmentFilter, exercisePickerLevelFilter, exercisePickerMechanicFilter, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
+  }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
 
   function resetDraftFromWorkout(workout = null) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
@@ -7105,10 +7093,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setExercisePickerPreview(null)
     setExercisePickerTab('coachfit')
     setExercisePickerMuscleFilter('todos')
-    setExercisePickerEquipmentFilter('todos')
     setExercisePickerObjectiveFilter('todos')
-    setExercisePickerLevelFilter('todos')
-    setExercisePickerMechanicFilter('todos')
     setCustomExerciseDraft(createExerciseDraft(''))
   }
 
@@ -7835,27 +7820,22 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <NavIcon name="chart" className="h-4 w-4" />
               <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar: supino, bench, peito, barra..." autoFocus />
             </div>
-            <div className="mobile-workout-picker-tabs" role="tablist" aria-label="Fonte dos exercícios">
-              <button type="button" className={exercisePickerTab === 'coachfit' ? 'is-active' : ''} onClick={() => setExercisePickerTab('coachfit')}>Coach Fit Pro</button>
-              <button type="button" className={exercisePickerTab === 'mine' ? 'is-active' : ''} onClick={() => setExercisePickerTab('mine')}>Meus exercícios</button>
-            </div>
             <div className="mobile-workout-picker-filters">
+              <button type="button" className={exercisePickerTab === 'favorites' ? 'is-active' : ''} onClick={() => setExercisePickerTab(exercisePickerTab === 'favorites' ? 'coachfit' : 'favorites')}>
+                Favoritos
+              </button>
               <select value={exercisePickerMuscleFilter} onChange={(event) => setExercisePickerMuscleFilter(event.target.value)} aria-label="Filtrar por grupo muscular">
-                {exercisePickerMuscleOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+                <option value="todos">Grupos musculares</option>
+                {exercisePickerMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
               </select>
-              <select value={exercisePickerEquipmentFilter} onChange={(event) => setExercisePickerEquipmentFilter(event.target.value)} aria-label="Filtrar por equipamento">
-                {exercisePickerEquipmentOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              <select value={exercisePickerObjectiveFilter} onChange={(event) => setExercisePickerObjectiveFilter(event.target.value)} aria-label="Filtrar por categoria">
+                <option value="todos">Categorias</option>
+                {exercisePickerObjectiveOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
               </select>
-              <select value={exercisePickerObjectiveFilter} onChange={(event) => setExercisePickerObjectiveFilter(event.target.value)} aria-label="Filtrar por objetivo">
-                {exercisePickerObjectiveOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-              <select value={exercisePickerLevelFilter} onChange={(event) => setExercisePickerLevelFilter(event.target.value)} aria-label="Filtrar por nível">
-                {exercisePickerLevelOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-              <select value={exercisePickerMechanicFilter} onChange={(event) => setExercisePickerMechanicFilter(event.target.value)} aria-label="Filtrar por mecânica">
-                {exercisePickerMechanicOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-              <button type="button" onClick={() => { setExercisePickerMuscleFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerLevelFilter('todos'); setExercisePickerMechanicFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
+              <button type="button" className={exercisePickerTab === 'mine' ? 'is-active' : ''} onClick={() => setExercisePickerTab(exercisePickerTab === 'mine' ? 'coachfit' : 'mine')}>
+                Seus exercícios
+              </button>
+              <button type="button" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
             </div>
             <details className="mobile-workout-custom-exercise">
               <summary>Criar exercício</summary>
@@ -8752,9 +8732,10 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [exerciseSearch, setExerciseSearch] = useState('')
-  const [exerciseFilter, setExerciseFilter] = useState('todos')
+  const [exerciseSourceFilter, setExerciseSourceFilter] = useState('todos')
+  const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState('todos')
+  const [exerciseCategoryFilter, setExerciseCategoryFilter] = useState('todos')
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
-  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [favoriteExercises, setFavoriteExercises] = useState(() => {
     try {
@@ -8770,11 +8751,28 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       return []
     }
   })
-  const exerciseSuggestions = useMemo(
-    () => buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises),
-    [availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises],
-  )
-  const quickFilters = ['todos', 'peito', 'costas', 'quadríceps', 'glúteos', 'ombros', 'abdômen', 'halteres', 'barra', 'máquina', 'cabos', 'composto', 'isolado']
+  const workoutExerciseMuscleOptions = useMemo(() => {
+    const defaults = ['Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 'Abdômen', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilhas', 'Antebraço', 'Trapézio', 'Lombar', 'Corpo inteiro']
+    const values = Array.from(new Set([...defaults, ...availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)]))
+    return ['todos', ...values]
+  }, [availableExerciseLibrary])
+  const workoutExerciseCategoryOptions = useMemo(() => {
+    const defaults = ['Treino em Casa', 'Mobilidade', 'Alongamento', 'Pilates Solo', 'MAT Pilates', 'Elástico', 'Laboral', 'Funcional', 'Aquecimento', 'Cardio', 'Peso Corporal', 'Reabilitação', 'Máquina', 'Barra', 'Halteres', 'Cabos', 'Kettlebell', 'TRX']
+    const values = Array.from(new Set([...defaults, ...availableExerciseLibrary.flatMap((exercise) => [exercise.category, exercise.equipment]).filter(Boolean)]))
+    return ['todos', ...values]
+  }, [availableExerciseLibrary])
+  const exerciseSuggestions = useMemo(() => {
+    const favoriteSet = new Set(favoriteExercises.map(normalizeText))
+    return buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, favoriteExercises, recentExercises)
+      .filter((exercise) => {
+        const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
+        const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''}`)
+        const matchesCategory = exerciseCategoryFilter === 'todos' || categoryText.includes(normalizeText(exerciseCategoryFilter))
+        const matchesFavorite = exerciseSourceFilter !== 'favoritos' || favoriteSet.has(normalizeText(exercise.name))
+        const matchesMine = exerciseSourceFilter !== 'seus' || isCustomExercise
+        return matchesCategory && matchesFavorite && matchesMine
+      })
+  }, [availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter, favoriteExercises, recentExercises])
 
   useEffect(() => {
     setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
@@ -8782,7 +8780,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 
   useEffect(() => {
     setSelectedSuggestionIndex(0)
-  }, [exerciseSearch, exerciseFilter])
+  }, [exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter])
 
   useEffect(() => {
     try {
@@ -9030,42 +9028,42 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
           </label>
           <button
             type="button"
-            onClick={() => setAdvancedFiltersOpen((current) => !current)}
+            onClick={() => {
+              setExerciseSearch('')
+              setExerciseSourceFilter('todos')
+              setExerciseMuscleFilter('todos')
+              setExerciseCategoryFilter('todos')
+            }}
             className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35"
           >
-            {advancedFiltersOpen ? 'Ocultar filtros' : 'Filtros avançados'}
+            Limpar filtros
           </button>
         </div>
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-soft">
-          {quickFilters.map((filter) => (
-            <button
-              key={filter}
-              type="button"
-              onClick={() => setExerciseFilter(filter)}
-              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black transition ${
-                exerciseFilter === filter
-                  ? 'border-emerald-300 bg-emerald-300 text-zinc-950'
-                  : 'border-white/10 bg-zinc-950/55 text-zinc-300 hover:border-emerald-300/30 hover:text-white'
-              }`}
-            >
-              {formatUiText(filter)}
-            </button>
-          ))}
+        <div className="mt-3 grid gap-2 md:grid-cols-[auto_minmax(150px,1fr)_minmax(150px,1fr)_auto]">
+          <button
+            type="button"
+            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'favoritos' ? 'todos' : 'favoritos')}
+            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'favoritos' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
+          >
+            Favoritos
+          </button>
+          <select value={exerciseMuscleFilter} onChange={(event) => setExerciseMuscleFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
+            <option value="todos">Grupo muscular</option>
+            {workoutExerciseMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+          </select>
+          <select value={exerciseCategoryFilter} onChange={(event) => setExerciseCategoryFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
+            <option value="todos">Categorias</option>
+            {workoutExerciseCategoryOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+          </select>
+          <button
+            type="button"
+            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'seus' ? 'todos' : 'seus')}
+            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'seus' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
+          >
+            Seus exercícios
+          </button>
         </div>
-
-        {advancedFiltersOpen ? (
-          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/55 p-3 sm:grid-cols-3">
-            {['equipamento', 'músculo alvo', 'favoritos'].map((item) => (
-              <div key={item} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-xs font-black uppercase text-emerald-100">{formatUiText(item)}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  {item === 'favoritos' ? 'Marque exercícios com estrela para reutilizar mais rápido.' : 'Digite o termo na busca para combinar filtros.'}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : null}
 
         <div className="mt-4 grid gap-2">
           {exerciseSuggestions.slice(0, 8).map((exercise, suggestionIndex) => (
@@ -9835,10 +9833,10 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
       <div className="mt-3 grid gap-2">
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/35 bg-red-400/12 px-2.5 py-1 text-[11px] font-black text-red-100">
-            <span className="h-2 w-2 rounded-full bg-red-400" /> Principal
+            <span className="h-2 w-2 rounded-full bg-red-400" /> Músculo trabalhado
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-300/25 bg-orange-300/10 px-2.5 py-1 text-[11px] font-black text-orange-100">
-            <span className="h-2 w-2 rounded-full bg-orange-300/80" /> Auxiliar
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300/20 bg-slate-300/10 px-2.5 py-1 text-[11px] font-black text-slate-200">
+            <span className="h-2 w-2 rounded-full bg-slate-400/80" /> Neutro
           </span>
         </div>
         {profile.secondaryLabels.length ? (
@@ -9855,27 +9853,38 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
 }
 
 function BodySilhouette({ view }) {
-  const neutral = '#273033'
-  const neutralSoft = '#1b2225'
+  const neutral = '#86a0ad'
+  const neutralSoft = '#607986'
+  const outline = '#dbe7ec'
   return (
     <g opacity="0.98">
-      <circle cx="50" cy="12" r="8" fill={neutral} />
-      <path d="M39 22h22l7 31-6 31H38l-6-31 7-31Z" fill={neutralSoft} />
-      <path d="M34 25 19 42l-6 34 9 2 8-29 8-12Z" fill={neutral} />
-      <path d="M66 25 81 42l6 34-9 2-8-29-8-12Z" fill={neutral} />
-      <path d="M38 83h11l-3 39H34l-3-23Z" fill={neutral} />
-      <path d="M51 83h11l7 16-3 23H54Z" fill={neutral} />
-      <path d="M43 122h-12l-1 6h15Z" fill={neutralSoft} />
-      <path d="M57 122h12l1 6H55Z" fill={neutralSoft} />
-      {view === 'back' ? <path d="M41 25h18l-9 10Z" fill="#111719" opacity="0.7" /> : <path d="M43 25h14l-7 7Z" fill="#101618" opacity="0.55" />}
+      <circle cx="50" cy="11" r="7.2" fill="#f8fafc" stroke={outline} strokeWidth="0.9" />
+      <path d="M46 18h8l2 6H44Z" fill="#f8fafc" stroke={outline} strokeWidth="0.65" />
+      <path d="M39 24h22l7 28-6 29H38l-6-29 7-28Z" fill={neutralSoft} stroke={outline} strokeWidth="0.8" />
+      <path d="M41 27h8v51H39l-5-26Z" fill={neutral} opacity="0.92" />
+      <path d="M51 27h8l7 25-5 26H51Z" fill={neutral} opacity="0.92" />
+      <path d="M33 27 20 42l-7 34 8 2 8-28 8-14Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
+      <path d="M67 27 80 42l7 34-8 2-8-28-8-14Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
+      <path d="M23 47h8l-4 21h-8Z" fill={neutral} opacity="0.9" />
+      <path d="M69 47h8l4 21h-8Z" fill={neutral} opacity="0.9" />
+      <path d="M18 69h10l-3 17h-9Z" fill={neutralSoft} stroke={outline} strokeWidth="0.6" />
+      <path d="M72 69h10l2 17h-9Z" fill={neutralSoft} stroke={outline} strokeWidth="0.6" />
+      <path d="M37 80h12l-3 40H34l-4-23Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
+      <path d="M51 80h12l7 17-4 23H54Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
+      <path d="M37 84h7l-2 31h-7l-3-18Z" fill={neutral} opacity="0.9" />
+      <path d="M56 84h7l5 13-3 18h-7Z" fill={neutral} opacity="0.9" />
+      <path d="M43 120h-12l-1 6h15Z" fill="#f8fafc" stroke={outline} strokeWidth="0.55" />
+      <path d="M57 120h12l1 6H55Z" fill="#f8fafc" stroke={outline} strokeWidth="0.55" />
+      <path d="M49 28h2v50h-2Z" fill="#e2edf1" opacity="0.42" />
+      {view === 'back' ? <path d="M41 25h18l-9 10Z" fill="#475e69" opacity="0.75" /> : <path d="M43 25h14l-7 7Z" fill="#edf5f7" opacity="0.78" />}
     </g>
   )
 }
 
 function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
   const primary = '#ef4444'
-  const secondary = 'rgba(249, 115, 22, 0.72)'
-  const idle = 'rgba(255,255,255,0.08)'
+  const secondary = 'rgba(239, 68, 68, 0.72)'
+  const idle = 'rgba(255,255,255,0.10)'
 
   function regionProps(key) {
     const state = activeMuscles.get(key)
@@ -9889,7 +9898,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       onFocus: () => onHover(key),
       onBlur: () => onHover(''),
       fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
-      stroke: state === 'primary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.16)',
+      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.22)',
       strokeWidth: state === 'primary' ? 1.35 : 0.75,
       opacity: active ? 1 : 0.42,
       filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,

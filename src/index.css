@@ -3206,6 +3206,12 @@ textarea {
     font-weight: 850;
   }
 
+  .mobile-workout-picker-filters button.is-active {
+    border-color: rgba(0, 210, 178, 0.78);
+    background: #00d2b2;
+    color: #020504;
+  }
+
   .mobile-workout-picker-results strong {
     display: block;
     overflow: hidden;
