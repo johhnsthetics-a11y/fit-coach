@@ -517,6 +517,367 @@ const exerciseLibrary = [
   { name: 'Abdominal crunch', group: 'Core', equipment: 'Peso corporal', cues: 'Aproxime costelas e pelve sem puxar a cabeça e retorne de forma controlada.', aliases: ['abdominal'] },
 ]
 
+const exerciseCatalogBlueprints = [
+  {
+    base: 'Supino',
+    english: ['bench press', 'press'],
+    group: 'Peitoral',
+    primaryMuscle: 'peitoral',
+    secondaryMuscles: ['deltoide-anterior', 'triceps'],
+    movementType: 'Empurrar horizontal',
+    objective: 'Hipertrofia e força',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Intermediário',
+    difficulty: 'Média',
+    laterality: 'Bilateral',
+    variants: ['reto', 'inclinado', 'declinado', 'fechado'],
+    equipments: ['Barra', 'Halteres', 'Smith', 'Máquina'],
+    instruction: 'Mantenha escápulas firmes, pés apoiados e controle a descida antes de empurrar.',
+    tip: 'Priorize trajetória estável e punhos alinhados aos cotovelos.',
+    mistake: 'Perder a posição das escápulas ou quicar a carga no peito.',
+  },
+  {
+    base: 'Crucifixo',
+    english: ['fly', 'chest fly'],
+    group: 'Peitoral',
+    primaryMuscle: 'peitoral',
+    secondaryMuscles: ['deltoide-anterior'],
+    movementType: 'Adução horizontal',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['reto', 'inclinado', 'declinado'],
+    equipments: ['Halteres', 'Cabos', 'Máquina'],
+    instruction: 'Abra os braços com cotovelos levemente flexionados e retorne contraindo o peitoral.',
+    tip: 'Controle a amplitude para não sobrecarregar o ombro.',
+    mistake: 'Transformar o movimento em supino dobrando demais os cotovelos.',
+  },
+  {
+    base: 'Puxada',
+    english: ['lat pulldown', 'pulldown'],
+    group: 'Costas',
+    primaryMuscle: 'dorsal',
+    secondaryMuscles: ['costas', 'biceps'],
+    movementType: 'Puxar vertical',
+    objective: 'Hipertrofia e postura',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['frontal', 'pegada aberta', 'pegada neutra', 'unilateral'],
+    equipments: ['Polia alta', 'Máquina', 'Elástico'],
+    instruction: 'Inicie com as escápulas baixas e puxe os cotovelos em direção ao tronco.',
+    tip: 'Pense em puxar com os cotovelos, não com as mãos.',
+    mistake: 'Inclinar demais o tronco e perder tensão nas dorsais.',
+  },
+  {
+    base: 'Remada',
+    english: ['row', 'seated row'],
+    group: 'Costas',
+    primaryMuscle: 'costas',
+    secondaryMuscles: ['dorsal', 'biceps', 'deltoide-posterior'],
+    movementType: 'Puxar horizontal',
+    objective: 'Hipertrofia e força',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Intermediário',
+    difficulty: 'Média',
+    laterality: 'Bilateral',
+    variants: ['baixa', 'curvada', 'serrote', 'cavalinho', 'alta'],
+    equipments: ['Barra', 'Halteres', 'Polia baixa', 'Máquina', 'Smith', 'TRX'],
+    instruction: 'Mantenha tronco firme, peito aberto e conduza o movimento pelos cotovelos.',
+    tip: 'Pause brevemente com escápulas contraídas.',
+    mistake: 'Usar balanço de tronco para completar a repetição.',
+  },
+  {
+    base: 'Desenvolvimento',
+    english: ['shoulder press', 'overhead press'],
+    group: 'Ombros',
+    primaryMuscle: 'deltoide-anterior',
+    secondaryMuscles: ['deltoide-lateral', 'triceps'],
+    movementType: 'Empurrar vertical',
+    objective: 'Força e hipertrofia',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Intermediário',
+    difficulty: 'Média',
+    laterality: 'Bilateral',
+    variants: ['sentado', 'em pé', 'unilateral', 'arnold'],
+    equipments: ['Halteres', 'Barra', 'Máquina', 'Smith', 'Kettlebell'],
+    instruction: 'Suba a carga acima da cabeça mantendo abdômen firme e punhos alinhados.',
+    tip: 'Evite arquear a lombar no final da subida.',
+    mistake: 'Compensar com tronco ou perder alinhamento dos cotovelos.',
+  },
+  {
+    base: 'Elevação',
+    english: ['raise', 'lateral raise', 'front raise'],
+    group: 'Ombros',
+    primaryMuscle: 'deltoide-lateral',
+    secondaryMuscles: ['deltoide-anterior', 'trapezio'],
+    movementType: 'Abdução de ombro',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['lateral', 'frontal', 'posterior', 'unilateral'],
+    equipments: ['Halteres', 'Cabos', 'Máquina', 'Elástico'],
+    instruction: 'Eleve com controle até a linha dos ombros sem usar impulso.',
+    tip: 'Conduza o movimento pelos cotovelos.',
+    mistake: 'Subir a carga com trapézio ou balançar o corpo.',
+  },
+  {
+    base: 'Rosca',
+    english: ['curl', 'biceps curl'],
+    group: 'Bíceps',
+    primaryMuscle: 'biceps',
+    secondaryMuscles: ['antebraco'],
+    movementType: 'Flexão de cotovelo',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['direta', 'alternada', 'martelo', 'scott', 'concentrada', 'inclinada'],
+    equipments: ['Barra', 'Halteres', 'Cabos', 'Máquina', 'Elástico'],
+    instruction: 'Flexione o cotovelo sem projetar o ombro para frente e controle a descida.',
+    tip: 'Mantenha cotovelos estáveis e punhos neutros.',
+    mistake: 'Usar balanço do tronco para levantar a carga.',
+  },
+  {
+    base: 'Tríceps',
+    english: ['triceps extension', 'pushdown'],
+    group: 'Tríceps',
+    primaryMuscle: 'triceps',
+    secondaryMuscles: ['antebraco'],
+    movementType: 'Extensão de cotovelo',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['corda', 'barra reta', 'francês', 'testa', 'coice', 'unilateral'],
+    equipments: ['Polia', 'Halteres', 'Barra', 'Elástico'],
+    instruction: 'Fixe os cotovelos e estenda completamente sem movimentar o tronco.',
+    tip: 'Controle o retorno para manter tensão no tríceps.',
+    mistake: 'Abrir cotovelos ou usar ombros para ajudar.',
+  },
+  {
+    base: 'Agachamento',
+    english: ['squat'],
+    group: 'Quadríceps',
+    primaryMuscle: 'quadriceps',
+    secondaryMuscles: ['gluteos', 'adutores', 'posterior-coxa'],
+    movementType: 'Agachar',
+    objective: 'Força, hipertrofia e performance',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Intermediário',
+    difficulty: 'Média',
+    laterality: 'Bilateral',
+    variants: ['livre', 'frontal', 'sumô', 'goblet', 'búlgaro', 'hack'],
+    equipments: ['Barra', 'Halteres', 'Smith', 'Máquina', 'Kettlebell', 'Peso corporal'],
+    instruction: 'Desça com controle, joelhos alinhados aos pés e tronco firme.',
+    tip: 'Mantenha pressão no pé inteiro durante a subida.',
+    mistake: 'Fechar os joelhos para dentro ou perder a coluna neutra.',
+  },
+  {
+    base: 'Leg press',
+    english: ['leg press'],
+    group: 'Quadríceps',
+    primaryMuscle: 'quadriceps',
+    secondaryMuscles: ['gluteos', 'adutores'],
+    movementType: 'Empurrar com pernas',
+    objective: 'Hipertrofia',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['45°', 'horizontal', 'unilateral', 'pés altos', 'pés baixos'],
+    equipments: ['Máquina', 'Leg press'],
+    instruction: 'Mantenha quadril apoiado e desça até onde a lombar permanece estável.',
+    tip: 'Ajuste a posição dos pés conforme o foco do treino.',
+    mistake: 'Descer demais e arredondar a lombar.',
+  },
+  {
+    base: 'Cadeira',
+    english: ['leg machine'],
+    group: 'Quadríceps',
+    primaryMuscle: 'quadriceps',
+    secondaryMuscles: [],
+    movementType: 'Extensão de joelho',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['extensora', 'extensora unilateral'],
+    equipments: ['Máquina'],
+    instruction: 'Ajuste o eixo ao joelho e controle a fase de descida.',
+    tip: 'Segure um segundo no topo para melhorar a contração.',
+    mistake: 'Usar impulso e perder controle do joelho.',
+  },
+  {
+    base: 'Flexora',
+    english: ['leg curl', 'hamstring curl'],
+    group: 'Posteriores de coxa',
+    primaryMuscle: 'posterior-coxa',
+    secondaryMuscles: ['panturrilhas'],
+    movementType: 'Flexão de joelho',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['deitada', 'sentada', 'em pé', 'unilateral'],
+    equipments: ['Máquina', 'Elástico'],
+    instruction: 'Flexione o joelho sem tirar o quadril do apoio e controle o retorno.',
+    tip: 'Evite acelerar a descida.',
+    mistake: 'Levantar o quadril ou reduzir a amplitude.',
+  },
+  {
+    base: 'Stiff',
+    english: ['romanian deadlift', 'rdl'],
+    group: 'Posteriores de coxa',
+    primaryMuscle: 'posterior-coxa',
+    secondaryMuscles: ['gluteos', 'lombar'],
+    movementType: 'Hinge de quadril',
+    objective: 'Força e hipertrofia',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Intermediário',
+    difficulty: 'Média',
+    laterality: 'Bilateral',
+    variants: ['tradicional', 'romeno', 'unilateral', 'sumô'],
+    equipments: ['Barra', 'Halteres', 'Smith', 'Kettlebell'],
+    instruction: 'Empurre o quadril para trás e mantenha a carga próxima às pernas.',
+    tip: 'Sinta alongar posterior sem arredondar a coluna.',
+    mistake: 'Buscar amplitude sacrificando a lombar.',
+  },
+  {
+    base: 'Elevação pélvica',
+    english: ['hip thrust', 'glute bridge'],
+    group: 'Glúteos',
+    primaryMuscle: 'gluteos',
+    secondaryMuscles: ['posterior-coxa'],
+    movementType: 'Extensão de quadril',
+    objective: 'Hipertrofia de glúteos',
+    mechanic: 'Composto',
+    composition: 'Composto',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['com barra', 'unilateral', 'no banco', 'no solo', 'com pausa'],
+    equipments: ['Barra', 'Halteres', 'Máquina', 'Elástico', 'Peso corporal'],
+    instruction: 'Suba o quadril contraindo glúteos e evitando hiperextensão lombar.',
+    tip: 'Faça retroversão pélvica leve no topo.',
+    mistake: 'Finalizar com lombar em vez de glúteos.',
+  },
+  {
+    base: 'Panturrilha',
+    english: ['calf raise'],
+    group: 'Panturrilhas',
+    primaryMuscle: 'panturrilhas',
+    secondaryMuscles: [],
+    movementType: 'Flexão plantar',
+    objective: 'Hipertrofia',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['em pé', 'sentado', 'no leg press', 'unilateral'],
+    equipments: ['Máquina', 'Leg press', 'Halteres', 'Smith', 'Peso corporal'],
+    instruction: 'Use amplitude completa, pause no topo e controle a descida.',
+    tip: 'Evite quicar no final da repetição.',
+    mistake: 'Fazer repetições curtas e rápidas demais.',
+  },
+  {
+    base: 'Abdominal',
+    english: ['abs', 'crunch'],
+    group: 'Core',
+    primaryMuscle: 'abdomen',
+    secondaryMuscles: ['obliquos'],
+    movementType: 'Flexão/estabilização de tronco',
+    objective: 'Core e estabilidade',
+    mechanic: 'Isolado',
+    composition: 'Isolado',
+    level: 'Iniciante',
+    difficulty: 'Baixa',
+    laterality: 'Bilateral',
+    variants: ['crunch', 'infra', 'bicicleta', 'na polia', 'canivete', 'prancha'],
+    equipments: ['Peso corporal', 'Polia', 'Máquina', 'Bola suíça'],
+    instruction: 'Controle tronco e respiração sem puxar o pescoço.',
+    tip: 'Aproxime costelas e pelve com controle.',
+    mistake: 'Compensar com pescoço ou lombar.',
+  },
+]
+
+function buildExpandedExerciseCatalog() {
+  const records = []
+  const existingNames = new Set(exerciseLibrary.map((exercise) => normalizeText(exercise.name)))
+
+  exerciseCatalogBlueprints.forEach((blueprint) => {
+    blueprint.variants.forEach((variant) => {
+      blueprint.equipments.forEach((equipment) => {
+        const lowerVariant = normalizeText(variant)
+        const lowerEquipment = normalizeText(equipment)
+        const suffix = lowerEquipment.includes('peso corporal') ? '' : ` com ${equipment.toLowerCase()}`
+        const name = `${blueprint.base} ${variant}${suffix}`.replace(/\s+/g, ' ').trim()
+        const key = normalizeText(name)
+        if (existingNames.has(key)) return
+        existingNames.add(key)
+        records.push({
+          name,
+          group: blueprint.group,
+          muscleGroup: blueprint.group,
+          primaryMuscle: blueprint.primaryMuscle,
+          secondaryMuscles: blueprint.secondaryMuscles,
+          equipment,
+          category: blueprint.objective,
+          movementType: blueprint.movementType,
+          movement: blueprint.movementType,
+          objective: blueprint.objective,
+          level: blueprint.level,
+          mechanic: blueprint.mechanic,
+          mechanics: blueprint.mechanic,
+          laterality: lowerVariant.includes('unilateral') ? 'Unilateral' : blueprint.laterality,
+          composition: blueprint.composition,
+          difficulty: blueprint.difficulty,
+          cues: blueprint.instruction,
+          instructions: blueprint.instruction,
+          tips: blueprint.tip,
+          commonMistakes: blueprint.mistake,
+          source: 'coachfit_catalog',
+          aliases: [
+            blueprint.base,
+            variant,
+            equipment,
+            `${blueprint.base} ${variant}`,
+            ...blueprint.english,
+            ...blueprint.english.map((item) => `${item} ${variant}`),
+          ],
+        })
+      })
+    })
+  })
+
+  return records
+}
+
+exerciseLibrary.push(...buildExpandedExerciseCatalog())
+
 const mealPlan = [
   { meal: 'Café da manhã', foods: 'Ovos, aveia, banana, café', macros: '42P / 74C / 18G' },
   { meal: 'Almoço', foods: 'Arroz, frango, feijão, salada', macros: '58P / 96C / 16G' },
@@ -6464,7 +6825,15 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
 }
 
 function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+  const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+  const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('coachfitpro-custom-exercise-library') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary([...baseExerciseLibrary, ...customExerciseLibrary]), [baseExerciseLibrary, customExerciseLibrary])
   const [tab, setTab] = useState('library')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('todos')
@@ -6485,9 +6854,50 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [exercisePickerTab, setExercisePickerTab] = useState('coachfit')
   const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
   const [exercisePickerEquipmentFilter, setExercisePickerEquipmentFilter] = useState('todos')
+  const [exercisePickerObjectiveFilter, setExercisePickerObjectiveFilter] = useState('todos')
+  const [exercisePickerLevelFilter, setExercisePickerLevelFilter] = useState('todos')
+  const [exercisePickerMechanicFilter, setExercisePickerMechanicFilter] = useState('todos')
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
   const [dayEditor, setDayEditor] = useState(null)
   const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
+  const [favoriteExerciseNames, setFavoriteExerciseNames] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-exercises') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const [recentExerciseNames, setRecentExerciseNames] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('coachfitpro-recent-exercises') || '[]')
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-custom-exercise-library', JSON.stringify(customExerciseLibrary.slice(0, 500)))
+    } catch {
+      // A biblioteca personalizada continua funcionando na sessão mesmo sem localStorage.
+    }
+  }, [customExerciseLibrary])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-favorite-exercises', JSON.stringify(favoriteExerciseNames.slice(0, 100)))
+    } catch {
+      // Favoritos seguem disponíveis na sessão atual.
+    }
+  }, [favoriteExerciseNames])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-recent-exercises', JSON.stringify(recentExerciseNames.slice(0, 40)))
+    } catch {
+      // Recentes seguem disponíveis na sessão atual.
+    }
+  }, [recentExerciseNames])
 
   useEffect(() => {
     setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
@@ -6524,24 +6934,39 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   }, [studentWorkoutRows, search, filter])
   const exercisePickerMuscleOptions = useMemo(() => {
     const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)))
-    return ['todos', ...values.slice(0, 10)]
+    return ['todos', ...values.slice(0, 18)]
   }, [availableExerciseLibrary])
   const exercisePickerEquipmentOptions = useMemo(() => {
     const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.equipment).filter(Boolean)))
-    return ['todos', ...values.slice(0, 10)]
+    return ['todos', ...values.slice(0, 18)]
+  }, [availableExerciseLibrary])
+  const exercisePickerObjectiveOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.objective || exercise.category).filter(Boolean)))
+    return ['todos', ...values.slice(0, 14)]
+  }, [availableExerciseLibrary])
+  const exercisePickerLevelOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.level).filter(Boolean)))
+    return ['todos', ...values.slice(0, 8)]
+  }, [availableExerciseLibrary])
+  const exercisePickerMechanicOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.flatMap((exercise) => [exercise.mechanic, exercise.laterality, exercise.composition, exercise.movementType]).filter(Boolean)))
+    return ['todos', ...values.slice(0, 20)]
   }, [availableExerciseLibrary])
   const exercisePickerResults = useMemo(() => {
     const muscleFilter = exercisePickerMuscleFilter === 'todos' ? 'todos' : exercisePickerMuscleFilter
-    return buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, muscleFilter, [], [])
+    return buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, muscleFilter, favoriteExerciseNames, recentExerciseNames)
       .filter((exercise) => {
         const matchesEquipment = exercisePickerEquipmentFilter === 'todos' || normalizeText(exercise.equipment).includes(normalizeText(exercisePickerEquipmentFilter))
+        const matchesObjective = exercisePickerObjectiveFilter === 'todos' || normalizeText(`${exercise.objective || ''} ${exercise.category || ''}`).includes(normalizeText(exercisePickerObjectiveFilter))
+        const matchesLevel = exercisePickerLevelFilter === 'todos' || normalizeText(exercise.level).includes(normalizeText(exercisePickerLevelFilter))
+        const matchesMechanic = exercisePickerMechanicFilter === 'todos' || normalizeText(`${exercise.mechanic || ''} ${exercise.laterality || ''} ${exercise.composition || ''} ${exercise.movementType || ''}`).includes(normalizeText(exercisePickerMechanicFilter))
         const matchesTab = exercisePickerTab === 'coachfit'
           ? true
-          : exercise.isCustom || exercise.videoFileName || exercise.videoUrl || normalizeText(exercise.source).includes('coach')
-        return matchesEquipment && matchesTab
+          : exercise.isCustom || normalizeText(exercise.source).includes('custom')
+        return matchesEquipment && matchesObjective && matchesLevel && matchesMechanic && matchesTab
       })
-      .slice(0, 18)
-  }, [availableExerciseLibrary, exercisePickerEquipmentFilter, exercisePickerMuscleFilter, exercisePickerSearch, exercisePickerTab])
+      .slice(0, 36)
+  }, [availableExerciseLibrary, exercisePickerEquipmentFilter, exercisePickerLevelFilter, exercisePickerMechanicFilter, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
 
   function resetDraftFromWorkout(workout = null) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
@@ -6681,6 +7106,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setExercisePickerTab('coachfit')
     setExercisePickerMuscleFilter('todos')
     setExercisePickerEquipmentFilter('todos')
+    setExercisePickerObjectiveFilter('todos')
+    setExercisePickerLevelFilter('todos')
+    setExercisePickerMechanicFilter('todos')
     setCustomExerciseDraft(createExerciseDraft(''))
   }
 
@@ -6699,6 +7127,52 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     ))
   }
 
+  function rememberRecentExercises(names = []) {
+    const normalizedNames = names.filter(Boolean)
+    if (!normalizedNames.length) return
+    setRecentExerciseNames((current) => {
+      const next = [...normalizedNames, ...current]
+      const seen = new Set()
+      return next.filter((name) => {
+        const key = normalizeText(name)
+        if (!key || seen.has(key)) return false
+        seen.add(key)
+        return true
+      }).slice(0, 40)
+    })
+  }
+
+  function toggleFavoriteExercise(name) {
+    const normalizedName = normalizeText(name)
+    if (!normalizedName) return
+    setFavoriteExerciseNames((current) => (
+      current.some((item) => normalizeText(item) === normalizedName)
+        ? current.filter((item) => normalizeText(item) !== normalizedName)
+        : [name, ...current].slice(0, 100)
+    ))
+  }
+
+  function editCustomExercise(exercise) {
+    setCustomExerciseDraft({
+      ...createExerciseDraft(exercise?.name || ''),
+      ...exercise,
+      name: exercise?.name || '',
+      isCustom: true,
+      source: 'coach_custom',
+    })
+    setExercisePickerTab('mine')
+    setMessage('Edite o exercício personalizado e salve novamente.')
+  }
+
+  function removeCustomExercise(exercise) {
+    if (!exercise?.name) return
+    if (!window.confirm(`Excluir "${exercise.name}" da sua biblioteca personalizada?`)) return
+    const normalizedName = normalizeText(exercise.name)
+    setCustomExerciseLibrary((current) => current.filter((item) => normalizeText(item.name) !== normalizedName))
+    setExercisePickerSelections((current) => current.filter((item) => normalizeText(item) !== normalizedName))
+    setMessage('Exercício personalizado removido.')
+  }
+
   function confirmExercisePicker() {
     if (exercisePickerDayIndex === null) return
     const names = exercisePickerSelections.length
@@ -6707,6 +7181,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         ? [exercisePickerResults[0].name]
         : ['Novo exercício']
     names.forEach((name) => addDraftExercise(exercisePickerDayIndex, name))
+    rememberRecentExercises(names)
     setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
     setMessage(`${names.length} exercício(s) adicionado(s).`)
     closeExercisePicker()
@@ -6790,14 +7265,29 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       setError('Informe o nome do exercício personalizado.')
       return
     }
+    const customExercise = enrichExercise({
+      ...customExerciseDraft,
+      name,
+      group: customExerciseDraft.group || customExerciseDraft.muscleGroup || customExerciseDraft.primaryMuscle || 'Personalizado',
+      muscleGroup: customExerciseDraft.muscleGroup || customExerciseDraft.group || customExerciseDraft.primaryMuscle || 'Personalizado',
+      primaryMuscle: customExerciseDraft.primaryMuscle || customExerciseDraft.muscleGroup || customExerciseDraft.group || '',
+      isCustom: true,
+      source: 'coach_custom',
+      updatedAt: new Date().toISOString(),
+    }, availableExerciseLibrary)
+    setCustomExerciseLibrary((current) => {
+      const normalizedName = normalizeText(name)
+      return [customExercise, ...current.filter((item) => normalizeText(item.name) !== normalizedName)].slice(0, 500)
+    })
     setDraft((current) => ({
       ...current,
       days: current.days.map((day, index) => index === exercisePickerDayIndex
-        ? { ...day, exercises: [...day.exercises, enrichExercise({ ...customExerciseDraft, name, isCustom: true }, availableExerciseLibrary)] }
+        ? { ...day, exercises: [...day.exercises, customExercise] }
         : day),
     }))
+    rememberRecentExercises([name])
     setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
-    setMessage('Exercício personalizado adicionado ao dia.')
+    setMessage('Exercício personalizado salvo e adicionado ao dia.')
     closeExercisePicker()
   }
 
@@ -7343,7 +7833,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             </div>
             <div className="mobile-workout-search">
               <NavIcon name="chart" className="h-4 w-4" />
-              <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar por nome, músculo ou equipamento" autoFocus />
+              <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar: supino, bench, peito, barra..." autoFocus />
             </div>
             <div className="mobile-workout-picker-tabs" role="tablist" aria-label="Fonte dos exercícios">
               <button type="button" className={exercisePickerTab === 'coachfit' ? 'is-active' : ''} onClick={() => setExercisePickerTab('coachfit')}>Coach Fit Pro</button>
@@ -7356,7 +7846,16 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <select value={exercisePickerEquipmentFilter} onChange={(event) => setExercisePickerEquipmentFilter(event.target.value)} aria-label="Filtrar por equipamento">
                 {exercisePickerEquipmentOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
               </select>
-              <button type="button" onClick={() => { setExercisePickerMuscleFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
+              <select value={exercisePickerObjectiveFilter} onChange={(event) => setExercisePickerObjectiveFilter(event.target.value)} aria-label="Filtrar por objetivo">
+                {exercisePickerObjectiveOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <select value={exercisePickerLevelFilter} onChange={(event) => setExercisePickerLevelFilter(event.target.value)} aria-label="Filtrar por nível">
+                {exercisePickerLevelOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <select value={exercisePickerMechanicFilter} onChange={(event) => setExercisePickerMechanicFilter(event.target.value)} aria-label="Filtrar por mecânica">
+                {exercisePickerMechanicOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <button type="button" onClick={() => { setExercisePickerMuscleFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerLevelFilter('todos'); setExercisePickerMechanicFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
             </div>
             <details className="mobile-workout-custom-exercise">
               <summary>Criar exercício</summary>
@@ -7366,6 +7865,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <label>Grupo muscular<input value={customExerciseDraft.muscleGroup || ''} onChange={(event) => updateCustomExerciseDraft('muscleGroup', event.target.value)} placeholder="Peitoral" /></label>
                   <label>Equipamento<input value={customExerciseDraft.equipment || ''} onChange={(event) => updateCustomExerciseDraft('equipment', event.target.value)} placeholder="Barra, halter..." /></label>
                   <label>Categoria<input value={customExerciseDraft.category || ''} onChange={(event) => updateCustomExerciseDraft('category', event.target.value)} placeholder="Força, máquina..." /></label>
+                  <label>Objetivo<input value={customExerciseDraft.objective || ''} onChange={(event) => updateCustomExerciseDraft('objective', event.target.value)} placeholder="Hipertrofia, força..." /></label>
+                  <label>Nível<input value={customExerciseDraft.level || ''} onChange={(event) => updateCustomExerciseDraft('level', event.target.value)} placeholder="Iniciante, intermediário..." /></label>
+                  <label>Tipo<input value={customExerciseDraft.composition || ''} onChange={(event) => updateCustomExerciseDraft('composition', event.target.value)} placeholder="Composto, isolado..." /></label>
                 </div>
                 <label className="mobile-workout-textarea-label">
                   Instruções
@@ -7383,15 +7885,25 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             <div className="mobile-workout-picker-results">
               {exercisePickerResults.map((exercise) => {
                 const selected = exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(exercise.name))
+                const isFavorite = favoriteExerciseNames.some((item) => normalizeText(item) === normalizeText(exercise.name))
+                const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
                 return (
                   <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={selected ? 'is-selected' : ''}>
                     <span className="mobile-workout-avatar"><NavIcon name="dumbbell" className="h-4 w-4" /></span>
                     <span>
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
+                      <small>{[exercise.level, exercise.mechanic || exercise.composition, exercise.movementType].filter(Boolean).slice(0, 3).join(' · ')}</small>
                     </span>
                     <span className="mobile-workout-picker-actions">
+                      <span role="button" tabIndex={0} aria-label={isFavorite ? 'Remover dos favoritos' : 'Favoritar exercício'} onClick={(event) => { event.stopPropagation(); toggleFavoriteExercise(exercise.name) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); toggleFavoriteExercise(exercise.name) } }}>{isFavorite ? '★' : '☆'}</span>
                       <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); setExercisePickerPreview(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') setExercisePickerPreview(exercise) }}>Ver</span>
+                      {isCustomExercise ? (
+                        <>
+                          <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); editCustomExercise(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); editCustomExercise(exercise) } }}>Editar</span>
+                          <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); removeCustomExercise(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); removeCustomExercise(exercise) } }}>Excluir</span>
+                        </>
+                      ) : null}
                       <span className="mobile-workout-picker-check">{selected ? '✓' : '+'}</span>
                     </span>
                   </button>
@@ -7423,13 +7935,20 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <button type="button" onClick={() => setExercisePickerPreview(null)}>Fechar</button>
             </div>
             <ExerciseMedia exercise={exercisePickerPreview} compact />
+            <ExerciseMuscleSummary exercise={exercisePickerPreview} compact />
             <div className="mobile-workout-review-card">
               <p>Músculo e equipamento</p>
               <span>{exercisePickerPreview.group || exercisePickerPreview.muscleGroup || 'Grupo muscular'} · {exercisePickerPreview.equipment || 'Equipamento livre'}</span>
+              <small>{[exercisePickerPreview.level, exercisePickerPreview.mechanic || exercisePickerPreview.composition, exercisePickerPreview.laterality, exercisePickerPreview.movementType].filter(Boolean).join(' · ')}</small>
+            </div>
+            <div className="mobile-workout-review-card">
+              <p>Dica de execução</p>
               <small>{exercisePickerPreview.cues || exercisePickerPreview.instructions || 'Confira a demonstração antes de adicionar ao treino.'}</small>
+              <small>{getExerciseCommonMistake(exercisePickerPreview)}</small>
             </div>
             <button type="button" className="mobile-workout-primary" onClick={() => {
               toggleExercisePickerSelection(exercisePickerPreview.name)
+              rememberRecentExercises([exercisePickerPreview.name])
               setExercisePickerPreview(null)
             }}>
               Adicionar ao treino
@@ -8255,7 +8774,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     () => buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises),
     [availableExerciseLibrary, exerciseSearch, exerciseFilter, favoriteExercises, recentExercises],
   )
-  const quickFilters = ['todos', 'peito', 'costas', 'pernas', 'ombros', 'braços', 'abdômen']
+  const quickFilters = ['todos', 'peito', 'costas', 'quadríceps', 'glúteos', 'ombros', 'abdômen', 'halteres', 'barra', 'máquina', 'cabos', 'composto', 'isolado']
 
   useEffect(() => {
     setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
@@ -8870,7 +9389,18 @@ function getExerciseLibrary(remoteItems = []) {
       primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
       secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
       equipment: exercise.equipment || local.equipment || '',
+      movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
+      movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
+      objective: exercise.objective || exercise.goal || local.objective || local.goal || '',
+      level: exercise.level || local.level || '',
+      mechanic: exercise.mechanic || exercise.mechanics || local.mechanic || local.mechanics || '',
+      mechanics: exercise.mechanics || exercise.mechanic || local.mechanics || local.mechanic || '',
+      laterality: exercise.laterality || local.laterality || '',
+      composition: exercise.composition || local.composition || '',
+      difficulty: exercise.difficulty || local.difficulty || '',
       cues: exercise.cues || exercise.instructions || local.cues || '',
+      tips: exercise.tips || local.tips || '',
+      commonMistakes: exercise.commonMistakes || exercise.common_mistakes || local.commonMistakes || '',
       videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
       thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
       imageUrl: exercise.imageUrl || exercise.image_url || exercise.thumbnailUrl || local.imageUrl || local.thumbnailUrl || '',
@@ -8912,6 +9442,19 @@ function getExerciseSearchText(exercise = {}) {
     exercise.primaryMuscle,
     exercise.equipment,
     exercise.category,
+    exercise.objective,
+    exercise.goal,
+    exercise.movementType,
+    exercise.movement,
+    exercise.level,
+    exercise.mechanic,
+    exercise.mechanics,
+    exercise.laterality,
+    exercise.composition,
+    exercise.difficulty,
+    exercise.tips,
+    exercise.commonMistakes,
+    exercise.source,
     ...(exercise.aliases || []),
     ...(Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : []),
   ].filter(Boolean).map(normalizeText).join(' ')
@@ -8923,6 +9466,8 @@ function getExerciseSuggestionScore(exercise, query, filter = 'todos') {
   const normalizedName = normalizeText(exercise.name)
   const normalizedGroup = normalizeText(exercise.group || exercise.muscleGroup)
   const normalizedEquipment = normalizeText(exercise.equipment)
+  const normalizedMovement = normalizeText(exercise.movementType || exercise.movement)
+  const normalizedObjective = normalizeText(exercise.objective || exercise.category)
   const filterText = normalizeText(filter)
 
   if (filterText && filterText !== 'todos' && !searchText.includes(filterText)) return 0
@@ -8934,6 +9479,8 @@ function getExerciseSuggestionScore(exercise, query, filter = 'todos') {
   if (normalizedName.includes(normalizedQuery)) score += 60
   if (normalizedGroup.includes(normalizedQuery)) score += 42
   if (normalizedEquipment.includes(normalizedQuery)) score += 26
+  if (normalizedMovement.includes(normalizedQuery)) score += 24
+  if (normalizedObjective.includes(normalizedQuery)) score += 20
   if ((exercise.aliases || []).some((alias) => normalizeText(alias).includes(normalizedQuery))) score += 35
   if (searchText.includes(normalizedQuery)) score += 18
 
@@ -8962,7 +9509,7 @@ function buildExerciseSuggestions(library, query, filter, favorites = [], recent
     })
     .filter((exercise) => exercise.suggestionScore > 0)
     .sort((a, b) => b.suggestionScore - a.suggestionScore || String(a.name).localeCompare(String(b.name)))
-    .slice(0, 12)
+    .slice(0, 60)
 }
 
 function HighlightedMatch({ text, query }) {
@@ -8999,7 +9546,16 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     primaryMuscle: profile?.primaryMuscle ?? '',
     secondaryMuscles: profile?.secondaryMuscles ?? [],
     equipment: profile?.equipment ?? '',
+    movementType: profile?.movementType ?? profile?.movement ?? '',
+    objective: profile?.objective ?? profile?.category ?? '',
+    level: profile?.level ?? '',
+    mechanic: profile?.mechanic ?? profile?.mechanics ?? '',
+    laterality: profile?.laterality ?? '',
+    composition: profile?.composition ?? '',
+    difficulty: profile?.difficulty ?? '',
     instructions: profile?.cues ?? '',
+    tips: profile?.tips ?? '',
+    commonMistakes: profile?.commonMistakes ?? '',
     videoUrl: profile?.videoUrl ?? '',
     thumbnailUrl: profile?.thumbnailUrl ?? '',
     imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
@@ -9026,7 +9582,16 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
     secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
     equipment: exercise.equipment || profile?.equipment || '',
+    movementType: exercise.movementType || profile?.movementType || profile?.movement || '',
+    objective: exercise.objective || profile?.objective || profile?.category || '',
+    level: exercise.level || profile?.level || '',
+    mechanic: exercise.mechanic || profile?.mechanic || profile?.mechanics || '',
+    laterality: exercise.laterality || profile?.laterality || '',
+    composition: exercise.composition || profile?.composition || '',
+    difficulty: exercise.difficulty || profile?.difficulty || '',
     instructions: exercise.instructions || profile?.cues || '',
+    tips: exercise.tips || profile?.tips || '',
+    commonMistakes: exercise.commonMistakes || profile?.commonMistakes || '',
     videoUrl: exercise.videoUrl || profile?.videoUrl || '',
     thumbnailUrl: exercise.thumbnailUrl || profile?.thumbnailUrl || '',
     imageUrl: exercise.imageUrl || profile?.imageUrl || profile?.thumbnailUrl || '',
@@ -9269,11 +9834,11 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
       </svg>
       <div className="mt-3 grid gap-2">
         <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-300/12 px-2.5 py-1 text-[11px] font-black text-emerald-100">
-            <span className="h-2 w-2 rounded-full bg-emerald-300" /> Principal
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/35 bg-red-400/12 px-2.5 py-1 text-[11px] font-black text-red-100">
+            <span className="h-2 w-2 rounded-full bg-red-400" /> Principal
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-300/20 bg-teal-300/10 px-2.5 py-1 text-[11px] font-black text-teal-100">
-            <span className="h-2 w-2 rounded-full bg-teal-300/70" /> Auxiliar
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-300/25 bg-orange-300/10 px-2.5 py-1 text-[11px] font-black text-orange-100">
+            <span className="h-2 w-2 rounded-full bg-orange-300/80" /> Auxiliar
           </span>
         </div>
         {profile.secondaryLabels.length ? (
@@ -9308,8 +9873,8 @@ function BodySilhouette({ view }) {
 }
 
 function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
-  const primary = '#34f5a5'
-  const secondary = 'rgba(45, 212, 191, 0.58)'
+  const primary = '#ef4444'
+  const secondary = 'rgba(249, 115, 22, 0.72)'
   const idle = 'rgba(255,255,255,0.08)'
 
   function regionProps(key) {
@@ -9324,7 +9889,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       onFocus: () => onHover(key),
       onBlur: () => onHover(''),
       fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
-      stroke: state === 'primary' || hovered === key ? '#a7f3d0' : 'rgba(255,255,255,0.16)',
+      stroke: state === 'primary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.16)',
       strokeWidth: state === 'primary' ? 1.35 : 0.75,
       opacity: active ? 1 : 0.42,
       filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,
@@ -9430,6 +9995,7 @@ function ExerciseMuscleSummary({ exercise, compact = false }) {
 }
 
 function getExerciseTechniqueTip(exercise = {}) {
+  if (exercise.tips) return exercise.tips
   const profile = getExerciseMuscleProfile(exercise)
   const tips = {
     peitoral: 'Mantenha escápulas firmes e controle a descida antes de empurrar.',
@@ -9447,6 +10013,7 @@ function getExerciseTechniqueTip(exercise = {}) {
 }
 
 function getExerciseCommonMistake(exercise = {}) {
+  if (exercise.commonMistakes) return exercise.commonMistakes
   const profile = getExerciseMuscleProfile(exercise)
   const mistakes = {
     peitoral: 'Perder a posição dos ombros ou quicar a carga no peito.',

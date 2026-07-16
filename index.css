@@ -3185,8 +3185,12 @@ textarea {
 
   .mobile-workout-picker-filters {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.45rem;
+  }
+
+  .mobile-workout-picker-filters button {
+    grid-column: 1 / -1;
   }
 
   .mobile-workout-picker-filters select,
