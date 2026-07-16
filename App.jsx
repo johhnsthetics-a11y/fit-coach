@@ -6481,6 +6481,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [exercisePickerDayIndex, setExercisePickerDayIndex] = useState(null)
   const [exercisePickerSearch, setExercisePickerSearch] = useState('')
   const [exercisePickerSelections, setExercisePickerSelections] = useState([])
+  const [creatorStep, setCreatorStep] = useState('info')
+  const [exercisePickerTab, setExercisePickerTab] = useState('coachfit')
+  const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
+  const [exercisePickerEquipmentFilter, setExercisePickerEquipmentFilter] = useState('todos')
+  const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
 
   useEffect(() => {
     setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
@@ -6515,10 +6520,26 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       return true
     })
   }, [studentWorkoutRows, search, filter])
-  const exercisePickerResults = useMemo(
-    () => buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, 'todos', [], []).slice(0, 14),
-    [availableExerciseLibrary, exercisePickerSearch],
-  )
+  const exercisePickerMuscleOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)))
+    return ['todos', ...values.slice(0, 10)]
+  }, [availableExerciseLibrary])
+  const exercisePickerEquipmentOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.equipment).filter(Boolean)))
+    return ['todos', ...values.slice(0, 10)]
+  }, [availableExerciseLibrary])
+  const exercisePickerResults = useMemo(() => {
+    const muscleFilter = exercisePickerMuscleFilter === 'todos' ? 'todos' : exercisePickerMuscleFilter
+    return buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, muscleFilter, [], [])
+      .filter((exercise) => {
+        const matchesEquipment = exercisePickerEquipmentFilter === 'todos' || normalizeText(exercise.equipment).includes(normalizeText(exercisePickerEquipmentFilter))
+        const matchesTab = exercisePickerTab === 'coachfit'
+          ? true
+          : exercise.isCustom || exercise.videoFileName || exercise.videoUrl || normalizeText(exercise.source).includes('coach')
+        return matchesEquipment && matchesTab
+      })
+      .slice(0, 18)
+  }, [availableExerciseLibrary, exercisePickerEquipmentFilter, exercisePickerMuscleFilter, exercisePickerSearch, exercisePickerTab])
 
   function resetDraftFromWorkout(workout = null) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
@@ -6527,11 +6548,15 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       focus: workout?.focus || selectedStudent?.goal || 'Hipertrofia',
       level: workout?.level || selectedStudent?.level || 'Intermediário',
       frequency: inferWorkoutFrequency(workout),
+      organization: workout?.organization || 'Dias da semana',
+      displayMode: workout?.displayMode || 'Sempre visível para o aluno',
+      guidance: workout?.guidance || workout?.notes || '',
       status: 'Rascunho',
-      days: days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : createDefaultWorkoutDays(availableExerciseLibrary),
+      days: days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : [],
     })
     setShowCreator(true)
     setTab('library')
+    setCreatorStep(workout ? 'days' : 'info')
     setActiveDayIndex(null)
     setExpandedExerciseKey('')
     setMessage(workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : '')
@@ -6552,9 +6577,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   function addDraftDay() {
     setDraft((current) => ({
       ...current,
-      days: [...current.days, { id: Date.now(), day: 'Novo dia', focus: 'Foco do treino', exercises: [createExerciseDraft('Supino reto com barra', {}, availableExerciseLibrary)] }],
+      days: [...current.days, { id: Date.now(), day: inferNextWorkoutDay(current.days.length, current.organization), focus: 'Foco do treino', exercises: [], guidance: '' }],
     }))
     setExpandedDay(draft.days.length)
+    setCreatorStep('days')
   }
 
   function duplicateDraftDay(dayIndex) {
@@ -6617,12 +6643,17 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setExercisePickerDayIndex(dayIndex)
     setExercisePickerSearch('')
     setExercisePickerSelections([])
+    setExercisePickerPreview(null)
+    setExercisePickerTab('coachfit')
+    setExercisePickerMuscleFilter('todos')
+    setExercisePickerEquipmentFilter('todos')
   }
 
   function closeExercisePicker() {
     setExercisePickerDayIndex(null)
     setExercisePickerSearch('')
     setExercisePickerSelections([])
+    setExercisePickerPreview(null)
   }
 
   function toggleExercisePickerSelection(name) {
@@ -6644,6 +6675,54 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
     setMessage(`${names.length} exercício(s) adicionado(s).`)
     closeExercisePicker()
+    setCreatorStep('exercises')
+  }
+
+  function applyExercisePreset(dayIndex, exerciseIndex, preset) {
+    const presets = {
+      none: {},
+      padrao: { sets: '3', reps: '12', rest: '60s' },
+      piramideCrescente: { sets: '4', reps: '12/10/8/6', load: 'Aumentar carga a cada série', rest: '90s' },
+      piramideDecrescente: { sets: '4', reps: '6/8/10/12', load: 'Reduzir carga a cada série', rest: '90s' },
+      dropSet: { sets: '3', reps: '10 + drop', load: 'Reduzir 20% na última série', rest: '75s' },
+      falhaUltima: { sets: '3', reps: '10-12', load: 'Falha técnica apenas na última série', rest: '90s' },
+    }
+    const changes = presets[preset] || {}
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => index === dayIndex
+        ? {
+          ...day,
+          exercises: day.exercises.map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex ? { ...exercise, ...changes } : exercise),
+        }
+        : day),
+    }))
+    setMessage(preset === 'none' ? 'Preset removido deste exercício.' : 'Preset aplicado ao exercício.')
+  }
+
+  function updateDraftExerciseVideoFile(dayIndex, exerciseIndex, file) {
+    if (file && !String(file.type || '').startsWith('video/')) {
+      setError('Envie um arquivo de vídeo válido.')
+      return
+    }
+    if (file && file.size > 120 * 1024 * 1024) {
+      setError('O vídeo precisa ter até 120 MB para manter o envio estável no celular.')
+      return
+    }
+    const previewUrl = file ? URL.createObjectURL(file) : ''
+    setDraft((current) => ({
+      ...current,
+      days: current.days.map((day, index) => index === dayIndex
+        ? {
+          ...day,
+          exercises: day.exercises.map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex
+            ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '', videoPreviewUrl: previewUrl }
+            : exercise),
+        }
+        : day),
+    }))
+    setError('')
+    setMessage(file ? 'Vídeo anexado. Ele será enviado quando o treino for salvo.' : 'Vídeo removido deste exercício.')
   }
 
   function duplicateDraftExercise(dayIndex, exerciseIndex) {
@@ -6714,7 +6793,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         level: draft.level,
         frequency: draft.frequency,
         status,
-        notes: `Organização por dias: ${draft.days.map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
+        organization: draft.organization,
+        displayMode: draft.displayMode,
+        guidance: draft.guidance,
+        notes: [draft.guidance, `Organização por dias: ${draft.days.map((day) => `${day.day} - ${day.focus}`).join('; ')}`].filter(Boolean).join(' | '),
         days: draft.days,
         exercises: filledExercises,
         source: 'mobile_workout_manager',
@@ -6929,71 +7011,207 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           <div className="mobile-workout-creator-head">
             <div>
               <p>Fluxo rápido</p>
-              <h4>Criar treino</h4>
+              <h4>{creatorStep === 'review' ? 'Revisar treino' : creatorStep === 'exercises' ? 'Exercícios' : creatorStep === 'days' ? 'Dias do treino' : 'Criar rotina'}</h4>
             </div>
             <button type="button" onClick={() => setShowCreator(false)}>Fechar</button>
           </div>
-          <div className="mobile-workout-form-grid">
-            <label>Nome<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} /></label>
-            <label>Objetivo<input value={draft.focus} onChange={(event) => updateDraft('focus', event.target.value)} /></label>
-            <label>Nível<input value={draft.level} onChange={(event) => updateDraft('level', event.target.value)} /></label>
-            <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} /></label>
-          </div>
-          <div className="mobile-workout-days">
-            {draft.days.map((day, dayIndex) => (
-              <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
-                <div className="mobile-workout-day-edit-head">
-                  <input value={day.day} onChange={(event) => updateDraftDay(dayIndex, 'day', event.target.value)} aria-label="Dia do treino" />
-                  <input value={day.focus} onChange={(event) => updateDraftDay(dayIndex, 'focus', event.target.value)} aria-label="Foco do dia" />
-                </div>
-                <div className="mobile-workout-day-actions">
-                  <button type="button" onClick={() => moveDraftDay(dayIndex, -1)} disabled={dayIndex === 0}>Subir</button>
-                  <button type="button" onClick={() => moveDraftDay(dayIndex, 1)} disabled={dayIndex === draft.days.length - 1}>Descer</button>
-                  <button type="button" onClick={() => duplicateDraftDay(dayIndex)}>Duplicar</button>
-                  <button type="button" onClick={() => removeDraftDay(dayIndex)}>Excluir</button>
-                </div>
-                <div className="mobile-workout-exercises">
-                  {day.exercises.map((exercise, exerciseIndex) => (
-                    <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
-                      <button
-                        type="button"
-                        className="mobile-workout-exercise-accordion"
-                        onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
-                      >
-                        <span className="mobile-workout-drag-handle">↕</span>
-                        <span>
-                          <strong>{exercise.name || 'Novo exercício'}</strong>
-                          <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
-                        </span>
-                        <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
-                      </button>
-                      {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
-                        <div className="mobile-workout-exercise-fields">
-                          <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
-                          <div>
-                            <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
-                            <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
-                            <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
-                            <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
-                          </div>
-                          <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
-                          <div className="mobile-workout-day-actions">
-                            <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
-                            <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
-                            <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
-                            <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
-                            <button type="button" onClick={() => { setExpandedExerciseKey(''); setMessage('Exercício salvo no rascunho.') }}>Salvar</button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-                <button type="button" onClick={() => openExercisePicker(dayIndex)} className="mobile-workout-secondary-action">+ Adicionar exercício</button>
-              </article>
+          <div className="mobile-workout-stepper" aria-label="Etapas de criação">
+            {[
+              ['info', 'Informações'],
+              ['days', 'Dias'],
+              ['exercises', 'Exercícios'],
+              ['review', 'Revisão'],
+            ].map(([step, label], index) => (
+              <button key={step} type="button" className={creatorStep === step ? 'is-active' : ''} onClick={() => setCreatorStep(step)}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                {label}
+              </button>
             ))}
           </div>
-          <button type="button" onClick={addDraftDay} className="mobile-workout-secondary-action">+ Adicionar dia</button>
+
+          {creatorStep === 'info' ? (
+            <div className="mobile-workout-step-panel">
+              <div className="mobile-workout-form-grid">
+                <label>Nome da rotina<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Ex.: Semanal 5x" /></label>
+                <label>Objetivo<input value={draft.focus} onChange={(event) => updateDraft('focus', event.target.value)} placeholder="Hipertrofia, definição..." /></label>
+                <label>Nível<input value={draft.level} onChange={(event) => updateDraft('level', event.target.value)} placeholder="Iniciante, intermediário..." /></label>
+                <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} placeholder="Ex.: 5x por semana" /></label>
+              </div>
+              <div className="mobile-workout-choice-grid">
+                <span>Organização</span>
+                {['Dias da semana', 'Numérico'].map((item) => (
+                  <button key={item} type="button" className={draft.organization === item ? 'is-active' : ''} onClick={() => updateDraft('organization', item)}>{item}</button>
+                ))}
+              </div>
+              <div className="mobile-workout-choice-grid">
+                <span>Mostrar para o aluno</span>
+                {['Sempre visível para o aluno', 'Após publicar', 'Ocultar até liberar'].map((item) => (
+                  <button key={item} type="button" className={draft.displayMode === item ? 'is-active' : ''} onClick={() => updateDraft('displayMode', item)}>{item}</button>
+                ))}
+              </div>
+              <label className="mobile-workout-textarea-label">
+                Orientações gerais
+                <textarea value={draft.guidance || ''} onChange={(event) => updateDraft('guidance', event.target.value)} rows={3} placeholder="Aquecimento, descanso, observações gerais..." />
+              </label>
+              <button type="button" className="mobile-workout-primary" onClick={() => setCreatorStep('days')}>Continuar</button>
+            </div>
+          ) : null}
+
+          {creatorStep === 'days' ? (
+            <div className="mobile-workout-step-panel">
+              {!draft.days.length ? (
+                <div className="mobile-workout-empty is-centered">
+                  <strong>Nenhum dia adicionado ainda.</strong>
+                  <span>Crie o primeiro dia para começar a montar a rotina.</span>
+                  <button type="button" onClick={addDraftDay} className="mobile-workout-primary">Adicionar primeiro dia</button>
+                </div>
+              ) : (
+                <div className="mobile-workout-days">
+                  {draft.days.map((day, dayIndex) => (
+                    <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
+                      <div className="mobile-workout-day-edit-head">
+                        <input value={day.day} onChange={(event) => updateDraftDay(dayIndex, 'day', event.target.value)} aria-label="Dia do treino" />
+                        <input value={day.focus} onChange={(event) => updateDraftDay(dayIndex, 'focus', event.target.value)} aria-label="Foco do dia" />
+                      </div>
+                      <div className="mobile-workout-day-meta">
+                        <span>{day.exercises.length} exercício(s)</span>
+                        <button type="button" onClick={() => { setExpandedDay(dayIndex); setCreatorStep('exercises') }}>Abrir dia</button>
+                      </div>
+                      <div className="mobile-workout-day-actions">
+                        <button type="button" onClick={() => moveDraftDay(dayIndex, -1)} disabled={dayIndex === 0}>Subir</button>
+                        <button type="button" onClick={() => moveDraftDay(dayIndex, 1)} disabled={dayIndex === draft.days.length - 1}>Descer</button>
+                        <button type="button" onClick={() => duplicateDraftDay(dayIndex)}>Duplicar</button>
+                        <button type="button" onClick={() => removeDraftDay(dayIndex)}>Excluir</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+              <button type="button" onClick={addDraftDay} className="mobile-workout-secondary-action">+ Adicionar dia</button>
+              <button type="button" className="mobile-workout-primary" onClick={() => setCreatorStep('exercises')}>Continuar para exercícios</button>
+            </div>
+          ) : null}
+
+          {creatorStep === 'exercises' ? (
+            <div className="mobile-workout-step-panel">
+              {!draft.days.length ? (
+                <div className="mobile-workout-empty is-centered">
+                  <strong>Adicione um dia antes dos exercícios.</strong>
+                  <button type="button" onClick={() => setCreatorStep('days')} className="mobile-workout-primary">Criar dia</button>
+                </div>
+              ) : (
+                <div className="mobile-workout-days">
+                  {draft.days.map((day, dayIndex) => (
+                    <article key={day.id || dayIndex} className={`mobile-workout-day-card is-editing ${expandedDay === dayIndex ? 'is-selected' : ''}`}>
+                      <button type="button" onClick={() => { setExpandedDay(dayIndex); setExpandedExerciseKey('') }}>
+                        <span>
+                          <strong>{day.day}</strong>
+                          <small>{day.focus}</small>
+                        </span>
+                        <span>{day.exercises.length} exercício(s)</span>
+                      </button>
+                      {expandedDay === dayIndex ? (
+                        <>
+                          {!day.exercises.length ? (
+                            <div className="mobile-workout-empty">
+                              <strong>Esse dia ainda está vazio.</strong>
+                              <span>Adicione exercícios pela biblioteca e configure tudo em poucos toques.</span>
+                            </div>
+                          ) : null}
+                          <div className="mobile-workout-exercises">
+                            {day.exercises.map((exercise, exerciseIndex) => (
+                              <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
+                                <button
+                                  type="button"
+                                  className="mobile-workout-exercise-accordion"
+                                  onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
+                                >
+                                  <span className="mobile-workout-drag-handle">↕</span>
+                                  <span>
+                                    <strong>{exercise.name || 'Novo exercício'}</strong>
+                                    <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
+                                  </span>
+                                  <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
+                                </button>
+                                {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
+                                  <div className="mobile-workout-exercise-fields">
+                                    <ExerciseMedia exercise={exercise} compact />
+                                    <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
+                                    <div>
+                                      <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
+                                      <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
+                                      <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
+                                      <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
+                                    </div>
+                                    <div>
+                                      <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
+                                      <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
+                                      <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
+                                      <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
+                                    </div>
+                                    <div className="mobile-workout-preset-row">
+                                      {[
+                                        ['padrao', '3 × 12'],
+                                        ['piramideCrescente', 'Pirâmide +'],
+                                        ['piramideDecrescente', 'Pirâmide -'],
+                                        ['dropSet', 'Drop set'],
+                                        ['falhaUltima', 'Falha final'],
+                                      ].map(([preset, label]) => (
+                                        <button key={preset} type="button" onClick={() => applyExercisePreset(dayIndex, exerciseIndex, preset)}>{label}</button>
+                                      ))}
+                                    </div>
+                                    <label className="mobile-workout-file-label">
+                                      Vídeo próprio
+                                      <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateDraftExerciseVideoFile(dayIndex, exerciseIndex, event.target.files?.[0] || null)} />
+                                      <span>{exercise.videoFileName || 'Grave pela câmera ou escolha da galeria.'}</span>
+                                    </label>
+                                    <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
+                                    <div className="mobile-workout-day-actions">
+                                      <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
+                                      <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
+                                      <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
+                                      <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
+                                      <button type="button" onClick={() => { setExpandedExerciseKey(''); setMessage('Exercício salvo no rascunho.') }}>Salvar</button>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                          <button type="button" onClick={() => openExercisePicker(dayIndex)} className="mobile-workout-secondary-action">+ Adicionar exercício</button>
+                        </>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              )}
+              <button type="button" className="mobile-workout-primary" onClick={() => setCreatorStep('review')}>Revisar treino</button>
+            </div>
+          ) : null}
+
+          {creatorStep === 'review' ? (
+            <div className="mobile-workout-step-panel">
+              <div className="mobile-workout-review-card">
+                <p>Resumo da publicação</p>
+                <h5>{draft.title || 'Treino sem nome'}</h5>
+                <span>{draft.days.length} dia(s) · {draft.days.reduce((total, day) => total + day.exercises.length, 0)} exercício(s)</span>
+                <small>{draft.focus} · {draft.frequency} · {draft.displayMode}</small>
+              </div>
+              <div className="mobile-workout-days">
+                {draft.days.map((day) => (
+                  <article key={day.id} className="mobile-workout-day-card">
+                    <button type="button">
+                      <span>
+                        <strong>{day.day}</strong>
+                        <small>{day.focus}</small>
+                      </span>
+                      <span>{day.exercises.length} exercício(s)</span>
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="mobile-workout-save-bar">
             <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>Salvar rascunho</button>
             <button type="button" disabled={saving} onClick={() => saveDraft('Publicado')}>{saving ? 'Salvando...' : 'Publicar'}</button>
@@ -7016,6 +7234,19 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <NavIcon name="chart" className="h-4 w-4" />
               <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar por nome, músculo ou equipamento" autoFocus />
             </div>
+            <div className="mobile-workout-picker-tabs" role="tablist" aria-label="Fonte dos exercícios">
+              <button type="button" className={exercisePickerTab === 'coachfit' ? 'is-active' : ''} onClick={() => setExercisePickerTab('coachfit')}>Coach Fit Pro</button>
+              <button type="button" className={exercisePickerTab === 'mine' ? 'is-active' : ''} onClick={() => setExercisePickerTab('mine')}>Meus exercícios</button>
+            </div>
+            <div className="mobile-workout-picker-filters">
+              <select value={exercisePickerMuscleFilter} onChange={(event) => setExercisePickerMuscleFilter(event.target.value)} aria-label="Filtrar por grupo muscular">
+                {exercisePickerMuscleOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <select value={exercisePickerEquipmentFilter} onChange={(event) => setExercisePickerEquipmentFilter(event.target.value)} aria-label="Filtrar por equipamento">
+                {exercisePickerEquipmentOptions.map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <button type="button" onClick={() => { setExercisePickerMuscleFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
+            </div>
             <div className="mobile-workout-picker-results">
               {exercisePickerResults.map((exercise) => {
                 const selected = exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(exercise.name))
@@ -7026,13 +7257,49 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
                     </span>
-                    <span className="mobile-workout-picker-check">{selected ? '✓' : '+'}</span>
+                    <span className="mobile-workout-picker-actions">
+                      <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); setExercisePickerPreview(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') setExercisePickerPreview(exercise) }}>Ver</span>
+                      <span className="mobile-workout-picker-check">{selected ? '✓' : '+'}</span>
+                    </span>
                   </button>
                 )
               })}
+              {!exercisePickerResults.length ? (
+                <div className="mobile-workout-empty">
+                  <strong>Nenhum exercício encontrado.</strong>
+                  <span>Limpe os filtros ou crie um exercício personalizado no próprio dia do treino.</span>
+                </div>
+              ) : null}
             </div>
             <button type="button" onClick={confirmExercisePicker} className="mobile-workout-primary">
               {exercisePickerSelections.length ? `Adicionar ${exercisePickerSelections.length}` : 'Adicionar primeiro resultado'}
+            </button>
+          </section>
+        </div>
+      ) : null}
+
+      {exercisePickerPreview ? (
+        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setExercisePickerPreview(null)}>
+          <section className="mobile-workout-sheet is-preview" role="dialog" aria-modal="true" aria-label="Prévia do exercício" onClick={(event) => event.stopPropagation()}>
+            <div className="mobile-workout-sheet-handle" />
+            <div className="mobile-workout-creator-head">
+              <div>
+                <p>Visualização</p>
+                <h4>{exercisePickerPreview.name}</h4>
+              </div>
+              <button type="button" onClick={() => setExercisePickerPreview(null)}>Fechar</button>
+            </div>
+            <ExerciseMedia exercise={exercisePickerPreview} compact />
+            <div className="mobile-workout-review-card">
+              <p>Músculo e equipamento</p>
+              <span>{exercisePickerPreview.group || exercisePickerPreview.muscleGroup || 'Grupo muscular'} · {exercisePickerPreview.equipment || 'Equipamento livre'}</span>
+              <small>{exercisePickerPreview.cues || exercisePickerPreview.instructions || 'Confira a demonstração antes de adicionar ao treino.'}</small>
+            </div>
+            <button type="button" className="mobile-workout-primary" onClick={() => {
+              toggleExercisePickerSelection(exercisePickerPreview.name)
+              setExercisePickerPreview(null)
+            }}>
+              Adicionar ao treino
             </button>
           </section>
         </div>
@@ -7103,9 +7370,17 @@ function createMobileWorkoutDraft(student, library = exerciseLibrary) {
     focus: student?.goal || 'Hipertrofia',
     level: student?.level || 'Intermediário',
     frequency: '3x por semana',
+    organization: 'Dias da semana',
+    displayMode: 'Sempre visível para o aluno',
+    guidance: '',
     status: 'Rascunho',
     days: createDefaultWorkoutDays(library),
   }
+}
+
+function inferNextWorkoutDay(index = 0, organization = 'Dias da semana') {
+  if (normalizeText(organization).includes('numer')) return `Dia ${index + 1}`
+  return ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'][index % 7] || `Dia ${index + 1}`
 }
 
 function createDefaultWorkoutDays(library = exerciseLibrary) {
@@ -8955,6 +9230,22 @@ function getExerciseCommonMistake(exercise = {}) {
 }
 
 function ExerciseMedia({ exercise, compact = false }) {
+  if (exercise.videoPreviewUrl) {
+    return (
+      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Prévia do vídeo do coach</summary>
+        <div className="aspect-video border-t border-white/10 bg-black">
+          <video
+            src={exercise.videoPreviewUrl}
+            controls
+            preload="metadata"
+            playsInline
+            className="h-full w-full bg-black object-contain"
+          />
+        </div>
+      </details>
+    )
+  }
   const videoUrl = safeExternalUrl(exercise.videoUrl)
   const embedUrl = getVideoEmbedUrl(exercise.videoUrl)
   const hasCustomVideo = Boolean(videoUrl)

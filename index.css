@@ -2586,6 +2586,132 @@ textarea {
     gap: 0.65rem;
   }
 
+  .mobile-workout-stepper {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.35rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 0.35rem;
+  }
+
+  .mobile-workout-stepper button {
+    display: grid;
+    min-height: 54px;
+    place-items: center;
+    gap: 0.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    color: rgba(228, 228, 231, 0.72);
+    font-size: 0.63rem;
+    font-weight: 950;
+  }
+
+  .mobile-workout-stepper button span {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(228, 228, 231, 0.62);
+    font-size: 0.58rem;
+  }
+
+  .mobile-workout-stepper button.is-active {
+    border-color: rgba(0, 210, 178, 0.52);
+    background: rgba(0, 210, 178, 0.14);
+    color: #fff;
+  }
+
+  .mobile-workout-stepper button.is-active span {
+    background: #00d2b2;
+    color: #020504;
+  }
+
+  .mobile-workout-step-panel {
+    display: grid;
+    gap: 0.75rem;
+    animation: mobileWorkoutAccordion 180ms ease both;
+  }
+
+  .mobile-workout-choice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .mobile-workout-choice-grid span {
+    grid-column: 1 / -1;
+    color: #79fff0;
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobile-workout-choice-grid button,
+  .mobile-workout-day-meta button,
+  .mobile-workout-preset-row button {
+    min-height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.045);
+    color: rgba(244, 244, 245, 0.86);
+    font-size: 0.74rem;
+    font-weight: 900;
+  }
+
+  .mobile-workout-choice-grid button.is-active {
+    border-color: rgba(0, 210, 178, 0.5);
+    background: #00d2b2;
+    color: #020504;
+  }
+
+  .mobile-workout-textarea-label,
+  .mobile-workout-file-label {
+    display: grid;
+    gap: 0.4rem;
+    color: rgba(110, 231, 183, 0.92);
+    font-size: 0.7rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobile-workout-textarea-label textarea {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(2, 5, 4, 0.72);
+    padding: 0.85rem;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 750;
+    line-height: 1.45;
+    outline: none;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .mobile-workout-day-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding-top: 0.55rem;
+    color: rgba(228, 228, 231, 0.7);
+    font-size: 0.78rem;
+    font-weight: 850;
+  }
+
+  .mobile-workout-day-card.is-selected {
+    border-color: rgba(0, 210, 178, 0.45);
+    background: rgba(0, 210, 178, 0.09);
+  }
+
   .mobile-workout-day-edit-head {
     display: grid;
     gap: 0.55rem;
@@ -2678,6 +2804,48 @@ textarea {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.45rem;
+  }
+
+  .mobile-workout-preset-row {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding-bottom: 0.15rem;
+    scrollbar-width: none;
+  }
+
+  .mobile-workout-preset-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-workout-preset-row button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0 0.7rem;
+    white-space: nowrap;
+  }
+
+  .mobile-workout-file-label {
+    border: 1px solid rgba(0, 210, 178, 0.18);
+    border-radius: 18px;
+    background: rgba(0, 210, 178, 0.07);
+    padding: 0.75rem;
+  }
+
+  .mobile-workout-file-label input {
+    min-height: 44px;
+    border-radius: 14px;
+    color: #fff;
+    font-size: 0.78rem;
+  }
+
+  .mobile-workout-file-label span {
+    color: rgba(228, 228, 231, 0.66);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.35;
+    text-transform: none;
   }
 
   .mobile-workout-day-screen {
@@ -2897,6 +3065,47 @@ textarea {
     background: rgba(0, 210, 178, 0.12);
   }
 
+  .mobile-workout-picker-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 0.3rem;
+  }
+
+  .mobile-workout-picker-tabs button {
+    min-height: 42px;
+    border-radius: 14px;
+    color: rgba(244, 244, 245, 0.78);
+    font-size: 0.76rem;
+    font-weight: 950;
+  }
+
+  .mobile-workout-picker-tabs button.is-active {
+    background: #00d2b2;
+    color: #020504;
+  }
+
+  .mobile-workout-picker-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 0.45rem;
+  }
+
+  .mobile-workout-picker-filters select,
+  .mobile-workout-picker-filters button {
+    min-width: 0;
+    min-height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 0 0.55rem;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 850;
+  }
+
   .mobile-workout-picker-results strong {
     display: block;
     overflow: hidden;
@@ -2926,6 +3135,68 @@ textarea {
     background: rgba(0, 210, 178, 0.14);
     color: #a7fff2;
     font-weight: 950;
+  }
+
+  .mobile-workout-picker-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .mobile-workout-picker-actions > span:first-child {
+    display: grid;
+    min-width: 38px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: rgba(244, 244, 245, 0.82);
+    font-size: 0.68rem;
+    font-weight: 950;
+  }
+
+  .mobile-workout-sheet.is-preview {
+    max-height: min(74vh, 660px);
+  }
+
+  .mobile-workout-review-card {
+    display: grid;
+    gap: 0.35rem;
+    border: 1px solid rgba(0, 210, 178, 0.18);
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(0, 210, 178, 0.14), transparent 40%),
+      rgba(255, 255, 255, 0.045);
+    padding: 0.85rem;
+  }
+
+  .mobile-workout-review-card p {
+    margin: 0;
+    color: #79fff0;
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobile-workout-review-card h5 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.15rem;
+    font-weight: 950;
+    line-height: 1.1;
+  }
+
+  .mobile-workout-review-card span,
+  .mobile-workout-review-card small {
+    color: rgba(244, 244, 245, 0.78);
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1.45;
+  }
+
+  .mobile-workout-empty.is-centered {
+    text-align: center;
   }
 
   @keyframes mobileWorkoutAccordion {
