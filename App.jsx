@@ -7968,16 +7968,18 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
           return (
             <article key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-view ${isOpen ? 'is-open' : ''}`}>
               <button type="button" className="mobile-workout-exercise-accordion" onClick={() => setExpandedExerciseKey(isOpen ? '' : key)}>
-                <span className="mobile-workout-drag-handle">↕</span>
+                <ExerciseThumbnail exercise={exercise} compact />
                 <span>
                   <strong>{exercise.name}</strong>
                   <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
+                  {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
                 </span>
                 <NavIcon name={isOpen ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
               </button>
               {isOpen ? (
                 <div className="mobile-workout-exercise-open">
                   <ExerciseMedia exercise={exercise} compact />
+                  <ExerciseMuscleSummary exercise={exercise} compact />
                   <div className="mobile-workout-exercise-metrics">
                     <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
                     <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
@@ -8011,19 +8013,39 @@ function MobileWorkoutEditableDay({
   onBack,
   onEditDay,
 }) {
+  const [studentPreviewOpen, setStudentPreviewOpen] = useState(false)
+
+  if (studentPreviewOpen) {
+    return (
+      <MobileWorkoutDayScreen
+        day={day}
+        dayIndex={dayIndex}
+        expandedExerciseKey={expandedExerciseKey}
+        setExpandedExerciseKey={setExpandedExerciseKey}
+        onBack={() => setStudentPreviewOpen(false)}
+        onEdit={() => setStudentPreviewOpen(false)}
+      />
+    )
+  }
+
   return (
     <section className="mobile-workout-day-screen mobile-workout-day-editor-screen">
-      <div className="mobile-workout-day-screen-head">
-        <button type="button" onClick={onBack}>Voltar</button>
+      <div className="mobile-workout-day-editor-hero">
+        <button type="button" className="mobile-workout-back-link" onClick={onBack}>Voltar</button>
         <div>
-          <p>Dia {dayIndex + 1}</p>
+          <p>DIA {dayIndex + 1}</p>
           <h4>{day.day}</h4>
-          <span>{day.focus} · {day.exercises.length} exercício(s)</span>
+          <span>{day.focus || 'Foco do treino'}</span>
+          <small>{day.exercises.length} exercício(s)</small>
         </div>
       </div>
       <div className="mobile-workout-day-open-actions">
-        <button type="button" className="mobile-workout-secondary-action" onClick={() => openExercisePicker(dayIndex)}>
+        <button type="button" className="mobile-workout-primary mobile-workout-add-exercise-cta" onClick={() => openExercisePicker(dayIndex)}>
           {day.exercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
+        </button>
+        <button type="button" onClick={() => setStudentPreviewOpen(true)}>
+          <NavIcon name="eye" className="h-4 w-4" />
+          Visão do Aluno
         </button>
         <button type="button" onClick={onEditDay}>Editar dia</button>
       </div>
@@ -8041,16 +8063,18 @@ function MobileWorkoutEditableDay({
               className="mobile-workout-exercise-accordion"
               onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
             >
-              <span className="mobile-workout-drag-handle">↕</span>
+              <ExerciseThumbnail exercise={exercise} compact />
               <span>
                 <strong>{exercise.name || 'Novo exercício'}</strong>
-                <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
+                <small>{exercise.sets || '-'} × {exercise.reps || '-'} · {exercise.rest || 'descanso livre'}</small>
+                {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
               </span>
               <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
             </button>
             {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
               <div className="mobile-workout-exercise-fields">
                 <ExerciseMedia exercise={exercise} compact />
+                <ExerciseMuscleSummary exercise={exercise} compact />
                 <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
                 <div>
                   <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
@@ -9156,9 +9180,13 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         {exercises.map((exercise, index) => (
           <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
-                <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup || 'Grupo muscular identificado pelo nome'}</p>
+              <div className="workout-exercise-card-summary min-w-0">
+                <ExerciseThumbnail exercise={exercise} compact />
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                  <h4 className="mt-1 truncate text-lg font-black text-white">{exercise.name || 'Novo exercício'}</h4>
+                  <p className="mt-1 text-xs text-zinc-400">{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</p>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2 sm:justify-end">
                 <button type="button" onClick={() => moveExercise(index, -1)} disabled={index === 0} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
@@ -9205,10 +9233,6 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
             </div>
 
-            <div className="mt-4">
-              <ExerciseMuscleSummary exercise={exercise} compact />
-            </div>
-
             <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
               <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
               <div className="grid gap-3 border-t border-white/10 p-3">
@@ -9252,6 +9276,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                     </span>
                   </label>
                 </div>
+                <ExerciseMuscleSummary exercise={exercise} compact />
                 <ExerciseMedia exercise={exercise} compact />
                 <div className="mt-2">
                   <ExerciseYouTubeLink exercise={exercise} compact />
@@ -9670,6 +9695,41 @@ function ExerciseMetric({ label, value }) {
       <p className="text-[10px] font-bold uppercase text-zinc-500">{label}</p>
       <p className="mt-1 break-words font-black text-zinc-200">{value}</p>
     </div>
+  )
+}
+
+function ExerciseThumbnail({ exercise = {}, compact = false }) {
+  const videoPreviewUrl = exercise.videoPreviewUrl || ''
+  const videoUrl = safeExternalUrl(exercise.videoUrl)
+  const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
+  const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
+  const target = exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Exercício'
+
+  return (
+    <span className={`exercise-thumb ${compact ? 'is-compact' : ''}`}>
+      {canUseVideo ? (
+        <video
+          src={videoPreviewUrl || videoUrl}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="exercise-thumb-media"
+        />
+      ) : imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={`Prévia de ${exercise.name || 'exercício'}`}
+          loading="lazy"
+          className="exercise-thumb-media"
+        />
+      ) : (
+        <span className="exercise-thumb-placeholder" aria-hidden="true">
+          <NavIcon name="dumbbell" className="h-5 w-5" />
+        </span>
+      )}
+      <small>{target}</small>
+    </span>
   )
 }
 
@@ -15877,6 +15937,7 @@ function NavIcon({ name, className = '' }) {
     bulb: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M8.5 14.5A6 6 0 1 1 15.5 14c-.9.8-1.5 1.7-1.5 3h-4c0-1.2-.5-2-1.5-2.5Z" /></>,
     alert: <><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" /></>,
     play: <><path d="M8 5v14l11-7Z" /></>,
+    eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>,
     star: <><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" /></>,
     shield: <><path d="M12 3 19 6v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3Z" /><path d="m9 12 2 2 4-5" /></>,
     check: <><path d="m20 6-11 11-5-5" /></>,
