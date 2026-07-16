@@ -6975,7 +6975,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
 
   return (
-    <section className="mobile-workout-manager md:hidden">
+    <section className="mobile-workout-manager">
       {!showCreator ? (
         <>
       <div className="mobile-workout-hero">
