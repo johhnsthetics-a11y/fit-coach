@@ -5941,7 +5941,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
             <p className="text-xs font-black uppercase text-emerald-200">Plano comercial do aluno</p>
             <h4 className="mt-1 text-lg font-black text-white">Escolha o plano que este aluno fechou com o treinador.</h4>
             <p className="mt-1 text-sm leading-6 text-zinc-400">
-              O valor e o ciclo selecionados puxam automaticamente a cobranca, o dashboard financeiro e os recebimentos.
+              O valor e o ciclo selecionados puxam automaticamente a cobrança, o dashboard financeiro e os recebimentos.
             </p>
           </div>
           <span className="w-fit rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-emerald-100">
@@ -5993,7 +5993,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
               <input value={newPlanPrice} onChange={(event) => setNewPlanPrice(event.target.value)} placeholder="Ex: 250,00" inputMode="decimal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
             </label>
             <Select
-              label="Ciclo de cobranca"
+              label="Ciclo de cobrança"
               name="newPlanCycle"
               value={newPlanCycle}
               onChange={(event) => setNewPlanCycle(event.target.value)}
@@ -6046,7 +6046,7 @@ function StudentPlanPreview({ plan, availablePlans = plans }) {
         <p className="mt-1 text-sm leading-6 text-zinc-400">{plan.features || 'Plano personalizado do treinador'}</p>
       </div>
       <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-        <p className="text-xs font-black uppercase text-emerald-200">Valor da cobranca</p>
+        <p className="text-xs font-black uppercase text-emerald-200">Valor da cobrança</p>
         <p className="mt-2 text-2xl font-black text-white">{formatCurrency(billingAmount)}</p>
         <p className="mt-1 text-sm font-bold text-emerald-100">{getPlanCycleLabel(plan)}</p>
       </div>
@@ -7168,7 +7168,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     names.forEach((name) => addDraftExercise(exercisePickerDayIndex, name))
     rememberRecentExercises(names)
     setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
-    setMessage(`${names.length} exercício(s) adicionado(s).`)
+    setMessage(`${formatCount(names.length, 'exercício')} ${names.length === 1 ? 'adicionado' : 'adicionados'}.`)
     closeExercisePicker()
     setCreatorStep('exercises')
   }
@@ -7379,7 +7379,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         title: draft.title || 'Treino',
         focus: draft.focus || '',
         level: draft.level,
-        frequency: draft.frequency || `${draft.days.length} dia(s) por semana`,
+        frequency: draft.frequency || `${formatCount(draft.days.length, 'dia')} por semana`,
         status,
         organization: draft.organization,
         displayMode: draft.displayMode,
@@ -7499,8 +7499,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
                   <span>
                     <strong>{workout.title || 'Treino sem nome'}</strong>
-                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)} · {days.length || 1} dia(s)</small>
-                    <small>{(workout.exercises || []).length} exercício(s) · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)} · {formatCount(days.length || 1, 'dia')}</small>
+                  <small>{formatCount((workout.exercises || []).length, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
                   </span>
                 </button>
                 <details className="mobile-workout-menu">
@@ -7525,7 +7525,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         <div className="mobile-workout-stack">
           <div className="mobile-workout-section-title">
             <span>Treinos dos alunos</span>
-            <small>{filteredStudentRows.length} aluno(s)</small>
+            <small>{formatCount(filteredStudentRows.length, 'aluno')}</small>
           </div>
           <label className="mobile-workout-select-label">
             Aluno para novas atribuições
@@ -7540,7 +7540,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 <span>
                   <strong>{student.name}</strong>
                   <small>{latest?.title || 'Sem treino ativo'}</small>
-                  <small>{assigned.length} treino(s) · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
+                  <small>{formatCount(assigned.length, 'treino')} · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
                 </span>
               </button>
               <button type="button" onClick={() => { setSelectedStudentId(student.id); resetDraftFromWorkout(latest) }} className="mobile-workout-mini-action">
@@ -7577,9 +7577,18 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           <details className="mobile-workout-routine-details">
             <summary>Detalhes da rotina</summary>
             <div>
-              <span><strong>Frequência</strong>{inferWorkoutFrequency(selectedWorkout)}</span>
-              <span><strong>Nível</strong>{inferWorkoutLevel(selectedWorkout)}</span>
-              <span><strong>Dias</strong>{selectedWorkoutDays.length || 0}</span>
+              <span>
+                <strong>Frequência</strong>
+                <em>{inferWorkoutFrequency(selectedWorkout)}</em>
+              </span>
+              <span>
+                <strong>Nível</strong>
+                <em>{inferWorkoutLevel(selectedWorkout)}</em>
+              </span>
+              <span>
+                <strong>Dias</strong>
+                <em>{selectedWorkoutDays.length || 0}</em>
+              </span>
             </div>
           </details>
           <div className="mobile-workout-days">
@@ -7594,7 +7603,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                     <strong>{day.day}</strong>
                     <small>{day.focus}</small>
                   </span>
-                  <span>{day.exercises.length} exercício(s)</span>
+                  <span>{formatCount(day.exercises.length, 'exercício')}</span>
                 </button>
               </article>
             ))}
@@ -7671,7 +7680,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                           <strong>{day.day}</strong>
                           <small>{day.focus || 'Foco do treino'}</small>
                         </span>
-                        <span>{day.exercises.length} exercício(s)</span>
+                        <span>{formatCount(day.exercises.length, 'exercício')}</span>
                       </button>
                       <div className="mobile-workout-day-footer">
                         <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setCreatorStep('exercises') }}>Abrir dia</button>
@@ -7710,7 +7719,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                           <strong>{day.day}</strong>
                           <small>{day.focus}</small>
                         </span>
-                        <span>{day.exercises.length} exercício(s)</span>
+                        <span>{formatCount(day.exercises.length, 'exercício')}</span>
                       </button>
                     </article>
                   ))}
@@ -7743,7 +7752,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <div className="mobile-workout-review-card">
                 <p>Resumo da publicação</p>
                 <h5>{draft.title || 'Treino sem nome'}</h5>
-                <span>{draft.days.length} dia(s) · {draft.days.reduce((total, day) => total + day.exercises.length, 0)} exercício(s)</span>
+                <span>{formatCount(draft.days.length, 'dia')} · {formatCount(draft.days.reduce((total, day) => total + day.exercises.length, 0), 'exercício')}</span>
                 <small>{draft.focus} · {draft.frequency} · {draft.displayMode}</small>
               </div>
               <div className="mobile-workout-days">
@@ -7758,7 +7767,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                         <strong>{day.day}</strong>
                         <small>{day.exercises.length ? day.focus : 'Este dia ainda não possui exercícios.'}</small>
                       </span>
-                      <span>{day.exercises.length} exercício(s)</span>
+                      <span>{formatCount(day.exercises.length, 'exercício')}</span>
                     </button>
                   </article>
                 ))}
@@ -7947,20 +7956,22 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   )
 }
 
-function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpandedExerciseKey, onBack, onEdit }) {
+function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpandedExerciseKey, onBack, onEdit, previewMode = false }) {
   return (
     <section className="mobile-workout-day-screen">
       <div className="mobile-workout-day-screen-head">
-        <button type="button" onClick={onBack}>Voltar</button>
+        <button type="button" onClick={onBack}>{previewMode ? 'Voltar ao modo treinador' : 'Voltar'}</button>
         <div>
-          <p>Dia {dayIndex + 1}</p>
+          <p>{previewMode ? 'Visão do aluno' : `Dia ${dayIndex + 1}`}</p>
           <h4>{day.day}</h4>
           <span>{day.focus}</span>
         </div>
       </div>
-      <button type="button" className="mobile-workout-secondary-action" onClick={onEdit}>
-        Editar treino e adicionar exercício
-      </button>
+      {!previewMode ? (
+        <button type="button" className="mobile-workout-secondary-action" onClick={onEdit}>
+          Editar treino e adicionar exercício
+        </button>
+      ) : null}
       <div className="mobile-workout-exercises">
         {day.exercises.map((exercise, exerciseIndex) => {
           const key = `view-${dayIndex}-${exerciseIndex}`
@@ -8024,6 +8035,7 @@ function MobileWorkoutEditableDay({
         setExpandedExerciseKey={setExpandedExerciseKey}
         onBack={() => setStudentPreviewOpen(false)}
         onEdit={() => setStudentPreviewOpen(false)}
+        previewMode
       />
     )
   }
@@ -8036,7 +8048,7 @@ function MobileWorkoutEditableDay({
           <p>DIA {dayIndex + 1}</p>
           <h4>{day.day}</h4>
           <span>{day.focus || 'Foco do treino'}</span>
-          <small>{day.exercises.length} exercício(s)</small>
+          <small>{formatCount(day.exercises.length, 'exercício')}</small>
         </div>
       </div>
       <div className="mobile-workout-day-open-actions">
@@ -8045,7 +8057,7 @@ function MobileWorkoutEditableDay({
         </button>
         <button type="button" onClick={() => setStudentPreviewOpen(true)}>
           <NavIcon name="eye" className="h-4 w-4" />
-          Visão do Aluno
+          Visão do aluno
         </button>
         <button type="button" onClick={onEditDay}>Editar dia</button>
       </div>
@@ -8265,6 +8277,11 @@ function inferWorkoutLevel(workout) {
   if (text.includes('iniciante')) return 'Iniciante'
   if (text.includes('avancado') || text.includes('avançado')) return 'Avançado'
   return 'Intermediário'
+}
+
+function formatCount(total, singular, plural = `${singular}s`) {
+  const count = Number(total || 0)
+  return `${count} ${count === 1 ? singular : plural}`
 }
 
 function summarizeWorkoutFocus(exercises = []) {
@@ -14073,12 +14090,12 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${activeStudents} aluno(s) ativos`} />
+          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${formatCount(activeStudents, 'aluno')} ${activeStudents === 1 ? 'ativo' : 'ativos'}`} />
           <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
           <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
           <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
           <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
-          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${paidStudents} aluno(s) liberados`} />
+          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${formatCount(paidStudents, 'aluno')} ${paidStudents === 1 ? 'liberado' : 'liberados'}`} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
@@ -14200,7 +14217,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                   <div>
                     <h4 className="font-black">{plan.name}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{plan.features}</p>
-                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {plan.students} aluno(s) ativo(s)</p>
+                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {formatCount(plan.students, 'aluno')} {plan.students === 1 ? 'ativo' : 'ativos'}</p>
                   </div>
                   <span className="text-right text-lg font-black text-blue-300">{formatCurrency(plan.billingValue)}</span>
                 </div>
@@ -14421,7 +14438,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
       return
     }
     if (file.size > 700 * 1024) {
-      setLogoFileError('A imagem ficou pesada. Use uma logo com ate 700 KB para carregar rapido.')
+      setLogoFileError('A imagem ficou pesada. Use uma logo com até 700 KB para carregar rápido.')
       return
     }
     const reader = new FileReader()
@@ -15243,7 +15260,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     setError('')
     try {
       await onDeleteAccount(deleteConfirmation)
-      setMessage('Conta excluida. Voce sera redirecionado para o acesso inicial.')
+      setMessage('Conta excluída. Você será redirecionado para o acesso inicial.')
     } catch (deleteError) {
       setError(deleteError?.message || 'Não foi possível excluir a conta agora.')
     } finally {
@@ -15386,7 +15403,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                   value={planDraft.billingMessage}
                   onChange={(event) => updatePlanDraft('billingMessage', event.target.value)}
                   rows={4}
-                  placeholder="Ex: Ola, {aluno}. Sua mensalidade do plano {plano} vence em {vencimento}. Valor: {valor}. Pix: {pix}."
+                  placeholder="Ex.: Olá, {aluno}. Sua mensalidade do plano {plano} vence em {vencimento}. Valor: {valor}. Pix: {pix}."
                   className="min-h-28 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base leading-6 text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
                 />
                 <span className="text-xs leading-5 text-zinc-500">
@@ -16396,7 +16413,7 @@ function ScoreBox({ label, value, detail, tone = 'emerald' }) {
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/30">
         <div className="h-full rounded-full bg-current" style={{ width: `${clampPercent(value)}%` }} />
       </div>
-      <p className="mt-2 text-xs font-bold">{detail}</p>
+      <p className="mt-2 text-xs font-bold">{formatUiText(detail)}</p>
     </div>
   )
 }
@@ -16523,22 +16540,22 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
   if (!hasActiveWorkout) {
     factors.push('Sem treino ativo')
     filterTags.push('sem-treino')
-    reasons.push({ level: 'Atencao', text: 'sem treino ativo', action: 'Prescreva um treino para liberar a execucao no app.', view: 'treinos' })
+    reasons.push({ level: 'Atencao', text: 'sem treino ativo', action: 'Prescreva um treino para liberar a execução no app.', view: 'treinos' })
   }
   if (lastWorkoutDays === null || lastWorkoutDays >= 10) {
-    factors.push(lastWorkoutDays === null ? 'Sem treino concluido' : `${Math.floor(lastWorkoutDays)} dias sem treinar`)
+    factors.push(lastWorkoutDays === null ? 'Sem treino concluído' : `${Math.floor(lastWorkoutDays)} dias sem treinar`)
     filterTags.push('risco-abandono')
-    reasons.push({ level: lastWorkoutDays === null || lastWorkoutDays >= 14 ? 'Urgente' : 'Atencao', text: lastWorkoutDays === null ? 'sem treino concluido registrado' : 'muitos dias sem treinar', action: 'Envie uma mensagem e ajuste a proxima sessao.', view: 'mensagens' })
+    reasons.push({ level: lastWorkoutDays === null || lastWorkoutDays >= 14 ? 'Urgente' : 'Atencao', text: lastWorkoutDays === null ? 'sem treino concluído registrado' : 'muitos dias sem treinar', action: 'Envie uma mensagem e ajuste a próxima sessão.', view: 'mensagens' })
   }
   if (lastCheckinDays === null || lastCheckinDays >= 14) {
     factors.push(lastCheckinDays === null ? 'Sem check-in' : `${Math.floor(lastCheckinDays)} dias sem check-in`)
     filterTags.push('sem-checkin')
-    reasons.push({ level: lastCheckinDays === null || lastCheckinDays >= 21 ? 'Atencao' : 'Acompanhar', text: 'check-in atrasado', action: 'Solicite um retorno rapido sobre treino, dieta, sono e fome.', view: 'checkins' })
+    reasons.push({ level: lastCheckinDays === null || lastCheckinDays >= 21 ? 'Atencao' : 'Acompanhar', text: 'check-in atrasado', action: 'Solicite um retorno rápido sobre treino, dieta, sono e fome.', view: 'checkins' })
   }
   if (adherence.score < 65 || studentAdherence < 65) {
-    factors.push(`Adesao ${adherence.score}/100`)
+    factors.push(`Adesão ${adherence.score}/100`)
     filterTags.push('baixa-adesao')
-    reasons.push({ level: adherence.score < 45 ? 'Urgente' : 'Atencao', text: 'baixa adesao', action: 'Revise volume, rotina e barreiras do aluno antes que ele desengaje.', view: 'alunos' })
+    reasons.push({ level: adherence.score < 45 ? 'Urgente' : 'Atencao', text: 'baixa adesão', action: 'Revise volume, rotina e barreiras do aluno antes que ele desengaje.', view: 'alunos' })
   }
   if (painOrFatigue) {
     factors.push('Dor ou fadiga alta')
@@ -16546,28 +16563,28 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     reasons.push({ level: 'Urgente', text: 'sinal de dor ou fadiga no check-in', action: 'Avalie ajuste de carga, descanso ou encaminhamento adequado.', view: 'checkins' })
   }
   if (unreadStudentMessages || latestMessageNeedsReply) {
-    factors.push(unreadStudentMessages ? `${unreadStudentMessages} mensagem(ns) sem resposta` : 'Aluno aguardando resposta')
+    factors.push(unreadStudentMessages ? `${formatCount(unreadStudentMessages, 'mensagem', 'mensagens')} sem resposta` : 'Aluno aguardando resposta')
     filterTags.push('sem-resposta')
-    reasons.push({ level: unreadStudentMessages > 1 || latestMessageNeedsReply ? 'Atencao' : 'Acompanhar', text: 'mensagem pendente', action: 'Responda o aluno para manter percepcao de acompanhamento.', view: 'mensagens' })
+    reasons.push({ level: unreadStudentMessages > 1 || latestMessageNeedsReply ? 'Atencao' : 'Acompanhar', text: 'mensagem pendente', action: 'Responda o aluno para manter percepção de acompanhamento.', view: 'mensagens' })
   }
   if (overdueInvoices.length || student.payment === 'Pendente') {
     factors.push('Financeiro pendente')
     filterTags.push('financeiro')
-    reasons.push({ level: overdueInvoices.length ? 'Urgente' : 'Atencao', text: overdueInvoices.length ? 'inadimplencia' : 'pagamento pendente', action: 'Abra recebimentos, confirme pagamento ou envie cobranca personalizada.', view: 'pagamentos' })
+    reasons.push({ level: overdueInvoices.length ? 'Urgente' : 'Atencao', text: overdueInvoices.length ? 'inadimplência' : 'pagamento pendente', action: 'Abra recebimentos, confirme pagamento ou envie cobrança personalizada.', view: 'pagamentos' })
   } else if (dueSoonInvoices.length) {
-    factors.push('Vencimento proximo')
+    factors.push('Vencimento próximo')
     filterTags.push('financeiro')
-    reasons.push({ level: 'Acompanhar', text: 'cobranca proxima do vencimento', action: 'Prepare lembrete antes do vencimento para evitar atraso.', view: 'pagamentos' })
+    reasons.push({ level: 'Acompanhar', text: 'cobrança próxima do vencimento', action: 'Prepare lembrete antes do vencimento para evitar atraso.', view: 'pagamentos' })
   }
   if (!hasRecentAssessment) {
     factors.push(lastAssessmentDays === null ? 'Sem avaliação' : 'Avaliação antiga')
     filterTags.push('risco-abandono')
-    reasons.push({ level: lastAssessmentDays === null ? 'Atenção' : 'Acompanhar', text: 'sem avaliação recente', action: 'Atualize medidas e fotos para reforçar percepção de evolução.', view: 'avaliacoes' })
+    reasons.push({ level: lastAssessmentDays === null ? 'Atencao' : 'Acompanhar', text: 'sem avaliação recente', action: 'Atualize medidas e fotos para reforçar percepção de evolução.', view: 'avaliacoes' })
   }
   if (logs14 < 2 && studentLogs.length > 0) {
-    factors.push('Baixa frequencia')
+    factors.push('Baixa frequência')
     filterTags.push('baixa-adesao')
-    reasons.push({ level: 'Atencao', text: 'baixa frequencia nas ultimas duas semanas', action: 'Reduza friccao da rotina e combine uma meta minima para a semana.', view: 'treinos' })
+    reasons.push({ level: 'Atencao', text: 'baixa frequência nas últimas duas semanas', action: 'Reduza fricção da rotina e combine uma meta mínima para a semana.', view: 'treinos' })
   }
 
   const mainReason = pickMainPriorityReason(reasons)
@@ -16582,7 +16599,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     priority: mainReason?.level || 'Regular',
     priorityRank: { Urgente: 0, Atencao: 1, Acompanhar: 2, Regular: 3 }[mainReason?.level || 'Regular'],
     reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operação em dia para este aluno.',
-    recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a proxima evolucao.',
+    recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a próxima evolução.',
     primaryView,
     factors: [...new Set(factors)],
     filterTags: [...new Set(filterTags.concat(mainReason ? [normalizePriorityFilter(mainReason.level)] : []))],
@@ -16590,7 +16607,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     risk,
     pendingMessages: unreadStudentMessages,
     financialDueSoon: dueSoonInvoices.length > 0,
-    lastActivity: lastActivityDate ? `Ultima atividade: ${formatDateTime(lastActivityDate)}` : 'Ultima atividade: sem registro',
+    lastActivity: lastActivityDate ? `Última atividade: ${formatDateTime(lastActivityDate)}` : 'Última atividade: sem registro',
   }
 }
 
@@ -16603,7 +16620,7 @@ function calculateAdherenceScore({ logs14, previousLogs14, lastWorkoutDays, last
   const score = clampPercent((workoutScore * 0.28) + (checkinScore * 0.2) + (responseScore * 0.16) + (consistencyScore * 0.2) + (recencyScore * 0.16))
   const trend = logs14 - previousLogs14
   const classification = score >= 85 ? 'excelente' : score >= 70 ? 'boa' : score >= 50 ? 'instavel' : 'baixa'
-  const reason = `Frequencia ${logs14}/14 dias, check-ins ${checkins30}/30 dias, respostas ${responseScore}/100 e consistencia ${consistencyScore}/100. Evolucao: ${trend > 0 ? `subiu ${trend}` : trend < 0 ? `caiu ${Math.abs(trend)}` : 'estavel'}.`
+  const reason = `Frequência ${logs14}/14 dias, check-ins ${checkins30}/30 dias, respostas ${responseScore}/100 e consistência ${consistencyScore}/100. Evolução: ${trend > 0 ? `subiu ${trend}` : trend < 0 ? `caiu ${Math.abs(trend)}` : 'estável'}.`
 
   return { score, classification, trend, reason }
 }
@@ -16617,7 +16634,7 @@ function calculateAbandonmentRisk({ lastWorkoutDays, lastCheckinDays, unreadStud
     factors.push('muitos dias sem treinar')
   } else if (lastWorkoutDays >= 8) {
     score += 18
-    factors.push('queda de frequencia')
+    factors.push('queda de frequência')
   }
   if (lastCheckinDays === null || lastCheckinDays >= 21) {
     score += 22
@@ -16628,7 +16645,7 @@ function calculateAbandonmentRisk({ lastWorkoutDays, lastCheckinDays, unreadStud
   }
   if (unreadStudentMessages || latestMessageNeedsReply) {
     score += Math.min(18, 8 + unreadStudentMessages * 5)
-    factors.push('ausencia de resposta')
+    factors.push('ausência de resposta')
   }
   if (overdueInvoices.length) {
     score += 24
@@ -16636,16 +16653,16 @@ function calculateAbandonmentRisk({ lastWorkoutDays, lastCheckinDays, unreadStud
   }
   if (logs14 < previousLogs14 && previousLogs14 > 0) {
     score += 12
-    factors.push('queda de frequencia')
+    factors.push('queda de frequência')
   }
   if (adherenceScore < 55) {
     score += 14
-    factors.push('baixa adesao')
+    factors.push('baixa adesão')
   }
 
   const normalizedScore = clampPercent(score)
   const classification = normalizedScore >= 75 ? 'critico' : normalizedScore >= 55 ? 'alto' : normalizedScore >= 30 ? 'medio' : 'baixo'
-  const reason = factors.length ? `Risco ${classification}: ${[...new Set(factors)].join(', ')}.` : 'Risco baixo: rotina recente sem sinal critico.'
+  const reason = factors.length ? `Risco ${classification}: ${[...new Set(factors)].join(', ')}.` : 'Risco baixo: rotina recente sem sinal crítico.'
 
   return { score: normalizedScore, classification, factors: [...new Set(factors)], reason }
 }
@@ -17204,7 +17221,7 @@ function buildCoachSettingsPayload(settings = {}, user = {}) {
     billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
     autoBillingEnabled: settings?.autoBillingEnabled !== false,
     customPlans: getCoachPlans(settings),
-    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como voce esta evoluindo.',
+    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
   }
 }
@@ -17802,6 +17819,9 @@ function formatUiText(value) {
   const labels = {
     Medio: 'Médio',
     Critico: 'Crítico',
+    medio: 'médio',
+    critico: 'crítico',
+    instavel: 'instável',
     Atencao: 'Atenção',
     Concluido: 'Concluído',
     Proximos: 'Próximos',

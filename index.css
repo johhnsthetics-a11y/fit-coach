@@ -3018,7 +3018,7 @@ textarea {
 
   .mobile-workout-routine-details span {
     display: grid;
-    gap: 0.15rem;
+    gap: 0.25rem;
     min-width: 0;
     border-radius: 14px;
     background: rgba(0, 210, 178, 0.08);
@@ -3035,6 +3035,14 @@ textarea {
     font-weight: 950;
     text-overflow: ellipsis;
     text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .mobile-workout-routine-details em {
+    overflow: hidden;
+    color: rgba(244, 244, 245, 0.88);
+    font-style: normal;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
@@ -4181,6 +4189,16 @@ textarea {
     border-radius: 20px;
     background: rgba(255, 255, 255, 0.045);
     padding: 0.75rem;
+  }
+
+  .mobile-workout-routine-details span {
+    align-content: start;
+  }
+
+  .mobile-workout-routine-details em {
+    color: rgba(244, 244, 245, 0.9);
+    font-style: normal;
+    line-height: 1.35;
   }
 
   .mobile-workout-card.is-selected,
