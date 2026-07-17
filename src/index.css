@@ -3557,6 +3557,362 @@ textarea {
   touch-action: manipulation;
 }
 
+/* Responsividade interna do aplicativo: não afeta a página pública de vendas. */
+.app-shell:not(.sales-page) {
+  --app-mobile-pad: clamp(0.75rem, 3.6vw, 1rem);
+  --app-card-radius: 18px;
+  --app-touch-target: 44px;
+  isolation: isolate;
+}
+
+.app-shell:not(.sales-page) *,
+.app-shell:not(.sales-page) *::before,
+.app-shell:not(.sales-page) *::after {
+  min-width: 0;
+}
+
+.app-shell:not(.sales-page) [class*="grid-cols-"],
+.app-shell:not(.sales-page) [class*="flex"] {
+  min-width: 0;
+}
+
+.app-shell:not(.sales-page) img,
+.app-shell:not(.sales-page) video,
+.app-shell:not(.sales-page) iframe,
+.app-shell:not(.sales-page) canvas {
+  max-width: 100%;
+}
+
+.app-shell:not(.sales-page) iframe,
+.app-shell:not(.sales-page) video {
+  border-radius: 14px;
+}
+
+.app-shell:not(.sales-page) input,
+.app-shell:not(.sales-page) select,
+.app-shell:not(.sales-page) textarea {
+  max-width: 100%;
+}
+
+.app-shell:not(.sales-page) button,
+.app-shell:not(.sales-page) a,
+.app-shell:not(.sales-page) summary {
+  min-height: min(var(--app-touch-target), 100%);
+}
+
+.app-shell:not(.sales-page) .metric-money-value,
+.app-shell:not(.sales-page) .sales-dashboard-money {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.coach-auth-shell .coach-auth-main,
+.student-mobile-shell main {
+  contain: layout;
+}
+
+.coach-auth-shell .coach-auth-main > div,
+.student-mobile-shell main,
+.student-mobile-shell .student-app-section {
+  min-width: 0;
+}
+
+.coach-auth-shell .coach-mobile-page-header,
+.student-mobile-shell main > section,
+.coach-auth-shell .coach-metric-card,
+.coach-auth-shell .workout-exercise-card,
+.coach-auth-shell .workout-exercise-picker,
+.coach-auth-shell [role="dialog"],
+.student-mobile-shell [role="dialog"] {
+  max-width: 100%;
+}
+
+.coach-auth-shell .coach-mobile-page-header h2,
+.student-mobile-shell h1,
+.student-mobile-shell h2,
+.student-mobile-shell h3 {
+  overflow-wrap: anywhere;
+}
+
+.coach-auth-shell .coach-mobile-page-header > div:first-child,
+.coach-auth-shell .coach-mobile-page-header > div:last-child {
+  min-width: 0;
+}
+
+.coach-auth-shell .workout-exercise-card,
+.coach-auth-shell .workout-exercise-picker,
+.coach-auth-shell .mobile-workout-manager,
+.coach-auth-shell .mobile-workout-sheet,
+.student-mobile-shell .student-app-section {
+  overflow: clip;
+}
+
+.coach-auth-shell .workout-exercise-picker input,
+.coach-auth-shell .workout-exercise-picker select,
+.coach-auth-shell .workout-exercise-picker button {
+  min-width: 0;
+}
+
+.coach-auth-shell .workout-exercise-card-summary {
+  align-items: start;
+}
+
+.coach-auth-shell .workout-exercise-card .exercise-thumb {
+  align-self: start;
+}
+
+.coach-auth-shell table,
+.student-mobile-shell table {
+  min-width: 640px;
+}
+
+.coach-auth-shell .table-scroll,
+.student-mobile-shell .table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .app-shell:not(.sales-page) {
+    --app-card-radius: 20px;
+  }
+
+  .coach-auth-shell .coach-auth-main,
+  .student-mobile-shell main {
+    width: 100%;
+    padding-inline: max(var(--app-mobile-pad), env(safe-area-inset-left)) max(var(--app-mobile-pad), env(safe-area-inset-right));
+  }
+
+  .coach-auth-shell .coach-mobile-page-header {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header > div:last-child {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header > div:last-child button {
+    width: 100%;
+  }
+
+  .coach-auth-shell section.grid,
+  .student-mobile-shell section.grid {
+    min-width: 0;
+  }
+
+  .coach-auth-shell .coach-metric-card {
+    min-height: 0;
+  }
+
+  .coach-auth-shell .workout-exercise-picker {
+    padding: 0.85rem !important;
+  }
+
+  .coach-auth-shell .workout-exercise-picker [class*="grid-cols-"],
+  .coach-auth-shell .workout-exercise-card [class*="grid-cols-"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .coach-auth-shell .workout-exercise-card-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .coach-auth-shell .workout-exercise-card > div:first-child > div:last-child {
+    width: 100%;
+  }
+
+  .coach-auth-shell .workout-exercise-card > div:first-child > div:last-child button {
+    flex: 1 1 calc(50% - 0.35rem);
+  }
+
+  .coach-auth-shell .exercise-thumb:not(.is-compact) {
+    width: 72px;
+    min-width: 72px;
+  }
+
+  .mobile-workout-manager {
+    width: 100%;
+  }
+
+  .mobile-workout-sheet-backdrop {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .mobile-workout-sheet {
+    width: 100%;
+    max-height: min(88dvh, 760px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .mobile-workout-picker-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin-inline: -0.25rem;
+    border-radius: 18px;
+    background: rgba(2, 5, 4, 0.94);
+    padding: 0.5rem;
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-workout-exercise-fields > div,
+  .mobile-workout-form-grid,
+  .mobile-workout-picker-filters,
+  .mobile-workout-choice-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-workout-day-open-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-workout-day-open-actions button {
+    width: 100%;
+  }
+
+  .student-mobile-shell .grid-cols-7 {
+    gap: 0.25rem;
+  }
+
+  .student-mobile-shell .grid-cols-7 > * {
+    min-width: 0;
+    padding-inline: 0.15rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .coach-auth-shell .coach-auth-main {
+    padding-inline: clamp(1rem, 3vw, 1.5rem);
+  }
+
+  .coach-auth-shell .coach-mobile-page-header {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .coach-auth-shell .workout-exercise-picker [class*="lg:grid-cols"],
+  .coach-auth-shell .workout-exercise-card [class*="lg:grid-cols"],
+  .student-mobile-shell [class*="lg:grid-cols"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-workout-manager {
+    max-width: min(100%, 920px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .coach-auth-shell {
+    --coach-sidebar-width: 292px;
+  }
+
+  .coach-auth-shell aside {
+    max-height: 100dvh;
+  }
+
+  .coach-auth-shell aside nav {
+    padding-bottom: 0.25rem;
+  }
+
+  .coach-auth-shell aside nav button {
+    min-height: 38px;
+  }
+
+  .coach-auth-shell .coach-auth-main {
+    min-height: 100dvh;
+    padding-block: clamp(1rem, 1.6vw, 1.55rem);
+  }
+
+  .coach-auth-shell .coach-auth-main > div {
+    width: min(100%, 1440px);
+  }
+
+  .coach-auth-shell .coach-mobile-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header > div:first-child {
+    flex: 1 1 auto;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header > div:last-child {
+    flex: 0 1 420px;
+    justify-content: flex-end;
+  }
+
+  .coach-auth-shell .coach-mobile-page-header h2 {
+    max-width: 980px;
+    font-size: clamp(2rem, 2.6vw, 3rem);
+  }
+
+  .coach-auth-shell .coach-mobile-page-header p {
+    max-width: 780px;
+  }
+
+  .coach-auth-shell .coach-metric-card {
+    min-height: 132px;
+  }
+
+  .coach-auth-shell .workout-builder,
+  .coach-auth-shell .workout-express-module,
+  .coach-auth-shell .mobile-workout-manager {
+    width: 100%;
+  }
+
+  .coach-auth-shell .workout-exercise-card {
+    padding: clamp(1rem, 1.25vw, 1.35rem);
+  }
+
+  .coach-auth-shell .workout-exercise-card > div:first-child {
+    align-items: flex-start;
+  }
+
+  .coach-auth-shell .workout-exercise-card > div:first-child > div:last-child {
+    max-width: 520px;
+  }
+
+  .coach-auth-shell .mobile-workout-sheet {
+    max-height: min(82dvh, 780px);
+  }
+
+  .student-mobile-shell > div.mx-auto {
+    width: min(100%, 1180px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .coach-auth-shell .coach-auth-main {
+    padding-inline: clamp(1.5rem, 2vw, 2rem);
+  }
+
+  .coach-auth-shell .coach-mobile-page-header {
+    padding: clamp(1.2rem, 1.5vw, 1.6rem);
+  }
+}
+
+@media (max-height: 720px) and (min-width: 1024px) {
+  .coach-auth-shell aside {
+    padding-block: 0.65rem;
+  }
+
+  .coach-auth-shell aside nav {
+    gap: 0.3rem;
+  }
+
+  .coach-auth-shell aside nav button {
+    min-height: 34px;
+    padding-block: 0.3rem;
+  }
+}
+
 @media (min-width: 768px) {
   .mobile-workout-manager {
     display: grid;
