@@ -6856,6 +6856,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [exercisePickerObjectiveFilter, setExercisePickerObjectiveFilter] = useState('todos')
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
   const [dayEditor, setDayEditor] = useState(null)
+  const [workoutStudentPreviewOpen, setWorkoutStudentPreviewOpen] = useState(false)
   const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
   const [favoriteExerciseNames, setFavoriteExerciseNames] = useState(() => {
     try {
@@ -6904,6 +6905,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     if (studentWorkouts[0]?.id) setSelectedWorkoutId(studentWorkouts[0].id)
   }, [studentWorkouts])
 
+  useEffect(() => {
+    setWorkoutStudentPreviewOpen(false)
+  }, [selectedWorkoutId, selectedStudentId, showCreator])
+
   const activeWorkouts = useMemo(
     () => (workouts || []).filter((workout) => workout.active !== false),
     [workouts],
@@ -6911,6 +6916,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
   const selectedWorkout = activeWorkouts.find((workout) => String(workout.id) === String(selectedWorkoutId)) || studentWorkouts[0] || filteredWorkouts[0] || activeWorkouts[0] || null
   const selectedWorkoutDays = useMemo(() => buildMobileWorkoutDays(selectedWorkout, availableExerciseLibrary), [selectedWorkout, availableExerciseLibrary])
+  const selectedWorkoutStudent = useMemo(
+    () => students.find((student) => String(student.id) === String(selectedWorkout?.studentId || selectedStudentId)) || selectedStudent || students[0] || null,
+    [selectedStudent, selectedStudentId, selectedWorkout?.studentId, students],
+  )
+  const selectedWorkoutExerciseCount = useMemo(
+    () => selectedWorkoutDays.reduce((total, day) => total + (day.exercises?.length || 0), 0),
+    [selectedWorkoutDays],
+  )
   const studentWorkoutRows = useMemo(
     () => students.map((student) => {
       const assigned = activeWorkouts.filter((workout) => String(workout.studentId) === String(student.id))
@@ -6975,6 +6988,13 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setActiveDayIndex(null)
     setExpandedExerciseKey('')
     setMessage(workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : '')
+  }
+
+  function editSelectedWorkoutAtExercises(workout) {
+    resetDraftFromWorkout(workout)
+    setCreatorStep('exercises')
+    setActiveDayIndex(0)
+    setExpandedDay(0)
   }
 
   function updateDraft(field, value) {
@@ -7553,13 +7573,56 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 
       {selectedWorkout && !showCreator ? (
         <div className="mobile-workout-detail">
+          {workoutStudentPreviewOpen ? (
+            <MobileWorkoutStudentPreview
+              student={selectedWorkoutStudent}
+              workout={selectedWorkout}
+              days={selectedWorkoutDays}
+              exerciseCount={selectedWorkoutExerciseCount}
+              expandedExerciseKey={expandedExerciseKey}
+              setExpandedExerciseKey={setExpandedExerciseKey}
+              onBack={() => {
+                setWorkoutStudentPreviewOpen(false)
+                setExpandedExerciseKey('')
+              }}
+            />
+          ) : (
+            <>
+          <div className="mobile-workout-student-context">
+            <div className="mobile-workout-student-avatar">
+              {selectedWorkoutStudent?.photo ? (
+                <img src={selectedWorkoutStudent.photo} alt={`Foto de ${selectedWorkoutStudent.name}`} />
+              ) : (
+                <span>{getInitials(selectedWorkoutStudent?.name || 'Aluno')}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p>Treino de</p>
+              <h4>{selectedWorkoutStudent?.name || 'Aluno selecionado'}</h4>
+              <strong>{selectedWorkout.title || 'Treino selecionado'}</strong>
+              <span>{formatCount(selectedWorkoutDays.length || 0, 'dia')} • {formatCount(selectedWorkoutExerciseCount, 'exercício')}</span>
+            </div>
+          </div>
+          <div className="mobile-workout-action-bar" aria-label="Ações do treino do aluno">
+            <button type="button" className="is-primary" onClick={() => setWorkoutStudentPreviewOpen(true)}>
+              <NavIcon name="eye" className="h-4 w-4" />
+              Visão do aluno
+            </button>
+            <button type="button" onClick={() => resetDraftFromWorkout(selectedWorkout)}>
+              <NavIcon name="layers" className="h-4 w-4" />
+              Duplicar treino
+            </button>
+            <button type="button" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
+              <NavIcon name="plus" className="h-4 w-4" />
+              Adicionar exercício
+            </button>
+          </div>
           <div className="mobile-workout-detail-head">
             <div>
               <p>{String(selectedWorkout.status || 'Publicado')}</p>
               <h4>{selectedWorkout.title || 'Treino selecionado'}</h4>
               <span>{selectedWorkout.focus || 'Objetivo não informado'} · {inferWorkoutFrequency(selectedWorkout)}</span>
             </div>
-            <button type="button" onClick={() => resetDraftFromWorkout(selectedWorkout)}>Editar cópia</button>
           </div>
           {activeDayIndex !== null && selectedWorkoutDays[activeDayIndex] ? (
             <MobileWorkoutDayScreen
@@ -7608,6 +7671,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               </article>
             ))}
           </div>
+          </>
+          )}
         </div>
       ) : null}
         </>
@@ -8057,7 +8122,7 @@ function MobileWorkoutEditableDay({
         </button>
         <button type="button" onClick={() => setStudentPreviewOpen(true)}>
           <NavIcon name="eye" className="h-4 w-4" />
-          Visão do aluno
+          Ver como o aluno verá este dia
         </button>
         <button type="button" onClick={onEditDay}>Editar dia</button>
       </div>
@@ -8282,6 +8347,81 @@ function inferWorkoutLevel(workout) {
 function formatCount(total, singular, plural = `${singular}s`) {
   const count = Number(total || 0)
   return `${count} ${count === 1 ? singular : plural}`
+}
+
+function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCount = 0, expandedExerciseKey, setExpandedExerciseKey, onBack }) {
+  return (
+    <section className="mobile-workout-student-preview" aria-label="Visão do aluno">
+      <div className="mobile-workout-student-preview-head">
+        <button type="button" onClick={onBack}>← Voltar para edição</button>
+        <div>
+          <p>Visão do aluno</p>
+          <h4>{workout?.title || 'Treino selecionado'}</h4>
+          <span>{student?.name || 'Aluno selecionado'} • {formatCount(days.length, 'dia')} • {formatCount(exerciseCount, 'exercício')}</span>
+        </div>
+      </div>
+
+      {days.length ? (
+        <div className="mobile-workout-student-preview-days">
+          {days.map((day, dayIndex) => (
+            <article key={day.id || dayIndex} className="mobile-workout-student-preview-day">
+              <div className="mobile-workout-student-preview-day-head">
+                <span>{String(dayIndex + 1).padStart(2, '0')}</span>
+                <div>
+                  <h5>{day.day}</h5>
+                  <p>{day.focus || 'Treino do dia'} • {formatCount(day.exercises?.length || 0, 'exercício')}</p>
+                </div>
+              </div>
+              {day.exercises?.length ? (
+                <div className="mobile-workout-exercises">
+                  {day.exercises.map((exercise, exerciseIndex) => {
+                    const key = `student-preview-${dayIndex}-${exerciseIndex}`
+                    const isOpen = expandedExerciseKey === key
+                    return (
+                      <article key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-view ${isOpen ? 'is-open' : ''}`}>
+                        <button type="button" className="mobile-workout-exercise-accordion" onClick={() => setExpandedExerciseKey(isOpen ? '' : key)}>
+                          <ExerciseThumbnail exercise={exercise} compact />
+                          <span>
+                            <strong>{exercise.name || 'Exercício'}</strong>
+                            <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
+                            {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
+                          </span>
+                          <NavIcon name={isOpen ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
+                        </button>
+                        {isOpen ? (
+                          <div className="mobile-workout-exercise-open">
+                            <ExerciseMedia exercise={exercise} compact />
+                            <div className="mobile-workout-exercise-metrics">
+                              <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+                              <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
+                              <ExerciseMetric label="Carga" value={exercise.load || '-'} />
+                              <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
+                            </div>
+                            <p>{exercise.instructions || exercise.notes || 'Siga a execução com controle, amplitude e atenção ao descanso.'}</p>
+                            <ExerciseYouTubeLink exercise={exercise} compact />
+                          </div>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="mobile-workout-empty">
+                  <strong>Este dia ainda não possui exercícios.</strong>
+                  <span>Adicione exercícios antes de publicar para o aluno.</span>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="mobile-workout-empty">
+          <strong>Este treino ainda não possui dias.</strong>
+          <span>Crie os dias antes de revisar a entrega do aluno.</span>
+        </div>
+      )}
+    </section>
+  )
 }
 
 function summarizeWorkoutFocus(exercises = []) {
