@@ -1,0 +1,47 @@
+COACH FIT PRO - TEMA CLARO COMPLETO + CORRECAO DE CACHE
+
+Esta e a pasta correta para atualizar:
+- Pagina inicial/vendas com fundo claro por padrao.
+- App autenticado com fundo claro por padrao.
+- Verde safira como destaque.
+- Botao para ativar modo escuro.
+- Service worker atualizado para evitar cache antigo.
+
+COMO SUBIR NO GITHUB SEM DAR ERRO
+
+1. Abra esta pasta.
+2. Envie o CONTEUDO desta pasta para a RAIZ do repositorio.
+3. Nao crie uma pasta chamada COACH-FIT-PRO... dentro do GitHub.
+4. No GitHub, a raiz precisa ficar assim:
+   /package.json
+   /index.html
+   /vite.config.js
+   /wrangler.jsonc
+   /src/App.jsx
+   /src/index.css
+   /src/main.jsx
+   /src/supabaseApi.js
+   /public/service-worker.js
+   /public/manifest.webmanifest
+   /public/fit-coach-icon.svg
+
+SE NADA MUDAR APOS O DEPLOY
+
+Confira no log do Cloudflare se apareceu:
+- dist/assets/index-D2wYitZA.css
+- dist/assets/index-C3nw8t4T.js
+
+Se esses nomes NAO aparecerem, o Cloudflare nao buildou estes arquivos.
+Nesse caso o GitHub esta com arquivos em pasta errada ou o Cloudflare esta apontando para outro repositorio/branch.
+
+Depois do deploy:
+- Abra em aba anonima.
+- Ou no celular, feche o navegador e limpe cache do site.
+- O PWA antigo pode segurar cache por alguns minutos; este pacote atualiza o service-worker para corrigir isso.
+
+NAO SUBIR:
+- node_modules
+- dist
+- _restore_points
+- backups
+- .env real
