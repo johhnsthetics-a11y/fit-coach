@@ -1,4 +1,4 @@
-﻿import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -6,10 +6,9 @@ import {
   archiveRemoteWorkout,
   createRemoteStudentInvite,
   deleteRemoteStudent,
-  fetchRemoteExerciseMedia,
   loadRemoteData,
+  loadRemoteAdminOverview,
   loadRemoteAppAdminSettings,
-  loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
   loadRemoteStudentByInvite,
@@ -22,13 +21,12 @@ import {
   saveRemoteCheckin,
   saveRemoteCoachSettings,
   saveRemoteAppAdminSettings,
-  saveRemoteLeadEvent,
+  updateRemoteAdminCoachSubscription,
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
   saveRemoteStudent,
   saveRemoteMessage,
   saveRemoteWorkout,
-  saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
   setSupabaseSession,
   signInCoach,
@@ -48,29 +46,28 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
+const THEME_STORAGE_KEY = 'coachfitpro-ui-theme'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
-const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
-const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 const cartpandaCheckoutPlans = [
   {
     id: 'mensal',
     name: 'Mensal',
     cycle: 'cobrança mensal',
-    badge: 'Primeiro mês R$ 9,90',
-    price: 'R$ 9,90',
-    suffix: 'no 1º mês',
-    oldPrice: 'R$ 49,90',
-    total: 'Depois R$ 49,90/mês',
-    economy: 'Economize R$ 40,00 na ativação',
+    badge: 'Mais flexível',
+    price: 'R$ 49,90',
+    suffix: '/mês',
+    oldPrice: '',
+    total: 'Total em 12 meses: R$ 598,80',
+    economy: 'Pague mês a mês',
     equivalent: 'sem compromisso de ciclo longo',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
-    description: 'Comece pagando pouco no primeiro mês, valide a operação com alunos reais e mantenha liberdade para continuar mês a mês.',
-    highlights: ['Primeiro mês por R$ 9,90', 'Depois R$ 49,90/mês', 'Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
-    bestFor: 'Coach que quer entrar com baixo risco, testar a experiência premium com os primeiros alunos e validar o impacto antes de assumir um ciclo maior.',
-    operatingPromise: 'A oferta de entrada reduz a barreira para começar agora. Você ativa a estrutura, organiza os alunos atuais e decide a continuidade com dados reais da operação.',
-    activationPlan: ['Ativar o primeiro mês promocional', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
-    decisionPoints: ['R$ 9,90 para começar', 'baixo risco de entrada', 'renovação mensal depois'],
+    description: 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
+    highlights: ['Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'],
+    bestFor: 'Coach que quer iniciar sem compromisso longo e validar a experiência com os primeiros alunos.',
+    operatingPromise: 'Implante em etapas, cadastre alunos ativos e acompanhe o ganho de organização desde a primeira semana.',
+    activationPlan: ['Criar conta e ativar o ciclo mensal', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'],
+    decisionPoints: ['mais flexibilidade', 'melhor para teste operacional', 'renovação mês a mês'],
   },
   {
     id: 'semestral',
@@ -87,7 +84,7 @@ const cartpandaCheckoutPlans = [
     description: 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
     highlights: ['Acesso completo ao painel', 'Menos renovações no ano', 'Rotina financeira previsível', 'Boa opção para equipes em crescimento'],
     bestFor: 'Coach que já tem carteira ativa e quer estruturar a operação sem ficar repensando assinatura todo mês.',
-    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, ganhar controle e aumentar percepção de valor.',
+    operatingPromise: 'Seis meses dão tempo para padronizar atendimento, reduzir retrabalho e aumentar percepção de valor.',
     activationPlan: ['Ativar o semestre com economia', 'Organizar alunos por planos e vencimentos', 'Criar rotina de treinos, dieta, check-ins e cobrança'],
     decisionPoints: ['equilíbrio ideal', 'economia sem travar por um ano', 'mais previsibilidade'],
   },
@@ -98,9 +95,9 @@ const cartpandaCheckoutPlans = [
     badge: 'Maior economia',
     price: 'R$ 358,80',
     suffix: '/ano',
-    oldPrice: 'R$ 598,80',
+    oldPrice: 'R$ 598,00',
     total: 'Equivale a R$ 29,90/mês',
-    economy: 'Economize R$ 240,00',
+    economy: 'Economize R$ 239,20',
     equivalent: 'menor custo para operar o ano inteiro',
     checkoutUrl: 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
     description: 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
@@ -112,256 +109,289 @@ const cartpandaCheckoutPlans = [
   },
 ]
 const primaryCartpandaCheckoutUrl = cartpandaCheckoutPlans[0].checkoutUrl
-const defaultLandingTextOverrides = [
-  { id: 'hero-kicker', label: 'Hero: texto superior', source: 'Para personal, coach, consultoria online e aulas presenciais', replacement: 'Para personal, coach, consultoria online e aulas presenciais', color: '#00D2B2', enabled: true },
-  { id: 'hero-lead', label: 'Hero: primeira linha do título', source: 'Menos tarefas repetitivas.', replacement: 'Menos tarefas repetitivas.', color: '#ffffff', enabled: true },
-  { id: 'hero-focus', label: 'Hero: destaque do título', source: 'Mais tempo para atender e vender.', replacement: 'Mais tempo para atender e vender.', color: '#00D2B2', enabled: true },
-  { id: 'hero-subtitle', label: 'Hero: subtítulo', source: 'Monte treinos em minutos, acompanhe seus alunos e valorize sua consultoria.', replacement: 'Monte treinos em minutos, acompanhe seus alunos e valorize sua consultoria.', color: '#d1d5db', enabled: true },
-  { id: 'hero-primary-cta', label: 'Botão principal', source: 'Escolher meu plano', replacement: 'Escolher meu plano', color: '#02110d', enabled: true },
-  { id: 'hero-secondary-cta', label: 'Botão secundário', source: 'Ver como funciona', replacement: 'Ver como funciona', color: '#ffffff', enabled: true },
-  { id: 'hero-badge', label: 'Faixa de prova', source: '+ organização, + percepção de valor, + rotina profissional', replacement: '+ organização, + percepção de valor, + rotina profissional', color: '#ffffff', enabled: true },
-  { id: 'proof-title', label: 'Cards iniciais: avaliação', source: 'Avaliação visual premium', replacement: 'Avaliação visual premium', color: '#ffffff', enabled: true },
-  { id: 'proof-panel', label: 'Cards iniciais: painel', source: 'Um painel', replacement: 'Um painel', color: '#ffffff', enabled: true },
-  { id: 'problem-kicker', label: 'Problema: etiqueta', source: 'O problema não é falta de método', replacement: 'O problema não é falta de método', color: '#00D2B2', enabled: true },
-  { id: 'problem-title', label: 'Problema: título', source: 'É vender consultoria premium usando uma operação improvisada.', replacement: 'É vender consultoria premium usando uma operação improvisada.', color: '#ffffff', enabled: true },
-  { id: 'solution-kicker', label: 'Solução: etiqueta', source: 'Solução completa', replacement: 'Solução completa', color: '#00D2B2', enabled: true },
-  { id: 'solution-title', label: 'Solução: título', source: 'A estrutura que transforma atendimento em operação.', replacement: 'A estrutura que transforma atendimento em operação.', color: '#ffffff', enabled: true },
-  { id: 'mechanism-kicker', label: 'Mecanismo: etiqueta', source: 'O custo invisível do improviso', replacement: 'O custo invisível do improviso', color: '#00D2B2', enabled: true },
-  { id: 'mechanism-title', label: 'Mecanismo: título', source: 'Seu método pode ser excelente e ainda parecer menor do que realmente é.', replacement: 'Seu método pode ser excelente e ainda parecer menor do que realmente é.', color: '#ffffff', enabled: true },
-  { id: 'financial-kicker', label: 'Financeiro: etiqueta', source: 'Motor de recorrência', replacement: 'Motor de recorrência', color: '#00D2B2', enabled: true },
-  { id: 'financial-title', label: 'Financeiro: título', source: 'Organização, cobrança e retenção trabalhando no mesmo fluxo.', replacement: 'Organização, cobrança e retenção trabalhando no mesmo fluxo.', color: '#ffffff', enabled: true },
-  { id: 'simulator-kicker', label: 'Simulador: etiqueta', source: 'Potencial de faturamento', replacement: 'Potencial de faturamento', color: '#00D2B2', enabled: true },
-  { id: 'simulator-title', label: 'Simulador: título', source: 'Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.', replacement: 'Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.', color: '#ffffff', enabled: true },
-  { id: 'testimonials-kicker', label: 'Depoimentos: etiqueta', source: 'Prova social que aumenta confiança', replacement: 'Prova social que aumenta confiança', color: '#00D2B2', enabled: true },
-  { id: 'testimonials-title', label: 'Depoimentos: título', source: 'Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.', replacement: 'Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.', color: '#ffffff', enabled: true },
-  { id: 'faq-kicker', label: 'Dúvidas: etiqueta', source: 'Dúvidas antes de começar', replacement: 'Dúvidas antes de começar', color: '#00D2B2', enabled: true },
-  { id: 'faq-title', label: 'Dúvidas: título', source: 'O que você precisa saber sobre o Coach Fit Pro', replacement: 'O que você precisa saber sobre o Coach Fit Pro', color: '#ffffff', enabled: true },
-  { id: 'plans-kicker', label: 'Planos: etiqueta', source: 'Planos Coach Fit Pro', replacement: 'Planos Coach Fit Pro', color: '#00D2B2', enabled: true },
-  { id: 'plans-title', label: 'Planos: título', source: 'Comece hoje. Cresça no seu ritmo.', replacement: 'Comece hoje. Cresça no seu ritmo.', color: '#ffffff', enabled: true },
-  { id: 'final-title', label: 'CTA final', source: 'Organize sua operação antes que sua agenda cresça mais do que seu controle.', replacement: 'Organize sua operação antes que sua agenda cresça mais do que seu controle.', color: '#ffffff', enabled: true },
-]
 
-const ADMIN_SETTINGS_SCHEMA_VERSION = 20260715
-const LANDING_PAGE_SCHEMA_VERSION = 2
+const defaultSalesContent = {
+  navItems: [
+    { label: 'Solução', target: 'recursos' },
+    { label: 'Mecanismo', target: 'mecanismo' },
+    { label: 'App', target: 'app-aluno' },
+    { label: 'Resultados', target: 'simulador' },
+    { label: 'Preços', target: 'precos' },
+    { label: 'Dúvidas', target: 'duvidas' },
+  ],
+  heroBadge: 'Plataforma de operação para coaches fitness',
+  secondaryCta: 'Ver como funciona',
+  plansButton: 'Ver planos',
+  loginButton: 'Entrar',
+  heroStats: [
+    { value: '1 painel', label: 'toda a operação' },
+    { value: 'App aluno', label: 'experiência premium' },
+    { value: '3 planos', label: 'mensal, semestral e anual' },
+  ],
+  heroProofs: [
+    { title: 'Treino enviado', text: 'execução guiada e histórico' },
+    { title: 'Dieta ajustada', text: 'macros e substituições' },
+    { title: 'Cobrança clara', text: 'status por aluno' },
+  ],
+  valueBullets: [
+    { title: 'Operação centralizada', text: 'Treino, dieta, financeiro, agenda e chat no mesmo lugar.' },
+    { title: 'Aluno mais engajado', text: 'Portal simples para seguir rotina, registrar treino e enviar feedback.' },
+    { title: 'Marca mais premium', text: 'Você entrega seu método com mais clareza, organização e autoridade.' },
+  ],
+  appVisual: {
+    eyebrow: 'Visual de aplicativo',
+    title: 'Mostre para o aluno que ele está dentro de um acompanhamento premium.',
+    description: 'As telas foram pensadas para celular, com ações simples, feedback visual e informação separada por contexto. O aluno abre, entende o que precisa fazer e registra a rotina sem se perder.',
+    cards: [
+      { title: 'Treino guiado', text: 'Iniciar treino, pausar, registrar carga e concluir.' },
+      { title: 'Dieta clara', text: 'Refeições, macros e substituições equivalentes.' },
+      { title: 'Chat direto', text: 'Conversa em tempo real com envio de fotos.' },
+      { title: 'Engajamento', text: 'Meta de água, calendário e desafios semanais.' },
+    ],
+    phoneScreens: [
+      { kicker: 'Hoje', title: 'Olá, Élinton', subtitle: 'Calendário semanal · meta do dia', action: 'Desafio semanal 3/5', rows: ['Água 1,8L / 2,5L', 'Treino de pernas', 'Feedback semanal'], floatingIcon: 'wallet', floatingTitle: 'R$ 297,00', floatingText: 'plano mensal' },
+      { kicker: 'Treino', title: 'Treino C', subtitle: 'Legs · 7 exercícios', action: 'Treino iniciado · 23:14', rows: ['Agachamento 4x10', 'Leg press 4x12', 'Cadeira flexora 3x12'], floatingIcon: 'dumbbell', floatingTitle: 'Treino', floatingText: 'enviado' },
+      { kicker: 'Fatura e chat', title: 'Pagamento em dia', subtitle: 'Próxima cobrança em 6 dias', action: 'Chat com o coach', rows: ['Pix validado', 'Foto enviada', 'Plano alimentar ativo'], floatingIcon: 'message', floatingTitle: 'Anamnese', floatingText: 'recebida' },
+    ],
+    phoneNav: [
+      { icon: 'dashboard', label: 'Início' },
+      { icon: 'wallet', label: 'Fatura' },
+      { icon: 'message', label: 'Chat' },
+      { icon: 'menu', label: 'Menu' },
+    ],
+  },
+  features: {
+    eyebrow: 'Solução completa',
+    title: 'A estrutura que transforma atendimento em operação.',
+    description: 'O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.',
+    items: [
+      { number: '01', title: 'Aluno 360º', description: 'Cadastro, anamnese, histórico, fotos, pagamentos, treino e dieta conectados em uma ficha única.' },
+      { number: '02', title: 'Treinos profissionais', description: 'Prescrição por exercício, séries, cargas, notas do coach e vídeo de execução quando necessário.' },
+      { number: '03', title: 'Nutrição com macros', description: 'Planos alimentares, alimentos da biblioteca, itens manuais e substituições equivalentes.' },
+      { number: '04', title: 'Evolução comparável', description: 'Fotos, medidas, avaliações e gráficos para o coach mostrar progresso com clareza.' },
+      { number: '05', title: 'Engajamento do aluno', description: 'Desafios, meta de água, check-ins, feedbacks e lembretes para manter constância.' },
+      { number: '06', title: 'Financeiro sem bagunça', description: 'Planos próprios do coach, cobranças, status de pagamento e comprovantes organizados.' },
+    ],
+  },
+  mechanism: {
+    eyebrow: 'O custo invisível do improviso',
+    title: 'Seu método pode ser excelente e ainda parecer menor do que realmente é.',
+    description: 'Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e perde força na hora de justificar preço, renovar e escalar.',
+    items: [
+      { title: 'Planilhas e mensagens espalhadas', problem: 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', solution: 'Uma ficha central por aluno' },
+      { title: 'Cobrança manual e atrasos', problem: 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', solution: 'Planos e pagamentos organizados' },
+      { title: 'Aluno sem clareza do processo', problem: 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', solution: 'Portal próprio e rotina guiada' },
+      { title: 'Decisões sem histórico completo', problem: 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', solution: 'Evolução registrada e comparável' },
+    ],
+  },
+  commandCenter: {
+    eyebrow: 'Motor de recorrência',
+    title: 'Organização, cobrança e retenção trabalhando no mesmo fluxo.',
+    description: 'O Coach Fit Pro não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.',
+    cards: [
+      { title: 'Centraliza', text: 'Fim do PDF, Excel e mensagem perdida.' },
+      { title: 'Cobra', text: 'Vencimentos, Pix e validação em um só lugar.' },
+      { title: 'Retém', text: 'Desafios, feedbacks e evolução mantêm o aluno ativo.' },
+    ],
+    dashboardEyebrow: 'Dashboard financeiro',
+    dashboardTitle: 'Receita, renovações e inadimplência sob controle',
+    dashboardBadge: 'ao vivo',
+    metrics: [
+      { label: 'Recebido no mês', value: 'R$ 8.940', detail: '+18%' },
+      { label: 'Renovações próximas', value: '32', detail: '7 dias' },
+      { label: 'A receber', value: 'R$ 2.310', detail: 'pendente' },
+      { label: 'Alunos liberados', value: '94%', detail: 'pagos' },
+    ],
+    automationItems: [
+      { title: 'Cobranças automáticas', text: 'Pix, WhatsApp e status por aluno' },
+      { title: 'Confirmação manual', text: 'coach valida e libera o acesso' },
+      { title: 'Planos próprios', text: 'mensal, semanal, semestral ou anual' },
+    ],
+    dashboardFootnote: 'Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.',
+  },
+  comparison: {
+    eyebrow: 'Antes e depois',
+    title: 'A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.',
+    beforeLabel: 'Antes:',
+    afterLabel: 'Com Coach Fit Pro:',
+    items: [
+      { item: 'Cadastro', before: 'Formulários e mensagens soltas', after: 'Código, consentimento e continuidade' },
+      { item: 'Prescrição', before: 'Arquivos separados', after: 'Treino e dieta no portal' },
+      { item: 'Acompanhamento', before: 'Perguntas no WhatsApp', after: 'Check-ins e histórico' },
+      { item: 'Evolução', before: 'Fotos na galeria', after: 'Avaliações e gráficos' },
+      { item: 'Financeiro', before: 'Agenda ou memória', after: 'Cobranças e vencimentos' },
+      { item: 'Comunicação', before: 'Conversa sem contexto', after: 'Mensagens ligadas ao aluno' },
+    ],
+  },
+  studentApp: {
+    eyebrow: 'Experiência do aluno',
+    title: 'O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.',
+    description: 'Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.',
+    cta: 'Profissionalizar meu acompanhamento',
+    items: [
+      { title: 'Primeiro acesso', text: 'Código individual, consentimento e anamnese guiada.' },
+      { title: 'Rotina diária', text: 'Treino, alimentação, água e desafios sempre disponíveis no celular.' },
+      { title: 'Prestação de contas', text: 'Check-ins, fotos, feedbacks e conclusão de treinos registrados.' },
+      { title: 'Proximidade', text: 'Chat em tempo real, agenda e orientações em um só ambiente.' },
+    ],
+  },
+  results: {
+    eyebrow: 'Potencial de faturamento',
+    title: 'Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.',
+    description: 'O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.',
+    simulatorEyebrow: 'Simulador de cenário',
+    simulatorTitle: 'Quanto sua operação pode movimentar?',
+    simulatorDisclaimer: 'Estimativa, não garantia de resultado',
+    items: [
+      { title: 'Mais capacidade', text: 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.' },
+      { title: 'Maior valor percebido', text: 'Um portal completo torna visível tudo que existe dentro do acompanhamento.' },
+      { title: 'Mais retenção', text: 'Rotina, check-ins e evolução ajudam o aluno a permanecer conectado ao processo.' },
+      { title: 'Receita previsível', text: 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.' },
+    ],
+  },
+  objections: {
+    eyebrow: 'Feito para a rotina real do coach',
+    title: 'Uma boa plataforma precisa se adaptar ao seu método, não substituir sua identidade.',
+    description: 'Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.',
+    positiveTitle: 'O Coach Fit Pro faz sentido para você que',
+    negativeTitle: 'O sistema não promete atalhos',
+    positiveItems: [
+      'Atende alunos online, presencialmente ou de forma híbrida.',
+      'Quer reduzir tarefas repetitivas sem perder proximidade.',
+      'Precisa organizar treino, dieta, evolução e financeiro.',
+      'Deseja aumentar o valor percebido do acompanhamento.',
+    ],
+    negativeItems: [
+      'Não substitui sua análise e sua responsabilidade profissional.',
+      'Não garante faturamento sem posicionamento e execução.',
+      'Não obriga você a migrar todos os alunos de uma vez.',
+      'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
+    ],
+  },
+  faq: {
+    eyebrow: 'Dúvidas antes de começar',
+    title: 'O que você precisa saber sobre o Coach Fit Pro',
+    items: [
+      { question: 'Meus alunos precisam instalar alguma coisa?', answer: 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.' },
+      { question: 'Já uso WhatsApp. Por que preciso de uma plataforma?', answer: 'O WhatsApp continua útil para contato rápido. O Coach Fit Pro organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.' },
+      { question: 'Vou precisar cadastrar tudo novamente?', answer: 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.' },
+      { question: 'Consigo usar no celular e no desktop?', answer: 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.' },
+      { question: 'Preciso abandonar minhas ferramentas atuais no primeiro dia?', answer: 'Não. Você pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.' },
+      { question: 'Quais planos estão disponíveis?', answer: 'Você pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutrição, cobranças, chat e acompanhamento em um só lugar. O valor e a condição de cada plano aparecem na etapa de pagamento da Cartpanda.' },
+    ],
+  },
+  pricing: {
+    eyebrow: 'Planos Coach Fit Pro',
+    title: 'Comece hoje. Escale no seu ritmo.',
+    description: 'Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.',
+    decisionTitle: 'Decisão inteligente',
+    decisionByPlan: {
+      mensal: 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.',
+      semestral: 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.',
+      anual: 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.',
+    },
+    bestForTitle: 'Melhor para',
+    unlockTitle: 'O que você destrava',
+    unlockText: 'Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.',
+    afterSignupTitle: 'Depois de assinar',
+    activationBadge: 'liberação automática',
+    deliveryCards: [
+      { title: 'Entrega premium', text: 'treino, dieta, check-ins e chat em um só fluxo' },
+      { title: 'Mais percepção', text: 'o aluno sente que está dentro de uma operação profissional' },
+      { title: 'Menos retrabalho', text: 'processos organizados para vender e acompanhar melhor' },
+    ],
+    cta: 'Assinar agora',
+    includedTitle: 'Incluso no plano',
+    noStudentFeeTitle: 'Sem taxa por aluno',
+    noStudentFeeText: 'O treinador cresce a carteira sem pagar adicional por aluno cadastrado.',
+    nextStepTitle: 'Próximo passo simples',
+    nextStepText: 'Crie sua conta, confirme o plano escolhido e o painel é liberado assim que a Cartpanda aprovar o pagamento.',
+    implementationTitle: 'Implantação prática',
+    implementationSteps: ['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'],
+    metricCards: [
+      { value: '100%', label: 'das ferramentas liberadas' },
+      { value: '0%', label: 'taxa extra por aluno' },
+    ],
+  },
+  footerText: 'Coach Fit Pro · Gestão profissional de acompanhamento',
+}
 
-const defaultLandingVisualSettings = {
-  desktop: {
-    heroTitleSize: 'clamp(3.25rem, 4.55vw, 4.75rem)',
-    heroTitleWidth: '44rem',
-    sectionPadding: '2.5rem',
-    cardRadius: '24px',
-    planCardMinHeight: 'auto',
-    showStudentJourney: false,
-  },
-  mobile: {
-    heroTitleSize: 'clamp(2.35rem, 11.5vw, 3rem)',
-    heroTitleWidth: '100%',
-    sectionPadding: '2.5rem',
-    cardRadius: '22px',
-    planCardPadding: '1.05rem',
-    showStudentJourney: false,
-  },
+function mergeList(current, fallback) {
+  return Array.isArray(current) && current.length ? current : fallback
+}
+
+function mergeObject(current, fallback) {
+  if (!current || typeof current !== 'object' || Array.isArray(current)) return fallback
+  const merged = { ...fallback, ...current }
+  Object.entries(fallback).forEach(([key, value]) => {
+    if (Array.isArray(value)) merged[key] = mergeList(current[key], value)
+    else if (value && typeof value === 'object') merged[key] = mergeObject(current[key], value)
+  })
+  return merged
+}
+
+function normalizeSalesContent(content = {}) {
+  return mergeObject(content, defaultSalesContent)
 }
 
 const defaultAppAdminSettings = {
-  schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
-  landingPageSchemaVersion: LANDING_PAGE_SCHEMA_VERSION,
-  salesHeadline: 'Menos tempo em tarefas repetitivas. Mais tempo para atender e vender.',
-  salesSubheadline: 'Monte treinos completos em poucos minutos, acompanhe a evolução dos alunos e entregue uma experiência que valoriza sua consultoria.',
-  salesCta: 'Começar por R$ 9,90',
-  announcement: 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.',
-  logoUrl: '',
-  salesTrustText: 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
+  salesHeadline: 'A forma mais profissional de entregar consultoria fitness online.',
+  salesSubheadline: 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
+  salesCta: 'Escolher meu plano',
+  announcement: 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
   primaryColor: '#00c7a8',
   accentColor: '#3b82f6',
-  appBackgroundColor: '#000000',
-  salesBackgroundColor: '#00150f',
-  salesSurfaceColor: '#07110f',
-  salesTextColor: '#f8fafc',
-  ctaColor: '#00d2b2',
-  ctaTextColor: '#020617',
-  headerBackgroundColor: 'rgba(0, 0, 0, 0.62)',
-  landingVisual: defaultLandingVisualSettings,
-  landingTextOverrides: defaultLandingTextOverrides,
-  publishedAt: '',
+  defaultCheckoutPlanId: 'semestral',
+  signupEnabled: true,
+  salesPageEnabled: true,
+  maintenanceNotice: '',
+  supportEmail: 'sac@coachfitpro.com.br',
+  supportWhatsapp: '',
+  salesContent: defaultSalesContent,
   checkoutPlans: cartpandaCheckoutPlans,
   featureFlags: {
     studentXp: true,
     financialDashboard: true,
     salesSimulator: true,
     waterGoal: true,
+    salesAppVisual: true,
+    salesCommandCenter: true,
+    salesComparison: true,
+    salesFaq: true,
   },
 }
 const ADMIN_SETTINGS_STORAGE_KEY = 'coachfitpro-admin-settings-preview'
 const MASTER_ADMIN_EMAIL = 'sac@coachfitpro.com.br'
-const ADMIN_EMAILS = [MASTER_ADMIN_EMAIL]
-
-const salesHeroHeadlines = [
-  {
-    id: 'rotina-profissional',
-    lead: 'Menos tarefas repetitivas.',
-    focus: 'Mais tempo para atender e vender.',
-    proof: 'Monte treinos em minutos, acompanhe seus alunos e valorize sua consultoria.',
-  },
-]
+const ADMIN_EMAILS = Array.from(new Set([
+  MASTER_ADMIN_EMAIL,
+  ...(import.meta.env.VITE_FITCOACH_ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+]))
 
 function normalizeAdminSettings(settings = {}) {
-  const settingsVersion = Number(settings.schemaVersion || 0)
-  const landingPageVersion = Number(settings.landingPageSchemaVersion || 0)
-  const legacySettings = !settingsVersion || settingsVersion < ADMIN_SETTINGS_SCHEMA_VERSION
-  const legacyLandingSettings = !landingPageVersion || landingPageVersion < LANDING_PAGE_SCHEMA_VERSION
-  const safeSettings = { ...(settings || {}) }
-
-  if (legacySettings) {
-    delete safeSettings.salesHeadline
-    delete safeSettings.salesSubheadline
-    delete safeSettings.salesCta
-    delete safeSettings.announcement
-    delete safeSettings.salesTrustText
-    delete safeSettings.salesBackgroundColor
-    delete safeSettings.salesSurfaceColor
-    delete safeSettings.salesTextColor
-    delete safeSettings.ctaColor
-    delete safeSettings.ctaTextColor
-    delete safeSettings.headerBackgroundColor
-  }
-
-  if (legacyLandingSettings) {
-    delete safeSettings.landingVisual
-  }
-
-  const defaultTextOverridesById = Object.fromEntries(defaultLandingTextOverrides.map((item) => [item.id, item]))
-  const incomingTextOverrides = Array.isArray(safeSettings.landingTextOverrides) ? safeSettings.landingTextOverrides : []
-  const incomingTextOverridesById = Object.fromEntries(incomingTextOverrides.filter((item) => item?.id).map((item) => [item.id, item]))
-  const customTextOverrides = incomingTextOverrides.filter((item) => item?.custom && item?.id && !defaultTextOverridesById[item.id])
-  const landingTextOverrides = [
-    ...defaultLandingTextOverrides.map((item) => ({
-      ...item,
-      ...(!legacySettings ? (incomingTextOverridesById[item.id] || {}) : {}),
-      source: !legacySettings ? (incomingTextOverridesById[item.id]?.source || item.source) : item.source,
-      replacement: !legacySettings ? (incomingTextOverridesById[item.id]?.replacement ?? item.replacement) : item.replacement,
-      color: !legacySettings ? (incomingTextOverridesById[item.id]?.color || item.color) : item.color,
-      enabled: !legacySettings ? (incomingTextOverridesById[item.id]?.enabled ?? item.enabled) : item.enabled,
-    })),
-    ...customTextOverrides.map((item) => ({
-      id: item.id,
-      label: item.label || 'Texto personalizado',
-      source: item.source || '',
-      replacement: item.replacement ?? item.source ?? '',
-      color: item.color || '#00D2B2',
-      enabled: item.enabled ?? true,
-      custom: true,
-    })),
-  ]
-
-  const checkoutPlans = Array.isArray(safeSettings.checkoutPlans) && safeSettings.checkoutPlans.length
-    ? safeSettings.checkoutPlans.map((plan, index) => ({
+  const checkoutPlans = Array.isArray(settings.checkoutPlans) && settings.checkoutPlans.length
+    ? settings.checkoutPlans.map((plan, index) => ({
       ...cartpandaCheckoutPlans[index],
       ...plan,
       highlights: Array.isArray(plan.highlights) ? plan.highlights : (typeof plan.highlights === 'string' ? plan.highlights.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.highlights || []),
       activationPlan: Array.isArray(plan.activationPlan) ? plan.activationPlan : (typeof plan.activationPlan === 'string' ? plan.activationPlan.split('\n').filter(Boolean) : cartpandaCheckoutPlans[index]?.activationPlan || []),
       decisionPoints: Array.isArray(plan.decisionPoints) ? plan.decisionPoints : (typeof plan.decisionPoints === 'string' ? plan.decisionPoints.split(',').map((item) => item.trim()).filter(Boolean) : cartpandaCheckoutPlans[index]?.decisionPoints || []),
-    })).map((plan, index) => {
-      const defaultPlan = cartpandaCheckoutPlans[index] || cartpandaCheckoutPlans.find((item) => item.id === plan.id)
-      const isLegacyMonthly = plan.id === 'mensal'
-        && (plan.price === 'R$ 49,90' || String(plan.total || '').includes('598,80'))
-      const mergedPlan = isLegacyMonthly && defaultPlan
-        ? { ...plan, ...defaultPlan, checkoutUrl: plan.checkoutUrl || defaultPlan.checkoutUrl }
-        : { ...(defaultPlan || {}), ...plan }
-
-      return defaultPlan
-        ? {
-          ...mergedPlan,
-          name: mergedPlan.name || defaultPlan.name,
-          cycle: mergedPlan.cycle || defaultPlan.cycle,
-          badge: mergedPlan.badge || defaultPlan.badge,
-          price: mergedPlan.price || defaultPlan.price,
-          suffix: mergedPlan.suffix || defaultPlan.suffix,
-          oldPrice: mergedPlan.oldPrice || defaultPlan.oldPrice,
-          total: mergedPlan.total || defaultPlan.total,
-          economy: mergedPlan.economy || defaultPlan.economy,
-          equivalent: mergedPlan.equivalent || defaultPlan.equivalent,
-          checkoutUrl: mergedPlan.checkoutUrl || defaultPlan.checkoutUrl,
-          description: mergedPlan.description || defaultPlan.description,
-          bestFor: mergedPlan.bestFor || defaultPlan.bestFor,
-          operatingPromise: mergedPlan.operatingPromise || defaultPlan.operatingPromise,
-          highlights: mergedPlan.highlights?.length ? mergedPlan.highlights : defaultPlan.highlights,
-          activationPlan: mergedPlan.activationPlan?.length ? mergedPlan.activationPlan : defaultPlan.activationPlan,
-          decisionPoints: mergedPlan.decisionPoints?.length ? mergedPlan.decisionPoints : defaultPlan.decisionPoints,
-        }
-        : mergedPlan
-    })
+    }))
     : defaultAppAdminSettings.checkoutPlans
-
-  const landingVisual = {
-    desktop: {
-      ...defaultLandingVisualSettings.desktop,
-      ...(safeSettings.landingVisual?.desktop || {}),
-      // A Jornada do Aluno foi removida do desktop. Configuracoes antigas do Admin Master
-      // nao podem restaurar essa secao depois da primeira renderizacao.
-      showStudentJourney: false,
-    },
-    mobile: {
-      ...defaultLandingVisualSettings.mobile,
-      ...(safeSettings.landingVisual?.mobile || {}),
-    },
-  }
 
   return {
     ...defaultAppAdminSettings,
-    schemaVersion: ADMIN_SETTINGS_SCHEMA_VERSION,
-    landingPageSchemaVersion: LANDING_PAGE_SCHEMA_VERSION,
-    salesHeadline: safeSettings.salesHeadline || defaultAppAdminSettings.salesHeadline,
-    salesSubheadline: safeSettings.salesSubheadline || defaultAppAdminSettings.salesSubheadline,
-    salesCta: safeSettings.salesCta || defaultAppAdminSettings.salesCta,
-    announcement: safeSettings.announcement || defaultAppAdminSettings.announcement,
-    logoUrl: safeSettings.logoUrl || defaultAppAdminSettings.logoUrl,
-    salesTrustText: safeSettings.salesTrustText || defaultAppAdminSettings.salesTrustText,
-    primaryColor: safeSettings.primaryColor || defaultAppAdminSettings.primaryColor,
-    accentColor: safeSettings.accentColor || defaultAppAdminSettings.accentColor,
-    appBackgroundColor: safeSettings.appBackgroundColor || defaultAppAdminSettings.appBackgroundColor,
-    salesBackgroundColor: safeSettings.salesBackgroundColor || defaultAppAdminSettings.salesBackgroundColor,
-    salesSurfaceColor: safeSettings.salesSurfaceColor || defaultAppAdminSettings.salesSurfaceColor,
-    salesTextColor: safeSettings.salesTextColor || defaultAppAdminSettings.salesTextColor,
-    ctaColor: safeSettings.ctaColor || defaultAppAdminSettings.ctaColor,
-    ctaTextColor: safeSettings.ctaTextColor || defaultAppAdminSettings.ctaTextColor,
-    headerBackgroundColor: safeSettings.headerBackgroundColor || defaultAppAdminSettings.headerBackgroundColor,
-    publishedAt: safeSettings.publishedAt || defaultAppAdminSettings.publishedAt,
-    landingVisual,
-    landingTextOverrides,
+    ...settings,
+    salesPageEnabled: settings.salesPageEnabled !== false,
+    signupEnabled: settings.signupEnabled !== false,
+    salesContent: normalizeSalesContent(settings.salesContent),
     checkoutPlans,
     featureFlags: {
       ...defaultAppAdminSettings.featureFlags,
       ...(settings.featureFlags || {}),
     },
-  }
-}
-
-function buildAdminThemeStyle(settings = {}) {
-  const theme = normalizeAdminSettings(settings)
-  const visual = theme.landingVisual || defaultLandingVisualSettings
-  return {
-    '--admin-primary': theme.primaryColor || '#00c7a8',
-    '--admin-accent': theme.accentColor || '#3b82f6',
-    '--admin-app-bg': theme.appBackgroundColor || '#000000',
-    '--admin-sales-bg': theme.salesBackgroundColor || '#00150f',
-    '--admin-sales-surface': theme.salesSurfaceColor || '#07110f',
-    '--admin-sales-text': theme.salesTextColor || '#f8fafc',
-    '--admin-cta': theme.ctaColor || theme.primaryColor || '#00d2b2',
-    '--admin-cta-text': theme.ctaTextColor || '#020617',
-    '--admin-header-bg': theme.headerBackgroundColor || 'rgba(0, 0, 0, 0.62)',
-    '--admin-desktop-hero-title-size': visual.desktop?.heroTitleSize || defaultLandingVisualSettings.desktop.heroTitleSize,
-    '--admin-desktop-hero-title-width': visual.desktop?.heroTitleWidth || defaultLandingVisualSettings.desktop.heroTitleWidth,
-    '--admin-desktop-section-padding': visual.desktop?.sectionPadding || defaultLandingVisualSettings.desktop.sectionPadding,
-    '--admin-desktop-card-radius': visual.desktop?.cardRadius || defaultLandingVisualSettings.desktop.cardRadius,
-    '--admin-desktop-plan-card-min-height': visual.desktop?.planCardMinHeight || defaultLandingVisualSettings.desktop.planCardMinHeight,
-    '--admin-desktop-journey-display': visual.desktop?.showStudentJourney === false ? 'none' : 'block',
-    '--admin-mobile-hero-title-size': visual.mobile?.heroTitleSize || defaultLandingVisualSettings.mobile.heroTitleSize,
-    '--admin-mobile-hero-title-width': visual.mobile?.heroTitleWidth || defaultLandingVisualSettings.mobile.heroTitleWidth,
-    '--admin-mobile-section-padding': visual.mobile?.sectionPadding || defaultLandingVisualSettings.mobile.sectionPadding,
-    '--admin-mobile-card-radius': visual.mobile?.cardRadius || defaultLandingVisualSettings.mobile.cardRadius,
-    '--admin-mobile-plan-card-padding': visual.mobile?.planCardPadding || defaultLandingVisualSettings.mobile.planCardPadding,
-    '--admin-mobile-journey-display': visual.mobile?.showStudentJourney ? 'block' : 'none',
   }
 }
 
@@ -381,84 +411,10 @@ function saveLocalAdminSettings(settings) {
   }
 }
 
-function applyLandingTextOverrides(root, overrides = []) {
-  if (!root || !Array.isArray(overrides) || !overrides.length) return
-
-  const activeOverrides = overrides
-    .filter((item) => item?.enabled !== false && item?.source && (item.replacement || item.color))
-    .map((item) => ({
-      source: String(item.source || '').trim(),
-      replacement: String(item.replacement ?? item.source ?? '').trim(),
-      color: String(item.color || '').trim(),
-    }))
-    .filter((item) => item.source)
-
-  if (!activeOverrides.length) return
-
-  const blockedTags = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION'])
-  const walker = document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      const parent = node.parentElement
-      if (!parent || blockedTags.has(parent.tagName)) return window.NodeFilter.FILTER_REJECT
-      if (!node.nodeValue || !node.nodeValue.trim()) return window.NodeFilter.FILTER_REJECT
-      return window.NodeFilter.FILTER_ACCEPT
-    },
-  })
-
-  const textNodes = []
-  while (walker.nextNode()) textNodes.push(walker.currentNode)
-
-  textNodes.forEach((node) => {
-    const parent = node.parentElement
-    if (!parent) return
-
-    activeOverrides.forEach((item) => {
-      if (!node.nodeValue.includes(item.source)) return
-
-      if (item.replacement && item.replacement !== item.source) {
-        node.nodeValue = node.nodeValue.replaceAll(item.source, item.replacement)
-      }
-
-      if (item.color) {
-        parent.style.color = item.color
-        parent.style.webkitTextFillColor = item.color
-        parent.style.backgroundImage = 'none'
-      }
-    })
-  })
-}
-
-function decodeJwtPayload(token = '') {
-  try {
-    const [, payload] = String(token).split('.')
-    if (!payload) return {}
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=')
-    return JSON.parse(window.atob(padded))
-  } catch {
-    return {}
-  }
-}
-
-function getPossibleAccountEmails(user, sessionUser = null, session = null) {
-  const tokenPayload = decodeJwtPayload(session?.access_token || '')
-  return [
-    user?.email,
-    user?.user_metadata?.email,
-    sessionUser?.email,
-    sessionUser?.user_metadata?.email,
-    sessionUser?.identities?.[0]?.identity_data?.email,
-    session?.user?.email,
-    session?.user?.user_metadata?.email,
-    tokenPayload.email,
-    tokenPayload.user_metadata?.email,
-  ]
+function isMasterAdmin(user, sessionUser = null) {
+  const emails = [user?.email, sessionUser?.email]
     .map((email) => String(email || '').trim().toLowerCase())
     .filter(Boolean)
-}
-
-function isMasterAdmin(user, sessionUser = null, session = null) {
-  const emails = getPossibleAccountEmails(user, sessionUser, session)
   return emails.some((email) => ADMIN_EMAILS.includes(email))
 }
 
@@ -478,7 +434,7 @@ const navItems = [
   { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
   { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
   { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
-  { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
+  { id: 'configuracoes', label: 'Configurações', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
 
@@ -516,367 +472,6 @@ const exerciseLibrary = [
   { name: 'Prancha abdominal', group: 'Core', equipment: 'Peso corporal', cues: 'Contraia glúteos e abdômen, mantendo cabeça, tronco e quadril alinhados.', aliases: ['prancha'] },
   { name: 'Abdominal crunch', group: 'Core', equipment: 'Peso corporal', cues: 'Aproxime costelas e pelve sem puxar a cabeça e retorne de forma controlada.', aliases: ['abdominal'] },
 ]
-
-const exerciseCatalogBlueprints = [
-  {
-    base: 'Supino',
-    english: ['bench press', 'press'],
-    group: 'Peitoral',
-    primaryMuscle: 'peitoral',
-    secondaryMuscles: ['deltoide-anterior', 'triceps'],
-    movementType: 'Empurrar horizontal',
-    objective: 'Hipertrofia e força',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Intermediário',
-    difficulty: 'Média',
-    laterality: 'Bilateral',
-    variants: ['reto', 'inclinado', 'declinado', 'fechado'],
-    equipments: ['Barra', 'Halteres', 'Smith', 'Máquina'],
-    instruction: 'Mantenha escápulas firmes, pés apoiados e controle a descida antes de empurrar.',
-    tip: 'Priorize trajetória estável e punhos alinhados aos cotovelos.',
-    mistake: 'Perder a posição das escápulas ou quicar a carga no peito.',
-  },
-  {
-    base: 'Crucifixo',
-    english: ['fly', 'chest fly'],
-    group: 'Peitoral',
-    primaryMuscle: 'peitoral',
-    secondaryMuscles: ['deltoide-anterior'],
-    movementType: 'Adução horizontal',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['reto', 'inclinado', 'declinado'],
-    equipments: ['Halteres', 'Cabos', 'Máquina'],
-    instruction: 'Abra os braços com cotovelos levemente flexionados e retorne contraindo o peitoral.',
-    tip: 'Controle a amplitude para não sobrecarregar o ombro.',
-    mistake: 'Transformar o movimento em supino dobrando demais os cotovelos.',
-  },
-  {
-    base: 'Puxada',
-    english: ['lat pulldown', 'pulldown'],
-    group: 'Costas',
-    primaryMuscle: 'dorsal',
-    secondaryMuscles: ['costas', 'biceps'],
-    movementType: 'Puxar vertical',
-    objective: 'Hipertrofia e postura',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['frontal', 'pegada aberta', 'pegada neutra', 'unilateral'],
-    equipments: ['Polia alta', 'Máquina', 'Elástico'],
-    instruction: 'Inicie com as escápulas baixas e puxe os cotovelos em direção ao tronco.',
-    tip: 'Pense em puxar com os cotovelos, não com as mãos.',
-    mistake: 'Inclinar demais o tronco e perder tensão nas dorsais.',
-  },
-  {
-    base: 'Remada',
-    english: ['row', 'seated row'],
-    group: 'Costas',
-    primaryMuscle: 'costas',
-    secondaryMuscles: ['dorsal', 'biceps', 'deltoide-posterior'],
-    movementType: 'Puxar horizontal',
-    objective: 'Hipertrofia e força',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Intermediário',
-    difficulty: 'Média',
-    laterality: 'Bilateral',
-    variants: ['baixa', 'curvada', 'serrote', 'cavalinho', 'alta'],
-    equipments: ['Barra', 'Halteres', 'Polia baixa', 'Máquina', 'Smith', 'TRX'],
-    instruction: 'Mantenha tronco firme, peito aberto e conduza o movimento pelos cotovelos.',
-    tip: 'Pause brevemente com escápulas contraídas.',
-    mistake: 'Usar balanço de tronco para completar a repetição.',
-  },
-  {
-    base: 'Desenvolvimento',
-    english: ['shoulder press', 'overhead press'],
-    group: 'Ombros',
-    primaryMuscle: 'deltoide-anterior',
-    secondaryMuscles: ['deltoide-lateral', 'triceps'],
-    movementType: 'Empurrar vertical',
-    objective: 'Força e hipertrofia',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Intermediário',
-    difficulty: 'Média',
-    laterality: 'Bilateral',
-    variants: ['sentado', 'em pé', 'unilateral', 'arnold'],
-    equipments: ['Halteres', 'Barra', 'Máquina', 'Smith', 'Kettlebell'],
-    instruction: 'Suba a carga acima da cabeça mantendo abdômen firme e punhos alinhados.',
-    tip: 'Evite arquear a lombar no final da subida.',
-    mistake: 'Compensar com tronco ou perder alinhamento dos cotovelos.',
-  },
-  {
-    base: 'Elevação',
-    english: ['raise', 'lateral raise', 'front raise'],
-    group: 'Ombros',
-    primaryMuscle: 'deltoide-lateral',
-    secondaryMuscles: ['deltoide-anterior', 'trapezio'],
-    movementType: 'Abdução de ombro',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['lateral', 'frontal', 'posterior', 'unilateral'],
-    equipments: ['Halteres', 'Cabos', 'Máquina', 'Elástico'],
-    instruction: 'Eleve com controle até a linha dos ombros sem usar impulso.',
-    tip: 'Conduza o movimento pelos cotovelos.',
-    mistake: 'Subir a carga com trapézio ou balançar o corpo.',
-  },
-  {
-    base: 'Rosca',
-    english: ['curl', 'biceps curl'],
-    group: 'Bíceps',
-    primaryMuscle: 'biceps',
-    secondaryMuscles: ['antebraco'],
-    movementType: 'Flexão de cotovelo',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['direta', 'alternada', 'martelo', 'scott', 'concentrada', 'inclinada'],
-    equipments: ['Barra', 'Halteres', 'Cabos', 'Máquina', 'Elástico'],
-    instruction: 'Flexione o cotovelo sem projetar o ombro para frente e controle a descida.',
-    tip: 'Mantenha cotovelos estáveis e punhos neutros.',
-    mistake: 'Usar balanço do tronco para levantar a carga.',
-  },
-  {
-    base: 'Tríceps',
-    english: ['triceps extension', 'pushdown'],
-    group: 'Tríceps',
-    primaryMuscle: 'triceps',
-    secondaryMuscles: ['antebraco'],
-    movementType: 'Extensão de cotovelo',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['corda', 'barra reta', 'francês', 'testa', 'coice', 'unilateral'],
-    equipments: ['Polia', 'Halteres', 'Barra', 'Elástico'],
-    instruction: 'Fixe os cotovelos e estenda completamente sem movimentar o tronco.',
-    tip: 'Controle o retorno para manter tensão no tríceps.',
-    mistake: 'Abrir cotovelos ou usar ombros para ajudar.',
-  },
-  {
-    base: 'Agachamento',
-    english: ['squat'],
-    group: 'Quadríceps',
-    primaryMuscle: 'quadriceps',
-    secondaryMuscles: ['gluteos', 'adutores', 'posterior-coxa'],
-    movementType: 'Agachar',
-    objective: 'Força, hipertrofia e performance',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Intermediário',
-    difficulty: 'Média',
-    laterality: 'Bilateral',
-    variants: ['livre', 'frontal', 'sumô', 'goblet', 'búlgaro', 'hack'],
-    equipments: ['Barra', 'Halteres', 'Smith', 'Máquina', 'Kettlebell', 'Peso corporal'],
-    instruction: 'Desça com controle, joelhos alinhados aos pés e tronco firme.',
-    tip: 'Mantenha pressão no pé inteiro durante a subida.',
-    mistake: 'Fechar os joelhos para dentro ou perder a coluna neutra.',
-  },
-  {
-    base: 'Leg press',
-    english: ['leg press'],
-    group: 'Quadríceps',
-    primaryMuscle: 'quadriceps',
-    secondaryMuscles: ['gluteos', 'adutores'],
-    movementType: 'Empurrar com pernas',
-    objective: 'Hipertrofia',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['45°', 'horizontal', 'unilateral', 'pés altos', 'pés baixos'],
-    equipments: ['Máquina', 'Leg press'],
-    instruction: 'Mantenha quadril apoiado e desça até onde a lombar permanece estável.',
-    tip: 'Ajuste a posição dos pés conforme o foco do treino.',
-    mistake: 'Descer demais e arredondar a lombar.',
-  },
-  {
-    base: 'Cadeira',
-    english: ['leg machine'],
-    group: 'Quadríceps',
-    primaryMuscle: 'quadriceps',
-    secondaryMuscles: [],
-    movementType: 'Extensão de joelho',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['extensora', 'extensora unilateral'],
-    equipments: ['Máquina'],
-    instruction: 'Ajuste o eixo ao joelho e controle a fase de descida.',
-    tip: 'Segure um segundo no topo para melhorar a contração.',
-    mistake: 'Usar impulso e perder controle do joelho.',
-  },
-  {
-    base: 'Flexora',
-    english: ['leg curl', 'hamstring curl'],
-    group: 'Posteriores de coxa',
-    primaryMuscle: 'posterior-coxa',
-    secondaryMuscles: ['panturrilhas'],
-    movementType: 'Flexão de joelho',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['deitada', 'sentada', 'em pé', 'unilateral'],
-    equipments: ['Máquina', 'Elástico'],
-    instruction: 'Flexione o joelho sem tirar o quadril do apoio e controle o retorno.',
-    tip: 'Evite acelerar a descida.',
-    mistake: 'Levantar o quadril ou reduzir a amplitude.',
-  },
-  {
-    base: 'Stiff',
-    english: ['romanian deadlift', 'rdl'],
-    group: 'Posteriores de coxa',
-    primaryMuscle: 'posterior-coxa',
-    secondaryMuscles: ['gluteos', 'lombar'],
-    movementType: 'Hinge de quadril',
-    objective: 'Força e hipertrofia',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Intermediário',
-    difficulty: 'Média',
-    laterality: 'Bilateral',
-    variants: ['tradicional', 'romeno', 'unilateral', 'sumô'],
-    equipments: ['Barra', 'Halteres', 'Smith', 'Kettlebell'],
-    instruction: 'Empurre o quadril para trás e mantenha a carga próxima às pernas.',
-    tip: 'Sinta alongar posterior sem arredondar a coluna.',
-    mistake: 'Buscar amplitude sacrificando a lombar.',
-  },
-  {
-    base: 'Elevação pélvica',
-    english: ['hip thrust', 'glute bridge'],
-    group: 'Glúteos',
-    primaryMuscle: 'gluteos',
-    secondaryMuscles: ['posterior-coxa'],
-    movementType: 'Extensão de quadril',
-    objective: 'Hipertrofia de glúteos',
-    mechanic: 'Composto',
-    composition: 'Composto',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['com barra', 'unilateral', 'no banco', 'no solo', 'com pausa'],
-    equipments: ['Barra', 'Halteres', 'Máquina', 'Elástico', 'Peso corporal'],
-    instruction: 'Suba o quadril contraindo glúteos e evitando hiperextensão lombar.',
-    tip: 'Faça retroversão pélvica leve no topo.',
-    mistake: 'Finalizar com lombar em vez de glúteos.',
-  },
-  {
-    base: 'Panturrilha',
-    english: ['calf raise'],
-    group: 'Panturrilhas',
-    primaryMuscle: 'panturrilhas',
-    secondaryMuscles: [],
-    movementType: 'Flexão plantar',
-    objective: 'Hipertrofia',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['em pé', 'sentado', 'no leg press', 'unilateral'],
-    equipments: ['Máquina', 'Leg press', 'Halteres', 'Smith', 'Peso corporal'],
-    instruction: 'Use amplitude completa, pause no topo e controle a descida.',
-    tip: 'Evite quicar no final da repetição.',
-    mistake: 'Fazer repetições curtas e rápidas demais.',
-  },
-  {
-    base: 'Abdominal',
-    english: ['abs', 'crunch'],
-    group: 'Core',
-    primaryMuscle: 'abdomen',
-    secondaryMuscles: ['obliquos'],
-    movementType: 'Flexão/estabilização de tronco',
-    objective: 'Core e estabilidade',
-    mechanic: 'Isolado',
-    composition: 'Isolado',
-    level: 'Iniciante',
-    difficulty: 'Baixa',
-    laterality: 'Bilateral',
-    variants: ['crunch', 'infra', 'bicicleta', 'na polia', 'canivete', 'prancha'],
-    equipments: ['Peso corporal', 'Polia', 'Máquina', 'Bola suíça'],
-    instruction: 'Controle tronco e respiração sem puxar o pescoço.',
-    tip: 'Aproxime costelas e pelve com controle.',
-    mistake: 'Compensar com pescoço ou lombar.',
-  },
-]
-
-function buildExpandedExerciseCatalog() {
-  const records = []
-  const existingNames = new Set(exerciseLibrary.map((exercise) => normalizeText(exercise.name)))
-
-  exerciseCatalogBlueprints.forEach((blueprint) => {
-    blueprint.variants.forEach((variant) => {
-      blueprint.equipments.forEach((equipment) => {
-        const lowerVariant = normalizeText(variant)
-        const lowerEquipment = normalizeText(equipment)
-        const suffix = lowerEquipment.includes('peso corporal') ? '' : ` com ${equipment.toLowerCase()}`
-        const name = `${blueprint.base} ${variant}${suffix}`.replace(/\s+/g, ' ').trim()
-        const key = normalizeText(name)
-        if (existingNames.has(key)) return
-        existingNames.add(key)
-        records.push({
-          name,
-          group: blueprint.group,
-          muscleGroup: blueprint.group,
-          primaryMuscle: blueprint.primaryMuscle,
-          secondaryMuscles: blueprint.secondaryMuscles,
-          equipment,
-          category: blueprint.objective,
-          movementType: blueprint.movementType,
-          movement: blueprint.movementType,
-          objective: blueprint.objective,
-          level: blueprint.level,
-          mechanic: blueprint.mechanic,
-          mechanics: blueprint.mechanic,
-          laterality: lowerVariant.includes('unilateral') ? 'Unilateral' : blueprint.laterality,
-          composition: blueprint.composition,
-          difficulty: blueprint.difficulty,
-          cues: blueprint.instruction,
-          instructions: blueprint.instruction,
-          tips: blueprint.tip,
-          commonMistakes: blueprint.mistake,
-          source: 'coachfit_catalog',
-          aliases: [
-            blueprint.base,
-            variant,
-            equipment,
-            `${blueprint.base} ${variant}`,
-            ...blueprint.english,
-            ...blueprint.english.map((item) => `${item} ${variant}`),
-          ],
-        })
-      })
-    })
-  })
-
-  return records
-}
-
-exerciseLibrary.push(...buildExpandedExerciseCatalog())
 
 const mealPlan = [
   { meal: 'Café da manhã', foods: 'Ovos, aveia, banana, café', macros: '42P / 74C / 18G' },
@@ -1030,8 +625,6 @@ function createInitialData() {
     workouts: [],
     nutritionPlans: [],
     workoutLogs: [],
-    workoutProgressionDecisions: [],
-    exerciseLibrary: [],
     messages: [],
     appointments: [],
     invoices: [],
@@ -1126,38 +719,6 @@ function useStoredData() {
   }, [])
 
   useEffect(() => {
-    if (!supabaseEnabled) return undefined
-    let active = true
-
-    async function refreshAdminSettings() {
-      try {
-        const settings = await loadRemoteAppAdminSettings()
-        if (!active || !settings) return
-        const normalized = normalizeAdminSettings(settings)
-        saveLocalAdminSettings(normalized)
-        setData((current) => ({ ...current, appAdminSettings: normalized }))
-      } catch {
-        // Mantém a versão local se o celular estiver offline ou o Supabase ainda não responder.
-      }
-    }
-
-    function refreshWhenVisible() {
-      if (document.visibilityState !== 'hidden') refreshAdminSettings()
-    }
-
-    const timer = window.setInterval(refreshAdminSettings, 45000)
-    window.addEventListener('focus', refreshAdminSettings)
-    document.addEventListener('visibilitychange', refreshWhenVisible)
-
-    return () => {
-      active = false
-      window.clearInterval(timer)
-      window.removeEventListener('focus', refreshAdminSettings)
-      document.removeEventListener('visibilitychange', refreshWhenVisible)
-    }
-  }, [])
-
-  useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token) return
 
     setSupabaseSession(data.session.access_token)
@@ -1176,8 +737,6 @@ function useStoredData() {
           workouts: remoteData.workouts ?? [],
           nutritionPlans: remoteData.nutritionPlans ?? [],
           workoutLogs: remoteData.workoutLogs ?? [],
-          workoutProgressionDecisions: remoteData.workoutProgressionDecisions ?? current.workoutProgressionDecisions ?? [],
-          exerciseLibrary: remoteData.exerciseLibrary ?? current.exerciseLibrary ?? [],
           messages: remoteData.messages ?? [],
           appointments: remoteData.appointments ?? [],
           invoices: remoteData.invoices ?? [],
@@ -1245,71 +804,6 @@ function useStoredData() {
 }
 
 export default function App() {
-  const publicPath = window.location.pathname.toLowerCase()
-  if (['/privacidade', '/politica-de-privacidade', '/politica-privacidade'].includes(publicPath)) {
-    return <PublicLegalPage type="privacy" />
-  }
-  if (['/termos', '/termos-de-uso', '/termos-uso'].includes(publicPath)) {
-    return <PublicLegalPage type="terms" />
-  }
-
-  return (
-    <AppErrorBoundary>
-      <AppContent />
-    </AppErrorBoundary>
-  )
-}
-
-class AppErrorBoundary extends Component {
-  constructor(props) {
-    super(props)
-    this.state = { error: null }
-  }
-
-  static getDerivedStateFromError(error) {
-    return { error }
-  }
-
-  componentDidCatch(error, info) {
-    try {
-      window.localStorage.setItem('coachfitpro-last-error', JSON.stringify({
-        message: error?.message || 'Erro inesperado',
-        stack: error?.stack || '',
-        componentStack: info?.componentStack || '',
-        createdAt: new Date().toISOString(),
-      }))
-    } catch {
-      // A tela de contingência continua funcionando mesmo se o navegador bloquear storage.
-    }
-  }
-
-  render() {
-    if (!this.state.error) return this.props.children
-
-    return (
-      <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
-        <section className="w-full max-w-xl rounded-2xl border border-emerald-300/25 bg-zinc-950/92 p-6 text-center shadow-2xl shadow-black/40">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-2xl font-black text-emerald-100">
-            !
-          </div>
-          <h1 className="mt-5 text-2xl font-black text-white">Algo saiu do lugar, mas seus dados continuam seguros.</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-400">
-            O Coach Fit Pro registrou o erro localmente para diagnóstico. Atualize a página para tentar novamente.
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30"
-          >
-            Atualizar aplicativo
-          </button>
-        </section>
-      </main>
-    )
-  }
-}
-
-function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
   const [activeView, setActiveView] = useState('visao')
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
@@ -1317,8 +811,27 @@ function AppContent() {
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billingClock, setBillingClock] = useState(Date.now())
+  const [uiTheme, setUiTheme] = useState(() => {
+    try {
+      return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+    } catch {
+      return 'light'
+    }
+  })
   const subscriptionCheckRef = useRef(0)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
+
+  function toggleUiTheme() {
+    setUiTheme((current) => {
+      const nextTheme = current === 'dark' ? 'light' : 'dark'
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+      } catch {
+        // Mantem a troca visual mesmo quando o navegador bloqueia armazenamento local.
+      }
+      return nextTheme
+    })
+  }
 
   const selectedStudent = useMemo(
     () => data.students.find((student) => student.id === selectedStudentId) ?? data.students[0],
@@ -1347,25 +860,13 @@ function AppContent() {
     ),
     [data.students, data.checkins, data.workouts, data.nutritionPlans, data.appointments, data.invoices, data.assessments],
   )
-  const priorityDashboard = useMemo(
-    () => buildPriorityDashboard({
-      students: data.students,
-      checkins: data.checkins,
-      workouts: data.workouts ?? [],
-      workoutLogs: data.workoutLogs ?? [],
-      messages: data.messages ?? [],
-      invoices: data.invoices ?? [],
-      assessments: data.assessments ?? [],
-    }),
-    [data.students, data.checkins, data.workouts, data.workoutLogs, data.messages, data.invoices, data.assessments],
-  )
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
-  const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
-  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
+  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
+  const masterAdmin = isMasterAdmin(data.user, data.session?.user)
   const visibleNavItems = useMemo(() => (
     masterAdmin
       ? [...navItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
@@ -1466,7 +967,6 @@ function AppContent() {
         workouts: remoteData.workouts ?? [],
         nutritionPlans: remoteData.nutritionPlans ?? [],
         workoutLogs: remoteData.workoutLogs ?? [],
-        workoutProgressionDecisions: remoteData.workoutProgressionDecisions ?? current.workoutProgressionDecisions ?? [],
         messages: remoteData.messages ?? [],
         appointments: remoteData.appointments ?? [],
         invoices: remoteData.invoices ?? [],
@@ -1526,7 +1026,7 @@ function AppContent() {
     let attempts = 0
     setActiveView('assinatura')
     setRemoteStatus('Verificando pagamento')
-    setRemoteError('Recebemos seu retorno do checkout. O sistema está verificando a confirmação da compra automaticamente.')
+    setRemoteError('Recebemos seu retorno do checkout. Estamos conferindo a confirmação da compra automaticamente.')
 
     async function verifyPaymentReturn() {
       if (stopped) return
@@ -1539,10 +1039,10 @@ function AppContent() {
         window.history.replaceState({}, '', window.location.pathname)
         setRemoteStatus('Assinatura liberada')
         setRemoteError('')
-      } else if (attempts >= 120) {
+      } else if (attempts >= 24) {
         stopped = true
         setRemoteStatus('Aguardando confirmação do pagamento')
-        setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
+        setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback aprovado, o painel será liberado.')
       }
     }
 
@@ -1702,11 +1202,6 @@ function AppContent() {
     }
 
     if (mode === 'forgot') {
-      if (!email) {
-        setRemoteStatus('Informe o e-mail')
-        setRemoteError('Digite o e-mail cadastrado para receber o link de recuperação de senha.')
-        return false
-      }
       try {
         await requestCoachPasswordReset(email)
         setRemoteStatus('E-mail de recuperação enviado')
@@ -1739,7 +1234,6 @@ function AppContent() {
           workouts: remoteData.workouts ?? [],
           nutritionPlans: remoteData.nutritionPlans ?? [],
           workoutLogs: remoteData.workoutLogs ?? [],
-          workoutProgressionDecisions: remoteData.workoutProgressionDecisions ?? current.workoutProgressionDecisions ?? [],
           messages: remoteData.messages ?? [],
           appointments: remoteData.appointments ?? [],
           invoices: remoteData.invoices ?? [],
@@ -1803,26 +1297,6 @@ function AppContent() {
     }))
   }
 
-  async function requestAccountDeletion(confirmation) {
-    if (!data.user?.email) {
-      throw new Error('Nenhum e-mail de treinador foi encontrado nesta sessao.')
-    }
-
-    const api = await import('./supabaseApi')
-    if (typeof api.deleteRemoteCoachAccount !== 'function') {
-      throw new Error('A função de exclusão de conta ainda não foi publicada no arquivo de integração. Atualize o supabaseApi.js antes de usar esta ação.')
-    }
-
-    await api.deleteRemoteCoachAccount({
-      email: data.user.email,
-      confirmation,
-    })
-
-    logout()
-    setRemoteStatus('Conta removida')
-    setRemoteError('')
-  }
-
   async function refreshStoredSession(successStatus = 'Sessão renovada') {
     if (!data.session?.refresh_token) {
       throw new Error('Sessão expirada')
@@ -1869,26 +1343,6 @@ function AppContent() {
     setRemoteError(message)
   }
 
-  async function saveCoachPlan(planDraft) {
-    const parsedPlan = normalizeCoachPlan(planDraft)
-    if (!parsedPlan?.name) throw new Error('Informe o nome do plano do aluno.')
-    if (getPlanBillingAmount(parsedPlan.name, [parsedPlan]) <= 0) throw new Error('Informe um valor valido para o plano.')
-
-    const currentSettings = buildCoachSettingsPayload(data.coachSettings, data.user)
-    const currentPlans = getCoachPlans(currentSettings)
-    const planIndex = currentPlans.findIndex((plan) => normalizeText(plan.name) === normalizeText(parsedPlan.name))
-    const nextPlans = planIndex >= 0
-      ? currentPlans.map((plan, index) => (index === planIndex ? { ...plan, ...parsedPlan } : plan))
-      : [parsedPlan, ...currentPlans]
-
-    const savedSettings = await saveCoachSettings({
-      ...currentSettings,
-      customPlans: nextPlans,
-    })
-
-    return getCoachPlans(savedSettings).find((plan) => normalizeText(plan.name) === normalizeText(parsedPlan.name)) || parsedPlan
-  }
-
   async function saveStudent(student) {
     const studentId = student.id || Date.now()
     const isNewStudent = !student.id
@@ -1917,27 +1371,16 @@ function AppContent() {
     }
 
     setData((current) => {
-      const previousStudent = current.students.find((item) => item.id === student.id)
       const exists = current.students.some((item) => item.id === student.id)
       const students = exists
         ? current.students.map((item) => (item.id === student.id ? savedStudent : item))
         : [savedStudent, ...current.students]
-      const planChanged = Boolean(previousStudent && previousStudent.plan !== savedStudent.plan)
-      const nextBillingDate = planChanged
-        ? getNextBillingDateForStudent(savedStudent, current.invoices ?? [], getCoachPlans(current.coachSettings))
-        : ''
 
       return {
         ...current,
         students,
         invites: createdInvite ? [createdInvite, ...(current.invites ?? [])] : current.invites ?? [],
         notifications: [
-          ...(planChanged ? [{
-            id: Date.now() + 2,
-            title: 'Plano do aluno atualizado',
-            body: `${savedStudent.name} agora está no plano ${savedStudent.plan}. Próxima cobrança estimada: ${formatDate(nextBillingDate)}.`,
-            read: false,
-          }] : []),
           {
             id: Date.now() + 1,
             title: exists ? 'Aluno atualizado' : 'Aluno cadastrado',
@@ -2081,7 +1524,6 @@ function AppContent() {
 
   async function saveWorkout(workout) {
     let savedWorkout = { ...workout, id: Date.now(), active: true }
-    const isFirstWorkout = !(data.workouts ?? []).length
 
     if (supabaseEnabled) {
       try {
@@ -2098,12 +1540,6 @@ function AppContent() {
       ...current,
       workouts: [savedWorkout, ...(current.workouts ?? [])],
     }))
-
-    recordLeadEvent(isFirstWorkout ? 'first_workout_created' : 'workout_created', {
-      studentId: savedWorkout.studentId,
-      exercises: savedWorkout.exercises?.length || 0,
-      source: workout.source || 'coach_panel',
-    })
 
     return savedWorkout
   }
@@ -2128,107 +1564,8 @@ function AppContent() {
     return true
   }
 
-  async function saveWorkoutProgressionDecision(decision) {
-    let savedDecision = {
-      ...decision,
-      id: decision.id || Date.now(),
-      coachId: data.user?.id,
-      createdAt: new Date().toISOString(),
-    }
-
-    if (supabaseEnabled) {
-      try {
-        savedDecision = await saveRemoteWorkoutProgressionDecision(savedDecision, data.user?.id)
-        setRemoteStatus('Progressão registrada')
-        setRemoteError('')
-      } catch (error) {
-        setRemoteStatus('Progressão salva localmente')
-        setRemoteError('Rode a migration de progressão para manter o histórico também no Supabase.')
-      }
-    }
-
-    setData((current) => ({
-      ...current,
-      workoutProgressionDecisions: [savedDecision, ...(current.workoutProgressionDecisions ?? [])],
-    }))
-
-    return savedDecision
-  }
-
-  async function approveWorkoutProgression(recommendation, editedTarget = null) {
-    const workout = data.workouts.find((item) => String(item.id) === String(recommendation.workoutId))
-    if (!workout) throw new Error('Treino original não encontrado.')
-    const nextTarget = editedTarget || recommendation.nextTarget
-    const nextWorkout = buildWorkoutFromProgression(workout, recommendation, nextTarget)
-    const savedWorkout = await saveWorkout(nextWorkout)
-    await archiveWorkout(workout.id)
-    return saveWorkoutProgressionDecision({
-      studentId: recommendation.studentId,
-      workoutId: workout.id,
-      exerciseName: recommendation.exercise.name,
-      action: recommendation.action,
-      suggestion: recommendation.suggestion,
-      reason: recommendation.reason,
-      confidence: recommendation.confidence,
-      status: 'approved',
-      previousTarget: recommendation.previousTarget,
-      nextTarget: { ...nextTarget, generatedWorkoutId: savedWorkout.id },
-    })
-  }
-
-  async function ignoreWorkoutProgression(recommendation) {
-    return saveWorkoutProgressionDecision({
-      studentId: recommendation.studentId,
-      workoutId: recommendation.workoutId,
-      exerciseName: recommendation.exercise.name,
-      action: recommendation.action,
-      suggestion: recommendation.suggestion,
-      reason: recommendation.reason,
-      confidence: recommendation.confidence,
-      status: 'ignored',
-      previousTarget: recommendation.previousTarget,
-      nextTarget: recommendation.nextTarget,
-    })
-  }
-
-  async function undoWorkoutProgression(decision) {
-    const activeWorkout = data.workouts.find((workout) => (
-      String(workout.studentId) === String(decision.studentId)
-      && workout.active !== false
-      && (workout.exercises || []).some((exercise) => normalizeText(exercise.name) === normalizeText(decision.exerciseName))
-    ))
-    if (!activeWorkout) throw new Error('Treino ativo para desfazer não encontrado.')
-    const recommendation = {
-      workoutId: activeWorkout.id,
-      studentId: decision.studentId,
-      exercise: { name: decision.exerciseName },
-      previousTarget: decision.nextTarget,
-      nextTarget: decision.previousTarget,
-      action: 'undo',
-      suggestion: 'desfazer progressão',
-      reason: 'Reversão manual solicitada pelo treinador.',
-      confidence: 'manual',
-    }
-    const revertedWorkout = buildWorkoutFromProgression(activeWorkout, recommendation, decision.previousTarget)
-    const savedWorkout = await saveWorkout(revertedWorkout)
-    await archiveWorkout(activeWorkout.id)
-    return saveWorkoutProgressionDecision({
-      studentId: decision.studentId,
-      workoutId: activeWorkout.id,
-      exerciseName: decision.exerciseName,
-      action: 'undo',
-      suggestion: 'desfazer alteração',
-      reason: 'Treinador desfez a decisão anterior.',
-      confidence: 'manual',
-      status: 'undone',
-      previousTarget: decision.nextTarget,
-      nextTarget: { ...decision.previousTarget, generatedWorkoutId: savedWorkout.id },
-    })
-  }
-
   async function saveNutritionPlan(plan) {
     let savedPlan = { ...plan, id: Date.now(), active: true }
-    const isFirstPlan = !(data.nutritionPlans ?? []).length
 
     if (supabaseEnabled) {
       try {
@@ -2245,12 +1582,6 @@ function AppContent() {
       ...current,
       nutritionPlans: [savedPlan, ...(current.nutritionPlans ?? [])],
     }))
-
-    recordLeadEvent(isFirstPlan ? 'first_plan_published' : 'nutrition_plan_published', {
-      studentId: savedPlan.studentId,
-      meals: savedPlan.meals?.length || 0,
-      source: plan.source || 'coach_panel',
-    })
 
     return savedPlan
   }
@@ -2441,10 +1772,10 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         savedSettings = await saveRemoteCoachSettings(settings, data.user?.id)
-        setRemoteStatus('Gerenciamento salvo')
+        setRemoteStatus('Configurações salvas')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao salvar gerenciamento')
+        handleRemoteError(error, 'Erro ao salvar configurações')
         throw error
       }
     }
@@ -2454,7 +1785,7 @@ function AppContent() {
   }
 
   async function saveAppAdminSettings(settings) {
-    const normalized = normalizeAdminSettings({ ...settings, publishedAt: new Date().toISOString() })
+    const normalized = normalizeAdminSettings(settings)
     saveLocalAdminSettings(normalized)
     setData((current) => ({ ...current, appAdminSettings: normalized }))
 
@@ -2486,7 +1817,6 @@ function AppContent() {
       checkins: data.checkins.map(({ photo, photoFile, ...checkin }) => checkin),
       workouts: data.workouts,
       workoutLogs: data.workoutLogs,
-      workoutProgressionDecisions: data.workoutProgressionDecisions,
       nutritionPlans: data.nutritionPlans,
       appointments: data.appointments,
       invoices: data.invoices,
@@ -2715,7 +2045,6 @@ function AppContent() {
     const url = new URL(window.location.href)
     const recoveryParams = ['type', 'access_token', 'refresh_token', 'expires_in', 'expires_at', 'token_type']
     recoveryParams.forEach((key) => url.searchParams.delete(key))
-    url.hash = ''
     window.history.replaceState({}, '', `${url.pathname}${url.search}`)
     setRemoteStatus('Senha atualizada')
     setRemoteError('Entre com seu e-mail e a nova senha.')
@@ -2767,7 +2096,6 @@ function AppContent() {
         workouts={studentAccess.workouts ?? []}
         nutritionPlans={studentAccess.nutritionPlans ?? []}
         workoutLogs={mergeRecords(data.workoutLogs, studentAccess.workoutLogs)}
-        exerciseLibraryItems={studentAccess.exerciseLibrary ?? data.exerciseLibrary ?? []}
         messages={mergeRecords(data.messages, studentAccess.messages)}
         appointments={studentAccess.appointments ?? []}
         invoices={studentAccess.invoices ?? []}
@@ -2777,7 +2105,6 @@ function AppContent() {
         onAddCheckin={addCheckin}
         onSendMessage={sendMessage}
         onRefreshMessages={refreshStudentConversation}
-        appAdminSettings={appAdminSettings}
         onExit={exitStudentAccess}
       />
     )
@@ -2802,29 +2129,12 @@ function AppContent() {
   const activeNavItem = visibleNavItems.find((item) => item.id === activeView) ?? visibleNavItems[0]
   const activeNavTone = getNavToneClasses(activeNavItem?.tone)
   const viewTitle = activeNavItem?.label ?? 'Visão geral'
-  const coachMobileBottomItems = ['visao', 'alunos', 'treinos', 'nutricao']
-    .map((id) => visibleNavItems.find((item) => item.id === id))
-    .filter(Boolean)
-  const coachMobileNavLabels = {
-    visao: 'Início',
-    alunos: 'Alunos',
-    treinos: 'Treino',
-    nutricao: 'Dieta',
-  }
-  const coachMobileQuickActions = [
-    { id: 'treinos', label: 'Criar treino', icon: 'dumbbell', hint: 'prescrição' },
-    { id: 'nutricao', label: 'Criar dieta', icon: 'nutrition', hint: 'macros' },
-    { id: 'alunos', label: 'Novo aluno', icon: 'users', hint: 'cadastro' },
-    { id: 'agenda', label: 'Agenda', icon: 'calendar', hint: 'rotina' },
-  ].map((action) => {
-    const navItem = visibleNavItems.find((item) => item.id === action.id)
-    return navItem ? { ...action, navItem } : null
-  }).filter(Boolean)
 
   return (
-    <div className="app-shell coach-auth-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
-      <div className="coach-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
+    <div className={`app-shell fit-gradient-bg app-theme-${uiTheme} min-h-screen w-full max-w-full overflow-x-hidden`} data-theme={uiTheme}>
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
+        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="ml-auto mr-2" />
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
@@ -2832,7 +2142,7 @@ function AppContent() {
           className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-[0px] text-white"
         >
           <NavIcon name="menu" className="h-5 w-5" />
-          ☰
+          â˜°
         </button>
       </div>
 
@@ -2845,7 +2155,7 @@ function AppContent() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[320px] lg:max-w-none lg:translate-x-0 lg:p-4 xl:w-[340px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -2863,11 +2173,10 @@ function AppContent() {
             </button>
           </div>
 
-          <div className="mb-2 mt-2 flex items-center justify-between px-1">
+          <div className="mb-2 mt-3 flex items-center justify-between px-1">
             <p className="text-[11px] font-black uppercase text-zinc-500">Navegação</p>
-            <span className="hidden text-[10px] font-bold text-zinc-600 lg:inline">role para ver tudo</span>
           </div>
-          <nav className="scrollbar-soft grid min-h-0 min-w-0 flex-1 content-start gap-1.5 overflow-y-auto pr-1">
+          <nav className="grid min-h-0 min-w-0 flex-1 content-start gap-2 overflow-hidden">
             {visibleNavItems.map((item) => {
               const tone = getNavToneClasses(item.tone)
               const isActive = activeView === item.id
@@ -2884,7 +2193,7 @@ function AppContent() {
                     setActiveView(item.id)
                     setMobileMenuOpen(false)
                   }}
-                  className={`group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
+                  className={`group flex min-h-[43px] min-w-0 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition active:scale-[0.99] ${
                     isActive
                       ? `${tone.active} shadow-lg shadow-black/20`
                       : isLocked
@@ -2892,12 +2201,12 @@ function AppContent() {
                         : `${tone.idle} hover:-translate-y-0.5 hover:bg-white/[0.065]`
                   }`}
                 >
-                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition ${
                     isActive ? tone.iconActive : isLocked ? 'border-white/5 bg-zinc-900 text-zinc-700' : tone.iconIdle
                   }`}>
-                    <NavIcon name={item.icon} className="h-3.5 w-3.5" />
+                    <NavIcon name={item.icon} className="h-4 w-4" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] leading-tight">{item.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] leading-tight">{item.label}</span>
                   {isLocked ? (
                     <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[9px] font-black uppercase text-zinc-500">Bloq.</span>
                   ) : null}
@@ -2909,14 +2218,15 @@ function AppContent() {
             })}
           </nav>
 
-          <button type="button" onClick={logout} className="mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
+          <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="mt-3 hidden lg:flex" />
+          <button type="button" onClick={logout} className="mt-3 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04] lg:mt-2 lg:py-2">
             Sair
           </button>
       </aside>
 
-        <main className="coach-auth-main min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
+        <main className="min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[320px] lg:w-[calc(100%-320px)] lg:px-5 xl:ml-[340px] xl:w-[calc(100%-340px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
-          <header className="coach-mobile-page-header mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
+          <header className="mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
               <div className="mb-3 flex items-center gap-3">
                 <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
@@ -2952,40 +2262,11 @@ function AppContent() {
             </div>
           </header>
 
-          <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label="Ações rápidas do treinador">
-            {coachMobileQuickActions.map((action) => {
-              const isLocked = shouldLockCoachTools && action.id !== 'assinatura' && action.id !== 'admin-master'
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => {
-                    if (isLocked) return
-                    setActiveView(action.id)
-                    setMobileMenuOpen(false)
-                  }}
-                  className="coach-mobile-action-card min-w-0 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-100">
-                      <NavIcon name={action.icon} className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-black text-white">{action.label}</span>
-                      <span className="block truncate text-[11px] font-bold uppercase text-emerald-200/80">{action.hint}</span>
-                    </span>
-                  </span>
-                </button>
-              )
-            })}
-          </section>
-
           {shouldLockCoachTools ? (
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.
+                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que o pagamento for aprovado.
               </p>
             </div>
           ) : null}
@@ -3002,10 +2283,8 @@ function AppContent() {
               <Overview
                 selectedStudent={selectedStudent}
                 smartAlerts={smartAlerts}
-                priorityDashboard={priorityDashboard}
                 assessments={data.assessments ?? []}
                 invoices={data.invoices ?? []}
-                setSelectedStudentId={setSelectedStudentId}
                 setActiveView={setActiveView}
               />
             )}
@@ -3020,13 +2299,11 @@ function AppContent() {
             {activeView === 'alunos' && (
               <Students
                 students={data.students}
-                workoutLogs={data.workoutLogs ?? []}
                 invites={data.invites ?? []}
                 anamneses={data.anamneses ?? []}
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentId}
                 onSave={saveStudent}
-                onSaveCoachPlan={saveCoachPlan}
                 onGenerateInvite={generateStudentInvite}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
@@ -3045,16 +2322,9 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 students={data.students}
                 workouts={data.workouts ?? []}
-                nutritionPlans={data.nutritionPlans ?? []}
                 workoutLogs={data.workoutLogs ?? []}
-                progressionDecisions={data.workoutProgressionDecisions ?? []}
-                exerciseLibraryItems={data.exerciseLibrary ?? []}
                 onSaveWorkout={saveWorkout}
-                onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveWorkout={archiveWorkout}
-                onApproveProgression={approveWorkoutProgression}
-                onIgnoreProgression={ignoreWorkoutProgression}
-                onUndoProgression={undoWorkoutProgression}
                 onSaveStudent={saveStudent}
               />
             )}
@@ -3112,7 +2382,6 @@ function AppContent() {
               <Messages
                 students={data.students}
                 messages={data.messages ?? []}
-                selectedStudent={selectedStudent}
                 onSendMessage={sendMessage}
                 onMarkRead={markStudentMessagesRead}
                 onRefreshMessages={refreshCoachConversation}
@@ -3126,7 +2395,6 @@ function AppContent() {
                 workouts={data.workouts ?? []}
                 nutritionPlans={data.nutritionPlans ?? []}
                 workoutLogs={data.workoutLogs ?? []}
-                exerciseLibraryItems={data.exerciseLibrary ?? []}
                 messages={data.messages ?? []}
                 appointments={data.appointments ?? []}
                 invoices={data.invoices ?? []}
@@ -3146,45 +2414,11 @@ function AppContent() {
                 settings={data.coachSettings}
                 onSave={saveCoachSettings}
                 onExport={exportAccountData}
-                onDeleteAccount={requestAccountDeletion}
-                masterAdmin={masterAdmin}
-                onOpenAdminMaster={() => setActiveView('admin-master')}
               />
             )}
           </div>
           </div>
         </main>
-      <nav className="coach-mobile-bottom-nav lg:hidden" aria-label="Navegação rápida do treinador">
-        {coachMobileBottomItems.map((item) => {
-          const isActive = activeView === item.id
-          const isLocked = shouldLockCoachTools && item.id !== 'assinatura' && item.id !== 'admin-master'
-          return (
-            <button
-              key={item.id}
-              type="button"
-              aria-current={isActive ? 'page' : undefined}
-              disabled={isLocked}
-              onClick={() => {
-                if (isLocked) return
-                setActiveView(item.id)
-                setMobileMenuOpen(false)
-              }}
-              className={`coach-mobile-bottom-button ${isActive ? 'is-active' : ''}`}
-            >
-              <NavIcon name={item.icon} className="h-5 w-5" />
-              <span>{coachMobileNavLabels[item.id] || item.label}</span>
-            </button>
-          )
-        })}
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(true)}
-          className="coach-mobile-bottom-button"
-        >
-          <NavIcon name="menu" className="h-5 w-5" />
-          <span>Menu</span>
-        </button>
-      </nav>
     </div>
   )
 }
@@ -3267,22 +2501,9 @@ function PasswordRecovery({ onSave }) {
 }
 
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings }) {
-  const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
-  const initialMode = new URLSearchParams(window.location.search).get('mode')
-  const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
+  const [mode, setMode] = useState('signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
-  const [signupPlanId, setSignupPlanId] = useState(() => {
-    try {
-      return window.localStorage.getItem(SELECTED_CHECKOUT_PLAN_KEY) || 'mensal'
-    } catch {
-      return 'mensal'
-    }
-  })
-  const [heroHeadlineIndex, setHeroHeadlineIndex] = useState(0)
-  const [journeyStepIndex, setJourneyStepIndex] = useState(0)
-  const [journeyUserInteracted, setJourneyUserInteracted] = useState(false)
-  const [legalModal, setLegalModal] = useState('')
   const [revenueScenario, setRevenueScenario] = useState({
     students: 20,
     monthlyPrice: 250,
@@ -3290,167 +2511,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     priceIncrease: 30,
   })
   const salesSettings = normalizeAdminSettings(appAdminSettings)
+  const salesContent = salesSettings.salesContent
   const salesPlans = salesSettings.checkoutPlans
-  const orderedSalesPlans = useMemo(() => {
-    const preferredOrder = ['mensal', 'semestral', 'anual']
-    return [...salesPlans].sort((a, b) => {
-      const aIndex = preferredOrder.includes(a.id) ? preferredOrder.indexOf(a.id) : preferredOrder.length
-      const bIndex = preferredOrder.includes(b.id) ? preferredOrder.indexOf(b.id) : preferredOrder.length
-      return aIndex - bIndex
-    })
-  }, [salesPlans])
-  const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
-  const signupPlan = orderedSalesPlans.find((plan) => plan.id === signupPlanId) || orderedSalesPlans[0]
-  const signupTitle = mode === 'signup'
-    ? signupPlan?.id === 'mensal'
-      ? 'Começar por R$ 9,90'
-      : `Criar conta para o plano ${signupPlan?.name || 'selecionado'}`
-    : mode === 'student'
-      ? 'Área do aluno'
-      : mode === 'forgot'
-        ? 'Recuperar senha'
-        : 'Entrar no painel'
-  const signupDescription = mode === 'signup'
-    ? signupPlan?.id === 'mensal'
-      ? 'Crie sua conta e ative o primeiro mês promocional por R$ 9,90 usando o mesmo e-mail no checkout.'
-      : `Crie sua conta e siga para o checkout do plano ${signupPlan?.name || 'selecionado'} usando o mesmo e-mail cadastrado.`
-    : mode === 'forgot'
-      ? 'Enviaremos um link seguro para o e-mail cadastrado.'
-      : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'
+  const selectedOfferPlan = salesPlans.find((plan) => plan.id === selectedOfferPlanId) || salesPlans.find((plan) => plan.id === salesSettings.defaultCheckoutPlanId) || salesPlans[1] || salesPlans[0]
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
   const projectedRevenue = projectedStudents * projectedPrice
   const projectedIncrease = projectedRevenue - currentRevenue
   const projectedPercent = currentRevenue ? Math.round((projectedIncrease / currentRevenue) * 100) : 0
-  const activeHeroHeadline = salesHeroHeadlines[heroHeadlineIndex % salesHeroHeadlines.length]
-  const studentJourneySteps = [
-    {
-      label: 'Treino enviado',
-      icon: 'dumbbell',
-      title: 'Prescrição clara e organizada.',
-      description: 'O aluno recebe exercícios, séries, repetições, cargas, descanso e orientações em um único lugar.',
-      event: 'Treino enviado',
-      status: 'Novo plano ativo',
-      panelTitle: 'Treino C · Pernas',
-      panelMeta: '7 exercícios · foco em quadríceps e posterior',
-      items: ['Agachamento livre · 4x10 · 80 kg', 'Leg press · 4x12 · 160 kg', 'Cadeira extensora · 3x12 · 45 kg'],
-      insight: 'Orientações, descanso e cargas ficam no mesmo fluxo do aluno.',
-    },
-    {
-      label: 'Execução registrada',
-      icon: 'activity',
-      title: 'Cada treino gera informação.',
-      description: 'O aluno registra sua execução e o treinador acompanha cargas, repetições e desempenho.',
-      event: 'Carga atualizada',
-      status: 'Registro recebido',
-      panelTitle: 'Execução do treino',
-      panelMeta: 'Séries concluídas, carga e percepção de esforço',
-      items: ['Agachamento · 80 kg · 10/10/9/8 reps', 'RPE médio 8 · descanso 90s', 'Observação: manter carga no próximo treino'],
-      insight: 'Histórico de carga ajuda o treinador a decidir progressões com mais segurança.',
-    },
-    {
-      label: 'Check-in recebido',
-      icon: 'check',
-      title: 'Evolução sem depender de mensagens espalhadas.',
-      description: 'Fotos, medidas, respostas e observações ficam organizadas no histórico do aluno.',
-      event: 'Check-in recebido',
-      status: 'Feedback semanal',
-      panelTitle: 'Check-in semanal',
-      panelMeta: 'Sono, rotina, dores, medidas e observações',
-      items: ['Sono: 7h · energia boa', 'Fadiga: moderada · dor: baixa', 'Fotos e medidas anexadas ao histórico'],
-      insight: 'O treinador enxerga contexto antes de ajustar treino ou alimentação.',
-    },
-    {
-      label: 'Ajuste realizado',
-      icon: 'settings',
-      title: 'Decisões mais rápidas e personalizadas.',
-      description: 'Com todas as informações centralizadas, o treinador ajusta treino e acompanhamento com mais segurança.',
-      event: 'Feedback enviado',
-      status: 'Ajuste publicado',
-      panelTitle: 'Atualização do plano',
-      panelMeta: 'Nova meta definida pelo treinador',
-      items: ['Aumentar repetições no leg press', 'Manter carga no agachamento', 'Adicionar observação técnica no treino'],
-      insight: 'O aluno recebe a atualização sem perder o histórico do que já foi feito.',
-    },
-    {
-      label: 'Evolução acompanhada',
-      icon: 'chart',
-      title: 'Valor que o aluno consegue perceber.',
-      description: 'O histórico transforma pequenas evoluções em uma experiência profissional e aumenta a percepção de acompanhamento.',
-      event: 'Evolução acompanhada',
-      status: 'Progresso visível',
-      panelTitle: 'Linha de evolução',
-      panelMeta: 'Treino, check-in, carga e feedback conectados',
-      items: ['Frequência: 4 treinos na semana', 'Carga total em alta no ciclo', 'Feedback mensal pronto para revisão'],
-      insight: 'A entrega fica visível, organizada e fácil de justificar na renovação.',
-    },
-  ]
-  const activeJourneyStep = studentJourneySteps[journeyStepIndex] || studentJourneySteps[0]
-  const salesHeaderNavItems = [
-    ['Solução', 'recursos'],
-    ['Aplicativo', 'experiencia-aluno'],
-    ['Resultados', 'simulador'],
-    ['Planos', 'precos'],
-    ['Dúvidas', 'duvidas'],
-  ]
-
-  function selectJourneyStep(index) {
-    setJourneyUserInteracted(true)
-    setJourneyStepIndex(index)
-  }
-
-  function scrollToSalesTarget(target, block = 'start') {
-    document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block })
-  }
-
-  function selectOfferPlan(planId) {
-    setSelectedOfferPlanId(planId)
-  }
-
-  function handlePlanSelectorKeyDown(event, planId) {
-    const currentIndex = orderedSalesPlans.findIndex((plan) => plan.id === planId)
-    if (currentIndex < 0) return
-
-    const lastIndex = orderedSalesPlans.length - 1
-    const keyActions = {
-      ArrowRight: Math.min(currentIndex + 1, lastIndex),
-      ArrowDown: Math.min(currentIndex + 1, lastIndex),
-      ArrowLeft: Math.max(currentIndex - 1, 0),
-      ArrowUp: Math.max(currentIndex - 1, 0),
-      Home: 0,
-      End: lastIndex,
-    }
-
-    if (!(event.key in keyActions)) return
-
-    event.preventDefault()
-    const nextPlan = orderedSalesPlans[keyActions[event.key]]
-    if (nextPlan) selectOfferPlan(nextPlan.id)
-  }
-
-  useEffect(() => {
-    captureLeadAttribution()
-  }, [])
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setHeroHeadlineIndex((current) => (current + 1) % salesHeroHeadlines.length)
-    }, 4200)
-
-    return () => window.clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
-    if (journeyUserInteracted) return undefined
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
-
-    const timer = window.setInterval(() => {
-      setJourneyStepIndex((current) => (current + 1) % studentJourneySteps.length)
-    }, 5000)
-
-    return () => window.clearInterval(timer)
-  }, [journeyUserInteracted, studentJourneySteps.length])
 
   useEffect(() => {
     const page = document.getElementById('sales-page')
@@ -3532,40 +2601,22 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     }
   }, [])
 
-  useEffect(() => {
-    const page = document.getElementById('sales-page')
-    if (!page) return undefined
-
-    const timer = window.setTimeout(() => {
-      applyLandingTextOverrides(page, salesSettings.landingTextOverrides)
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [salesSettings.landingTextOverrides, heroHeadlineIndex, selectedOfferPlanId, journeyStepIndex, mode])
-
   function openAccess(nextMode) {
-    if (!isLoginRoute) {
-      window.location.href = `/login?mode=${nextMode}`
-      return
-    }
     setMode(nextMode)
     window.setTimeout(() => document.getElementById('acesso')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
   }
 
   function startFirstMonthOffer() {
-    openAccess('signup')
+    openAccess(salesSettings.signupEnabled ? 'signup' : 'signin')
   }
 
   function startPlanSignup(planId) {
-    captureLeadAttribution()
-    recordLeadEvent('plan_selected', { planId })
-    setSignupPlanId(planId)
     try {
       window.localStorage.setItem(SELECTED_CHECKOUT_PLAN_KEY, planId)
     } catch {
       // Mantem o fluxo normal mesmo se o navegador bloquear armazenamento local.
     }
-    openAccess('signup')
+    openAccess(salesSettings.signupEnabled ? 'signup' : 'signin')
   }
 
   function leaveSalesPreview() {
@@ -3579,13 +2630,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     event.preventDefault()
     setLoading(true)
     try {
-      const formData = new FormData(event.currentTarget)
-      if (mode === 'signup') {
-        recordLeadEvent('signup_submitted', {
-          email: formData.get('email')?.toString() || '',
-          planId: selectedOfferPlanId,
-        })
+      if (mode === 'signup' && !salesSettings.signupEnabled) {
+        throw new Error('A criação de conta está temporariamente desativada. Use Entrar ou fale com o suporte.')
       }
+      const formData = new FormData(event.currentTarget)
       const success = mode === 'student'
         ? await onStudentAccess(formData.get('inviteCode')?.toString() || '')
         : await onLogin(formData)
@@ -3596,93 +2644,60 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} style={buildAdminThemeStyle(salesSettings)}>
+    <div id="sales-page" className="sales-page fit-gradient-bg min-h-screen text-zinc-100">
       <div className="sales-progress" aria-hidden="true" />
-      <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
-        <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
-          <button
-            type="button"
-            onClick={() => {
-              if (isLoginRoute) {
-                window.location.href = '/'
-                return
-              }
-              scrollToSalesTarget('sales-page')
-            }}
-            className="sales-header-logo-link"
-            aria-label="Ir para o início da página Coach Fit Pro"
-          >
-            <BrandLockup compact subtitle="Coach Fit Pro" />
-          </button>
-
-          <nav className="sales-header-nav hidden items-center justify-center gap-1 text-sm font-black text-zinc-300 lg:flex" aria-label="Navegação principal">
-            {salesHeaderNavItems.map(([label, target]) => (
+      <header className="sales-header sticky top-0 z-40 border-b border-white/10 bg-[#020816]/94 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
+          <BrandLockup compact subtitle="Coach Fit Pro" />
+          <nav className="hidden items-center gap-1 text-sm font-black text-zinc-300 lg:flex">
+            {salesContent.navItems.map(({ label, target }) => (
               <button
                 key={target}
                 type="button"
-                onClick={() => scrollToSalesTarget(target)}
+                onClick={() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 className="rounded-xl px-4 py-3 transition hover:bg-white/[0.08] hover:text-white"
               >
                 {label}
               </button>
             ))}
           </nav>
-
-          <div className="sales-header-actions flex items-center justify-end gap-2">
-            <button type="button" onClick={() => openAccess('signin')} className="rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
-              Entrar
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
+              {salesContent.loginButton}
             </button>
-            <button type="button" onClick={() => scrollToSalesTarget('precos')} className="hidden rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 lg:inline-flex">
-              Começar por R$ 9,90
+            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-zinc-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 sm:px-6 sm:text-sm">
+              {salesContent.plansButton}
             </button>
           </div>
         </div>
       </header>
 
       <main>
-        <section className="sales-hero mx-auto grid max-w-[1500px] items-center gap-5 px-4 pb-7 pt-6 sm:px-6 lg:min-h-[calc(100vh-76px)] lg:grid-cols-[minmax(0,0.44fr)_minmax(560px,0.56fr)] lg:px-10 lg:pb-8 lg:pt-6 xl:gap-8">
+        <section className="mx-auto grid max-w-[1440px] items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[calc(100vh-68px)] lg:grid-cols-[minmax(0,1.04fr)_minmax(390px,0.78fr)] lg:px-10 lg:py-14">
           <div className="min-w-0" data-reveal>
-            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-emerald-100">Para personal trainers, treinadores e consultorias on-line</p>
-            <h1 className="sales-rotating-headline mt-4 max-w-5xl font-black" aria-live="polite">
-              <span key={`lead-${activeHeroHeadline.id}`} className="sales-rotating-line">{activeHeroHeadline.lead}</span>
-              <span key={`focus-${activeHeroHeadline.id}`} className="sales-rotating-focus mt-2 block bg-gradient-to-r from-emerald-100 via-emerald-300 to-cyan-100 bg-clip-text text-transparent">{activeHeroHeadline.focus}</span>
+            <p className="inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase text-blue-200">{salesContent.heroBadge}</p>
+            <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-[3.7rem]">
+              {salesSettings.salesHeadline}
             </h1>
-            <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof mt-4 max-w-xl text-base font-medium leading-7 text-zinc-300 sm:text-lg">
-              <span>{activeHeroHeadline.proof}</span>
-              <span className="hidden">
-              Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
-                </span>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
+              {salesSettings.salesSubheadline}
             </p>
-            <div data-reveal className="sales-hero-device-mobile mt-5 lg:hidden">
-              <SalesPhoneShowcase />
-            </div>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5 sm:w-auto">
-                Escolher meu plano
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-md bg-blue-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
+                {salesSettings.salesCta}
               </button>
-              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="w-full rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45 sm:w-auto">
-                Ver como funciona
+              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth' })} className="w-full rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
+                {salesContent.secondaryCta}
               </button>
             </div>
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs font-bold text-zinc-300">
-              <span className="text-emerald-300">✓</span>
-              <span>Mais alunos com organização</span>
-              <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
-              <span>Treinos completos em poucos minutos</span>
-              <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
-              <span>Experiência profissional para o aluno</span>
-            </div>
-            <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-50">
-              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(0,210,178,0.8)]" />
-              + organização, + percepção de valor, + rotina profissional
+            <p className="mt-3 text-xs leading-5 text-zinc-500">{salesSettings.announcement}</p>
+            {salesSettings.maintenanceNotice ? <p className="mt-3 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-xs font-bold leading-5 text-amber-100">{salesSettings.maintenanceNotice}</p> : null}
+            <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 border-t border-white/15 pt-5">
+              {salesContent.heroStats.map((item) => <SalesStat key={`${item.value}-${item.label}`} value={item.value} label={item.label} />)}
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
-              {[
-                ['Treino', 'execução guiada e histórico'],
-                ['Nutrição', 'macros e substituições'],
-                ['Financeiro', 'cobranças e status'],
-              ].map(([title, text], index) => (
-                <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+              {salesContent.heroProofs.map(({ title, text }, index) => (
+                <div key={title} className="rounded-md border border-white/10 bg-white/[0.035] p-4">
                   <span className="text-xs font-black text-emerald-200">0{index + 1}</span>
                   <p className="mt-2 text-sm font-black text-white">{title}</p>
                   <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -3691,35 +2706,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
           </div>
 
-          <div data-reveal className="sales-hero-device hidden lg:block">
-            <SalesPhoneShowcase />
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
-          <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/25 backdrop-blur sm:grid-cols-4 sm:p-5">
-            {[
-              ['★★★★★', 'Avaliação visual premium', 'experiência que aumenta percepção de valor'],
-              ['Um painel', 'para centralizar toda a operação', 'menos WhatsApp, menos planilha, menos improviso'],
-              ['Aplicativo do aluno', 'toda a rotina no celular', 'treino, dieta, fatura e chat em um só lugar'],
-              ['Sem taxa', 'por aluno cadastrado', 'cresça a carteira com previsibilidade'],
-            ].map(([value, title, text]) => (
-              <div key={title} data-reveal className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
-                <p className="text-xl font-black text-emerald-100">{value}</p>
-                <p className="mt-2 text-sm font-black text-white">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {isLoginRoute ? (
-        <section id="acesso" className="mx-auto grid min-h-[calc(100vh-88px)] max-w-4xl place-items-center px-4 py-10 sm:px-6">
-          <form data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-2xl border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
-            <p className="text-xs font-black uppercase text-emerald-300">Acesso seguro</p>
-            <h2 className="mt-2 text-3xl font-black">{signupTitle}</h2>
+          <form id="acesso" data-reveal onSubmit={handleSubmit} className="sales-interactive w-full rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7 lg:sticky lg:top-24">
+            <p className="text-xs font-black uppercase text-blue-300">Acesso seguro</p>
+            <h2 className="mt-2 text-3xl font-black">{mode === 'signup' ? 'Começar agora' : mode === 'student' ? 'Área do aluno' : mode === 'forgot' ? 'Recuperar senha' : 'Entrar no painel'}</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              {signupDescription}
+              {mode === 'forgot'
+                ? 'Enviaremos um link seguro para o e-mail cadastrado.'
+                : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'}
             </p>
             {remoteError ? (
               <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-3">
@@ -3727,25 +2720,17 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
               </div>
             ) : null}
-            {mode === 'forgot' ? (
-              <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                <p className="text-sm font-black text-emerald-100">Recuperação automática</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-300">
-                  Enviaremos um link seguro para o e-mail cadastrado. Ao abrir o link, o treinador cria uma nova senha e volta ao painel normalmente.
-                </p>
-              </div>
-            ) : null}
             <div className="mt-5 grid grid-cols-3 gap-2">
               {[
                 ['signin', 'Coach'],
-                ['signup', 'Criar conta'],
+                ...(salesSettings.signupEnabled ? [['signup', 'Criar conta']] : []),
                 ['student', 'Aluno'],
               ].map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setMode(id)}
-                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-emerald-400 bg-emerald-400 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
+                  className={`rounded-md border px-2 py-2 text-xs font-black sm:px-3 sm:text-sm ${mode === id ? 'border-blue-500 bg-blue-500 text-zinc-950' : 'border-white/10 text-zinc-300'}`}
                 >
                   {label}
                 </button>
@@ -3765,8 +2750,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 </>
               )}
             </div>
-            <button disabled={loading} className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
+            <button disabled={loading} className="mt-6 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta profissional' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
             </button>
             {mode === 'signin' ? (
               <button type="button" onClick={() => setMode('forgot')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-emerald-200">
@@ -3778,11 +2763,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 Voltar para o login
               </button>
             ) : null}
-            {mode === 'forgot' && remoteStatus?.toLowerCase().includes('recuper') ? (
-              <p className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-xs font-bold leading-5 text-emerald-100">
-                Link enviado. Verifique a caixa de entrada e a pasta de spam do e-mail informado.
-              </p>
-            ) : null}
             {mode === 'signup' ? (
               <p className="mt-4 text-xs leading-5 text-zinc-500">
                 Se a confirmação por e-mail estiver ativa, confirme sua conta antes do primeiro acesso.
@@ -3790,191 +2770,98 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             ) : null}
           </form>
         </section>
-        ) : null}
 
-        <section className="sales-section border-y border-white/10 bg-[#030712]/82 py-10 backdrop-blur-xl sm:py-14">
-          <div className="mx-auto grid max-w-6xl gap-5 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">O problema não é falta de esforço.</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                É vender consultoria premium usando uma operação improvisada.
-              </h2>
-              <p className="mt-4 max-w-xl text-base leading-7 text-zinc-400">
-                O aluno esquece carga, perde mensagem, não vê evolução e o treinador fica preso em cobrança manual, prints e processos espalhados.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ['Sem histórico de carga', 'o aluno treina, mas não enxerga progressão real'],
-                ['Cobrança espalhada', 'vencimentos e comprovantes ficam soltos no WhatsApp'],
-                ['Evolução invisível', 'foto, medida e feedback não viram argumento de retenção'],
-                ['Rotina sem clareza', 'o aluno não sabe exatamente o que fazer no dia'],
-              ].map(([title, text]) => (
-                <div key={title} data-reveal className="sales-feature-card rounded-2xl border border-white/10 bg-white/[0.035] p-5">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-amber-300/25 bg-amber-400/10 text-sm font-black text-amber-100">!</span>
-                  <h3 className="mt-4 text-base font-black text-white">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
+        <section className="border-y border-white/10 bg-zinc-950/80">
+          <div className="mx-auto grid max-w-6xl gap-4 px-4 py-5 sm:grid-cols-3 sm:px-6">
+            {salesContent.valueBullets.map(({ title, text }) => (
+              <div key={title} className="flex gap-3">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400" />
+                <div>
+                  <p className="text-sm font-black text-emerald-100">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </section>
 
-        <section id="app-aluno" className="sales-section sales-journey-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div className="grid gap-8">
-            <div data-reveal className="mx-auto max-w-4xl text-center">
-              <p className="text-sm font-black uppercase text-emerald-300">ACOMPANHAMENTO CONECTADO</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">Um painel. Toda a jornada do aluno.</h2>
-              <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-zinc-300 sm:text-lg">
-                Do treino ao feedback, cada etapa fica conectada em uma rotina simples para o aluno e clara para o treinador.
+        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
+            <div data-reveal>
+              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.appVisual.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.appVisual.title}</h2>
+              <p className="mt-4 leading-7 text-zinc-400">
+                {salesContent.appVisual.description}
               </p>
-              <p className="mt-5 inline-flex rounded-full border border-emerald-300/25 bg-emerald-300/10 px-4 py-2 text-sm font-black text-emerald-50">
-                O aluno recebe clareza. O treinador mantém o controle.
-              </p>
-            </div>
-
-            <div data-reveal className="sales-journey-console sales-interactive">
-              <div className="sales-journey-tabs" role="tablist" aria-label="Etapas da jornada do aluno">
-                {studentJourneySteps.map((step, index) => {
-                  const active = journeyStepIndex === index
-                  return (
-                    <button
-                      key={step.label}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      aria-controls="sales-journey-panel"
-                      id={`sales-journey-tab-${index}`}
-                      onClick={() => selectJourneyStep(index)}
-                      className={`sales-journey-tab ${active ? 'is-active' : ''}`}
-                    >
-                      <span className="sales-journey-tab-index">{String(index + 1).padStart(2, '0')}</span>
-                      <span className="sales-journey-tab-icon">
-                        <NavIcon name={step.icon} className="h-4 w-4" />
-                      </span>
-                      <span className="sales-journey-tab-label">{step.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="sales-journey-progress" aria-hidden="true">
-                <span style={{ width: `${((journeyStepIndex + 1) / studentJourneySteps.length) * 100}%` }} />
-              </div>
-
-              <div
-                id="sales-journey-panel"
-                role="tabpanel"
-                aria-labelledby={`sales-journey-tab-${journeyStepIndex}`}
-                className="sales-journey-panel"
-                key={activeJourneyStep.label}
-              >
-                <div className="sales-journey-copy">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="sales-journey-live-dot" />
-                    <span className="text-xs font-black uppercase text-emerald-200">{activeJourneyStep.status}</span>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {salesContent.appVisual.cards.map(({ title, text }) => (
+                  <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
+                    <p className="text-sm font-black text-emerald-100">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
                   </div>
-                  <h3 className="mt-4 text-2xl font-black leading-tight text-white sm:text-4xl">{activeJourneyStep.title}</h3>
-                  <p className="mt-4 text-sm leading-7 text-zinc-300 sm:text-base">{activeJourneyStep.description}</p>
-                  <div className="sales-journey-insight-card mt-5 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.07] p-4">
-                    <p className="text-xs font-black uppercase text-emerald-100">Por que isso muda a entrega</p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-200">{activeJourneyStep.insight}</p>
-                  </div>
-                </div>
-
-                <div className="sales-journey-product-panel" aria-label={`Prévia do Coach Fit Pro: ${activeJourneyStep.label}`}>
-                  <div className="sales-journey-panel-bar">
-                    <span className="flex items-center gap-2 text-xs font-black uppercase text-emerald-100">
-                      <NavIcon name={activeJourneyStep.icon} className="h-4 w-4" />
-                      {activeJourneyStep.label}
-                    </span>
-                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[11px] font-black text-emerald-100">Coach Fit Pro</span>
-                  </div>
-                  <div className="sales-journey-board">
-                    <div className="sales-journey-board-main">
-                      <p className="text-xs font-black uppercase text-emerald-200">Prévia do aluno</p>
-                      <h4 className="mt-2 text-2xl font-black text-white">{activeJourneyStep.panelTitle}</h4>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">{activeJourneyStep.panelMeta}</p>
-                      <div className="mt-5 grid gap-3">
-                        {activeJourneyStep.items.map((item) => (
-                          <div key={item} className="sales-journey-row">
-                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-300/12 text-emerald-100">
-                              <NavIcon name="check" className="h-4 w-4" />
-                            </span>
-                            <span>{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="sales-journey-board-side">
-                      <p className="text-xs font-black uppercase text-zinc-400">Próxima ação</p>
-                      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                        <p className="text-lg font-black text-white">{activeJourneyStep.event}</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-300">A etapa fica registrada no histórico do aluno e aparece para o treinador acompanhar.</p>
-                      </div>
-                      <div className="sales-journey-tags mt-4 grid gap-2">
-                        {['Histórico vinculado', 'Ação rastreável', 'Aluno orientado'].map((item) => (
-                          <span key={item} className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.06] px-3 py-2 text-xs font-black text-emerald-50">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sales-journey-events" aria-hidden="true">
-                {['Treino concluído', 'Check-in recebido', 'Carga atualizada', 'Feedback enviado'].map((event, index) => (
-                  <span key={event} className={`sales-journey-event event-${index + 1}`}>
-                    <span className="h-2 w-2 rounded-full bg-emerald-300" />
-                    {event}
-                  </span>
                 ))}
               </div>
             </div>
-
-            <div data-reveal className="grid gap-3 md:grid-cols-3">
-              {[
-                ['Tudo centralizado', 'Treinos, check-ins, evolução e comunicação.'],
-                ['Histórico contínuo', 'Cada atualização permanece vinculada ao aluno.'],
-                ['Mais valor percebido', 'Uma experiência que demonstra acompanhamento profissional.'],
-              ].map(([title, text]) => (
-                <div key={title} className="sales-journey-benefit rounded-2xl border border-emerald-300/18 bg-white/[0.035] p-5">
-                  <p className="text-base font-black text-white">{title}</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-300">{text}</p>
+            <div data-reveal className="sales-phone-stage grid gap-2 sm:grid-cols-3">
+              {salesContent.appVisual.phoneScreens.map(({ kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText }, index) => (
+                <div key={title} className={`sales-phone-mockup ${index === 1 ? 'sm:mt-8' : ''}`}>
+                  <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-blue-300/25 bg-blue-500/10 text-blue-200">
+                      <NavIcon name={floatingIcon} className="h-4 w-4" />
+                    </span>
+                    <span>
+                      <strong>{floatingTitle}</strong>
+                      <small>{floatingText}</small>
+                    </span>
+                  </div>
+                  <div className="sales-phone-screen">
+                    <div className="sales-phone-notch" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
+                      <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-blue-100">09:30</span>
+                    </div>
+                    <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
+                    <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
+                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-blue-500/25 to-emerald-300/10 p-3">
+                      <p className="text-xs font-black text-emerald-100">{action}</p>
+                      <div className="mt-3 h-2 rounded-full bg-zinc-800">
+                        <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${62 + index * 11}%` }} />
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-2">
+                      {rows.map((row) => (
+                        <div key={row} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
+                          <span className="text-[10px] font-bold text-zinc-200">{row}</span>
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="sales-phone-bottom-nav">
+                      {salesContent.appVisual.phoneNav.map(({ icon, label }) => (
+                        <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
+                          <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-
-            <div data-reveal className="flex flex-col justify-center gap-3 sm:flex-row">
-              <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl bg-emerald-400 px-6 py-4 text-sm font-black text-zinc-950 shadow-2xl shadow-emerald-950/30 transition hover:-translate-y-0.5">
-                Começar por R$ 9,90
-              </button>
-              <button type="button" onClick={() => document.getElementById('recursos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="rounded-xl border border-emerald-300/25 bg-white/[0.04] px-6 py-4 text-sm font-black text-zinc-100 transition hover:border-emerald-300/45">
-                Ver como funciona
-              </button>
-            </div>
           </div>
         </section>
+
         <section id="recursos" className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/75 py-10 backdrop-blur-xl sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Solução completa</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A estrutura que transforma atendimento em operação.</h2>
-              <p className="mt-4 leading-7 text-zinc-400">O Coach Fit Pro organiza a entrega, reduz tarefas repetitivas e dá ao aluno a sensação de estar dentro de uma consultoria realmente profissional.</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.features.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.features.title}</h2>
+              <p className="mt-4 leading-7 text-zinc-400">{salesContent.features.description}</p>
             </div>
             <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                ['01', 'Treinos personalizados', 'Prescrição por aluno, com exercícios, séries, carga, vídeo e notas para cada fase do acompanhamento.'],
-                ['02', 'Registro de cargas', 'O aluno registra execução e o treinador acompanha progressão sem depender de memória ou papel.'],
-                ['03', 'Evolução visual', 'Fotos, medidas, check-ins e gráficos ajudam a provar resultado e aumentar retenção.'],
-                ['04', 'Planejamento inteligente', 'Agenda, desafios, lembretes, meta de água e rotina semanal para manter consistência.'],
-                ['05', 'Histórico de performance', 'Cada treino, feedback e avaliação fica registrado para decisões melhores no próximo ciclo.'],
-                ['06', 'Financeiro profissional', 'Planos próprios, cobrança, status de pagamento e comprovantes organizados para reduzir atrasos.'],
-              ].map(([number, title, description], index) => (
+              {salesContent.features.items.map(({ number, title, description }, index) => (
                 <div key={number} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
-                  <span className="text-xs font-black text-emerald-300">{number}</span>
+                  <span className="text-xs font-black text-blue-300">{number}</span>
                   <h3 className="mt-3 text-lg font-black">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">{description}</p>
                 </div>
@@ -3986,25 +2873,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="mecanismo" className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal className="lg:sticky lg:top-28">
-              <p className="text-sm font-semibold uppercase text-emerald-300">O custo invisível do improviso</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Seu método pode ser excelente e ainda parecer menor do que realmente é.</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.mechanism.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.mechanism.title}</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                Quando cada informação fica em um lugar, o coach trabalha mais, responde as mesmas dúvidas e perde força na hora de justificar preço, renovar e escalar.
+                {salesContent.mechanism.description}
               </p>
             </div>
             <div className="grid gap-3">
-              {[
-                ['Planilhas e mensagens espalhadas', 'Dados importantes se perdem entre conversas, arquivos e aplicativos diferentes.', 'Uma ficha central por aluno'],
-                ['Cobrança manual e atrasos', 'Sem uma visão financeira, acompanhar vencimentos depende da memória do coach.', 'Planos, cobranças e status em uma rotina clara'],
-                ['Aluno sem clareza do processo', 'Treino, dieta e orientações se misturam, reduzindo a percepção de acompanhamento.', 'Portal próprio e rotina guiada'],
-                ['Decisões sem histórico completo', 'Sem fotos, medidas, constância e relatos lado a lado, ajustar o plano fica mais difícil.', 'Evolução registrada e comparável'],
-              ].map(([title, problem, solution], index) => (
+              {salesContent.mechanism.items.map(({ title, problem, solution }, index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div>
                     <h3 className="font-black">{title}</h3>
                     <p className="mt-2 text-sm leading-6 text-zinc-400">{problem}</p>
                   </div>
-                   <span className="w-fit rounded border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">{solution}</span>
+                  <span className="w-fit rounded border border-blue-300/30 bg-blue-300/10 px-3 py-2 text-xs font-black text-blue-100">{solution}</span>
                 </div>
               ))}
             </div>
@@ -4014,17 +2896,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section sales-section-blue border-y border-white/10 bg-[#05070d]/80 py-10 sm:py-14">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Motor de recorrência</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Organização, cobrança e retenção trabalhando no mesmo fluxo.</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.commandCenter.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.commandCenter.title}</h2>
               <p className="mt-4 leading-7 text-zinc-400">
-                O Coach Fit Pro não é apenas um lugar para guardar treino e dieta. Ele conecta rotina do aluno, status financeiro, feedbacks e renovações para o treinador enxergar onde está ganhando, onde está perdendo e onde precisa agir.
+                {salesContent.commandCenter.description}
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {[
-                  ['Centraliza', 'Fim do PDF, Excel e mensagem perdida.'],
-                  ['Cobra', 'Vencimentos, Pix e validação em um só lugar.'],
-                  ['Retém', 'Desafios, feedbacks e evolução mantêm o aluno ativo.'],
-                ].map(([title, text]) => (
+                {salesContent.commandCenter.cards.map(({ title, text }) => (
                   <div key={title} className="sales-mini-card rounded-lg border border-white/10 bg-white/[0.035] p-4">
                     <p className="text-sm font-black text-emerald-100">{title}</p>
                     <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -4035,21 +2913,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="rounded-2xl border border-emerald-300/20 bg-zinc-950/88 p-5 shadow-2xl shadow-black/30">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase text-emerald-200">Dashboard financeiro</p>
-                  <h3 className="mt-2 text-2xl font-black">Receita, renovações e inadimplência sob controle</h3>
+                  <p className="text-xs font-black uppercase text-blue-200">{salesContent.commandCenter.dashboardEyebrow}</p>
+                  <h3 className="mt-2 text-2xl font-black">{salesContent.commandCenter.dashboardTitle}</h3>
                 </div>
-                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{salesContent.commandCenter.dashboardBadge}</span>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                {[
-                  ['Recebido no mês', 'R$ 8.940', '+18%'],
-                  ['Renovações próximas', '32', '7 dias'],
-                  ['A receber', 'R$ 2.310', 'pendente'],
-                  ['Alunos liberados', '94%', 'pagos'],
-                ].map(([label, value, detail]) => (
+                {salesContent.commandCenter.metrics.map(({ label, value, detail }) => (
                   <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
-                    <p className="sales-dashboard-money mt-2 font-black text-white">{value}</p>
+                    <p className="mt-2 text-2xl font-black text-white">{value}</p>
                     <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
                   </div>
                 ))}
@@ -4067,11 +2940,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   </div>
                 </div>
                 <div className="grid gap-3">
-                  {[
-                    ['Cobranças automáticas', 'Pix, WhatsApp e status por aluno'],
-                    ['Liberação automática', 'pagou, confirmou e acessou'],
-                    ['Planos próprios', 'mensal, semanal, semestral ou anual'],
-                  ].map(([title, text]) => (
+                  {salesContent.commandCenter.automationItems.map(({ title, text }) => (
                     <div key={title} className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
                       <p className="text-sm font-black text-white">{title}</p>
                       <p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p>
@@ -4079,7 +2948,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   ))}
                 </div>
               </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500">Exemplo visual do painel. Dentro do app, os números vêm dos recebimentos cadastrados pelo treinador.</p>
+              <p className="mt-3 text-xs leading-5 text-zinc-500">{salesContent.commandCenter.dashboardFootnote}</p>
             </div>
           </div>
         </section>
@@ -4087,46 +2956,34 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section sales-section-red border-y border-white/10 bg-zinc-950/75 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Antes e depois</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">A diferença não está apenas na ferramenta. Está na forma como o aluno percebe seu serviço.</h2>
+              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.comparison.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.comparison.title}</h2>
             </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                ['Cadastro', 'Formulários e mensagens soltas', 'Código, consentimento e continuidade'],
-                ['Prescrição', 'Arquivos separados', 'Treino e dieta no portal'],
-                ['Acompanhamento', 'Perguntas no WhatsApp', 'Check-ins e histórico'],
-                ['Evolução', 'Fotos na galeria', 'Avaliações e gráficos'],
-                ['Financeiro', 'Agenda ou memória', 'Cobranças e vencimentos'],
-                ['Comunicação', 'Conversa sem contexto', 'Mensagens ligadas ao aluno'],
-              ].map(([item, before, after]) => (
+              {salesContent.comparison.items.map(({ item, before, after }) => (
                 <div key={item} data-reveal className="sales-feature-card min-w-0 rounded-md border border-white/10 bg-[#05070d]/85 p-4">
                   <p className="text-xs font-black uppercase text-cyan-300">{item}</p>
-                  <p className="mt-3 text-sm leading-6 text-zinc-500"><strong className="text-zinc-400">Antes:</strong> {before}</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-500"><strong className="text-zinc-400">{salesContent.comparison.beforeLabel}</strong> {before}</p>
                   <div className="my-3 h-px bg-white/10" />
-                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">Com Coach Fit Pro:</strong> {after}</p>
+                  <p className="text-sm font-bold leading-6 text-zinc-200"><strong className="text-emerald-200">{salesContent.comparison.afterLabel}</strong> {after}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="experiencia-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section id="app-aluno" className="sales-section sales-section-red mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div data-reveal>
-               <p className="text-sm font-semibold uppercase text-emerald-300">Experiência do aluno</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O aluno não entra em “mais uma planilha”. Ele entra no seu ecossistema.</h2>
-              <p className="mt-4 leading-7 text-zinc-300">Cada aluno recebe um acesso próprio para consultar treino, dieta, compromissos, cobranças, desafios, meta de água e falar com o coach.</p>
+              <p className="text-sm font-semibold uppercase text-blue-300">{salesContent.studentApp.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.studentApp.title}</h2>
+              <p className="mt-4 leading-7 text-zinc-300">{salesContent.studentApp.description}</p>
               <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-md bg-emerald-500 px-5 py-3 text-sm font-black text-zinc-950 sm:w-auto">
-                Profissionalizar meu acompanhamento
+                {salesContent.studentApp.cta}
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ['Primeiro acesso', 'Código individual, consentimento e anamnese guiada.'],
-                ['Rotina diária', 'Treino, alimentação, água e desafios sempre disponíveis no celular.'],
-                ['Prestação de contas', 'Check-ins, fotos, feedbacks e conclusão de treinos registrados.'],
-                ['Proximidade', 'Chat em tempo real, agenda e orientações em um só ambiente.'],
-              ].map(([title, text], index) => (
+              {salesContent.studentApp.items.map(({ title, text }, index) => (
                 <div key={title} data-reveal style={{ '--reveal-delay': `${index * 80}ms` }} className="sales-feature-card rounded-md border border-white/10 bg-zinc-950/70 p-5">
                   <h3 className="font-black text-emerald-200">{title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-400">{text}</p>
@@ -4136,50 +2993,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </div>
         </section>
 
-        <section className="sales-section border-y border-white/10 bg-[#020816]/82 py-10 sm:py-14">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mx-auto max-w-3xl text-center" data-reveal>
-               <p className="text-sm font-black uppercase text-emerald-200">Como funciona</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Você profissionaliza sua operação em 3 passos.
-              </h2>
-              <p className="mt-4 text-base leading-7 text-zinc-400">
-                Sem precisar parar sua rotina. Comece com os alunos ativos e evolua o processo aos poucos.
-              </p>
-            </div>
-            <div className="mt-9 grid gap-4 md:grid-cols-3">
-              {[
-                ['01', 'Crie seu painel', 'Configure sua conta, identidade profissional, planos e forma de cobrança.'],
-                ['02', 'Cadastre alunos e objetivos', 'Envie convites, organize histórico, prescreva treino, dieta e rotina semanal.'],
-                ['03', 'Acompanhe evolução e vendas', 'Veja cargas, check-ins, pagamentos, mensagens e progresso em uma operação única.'],
-              ].map(([number, title, text]) => (
-                <div key={number} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-                   <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400 text-sm font-black text-zinc-950">{number}</span>
-                  <h3 className="mt-5 text-xl font-black text-white">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <ExpressCreationSalesSection openAccess={openAccess} />
-
         <section id="simulador" className="sales-section sales-section-blue mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Potencial de faturamento</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Quando a operação fica mais profissional, o crescimento deixa de depender apenas de trabalhar mais horas.</h2>
+              <p className="text-sm font-semibold uppercase text-blue-300">{salesContent.results.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.results.title}</h2>
               <p className="mt-4 leading-7 text-zinc-300">
-                O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
+                {salesContent.results.description}
               </p>
               <div className="mt-6 grid gap-3">
-                {[
-                  ['Mais capacidade', 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.'],
-                  ['Maior valor percebido', 'Um portal completo torna visível tudo que existe dentro do acompanhamento.'],
-                  ['Mais retenção', 'Rotina, check-ins e evolução ajudam o aluno a permanecer conectado ao processo.'],
-                  ['Receita previsível', 'Planos, vencimentos e pagamentos ficam claros para o coach agir no momento certo.'],
-                ].map(([title, text], index) => (
+                {salesContent.results.items.map(({ title, text }, index) => (
                   <div key={title} data-reveal style={{ '--reveal-delay': `${index * 70}ms` }} className="flex gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
                     <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded ${index % 2 ? 'bg-emerald-700' : 'bg-emerald-400'}`} />
                     <div>
@@ -4194,10 +3017,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             <div data-reveal className="sales-interactive rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
               <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase text-emerald-200">Simulador de cenário</p>
-                  <h3 className="mt-2 text-2xl font-black">Quanto sua operação pode movimentar?</h3>
+                  <p className="text-xs font-black uppercase text-emerald-200">{salesContent.results.simulatorEyebrow}</p>
+                  <h3 className="mt-2 text-2xl font-black">{salesContent.results.simulatorTitle}</h3>
                 </div>
-                <span className="text-xs text-zinc-500">Estimativa, não garantia de resultado</span>
+                <span className="text-xs text-zinc-500">{salesContent.results.simulatorDisclaimer}</span>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -4243,8 +3066,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <RevenueResult label="Potencial adicional" value={`+${formatCurrency(projectedIncrease)}`} accent />
               </div>
 
-              <div className="mt-4 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-                <p className="text-sm font-black text-emerald-100">
+              <div className="mt-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
+                <p className="text-sm font-black text-blue-100">
                   Neste cenário: {projectedStudents} alunos a {formatCurrency(projectedPrice)} por mês.
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
@@ -4262,122 +3085,22 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section border-y border-white/10 bg-zinc-950/70 py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="max-w-3xl" data-reveal>
-              <p className="text-sm font-semibold uppercase text-emerald-300">Feito para a rotina real do coach</p>
-              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">Uma boa plataforma precisa se adaptar ao seu método, não substituir sua identidade.</h2>
-              <p className="mt-4 leading-7 text-zinc-400">Você mantém sua metodologia e ganha uma estrutura para entregar, acompanhar e mostrar o valor dela.</p>
+              <p className="text-sm font-semibold uppercase text-emerald-300">{salesContent.objections.eyebrow}</p>
+              <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.objections.title}</h2>
+              <p className="mt-4 leading-7 text-zinc-400">{salesContent.objections.description}</p>
             </div>
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
-              <div data-reveal className="sales-objection-positive rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-emerald-300">O Coach Fit Pro faz sentido para você que</p>
+              <div data-reveal className="rounded-md border border-emerald-300/25 bg-emerald-400/[0.07] p-5 sm:p-6">
+                <p className="text-xs font-black uppercase text-emerald-300">{salesContent.objections.positiveTitle}</p>
                 <div className="mt-4 grid gap-3">
-                  {[
-                    'Atende alunos online, presencialmente ou de forma híbrida.',
-                    'Quer reduzir tarefas repetitivas sem perder proximidade.',
-                    'Precisa organizar treino, dieta, evolução e financeiro.',
-                    'Deseja aumentar o valor percebido do acompanhamento.',
-                  ].map((item) => <ObjectionPoint key={item} text={item} positive />)}
+                  {salesContent.objections.positiveItems.map((item) => <ObjectionPoint key={item} text={item} positive />)}
                 </div>
               </div>
-              <div data-reveal className="sales-objection-warning rounded-md border border-rose-400/25 bg-rose-500/[0.06] p-5 sm:p-6">
-                <p className="text-xs font-black uppercase text-rose-200">Pontos importantes antes de começar</p>
+              <div data-reveal className="rounded-md border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+                <p className="text-xs font-black uppercase text-zinc-400">{salesContent.objections.negativeTitle}</p>
                 <div className="mt-4 grid gap-3">
-                  {[
-                    'Não substitui sua análise e sua responsabilidade profissional.',
-                    'Não garante faturamento sem posicionamento e execução.',
-                    'Não obriga você a migrar todos os alunos de uma vez.',
-                    'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
-                  ].map((item) => <ObjectionPoint key={item} text={item} />)}
+                  {salesContent.objections.negativeItems.map((item) => <ObjectionPoint key={item} text={item} />)}
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {false && (
-        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
-            <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Depoimentos de uso</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                A sensação para o coach é parar de apagar incêndio.
-              </h2>
-              <p className="mt-4 text-base leading-7 text-zinc-400">
-                Exemplos realistas do tipo de transformação operacional que buscamos entregar para treinadores.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {[
-                ['★★★★★', '“Antes eu perdia cobrança no WhatsApp. Agora sei quem pagou, quem está pendente e consigo agir rápido.”', 'Marina C.', 'Personal trainer'],
-                ['★★★★★', '“O aluno sente que recebeu um app meu. A percepção de valor mudou muito na renovação.”', 'Rafael M.', 'Treinador on-line'],
-                ['★★★★★', '“Registrar carga e feedback deixou minha prescrição mais inteligente. Não dependo mais de lembrar tudo.”', 'Lucas A.', 'Treinador presencial'],
-              ].map(([stars, quote, name, role]) => (
-                <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-sm font-black text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.55)]">{stars}</p>
-                  <p className="mt-4 text-sm leading-6 text-zinc-200">{quote}</p>
-                  <div className="mt-5 border-t border-white/10 pt-4">
-                    <p className="text-sm font-black text-white">{name}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        )}
-
-        <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
-            <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Prova social que aumenta confiança</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.
-              </h2>
-              <p className="mt-4 text-base leading-7 text-zinc-300">
-                O Coach Fit Pro foi pensado para transformar tarefas espalhadas em uma experiência profissional: o aluno entende o que fazer, o treinador enxerga o que está acontecendo e a consultoria passa a parecer tão premium quanto o método entregue.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {[
-                ['★★★★★', 'O painel reúne treino, dieta, cobrança e comunicação com o aluno em um único lugar. A rotina fica muito mais organizada.', 'Camila Andrade', 'Personal trainer'],
-                ['★★★★★', 'Consigo acompanhar melhor meus alunos pelo celular e visualizar o que está pendente sem depender de planilhas e mensagens espalhadas.', 'Bruno Martins', 'Treinador on-line'],
-                ['★★★★★', 'Ficou muito mais fácil acompanhar cargas, check-ins, pagamentos e evolução sem precisar procurar informações em vários lugares.', 'Renata Oliveira', 'Treinadora presencial'],
-              ].map(([stars, quote, name, role]) => (
-                <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-black text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.55)]">{stars}</p>
-                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">5 estrelas</span>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-zinc-200">“{quote}”</p>
-                  <div className="mt-5 border-t border-white/10 pt-4">
-                    <p className="text-sm font-black text-white">{name}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="hidden sales-section mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-          <div data-reveal className="sales-guarantee-card grid gap-6 rounded-3xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/14 via-zinc-950/95 to-zinc-950 p-5 shadow-2xl shadow-emerald-950/20 sm:p-8 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100 shadow-lg shadow-emerald-950/30">
-              <NavIcon name="shield" className="h-7 w-7" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-black uppercase text-emerald-200">COMECE COM LIBERDADE TOTAL</p>
-              <h2 className="mt-3 text-2xl font-black leading-tight text-white sm:text-4xl">
-                Teste o Coach Fit Pro na sua rotina por R$ 9,90 no primeiro mês.
-              </h2>
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300 sm:text-base">
-                Organize seus alunos, monte treinos com mais rapidez e conheça as ferramentas na prática. Sem fidelidade e sem multa. Se a plataforma não fizer sentido para o seu negócio, cancele quando quiser diretamente pela sua conta.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {['Primeiro mês por R$ 9,90', 'Sem fidelidade e sem multa', 'Cancele quando quiser'].map((item) => (
-                  <span key={item} className="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/18 bg-emerald-300/[0.08] px-4 py-3 text-sm font-black text-emerald-50">
-                    <span className="text-emerald-300">✓</span>
-                    <span>{item}</span>
-                  </span>
-                ))}
               </div>
             </div>
           </div>
@@ -4385,22 +3108,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
         <section id="duvidas" className="sales-section mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="text-center" data-reveal>
-            <p className="text-sm font-semibold uppercase text-emerald-200">Dúvidas antes de começar</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">O que você precisa saber sobre o Coach Fit Pro</h2>
+            <p className="text-sm font-semibold uppercase text-emerald-200">{salesContent.faq.eyebrow}</p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">{salesContent.faq.title}</h2>
           </div>
           <div className="mt-9 grid gap-3">
-            {[
-              ['Meus alunos precisam instalar alguma coisa?', 'Não. O acesso funciona pelo navegador no celular ou computador, usando o código individual enviado pelo coach.'],
-              ['Já uso WhatsApp. Por que preciso de uma plataforma?', 'O WhatsApp continua útil para contato rápido. O Coach Fit Pro organiza o que precisa permanecer acessível e consultável: prescrição, histórico, check-ins, medidas, agenda e financeiro.'],
-              ['Vou precisar cadastrar tudo novamente?', 'Você pode começar com os alunos ativos e preencher as informações conforme usa. Não é necessário interromper seu atendimento para organizar toda a carteira.'],
-              ['Consigo usar no celular e no desktop?', 'Sim. O painel e o portal do aluno foram adaptados para os dois formatos, permitindo acompanhar a operação onde você estiver.'],
-              ['Preciso abandonar minhas ferramentas atuais no primeiro dia?', 'Não. Você pode implantar o Coach Fit Pro por etapas, validar o fluxo com alguns alunos e ampliar conforme sua equipe ganha segurança.'],
-              ['Quais planos estão disponíveis?', 'Você pode escolher entre plano mensal, semestral ou anual. Todos liberam o painel completo, portal do aluno, treinos, nutrição, cobranças, chat e acompanhamento em um só lugar. O valor e a condição de cada plano aparecem na etapa de pagamento da Cartpanda.'],
-            ].map(([question, answer], index) => (
+            {salesContent.faq.items.map(({ question, answer }, index) => (
               <details key={question} data-reveal style={{ '--reveal-delay': `${index * 50}ms` }} className="sales-faq rounded-md border border-white/10 bg-zinc-950/75">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 p-4 font-black sm:p-5">
                   <span>{question}</span>
-                  <span className="sales-faq-icon text-xl text-emerald-300">+</span>
+                  <span className="sales-faq-icon text-xl text-blue-300">+</span>
                 </summary>
                 <p className="border-t border-white/10 px-4 py-4 text-sm leading-6 text-zinc-400 sm:px-5">{answer}</p>
               </details>
@@ -4411,153 +3127,52 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section id="precos" className="sales-section sales-section-final border-t border-white/10 bg-[#04070d] py-12 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6" data-reveal>
             <div className="mx-auto max-w-4xl text-center">
-              <p className="text-sm font-black uppercase text-emerald-300">Planos Coach Fit Pro</p>
+              <p className="text-sm font-black uppercase text-emerald-300">{salesContent.pricing.eyebrow}</p>
               <h2 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
-                Comece hoje. Cresça no seu ritmo.
+                {salesContent.pricing.title}
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-zinc-300 sm:text-lg">
-                Escolha o ciclo ideal, veja a oferta na hora e libere uma estrutura completa para vender, acompanhar e reter alunos.
+                {salesContent.pricing.description}
               </p>
 
-              <div className="sales-plan-tabs mx-auto mt-7" role="tablist" aria-label="Selecionar ciclo do plano">
-                {orderedSalesPlans.map((plan) => {
+              <div className="mx-auto mt-7 grid max-w-3xl gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 shadow-2xl shadow-black/30 sm:grid-cols-3">
+                {salesPlans.map((plan) => {
                   const selected = selectedOfferPlan.id === plan.id
                   return (
                     <button
                       key={plan.id}
                       type="button"
-                      onClick={() => selectOfferPlan(plan.id)}
-                      onKeyDown={(event) => handlePlanSelectorKeyDown(event, plan.id)}
-                      id={`sales-plan-tab-${plan.id}`}
-                      role="tab"
-                      aria-controls={`sales-plan-card-${plan.id}`}
-                      aria-selected={selected}
-                      tabIndex={selected ? 0 : -1}
-                      className={`sales-plan-tab ${selected ? 'is-active' : ''}`}
+                      onClick={() => setSelectedOfferPlanId(plan.id)}
+                      className={`min-h-20 rounded-xl px-3 py-3 text-left transition ${
+                        selected
+                          ? 'bg-blue-500 text-zinc-950 shadow-lg shadow-blue-950/30'
+                          : 'text-zinc-300 hover:bg-white/[0.06] hover:text-white'
+                      }`}
                     >
-                      {plan.name}
+                      <span className="block text-sm font-black">{plan.name}</span>
+                      <span className={`mt-1 block text-[11px] font-bold uppercase ${selected ? 'text-zinc-800' : 'text-zinc-500'}`}>{plan.cycle}</span>
+                      <span className="mt-2 block text-xs font-black">{plan.price}</span>
                     </button>
                   )
                 })}
               </div>
-
-              <div
-                id="sales-plan-list"
-                className="sales-plan-list mt-8 grid gap-5 lg:grid-cols-3"
-                aria-label="Planos disponíveis do Coach Fit Pro"
-              >
-                {orderedSalesPlans.map((plan) => {
-                  const selected = selectedOfferPlan.id === plan.id
-                  const remainingPlanIds = orderedSalesPlans.filter((item) => item.id !== selectedOfferPlan.id).map((item) => item.id)
-                  const mobileOrder = selected ? 0 : remainingPlanIds.indexOf(plan.id) + 1
-                  const visibleHighlights = plan.highlights.slice(0, 3)
-                  const expandedBenefits = [...plan.highlights.slice(3), ...plan.activationPlan]
-                  return (
-                    <div
-                      key={plan.id}
-                      data-plan-id={plan.id}
-                      id={`sales-plan-card-${plan.id}`}
-                      role="region"
-                      aria-labelledby={`sales-plan-tab-${plan.id}`}
-                      style={{ '--mobile-plan-order': mobileOrder }}
-                      className={`sales-plan-option-card ${selected ? 'is-selected' : ''} group relative flex min-w-0 flex-col overflow-hidden rounded-3xl border p-5 text-left transition duration-200 hover:-translate-y-1 sm:p-6 ${
-                        selected
-                          ? 'border-emerald-300/60 bg-gradient-to-br from-emerald-300/22 via-emerald-950/30 to-zinc-950 shadow-2xl shadow-emerald-950/30'
-                          : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/30 hover:bg-white/[0.055]'
-                      }`}
-                    >
-                      <span className="absolute right-0 top-0 h-24 w-24 rounded-full bg-emerald-400/12 blur-2xl" aria-hidden="true" />
-                      <span className="relative flex items-center justify-between gap-3">
-                        <span className="min-w-0">
-                          <span className={`block text-xs font-black uppercase ${selected ? 'text-emerald-100' : 'text-zinc-500'}`}>{plan.cycle}</span>
-                          <span className="mt-2 block text-2xl font-black text-white">{plan.name}</span>
-                        </span>
-                        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-black uppercase ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-300'}`}>
-                          {selected ? 'Selecionado' : plan.badge}
-                        </span>
-                      </span>
-                      <span className="relative mt-5 block">
-                        {plan.oldPrice ? <span className="block text-sm font-bold text-zinc-500 line-through">De {plan.oldPrice}</span> : null}
-                        <span className="mt-1 flex flex-wrap items-end gap-2">
-                          <span className="text-5xl font-black leading-none text-white">{plan.price}</span>
-                          <span className="pb-1 text-sm font-bold text-zinc-400">{plan.suffix}</span>
-                        </span>
-                        <span className="mt-2 block text-sm font-black text-emerald-100">{plan.total}</span>
-                      </span>
-                      <span className="relative mt-4 block min-h-20 rounded-2xl border border-white/10 bg-zinc-950/50 p-4">
-                        <span className="block text-xs font-black uppercase text-emerald-200">Melhor para</span>
-                        <span className="mt-2 block text-sm leading-6 text-zinc-300">{plan.bestFor}</span>
-                      </span>
-                      <span className="relative mt-4 grid gap-2">
-                        {visibleHighlights.map((item) => (
-                          <span key={item} className="flex items-start gap-2 text-sm leading-6 text-zinc-300">
-                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" />
-                            <span>{item}</span>
-                          </span>
-                        ))}
-                      </span>
-                      <details className="relative mt-4 rounded-2xl border border-emerald-300/16 bg-emerald-300/[0.055]">
-                        <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-black text-emerald-50">
-                          <span>Ver todos os benefícios</span>
-                          <span className="text-lg text-emerald-200">+</span>
-                        </summary>
-                        <div className="grid gap-2 border-t border-emerald-300/12 px-4 py-3">
-                          {expandedBenefits.map((item, index) => (
-                            <span key={item} className="flex gap-3 text-xs font-semibold leading-5 text-zinc-200">
-                              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-[10px] font-black text-zinc-950">{index + 1}</span>
-                              <span>{item}</span>
-                            </span>
-                          ))}
-                        </div>
-                      </details>
-                      <span className="relative mt-auto block pt-6">
-                        <button type="button" onClick={() => startPlanSignup(plan.id)} className={`w-full rounded-2xl px-4 py-4 text-sm font-black transition active:scale-[0.98] ${selected ? 'bg-emerald-300 text-zinc-950 shadow-xl shadow-emerald-950/30' : 'border border-white/10 bg-white/[0.04] text-zinc-100 hover:border-emerald-300/40 hover:bg-emerald-300/10'}`}>
-                          Escolher este plano
-                        </button>
-                        {!selected ? (
-                          <button type="button" onClick={() => selectOfferPlan(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
-                            Destacar este plano
-                          </button>
-                        ) : null}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-7 rounded-3xl border border-emerald-300/22 bg-gradient-to-br from-emerald-300/12 via-zinc-950/80 to-zinc-950 p-5 text-left shadow-2xl shadow-emerald-950/18 sm:p-6">
-                <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-                  <div>
-                    <p className="text-xs font-black uppercase text-emerald-200">Primeiro passo com baixo risco</p>
-                    <h3 className="mt-2 text-2xl font-black leading-tight text-white sm:text-3xl">
-                      Comece pelo mensal por R$ 9,90 no primeiro mês ou escolha um ciclo com mais economia.
-                    </h3>
-                    <p className="mt-3 text-sm leading-6 text-zinc-300">
-                      Todos os ciclos liberam o painel, o aplicativo do aluno, treinos, nutrição, chat, check-ins, cobranças e acompanhamento. Não há taxa adicional por aluno cadastrado.
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="rounded-2xl bg-emerald-300 px-6 py-4 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5">
-                    Ativar plano escolhido
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <div className="hidden">
-              <div className="sales-plan-card sales-interactive relative overflow-hidden rounded-2xl border border-emerald-400/45 bg-gradient-to-br from-emerald-500/16 via-zinc-950 to-zinc-950 p-4 shadow-2xl shadow-emerald-950/25 sm:p-6">
-                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-emerald-500/18 blur-3xl" aria-hidden="true" />
+            <div className="mx-auto mt-10 grid max-w-5xl gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.7fr)] lg:items-stretch">
+              <div className="sales-interactive relative overflow-hidden rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/18 via-zinc-950 to-zinc-950 p-5 shadow-2xl shadow-blue-950/30 sm:p-8">
+                <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true" />
                 <div className="relative">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase text-emerald-200">{selectedOfferPlan.cycle}</p>
+                      <p className="text-xs font-black uppercase text-blue-300">{selectedOfferPlan.cycle}</p>
                       <h3 className="mt-2 text-3xl font-black text-white sm:text-4xl">{selectedOfferPlan.name}</h3>
                     </div>
-                    <span className="w-fit rounded-full bg-emerald-300 px-4 py-2 text-xs font-black uppercase text-zinc-950 shadow-lg shadow-emerald-950/30">
+                    <span className="w-fit rounded-full bg-blue-500 px-4 py-2 text-xs font-black uppercase text-white shadow-lg shadow-blue-950/30">
                       {selectedOfferPlan.badge}
                     </span>
                   </div>
 
-                  <div className="mt-5">
+                  <div className="mt-7">
                     {selectedOfferPlan.oldPrice ? <p className="text-base font-bold text-zinc-500 line-through">De {selectedOfferPlan.oldPrice}</p> : null}
                     <div className="mt-1 flex flex-wrap items-end gap-3">
                       <span className="text-5xl font-black leading-none text-white sm:text-6xl">{selectedOfferPlan.price}</span>
@@ -4565,8 +3180,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                        <p className="text-xs font-black uppercase text-emerald-100">Comparativo</p>
-                        <p className="mt-1 text-sm font-black text-white">{selectedOfferPlan.total}</p>
+                        <p className="text-xs font-black uppercase text-zinc-500">Comparativo</p>
+                        <p className="mt-1 text-sm font-black text-blue-200">{selectedOfferPlan.total}</p>
                       </div>
                       <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                         <p className="text-xs font-black uppercase text-emerald-200">Vantagem</p>
@@ -4575,55 +3190,47 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     </div>
                   </div>
 
-                  <p className="sales-plan-description mt-4 max-w-2xl text-sm leading-6 text-zinc-200">{selectedOfferPlan.description}</p>
+                  <p className="mt-6 max-w-2xl text-sm leading-6 text-zinc-300">{selectedOfferPlan.description}</p>
 
-                  <div className="sales-plan-proof mt-4 grid gap-3 lg:grid-cols-3">
-                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-400/[0.11] p-4">
-                      <p className="text-xs font-black uppercase text-emerald-100">Decisão inteligente</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-100">
-                        {selectedOfferPlan.id === 'mensal'
-                          ? 'Perfeito para testar a operação sem travar caixa e já sentir a diferença na entrega.'
-                          : selectedOfferPlan.id === 'semestral'
-                            ? 'Dá tempo para implantar, ajustar o processo e medir retenção com mais tranquilidade.'
-                            : 'Melhor para quem quer transformar o app em estrutura fixa e reduzir custo mensal.'}
+                  <div className="mt-6 grid gap-3 lg:grid-cols-3">
+                    <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+                      <p className="text-xs font-black uppercase text-blue-200">{salesContent.pricing.decisionTitle}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        {salesContent.pricing.decisionByPlan?.[selectedOfferPlan.id] || selectedOfferPlan.equivalent || selectedOfferPlan.description}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-emerald-300/35 bg-emerald-300/[0.12] p-4 shadow-lg shadow-emerald-950/20">
-                      <p className="text-xs font-black uppercase text-emerald-100">Melhor para</p>
-                      <p className="mt-2 text-sm font-semibold leading-6 text-white">{selectedOfferPlan.bestFor}</p>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                      <p className="text-xs font-black uppercase text-zinc-500">{salesContent.pricing.bestForTitle}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.bestFor}</p>
                     </div>
-                    <div className="rounded-xl border border-emerald-300/30 bg-emerald-300/[0.12] p-4">
-                      <p className="text-xs font-black uppercase text-emerald-200">O que você destrava</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-100">
-                        Painel do coach, app do aluno, treino, nutrição, financeiro, chat, agenda, desafios, água, check-ins e evolução.
+                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                      <p className="text-xs font-black uppercase text-emerald-200">{salesContent.pricing.unlockTitle}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-300">
+                        {salesContent.pricing.unlockText}
                       </p>
                     </div>
                   </div>
 
-                  <div className="sales-plan-after mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-xs font-black uppercase text-zinc-500">Depois de assinar</p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-100">{selectedOfferPlan.operatingPromise}</p>
+                        <p className="text-xs font-black uppercase text-zinc-500">{salesContent.pricing.afterSignupTitle}</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedOfferPlan.operatingPromise}</p>
                       </div>
-                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">liberação automática</span>
+                      <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{salesContent.pricing.activationBadge}</span>
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       {selectedOfferPlan.activationPlan.map((item, index) => (
                         <div key={item} className="rounded-xl border border-white/10 bg-zinc-950/60 p-3">
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
                           <p className="mt-3 text-xs font-bold leading-5 text-zinc-300">{item}</p>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="sales-plan-mini-benefits mt-5 grid gap-3 sm:grid-cols-3">
-                    {[
-                      ['Entrega premium', 'treino, dieta, check-ins e chat em um só fluxo'],
-                      ['Mais percepção', 'o aluno sente que está dentro de uma operação profissional'],
-                      ['Mais controle', 'processos organizados para vender e acompanhar melhor'],
-                    ].map(([title, text]) => (
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    {salesContent.pricing.deliveryCards.map(({ title, text }) => (
                       <div key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
                         <p className="text-sm font-black text-white">{title}</p>
                         <p className="mt-2 text-xs leading-5 text-zinc-400">{text}</p>
@@ -4631,330 +3238,63 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     ))}
                   </div>
 
-                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-emerald-300 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
-                    Escolher este plano
+                  <button type="button" onClick={() => startPlanSignup(selectedOfferPlan.id)} className="mt-7 w-full rounded-xl bg-blue-500 px-5 py-4 text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5 sm:w-auto sm:min-w-52">
+                    {salesContent.pricing.cta}
                   </button>
                 </div>
               </div>
 
-              <div className="sales-plan-side rounded-2xl border border-white/10 bg-zinc-950/92 p-5 shadow-2xl shadow-black/30 sm:p-6">
-                <p className="text-sm font-black uppercase text-zinc-400">Incluso no plano</p>
+              <div className="rounded-2xl border border-white/10 bg-zinc-950/92 p-5 shadow-2xl shadow-black/30 sm:p-6">
+                <p className="text-sm font-black uppercase text-zinc-400">{salesContent.pricing.includedTitle}</p>
                 <div className="mt-5 grid gap-3">
                   {selectedOfferPlan.highlights.map((item) => (
                     <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200">
-                      <span className="text-emerald-300">✓</span>
+                      <span className="text-blue-300">✓</span>
                       <span>{item}</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-emerald-200">Sem taxa por aluno</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">{salesContent.pricing.noStudentFeeTitle}</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    O treinador cresce a carteira sem pagar adicional por aluno cadastrado.
+                    {salesContent.pricing.noStudentFeeText}
                   </p>
                 </div>
-                <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-emerald-100">Próximo passo simples</p>
+                <div className="mt-4 rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
+                  <p className="text-xs font-black uppercase text-blue-200">{salesContent.pricing.nextStepTitle}</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">
-                    Crie sua conta, escolha o ciclo e o painel é liberado assim que a Cartpanda aprovar o pagamento.
+                    {salesContent.pricing.nextStepText}
                   </p>
                 </div>
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs font-black uppercase text-zinc-400">Implantação prática</p>
+                  <p className="text-xs font-black uppercase text-zinc-400">{salesContent.pricing.implementationTitle}</p>
                   <div className="mt-3 grid gap-2">
-                    {['Cadastre seus planos e alunos ativos', 'Envie convites com acesso individual', 'Acompanhe treino, dieta, chat e financeiro no mesmo painel'].map((item, index) => (
+                    {salesContent.pricing.implementationSteps.map((item, index) => (
                       <div key={item} className="flex gap-3 text-sm leading-6 text-zinc-300">
-                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-blue-500 text-xs font-black text-zinc-950">{index + 1}</span>
                         <span>{item}</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <p className="text-lg font-black text-white">100%</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">das ferramentas liberadas</p>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <p className="text-lg font-black text-white">0%</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">taxa extra por aluno</p>
-                  </div>
+                  {salesContent.pricing.metricCards.map((item) => (
+                    <div key={`${item.value}-${item.label}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-lg font-black text-white">{item.value}</p>
+                      <p className="mt-1 text-xs leading-5 text-zinc-500">{item.label}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <div data-reveal className="overflow-hidden rounded-3xl border border-emerald-300/25 bg-gradient-to-br from-emerald-500/18 via-zinc-950 to-emerald-500/10 p-6 shadow-2xl shadow-emerald-950/30 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-8">
-            <div className="max-w-3xl">
-              <p className="text-sm font-black uppercase text-emerald-100">Pronto para vender uma entrega mais premium?</p>
-              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-                Organize sua operação antes que sua agenda cresça mais do que seu controle.
-              </h2>
-              <p className="mt-4 text-base leading-7 text-zinc-300">
-                Treino, consultoria, aulas presenciais, evolução, cargas, cobrança e comunicação com o aluno em uma experiência moderna.
-              </p>
-            </div>
-            <button type="button" onClick={() => document.getElementById('precos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="mt-6 w-full rounded-2xl bg-emerald-400 px-6 py-4 text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5 lg:mt-0 lg:w-auto lg:min-w-56">
-              Escolher este plano
-            </button>
           </div>
         </section>
       </main>
 
       <footer className="border-t border-white/10 bg-[#05070d] px-4 py-6 text-center text-xs text-zinc-500">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row">
-          <span>Coach Fit Pro · Gestão profissional de acompanhamento</span>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <a href="/termos-de-uso" className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
-              Termos de uso
-            </a>
-            <a href="/politica-de-privacidade" className="rounded-full border border-white/10 px-3 py-1.5 font-bold text-zinc-300 transition hover:border-emerald-300/40 hover:text-white">
-              Privacidade
-            </a>
-            <a href="mailto:sac@coachfitpro.com.br" className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 font-bold text-emerald-100 transition hover:border-emerald-300/50">
-              Suporte
-            </a>
-          </div>
-        </div>
-        <span className="sr-only">
-        Coach Fit Pro · Gestão profissional de acompanhamento
-        </span>
+        {salesContent.footerText}
       </footer>
-      <LegalModal type={legalModal} onClose={() => setLegalModal('')} />
     </div>
-  )
-}
-
-function getLegalContent(type) {
-  const isPrivacy = type === 'privacy'
-  return {
-    title: isPrivacy ? 'Política de Privacidade' : 'Termos de Uso',
-    updatedAt: 'Atualizado em 13 de julho de 2026',
-    intro: isPrivacy
-      ? 'O Coach Fit Pro trata dados de cadastro, acompanhamento, fotos, mensagens, treinos, nutrição, check-ins, anamnese e pagamentos para operar o painel do treinador e o portal do aluno.'
-      : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional, relação com o aluno e validação técnica continuam sob responsabilidade do treinador.',
-    items: isPrivacy
-      ? [
-        'Dados sensíveis de saúde, treino, nutrição, fotos, anamnese e check-ins devem ser coletados pelo treinador somente com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, mensagens, treinos, dietas, cargas e históricos ficam vinculados ao treinador responsável e ao aluno cadastrado, com controle de acesso por conta.',
-        'Arquivos privados devem permanecer em buckets privados do Supabase Storage e serem exibidos por links temporários assinados.',
-        'A exclusão definitiva da conta remove dados operacionais vinculados. Registros financeiros, segurança e auditoria podem ser retidos pelo prazo legal necessário.',
-        'Solicitações de acesso, correção, portabilidade ou exclusão de dados podem ser enviadas para sac@coachfitpro.com.br.',
-      ]
-      : [
-        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
-        'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
-        'O treinador é responsável por obter consentimento do aluno para registrar fotos, anamnese, check-ins, dados fitness, treino e nutrição.',
-        'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout e da conciliação do sistema.',
-        'O acesso pode ser limitado em caso de uso indevido, inadimplência, tentativa de fraude ou violação de segurança.',
-      ],
-  }
-}
-
-function PublicLegalPage({ type }) {
-  const content = getLegalContent(type)
-
-  return (
-    <main className="app-shell fit-gradient-bg min-h-screen px-4 py-8 text-zinc-100 sm:px-6">
-      <section className="mx-auto max-w-3xl rounded-3xl border border-emerald-300/20 bg-zinc-950/92 p-5 shadow-2xl shadow-black/40 sm:p-8">
-        <a href="/" className="inline-flex rounded-full border border-white/10 px-4 py-2 text-sm font-black text-emerald-100 transition hover:border-emerald-300/40">
-          Voltar ao Coach Fit Pro
-        </a>
-        <p className="mt-8 text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
-        <h1 className="mt-2 text-3xl font-black text-white sm:text-5xl">{content.title}</h1>
-        <p className="mt-3 text-sm font-bold text-zinc-500">{content.updatedAt}</p>
-        <p className="mt-6 text-base leading-8 text-zinc-300">{content.intro}</p>
-        <div className="mt-6 grid gap-3">
-          {content.items.map((item) => (
-            <div key={item} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm leading-7 text-zinc-300">
-              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-6 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4 text-sm leading-7 text-zinc-300">
-          Contato oficial: <a href="mailto:sac@coachfitpro.com.br" className="font-black text-emerald-100">sac@coachfitpro.com.br</a>
-        </p>
-      </section>
-    </main>
-  )
-}
-
-function LegalModal({ type, onClose }) {
-  if (!type) return null
-
-  const isPrivacy = type === 'privacy'
-  const title = isPrivacy ? 'Privacidade e dados' : 'Termos de uso'
-  const intro = isPrivacy
-    ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar o painel do treinador e o acesso do aluno.'
-    : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional e relação com o aluno continuam sob responsabilidade do treinador.'
-  const items = isPrivacy
-    ? [
-        'Dados sensíveis devem ser usados apenas com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, check-ins e mensagens ficam vinculados ao treinador responsável e ao aluno cadastrado.',
-        'Chaves de API e integrações ficam protegidas no ambiente seguro da Supabase, não no navegador do usuário.',
-        'Solicitações sobre dados podem ser enviadas para sac@coachfitpro.com.br.',
-      ]
-    : [
-        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
-        'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
-        'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout.',
-        'O acesso pode ser limitado em caso de uso indevido, inadimplência ou violação de segurança.',
-      ]
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-zinc-950 p-5 text-zinc-100 shadow-2xl shadow-black/50 sm:p-7">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
-            <h2 className="mt-2 text-2xl font-black">{title}</h2>
-          </div>
-          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 text-xl font-black text-zinc-300 transition hover:border-emerald-300/40 hover:text-white" aria-label="Fechar">
-            ×
-          </button>
-        </div>
-        <p className="mt-5 text-sm leading-7 text-zinc-300">{intro}</p>
-        <div className="mt-5 grid gap-3">
-          {items.map((item) => (
-            <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ExpressCreationSalesSection({ openAccess }) {
-  return (
-    <section className="sales-section border-y border-emerald-300/10 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_34%),linear-gradient(135deg,rgba(2,8,8,0.96),rgba(5,8,14,0.98))] py-10 sm:py-14">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <div data-reveal>
-            <p className="text-sm font-black uppercase text-emerald-300">Criação expressa</p>
-            <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
-              Crie treinos e planejamentos em minutos, sem começar do zero.
-            </h2>
-            <p className="mt-4 text-base leading-7 text-zinc-300">
-              Use modelos, duplique estruturas, personalize rapidamente e mantenha cada aluno organizado em um só lugar.
-            </p>
-            <div className="mt-6 grid gap-3">
-              {[
-                'Monte uma vez, personalize quando precisar e reutilize sempre.',
-                'Ganhe tempo sem perder a individualização.',
-                'Centralize treino, alimentação e acompanhamento no mesmo fluxo.',
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-300 text-zinc-950">
-                    <NavIcon name="check" className="h-3.5 w-3.5" />
-                  </span>
-                  <p className="text-sm font-bold leading-6 text-zinc-200">{item}</p>
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={() => openAccess('signup')} className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300 active:scale-[0.98]">
-              Começar a criar meus treinos
-            </button>
-          </div>
-
-          <div data-reveal className="grid gap-4">
-            <div className="sales-feature-card rounded-3xl border border-emerald-300/25 bg-zinc-950/78 p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
-              <div className="grid gap-3 sm:grid-cols-5">
-                {[
-                  ['01', 'Aluno'],
-                  ['02', 'Objetivo'],
-                  ['03', 'Modelo'],
-                  ['04', 'Personalização'],
-                  ['05', 'Publicação'],
-                ].map(([number, title], index) => (
-                  <div key={title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
-                    <span className={`mx-auto grid h-9 w-9 place-items-center rounded-xl text-xs font-black ${index === 4 ? 'bg-emerald-300 text-zinc-950' : 'bg-white/[0.06] text-emerald-100'}`}>{number}</span>
-                    <p className="mt-2 text-xs font-black text-zinc-200">{title}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                <ComparisonCard
-                  tone="bad"
-                  title="Antes"
-                  items={['Planilhas espalhadas', 'Copiar informações manualmente', 'Procurar treinos antigos', 'Repetir o mesmo trabalho']}
-                />
-                <ComparisonCard
-                  tone="good"
-                  title="Com Coach Fit Pro"
-                  items={['Modelos reutilizáveis', 'Edição rápida', 'Histórico centralizado', 'Publicação em poucos cliques']}
-                />
-              </div>
-            </div>
-            <TimeRecoveryCalculator />
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ComparisonCard({ title, items, tone = 'good' }) {
-  const good = tone === 'good'
-  return (
-    <div className={`rounded-2xl border p-4 ${good ? 'border-emerald-300/25 bg-emerald-300/10' : 'border-rose-300/20 bg-rose-300/10'}`}>
-      <p className={`text-xs font-black uppercase ${good ? 'text-emerald-200' : 'text-rose-200'}`}>{title}</p>
-      <div className="mt-3 grid gap-2">
-        {items.map((item) => (
-          <div key={item} className="flex items-start gap-2 text-sm leading-6 text-zinc-300">
-            <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${good ? 'bg-emerald-300' : 'bg-rose-300'}`} />
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function TimeRecoveryCalculator() {
-  const [students, setStudents] = useState(20)
-  const [minutes, setMinutes] = useState(35)
-  const [updates, setUpdates] = useState(2)
-  const monthlyMinutes = students * minutes * updates
-  const hours = Math.floor(monthlyMinutes / 60)
-  const remainingMinutes = monthlyMinutes % 60
-
-  return (
-    <div className="sales-interactive rounded-3xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase text-emerald-200">Calculadora de tempo</p>
-          <h3 className="mt-1 text-xl font-black text-white">Quanto tempo você pode recuperar por mês?</h3>
-        </div>
-        <span className="text-xs font-bold text-zinc-500">Estimativa operacional</span>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <TimeCalcControl label="Alunos" value={students} min={1} max={120} onChange={setStudents} />
-        <TimeCalcControl label="Minutos por plano" value={minutes} min={5} max={180} onChange={setMinutes} />
-        <TimeCalcControl label="Atualizações/mês" value={updates} min={1} max={8} onChange={setUpdates} />
-      </div>
-      <div className="mt-4 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-4">
-        <p className="text-sm font-black text-emerald-100">Hoje isso pode representar cerca de {hours}h{remainingMinutes ? ` ${remainingMinutes}min` : ''} em tarefas de montagem e ajustes.</p>
-        <p className="mt-2 text-sm leading-6 text-zinc-300">
-          Organizar e reutilizar estruturas pode reduzir tarefas repetitivas. Cada hora economizada pode ser usada para acompanhar alunos, vender consultorias ou melhorar seu serviço.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function TimeCalcControl({ label, value, min, max, onChange }) {
-  return (
-    <label className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/55 p-3 text-xs font-black uppercase text-zinc-500">
-      {label}
-      <input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="accent-emerald-300" />
-      <span className="text-lg font-black text-white">{value}</span>
-    </label>
   )
 }
 
@@ -4967,122 +3307,10 @@ function SalesStat({ value, label }) {
   )
 }
 
-function SalesPhoneShowcase() {
-  const [activeIndex, setActiveIndex] = useState(1)
-  const screens = [
-    ['Início do aluno', 'Olá, aluno', 'Semana, água e desafios', 'Meta do dia em progresso', ['Treino concluído: +80 XP', 'Água 1,8L / 2,5L', 'Desafio semanal 3/5'], 'trophy', '+80 XP', 'ranking atualizado'],
-    ['Treino de hoje', 'LEGS', 'Carga por exercício', 'Registrar série realizada', ['Agachamento: 80 kg', 'Leg press: 160 kg', 'Cadeira extensora: 45 kg'], 'dumbbell', 'Treino', 'em execução'],
-    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovações', 'Cobranças organizadas', ['Pagamentos confirmados', 'Renovações próximas', 'Pendências visíveis'], 'wallet', 'Financeiro', 'organizado'],
-  ]
-
-  const metrics = [
-    ['dashboard', 'Painel único', 'treino, dieta e cobrança'],
-    ['trophy', 'Evolução', 'check-ins e progresso'],
-    ['message', 'Aluno ativo', 'rotina guiada no celular'],
-  ]
-
-  return (
-    <div className="sales-hero-phone-wrap" aria-label="Prévia do aplicativo Coach Fit Pro">
-      <div className="sales-hero-phone-glow" aria-hidden="true" />
-      {metrics.map(([icon, value, label], index) => (
-        <div key={label} className={`sales-showcase-metric metric-${index + 1}`}>
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
-            <NavIcon name={icon} className="h-4 w-4" />
-          </span>
-          <span className="min-w-0">
-            <strong>{value}</strong>
-            <small>{label}</small>
-          </span>
-        </div>
-      ))}
-      {screens.map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => {
-        const active = activeIndex === index
-        return (
-        <button
-          key={title}
-          type="button"
-          aria-label={`Ver mockup: ${title}`}
-          aria-pressed={active}
-          onClick={() => setActiveIndex(index)}
-          className={`sales-phone-mockup sales-hero-phone-${index + 1} ${active ? 'is-active' : ''}`}
-        >
-          <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
-              <NavIcon name={floatingIcon} className="h-4 w-4" />
-            </span>
-            <span>
-              <strong>{floatingTitle}</strong>
-              <small>{floatingText}</small>
-            </span>
-          </div>
-          <div className="sales-phone-screen">
-            <div className="sales-phone-statusbar" aria-hidden="true">
-              <span>09:30</span>
-              <span className="sales-phone-status-icons">
-                <span className="sales-signal" />
-                <span className="sales-wifi" />
-                <span className="sales-battery" />
-              </span>
-            </div>
-            <div className="sales-phone-notch" />
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{active ? 'ao vivo' : 'prévia'}</span>
-            </div>
-            <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
-            <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
-            <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/35 to-emerald-300/10 p-3">
-              <p className="text-xs font-black text-emerald-100">{action}</p>
-              <div className="mt-3 h-2 rounded-full bg-zinc-800">
-                <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${68 + index * 9}%` }} />
-              </div>
-            </div>
-            <div className="mt-4 grid gap-2">
-              {rows.map((row) => (
-                <div key={row} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
-                  <span className="text-[10px] font-bold text-zinc-200">{row}</span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                </div>
-              ))}
-            </div>
-            <div className="sales-phone-bottom-nav">
-              {[
-                ['dashboard', 'Início'],
-                ['wallet', 'Fatura'],
-                ['dumbbell', 'Treino'],
-                ['message', 'Chat'],
-              ].map(([icon, label]) => (
-                <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
-                  <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </button>
-        )
-      })}
-      <div className="sales-showcase-tabs" aria-label="Selecionar prévia">
-        {screens.map((screen, index) => (
-          <button
-            key={screen[1]}
-            type="button"
-            aria-label={`Mostrar ${screen[1]}`}
-            onClick={() => setActiveIndex(index)}
-            className={`sales-showcase-tab ${activeIndex === index ? 'is-active' : ''}`}
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function ObjectionPoint({ text, positive = false }) {
   return (
-    <div className={`flex gap-3 text-sm leading-6 ${positive ? 'text-emerald-50' : 'text-rose-50'}`}>
-      <span className={`mt-2 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${positive ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'}`}>
-        {positive ? '✓' : '!'}
-      </span>
+    <div className="flex gap-3 text-sm leading-6 text-zinc-300">
+      <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${positive ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
       <p>{text}</p>
     </div>
   )
@@ -5124,26 +3352,11 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
   )
 }
 
-function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments, invoices, setSelectedStudentId, setActiveView }) {
+function Overview({ selectedStudent, smartAlerts, assessments, invoices, setActiveView }) {
   if (!selectedStudent) {
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Comece sua operação" action="Primeiros passos">
-          <div className="mb-4 overflow-hidden rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase text-emerald-200">Ativação guiada</p>
-                <p className="mt-1 text-sm leading-6 text-zinc-200">
-                  Comece pelo essencial: marca, primeiro aluno, entrega inicial e convite. Em poucos minutos o painel já fica pronto para operar.
-                </p>
-              </div>
-              <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/60 px-3 py-1 text-xs font-black text-emerald-100">4 etapas</span>
-            </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-900">
-              <div className="h-full w-1/4 rounded-full bg-gradient-to-r from-emerald-300 to-emerald-600" />
-            </div>
-          </div>
-
           <div className="mb-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3">
             <p className="text-xs font-black uppercase text-emerald-200">Validação manual</p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">
@@ -5161,15 +3374,12 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
               <button
                 key={number}
                 onClick={() => setActiveView(view)}
-                className="group flex w-full items-start gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/40 hover:bg-emerald-400/[0.06]"
+                className="flex w-full items-start gap-4 rounded-md border border-white/10 bg-white/[0.03] p-4 text-left hover:border-blue-300/40"
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-400 font-black text-zinc-950 shadow-lg shadow-emerald-950/30">{number}</span>
-                <span className="min-w-0">
-                  <span className="block font-black text-white">{title}</span>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded bg-blue-500 font-black text-zinc-950">{number}</span>
+                <span>
+                  <span className="block font-black">{title}</span>
                   <span className="mt-1 block text-sm leading-6 text-zinc-400">{description}</span>
-                  <span className="mt-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-black text-emerald-100 transition group-hover:border-emerald-300/40">
-                    Abrir etapa
-                  </span>
                 </span>
               </button>
             ))}
@@ -5177,25 +3387,13 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
         </Panel>
 
         <Panel title="Conta pronta para iniciar" action="Ambiente limpo">
-          <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
+          <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
             <p className="font-black text-blue-200">Nenhum dado demonstrativo</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
               Sua conta está vazia e preparada para receber somente alunos reais da sua operação.
             </p>
           </div>
-          <div className="mt-4 grid gap-3">
-            {[
-              ['Treino', 'publique o primeiro treino antes de convidar'],
-              ['Dieta', 'cadastre pelo menos uma rotina alimentar'],
-              ['Cobrança', 'configure Pix e mensagem padrão'],
-            ].map(([title, text]) => (
-              <div key={title} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-sm font-black text-white">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
-              </div>
-            ))}
-          </div>
-          <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+          <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
             Cadastrar primeiro aluno
           </button>
         </Panel>
@@ -5206,24 +3404,9 @@ function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments
   const assessmentData = buildAssessmentChartData(assessments, selectedStudent?.id)
   const revenueChartData = buildRevenueChartData(invoices)
   const actionPlan = buildCoachActionPlan(smartAlerts)
-  const openStudentFromPriority = (studentId, view = 'alunos') => {
-    setSelectedStudentId?.(studentId)
-    setActiveView(view)
-  }
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.4fr_1fr]">
-      <div className="xl:col-span-2">
-        <DailyIntelligenceSummary dashboard={priorityDashboard} onOpenView={setActiveView} />
-      </div>
-
-      <div className="xl:col-span-2">
-        <StudentPriorityPanel
-          dashboard={priorityDashboard}
-          onOpenStudent={(studentId) => openStudentFromPriority(studentId, 'alunos')}
-          onMessageStudent={(studentId) => openStudentFromPriority(studentId, 'mensagens')}
-        />
-      </div>
       <Panel title="Evolução corporal" action={`${assessmentData.length} avaliações`}>
         {assessmentData.length ? (
           <Suspense fallback={<ChartLoading />}>
@@ -5523,7 +3706,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, workoutLogs = [], invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ students, invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -5537,8 +3720,6 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
-  const ranking = buildCoachStudentRanking(students, workoutLogs)
-  const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
   useEffect(() => {
     setAccessMessage('')
@@ -5578,10 +3759,7 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
   }
 
   return (
-    <div className="grid gap-4 lg:gap-6">
-      <StudentRankingPanel ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
-
-      <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
+    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_1.15fr]">
       <Panel title="Carteira de alunos" action={`${students.length} perfis`}>
         <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           Novo aluno
@@ -5615,7 +3793,6 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
           <StudentForm
             student={editing}
             coachPlans={coachPlans}
-            onSaveCoachPlan={onSaveCoachPlan}
             onCancel={() => setEditing(null)}
             onSave={async (student) => {
               const result = await onSave(student)
@@ -5626,7 +3803,6 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
         ) : selectedStudent ? (
           <>
             <StudentSnapshot student={selectedStudent} />
-            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobrança automática.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal' }]} />
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <Info label="E-mail" value={selectedStudent.email} />
               <Info label="Telefone" value={selectedStudent.phone} />
@@ -5729,128 +3905,15 @@ function Students({ students, workoutLogs = [], invites, anamneses, selectedStud
           <Empty text="Nenhum aluno selecionado." />
         )}
       </Panel>
-      </div>
     </div>
   )
 }
 
-function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
-  return (
-    <Panel title="Ranking dos alunos" action={`${ranking.length} no placar`}>
-      {ranking.length ? (
-        <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
-          <div className="rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-300/12 via-white/[0.035] to-blue-400/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Pódio de evolução</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {ranking.slice(0, 3).map((item, index) => (
-                <button
-                  key={item.student.id}
-                  type="button"
-                  onClick={() => onSelectStudent(item.student.id)}
-                  className={`min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${
-                    String(selectedStudentId) === String(item.student.id)
-                      ? 'border-emerald-300/60 bg-emerald-300/15'
-                      : 'border-white/10 bg-black/25 hover:border-emerald-300/35'
-                  } ${index === 0 ? 'sm:order-2 sm:-mt-2' : index === 1 ? 'sm:order-1 sm:mt-5' : 'sm:order-3 sm:mt-8'}`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <RankMedal icon={item.levelIcon} label={item.levelName} size="sm" />
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-black text-zinc-300">#{item.position}</span>
-                  </div>
-                  <h4 className="mt-4 truncate text-base font-black text-white">{item.student.name}</h4>
-                  <p className="mt-1 text-xs font-bold text-zinc-400">{item.levelName}</p>
-                  <p className="mt-3 text-2xl font-black text-emerald-100">{item.xp} XP</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/45">
-                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-blue-400" style={{ width: `${item.progress}%` }} />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-3">
-            {ranking.slice(0, 6).map((item) => (
-              <button
-                key={item.student.id}
-                type="button"
-                onClick={() => onSelectStudent(item.student.id)}
-                className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition ${
-                  String(selectedStudentId) === String(item.student.id)
-                    ? 'border-blue-300/60 bg-blue-400/12'
-                    : 'border-white/10 bg-white/[0.035] hover:border-blue-300/35'
-                }`}
-              >
-                <RankMedal icon={item.levelIcon} label={item.levelName} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-center justify-between gap-2">
-                    <p className="truncate text-sm font-black text-white">{item.student.name}</p>
-                    <p className="shrink-0 text-sm font-black text-emerald-100">{item.xp} XP</p>
-                  </div>
-                  <p className="mt-1 truncate text-xs text-zinc-500">{item.levelName} · {item.completedCount} treinos concluídos</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <Empty text="Cadastre alunos e registre treinos concluídos para montar o ranking." />
-      )}
-    </Panel>
-  )
-}
-
-function buildCoachStudentRanking(students = [], workoutLogs = []) {
-  const safeStudents = Array.isArray(students) ? students.filter(Boolean) : []
-  const safeLogs = Array.isArray(workoutLogs) ? workoutLogs.filter(Boolean) : []
-
-  return safeStudents
-    .map((student) => {
-      const logs = safeLogs.filter((log) => String(log.studentId ?? log.student_id ?? '') === String(student.id))
-      const completedCount = logs.length
-      const reward = buildStudentRewardStats({
-        completedThisWeek: countWorkoutLogsThisWeek(logs),
-        completedThisMonth: countWorkoutLogsThisMonth(logs),
-        waterPercent: clampPercent(student.waterProgress || student.hydration || 0),
-      })
-      const adherenceBonus = Math.round(clampPercent(student.adherence) * 2)
-      const xp = reward.xp + adherenceBonus
-      return {
-        student,
-        completedCount,
-        xp,
-        levelName: reward.levelName,
-        progress: reward.progress,
-        levelIcon: reward.levelIcon,
-      }
-    })
-    .sort((a, b) => b.xp - a.xp || clampPercent(b.student.adherence) - clampPercent(a.student.adherence))
-    .map((item, index) => ({ ...item, position: index + 1 }))
-}
-
-function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onCancel }) {
+function StudentForm({ student, coachPlans = plans, onSave, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [continuingStudent, setContinuingStudent] = useState(student.requireAnamnesis === false)
   const selectedPlanName = coachPlans.some((plan) => plan.name === student.plan) ? student.plan : coachPlans[0]?.name
-  const [planMode, setPlanMode] = useState('existing')
-  const [selectedPlan, setSelectedPlan] = useState(selectedPlanName || coachPlans[0]?.name || '')
-  const [newPlanName, setNewPlanName] = useState('')
-  const [newPlanPrice, setNewPlanPrice] = useState('')
-  const [newPlanCycle, setNewPlanCycle] = useState('mensal')
-  const [newPlanFeatures, setNewPlanFeatures] = useState('Acompanhamento personalizado')
-  const existingPlanPreview = coachPlans.find((plan) => plan.name === selectedPlan) || coachPlans[0]
-  const newPlanPreview = normalizeCoachPlan({
-    name: newPlanName || 'Novo plano do treinador',
-    price: newPlanPrice || '0',
-    cycle: newPlanCycle,
-    features: newPlanFeatures,
-  })
-  const activePlanPreview = planMode === 'new' ? newPlanPreview : existingPlanPreview
-
-  useEffect(() => {
-    setSelectedPlan(selectedPlanName || coachPlans[0]?.name || '')
-    setPlanMode('existing')
-  }, [student.id, selectedPlanName, coachPlans])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -5863,30 +3926,13 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
     setSaving(true)
     setError('')
     try {
-      let planName = selectedPlan || coachPlans[0]?.name || 'Acompanhamento'
-
-      if (planMode === 'new') {
-        const planDraft = normalizeCoachPlan({
-          name: newPlanName,
-          price: newPlanPrice,
-          cycle: newPlanCycle,
-          features: newPlanFeatures,
-        })
-
-        if (!planDraft.name) throw new Error('Informe o nome do plano.')
-        if (getPlanBillingAmount(planDraft.name, [planDraft]) <= 0) throw new Error('Informe o valor cobrado neste plano.')
-
-        if (onSaveCoachPlan) await onSaveCoachPlan(planDraft)
-        planName = planDraft.name
-      }
-
       await onSave({
         ...student,
         name: form.get('name').toString(),
         email: form.get('email').toString(),
         phone: form.get('phone').toString(),
         cpf: cpf.replace(/\D/g, ''),
-        plan: planName,
+        plan: form.get('plan').toString(),
         payment: form.get('payment').toString(),
         waterGoalMl: form.get('waterGoalMl')?.toString() || '2500',
         requireAnamnesis: !continuingStudent,
@@ -5899,7 +3945,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
   }
 
   return (
-    <form onSubmit={handleSubmit} className="workout-builder grid gap-4">
+    <form onSubmit={handleSubmit} className="grid gap-4">
       <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-4 transition ${
         continuingStudent
           ? 'border-emerald-300/40 bg-emerald-300/10'
@@ -5933,85 +3979,8 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
         <Field label="Meta de água por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
+        <Select label="Plano" name="plan" defaultValue={selectedPlanName} options={coachPlans.map((plan) => plan.name)} />
         <Select label="Pagamento" name="payment" defaultValue={student.payment} options={['Pago', 'Pendente']} />
-      </div>
-      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-emerald-200">Plano comercial do aluno</p>
-            <h4 className="mt-1 text-lg font-black text-white">Escolha o plano que este aluno fechou com o treinador.</h4>
-            <p className="mt-1 text-sm leading-6 text-zinc-400">
-              O valor e o ciclo selecionados puxam automaticamente a cobrança, o dashboard financeiro e os recebimentos.
-            </p>
-          </div>
-          <span className="w-fit rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-black text-emerald-100">
-            sincronizado
-          </span>
-        </div>
-
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {[
-            ['existing', 'Usar plano cadastrado'],
-            ['new', 'Criar novo plano'],
-          ].map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setPlanMode(mode)}
-              className={`rounded-xl border px-4 py-3 text-sm font-black transition active:scale-[0.98] ${
-                planMode === mode
-                  ? 'border-emerald-300/60 bg-emerald-300/18 text-emerald-50'
-                  : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-emerald-300/35'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {planMode === 'existing' ? (
-          <div className="mt-4">
-            <Select
-              label="Plano cadastrado"
-              name="existingPlan"
-              value={selectedPlan}
-              onChange={(event) => setSelectedPlan(event.target.value)}
-              options={coachPlans.map((plan) => ({
-                label: `${plan.name} - ${formatCurrency(getPlanBillingAmount(plan.name, coachPlans))} - ${getPlanCycleLabel(plan)}`,
-                value: plan.name,
-              }))}
-            />
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <label className="grid gap-2 text-sm font-bold text-zinc-300">
-              Nome do plano
-              <input value={newPlanName} onChange={(event) => setNewPlanName(event.target.value)} placeholder="Ex: Consultoria premium" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
-            </label>
-            <label className="grid gap-2 text-sm font-bold text-zinc-300">
-              Valor cobrado
-              <input value={newPlanPrice} onChange={(event) => setNewPlanPrice(event.target.value)} placeholder="Ex: 250,00" inputMode="decimal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
-            </label>
-            <Select
-              label="Ciclo de cobrança"
-              name="newPlanCycle"
-              value={newPlanCycle}
-              onChange={(event) => setNewPlanCycle(event.target.value)}
-              options={[
-                { label: 'Semanal', value: 'semanal' },
-                { label: 'Mensal', value: 'mensal' },
-                { label: 'Semestral', value: 'semestral' },
-                { label: 'Anual', value: 'anual' },
-              ]}
-            />
-            <label className="grid gap-2 text-sm font-bold text-zinc-300">
-              Descricao curta
-              <input value={newPlanFeatures} onChange={(event) => setNewPlanFeatures(event.target.value)} placeholder="Ex: Treino, dieta e suporte semanal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
-            </label>
-          </div>
-        )}
-
-        <StudentPlanPreview plan={activePlanPreview} availablePlans={planMode === 'new' ? [activePlanPreview] : coachPlans} />
       </div>
       {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -6023,39 +3992,6 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
         </button>
       </div>
     </form>
-  )
-}
-
-function StudentPlanPreview({ plan, availablePlans = plans }) {
-  if (!plan) {
-    return (
-      <div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm font-bold text-amber-100">
-        Cadastre pelo menos um plano em Gerenciamento ou crie um novo plano para este aluno.
-      </div>
-    )
-  }
-
-  const billingAmount = getPlanBillingAmount(plan.name, availablePlans)
-  const monthlyEquivalent = getPlanMonthlyPrice(plan.name, availablePlans)
-
-  return (
-    <div className="mt-4 grid gap-3 lg:grid-cols-3">
-      <div className="rounded-xl border border-white/10 bg-black/25 p-4">
-        <p className="text-xs font-black uppercase text-zinc-500">Plano aplicado</p>
-        <h5 className="mt-2 break-words text-lg font-black text-white">{plan.name}</h5>
-        <p className="mt-1 text-sm leading-6 text-zinc-400">{plan.features || 'Plano personalizado do treinador'}</p>
-      </div>
-      <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-        <p className="text-xs font-black uppercase text-emerald-200">Valor da cobrança</p>
-        <p className="mt-2 text-2xl font-black text-white">{formatCurrency(billingAmount)}</p>
-        <p className="mt-1 text-sm font-bold text-emerald-100">{getPlanCycleLabel(plan)}</p>
-      </div>
-      <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-4">
-        <p className="text-xs font-black uppercase text-cyan-100">Leitura mensal</p>
-        <p className="mt-2 text-2xl font-black text-white">{formatCurrency(monthlyEquivalent)}</p>
-        <p className="mt-1 text-sm leading-6 text-zinc-300">Usado para previsao, carteira ativa e dashboard financeiro.</p>
-      </div>
-    </div>
   )
 }
 
@@ -6299,518 +4235,25 @@ function AssessmentValue({ label, value, suffix, previous }) {
   )
 }
 
-const expressWorkoutBlueprints = {
-  hipertrofia: {
-    title: 'Hipertrofia estruturada',
-    focus: 'Volume progressivo, técnica e grupos principais',
-    exercises: ['Supino reto com barra', 'Remada baixa', 'Agachamento livre', 'Desenvolvimento com halteres', 'Rosca direta', 'Tríceps na polia'],
-    sets: '3-4',
-    reps: '8-12',
-    rest: '75-90s',
-  },
-  emagrecimento: {
-    title: 'Emagrecimento e condicionamento',
-    focus: 'Gasto energético, força básica e ritmo',
-    exercises: ['Agachamento livre', 'Remada baixa', 'Flexão de braços', 'Afundo com halteres', 'Prancha abdominal'],
-    sets: '3',
-    reps: '12-15',
-    rest: '45-60s',
-  },
-  forca: {
-    title: 'Força técnica',
-    focus: 'Movimentos base, carga controlada e descanso maior',
-    exercises: ['Supino reto com barra', 'Agachamento livre', 'Levantamento terra', 'Remada curvada com barra'],
-    sets: '4-5',
-    reps: '4-6',
-    rest: '120s',
-  },
-  condicionamento: {
-    title: 'Condicionamento funcional',
-    focus: 'Consistência, circuito e controle de esforço',
-    exercises: ['Leg press 45°', 'Puxada frontal', 'Desenvolvimento com halteres', 'Abdominal crunch', 'Panturrilha em pé'],
-    sets: '3',
-    reps: '12-20',
-    rest: '45s',
-  },
-  manutencao: {
-    title: 'Manutenção inteligente',
-    focus: 'Rotina sustentável, técnica e frequência',
-    exercises: ['Supino inclinado com halteres', 'Remada baixa', 'Cadeira extensora', 'Mesa flexora', 'Prancha abdominal'],
-    sets: '3',
-    reps: '10-12',
-    rest: '60-75s',
-  },
-}
-
-const expressMealBlueprints = {
-  hipertrofia: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Banana', grams: 100 }, { foodName: 'Aveia', grams: 40 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Azeite de Oliva', grams: 8 }] },
-    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 250 }, { foodName: 'Peito de Frango', grams: 170 }] },
-  ],
-  emagrecimento: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Mamão', grams: 150 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 140 }, { foodName: 'Peito de Frango', grams: 180 }, { foodName: 'Cenoura', grams: 100 }] },
-    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 150 }, { foodName: 'Peito de Frango', grams: 150 }, { foodName: 'Pepino', grams: 100 }] },
-  ],
-  forca: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 120 }, { foodName: 'Pão Francês', grams: 50 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 220 }, { foodName: 'Filé Mignon', grams: 160 }] },
-    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 220 }, { foodName: 'Peito de Frango', grams: 170 }] },
-  ],
-  condicionamento: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Iogurte Natural', grams: 170 }, { foodName: 'Banana', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 170 }, { foodName: 'Peito de Frango', grams: 160 }, { foodName: 'Beterraba', grams: 90 }] },
-    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Cuscuz', grams: 150 }, { foodName: 'Ovo Inteiro', grams: 120 }] },
-  ],
-  manutencao: [
-    { name: 'Café da manhã', time: '07:00', items: [{ foodName: 'Ovo Inteiro', grams: 100 }, { foodName: 'Banana', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ foodName: 'Arroz Branco', grams: 180 }, { foodName: 'Peito de Frango', grams: 160 }] },
-    { name: 'Jantar', time: '20:00', items: [{ foodName: 'Batata Doce', grams: 180 }, { foodName: 'Ovo Inteiro', grams: 100 }] },
-  ],
-}
-
-function ExpressCreationModule({ selectedStudent, students, workouts = [], nutritionPlans = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const [step, setStep] = useState(1)
-  const [studentId, setStudentId] = useState(selectedStudent?.id || students[0]?.id || '')
-  const [objective, setObjective] = useState('hipertrofia')
-  const [level, setLevel] = useState('intermediario')
-  const [frequency, setFrequency] = useState('4')
-  const [location, setLocation] = useState('academia completa')
-  const [mode, setMode] = useState('modelo')
-  const [mealCount, setMealCount] = useState('3')
-  const [bulkSets, setBulkSets] = useState('')
-  const [bulkReps, setBulkReps] = useState('')
-  const [bulkRest, setBulkRest] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const student = students.find((item) => String(item.id) === String(studentId)) || selectedStudent || students[0]
-  const realWorkoutModels = useMemo(() => buildExpressWorkoutModels(workouts, availableExerciseLibrary), [workouts, availableExerciseLibrary])
-  const draftWorkout = useMemo(() => buildExpressWorkoutDraft({ student, objective, level, frequency, location, mode, workouts, availableExerciseLibrary, bulkSets, bulkReps, bulkRest }), [student, objective, level, frequency, location, mode, workouts, availableExerciseLibrary, bulkSets, bulkReps, bulkRest])
-  const draftNutrition = useMemo(() => buildExpressNutritionDraft({ student, objective, mealCount }), [student, objective, mealCount])
-  const workoutSummary = summarizeExpressWorkout(draftWorkout)
-  const nutritionSummary = summarizeExpressNutrition(draftNutrition)
-  const progress = Math.round((step / 5) * 100)
-
-  useEffect(() => {
-    if (selectedStudent?.id) setStudentId(selectedStudent.id)
-  }, [selectedStudent?.id])
-
-  async function publishExpressPlan() {
-    if (!student?.id) {
-      setError('Selecione um aluno antes de publicar.')
-      return
-    }
-    setSaving(true)
-    setMessage('')
-    setError('')
-    try {
-      const workout = await onSaveWorkout?.({ ...draftWorkout, source: 'express_creation' })
-      const nutrition = await onSaveNutritionPlan?.({ ...draftNutrition, source: 'express_creation' })
-      recordLeadEvent('express_plan_published', {
-        studentId: student.id,
-        workoutExercises: workout?.exercises?.length || draftWorkout.exercises.length,
-        meals: nutrition?.meals?.length || draftNutrition.meals.length,
-        objective,
-      })
-      setMessage('Plano publicado com sucesso. Seu aluno já pode visualizar treino e alimentação.')
-      setStep(5)
-    } catch (publishError) {
-      setError(publishError?.message || 'Não foi possível publicar agora.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <section className="workout-express-module overflow-hidden rounded-3xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.24),transparent_34%),linear-gradient(135deg,rgba(6,18,17,0.96),rgba(4,7,10,0.98))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-100">
-            <NavIcon name="plus" className="h-4 w-4" />
-            Criação expressa
-          </span>
-          <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Crie, revise e publique treinos com mais velocidade.</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
-            Use modelos inteligentes, ajuste séries, repetições, descanso e mídia de execução, depois publique somente quando estiver seguro.
-          </p>
-        </div>
-        <div className="min-w-52 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="text-xs font-black uppercase text-zinc-500">Etapa {step} de 5</p>
-          <p className="mt-1 text-sm font-black text-emerald-100">{getExpressStepLabel(step)}</p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
-            <div className="h-full rounded-full bg-emerald-300 transition-all duration-300" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="workout-express-controls grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/58 p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-              Aluno
-              <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
-                {students.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-              Objetivo
-              <select value={objective} onChange={(event) => setObjective(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
-                {['hipertrofia', 'emagrecimento', 'forca', 'condicionamento', 'manutencao'].map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-              Nível
-              <select value={level} onChange={(event) => setLevel(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
-                {['iniciante', 'intermediario', 'avancado'].map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-              Frequência semanal
-              <select value={frequency} onChange={(event) => setFrequency(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
-                {['2', '3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} dias</option>)}
-              </select>
-            </label>
-          </div>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-            Local e equipamentos
-            <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Academia completa, casa, halteres, elásticos..." className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400" />
-          </label>
-          <div className="grid gap-2">
-             <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Base de criação</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {[
-                ['modelo', 'Usar modelo'],
-                ['zero', 'Criar do zero'],
-                ['duplicar', 'Duplicar treino'],
-                ['adaptar', 'Adaptar existente'],
-              ].map(([id, label]) => (
-                 <button key={id} type="button" onClick={() => setMode(id)} className={`min-h-14 rounded-2xl border px-3 py-3 text-left text-sm font-black transition active:scale-[0.98] ${mode === id ? 'border-emerald-300/55 bg-emerald-300/16 text-emerald-50 shadow-lg shadow-emerald-950/20' : 'border-white/10 bg-white/[0.045] text-zinc-200 hover:border-emerald-300/30 hover:bg-white/[0.06]'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <InlineInput label="Séries em lote" value={bulkSets} onChange={setBulkSets} />
-            <InlineInput label="Reps em lote" value={bulkReps} onChange={setBulkReps} />
-            <InlineInput label="Descanso em lote" value={bulkRest} onChange={setBulkRest} />
-          </div>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-            Refeições
-            <select value={mealCount} onChange={(event) => setMealCount(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-400">
-              {['3', '4', '5', '6'].map((item) => <option key={item} value={item}>{item} refeições</option>)}
-            </select>
-          </label>
-          <div className="workout-step-tabs flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5].map((item) => (
-               <button key={item} type="button" onClick={() => setStep(item)} className={`h-11 min-w-11 rounded-full border text-xs font-black transition active:scale-[0.96] ${step === item ? 'border-emerald-300 bg-emerald-300 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'border-white/10 bg-white/[0.035] text-zinc-300'}`}>
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            <ExpressSummaryMetric icon="dumbbell" label="Treino" value={`${workoutSummary.totalExercises} exercícios`} detail={`${frequency} dias/semana`} />
-            <ExpressSummaryMetric icon="muscle" label="Músculos" value={workoutSummary.topMuscles.slice(0, 2).join(', ') || '-'} detail="volume visual" />
-            <ExpressSummaryMetric icon="nutrition" label="Dieta" value={`${nutritionSummary.meals} refeições`} detail={`${nutritionSummary.calories} kcal`} />
-          </div>
-
-           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-xl shadow-black/20">
-             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase text-emerald-200">Resumo antes de publicar</p>
-                <h4 className="mt-1 text-xl font-black text-white">Tudo pronto para revisar e enviar ao aluno.</h4>
-              </div>
-               <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">Prévia automática</span>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
-                <p className="text-xs font-black uppercase text-zinc-500">Treino gerado</p>
-                <h5 className="mt-1 font-black text-white">{draftWorkout.title}</h5>
-                <p className="mt-1 text-sm leading-6 text-zinc-400">{draftWorkout.focus}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {draftWorkout.exercises.slice(0, 5).map((exercise) => (
-                    <span key={exercise.name} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-zinc-300">{exercise.name}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-zinc-950/55 p-3">
-                <p className="text-xs font-black uppercase text-zinc-500">Plano alimentar rápido</p>
-                <h5 className="mt-1 font-black text-white">{draftNutrition.title}</h5>
-                <p className="mt-1 text-sm leading-6 text-zinc-400">{draftNutrition.notes}</p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <ExerciseMetric label="Kcal" value={nutritionSummary.calories} />
-                  <ExerciseMetric label="Proteína" value={`${nutritionSummary.protein}g`} />
-                  <ExerciseMetric label="Refeições" value={nutritionSummary.meals} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-           <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-            <p className="text-sm font-black text-emerald-100">Modelos e estruturas reais</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {(realWorkoutModels.length ? realWorkoutModels : [{ id: 'empty', title: 'Nenhum modelo salvo ainda', meta: 'Os treinos criados passam a servir de base para reaproveitar estruturas.' }]).slice(0, 4).map((model) => (
-                <div key={model.id} className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-sm font-black text-white">{model.title}</p>
-                  <p className="mt-1 text-xs leading-5 text-zinc-400">{model.meta}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-             <button type="button" onClick={publishExpressPlan} disabled={saving || !students.length} className="min-h-12 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60 sm:w-auto">
-              {saving ? 'Publicando...' : 'Revisar e publicar'}
-            </button>
-             <button type="button" onClick={() => setStep((current) => Math.min(5, current + 1))} className="min-h-12 rounded-xl border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-black text-zinc-100 sm:w-auto">
-              Próxima etapa
-            </button>
-          </div>
-          {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
-          {error ? <p className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ExpressSummaryMetric({ icon, label, value, detail }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-      <NavIcon name={icon} className="h-5 w-5 text-emerald-200" />
-      <p className="mt-3 text-xs font-black uppercase text-zinc-500">{label}</p>
-      <p className="mt-1 break-words text-lg font-black text-white">{value}</p>
-      <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
-    </div>
-  )
-}
-
-function getExpressStepLabel(step) {
-  return {
-    1: 'Selecionando aluno',
-    2: 'Definindo objetivo e rotina',
-    3: 'Escolhendo base e modelos',
-    4: 'Revisando treino e dieta',
-    5: 'Publicação pronta',
-  }[step] || 'Criação expressa'
-}
-
-function buildExpressWorkoutModels(workouts = [], exerciseLibraryItems = []) {
-  return workouts
-    .filter((workout) => workout?.exercises?.length)
-    .slice(0, 12)
-    .map((workout) => {
-      const enriched = workout.exercises.map((exercise) => enrichExercise(exercise, exerciseLibraryItems))
-      const muscles = summarizeExpressWorkout({ exercises: enriched }).topMuscles
-      return {
-        id: workout.id,
-        title: workout.title || 'Treino salvo',
-        workout,
-        meta: `${enriched.length} exercícios · ${muscles.slice(0, 2).join(', ') || 'músculos variados'}`,
-      }
-    })
-}
-
-function buildExpressWorkoutDraft({ student, objective, level, frequency, location, mode, workouts = [], availableExerciseLibrary = [], bulkSets = '', bulkReps = '', bulkRest = '' }) {
-  const blueprint = expressWorkoutBlueprints[objective] || expressWorkoutBlueprints.hipertrofia
-  const reusableWorkout = ['duplicar', 'adaptar'].includes(mode)
-    ? workouts.find((workout) => workout?.exercises?.length && String(workout.studentId) === String(student?.id))
-      || workouts.find((workout) => workout?.exercises?.length)
-    : null
-  const sourceExercises = reusableWorkout?.exercises?.length
-    ? reusableWorkout.exercises
-    : blueprint.exercises.map((name) => createExerciseDraft(name, {}, availableExerciseLibrary))
-  const levelAdjust = {
-    iniciante: { sets: '2-3', reps: objective === 'forca' ? '5-6' : '10-12', load: 'RPE 6-7' },
-    intermediario: { sets: blueprint.sets, reps: blueprint.reps, load: 'RPE 7-8' },
-    avancado: { sets: objective === 'forca' ? '5' : '4', reps: blueprint.reps, load: 'RPE 8' },
-  }[level] || { sets: blueprint.sets, reps: blueprint.reps, load: 'RPE 7-8' }
-  const exerciseLimit = Math.max(3, Math.min(8, Number(frequency || 4) + 2))
-  const exercises = sourceExercises.slice(0, exerciseLimit).map((exercise, index) => {
-    const enriched = enrichExercise(exercise, availableExerciseLibrary)
-    return {
-      ...enriched,
-      sets: bulkSets || enriched.sets || levelAdjust.sets,
-      reps: bulkReps || enriched.reps || levelAdjust.reps,
-      load: enriched.load || levelAdjust.load,
-      rest: bulkRest || enriched.rest || blueprint.rest,
-      instructions: [
-        enriched.instructions,
-        index === 0 ? `Criado pela Criação Expressa para ${formatUiText(objective)}. Revise técnica, limitações e resposta do aluno antes de evoluir cargas.` : '',
-      ].filter(Boolean).join('\n'),
-    }
-  })
-
-  return {
-    studentId: student?.id || '',
-    title: reusableWorkout && mode === 'duplicar' ? `${reusableWorkout.title || blueprint.title} - cópia` : blueprint.title,
-    focus: `${blueprint.focus}. Frequência: ${frequency}x/semana. Local: ${location}. Nível: ${formatUiText(level)}.`,
-    notes: [
-      'Gerado pela Criação Expressa. Revisar limitações, lesões, preferências e histórico antes de publicar ajustes finos.',
-      student?.injuries ? `Atenção a limitações: ${student.injuries}` : '',
-      student?.notes ? `Histórico do aluno: ${student.notes}` : '',
-    ].filter(Boolean).join('\n'),
-    exercises,
-  }
-}
-
-function buildExpressNutritionDraft({ student, objective, mealCount }) {
-  const blueprint = expressMealBlueprints[objective] || expressMealBlueprints.hipertrofia
-  const count = Math.max(3, Math.min(6, Number(mealCount || 3)))
-  const meals = Array.from({ length: count }).map((_, index) => {
-    const base = blueprint[index] || {
-      name: `Refeição ${index + 1}`,
-      time: '',
-      items: [{ foodName: index % 2 ? 'Peito de Frango' : 'Ovo Inteiro', grams: index % 2 ? 150 : 100 }],
-    }
-    const items = base.items.map((item) => {
-      const food = findExpressFoodByName(item.foodName)
-      return {
-        category: food?.category || 'Preparações',
-        foodName: food?.name || item.foodName,
-        grams: item.grams,
-      }
-    })
-    const totals = calculateMealMacros({ ...base, items })
-    return {
-      name: base.name,
-      time: base.time,
-      foods: items
-        .map((item) => `${item.foodName} (${item.grams}g)`)
-        .join(', '),
-      macros: formatMacroSummary(totals),
-    }
-  })
-  const totals = estimateMacrosFromPlanMeals(meals)
-
-  return {
-    studentId: student?.id || '',
-    title: `Plano alimentar rápido - ${formatUiText(objective)}`,
-    calories: `${Math.round(totals.calories)} kcal`,
-    protein: `${roundMacro(totals.protein)} g`,
-    notes: 'Estrutura criada para revisão profissional. Não substitui avaliação nutricional individual e pode ser ajustada conforme preferências, restrições e rotina do aluno.',
-    meals,
-  }
-}
-
-function summarizeExpressWorkout(workout = {}) {
-  const exercises = workout.exercises || []
-  const muscleCounts = exercises.reduce((acc, exercise) => {
-    const profile = getExerciseMuscleProfile(exercise)
-    const label = profile.primaryLabel && profile.primaryLabel !== 'Músculo alvo não identificado' ? profile.primaryLabel : (exercise.muscleGroup || 'Outros')
-    acc[label] = (acc[label] || 0) + 1
-    return acc
-  }, {})
-  return {
-    totalExercises: exercises.length,
-    topMuscles: Object.entries(muscleCounts).sort((a, b) => b[1] - a[1]).map(([name]) => name),
-    estimatedDuration: `${Math.max(25, exercises.length * 7)} min`,
-  }
-}
-
-function summarizeExpressNutrition(plan = {}) {
-  const totals = estimateMacrosFromPlanMeals(plan.meals || [])
-  return {
-    meals: plan.meals?.length || 0,
-    calories: Math.round(totals.calories),
-    protein: roundMacro(totals.protein),
-    carbs: roundMacro(totals.carbs),
-    fat: roundMacro(totals.fat),
-  }
-}
-
-function findExpressFoodByName(name) {
-  const normalized = normalizeText(name)
-  return foodDatabase.find((food) => normalizeText(food.name) === normalized)
-    || foodDatabase.find((food) => normalizeText(food.name).includes(normalized) || normalized.includes(normalizeText(food.name)))
-    || null
-}
-
-function estimateMacrosFromPlanMeals(meals = []) {
-  return meals.reduce((totals, meal) => {
-    const parsed = parseMacroSummary(meal.macros)
-    return {
-      calories: totals.calories + parsed.calories,
-      protein: totals.protein + parsed.protein,
-      carbs: totals.carbs + parsed.carbs,
-      fat: totals.fat + parsed.fat,
-    }
-  }, emptyMacros())
-}
-
-function parseMacroSummary(value = '') {
-  const text = String(value || '')
-  const numbers = text.match(/[\d,.]+/g)?.map((item) => Number(item.replace(',', '.'))) || []
-  return {
-    calories: numbers[0] || 0,
-    protein: numbers[1] || 0,
-    carbs: numbers[2] || 0,
-    fat: numbers[3] || 0,
-  }
-}
-
-function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+function Workouts({ selectedStudent, students, workouts, workoutLogs, onSaveWorkout, onArchiveWorkout, onSaveStudent }) {
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
   ))
   const studentLogs = workoutLogs.filter((log) => String(log.studentId) === String(selectedStudent?.id))
 
   return (
-    <>
-    <MobileWorkoutManager
-      selectedStudent={selectedStudent}
-      students={students}
-      workouts={workouts}
-      studentWorkouts={studentWorkouts}
-      exerciseLibraryItems={availableExerciseLibrary}
-      onSaveWorkout={onSaveWorkout}
-      onArchiveWorkout={onArchiveWorkout}
-    />
-
-    <div className="hidden gap-4 md:grid lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
-      <div className="xl:col-span-2">
-        <ExpressCreationModule
-          selectedStudent={selectedStudent}
-          students={students}
-          workouts={workouts}
-          nutritionPlans={nutritionPlans}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onSaveWorkout={onSaveWorkout}
-          onSaveNutritionPlan={onSaveNutritionPlan}
-        />
-      </div>
-
+    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
       <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
         {students.length ? (
-          <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
+          <WorkoutForm students={students} selectedStudent={selectedStudent} onSaveWorkout={onSaveWorkout} />
         ) : (
           <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
         )}
       </Panel>
 
       <Panel title="Treinos prescritos" action={`${studentWorkouts.length} ativos`}>
-        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} exerciseLibraryItems={availableExerciseLibrary} onArchive={onArchiveWorkout} />
+        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} onArchive={onArchiveWorkout} />
       </Panel>
-
-      <div className="xl:col-span-2">
-        <WorkoutProgressionRecommendations
-          student={selectedStudent}
-          workouts={studentWorkouts}
-          logs={studentLogs}
-          decisions={progressionDecisions.filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onApprove={onApproveProgression}
-          onIgnore={onIgnoreProgression}
-          onUndo={onUndoProgression}
-        />
-      </div>
 
       <Panel title="Notas de carga" action="Progressão">
         <LoadNotesPanel student={selectedStudent} logs={studentLogs} onSaveStudent={onSaveStudent} />
@@ -6820,2023 +4263,7 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
         <WorkoutLogList logs={studentLogs} />
       </Panel>
     </div>
-    </>
   )
-}
-
-function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout }) {
-  const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem('coachfitpro-custom-exercise-library') || '[]')
-    } catch {
-      return []
-    }
-  })
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary([...baseExerciseLibrary, ...customExerciseLibrary]), [baseExerciseLibrary, customExerciseLibrary])
-  const [tab, setTab] = useState('library')
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('todos')
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState(studentWorkouts[0]?.id || workouts.find((workout) => workout.active !== false)?.id || '')
-  const [selectedStudentId, setSelectedStudentId] = useState(selectedStudent?.id || students[0]?.id || '')
-  const [expandedDay, setExpandedDay] = useState(0)
-  const [showCreator, setShowCreator] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [draft, setDraft] = useState(() => createMobileWorkoutDraft(selectedStudent, availableExerciseLibrary))
-  const [activeDayIndex, setActiveDayIndex] = useState(null)
-  const [expandedExerciseKey, setExpandedExerciseKey] = useState('')
-  const [exercisePickerDayIndex, setExercisePickerDayIndex] = useState(null)
-  const [exercisePickerSearch, setExercisePickerSearch] = useState('')
-  const [exercisePickerSelections, setExercisePickerSelections] = useState([])
-  const [creatorStep, setCreatorStep] = useState('info')
-  const [exercisePickerTab, setExercisePickerTab] = useState('coachfit')
-  const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
-  const [exercisePickerObjectiveFilter, setExercisePickerObjectiveFilter] = useState('todos')
-  const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
-  const [dayEditor, setDayEditor] = useState(null)
-  const [workoutStudentPreviewOpen, setWorkoutStudentPreviewOpen] = useState(false)
-  const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
-  const [favoriteExerciseNames, setFavoriteExerciseNames] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-exercises') || '[]')
-    } catch {
-      return []
-    }
-  })
-  const [recentExerciseNames, setRecentExerciseNames] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem('coachfitpro-recent-exercises') || '[]')
-    } catch {
-      return []
-    }
-  })
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('coachfitpro-custom-exercise-library', JSON.stringify(customExerciseLibrary.slice(0, 500)))
-    } catch {
-      // A biblioteca personalizada continua funcionando na sessão mesmo sem localStorage.
-    }
-  }, [customExerciseLibrary])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('coachfitpro-favorite-exercises', JSON.stringify(favoriteExerciseNames.slice(0, 100)))
-    } catch {
-      // Favoritos seguem disponíveis na sessão atual.
-    }
-  }, [favoriteExerciseNames])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('coachfitpro-recent-exercises', JSON.stringify(recentExerciseNames.slice(0, 40)))
-    } catch {
-      // Recentes seguem disponíveis na sessão atual.
-    }
-  }, [recentExerciseNames])
-
-  useEffect(() => {
-    setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
-  }, [selectedStudent?.id, students])
-
-  useEffect(() => {
-    if (studentWorkouts[0]?.id) setSelectedWorkoutId(studentWorkouts[0].id)
-  }, [studentWorkouts])
-
-  useEffect(() => {
-    setWorkoutStudentPreviewOpen(false)
-  }, [selectedWorkoutId, selectedStudentId, showCreator])
-
-  const activeWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => workout.active !== false),
-    [workouts],
-  )
-  const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
-  const selectedWorkout = activeWorkouts.find((workout) => String(workout.id) === String(selectedWorkoutId)) || studentWorkouts[0] || filteredWorkouts[0] || activeWorkouts[0] || null
-  const selectedWorkoutDays = useMemo(() => buildMobileWorkoutDays(selectedWorkout, availableExerciseLibrary), [selectedWorkout, availableExerciseLibrary])
-  const selectedWorkoutStudent = useMemo(
-    () => students.find((student) => String(student.id) === String(selectedWorkout?.studentId || selectedStudentId)) || selectedStudent || students[0] || null,
-    [selectedStudent, selectedStudentId, selectedWorkout?.studentId, students],
-  )
-  const selectedWorkoutExerciseCount = useMemo(
-    () => selectedWorkoutDays.reduce((total, day) => total + (day.exercises?.length || 0), 0),
-    [selectedWorkoutDays],
-  )
-  const studentWorkoutRows = useMemo(
-    () => students.map((student) => {
-      const assigned = activeWorkouts.filter((workout) => String(workout.studentId) === String(student.id))
-      const latest = assigned[0] || null
-      return { student, assigned, latest }
-    }),
-    [students, activeWorkouts],
-  )
-  const filteredStudentRows = useMemo(() => {
-    const normalized = normalizeText(search)
-    return studentWorkoutRows.filter(({ student, latest }) => {
-      const matchesSearch = !normalized || normalizeText(student.name).includes(normalized) || normalizeText(latest?.title || '').includes(normalized)
-      if (!matchesSearch) return false
-      if (filter === 'sem-treino') return !latest
-      if (filter === 'com-treino') return Boolean(latest)
-      return true
-    })
-  }, [studentWorkoutRows, search, filter])
-  const exercisePickerMuscleOptions = useMemo(() => {
-    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)))
-    return ['todos', ...values.slice(0, 18)]
-  }, [availableExerciseLibrary])
-  const exercisePickerObjectiveOptions = useMemo(() => {
-    const defaults = ['Treino em Casa', 'Mobilidade', 'Alongamento', 'Pilates Solo', 'MAT Pilates', 'Elástico', 'Laboral', 'Funcional', 'Aquecimento', 'Cardio', 'Peso Corporal', 'Reabilitação', 'Máquina', 'Barra', 'Halteres', 'Cabos', 'Kettlebell', 'TRX']
-    const values = Array.from(new Set([
-      ...defaults,
-      ...availableExerciseLibrary.flatMap((exercise) => [exercise.category, exercise.equipment]).filter(Boolean),
-    ]))
-    return ['todos', ...values.slice(0, 22)]
-  }, [availableExerciseLibrary])
-  const exercisePickerResults = useMemo(() => {
-    const muscleFilter = exercisePickerMuscleFilter === 'todos' ? 'todos' : exercisePickerMuscleFilter
-    const favoriteSet = new Set(favoriteExerciseNames.map(normalizeText))
-    return buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, muscleFilter, favoriteExerciseNames, recentExerciseNames)
-      .filter((exercise) => {
-        const categoryText = normalizeText(`${exercise.category || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
-        const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
-        const matchesCategory = exercisePickerObjectiveFilter === 'todos' || categoryText.includes(normalizeText(exercisePickerObjectiveFilter))
-        const matchesFavorites = exercisePickerTab !== 'favorites' || favoriteSet.has(normalizeText(exercise.name))
-        const matchesMine = exercisePickerTab !== 'mine' || isCustomExercise
-        return matchesCategory && matchesFavorites && matchesMine
-      })
-      .slice(0, 36)
-  }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
-
-  function resetDraftFromWorkout(workout = null) {
-    const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
-    setDraft({
-      title: workout?.title ? `${workout.title} - cópia` : 'Novo treino',
-      focus: workout?.focus || selectedStudent?.goal || 'Hipertrofia',
-      level: workout?.level || selectedStudent?.level || 'Intermediário',
-      frequency: inferWorkoutFrequency(workout),
-      organization: workout?.organization || 'Dias da semana',
-      displayMode: workout?.displayMode || 'Sempre visível para o aluno',
-      guidance: workout?.guidance || workout?.notes || '',
-      status: 'Rascunho',
-      days: days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : [],
-    })
-    setShowCreator(true)
-    setTab('library')
-    setCreatorStep(workout ? 'days' : 'info')
-    setActiveDayIndex(null)
-    setExpandedExerciseKey('')
-    setMessage(workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : '')
-  }
-
-  function editSelectedWorkoutAtExercises(workout) {
-    resetDraftFromWorkout(workout)
-    setCreatorStep('exercises')
-    setActiveDayIndex(0)
-    setExpandedDay(0)
-  }
-
-  function updateDraft(field, value) {
-    setDraft((current) => ({ ...current, [field]: value }))
-    setError('')
-  }
-
-  function updateDraftDay(dayIndex, field, value) {
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => index === dayIndex ? { ...day, [field]: value } : day),
-    }))
-  }
-
-  function addDraftDay() {
-    openDayEditor(null)
-  }
-
-  function openDayEditor(dayIndex = null) {
-    const day = dayIndex === null ? null : draft.days[dayIndex]
-    setDayEditor({
-      index: dayIndex,
-      day: day?.day || inferNextWorkoutDay(draft.days.length, draft.organization),
-      focus: day?.focus || '',
-      guidance: day?.guidance || '',
-      copyFrom: '',
-    })
-  }
-
-  function saveDayEditor() {
-    if (!dayEditor) return
-    const shouldCopy = dayEditor.copyFrom !== ''
-    setDraft((current) => {
-      const copiedDay = shouldCopy ? current.days[Number(dayEditor.copyFrom)] : null
-      const nextDay = {
-        id: dayEditor.index === null ? Date.now() : current.days[dayEditor.index]?.id,
-        day: dayEditor.day || inferNextWorkoutDay(current.days.length, current.organization),
-        focus: dayEditor.focus || 'Foco do treino',
-        guidance: dayEditor.guidance || '',
-        exercises: dayEditor.index === null
-          ? (copiedDay?.exercises || []).map((exercise) => ({ ...exercise }))
-          : current.days[dayEditor.index]?.exercises || [],
-      }
-      if (dayEditor.index === null) return { ...current, days: [...current.days, nextDay] }
-      return { ...current, days: current.days.map((day, index) => index === dayEditor.index ? { ...day, ...nextDay } : day) }
-    })
-    const nextIndex = dayEditor.index === null ? draft.days.length : dayEditor.index
-    setExpandedDay(nextIndex)
-    setActiveDayIndex(nextIndex)
-    setDayEditor(null)
-    setCreatorStep('days')
-    setMessage('Dia salvo na rotina.')
-  }
-
-  function duplicateDraftDay(dayIndex) {
-    if (!window.confirm('Duplicar este dia com todos os exercícios?')) return
-    setDraft((current) => {
-      const day = current.days[dayIndex]
-      if (!day) return current
-      const copy = { ...day, id: Date.now(), day: `${day.day} - cópia`, exercises: day.exercises.map((exercise) => ({ ...exercise, id: `${exercise.id || exercise.name}-${Date.now()}` })) }
-      return { ...current, days: [...current.days.slice(0, dayIndex + 1), copy, ...current.days.slice(dayIndex + 1)] }
-    })
-    setMessage('Dia duplicado para edição rápida.')
-  }
-
-  function moveDraftDay(dayIndex, direction) {
-    setDraft((current) => {
-      const nextIndex = dayIndex + direction
-      if (nextIndex < 0 || nextIndex >= current.days.length) return current
-      const days = [...current.days]
-      const [day] = days.splice(dayIndex, 1)
-      days.splice(nextIndex, 0, day)
-      return { ...current, days }
-    })
-  }
-
-  function removeDraftDay(dayIndex) {
-    if (!window.confirm('Excluir este dia do treino?')) return
-    setDraft((current) => ({ ...current, days: current.days.filter((_, index) => index !== dayIndex) }))
-  }
-
-  function updateDraftExercise(dayIndex, exerciseIndex, field, value) {
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => {
-        if (index !== dayIndex) return day
-        return {
-          ...day,
-          exercises: day.exercises.map((exercise, currentExerciseIndex) => {
-            if (currentExerciseIndex !== exerciseIndex) return exercise
-            if (field === 'name') {
-              return enrichExercise({ ...exercise, name: value }, availableExerciseLibrary)
-            }
-            return { ...exercise, [field]: value }
-          }),
-        }
-      }),
-    }))
-  }
-
-  function addDraftExercise(dayIndex, name = 'Novo exercício') {
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => (
-        index === dayIndex
-          ? { ...day, exercises: [...day.exercises, createExerciseDraft(name, {}, availableExerciseLibrary)] }
-          : day
-      )),
-    }))
-  }
-
-  function openExercisePicker(dayIndex) {
-    setExercisePickerDayIndex(dayIndex)
-    setExercisePickerSearch('')
-    setExercisePickerSelections([])
-    setExercisePickerPreview(null)
-    setExercisePickerTab('coachfit')
-    setExercisePickerMuscleFilter('todos')
-    setExercisePickerObjectiveFilter('todos')
-    setCustomExerciseDraft(createExerciseDraft(''))
-  }
-
-  function closeExercisePicker() {
-    setExercisePickerDayIndex(null)
-    setExercisePickerSearch('')
-    setExercisePickerSelections([])
-    setExercisePickerPreview(null)
-  }
-
-  function toggleExercisePickerSelection(name) {
-    setExercisePickerSelections((current) => (
-      current.some((item) => normalizeText(item) === normalizeText(name))
-        ? current.filter((item) => normalizeText(item) !== normalizeText(name))
-        : [...current, name]
-    ))
-  }
-
-  function rememberRecentExercises(names = []) {
-    const normalizedNames = names.filter(Boolean)
-    if (!normalizedNames.length) return
-    setRecentExerciseNames((current) => {
-      const next = [...normalizedNames, ...current]
-      const seen = new Set()
-      return next.filter((name) => {
-        const key = normalizeText(name)
-        if (!key || seen.has(key)) return false
-        seen.add(key)
-        return true
-      }).slice(0, 40)
-    })
-  }
-
-  function toggleFavoriteExercise(name) {
-    const normalizedName = normalizeText(name)
-    if (!normalizedName) return
-    setFavoriteExerciseNames((current) => (
-      current.some((item) => normalizeText(item) === normalizedName)
-        ? current.filter((item) => normalizeText(item) !== normalizedName)
-        : [name, ...current].slice(0, 100)
-    ))
-  }
-
-  function editCustomExercise(exercise) {
-    setCustomExerciseDraft({
-      ...createExerciseDraft(exercise?.name || ''),
-      ...exercise,
-      name: exercise?.name || '',
-      isCustom: true,
-      source: 'coach_custom',
-    })
-    setExercisePickerTab('mine')
-    setMessage('Edite o exercício personalizado e salve novamente.')
-  }
-
-  function removeCustomExercise(exercise) {
-    if (!exercise?.name) return
-    if (!window.confirm(`Excluir "${exercise.name}" da sua biblioteca personalizada?`)) return
-    const normalizedName = normalizeText(exercise.name)
-    setCustomExerciseLibrary((current) => current.filter((item) => normalizeText(item.name) !== normalizedName))
-    setExercisePickerSelections((current) => current.filter((item) => normalizeText(item) !== normalizedName))
-    setMessage('Exercício personalizado removido.')
-  }
-
-  function confirmExercisePicker() {
-    if (exercisePickerDayIndex === null) return
-    const names = exercisePickerSelections.length
-      ? exercisePickerSelections
-      : exercisePickerResults[0]?.name
-        ? [exercisePickerResults[0].name]
-        : ['Novo exercício']
-    names.forEach((name) => addDraftExercise(exercisePickerDayIndex, name))
-    rememberRecentExercises(names)
-    setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
-    setMessage(`${formatCount(names.length, 'exercício')} ${names.length === 1 ? 'adicionado' : 'adicionados'}.`)
-    closeExercisePicker()
-    setCreatorStep('exercises')
-  }
-
-  function applyExercisePreset(dayIndex, exerciseIndex, preset) {
-    const presets = {
-      none: {},
-      padrao: { sets: '3', reps: '12', rest: '60s' },
-      piramideCrescente: { sets: '4', reps: '12/10/8/6', load: 'Aumentar carga a cada série', rest: '90s' },
-      piramideDecrescente: { sets: '4', reps: '6/8/10/12', load: 'Reduzir carga a cada série', rest: '90s' },
-      dropSet: { sets: '3', reps: '10 + drop', load: 'Reduzir 20% na última série', rest: '75s' },
-      falhaUltima: { sets: '3', reps: '10-12', load: 'Falha técnica apenas na última série', rest: '90s' },
-    }
-    const changes = presets[preset] || {}
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => index === dayIndex
-        ? {
-          ...day,
-          exercises: day.exercises.map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex ? { ...exercise, ...changes } : exercise),
-        }
-        : day),
-    }))
-    setMessage(preset === 'none' ? 'Preset removido deste exercício.' : 'Preset aplicado ao exercício.')
-  }
-
-  function updateDraftExerciseVideoFile(dayIndex, exerciseIndex, file) {
-    if (file && !String(file.type || '').startsWith('video/')) {
-      setError('Envie um arquivo de vídeo válido.')
-      return
-    }
-    if (file && file.size > 120 * 1024 * 1024) {
-      setError('O vídeo precisa ter até 120 MB para manter o envio estável no celular.')
-      return
-    }
-    const previewUrl = file ? URL.createObjectURL(file) : ''
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => index === dayIndex
-        ? {
-          ...day,
-          exercises: day.exercises.map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex
-            ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '', videoPreviewUrl: previewUrl }
-            : exercise),
-        }
-        : day),
-    }))
-    setError('')
-    setMessage(file ? 'Vídeo anexado. Ele será enviado quando o treino for salvo.' : 'Vídeo removido deste exercício.')
-  }
-
-  function updateCustomExerciseDraft(field, value) {
-    setCustomExerciseDraft((current) => ({ ...current, [field]: value }))
-  }
-
-  function updateCustomExerciseVideoFile(file) {
-    if (file && !String(file.type || '').startsWith('video/')) {
-      setError('Envie um arquivo de vídeo válido.')
-      return
-    }
-    if (file && file.size > 120 * 1024 * 1024) {
-      setError('O vídeo precisa ter até 120 MB para manter o envio estável no celular.')
-      return
-    }
-    setCustomExerciseDraft((current) => ({
-      ...current,
-      videoFile: file || null,
-      videoFileName: file?.name || '',
-      videoPreviewUrl: file ? URL.createObjectURL(file) : '',
-      isCustom: true,
-    }))
-    setError('')
-  }
-
-  function addCustomExerciseToDay() {
-    if (exercisePickerDayIndex === null) return
-    const name = customExerciseDraft.name?.trim()
-    if (!name) {
-      setError('Informe o nome do exercício personalizado.')
-      return
-    }
-    const customExercise = enrichExercise({
-      ...customExerciseDraft,
-      name,
-      group: customExerciseDraft.group || customExerciseDraft.muscleGroup || customExerciseDraft.primaryMuscle || 'Personalizado',
-      muscleGroup: customExerciseDraft.muscleGroup || customExerciseDraft.group || customExerciseDraft.primaryMuscle || 'Personalizado',
-      primaryMuscle: customExerciseDraft.primaryMuscle || customExerciseDraft.muscleGroup || customExerciseDraft.group || '',
-      isCustom: true,
-      source: 'coach_custom',
-      updatedAt: new Date().toISOString(),
-    }, availableExerciseLibrary)
-    setCustomExerciseLibrary((current) => {
-      const normalizedName = normalizeText(name)
-      return [customExercise, ...current.filter((item) => normalizeText(item.name) !== normalizedName)].slice(0, 500)
-    })
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => index === exercisePickerDayIndex
-        ? { ...day, exercises: [...day.exercises, customExercise] }
-        : day),
-    }))
-    rememberRecentExercises([name])
-    setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
-    setMessage('Exercício personalizado salvo e adicionado ao dia.')
-    closeExercisePicker()
-  }
-
-  function continueCreatorFlow() {
-    if (creatorStep === 'info') {
-      if (!draft.title?.trim() || !draft.focus?.trim() || !draft.level?.trim()) {
-        setError('Preencha nome, objetivo e nível para continuar.')
-        return
-      }
-      setError('')
-      setCreatorStep('days')
-      return
-    }
-    if (creatorStep === 'days') {
-      if (!draft.days.length) {
-        openDayEditor(null)
-        return
-      }
-      setActiveDayIndex(draft.days[0] ? 0 : null)
-      setCreatorStep('exercises')
-      return
-    }
-    if (creatorStep === 'exercises') {
-      setCreatorStep('review')
-      return
-    }
-    if (creatorStep === 'review') {
-      if (!window.confirm('Publicar este treino para o aluno?')) return
-      saveDraft('Publicado')
-    }
-  }
-
-  function getCreatorPrimaryLabel() {
-    if (saving) return 'Salvando...'
-    if (creatorStep === 'info') return 'Continuar'
-    if (creatorStep === 'days') return draft.days.length ? 'Continuar para exercícios' : 'Adicionar primeiro dia'
-    if (creatorStep === 'exercises') return 'Revisar treino'
-    return 'Publicar treino'
-  }
-
-  function duplicateDraftExercise(dayIndex, exerciseIndex) {
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => {
-        if (index !== dayIndex) return day
-        const source = day.exercises[exerciseIndex]
-        if (!source) return day
-        const copy = { ...source, name: `${source.name} - variação` }
-        return { ...day, exercises: [...day.exercises.slice(0, exerciseIndex + 1), copy, ...day.exercises.slice(exerciseIndex + 1)] }
-      }),
-    }))
-  }
-
-  function moveDraftExercise(dayIndex, exerciseIndex, direction) {
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => {
-        if (index !== dayIndex) return day
-        const nextIndex = exerciseIndex + direction
-        if (nextIndex < 0 || nextIndex >= day.exercises.length) return day
-        const exercises = [...day.exercises]
-        const [exercise] = exercises.splice(exerciseIndex, 1)
-        exercises.splice(nextIndex, 0, exercise)
-        return { ...day, exercises }
-      }),
-    }))
-  }
-
-  function removeDraftExercise(dayIndex, exerciseIndex) {
-    setDraft((current) => ({
-      ...current,
-      days: current.days.map((day, index) => index === dayIndex ? { ...day, exercises: day.exercises.filter((_, currentExerciseIndex) => currentExerciseIndex !== exerciseIndex) } : day),
-    }))
-  }
-
-  async function saveDraft(status = 'Publicado') {
-    const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
-    const filledExercises = draft.days.flatMap((day) => (
-      day.exercises
-        .filter((exercise) => exercise.name?.trim())
-        .map((exercise) => enrichExercise({
-          ...exercise,
-          day: day.day,
-          dayFocus: day.focus,
-          notes: [exercise.notes, day.day ? `Dia: ${day.day}` : '', day.focus ? `Foco: ${day.focus}` : ''].filter(Boolean).join(' | '),
-        }, availableExerciseLibrary))
-    ))
-
-    if (!studentId) {
-      setError('Cadastre ou selecione um aluno antes de publicar o treino.')
-      return
-    }
-    if (!filledExercises.length && status !== 'Rascunho') {
-      setError('Adicione pelo menos um exercício antes de salvar.')
-      return
-    }
-
-    setSaving(true)
-    setError('')
-    setMessage('')
-    try {
-      const saved = await onSaveWorkout?.({
-        studentId,
-        title: draft.title || 'Treino',
-        focus: draft.focus || '',
-        level: draft.level,
-        frequency: draft.frequency || `${formatCount(draft.days.length, 'dia')} por semana`,
-        status,
-        organization: draft.organization,
-        displayMode: draft.displayMode,
-        guidance: draft.guidance,
-        notes: [draft.guidance, `Organização por dias: ${draft.days.map((day) => `${day.day} - ${day.focus}`).join('; ')}`].filter(Boolean).join(' | '),
-        days: draft.days,
-        exercises: filledExercises,
-        source: 'mobile_workout_manager',
-      })
-      setSelectedWorkoutId(saved?.id || selectedWorkoutId)
-      setMessage(status === 'Rascunho' ? 'Rascunho salvo para continuar depois.' : 'Treino publicado e atribuído ao aluno.')
-      setShowCreator(false)
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o treino.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function duplicateForSelectedStudent(workout) {
-    if (!workout) return
-    const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
-    if (!studentId) {
-      setError('Selecione um aluno para atribuir este treino.')
-      return
-    }
-    setSaving(true)
-    setError('')
-    setMessage('')
-    try {
-      const saved = await onSaveWorkout?.({
-        ...workout,
-        id: undefined,
-        studentId,
-        title: `${workout.title || 'Treino'} - personalizado`,
-        source: 'mobile_library_duplicate',
-      })
-      setSelectedWorkoutId(saved?.id || '')
-      setMessage('Treino duplicado e atribuído ao aluno selecionado.')
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível duplicar este treino.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function archiveSelectedWorkout(workout) {
-    if (!workout?.id || !onArchiveWorkout) return
-    if (!window.confirm(`Arquivar o treino "${workout.title}"?`)) return
-    setSaving(true)
-    setError('')
-    try {
-      await onArchiveWorkout(workout.id)
-      setMessage('Treino arquivado.')
-    } catch (archiveError) {
-      setError(archiveError?.message || 'Não foi possível arquivar o treino.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const creatorSteps = [
-    ['info', 'Informações'],
-    ['days', 'Dias'],
-    ['exercises', 'Exercícios'],
-    ['review', 'Revisão'],
-  ]
-  const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
-
-  return (
-    <section className="mobile-workout-manager">
-      {!showCreator ? (
-        <>
-      <div className="mobile-workout-hero">
-        <div>
-          <h3>Treinos</h3>
-        </div>
-        <button type="button" onClick={() => resetDraftFromWorkout(null)} className="mobile-workout-primary">
-          <NavIcon name="plus" className="h-4 w-4" />
-          Criar treino
-        </button>
-      </div>
-
-      <div className="mobile-workout-tabs" role="tablist" aria-label="Treinos">
-        <button type="button" aria-selected={tab === 'library'} onClick={() => setTab('library')} className={tab === 'library' ? 'is-active' : ''}>Biblioteca</button>
-        <button type="button" aria-selected={tab === 'students'} onClick={() => setTab('students')} className={tab === 'students' ? 'is-active' : ''}>Alunos</button>
-      </div>
-
-      <div className="mobile-workout-search">
-        <NavIcon name="chart" className="h-4 w-4" />
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === 'library' ? 'Buscar treino, foco ou objetivo' : 'Buscar aluno ou treino'} />
-      </div>
-
-      <div className="mobile-workout-filters">
-        {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
-          <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
-            {formatUiText(item)}
-          </button>
-        ))}
-        {filter !== 'todos' || search ? (
-          <button type="button" onClick={() => { setFilter('todos'); setSearch('') }}>Limpar</button>
-        ) : null}
-      </div>
-
-      {tab === 'library' ? (
-        <div className="mobile-workout-stack">
-          <div className="mobile-workout-section-title">
-            <span>Modelos e treinos recentes</span>
-            <small>{filteredWorkouts.length} encontrados</small>
-          </div>
-          {filteredWorkouts.length ? filteredWorkouts.slice(0, 10).map((workout) => {
-            const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
-            const isSelected = String(selectedWorkout?.id) === String(workout.id)
-            return (
-              <article key={workout.id} className={`mobile-workout-card ${isSelected ? 'is-selected' : ''}`}>
-                <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setShowCreator(false) }} className="mobile-workout-card-main">
-                  <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
-                  <span>
-                    <strong>{workout.title || 'Treino sem nome'}</strong>
-                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)} · {formatCount(days.length || 1, 'dia')}</small>
-                  <small>{formatCount((workout.exercises || []).length, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
-                  </span>
-                </button>
-                <details className="mobile-workout-menu">
-                  <summary aria-label="Abrir ações do treino">⋮</summary>
-                  <div>
-                    <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setShowCreator(false) }}>Abrir</button>
-                    <button type="button" onClick={() => resetDraftFromWorkout(workout)}>Duplicar e editar</button>
-                    <button type="button" onClick={() => duplicateForSelectedStudent(workout)}>Atribuir ao aluno</button>
-                    <button type="button" onClick={() => archiveSelectedWorkout(workout)}>Arquivar</button>
-                  </div>
-                </details>
-              </article>
-            )
-          }) : (
-            <div className="mobile-workout-empty">
-              <strong>Nenhum treino encontrado.</strong>
-              <span>Crie um novo treino ou limpe os filtros para ver todos.</span>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="mobile-workout-stack">
-          <div className="mobile-workout-section-title">
-            <span>Treinos dos alunos</span>
-            <small>{formatCount(filteredStudentRows.length, 'aluno')}</small>
-          </div>
-          <label className="mobile-workout-select-label">
-            Aluno para novas atribuições
-            <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)}>
-              {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
-            </select>
-          </label>
-          {filteredStudentRows.map(({ student, latest, assigned }) => (
-            <article key={student.id} className="mobile-workout-card">
-              <button type="button" onClick={() => { if (latest) { setSelectedWorkoutId(latest.id); setTab('library') } }} className="mobile-workout-card-main">
-                <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
-                <span>
-                  <strong>{student.name}</strong>
-                  <small>{latest?.title || 'Sem treino ativo'}</small>
-                  <small>{formatCount(assigned.length, 'treino')} · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
-                </span>
-              </button>
-              <button type="button" onClick={() => { setSelectedStudentId(student.id); resetDraftFromWorkout(latest) }} className="mobile-workout-mini-action">
-                {latest ? 'Personalizar' : 'Criar'}
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {selectedWorkout && !showCreator ? (
-        <div className="mobile-workout-detail">
-          {workoutStudentPreviewOpen ? (
-            <MobileWorkoutStudentPreview
-              student={selectedWorkoutStudent}
-              workout={selectedWorkout}
-              days={selectedWorkoutDays}
-              exerciseCount={selectedWorkoutExerciseCount}
-              expandedExerciseKey={expandedExerciseKey}
-              setExpandedExerciseKey={setExpandedExerciseKey}
-              onBack={() => {
-                setWorkoutStudentPreviewOpen(false)
-                setExpandedExerciseKey('')
-              }}
-            />
-          ) : (
-            <>
-          <div className="mobile-workout-student-context">
-            <div className="mobile-workout-student-avatar">
-              {selectedWorkoutStudent?.photo ? (
-                <img src={selectedWorkoutStudent.photo} alt={`Foto de ${selectedWorkoutStudent.name}`} />
-              ) : (
-                <span>{getInitials(selectedWorkoutStudent?.name || 'Aluno')}</span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <p>Treino de</p>
-              <h4>{selectedWorkoutStudent?.name || 'Aluno selecionado'}</h4>
-              <strong>{selectedWorkout.title || 'Treino selecionado'}</strong>
-              <span>{formatCount(selectedWorkoutDays.length || 0, 'dia')} • {formatCount(selectedWorkoutExerciseCount, 'exercício')}</span>
-            </div>
-          </div>
-          <div className="mobile-workout-action-bar" aria-label="Ações do treino do aluno">
-            <button type="button" className="is-primary" onClick={() => setWorkoutStudentPreviewOpen(true)}>
-              <NavIcon name="eye" className="h-4 w-4" />
-              Visão do aluno
-            </button>
-            <button type="button" onClick={() => resetDraftFromWorkout(selectedWorkout)}>
-              <NavIcon name="layers" className="h-4 w-4" />
-              Duplicar treino
-            </button>
-            <button type="button" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
-              <NavIcon name="plus" className="h-4 w-4" />
-              Adicionar exercício
-            </button>
-          </div>
-          <div className="mobile-workout-detail-head">
-            <div>
-              <p>{String(selectedWorkout.status || 'Publicado')}</p>
-              <h4>{selectedWorkout.title || 'Treino selecionado'}</h4>
-              <span>{selectedWorkout.focus || 'Objetivo não informado'} · {inferWorkoutFrequency(selectedWorkout)}</span>
-            </div>
-          </div>
-          {activeDayIndex !== null && selectedWorkoutDays[activeDayIndex] ? (
-            <MobileWorkoutDayScreen
-              day={selectedWorkoutDays[activeDayIndex]}
-              dayIndex={activeDayIndex}
-              expandedExerciseKey={expandedExerciseKey}
-              setExpandedExerciseKey={setExpandedExerciseKey}
-              onEdit={() => resetDraftFromWorkout(selectedWorkout)}
-              onBack={() => {
-                setActiveDayIndex(null)
-                setExpandedExerciseKey('')
-              }}
-            />
-          ) : null}
-          <details className="mobile-workout-routine-details">
-            <summary>Detalhes da rotina</summary>
-            <div>
-              <span>
-                <strong>Frequência</strong>
-                <em>{inferWorkoutFrequency(selectedWorkout)}</em>
-              </span>
-              <span>
-                <strong>Nível</strong>
-                <em>{inferWorkoutLevel(selectedWorkout)}</em>
-              </span>
-              <span>
-                <strong>Dias</strong>
-                <em>{selectedWorkoutDays.length || 0}</em>
-              </span>
-            </div>
-          </details>
-          <div className="mobile-workout-days">
-            {selectedWorkoutDays.map((day, dayIndex) => (
-              <article key={day.id || dayIndex} className="mobile-workout-day-card">
-                <button type="button" onClick={() => {
-                  setActiveDayIndex(dayIndex)
-                  setExpandedDay(dayIndex)
-                  setExpandedExerciseKey('')
-                }}>
-                  <span>
-                    <strong>{day.day}</strong>
-                    <small>{day.focus}</small>
-                  </span>
-                  <span>{formatCount(day.exercises.length, 'exercício')}</span>
-                </button>
-              </article>
-            ))}
-          </div>
-          </>
-          )}
-        </div>
-      ) : null}
-        </>
-      ) : null}
-
-      {showCreator ? (
-        <div className="mobile-workout-creator mobile-workout-creator-full">
-          <div className="mobile-workout-creator-head">
-            <div>
-              <p>Fluxo rápido</p>
-              <h4>{creatorStep === 'review' ? 'Revisar treino' : creatorStep === 'exercises' ? 'Exercícios' : creatorStep === 'days' ? 'Dias do treino' : 'Criar rotina'}</h4>
-            </div>
-            <button type="button" onClick={() => setShowCreator(false)}>Fechar</button>
-          </div>
-          <div className="mobile-workout-stepper" aria-label="Etapas de criação">
-            {creatorSteps.map(([step, label], index) => (
-              <button key={step} type="button" disabled={index > currentCreatorStepIndex} className={creatorStep === step ? 'is-active' : ''} onClick={() => setCreatorStep(step)}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {creatorStep === 'info' ? (
-            <div className="mobile-workout-step-panel">
-              <div className="mobile-workout-form-grid">
-                <label>Nome da rotina<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Ex.: Semanal 5x" /></label>
-                <label>Objetivo<input value={draft.focus} onChange={(event) => updateDraft('focus', event.target.value)} placeholder="Hipertrofia, definição..." /></label>
-                <label>Nível<input value={draft.level} onChange={(event) => updateDraft('level', event.target.value)} placeholder="Iniciante, intermediário..." /></label>
-              </div>
-              <details className="mobile-workout-advanced-options">
-                <summary>Mais opções</summary>
-                <div className="mobile-workout-form-grid">
-                  <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} placeholder="Calculada pelos dias adicionados" /></label>
-                </div>
-                <div className="mobile-workout-choice-grid">
-                  <span>Organização</span>
-                  {['Dias da semana', 'Numérico'].map((item) => (
-                    <button key={item} type="button" className={draft.organization === item ? 'is-active' : ''} onClick={() => updateDraft('organization', item)}>{item}</button>
-                  ))}
-                </div>
-                <div className="mobile-workout-choice-grid">
-                  <span>Mostrar para o aluno</span>
-                  {['Sempre visível para o aluno', 'Após publicar', 'Ocultar até liberar'].map((item) => (
-                    <button key={item} type="button" className={draft.displayMode === item ? 'is-active' : ''} onClick={() => updateDraft('displayMode', item)}>{item}</button>
-                  ))}
-                </div>
-                <label className="mobile-workout-textarea-label">
-                  Orientações gerais
-                  <textarea value={draft.guidance || ''} onChange={(event) => updateDraft('guidance', event.target.value)} rows={3} placeholder="Aquecimento, descanso, observações gerais..." />
-                </label>
-              </details>
-            </div>
-          ) : null}
-
-          {creatorStep === 'days' ? (
-            <div className="mobile-workout-step-panel">
-              {!draft.days.length ? (
-                <div className="mobile-workout-empty is-centered">
-                  <strong>Nenhum dia adicionado ainda.</strong>
-                  <span>Crie o primeiro dia para começar a montar a rotina.</span>
-                  <button type="button" onClick={addDraftDay} className="mobile-workout-primary">Adicionar primeiro dia</button>
-                </div>
-              ) : (
-                <div className="mobile-workout-days">
-                  {draft.days.map((day, dayIndex) => (
-                    <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
-                      <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setCreatorStep('exercises') }}>
-                        <span>
-                          <strong>{day.day}</strong>
-                          <small>{day.focus || 'Foco do treino'}</small>
-                        </span>
-                        <span>{formatCount(day.exercises.length, 'exercício')}</span>
-                      </button>
-                      <div className="mobile-workout-day-footer">
-                        <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setCreatorStep('exercises') }}>Abrir dia</button>
-                        <details className="mobile-workout-menu">
-                          <summary aria-label="Ações do dia">⋮</summary>
-                          <div>
-                            <button type="button" onClick={() => openDayEditor(dayIndex)}>Editar</button>
-                            <button type="button" onClick={() => moveDraftDay(dayIndex, -1)} disabled={dayIndex === 0}>Subir</button>
-                            <button type="button" onClick={() => moveDraftDay(dayIndex, 1)} disabled={dayIndex === draft.days.length - 1}>Descer</button>
-                            <button type="button" onClick={() => duplicateDraftDay(dayIndex)}>Duplicar</button>
-                            <button type="button" onClick={() => removeDraftDay(dayIndex)}>Excluir</button>
-                          </div>
-                        </details>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-              <button type="button" onClick={addDraftDay} className="mobile-workout-secondary-action">+ Adicionar dia</button>
-            </div>
-          ) : null}
-
-          {creatorStep === 'exercises' ? (
-            <div className="mobile-workout-step-panel">
-              {!draft.days.length ? (
-                <div className="mobile-workout-empty is-centered">
-                  <strong>Adicione um dia antes dos exercícios.</strong>
-                  <button type="button" onClick={() => setCreatorStep('days')} className="mobile-workout-primary">Criar dia</button>
-                </div>
-              ) : activeDayIndex === null || !draft.days[activeDayIndex] ? (
-                <div className="mobile-workout-days">
-                  {draft.days.map((day, dayIndex) => (
-                    <article key={day.id || dayIndex} className="mobile-workout-day-card is-editing">
-                      <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setExpandedExerciseKey('') }}>
-                        <span>
-                          <strong>{day.day}</strong>
-                          <small>{day.focus}</small>
-                        </span>
-                        <span>{formatCount(day.exercises.length, 'exercício')}</span>
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <MobileWorkoutEditableDay
-                  day={draft.days[activeDayIndex]}
-                  dayIndex={activeDayIndex}
-                  expandedExerciseKey={expandedExerciseKey}
-                  setExpandedExerciseKey={setExpandedExerciseKey}
-                  updateDraftExercise={updateDraftExercise}
-                  moveDraftExercise={moveDraftExercise}
-                  duplicateDraftExercise={duplicateDraftExercise}
-                  removeDraftExercise={removeDraftExercise}
-                  applyExercisePreset={applyExercisePreset}
-                  updateDraftExerciseVideoFile={updateDraftExerciseVideoFile}
-                  openExercisePicker={openExercisePicker}
-                  onBack={() => {
-                    setActiveDayIndex(null)
-                    setExpandedExerciseKey('')
-                  }}
-                  onEditDay={() => openDayEditor(activeDayIndex)}
-                />
-              )}
-            </div>
-          ) : null}
-
-          {creatorStep === 'review' ? (
-            <div className="mobile-workout-step-panel">
-              <div className="mobile-workout-review-card">
-                <p>Resumo da publicação</p>
-                <h5>{draft.title || 'Treino sem nome'}</h5>
-                <span>{formatCount(draft.days.length, 'dia')} · {formatCount(draft.days.reduce((total, day) => total + day.exercises.length, 0), 'exercício')}</span>
-                <small>{draft.focus} · {draft.frequency} · {draft.displayMode}</small>
-              </div>
-              <div className="mobile-workout-days">
-                {draft.days.map((day) => (
-                  <article key={day.id} className={`mobile-workout-day-card ${day.exercises.length ? '' : 'has-warning'}`}>
-                    <button type="button" onClick={() => {
-                      const index = draft.days.findIndex((item) => item.id === day.id)
-                      setActiveDayIndex(index >= 0 ? index : 0)
-                      setCreatorStep('exercises')
-                    }}>
-                      <span>
-                        <strong>{day.day}</strong>
-                        <small>{day.exercises.length ? day.focus : 'Este dia ainda não possui exercícios.'}</small>
-                      </span>
-                      <span>{formatCount(day.exercises.length, 'exercício')}</span>
-                    </button>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          <div className="mobile-workout-save-bar">
-            <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>Salvar rascunho</button>
-            <button type="button" disabled={saving} onClick={continueCreatorFlow}>{getCreatorPrimaryLabel()}</button>
-          </div>
-        </div>
-      ) : null}
-
-      {dayEditor ? (
-        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setDayEditor(null)}>
-          <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Editar dia do treino" onClick={(event) => event.stopPropagation()}>
-            <div className="mobile-workout-sheet-handle" />
-            <div className="mobile-workout-creator-head">
-              <div>
-                <p>{dayEditor.index === null ? 'Novo dia' : 'Editar dia'}</p>
-                <h4>{dayEditor.day || 'Dia do treino'}</h4>
-              </div>
-              <button type="button" onClick={() => setDayEditor(null)}>Fechar</button>
-            </div>
-            <div className="mobile-workout-form-grid">
-              <label>Dia<input value={dayEditor.day} onChange={(event) => setDayEditor((current) => ({ ...current, day: event.target.value }))} placeholder="Segunda-feira ou Dia 1" /></label>
-              <label>Nome/foco<input value={dayEditor.focus} onChange={(event) => setDayEditor((current) => ({ ...current, focus: event.target.value }))} placeholder="Peito e tríceps" /></label>
-            </div>
-            <label className="mobile-workout-textarea-label">
-              Orientação do dia
-              <textarea value={dayEditor.guidance} onChange={(event) => setDayEditor((current) => ({ ...current, guidance: event.target.value }))} rows={3} placeholder="Opcional. Ex.: priorizar execução, aquecimento ou observações." />
-            </label>
-            {draft.days.length && dayEditor.index === null ? (
-              <label className="mobile-workout-select-label">
-                Copiar exercícios de outro dia
-                <select value={dayEditor.copyFrom} onChange={(event) => setDayEditor((current) => ({ ...current, copyFrom: event.target.value }))}>
-                  <option value="">Não copiar</option>
-                  {draft.days.map((day, index) => <option key={day.id || index} value={index}>{day.day} - {day.focus}</option>)}
-                </select>
-              </label>
-            ) : null}
-            <button type="button" className="mobile-workout-primary" onClick={saveDayEditor}>Salvar dia</button>
-          </section>
-        </div>
-      ) : null}
-
-      {exercisePickerDayIndex !== null ? (
-        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={closeExercisePicker}>
-          <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Adicionar exercício" onClick={(event) => event.stopPropagation()}>
-            <div className="mobile-workout-sheet-handle" />
-            <div className="mobile-workout-creator-head">
-              <div>
-                <p>Biblioteca de exercícios</p>
-                <h4>Adicionar ao dia</h4>
-              </div>
-              <button type="button" onClick={closeExercisePicker}>Fechar</button>
-            </div>
-            <div className="mobile-workout-search">
-              <NavIcon name="chart" className="h-4 w-4" />
-              <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar: supino, bench, peito, barra..." autoFocus />
-            </div>
-            <div className="mobile-workout-picker-filters">
-              <button type="button" className={exercisePickerTab === 'favorites' ? 'is-active' : ''} onClick={() => setExercisePickerTab(exercisePickerTab === 'favorites' ? 'coachfit' : 'favorites')}>
-                Favoritos
-              </button>
-              <select value={exercisePickerMuscleFilter} onChange={(event) => setExercisePickerMuscleFilter(event.target.value)} aria-label="Filtrar por grupo muscular">
-                <option value="todos">Grupos musculares</option>
-                {exercisePickerMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-              <select value={exercisePickerObjectiveFilter} onChange={(event) => setExercisePickerObjectiveFilter(event.target.value)} aria-label="Filtrar por categoria">
-                <option value="todos">Categorias</option>
-                {exercisePickerObjectiveOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-              </select>
-              <button type="button" className={exercisePickerTab === 'mine' ? 'is-active' : ''} onClick={() => setExercisePickerTab(exercisePickerTab === 'mine' ? 'coachfit' : 'mine')}>
-                Seus exercícios
-              </button>
-              <button type="button" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
-            </div>
-            <details className="mobile-workout-custom-exercise">
-              <summary>Criar exercício</summary>
-              <div>
-                <div className="mobile-workout-form-grid">
-                  <label>Nome<input value={customExerciseDraft.name || ''} onChange={(event) => updateCustomExerciseDraft('name', event.target.value)} placeholder="Ex.: Supino com pausa" /></label>
-                  <label>Grupo muscular<input value={customExerciseDraft.muscleGroup || ''} onChange={(event) => updateCustomExerciseDraft('muscleGroup', event.target.value)} placeholder="Peitoral" /></label>
-                  <label>Equipamento<input value={customExerciseDraft.equipment || ''} onChange={(event) => updateCustomExerciseDraft('equipment', event.target.value)} placeholder="Barra, halter..." /></label>
-                  <label>Categoria<input value={customExerciseDraft.category || ''} onChange={(event) => updateCustomExerciseDraft('category', event.target.value)} placeholder="Força, máquina..." /></label>
-                  <label>Objetivo<input value={customExerciseDraft.objective || ''} onChange={(event) => updateCustomExerciseDraft('objective', event.target.value)} placeholder="Hipertrofia, força..." /></label>
-                  <label>Nível<input value={customExerciseDraft.level || ''} onChange={(event) => updateCustomExerciseDraft('level', event.target.value)} placeholder="Iniciante, intermediário..." /></label>
-                  <label>Tipo<input value={customExerciseDraft.composition || ''} onChange={(event) => updateCustomExerciseDraft('composition', event.target.value)} placeholder="Composto, isolado..." /></label>
-                </div>
-                <label className="mobile-workout-textarea-label">
-                  Instruções
-                  <textarea value={customExerciseDraft.instructions || ''} onChange={(event) => updateCustomExerciseDraft('instructions', event.target.value)} rows={3} placeholder="Dica curta de execução." />
-                </label>
-                <label className="mobile-workout-file-label">
-                  Vídeo do exercício
-                  <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateCustomExerciseVideoFile(event.target.files?.[0] || null)} />
-                  <span>{customExerciseDraft.videoFileName || 'Grave agora ou escolha da galeria.'}</span>
-                </label>
-                {customExerciseDraft.videoPreviewUrl ? <ExerciseMedia exercise={customExerciseDraft} compact /> : null}
-                <button type="button" className="mobile-workout-primary" onClick={addCustomExerciseToDay}>Salvar e adicionar ao dia</button>
-              </div>
-            </details>
-            <div className="mobile-workout-picker-results">
-              {exercisePickerResults.map((exercise) => {
-                const selected = exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(exercise.name))
-                const isFavorite = favoriteExerciseNames.some((item) => normalizeText(item) === normalizeText(exercise.name))
-                const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
-                return (
-                  <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={selected ? 'is-selected' : ''}>
-                    <span className="mobile-workout-avatar"><NavIcon name="dumbbell" className="h-4 w-4" /></span>
-                    <span>
-                      <strong>{exercise.name}</strong>
-                      <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
-                      <small>{[exercise.level, exercise.mechanic || exercise.composition, exercise.movementType].filter(Boolean).slice(0, 3).join(' · ')}</small>
-                    </span>
-                    <span className="mobile-workout-picker-actions">
-                      <span role="button" tabIndex={0} aria-label={isFavorite ? 'Remover dos favoritos' : 'Favoritar exercício'} onClick={(event) => { event.stopPropagation(); toggleFavoriteExercise(exercise.name) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); toggleFavoriteExercise(exercise.name) } }}>{isFavorite ? '★' : '☆'}</span>
-                      <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); setExercisePickerPreview(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') setExercisePickerPreview(exercise) }}>Ver</span>
-                      {isCustomExercise ? (
-                        <>
-                          <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); editCustomExercise(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); editCustomExercise(exercise) } }}>Editar</span>
-                          <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); removeCustomExercise(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); removeCustomExercise(exercise) } }}>Excluir</span>
-                        </>
-                      ) : null}
-                      <span className="mobile-workout-picker-check">{selected ? '✓' : '+'}</span>
-                    </span>
-                  </button>
-                )
-              })}
-              {!exercisePickerResults.length ? (
-                <div className="mobile-workout-empty">
-                  <strong>Nenhum exercício encontrado.</strong>
-                  <span>Limpe os filtros ou crie um exercício personalizado no próprio dia do treino.</span>
-                </div>
-              ) : null}
-            </div>
-            <button type="button" onClick={confirmExercisePicker} className="mobile-workout-primary">
-              {exercisePickerSelections.length ? `Adicionar ${exercisePickerSelections.length}` : 'Adicionar primeiro resultado'}
-            </button>
-          </section>
-        </div>
-      ) : null}
-
-      {exercisePickerPreview ? (
-        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setExercisePickerPreview(null)}>
-          <section className="mobile-workout-sheet is-preview" role="dialog" aria-modal="true" aria-label="Prévia do exercício" onClick={(event) => event.stopPropagation()}>
-            <div className="mobile-workout-sheet-handle" />
-            <div className="mobile-workout-creator-head">
-              <div>
-                <p>Visualização</p>
-                <h4>{exercisePickerPreview.name}</h4>
-              </div>
-              <button type="button" onClick={() => setExercisePickerPreview(null)}>Fechar</button>
-            </div>
-            <ExerciseMedia exercise={exercisePickerPreview} compact />
-            <ExerciseMuscleSummary exercise={exercisePickerPreview} compact />
-            <div className="mobile-workout-review-card">
-              <p>Músculo e equipamento</p>
-              <span>{exercisePickerPreview.group || exercisePickerPreview.muscleGroup || 'Grupo muscular'} · {exercisePickerPreview.equipment || 'Equipamento livre'}</span>
-              <small>{[exercisePickerPreview.level, exercisePickerPreview.mechanic || exercisePickerPreview.composition, exercisePickerPreview.laterality, exercisePickerPreview.movementType].filter(Boolean).join(' · ')}</small>
-            </div>
-            <div className="mobile-workout-review-card">
-              <p>Dica de execução</p>
-              <small>{exercisePickerPreview.cues || exercisePickerPreview.instructions || 'Confira a demonstração antes de adicionar ao treino.'}</small>
-              <small>{getExerciseCommonMistake(exercisePickerPreview)}</small>
-            </div>
-            <button type="button" className="mobile-workout-primary" onClick={() => {
-              toggleExercisePickerSelection(exercisePickerPreview.name)
-              rememberRecentExercises([exercisePickerPreview.name])
-              setExercisePickerPreview(null)
-            }}>
-              Adicionar ao treino
-            </button>
-          </section>
-        </div>
-      ) : null}
-
-      <datalist id="mobile-exercise-library">
-        {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
-      </datalist>
-
-      {message ? <p className="mobile-workout-feedback success">{message}</p> : null}
-      {error ? <p className="mobile-workout-feedback error">{error}</p> : null}
-    </section>
-  )
-}
-
-function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpandedExerciseKey, onBack, onEdit, previewMode = false }) {
-  return (
-    <section className="mobile-workout-day-screen">
-      <div className="mobile-workout-day-screen-head">
-        <button type="button" onClick={onBack}>{previewMode ? 'Voltar ao modo treinador' : 'Voltar'}</button>
-        <div>
-          <p>{previewMode ? 'Visão do aluno' : `Dia ${dayIndex + 1}`}</p>
-          <h4>{day.day}</h4>
-          <span>{day.focus}</span>
-        </div>
-      </div>
-      {!previewMode ? (
-        <button type="button" className="mobile-workout-secondary-action" onClick={onEdit}>
-          Editar treino e adicionar exercício
-        </button>
-      ) : null}
-      <div className="mobile-workout-exercises">
-        {day.exercises.map((exercise, exerciseIndex) => {
-          const key = `view-${dayIndex}-${exerciseIndex}`
-          const isOpen = expandedExerciseKey === key
-          return (
-            <article key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-view ${isOpen ? 'is-open' : ''}`}>
-              <button type="button" className="mobile-workout-exercise-accordion" onClick={() => setExpandedExerciseKey(isOpen ? '' : key)}>
-                <ExerciseThumbnail exercise={exercise} compact />
-                <span>
-                  <strong>{exercise.name}</strong>
-                  <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
-                  {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
-                </span>
-                <NavIcon name={isOpen ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
-              </button>
-              {isOpen ? (
-                <div className="mobile-workout-exercise-open">
-                  <ExerciseMedia exercise={exercise} compact />
-                  <ExerciseMuscleSummary exercise={exercise} compact />
-                  <div className="mobile-workout-exercise-metrics">
-                    <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-                    <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
-                    <ExerciseMetric label="Carga" value={exercise.load || '-'} />
-                    <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
-                  </div>
-                  <p>{exercise.instructions || exercise.notes || 'Oriente execução, amplitude e controle de carga antes de publicar alterações.'}</p>
-                  <ExerciseYouTubeLink exercise={exercise} compact />
-                </div>
-              ) : null}
-            </article>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-function MobileWorkoutEditableDay({
-  day,
-  dayIndex,
-  expandedExerciseKey,
-  setExpandedExerciseKey,
-  updateDraftExercise,
-  moveDraftExercise,
-  duplicateDraftExercise,
-  removeDraftExercise,
-  applyExercisePreset,
-  updateDraftExerciseVideoFile,
-  openExercisePicker,
-  onBack,
-  onEditDay,
-}) {
-  const [studentPreviewOpen, setStudentPreviewOpen] = useState(false)
-
-  if (studentPreviewOpen) {
-    return (
-      <MobileWorkoutDayScreen
-        day={day}
-        dayIndex={dayIndex}
-        expandedExerciseKey={expandedExerciseKey}
-        setExpandedExerciseKey={setExpandedExerciseKey}
-        onBack={() => setStudentPreviewOpen(false)}
-        onEdit={() => setStudentPreviewOpen(false)}
-        previewMode
-      />
-    )
-  }
-
-  return (
-    <section className="mobile-workout-day-screen mobile-workout-day-editor-screen">
-      <div className="mobile-workout-day-editor-hero">
-        <button type="button" className="mobile-workout-back-link" onClick={onBack}>Voltar</button>
-        <div>
-          <p>DIA {dayIndex + 1}</p>
-          <h4>{day.day}</h4>
-          <span>{day.focus || 'Foco do treino'}</span>
-          <small>{formatCount(day.exercises.length, 'exercício')}</small>
-        </div>
-      </div>
-      <div className="mobile-workout-day-open-actions">
-        <button type="button" className="mobile-workout-primary mobile-workout-add-exercise-cta" onClick={() => openExercisePicker(dayIndex)}>
-          {day.exercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
-        </button>
-        <button type="button" onClick={() => setStudentPreviewOpen(true)}>
-          <NavIcon name="eye" className="h-4 w-4" />
-          Ver como o aluno verá este dia
-        </button>
-        <button type="button" onClick={onEditDay}>Editar dia</button>
-      </div>
-      {!day.exercises.length ? (
-        <div className="mobile-workout-empty">
-          <strong>Este dia ainda não possui exercícios.</strong>
-          <span>Adicione exercícios pela biblioteca e eles ficarão vinculados somente a este dia.</span>
-        </div>
-      ) : null}
-      <div className="mobile-workout-exercises">
-        {day.exercises.map((exercise, exerciseIndex) => (
-          <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
-            <button
-              type="button"
-              className="mobile-workout-exercise-accordion"
-              onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
-            >
-              <ExerciseThumbnail exercise={exercise} compact />
-              <span>
-                <strong>{exercise.name || 'Novo exercício'}</strong>
-                <small>{exercise.sets || '-'} × {exercise.reps || '-'} · {exercise.rest || 'descanso livre'}</small>
-                {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
-              </span>
-              <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
-            </button>
-            {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
-              <div className="mobile-workout-exercise-fields">
-                <ExerciseMedia exercise={exercise} compact />
-                <ExerciseMuscleSummary exercise={exercise} compact />
-                <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
-                <div>
-                  <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
-                  <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
-                  <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
-                  <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
-                </div>
-                <div>
-                  <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
-                  <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
-                  <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
-                  <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
-                </div>
-                <div className="mobile-workout-preset-row">
-                  {[
-                    ['padrao', '3 × 12'],
-                    ['piramideCrescente', 'Pirâmide +'],
-                    ['piramideDecrescente', 'Pirâmide -'],
-                    ['dropSet', 'Drop set'],
-                    ['falhaUltima', 'Falha final'],
-                  ].map(([preset, label]) => (
-                    <button key={preset} type="button" onClick={() => applyExercisePreset(dayIndex, exerciseIndex, preset)}>{label}</button>
-                  ))}
-                </div>
-                <label className="mobile-workout-file-label">
-                  Vídeo próprio
-                  <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateDraftExerciseVideoFile(dayIndex, exerciseIndex, event.target.files?.[0] || null)} />
-                  <span>{exercise.videoFileName || 'Grave pela câmera ou escolha da galeria.'}</span>
-                </label>
-                <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
-                <div className="mobile-workout-day-actions">
-                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
-                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
-                  <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
-                  <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
-                  <button type="button" onClick={() => setExpandedExerciseKey('')}>Salvar</button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function createMobileWorkoutDraft(student, library = exerciseLibrary) {
-  return {
-    title: student?.workout || 'Novo treino',
-    focus: student?.goal || 'Hipertrofia',
-    level: student?.level || 'Intermediário',
-    frequency: '3x por semana',
-    organization: 'Dias da semana',
-    displayMode: 'Sempre visível para o aluno',
-    guidance: '',
-    status: 'Rascunho',
-    days: createDefaultWorkoutDays(library),
-  }
-}
-
-function inferNextWorkoutDay(index = 0, organization = 'Dias da semana') {
-  if (normalizeText(organization).includes('numer')) return `Dia ${index + 1}`
-  return ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'][index % 7] || `Dia ${index + 1}`
-}
-
-function createDefaultWorkoutDays(library = exerciseLibrary) {
-  return [
-    {
-      id: 'segunda',
-      day: 'Segunda-feira',
-      focus: 'Peito e tríceps',
-      exercises: [
-        createExerciseDraft('Supino reto com barra', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '90s' }, library),
-        createExerciseDraft('Tríceps corda', { sets: '3', reps: '10-12', load: 'RPE 8', rest: '60s' }, library),
-      ],
-    },
-    {
-      id: 'quarta',
-      day: 'Quarta-feira',
-      focus: 'Costas e bíceps',
-      exercises: [
-        createExerciseDraft('Remada baixa', { sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' }, library),
-        createExerciseDraft('Rosca direta', { sets: '3', reps: '10-12', load: 'RPE 8', rest: '60s' }, library),
-      ],
-    },
-    {
-      id: 'sexta',
-      day: 'Sexta-feira',
-      focus: 'Pernas',
-      exercises: [
-        createExerciseDraft('Agachamento livre', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '120s' }, library),
-        createExerciseDraft('Cadeira extensora', { sets: '3', reps: '12-15', load: 'RPE 8', rest: '60s' }, library),
-      ],
-    },
-  ]
-}
-
-function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
-  if (!workout) return []
-  if (Array.isArray(workout.days) && workout.days.length) {
-    return workout.days.map((day, index) => ({
-      id: day.id || `${day.day || 'dia'}-${index}`,
-      day: day.day || `Dia ${index + 1}`,
-      focus: day.focus || day.title || workout.focus || 'Treino',
-      exercises: (day.exercises || []).map((exercise) => enrichExercise(exercise, library)),
-    }))
-  }
-
-  const exercises = (workout.exercises || []).map((exercise) => enrichExercise(exercise, library))
-  const groups = exercises.reduce((acc, exercise) => {
-    const day = exercise.day || exercise.weekday || exercise.trainingDay || 'Treino principal'
-    if (!acc[day]) acc[day] = []
-    acc[day].push(exercise)
-    return acc
-  }, {})
-  const entries = Object.entries(groups)
-  if (entries.length > 1) {
-    return entries.map(([day, dayExercises], index) => ({
-      id: `${day}-${index}`,
-      day,
-      focus: dayExercises[0]?.dayFocus || workout.focus || summarizeWorkoutFocus(dayExercises),
-      exercises: dayExercises,
-    }))
-  }
-
-  if (!exercises.length) {
-    return [{
-      id: 'sem-exercicios',
-      day: 'Treino principal',
-      focus: workout.focus || 'Sem exercícios cadastrados',
-      exercises: [],
-    }]
-  }
-
-  return [{
-    id: 'treino-principal',
-    day: inferWorkoutDayName(workout),
-    focus: workout.focus || summarizeWorkoutFocus(exercises),
-    exercises,
-  }]
-}
-
-function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
-  const normalizedSearch = normalizeText(search)
-  return workouts.filter((workout) => {
-    const text = normalizeText([
-      workout.title,
-      workout.focus,
-      workout.level,
-      workout.status,
-      workout.notes,
-      ...(workout.exercises || []).map((exercise) => exercise.name),
-    ].filter(Boolean).join(' '))
-    const matchesSearch = !normalizedSearch || text.includes(normalizedSearch)
-    if (!matchesSearch) return false
-    if (filter === 'todos') return true
-    if (filter === 'publicado') return normalizeText(workout.status || 'publicado').includes('publicado') || workout.active !== false
-    return text.includes(normalizeText(filter))
-  })
-}
-
-function inferWorkoutDayName(workout) {
-  const text = normalizeText(`${workout?.title || ''} ${workout?.focus || ''} ${workout?.notes || ''}`)
-  const days = [
-    ['segunda', 'Segunda-feira'],
-    ['terca', 'Terça-feira'],
-    ['terça', 'Terça-feira'],
-    ['quarta', 'Quarta-feira'],
-    ['quinta', 'Quinta-feira'],
-    ['sexta', 'Sexta-feira'],
-    ['sabado', 'Sábado'],
-    ['sábado', 'Sábado'],
-    ['domingo', 'Domingo'],
-  ]
-  return days.find(([key]) => text.includes(normalizeText(key)))?.[1] || 'Treino principal'
-}
-
-function inferWorkoutFrequency(workout) {
-  const text = `${workout?.frequency || ''} ${workout?.focus || ''} ${workout?.title || ''}`
-  const match = text.match(/(\d)\s*x/i)
-  if (match) return `${match[1]}x por semana`
-  const dayCount = buildMobileWorkoutDays(workout).length
-  return dayCount > 1 ? `${dayCount}x por semana` : 'Frequência livre'
-}
-
-function inferWorkoutLevel(workout) {
-  const text = normalizeText(`${workout?.level || ''} ${workout?.focus || ''} ${workout?.notes || ''}`)
-  if (text.includes('iniciante')) return 'Iniciante'
-  if (text.includes('avancado') || text.includes('avançado')) return 'Avançado'
-  return 'Intermediário'
-}
-
-function formatCount(total, singular, plural = `${singular}s`) {
-  const count = Number(total || 0)
-  return `${count} ${count === 1 ? singular : plural}`
-}
-
-function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCount = 0, expandedExerciseKey, setExpandedExerciseKey, onBack }) {
-  return (
-    <section className="mobile-workout-student-preview" aria-label="Visão do aluno">
-      <div className="mobile-workout-student-preview-head">
-        <button type="button" onClick={onBack}>← Voltar para edição</button>
-        <div>
-          <p>Visão do aluno</p>
-          <h4>{workout?.title || 'Treino selecionado'}</h4>
-          <span>{student?.name || 'Aluno selecionado'} • {formatCount(days.length, 'dia')} • {formatCount(exerciseCount, 'exercício')}</span>
-        </div>
-      </div>
-
-      {days.length ? (
-        <div className="mobile-workout-student-preview-days">
-          {days.map((day, dayIndex) => (
-            <article key={day.id || dayIndex} className="mobile-workout-student-preview-day">
-              <div className="mobile-workout-student-preview-day-head">
-                <span>{String(dayIndex + 1).padStart(2, '0')}</span>
-                <div>
-                  <h5>{day.day}</h5>
-                  <p>{day.focus || 'Treino do dia'} • {formatCount(day.exercises?.length || 0, 'exercício')}</p>
-                </div>
-              </div>
-              {day.exercises?.length ? (
-                <div className="mobile-workout-exercises">
-                  {day.exercises.map((exercise, exerciseIndex) => {
-                    const key = `student-preview-${dayIndex}-${exerciseIndex}`
-                    const isOpen = expandedExerciseKey === key
-                    return (
-                      <article key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-view ${isOpen ? 'is-open' : ''}`}>
-                        <button type="button" className="mobile-workout-exercise-accordion" onClick={() => setExpandedExerciseKey(isOpen ? '' : key)}>
-                          <ExerciseThumbnail exercise={exercise} compact />
-                          <span>
-                            <strong>{exercise.name || 'Exercício'}</strong>
-                            <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
-                            {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
-                          </span>
-                          <NavIcon name={isOpen ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
-                        </button>
-                        {isOpen ? (
-                          <div className="mobile-workout-exercise-open">
-                            <ExerciseMedia exercise={exercise} compact />
-                            <div className="mobile-workout-exercise-metrics">
-                              <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-                              <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
-                              <ExerciseMetric label="Carga" value={exercise.load || '-'} />
-                              <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
-                            </div>
-                            <p>{exercise.instructions || exercise.notes || 'Siga a execução com controle, amplitude e atenção ao descanso.'}</p>
-                            <ExerciseYouTubeLink exercise={exercise} compact />
-                          </div>
-                        ) : null}
-                      </article>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="mobile-workout-empty">
-                  <strong>Este dia ainda não possui exercícios.</strong>
-                  <span>Adicione exercícios antes de publicar para o aluno.</span>
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="mobile-workout-empty">
-          <strong>Este treino ainda não possui dias.</strong>
-          <span>Crie os dias antes de revisar a entrega do aluno.</span>
-        </div>
-      )}
-    </section>
-  )
-}
-
-function summarizeWorkoutFocus(exercises = []) {
-  const muscles = exercises
-    .map((exercise) => exercise.muscleGroup || exercise.primaryMuscle || '')
-    .filter(Boolean)
-  return muscles.length ? [...new Set(muscles)].slice(0, 2).join(' + ') : 'Treino personalizado'
-}
-
-function getInitials(value = '') {
-  const parts = String(value || 'Aluno').trim().split(/\s+/).filter(Boolean)
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'AL'
-}
-
-function WorkoutProgressionRecommendations({ student, workouts, logs, decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
-  const [loading, setLoading] = useState(true)
-  const [busyKey, setBusyKey] = useState('')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const recommendations = useMemo(
-    () => buildWorkoutProgressionRecommendations({ student, workouts, logs, decisions, exerciseLibraryItems }),
-    [student, workouts, logs, decisions, exerciseLibraryItems],
-  )
-  const recentDecisions = decisions.slice(0, 4)
-
-  useEffect(() => {
-    setLoading(true)
-    const timer = window.setTimeout(() => setLoading(false), 180)
-    return () => window.clearTimeout(timer)
-  }, [student?.id, workouts.length, logs.length, decisions.length])
-
-  async function handleApprove(recommendation, editedTarget = null) {
-    setBusyKey(recommendation.key)
-    setMessage('')
-    setError('')
-    try {
-      await onApprove?.(recommendation, editedTarget)
-      setMessage('Progressão aprovada. Uma nova versão do treino foi criada e a anterior foi arquivada.')
-    } catch (approveError) {
-      setError(approveError?.message || 'Não foi possível aprovar a progressão.')
-    } finally {
-      setBusyKey('')
-    }
-  }
-
-  async function handleEdit(recommendation) {
-    const sets = window.prompt('Séries alvo', recommendation.nextTarget.sets || recommendation.exercise.sets || '')
-    if (sets === null) return
-    const reps = window.prompt('Repetições alvo', recommendation.nextTarget.reps || recommendation.exercise.reps || '')
-    if (reps === null) return
-    const load = window.prompt('Carga / esforço alvo', recommendation.nextTarget.load || recommendation.exercise.load || '')
-    if (load === null) return
-    await handleApprove(recommendation, { ...recommendation.nextTarget, sets, reps, load })
-  }
-
-  async function handleIgnore(recommendation) {
-    setBusyKey(recommendation.key)
-    setMessage('')
-    setError('')
-    try {
-      await onIgnore?.(recommendation)
-      setMessage('Sugestão ignorada e registrada no histórico.')
-    } catch (ignoreError) {
-      setError(ignoreError?.message || 'Não foi possível ignorar a sugestão.')
-    } finally {
-      setBusyKey('')
-    }
-  }
-
-  async function handleUndo(decision) {
-    setBusyKey(`undo-${decision.id}`)
-    setMessage('')
-    setError('')
-    try {
-      await onUndo?.(decision)
-      setMessage('Alteração desfeita. Uma nova versão com a meta anterior foi criada.')
-    } catch (undoError) {
-      setError(undoError?.message || 'Não foi possível desfazer esta alteração.')
-    } finally {
-      setBusyKey('')
-    }
-  }
-
-  return (
-    <Panel title="Recomendações de progressão" action={`${recommendations.length} sugestões`}>
-      {!student ? (
-        <Empty text="Selecione um aluno para analisar progressão de treino." />
-      ) : loading ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {[1, 2].map((item) => <div key={item} className="h-44 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />)}
-        </div>
-      ) : recommendations.length ? (
-        <div className="grid gap-3 xl:grid-cols-2">
-          {recommendations.map((recommendation) => (
-            <div key={recommendation.key} className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-200">{student.name}</p>
-                  <h4 className="mt-1 text-lg font-black text-white">{recommendation.exercise.name}</h4>
-                  <p className="mt-1 text-sm leading-6 text-zinc-400">{recommendation.recentPerformance}</p>
-                </div>
-                <span className="w-fit rounded-full border border-white/10 bg-zinc-950/60 px-3 py-1 text-xs font-black text-zinc-100">
-                  {recommendation.confidence}
-                </span>
-              </div>
-
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <ExerciseMetric label="Carga atual" value={recommendation.previousTarget.load || '-'} />
-                <ExerciseMetric label="Reps alvo" value={recommendation.previousTarget.reps || '-'} />
-                <ExerciseMetric label="Séries" value={recommendation.previousTarget.sets || '-'} />
-              </div>
-
-              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                <p className="text-xs font-black uppercase text-zinc-500">Sugestão</p>
-                <p className="mt-1 text-sm font-black text-emerald-100">{recommendation.suggestion}</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">{recommendation.reason}</p>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button disabled={busyKey === recommendation.key || recommendation.action === 'insufficient'} type="button" onClick={() => handleApprove(recommendation)} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-45">
-                  {busyKey === recommendation.key ? 'Aplicando...' : 'Aprovar'}
-                </button>
-                <button disabled={busyKey === recommendation.key || recommendation.action === 'insufficient'} type="button" onClick={() => handleEdit(recommendation)} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:cursor-not-allowed disabled:opacity-45">
-                  Editar
-                </button>
-                <button disabled={busyKey === recommendation.key} type="button" onClick={() => handleIgnore(recommendation)} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-400 disabled:opacity-45">
-                  Ignorar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Empty text="Dados insuficientes para sugerir progressão. Peça ao aluno para registrar cargas, repetições, RPE/RIR e concluir mais treinos." />
-      )}
-
-      {recentDecisions.length ? (
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-black uppercase text-zinc-500">Histórico recente de decisões</p>
-          <div className="mt-3 grid gap-2">
-            {recentDecisions.map((decision) => (
-              <div key={decision.id} className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-white">{decision.exerciseName} · {formatUiText(decision.status)}</p>
-                  <p className="mt-1 text-xs leading-5 text-zinc-400">{decision.suggestion || decision.reason}</p>
-                </div>
-                {decision.status === 'approved' ? (
-                  <button disabled={busyKey === `undo-${decision.id}`} type="button" onClick={() => handleUndo(decision)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-50">
-                    {busyKey === `undo-${decision.id}` ? 'Desfazendo...' : 'Desfazer'}
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {message ? <p className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
-      {error ? <p className="mt-4 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
-    </Panel>
-  )
-}
-
-function buildWorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [] }) {
-  if (!student || !workouts.length) return []
-  const latestWorkout = workouts.slice().sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
-  if (!latestWorkout?.exercises?.length) return []
-  const recentLogs = logs
-    .slice()
-    .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0))
-    .slice(0, 6)
-  const recentDecisions = new Set(decisions.slice(0, 12).filter((decision) => ['approved', 'ignored'].includes(decision.status)).map((decision) => `${normalizeText(decision.exerciseName)}-${decision.status}`))
-  const frequency14 = countSince(logs, 14, (log) => log.completedAt)
-
-  return latestWorkout.exercises
-    .map((rawExercise, index) => {
-      const exercise = enrichExercise(rawExercise, exerciseLibraryItems)
-      const key = `${latestWorkout.id}-${normalizeText(exercise.name)}-${index}`
-      const recommendation = buildExerciseProgressionRecommendation({
-        student,
-        workout: latestWorkout,
-        exercise,
-        index,
-        recentLogs,
-        frequency14,
-      })
-      return { ...recommendation, key }
-    })
-    .filter((recommendation) => !recentDecisions.has(`${normalizeText(recommendation.exercise.name)}-ignored`))
-}
-
-function buildExerciseProgressionRecommendation({ student, workout, exercise, index, recentLogs, frequency14 }) {
-  const sessions = recentLogs
-    .map((log) => parseExercisePerformanceFromLog(log, exercise.name))
-    .filter(Boolean)
-    .slice(0, 4)
-  const previousTarget = {
-    sets: exercise.sets || '',
-    reps: exercise.reps || '',
-    load: exercise.load || '',
-    rest: exercise.rest || '',
-  }
-  const base = {
-    studentId: student.id,
-    workoutId: workout.id,
-    workoutTitle: workout.title,
-    exercise,
-    previousTarget,
-    nextTarget: previousTarget,
-    action: 'insufficient',
-    suggestion: 'dados insuficientes',
-    reason: 'Ainda não há registros suficientes de carga, repetições, RPE/RIR ou histórico recente para sugerir mudança com segurança.',
-    confidence: 'baixa confiança',
-    recentPerformance: sessions.length ? summarizeExerciseSessions(sessions) : 'Sem histórico específico deste exercício.',
-  }
-
-  if (sessions.length < 2) return base
-
-  const latest = sessions[0]
-  const previous = sessions[1]
-  const avgRpe = averageDefined(sessions.map((item) => item.rpe))
-  const avgRir = averageDefined(sessions.map((item) => item.rir))
-  const avgReps = averageDefined(sessions.map((item) => item.reps))
-  const loadTrend = getNumberTrend(sessions.map((item) => item.loadKg))
-  const repsTrend = getNumberTrend(sessions.map((item) => item.reps))
-  const highRir = avgRir !== null && avgRir >= 3
-  const highRpe = avgRpe !== null && avgRpe >= 9
-  const lowRir = avgRir !== null && avgRir <= 1
-  const performanceDrop = (loadTrend < -1 || repsTrend < -1) && sessions.length >= 3
-  const lowFrequency = frequency14 < 2
-  const hitTarget = targetWasHit(latest, exercise)
-  const nextTarget = { ...previousTarget }
-  let action = 'maintain'
-  let suggestion = 'manter treino atual'
-  let reason = 'Desempenho recente está estável. Mantenha o alvo e observe a próxima sessão.'
-  let confidence = sessions.length >= 3 ? 'média confiança' : 'baixa confiança'
-
-  if (performanceDrop && (highRpe || lowRir || lowFrequency)) {
-    action = 'deload'
-    suggestion = 'sugerir deload'
-    nextTarget.load = reduceLoadTarget(exercise.load || latest.loadText || '', 7)
-    reason = 'Houve queda de desempenho em sessões recentes combinada com esforço alto ou baixa frequência. Recomendo reduzir carga por uma sessão e priorizar recuperação.'
-    confidence = 'alta confiança'
-  } else if (highRpe || lowRir) {
-    action = 'maintain_or_reduce'
-    suggestion = latest.failed ? 'reduzir carga' : 'manter carga'
-    nextTarget.load = latest.failed ? reduceLoadTarget(exercise.load || latest.loadText || '', 5) : previousTarget.load
-    reason = 'O aluno registrou RPE alto ou RIR baixo. Subir carga agora pode piorar técnica ou recuperação.'
-    confidence = sessions.length >= 3 ? 'alta confiança' : 'média confiança'
-  } else if (hitTarget && highRir) {
-    action = 'increase_load'
-    suggestion = 'aumentar carga'
-    nextTarget.load = increaseLoadTarget(exercise.load || latest.loadText || '', 3)
-    reason = 'O aluno atingiu a meta de repetições com RIR alto. Há margem para um aumento leve e controlado de carga.'
-    confidence = 'alta confiança'
-  } else if (hitTarget && avgRpe !== null && avgRpe <= 8) {
-    action = 'increase_reps'
-    suggestion = 'aumentar repetições'
-    nextTarget.reps = increaseRepTarget(exercise.reps)
-    reason = 'Meta atingida com esforço controlado. Aumentar repetições é uma progressão segura antes de subir carga.'
-    confidence = sessions.length >= 3 ? 'alta confiança' : 'média confiança'
-  } else if (avgReps !== null && getTargetTopReps(exercise.reps) && avgReps < getTargetTopReps(exercise.reps) - 2) {
-    action = 'reduce_reps'
-    suggestion = 'reduzir repetições'
-    nextTarget.reps = reduceRepTarget(exercise.reps)
-    reason = 'As repetições realizadas ficaram abaixo da meta. Reduzir a faixa ajuda a preservar execução e aderência.'
-    confidence = 'média confiança'
-  } else if (sessions.length >= 3 && !performanceDrop && !highRpe && !lowRir && frequency14 >= 3) {
-    action = 'add_set'
-    suggestion = 'adicionar série'
-    nextTarget.sets = increaseSetTarget(exercise.sets)
-    reason = 'Frequência recente está boa e não há sinal de esforço excessivo. Uma série extra pode aumentar estímulo sem trocar o exercício.'
-    confidence = 'média confiança'
-  }
-
-  return {
-    ...base,
-    action,
-    suggestion,
-    reason,
-    confidence,
-    nextTarget,
-    recentPerformance: summarizeExerciseSessions(sessions),
-  }
-}
-
-function parseExercisePerformanceFromLog(log, exerciseName) {
-  const notes = String(log?.notes || '')
-  const normalizedName = normalizeText(exerciseName)
-  const lines = notes.split(/\n|;/).map((line) => line.trim()).filter(Boolean)
-  const exerciseLine = lines.find((line) => {
-    const normalizedLine = normalizeText(line)
-    return normalizedLine.includes(normalizedName) || normalizedName.split(' ').some((part) => part.length > 4 && normalizedLine.includes(part))
-  })
-  const source = exerciseLine || notes
-  if (!source) return null
-  const repsMatch = source.match(/(\d{1,2})\s*(?:rep|reps|x)/i)
-  const setsMatch = source.match(/(\d{1,2})\s*x\s*\d{1,2}/i) || source.match(/(\d{1,2})\s*(?:serie|series|s[eé]ries)/i)
-  const loadMatch = source.match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(?:kg|kgs|quilos?)/i)
-  const rpeMatch = source.match(/rpe\s*([0-9]{1,2}(?:[,.]\d)?)/i)
-  const rirMatch = source.match(/rir\s*([0-9]{1,2}(?:[,.]\d)?)/i)
-  const failed = /falh|nao consegui|não consegui|travou|dor|muito pesado/i.test(source) || log.effort === 'Muito forte'
-
-  return {
-    date: log.completedAt,
-    sets: setsMatch ? Number(setsMatch[1]) : null,
-    reps: repsMatch ? Number(repsMatch[1]) : null,
-    loadKg: loadMatch ? Number(loadMatch[1].replace(',', '.')) : null,
-    loadText: loadMatch ? `${loadMatch[1]} kg` : '',
-    rpe: rpeMatch ? Number(rpeMatch[1].replace(',', '.')) : effortToRpe(log.effort),
-    rir: rirMatch ? Number(rirMatch[1].replace(',', '.')) : null,
-    failed,
-    raw: source,
-  }
-}
-
-function summarizeExerciseSessions(sessions = []) {
-  const latest = sessions[0]
-  const parts = [
-    latest?.loadKg ? `${formatNumber(latest.loadKg)} kg` : null,
-    latest?.reps ? `${latest.reps} reps` : null,
-    latest?.rpe ? `RPE ${formatNumber(latest.rpe)}` : null,
-    latest?.rir !== null && latest?.rir !== undefined ? `RIR ${formatNumber(latest.rir)}` : null,
-  ].filter(Boolean)
-  return parts.length
-    ? `Última sessão: ${parts.join(' · ')}. Histórico analisado: ${sessions.length} sessão(ões).`
-    : `Histórico analisado: ${sessions.length} sessão(ões), mas com poucos dados objetivos.`
-}
-
-function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
-  const targetName = normalizeText(recommendation.exercise.name)
-  const exercises = (workout.exercises || []).map((exercise) => {
-    if (normalizeText(exercise.name) !== targetName) return exercise
-    const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
-    return {
-      ...exercise,
-      sets: nextTarget.sets || exercise.sets,
-      reps: nextTarget.reps || exercise.reps,
-      load: nextTarget.load || exercise.load,
-      instructions: [exercise.instructions, progressionNote].filter(Boolean).join('\n'),
-    }
-  })
-
-  return {
-    studentId: workout.studentId,
-    title: `${workout.title} · progressão`,
-    focus: workout.focus,
-    notes: [workout.notes, `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`].filter(Boolean).join('\n'),
-    exercises,
-  }
-}
-
-function targetWasHit(session, exercise) {
-  const topReps = getTargetTopReps(exercise.reps)
-  if (!topReps || !session.reps) return !session.failed
-  return session.reps >= topReps && !session.failed
-}
-
-function getTargetTopReps(value) {
-  const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
-  return numbers.length ? Math.max(...numbers) : null
-}
-
-function averageDefined(values = []) {
-  const valid = values.filter((value) => Number.isFinite(Number(value)))
-  if (!valid.length) return null
-  return valid.reduce((sum, value) => sum + Number(value), 0) / valid.length
-}
-
-function getNumberTrend(values = []) {
-  const valid = values.filter((value) => Number.isFinite(Number(value)))
-  if (valid.length < 2) return 0
-  return Number(valid[0]) - Number(valid[valid.length - 1])
-}
-
-function effortToRpe(effort) {
-  if (effort === 'Muito forte') return 9.5
-  if (effort === 'Forte') return 8.5
-  if (effort === 'Moderado') return 7
-  if (effort === 'Leve') return 5.5
-  return null
-}
-
-function increaseLoadTarget(value, percent = 3) {
-  const match = String(value || '').match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(kg|kgs|quilos?)?/i)
-  if (!match) return value ? `${value} + ${percent}%` : `aumentar ${percent}%`
-  const current = Number(match[1].replace(',', '.'))
-  return `${formatNumber(current * (1 + percent / 100))} kg`
-}
-
-function reduceLoadTarget(value, percent = 5) {
-  const match = String(value || '').match(/(\d{1,3}(?:[,.]\d{1,2})?)\s*(kg|kgs|quilos?)?/i)
-  if (!match) return value ? `${value} - ${percent}%` : `reduzir ${percent}%`
-  const current = Number(match[1].replace(',', '.'))
-  return `${formatNumber(current * (1 - percent / 100))} kg`
-}
-
-function increaseRepTarget(value) {
-  const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
-  if (!numbers.length) return value ? `${value} +1 rep` : 'aumentar 1 repetição'
-  const updated = numbers.map((item) => item + 1)
-  return updated.length >= 2 ? `${updated[0]}-${updated[1]}` : String(updated[0])
-}
-
-function reduceRepTarget(value) {
-  const numbers = String(value || '').match(/\d+/g)?.map(Number) || []
-  if (!numbers.length) return value ? `${value} -1 rep` : 'reduzir 1 repetição'
-  const updated = numbers.map((item) => Math.max(1, item - 1))
-  return updated.length >= 2 ? `${updated[0]}-${updated[1]}` : String(updated[0])
-}
-
-function increaseSetTarget(value) {
-  const match = String(value || '').match(/\d+/)
-  if (!match) return value ? `${value} +1 série` : '4'
-  return String(Number(match[0]) + 1)
 }
 
 function LoadNotesPanel({ student, logs, onSaveStudent }) {
@@ -8901,240 +4328,47 @@ function LoadNotesPanel({ student, logs, onSaveStudent }) {
   )
 }
 
-function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exerciseLibrary, onSaveWorkout }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+function WorkoutForm({ students, selectedStudent, onSaveWorkout }) {
   const [exercises, setExercises] = useState([
     createExerciseDraft('Supino reto com barra', { sets: '4', reps: '8-10', load: 'RPE 8', rest: '90s' }),
     createExerciseDraft('Remada baixa', { sets: '4', reps: '10-12', load: 'RPE 8', rest: '90s' }),
     createExerciseDraft('Desenvolvimento com halteres', { sets: '3', reps: '8-10', load: 'RPE 7', rest: '75s' }),
   ])
-  const [resolvingExerciseIndex, setResolvingExerciseIndex] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [exerciseSearch, setExerciseSearch] = useState('')
-  const [exerciseSourceFilter, setExerciseSourceFilter] = useState('todos')
-  const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState('todos')
-  const [exerciseCategoryFilter, setExerciseCategoryFilter] = useState('todos')
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [favoriteExercises, setFavoriteExercises] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-exercises') || '[]')
-    } catch {
-      return []
-    }
-  })
-  const [recentExercises, setRecentExercises] = useState(() => {
-    try {
-      return JSON.parse(window.localStorage.getItem('coachfitpro-recent-exercises') || '[]')
-    } catch {
-      return []
-    }
-  })
-  const workoutExerciseMuscleOptions = useMemo(() => {
-    const defaults = ['Peito', 'Costas', 'Ombros', 'Bíceps', 'Tríceps', 'Abdômen', 'Quadríceps', 'Posterior', 'Glúteos', 'Panturrilhas', 'Antebraço', 'Trapézio', 'Lombar', 'Corpo inteiro']
-    const values = Array.from(new Set([...defaults, ...availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)]))
-    return ['todos', ...values]
-  }, [availableExerciseLibrary])
-  const workoutExerciseCategoryOptions = useMemo(() => {
-    const defaults = ['Treino em Casa', 'Mobilidade', 'Alongamento', 'Pilates Solo', 'MAT Pilates', 'Elástico', 'Laboral', 'Funcional', 'Aquecimento', 'Cardio', 'Peso Corporal', 'Reabilitação', 'Máquina', 'Barra', 'Halteres', 'Cabos', 'Kettlebell', 'TRX']
-    const values = Array.from(new Set([...defaults, ...availableExerciseLibrary.flatMap((exercise) => [exercise.category, exercise.equipment]).filter(Boolean)]))
-    return ['todos', ...values]
-  }, [availableExerciseLibrary])
-  const exerciseSuggestions = useMemo(() => {
-    const favoriteSet = new Set(favoriteExercises.map(normalizeText))
-    return buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, favoriteExercises, recentExercises)
-      .filter((exercise) => {
-        const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
-        const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''}`)
-        const matchesCategory = exerciseCategoryFilter === 'todos' || categoryText.includes(normalizeText(exerciseCategoryFilter))
-        const matchesFavorite = exerciseSourceFilter !== 'favoritos' || favoriteSet.has(normalizeText(exercise.name))
-        const matchesMine = exerciseSourceFilter !== 'seus' || isCustomExercise
-        return matchesCategory && matchesFavorite && matchesMine
-      })
-  }, [availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter, favoriteExercises, recentExercises])
-
-  useEffect(() => {
-    setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
-  }, [availableExerciseLibrary])
-
-  useEffect(() => {
-    setSelectedSuggestionIndex(0)
-  }, [exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('coachfitpro-favorite-exercises', JSON.stringify(favoriteExercises.slice(0, 80)))
-    } catch {
-      // Favoritos continuam funcionando na sessão mesmo se o navegador bloquear storage.
-    }
-  }, [favoriteExercises])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('coachfitpro-recent-exercises', JSON.stringify(recentExercises.slice(0, 20)))
-    } catch {
-      // Recentes continuam funcionando na sessão mesmo se o navegador bloquear storage.
-    }
-  }, [recentExercises])
-
-  useEffect(() => {
-    function warnBeforeLeave(event) {
-      if (!hasUnsavedChanges) return
-      event.preventDefault()
-      event.returnValue = ''
-    }
-
-    window.addEventListener('beforeunload', warnBeforeLeave)
-    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
-  }, [hasUnsavedChanges])
-
-  function markWorkoutDirty() {
-    setHasUnsavedChanges(true)
-    setMessage('')
-  }
 
   function updateExercise(index, field, value) {
-    markWorkoutDirty()
     setExercises((current) => current.map((exercise, itemIndex) => (
       itemIndex === index ? { ...exercise, [field]: value } : exercise
     )))
   }
 
   function updateExerciseName(index, value) {
-    markWorkoutDirty()
-    const profile = findExerciseProfile(value, availableExerciseLibrary)
+    const profile = findExerciseProfile(value)
     setExercises((current) => current.map((exercise, itemIndex) => {
       if (itemIndex !== index) return exercise
       return {
         ...exercise,
         name: value,
         muscleGroup: profile?.group ?? exercise.muscleGroup,
-        primaryMuscle: profile?.primaryMuscle ?? exercise.primaryMuscle,
-        secondaryMuscles: profile?.secondaryMuscles ?? exercise.secondaryMuscles,
         equipment: profile?.equipment ?? exercise.equipment,
         instructions: profile?.cues ?? exercise.instructions,
-        videoUrl: profile?.videoUrl || exercise.videoUrl || '',
-        thumbnailUrl: profile?.thumbnailUrl || exercise.thumbnailUrl || '',
       }
     }))
   }
 
   function addExercise(name = '') {
-    markWorkoutDirty()
-    setExercises((current) => [...current, createExerciseDraft(name, {}, availableExerciseLibrary)])
-    if (name) {
-      setRecentExercises((current) => [name, ...current.filter((item) => normalizeText(item) !== normalizeText(name))].slice(0, 20))
-      setMessage(`Exercício "${name}" adicionado ao treino.`)
-    }
-  }
-
-  function addSuggestionExercise(exercise) {
-    if (!exercise?.name) return
-    addExercise(exercise.name)
-    setExerciseSearch('')
-  }
-
-  function toggleFavoriteExercise(name) {
-    setFavoriteExercises((current) => {
-      const exists = current.some((item) => normalizeText(item) === normalizeText(name))
-      return exists
-        ? current.filter((item) => normalizeText(item) !== normalizeText(name))
-        : [name, ...current].slice(0, 80)
-    })
-    setMessage('Favoritos atualizados.')
-  }
-
-  function handleExerciseSearchKeyDown(event) {
-    if (!exerciseSuggestions.length) return
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setSelectedSuggestionIndex((current) => Math.min(current + 1, exerciseSuggestions.length - 1))
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setSelectedSuggestionIndex((current) => Math.max(current - 1, 0))
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      addSuggestionExercise(exerciseSuggestions[selectedSuggestionIndex])
-    }
-  }
-
-  function duplicateExercise(index) {
-    markWorkoutDirty()
-    setExercises((current) => {
-      const source = current[index]
-      if (!source) return current
-      const copy = { ...source, name: `${source.name} - variação`, notes: source.notes || 'Ajuste a variação antes de salvar.' }
-      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
-    })
-    setMessage('Exercício duplicado para edição rápida.')
-  }
-
-  function moveExercise(index, direction) {
-    markWorkoutDirty()
-    setExercises((current) => {
-      const nextIndex = index + direction
-      if (nextIndex < 0 || nextIndex >= current.length) return current
-      const next = [...current]
-      const [item] = next.splice(index, 1)
-      next.splice(nextIndex, 0, item)
-      return next
-    })
+    setExercises((current) => [...current, createExerciseDraft(name)])
   }
 
   function updateExerciseVideoFile(index, file) {
-    markWorkoutDirty()
     setExercises((current) => current.map((exercise, itemIndex) => (
       itemIndex === index ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '' } : exercise
     )))
   }
 
-  async function resolveExerciseFromApi(index) {
-    const exercise = exercises[index]
-    if (!exercise?.name?.trim()) {
-      setError('Digite o nome do exercício antes de buscar na AscendAPI.')
-      return
-    }
-    if (!supabaseEnabled) {
-      setError('Conecte o Supabase para buscar exercícios pela AscendAPI.')
-      return
-    }
-
-    setResolvingExerciseIndex(index)
-    setError('')
-    setMessage('')
-    try {
-      const apiExercise = await fetchRemoteExerciseMedia(exercise.name)
-      setExercises((current) => current.map((item, itemIndex) => (
-        itemIndex === index
-          ? {
-            ...item,
-            name: apiExercise.name || item.name,
-            muscleGroup: apiExercise.group || item.muscleGroup,
-            primaryMuscle: apiExercise.primaryMuscle || item.primaryMuscle,
-            secondaryMuscles: apiExercise.secondaryMuscles || item.secondaryMuscles,
-            equipment: apiExercise.equipment || item.equipment,
-            instructions: apiExercise.cues || item.instructions,
-            videoUrl: apiExercise.videoUrl || item.videoUrl,
-            thumbnailUrl: apiExercise.thumbnailUrl || item.thumbnailUrl,
-            imageUrl: apiExercise.imageUrl || apiExercise.thumbnailUrl || item.imageUrl,
-            ascendapiId: apiExercise.externalId || apiExercise.exerciseId || item.ascendapiId,
-          }
-          : item
-      )))
-      setMessage(apiExercise.videoUrl ? 'Exercício encontrado com mídia da AscendAPI.' : 'Exercício encontrado. A API não enviou vídeo para este item, então o app usará a ficha técnica.')
-    } catch (apiError) {
-      setError(apiError?.message || 'Não foi possível buscar este exercício na AscendAPI.')
-    } finally {
-      setResolvingExerciseIndex(null)
-    }
-  }
-
   function removeExercise(index) {
-    markWorkoutDirty()
     setExercises((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }
 
@@ -9162,10 +4396,9 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         title: form.get('title')?.toString() || 'Treino',
         focus: form.get('focus')?.toString() || '',
         notes: form.get('notes')?.toString() || '',
-        exercises: filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
+        exercises: filledExercises.map(enrichExercise),
       })
       setMessage('Treino salvo e liberado para o aluno.')
-      setHasUnsavedChanges(false)
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar o treino.')
     } finally {
@@ -9182,186 +4415,51 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
         options={students.map((student) => ({ label: student.name, value: student.id }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Nome do treino" name="title" defaultValue="Upper A" onChange={markWorkoutDirty} />
-        <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" onChange={markWorkoutDirty} />
+        <Field label="Nome do treino" name="title" defaultValue="Upper A" />
+        <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" />
       </div>
-      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." onChange={markWorkoutDirty} />
+      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." />
 
-      <div className="workout-exercise-picker rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.08] p-4 sm:p-5">
+      <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-black text-emerald-100">Biblioteca inteligente de exercícios</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-300">Busque por nome, músculo, equipamento ou variação. O exercício só entra no treino quando você confirmar.</p>
+            <p className="text-sm font-black text-emerald-100">Biblioteca rápida</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">Escolha um movimento comum ou digite livremente no campo de exercício.</p>
           </div>
-          <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/45 px-3 py-1 text-xs font-bold text-emerald-100">{availableExerciseLibrary.length} exercícios</span>
+          <span className="w-fit rounded border border-emerald-300/20 px-2 py-1 text-xs font-bold text-emerald-200">{exerciseLibrary.length} exercícios</span>
         </div>
-
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-emerald-100">
-            Buscar exercício
-            <input
-              value={exerciseSearch}
-              onChange={(event) => setExerciseSearch(event.target.value)}
-              onKeyDown={handleExerciseSearchKeyDown}
-              placeholder="Ex.: supino, dorsal, halter, quadríceps..."
-              className="min-h-12 min-w-0 rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-3 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-300 sm:text-sm"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              setExerciseSearch('')
-              setExerciseSourceFilter('todos')
-              setExerciseMuscleFilter('todos')
-              setExerciseCategoryFilter('todos')
-            }}
-            className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35"
-          >
-            Limpar filtros
-          </button>
-        </div>
-
-        <div className="mt-3 grid gap-2 md:grid-cols-[auto_minmax(150px,1fr)_minmax(150px,1fr)_auto]">
-          <button
-            type="button"
-            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'favoritos' ? 'todos' : 'favoritos')}
-            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'favoritos' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
-          >
-            Favoritos
-          </button>
-          <select value={exerciseMuscleFilter} onChange={(event) => setExerciseMuscleFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
-            <option value="todos">Grupo muscular</option>
-            {workoutExerciseMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-          </select>
-          <select value={exerciseCategoryFilter} onChange={(event) => setExerciseCategoryFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
-            <option value="todos">Categorias</option>
-            {workoutExerciseCategoryOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-          </select>
-          <button
-            type="button"
-            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'seus' ? 'todos' : 'seus')}
-            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'seus' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
-          >
-            Seus exercícios
-          </button>
-        </div>
-
-        <div className="mt-4 grid gap-2">
-          {exerciseSuggestions.slice(0, 8).map((exercise, suggestionIndex) => (
-            <div
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-soft">
+          {exerciseLibrary.slice(0, 10).map((exercise) => (
+            <button
               key={exercise.name}
-              onMouseEnter={() => setSelectedSuggestionIndex(suggestionIndex)}
-              className={`group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border px-3 py-2 text-left text-xs font-bold transition duration-200 hover:-translate-y-0.5 active:scale-[0.98] ${
-                selectedSuggestionIndex === suggestionIndex
-                  ? 'border-emerald-300/45 bg-emerald-300/12 shadow-lg shadow-emerald-950/20'
-                  : 'border-white/10 bg-zinc-950/70 text-zinc-200 hover:border-emerald-300/35 hover:bg-emerald-300/10'
-              }`}
+              type="button"
+              onClick={() => addExercise(exercise.name)}
+              className="shrink-0 rounded-md border border-white/10 bg-zinc-950/70 px-3 py-2 text-xs font-bold text-zinc-200"
             >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/20 bg-emerald-300/10 text-emerald-100">
-                <MuscleMapMini exercise={exercise} />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm text-zinc-100"><HighlightedMatch text={exercise.name} query={exerciseSearch} /></span>
-                <span className="mt-0.5 block truncate text-[11px] font-bold text-zinc-400">
-                  {exercise.group || exercise.muscleGroup || 'Músculo alvo'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
-                </span>
-                <span className="mt-1 flex flex-wrap gap-1">
-                  {exercise.isFavorite ? <span className="rounded-full bg-amber-300/12 px-2 py-0.5 text-[10px] font-black text-amber-100">favorito</span> : null}
-                  {exercise.isRecent ? <span className="rounded-full bg-emerald-300/12 px-2 py-0.5 text-[10px] font-black text-emerald-100">recente</span> : null}
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  aria-label={`Favoritar ${exercise.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    toggleFavoriteExercise(exercise.name)
-                  }}
-                  className={`grid h-10 w-10 place-items-center rounded-xl border transition ${
-                    exercise.isFavorite
-                      ? 'border-amber-300/40 bg-amber-300/12 text-amber-100'
-                      : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:text-amber-100'
-                  }`}
-                >
-                  <NavIcon name="star" className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={() => addSuggestionExercise(exercise)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 transition hover:bg-emerald-200">
-                  Adicionar
-                </button>
-              </span>
-            </div>
+              + {exercise.name}
+            </button>
           ))}
-          {!exerciseSuggestions.length ? (
-            <div className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 text-sm leading-6 text-zinc-300">
-              Nenhum exercício encontrado com esses termos. Você ainda pode adicionar um exercício personalizado e preencher manualmente.
-            </div>
-          ) : null}
         </div>
-
-        {(favoriteExercises.length || recentExercises.length) ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {favoriteExercises.length ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-xs font-black uppercase text-amber-100">Favoritos</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {favoriteExercises.slice(0, 6).map((name) => (
-                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-bold text-amber-50">
-                      + {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {recentExercises.length ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-xs font-black uppercase text-emerald-100">Usados recentemente</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {recentExercises.slice(0, 6).map((name) => (
-                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-50">
-                      + {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
       <datalist id="exercise-library-options">
-        {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
+        {exerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
       </datalist>
 
       <div className="space-y-3">
         {exercises.map((exercise, index) => (
-          <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="workout-exercise-card-summary min-w-0">
-                <ExerciseThumbnail exercise={exercise} compact />
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
-                  <h4 className="mt-1 truncate text-lg font-black text-white">{exercise.name || 'Novo exercício'}</h4>
-                  <p className="mt-1 text-xs text-zinc-400">{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</p>
-                </div>
+          <div key={index} className="min-w-0 rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                <p className="mt-1 text-xs text-zinc-500">{exercise.muscleGroup || 'Grupo muscular identificado pelo nome'}</p>
               </div>
-              <div className="flex flex-wrap gap-2 sm:justify-end">
-                <button type="button" onClick={() => moveExercise(index, -1)} disabled={index === 0} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
-                  Subir
-                </button>
-                <button type="button" onClick={() => moveExercise(index, 1)} disabled={index === exercises.length - 1} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
-                  Descer
-                </button>
-                <button type="button" onClick={() => duplicateExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100">
-                  Duplicar
-                </button>
-                <button type="button" onClick={() => removeExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/30 hover:text-rose-100">
-                  Remover
-                </button>
-              </div>
+              <button type="button" onClick={() => removeExercise(index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300">
+                Remover
+              </button>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)]">
+            <div className="grid gap-3 lg:grid-cols-[1.35fr_0.85fr]">
               <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
                 Nome do exercício
                 <input
@@ -9375,7 +4473,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Grupo muscular" value={exercise.muscleGroup ?? ''} onChange={(value) => updateExercise(index, 'muscleGroup', value)} />
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
               <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
               <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
@@ -9383,32 +4481,9 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
-              <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
-              <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
-              <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
-            </div>
-
-            <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
-              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
+            <details className="mt-4 rounded-md border border-white/10 bg-zinc-950/55">
+              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação e vídeo de execução</summary>
               <div className="grid gap-3 border-t border-white/10 p-3">
-                <div className="flex flex-col gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black text-emerald-100">Buscar mídia profissional</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-400">
-                      Puxa vídeo, imagem, músculo-alvo e instruções pela AscendAPI. Use quando quiser completar o exercício automaticamente.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={resolvingExerciseIndex === index}
-                    onClick={() => resolveExerciseFromApi(index)}
-                    className="rounded-md bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-                  >
-                    {resolvingExerciseIndex === index ? 'Buscando...' : 'Buscar na AscendAPI'}
-                  </button>
-                </div>
                 <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
                   Orientações técnicas
                   <textarea
@@ -9429,15 +4504,11 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                       className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950"
                     />
                     <span className="text-[11px] normal-case leading-4 tracking-normal text-zinc-500">
-                      {exercise.videoFileName || 'Opcional. Se não enviar, o app usa o vídeo da biblioteca ou uma ficha técnica do movimento.'}
+                      {exercise.videoFileName || 'Opcional. Se não enviar, o app mostra a imagem técnica do movimento.'}
                     </span>
                   </label>
                 </div>
-                <ExerciseMuscleSummary exercise={exercise} compact />
                 <ExerciseMedia exercise={exercise} compact />
-                <div className="mt-2">
-                  <ExerciseYouTubeLink exercise={exercise} compact />
-                </div>
               </div>
             </details>
           </div>
@@ -9445,20 +4516,15 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35">
+        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Adicionar exercício personalizado
         </button>
         <button disabled={saving} className="rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Salvar treino'}
         </button>
-        {hasUnsavedChanges ? (
-          <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
-            Alterações pendentes. Salve antes de sair.
-          </span>
-        ) : null}
       </div>
       {message ? (
-        <p className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
+        <p className="rounded-md border border-blue-300/30 bg-blue-300/10 p-3 text-sm font-bold text-blue-200">
           {message}
         </p>
       ) : null}
@@ -9471,8 +4537,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   )
 }
 
-function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+function WorkoutList({ workouts, fallbackTitle, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(workout) {
@@ -9490,6 +4555,54 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
       <div className="space-y-3">
         <Empty text="Nenhum treino prescrito ainda. Salve o primeiro treino para este aluno." />
         {fallbackTitle ? <Row title={fallbackTitle} meta="Treino antigo cadastrado na ficha do aluno" badge="Ficha" /> : null}
+      </div>
+    )
+  }
+
+  if (subscriptionActive) {
+    return (
+      <div className="grid min-w-0 gap-5 lg:gap-6">
+        <section className="overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950/88 shadow-2xl shadow-black/35">
+          <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-emerald-300">Minha assinatura</p>
+              <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">Assinatura ativa.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                Seu acesso ao Coach Fit Pro está liberado. Esta área mostra apenas o status da sua assinatura para você não confundir pagamento da plataforma com financeiro dos alunos.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Plano escolhido</p>
+                  <p className="mt-2 text-lg font-black text-white">{selectedCheckoutPlan.name}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Status</p>
+                  <p className="mt-2 text-lg font-black text-emerald-200">{subscriptionStatusLabel}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                  <p className="text-xs font-black uppercase text-zinc-500">Provedor</p>
+                  <p className="mt-2 text-lg font-black text-blue-200">Cartpanda</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 p-5">
+              <p className="text-xs font-black uppercase text-emerald-200">{billingCycle.isPromotional ? 'Primeiro ciclo' : 'Próximo ciclo'}</p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <p className="text-3xl font-black text-white">{selectedCheckoutPlan.price}</p>
+                <p className="pb-1 text-sm font-bold text-zinc-400">{selectedCheckoutPlan.suffix}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Próxima referência em {billingCycle.daysRemaining} {billingCycle.daysRemaining === 1 ? 'dia' : 'dias'}.
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">{formatFullDateTime(billingCycle.nextBillingAt)}</p>
+              <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-5 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                {checkingPayment ? 'Atualizando...' : 'Atualizar status'}
+              </button>
+              {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm leading-6 text-zinc-200">{paymentMessage}</p> : null}
+            </div>
+          </div>
+        </section>
       </div>
     )
   }
@@ -9517,9 +4630,9 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
           </div>
           <div className="mt-4 grid gap-3">
             {workout.exercises.map((exercise, index) => {
-              const enriched = enrichExercise(exercise, availableExerciseLibrary)
+              const enriched = enrichExercise(exercise)
               return (
-                <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
+                <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-md border border-white/10 bg-zinc-950/55 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
@@ -9533,15 +4646,9 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
                       <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <ExerciseMuscleSummary exercise={enriched} />
-                  </div>
                   {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
                   <div className="mt-3">
                     <ExerciseMedia exercise={enriched} />
-                    <div className="mt-2">
-                      <ExerciseYouTubeLink exercise={enriched} />
-                    </div>
                   </div>
                 </div>
               )
@@ -9553,60 +4660,17 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
   )
 }
 
-function getExerciseLibrary(remoteItems = []) {
-  const records = new Map()
-  const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
-
-  ;(remoteItems || []).forEach((exercise) => {
-    if (!exercise?.name) return
-    const key = normalizeText(exercise.name)
-    const local = localByName.get(key) || {}
-    records.set(key, {
-      ...local,
-      ...exercise,
-      name: local.name || exercise.name,
-      group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
-      primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
-      secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
-      equipment: exercise.equipment || local.equipment || '',
-      movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
-      movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
-      objective: exercise.objective || exercise.goal || local.objective || local.goal || '',
-      level: exercise.level || local.level || '',
-      mechanic: exercise.mechanic || exercise.mechanics || local.mechanic || local.mechanics || '',
-      mechanics: exercise.mechanics || exercise.mechanic || local.mechanics || local.mechanic || '',
-      laterality: exercise.laterality || local.laterality || '',
-      composition: exercise.composition || local.composition || '',
-      difficulty: exercise.difficulty || local.difficulty || '',
-      cues: exercise.cues || exercise.instructions || local.cues || '',
-      tips: exercise.tips || local.tips || '',
-      commonMistakes: exercise.commonMistakes || exercise.common_mistakes || local.commonMistakes || '',
-      videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
-      thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
-      imageUrl: exercise.imageUrl || exercise.image_url || exercise.thumbnailUrl || local.imageUrl || local.thumbnailUrl || '',
-      aliases: [...new Set([...(local.aliases || []), ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])])],
-    })
-  })
-
-  exerciseLibrary.forEach((exercise) => {
-    const key = normalizeText(exercise.name)
-    if (!records.has(key)) records.set(key, exercise)
-  })
-
-  return [...records.values()]
-}
-
-function findExerciseProfile(value, library = exerciseLibrary) {
+function findExerciseProfile(value) {
   const normalized = normalizeText(value)
   if (!normalized) return null
 
-  const exact = library.find((exercise) => (
+  const exact = exerciseLibrary.find((exercise) => (
     [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalized)
   ))
   if (exact) return exact
 
   if (normalized.length < 4) return null
-  return library.find((exercise) => (
+  return exerciseLibrary.find((exercise) => (
     [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => {
       const normalizedCandidate = normalizeText(candidate)
       return normalizedCandidate.includes(normalized) || normalized.includes(normalizedCandidate)
@@ -9614,108 +4678,8 @@ function findExerciseProfile(value, library = exerciseLibrary) {
   )) ?? null
 }
 
-function getExerciseSearchText(exercise = {}) {
-  return [
-    exercise.name,
-    exercise.group,
-    exercise.muscleGroup,
-    exercise.primaryMuscle,
-    exercise.equipment,
-    exercise.category,
-    exercise.objective,
-    exercise.goal,
-    exercise.movementType,
-    exercise.movement,
-    exercise.level,
-    exercise.mechanic,
-    exercise.mechanics,
-    exercise.laterality,
-    exercise.composition,
-    exercise.difficulty,
-    exercise.tips,
-    exercise.commonMistakes,
-    exercise.source,
-    ...(exercise.aliases || []),
-    ...(Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : []),
-  ].filter(Boolean).map(normalizeText).join(' ')
-}
-
-function getExerciseSuggestionScore(exercise, query, filter = 'todos') {
-  const normalizedQuery = normalizeText(query)
-  const searchText = getExerciseSearchText(exercise)
-  const normalizedName = normalizeText(exercise.name)
-  const normalizedGroup = normalizeText(exercise.group || exercise.muscleGroup)
-  const normalizedEquipment = normalizeText(exercise.equipment)
-  const normalizedMovement = normalizeText(exercise.movementType || exercise.movement)
-  const normalizedObjective = normalizeText(exercise.objective || exercise.category)
-  const filterText = normalizeText(filter)
-
-  if (filterText && filterText !== 'todos' && !searchText.includes(filterText)) return 0
-  if (!normalizedQuery) return filterText === 'todos' ? 1 : 12
-
-  let score = 0
-  if (normalizedName === normalizedQuery) score += 120
-  if (normalizedName.startsWith(normalizedQuery)) score += 85
-  if (normalizedName.includes(normalizedQuery)) score += 60
-  if (normalizedGroup.includes(normalizedQuery)) score += 42
-  if (normalizedEquipment.includes(normalizedQuery)) score += 26
-  if (normalizedMovement.includes(normalizedQuery)) score += 24
-  if (normalizedObjective.includes(normalizedQuery)) score += 20
-  if ((exercise.aliases || []).some((alias) => normalizeText(alias).includes(normalizedQuery))) score += 35
-  if (searchText.includes(normalizedQuery)) score += 18
-
-  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean)
-  const matchedTokens = queryTokens.filter((token) => searchText.includes(token)).length
-  if (queryTokens.length && matchedTokens === queryTokens.length) score += 22
-  if (matchedTokens) score += matchedTokens * 6
-
-  return score
-}
-
-function buildExerciseSuggestions(library, query, filter, favorites = [], recent = []) {
-  const favoriteSet = new Set(favorites.map(normalizeText))
-  const recentSet = new Set(recent.map(normalizeText))
-
-  return (library || [])
-    .map((exercise) => {
-      const score = getExerciseSuggestionScore(exercise, query, filter)
-      const key = normalizeText(exercise.name)
-      return {
-        ...exercise,
-        suggestionScore: score + (favoriteSet.has(key) ? 8 : 0) + (recentSet.has(key) ? 5 : 0),
-        isFavorite: favoriteSet.has(key),
-        isRecent: recentSet.has(key),
-      }
-    })
-    .filter((exercise) => exercise.suggestionScore > 0)
-    .sort((a, b) => b.suggestionScore - a.suggestionScore || String(a.name).localeCompare(String(b.name)))
-    .slice(0, 60)
-}
-
-function HighlightedMatch({ text, query }) {
-  const value = String(text || '')
-  const normalizedQuery = normalizeText(query)
-  if (!value || !normalizedQuery) return value
-
-  const normalizedValue = normalizeText(value)
-  const index = normalizedValue.indexOf(normalizedQuery)
-  if (index < 0) return value
-
-  const before = value.slice(0, index)
-  const match = value.slice(index, index + normalizedQuery.length)
-  const after = value.slice(index + normalizedQuery.length)
-
-  return (
-    <>
-      {before}
-      <mark className="rounded bg-emerald-300/20 px-0.5 text-emerald-50">{match}</mark>
-      {after}
-    </>
-  )
-}
-
-function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrary) {
-  const profile = findExerciseProfile(name, library)
+function createExerciseDraft(name = '', overrides = {}) {
+  const profile = findExerciseProfile(name)
   return {
     name,
     sets: '3',
@@ -9723,64 +4687,25 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     load: '',
     rest: '60s',
     muscleGroup: profile?.group ?? '',
-    primaryMuscle: profile?.primaryMuscle ?? '',
-    secondaryMuscles: profile?.secondaryMuscles ?? [],
     equipment: profile?.equipment ?? '',
-    movementType: profile?.movementType ?? profile?.movement ?? '',
-    objective: profile?.objective ?? profile?.category ?? '',
-    level: profile?.level ?? '',
-    mechanic: profile?.mechanic ?? profile?.mechanics ?? '',
-    laterality: profile?.laterality ?? '',
-    composition: profile?.composition ?? '',
-    difficulty: profile?.difficulty ?? '',
     instructions: profile?.cues ?? '',
-    tips: profile?.tips ?? '',
-    commonMistakes: profile?.commonMistakes ?? '',
-    videoUrl: profile?.videoUrl ?? '',
-    thumbnailUrl: profile?.thumbnailUrl ?? '',
-    imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
+    videoUrl: '',
     videoFile: null,
     videoFileName: '',
-    cadence: '',
-    rir: '',
-    rpe: '',
-    notes: '',
     ...overrides,
   }
 }
 
-function enrichExercise(exercise, library = exerciseLibrary) {
-  const profile = findExerciseProfile(exercise.name, library)
-  const muscleProfile = getExerciseMuscleProfile({
-    ...profile,
-    ...exercise,
-    muscleGroup: exercise.muscleGroup || profile?.group || '',
-  })
+function enrichExercise(exercise) {
+  const profile = findExerciseProfile(exercise.name)
   return {
     ...exercise,
     muscleGroup: exercise.muscleGroup || profile?.group || '',
-    primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
-    secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
     equipment: exercise.equipment || profile?.equipment || '',
-    movementType: exercise.movementType || profile?.movementType || profile?.movement || '',
-    objective: exercise.objective || profile?.objective || profile?.category || '',
-    level: exercise.level || profile?.level || '',
-    mechanic: exercise.mechanic || profile?.mechanic || profile?.mechanics || '',
-    laterality: exercise.laterality || profile?.laterality || '',
-    composition: exercise.composition || profile?.composition || '',
-    difficulty: exercise.difficulty || profile?.difficulty || '',
     instructions: exercise.instructions || profile?.cues || '',
-    tips: exercise.tips || profile?.tips || '',
-    commonMistakes: exercise.commonMistakes || profile?.commonMistakes || '',
-    videoUrl: exercise.videoUrl || profile?.videoUrl || '',
-    thumbnailUrl: exercise.thumbnailUrl || profile?.thumbnailUrl || '',
-    imageUrl: exercise.imageUrl || profile?.imageUrl || profile?.thumbnailUrl || '',
+    videoUrl: exercise.videoUrl || '',
     videoFile: exercise.videoFile || null,
     videoFileName: exercise.videoFileName || '',
-    cadence: exercise.cadence || '',
-    rir: exercise.rir || '',
-    rpe: exercise.rpe || '',
-    notes: exercise.notes || '',
   }
 }
 
@@ -9792,6 +4717,13 @@ function safeExternalUrl(value) {
   } catch {
     return ''
   }
+}
+
+function getExerciseVideoUrl(exercise) {
+  const customUrl = safeExternalUrl(exercise.videoUrl)
+  if (customUrl) return customUrl
+  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
 }
 
 function getVideoEmbedUrl(value) {
@@ -9817,24 +4749,6 @@ function getVideoEmbedUrl(value) {
   return ''
 }
 
-function getExerciseVideoUrl(exercise) {
-  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
-}
-
-function ExerciseYouTubeLink({ exercise, compact = false }) {
-  return (
-    <a
-      href={getExerciseVideoUrl(exercise)}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-red-300/25 bg-red-400/10 px-3 py-2 text-center text-xs font-black text-red-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
-    >
-      Ver execução no YouTube
-    </a>
-  )
-}
-
 function isDirectVideoUrl(value) {
   const safeValue = safeExternalUrl(value)
   if (!safeValue) return false
@@ -9855,449 +4769,29 @@ function ExerciseMetric({ label, value }) {
   )
 }
 
-function ExerciseThumbnail({ exercise = {}, compact = false }) {
-  const videoPreviewUrl = exercise.videoPreviewUrl || ''
-  const videoUrl = safeExternalUrl(exercise.videoUrl)
-  const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
-  const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
-  const target = exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Exercício'
-
-  return (
-    <span className={`exercise-thumb ${compact ? 'is-compact' : ''}`}>
-      {canUseVideo ? (
-        <video
-          src={videoPreviewUrl || videoUrl}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          className="exercise-thumb-media"
-        />
-      ) : imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={`Prévia de ${exercise.name || 'exercício'}`}
-          loading="lazy"
-          className="exercise-thumb-media"
-        />
-      ) : (
-        <span className="exercise-thumb-placeholder" aria-hidden="true">
-          <NavIcon name="dumbbell" className="h-5 w-5" />
-        </span>
-      )}
-      <small>{target}</small>
-    </span>
-  )
-}
-
-const muscleConfig = {
-  peitoral: { label: 'Peitoral', view: 'front', aliases: ['peito', 'chest', 'pectoral', 'pectorals', 'peitoral maior'], description: 'Região principal dos movimentos de empurrar.' },
-  'peitoral-superior': { label: 'Peitoral superior', view: 'front', aliases: ['peito superior', 'upper chest', 'incline chest', 'upper pectoral'], description: 'Foco na porção clavicular do peitoral.' },
-  costas: { label: 'Costas', view: 'back', aliases: ['back', 'upper back', 'costas altas', 'meio das costas'], description: 'Região ampla de puxadas e remadas.' },
-  dorsal: { label: 'Dorsal', view: 'back', aliases: ['lats', 'latissimus', 'latissimo', 'latíssimo', 'grande dorsal'], description: 'Responsável por puxadas e controle escapular.' },
-  trapezio: { label: 'Trapézio', view: 'back', aliases: ['trapézio', 'traps', 'trap', 'trapezius'], description: 'Estabiliza escápulas e parte superior das costas.' },
-  lombar: { label: 'Lombar', view: 'back', aliases: ['lower back', 'erectors', 'eretores', 'lombares'], description: 'Estabilização da coluna e extensão de quadril.' },
-  'deltoide-anterior': { label: 'Deltoide anterior', view: 'front', aliases: ['ombro anterior', 'front delt', 'anterior deltoid'], description: 'Atua em empurradas e elevação frontal.' },
-  'deltoide-lateral': { label: 'Deltoide lateral', view: 'front', aliases: ['ombro lateral', 'side delt', 'lateral deltoid', 'ombros'], description: 'Dá suporte às elevações laterais e abdução do ombro.' },
-  'deltoide-posterior': { label: 'Deltoide posterior', view: 'back', aliases: ['ombro posterior', 'rear delt', 'posterior deltoid'], description: 'Ajuda em remadas, puxadas e postura escapular.' },
-  biceps: { label: 'Bíceps', view: 'front', aliases: ['bíceps', 'biceps', 'bicep'], description: 'Flexão de cotovelo e apoio nas puxadas.' },
-  triceps: { label: 'Tríceps', view: 'back', aliases: ['tríceps', 'triceps', 'tricep'], description: 'Extensão de cotovelo e finalização das empurradas.' },
-  antebraco: { label: 'Antebraço', view: 'front', aliases: ['antebraço', 'forearm', 'forearms', 'grip'], description: 'Pegada, punho e estabilidade de carga.' },
-  abdomen: { label: 'Abdômen', view: 'front', aliases: ['abdomen', 'abdômen', 'abs', 'core', 'abdominal'], description: 'Controle do tronco e estabilidade.' },
-  obliquos: { label: 'Oblíquos', view: 'front', aliases: ['oblíquos', 'obliques', 'lateral abdomen'], description: 'Rotação, anti-rotação e estabilidade lateral.' },
-  gluteos: { label: 'Glúteos', view: 'back', aliases: ['glúteos', 'gluteos', 'glutes', 'glute', 'gluteus'], description: 'Extensão de quadril e potência de membros inferiores.' },
-  quadriceps: { label: 'Quadríceps', view: 'front', aliases: ['quadríceps', 'quadriceps', 'quads', 'coxa anterior'], description: 'Extensão de joelho e base de agachamentos.' },
-  'posterior-coxa': { label: 'Posterior de coxa', view: 'back', aliases: ['posterior de coxa', 'posteriores', 'hamstrings', 'isquiotibiais', 'coxa posterior'], description: 'Flexão de joelho e extensão de quadril.' },
-  adutores: { label: 'Adutores', view: 'front', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
-  abdutores: { label: 'Abdutores', view: 'front', aliases: ['abdutor', 'abdutores', 'abductors', 'outer thigh'], description: 'Estabilidade lateral do quadril.' },
-  panturrilhas: { label: 'Panturrilhas', view: 'back', aliases: ['panturrilha', 'calves', 'calf', 'gastrocnemius', 'soleus'], description: 'Elevação do calcanhar e estabilidade do tornozelo.' },
-}
-
-const muscleAliasMap = Object.entries(muscleConfig).reduce((map, [key, config]) => {
-  map.set(normalizeText(key), key)
-  map.set(normalizeText(config.label), key)
-  ;(config.aliases || []).forEach((alias) => map.set(normalizeText(alias), key))
-  return map
-}, new Map())
-
-const exerciseNameMuscleRules = [
-  { match: ['supino inclinado'], primary: 'peitoral-superior', secondary: ['peitoral', 'deltoide-anterior', 'triceps'] },
-  { match: ['supino', 'crucifixo', 'flexao', 'flexão'], primary: 'peitoral', secondary: ['deltoide-anterior', 'triceps'] },
-  { match: ['puxada', 'barra fixa', 'pulley'], primary: 'dorsal', secondary: ['costas', 'biceps'] },
-  { match: ['remada'], primary: 'costas', secondary: ['dorsal', 'biceps', 'deltoide-posterior'] },
-  { match: ['desenvolvimento'], primary: 'deltoide-anterior', secondary: ['deltoide-lateral', 'triceps'] },
-  { match: ['elevacao lateral', 'elevação lateral'], primary: 'deltoide-lateral', secondary: ['deltoide-anterior'] },
-  { match: ['rosca'], primary: 'biceps', secondary: ['antebraco'] },
-  { match: ['triceps', 'tríceps'], primary: 'triceps', secondary: ['antebraco'] },
-  { match: ['agachamento', 'leg press', 'extensora', 'afundo', 'passada'], primary: 'quadriceps', secondary: ['gluteos', 'adutores'] },
-  { match: ['flexora', 'stiff', 'terra', 'romeno'], primary: 'posterior-coxa', secondary: ['gluteos', 'lombar'] },
-  { match: ['elevacao pelvica', 'elevação pélvica', 'hip thrust'], primary: 'gluteos', secondary: ['posterior-coxa'] },
-  { match: ['panturrilha'], primary: 'panturrilhas', secondary: [] },
-  { match: ['prancha', 'abdominal', 'crunch'], primary: 'abdomen', secondary: ['obliquos'] },
-]
-
-function normalizeMuscleName(value) {
-  const normalized = normalizeText(String(value || '').replace(/_/g, ' ').replace(/-/g, ' '))
-  if (!normalized) return ''
-  if (muscleAliasMap.has(normalized)) return muscleAliasMap.get(normalized)
-  const partial = [...muscleAliasMap.entries()].find(([alias]) => alias.length > 3 && (normalized.includes(alias) || alias.includes(normalized)))
-  return partial?.[1] || ''
-}
-
-function splitMuscleValues(value) {
-  if (Array.isArray(value)) return value
-  return String(value || '')
-    .split(/,|;|\/|\+| e | and |&/i)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
-function uniqueMuscles(values) {
-  return [...new Set(values.map(normalizeMuscleName).filter(Boolean))]
-}
-
-function getExerciseMuscleProfile(exercise = {}) {
-  const primaryCandidates = [
-    exercise.primaryMuscle,
-    exercise.primary_muscle,
-    exercise.muscleGroup,
-    exercise.muscle_group,
-    exercise.group,
-    exercise.category,
-  ]
-  let primaryMuscle = ''
-  let secondaryMuscles = uniqueMuscles([
-    ...splitMuscleValues(exercise.secondaryMuscles),
-    ...splitMuscleValues(exercise.secondary_muscles),
-  ])
-
-  for (const candidate of primaryCandidates) {
-    const muscles = uniqueMuscles(splitMuscleValues(candidate))
-    if (muscles.length) {
-      primaryMuscle = primaryMuscle || muscles[0]
-      secondaryMuscles = [...secondaryMuscles, ...muscles.slice(1)]
-      break
-    }
-  }
-
-  if (!primaryMuscle) {
-    const normalizedName = normalizeText(exercise.name || '')
-    const inferred = exerciseNameMuscleRules.find((rule) => rule.match.some((term) => normalizedName.includes(normalizeText(term))))
-    if (inferred) {
-      primaryMuscle = inferred.primary
-      secondaryMuscles = [...secondaryMuscles, ...inferred.secondary]
-    }
-  }
-
-  secondaryMuscles = [...new Set(secondaryMuscles.filter((muscle) => muscle !== primaryMuscle))]
-  return {
-    primaryMuscle,
-    secondaryMuscles,
-    primaryLabel: muscleConfig[primaryMuscle]?.label || 'Músculo alvo não identificado',
-    secondaryLabels: secondaryMuscles.map((muscle) => muscleConfig[muscle]?.label).filter(Boolean),
-    view: muscleConfig[primaryMuscle]?.view || secondaryMuscles.map((muscle) => muscleConfig[muscle]?.view).find(Boolean) || 'front',
-  }
-}
-
-function MuscleMapMini({ exercise }) {
-  const profile = getExerciseMuscleProfile(exercise)
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-      <path d="M12 2.5a2.6 2.6 0 0 1 2.6 2.6 2.5 2.5 0 0 1-1.1 2.1l1.7 1.4 1.5 5.6-1.8.5-1.1-3.8-.9 3.5.7 6.7h-2l-.6-5.2-.6 5.2h-2l.7-6.7-.9-3.5-1.1 3.8-1.8-.5 1.5-5.6 1.7-1.4a2.5 2.5 0 0 1-1.1-2.1A2.6 2.6 0 0 1 12 2.5Z" fill="currentColor" opacity="0.32" />
-      <circle cx="12" cy="5.1" r="2.1" fill="currentColor" opacity="0.44" />
-      <path
-        d={profile.view === 'back' ? 'M8.7 8.6h6.6l1.2 4.6-2.7 3.2H10l-2.5-3.2Z' : 'M8.5 8.6h7l-1.1 4.8H9.6Z'}
-        fill="#34f5a5"
-      />
-    </svg>
-  )
-}
-
-function MuscleMap({ exercise, compact = false, className = '' }) {
-  const [hovered, setHovered] = useState('')
-  const profile = useMemo(() => getExerciseMuscleProfile(exercise), [exercise])
-  const activeMuscles = useMemo(() => {
-    const map = new Map()
-    if (profile.primaryMuscle) map.set(profile.primaryMuscle, 'primary')
-    profile.secondaryMuscles.forEach((muscle) => map.set(muscle, 'secondary'))
-    return map
-  }, [profile.primaryMuscle, profile.secondaryMuscles])
-  const view = profile.view === 'back' ? 'back' : 'front'
-  const hoveredConfig = hovered ? muscleConfig[hovered] : null
-
-  return (
-    <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Músculo alvo</p>
-          <p className="mt-1 text-sm font-black text-white">{profile.primaryLabel}</p>
-        </div>
-        <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-black uppercase text-zinc-300">{view === 'back' ? 'traseira' : 'frontal'}</span>
-      </div>
-      <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-36' : 'h-56'} w-full max-w-56`}>
-        <defs>
-          <filter id="muscleGlow" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="2.1" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <BodySilhouette view={view} />
-        <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} />
-      </svg>
-      <div className="mt-3 grid gap-2">
-        <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/35 bg-red-400/12 px-2.5 py-1 text-[11px] font-black text-red-100">
-            <span className="h-2 w-2 rounded-full bg-red-400" /> Músculo trabalhado
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300/20 bg-slate-300/10 px-2.5 py-1 text-[11px] font-black text-slate-200">
-            <span className="h-2 w-2 rounded-full bg-slate-400/80" /> Neutro
-          </span>
-        </div>
-        {profile.secondaryLabels.length ? (
-          <p className="text-xs leading-5 text-zinc-400">Auxiliares: {profile.secondaryLabels.join(', ')}</p>
-        ) : (
-          <p className="text-xs leading-5 text-zinc-500">Sem músculos auxiliares definidos para este exercício.</p>
-        )}
-        <p className="min-h-5 text-xs leading-5 text-emerald-100">
-          {hoveredConfig ? `${hoveredConfig.label}: ${hoveredConfig.description}` : 'Toque ou passe o mouse no mapa para ver detalhes.'}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function BodySilhouette({ view }) {
-  const neutral = '#86a0ad'
-  const neutralSoft = '#607986'
-  const outline = '#dbe7ec'
-  return (
-    <g opacity="0.98">
-      <circle cx="50" cy="11" r="7.2" fill="#f8fafc" stroke={outline} strokeWidth="0.9" />
-      <path d="M46 18h8l2 6H44Z" fill="#f8fafc" stroke={outline} strokeWidth="0.65" />
-      <path d="M39 24h22l7 28-6 29H38l-6-29 7-28Z" fill={neutralSoft} stroke={outline} strokeWidth="0.8" />
-      <path d="M41 27h8v51H39l-5-26Z" fill={neutral} opacity="0.92" />
-      <path d="M51 27h8l7 25-5 26H51Z" fill={neutral} opacity="0.92" />
-      <path d="M33 27 20 42l-7 34 8 2 8-28 8-14Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M67 27 80 42l7 34-8 2-8-28-8-14Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M23 47h8l-4 21h-8Z" fill={neutral} opacity="0.9" />
-      <path d="M69 47h8l4 21h-8Z" fill={neutral} opacity="0.9" />
-      <path d="M18 69h10l-3 17h-9Z" fill={neutralSoft} stroke={outline} strokeWidth="0.6" />
-      <path d="M72 69h10l2 17h-9Z" fill={neutralSoft} stroke={outline} strokeWidth="0.6" />
-      <path d="M37 80h12l-3 40H34l-4-23Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M51 80h12l7 17-4 23H54Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M37 84h7l-2 31h-7l-3-18Z" fill={neutral} opacity="0.9" />
-      <path d="M56 84h7l5 13-3 18h-7Z" fill={neutral} opacity="0.9" />
-      <path d="M43 120h-12l-1 6h15Z" fill="#f8fafc" stroke={outline} strokeWidth="0.55" />
-      <path d="M57 120h12l1 6H55Z" fill="#f8fafc" stroke={outline} strokeWidth="0.55" />
-      <path d="M49 28h2v50h-2Z" fill="#e2edf1" opacity="0.42" />
-      {view === 'back' ? <path d="M41 25h18l-9 10Z" fill="#475e69" opacity="0.75" /> : <path d="M43 25h14l-7 7Z" fill="#edf5f7" opacity="0.78" />}
-    </g>
-  )
-}
-
-function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
-  const primary = '#ef4444'
-  const secondary = 'rgba(239, 68, 68, 0.72)'
-  const idle = 'rgba(255,255,255,0.10)'
-
-  function regionProps(key) {
-    const state = activeMuscles.get(key)
-    const active = Boolean(state)
-    return {
-      role: 'img',
-      tabIndex: 0,
-      'aria-label': `${muscleConfig[key]?.label || key}${state === 'primary' ? ', músculo principal' : state === 'secondary' ? ', músculo auxiliar' : ''}`,
-      onMouseEnter: () => onHover(key),
-      onMouseLeave: () => onHover(''),
-      onFocus: () => onHover(key),
-      onBlur: () => onHover(''),
-      fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
-      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.22)',
-      strokeWidth: state === 'primary' ? 1.35 : 0.75,
-      opacity: active ? 1 : 0.42,
-      filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,
-      style: { cursor: 'pointer', transition: 'fill 180ms ease, opacity 180ms ease, stroke 180ms ease, transform 180ms ease', transformOrigin: 'center' },
-    }
-  }
-
-  const front = (
-    <>
-      <ellipse cx="43" cy="34" rx="8" ry="7" {...regionProps('peitoral')}><title>Peitoral</title></ellipse>
-      <ellipse cx="57" cy="34" rx="8" ry="7" {...regionProps('peitoral')}><title>Peitoral</title></ellipse>
-      <path d="M39 27h22l-4 5H43Z" {...regionProps('peitoral-superior')}><title>Peitoral superior</title></path>
-      <path d="M43 44h14l3 25H40Z" {...regionProps('abdomen')}><title>Abdômen</title></path>
-      <path d="M36 44h7l-3 24h-6Z" {...regionProps('obliquos')}><title>Oblíquos</title></path>
-      <path d="M57 44h7l2 24h-6Z" {...regionProps('obliquos')}><title>Oblíquos</title></path>
-      <ellipse cx="32" cy="30" rx="6" ry="8" {...regionProps('deltoide-anterior')}><title>Deltoide anterior</title></ellipse>
-      <ellipse cx="68" cy="30" rx="6" ry="8" {...regionProps('deltoide-anterior')}><title>Deltoide anterior</title></ellipse>
-      <ellipse cx="29" cy="36" rx="5" ry="9" {...regionProps('deltoide-lateral')}><title>Deltoide lateral</title></ellipse>
-      <ellipse cx="71" cy="36" rx="5" ry="9" {...regionProps('deltoide-lateral')}><title>Deltoide lateral</title></ellipse>
-      <path d="M24 44h9l-5 21h-8Z" {...regionProps('biceps')}><title>Bíceps</title></path>
-      <path d="M67 44h9l4 21h-8Z" {...regionProps('biceps')}><title>Bíceps</title></path>
-      <path d="M18 66h10l-3 19h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M72 66h10l2 19h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M35 84h14l-4 35H33l-4-20Z" {...regionProps('quadriceps')}><title>Quadríceps</title></path>
-      <path d="M51 84h14l6 15-4 20H55Z" {...regionProps('quadriceps')}><title>Quadríceps</title></path>
-      <path d="M47 86h6l-1 31h-4Z" {...regionProps('adutores')}><title>Adutores</title></path>
-      <path d="M31 88h6l-6 25-4-12Z" {...regionProps('abdutores')}><title>Abdutores</title></path>
-      <path d="M63 88h6l4 13-4 12Z" {...regionProps('abdutores')}><title>Abdutores</title></path>
-      <path d="M34 119h12l-2 10H32Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
-      <path d="M54 119h12l2 10H56Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
-    </>
-  )
-
-  const back = (
-    <>
-      <path d="M39 24h22l7 31-8 17H40l-8-17Z" {...regionProps('costas')}><title>Costas</title></path>
-      <path d="M34 35h13l-8 32-9-16Z" {...regionProps('dorsal')}><title>Dorsal</title></path>
-      <path d="M53 35h13l4 16-9 16Z" {...regionProps('dorsal')}><title>Dorsal</title></path>
-      <path d="M41 23h18l-5 12h-8Z" {...regionProps('trapezio')}><title>Trapézio</title></path>
-      <path d="M42 63h16l3 15H39Z" {...regionProps('lombar')}><title>Lombar</title></path>
-      <ellipse cx="31" cy="32" rx="6" ry="9" {...regionProps('deltoide-posterior')}><title>Deltoide posterior</title></ellipse>
-      <ellipse cx="69" cy="32" rx="6" ry="9" {...regionProps('deltoide-posterior')}><title>Deltoide posterior</title></ellipse>
-      <path d="M23 44h9l-5 24h-9Z" {...regionProps('triceps')}><title>Tríceps</title></path>
-      <path d="M68 44h9l5 24h-9Z" {...regionProps('triceps')}><title>Tríceps</title></path>
-      <path d="M18 68h10l-3 18h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M72 68h10l2 18h-9Z" {...regionProps('antebraco')}><title>Antebraço</title></path>
-      <path d="M36 78h28l4 17-18 8-18-8Z" {...regionProps('gluteos')}><title>Glúteos</title></path>
-      <path d="M34 95h14l-3 24H33l-4-19Z" {...regionProps('posterior-coxa')}><title>Posterior de coxa</title></path>
-      <path d="M52 95h14l5 5-4 19H55Z" {...regionProps('posterior-coxa')}><title>Posterior de coxa</title></path>
-      <path d="M34 119h12l-2 10H32Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
-      <path d="M54 119h12l2 10H56Z" {...regionProps('panturrilhas')}><title>Panturrilhas</title></path>
-    </>
-  )
-
-  return view === 'back' ? back : front
-}
-
-function ExerciseMuscleSummary({ exercise, compact = false }) {
-  const profile = getExerciseMuscleProfile(exercise)
-  return (
-    <div className={`grid gap-3 ${compact ? '' : 'lg:grid-cols-[0.82fr_1fr] lg:items-stretch'}`}>
-      <MuscleMap exercise={exercise} compact={compact} />
-      <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
-            <NavIcon name="muscle" className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Principal</p>
-            <p className="mt-1 text-base font-black text-white">{profile.primaryLabel}</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-300/20 bg-teal-300/10 text-teal-100">
-            <NavIcon name="layers" className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Auxiliares</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{profile.secondaryLabels.length ? profile.secondaryLabels.join(', ') : 'Não definidos'}</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-            <NavIcon name="bulb" className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Dica técnica</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{getExerciseTechniqueTip(exercise)}</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-rose-300/20 bg-rose-300/10 text-rose-100">
-            <NavIcon name="alert" className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Erro comum</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{getExerciseCommonMistake(exercise)}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function getExerciseTechniqueTip(exercise = {}) {
-  if (exercise.tips) return exercise.tips
-  const profile = getExerciseMuscleProfile(exercise)
-  const tips = {
-    peitoral: 'Mantenha escápulas firmes e controle a descida antes de empurrar.',
-    'peitoral-superior': 'Use banco inclinado sem perder a linha do punho com o cotovelo.',
-    costas: 'Puxe com os cotovelos e mantenha o tronco estável.',
-    dorsal: 'Comece deprimindo as escápulas antes de puxar.',
-    quadriceps: 'Joelhos acompanham a direção dos pés durante toda a repetição.',
-    gluteos: 'Finalize contraindo glúteos sem hiperestender a lombar.',
-    'posterior-coxa': 'Empurre o quadril para trás e preserve a coluna neutra.',
-    biceps: 'Cotovelos próximos ao tronco e descida controlada.',
-    triceps: 'Cotovelos estáveis e extensão completa com controle.',
-    abdomen: 'Contraia o abdômen e evite compensar com pescoço ou lombar.',
-  }
-  return tips[profile.primaryMuscle] || exercise.instructions || 'Execute com amplitude controlada, respiração organizada e técnica acima da carga.'
-}
-
-function getExerciseCommonMistake(exercise = {}) {
-  if (exercise.commonMistakes) return exercise.commonMistakes
-  const profile = getExerciseMuscleProfile(exercise)
-  const mistakes = {
-    peitoral: 'Perder a posição dos ombros ou quicar a carga no peito.',
-    'peitoral-superior': 'Inclinar demais o banco e transformar em movimento de ombro.',
-    costas: 'Puxar com impulso e deixar os ombros subirem.',
-    dorsal: 'Dobrar o tronco para terminar a repetição.',
-    quadriceps: 'Fechar os joelhos para dentro ou perder controle na descida.',
-    gluteos: 'Compensar com lombar no final do movimento.',
-    'posterior-coxa': 'Arredondar a coluna para buscar mais amplitude.',
-    biceps: 'Balançar o tronco para subir a carga.',
-    triceps: 'Abrir os cotovelos e perder tensão no alvo.',
-    abdomen: 'Prender a respiração e perder alinhamento do tronco.',
-  }
-  return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execução prescrita.'
-}
-
 function ExerciseMedia({ exercise, compact = false }) {
-  if (exercise.videoPreviewUrl) {
-    return (
-      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Prévia do vídeo do coach</summary>
-        <div className="aspect-video border-t border-white/10 bg-black">
-          <video
-            src={exercise.videoPreviewUrl}
-            controls
-            preload="metadata"
-            playsInline
-            className="h-full w-full bg-black object-contain"
-          />
-        </div>
-      </details>
-    )
-  }
   const videoUrl = safeExternalUrl(exercise.videoUrl)
   const embedUrl = getVideoEmbedUrl(exercise.videoUrl)
   const hasCustomVideo = Boolean(videoUrl)
 
-  if (videoUrl && isDirectVideoUrl(videoUrl)) {
+  if (videoUrl && isDirectVideoUrl(videoUrl) && !compact) {
     return (
-      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
-        <div className="aspect-video border-t border-white/10 bg-black">
-          <video
-            src={videoUrl}
-            controls
-            preload="metadata"
-            playsInline
-            className="h-full w-full bg-black object-contain"
-          />
-        </div>
-      </details>
+      <div className="overflow-hidden rounded-md border border-emerald-300/20 bg-black">
+        <video
+          src={videoUrl}
+          controls
+          preload="metadata"
+          playsInline
+          className="aspect-video h-full w-full bg-black object-contain"
+        />
+      </div>
     )
   }
 
-  if (embedUrl) {
+  if (embedUrl && !compact) {
     return (
       <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Assistir vídeo de execução</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <iframe
             src={embedUrl}
@@ -10325,51 +4819,15 @@ function ExerciseMedia({ exercise, compact = false }) {
     )
   }
 
-  return <ExerciseTechniqueCard exercise={exercise} compact={compact} />
-}
-
-function ExerciseTechniqueCard({ exercise, compact = false }) {
-  const target = exercise.muscleGroup || 'Músculo alvo'
-  const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
   return (
-    <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
-          {imageUrl ? (
-            <img src={imageUrl} alt={`Execução de ${exercise.name}`} className="h-full w-full object-cover" />
-          ) : (
-            <>
-              <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
-              <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
-              <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
-              <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
-              <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
-              <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
-            </>
-          )}
-          <span className="absolute bottom-2 left-2 rounded-full border border-emerald-300/25 bg-zinc-950/80 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">
-            {target}
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-black uppercase text-emerald-200">Vídeo ainda não cadastrado na biblioteca</p>
-          <p className="mt-1 text-sm leading-6 text-zinc-300">
-            {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
-          </p>
-          <p className="mt-2 text-xs leading-5 text-zinc-500">
-            O treinador pode vincular um vídeo próprio ou um vídeo da biblioteca para este exercício aparecer aqui.
-          </p>
-          <a
-            href={getExerciseVideoUrl(exercise)}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100"
-          >
-            Buscar execução no YouTube
-          </a>
-        </div>
-      </div>
-    </div>
+    <a
+      href={getExerciseVideoUrl(exercise)}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
+    >
+      Buscar vídeo de execução no YouTube
+    </a>
   )
 }
 
@@ -10420,7 +4878,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
         workoutId: workout.id,
         title: workout.title,
         effort: form.get('effort')?.toString() || 'Moderado',
-        notes: [form.get('setsLog')?.toString(), form.get('notes')?.toString()].filter(Boolean).join('\n\n') || '',
+        notes: form.get('notes')?.toString() || '',
       })
       setMessage('Treino concluído. +80 XP adicionados ao ranking de evolução.')
       formElement.reset()
@@ -10445,181 +4903,13 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
   )
 }
 
-function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const exercises = (workout?.exercises || []).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
-  const [loads, setLoads] = useState({})
-  const [effort, setEffort] = useState('Moderado')
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-
-  if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
-
-  function updateLoad(index, value) {
-    setLoads((current) => ({ ...current, [index]: value }))
-  }
-
-  async function finishWorkout() {
-    if (preview || !onCompleteWorkout) return
-
-    const loadNotes = exercises
-      .map((exercise, index) => ({ exercise, value: String(loads[index] || '').trim() }))
-      .filter((item) => item.value)
-      .map((item) => `${item.exercise.name}: ${item.value}`)
-
-    setSaving(true)
-    setMessage('')
-    setError('')
-    try {
-      await onCompleteWorkout({
-        coachId: workout.coachId,
-        studentId: student.id,
-        workoutId: workout.id,
-        title: workout.title,
-        effort,
-        notes: loadNotes.length
-          ? `Cargas registradas pelo aluno:\n${loadNotes.join('\n')}`
-          : 'Treino concluído pelo aluno no app.',
-      })
-      setMessage('Treino concluído. +80 XP adicionados ao ranking e ao histórico de evolução.')
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível concluir o treino.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="grid gap-4">
-      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase text-emerald-200">{preview ? 'Prévia do aluno' : 'Execução do treino'}</p>
-            <h4 className="mt-1 text-xl font-black text-white">{workout.title}</h4>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{workout.focus || student.goal || 'Plano do dia'}</p>
-          </div>
-          <div className="rounded-xl border border-emerald-300/20 bg-zinc-950/55 px-3 py-2 text-sm font-black text-emerald-100">
-            +80 XP ao concluir
-          </div>
-        </div>
-        {workout.notes ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
-      </div>
-
-      {exercises.length ? (
-        <div className="grid gap-3">
-          {exercises.map((exercise, index) => (
-            <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition duration-200 hover:border-emerald-300/25 active:scale-[0.995]">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
-                  <h5 className="mt-1 text-lg font-black text-white">{exercise.name}</h5>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    {exercise.muscleGroup || 'Movimento personalizado'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                  <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-                  <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
-                  <ExerciseMetric label="Carga alvo" value={exercise.load || '-'} />
-                  <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
-                </div>
-              </div>
-
-              {exercise.instructions ? (
-                <p className="mt-3 rounded-xl border border-white/10 bg-zinc-950/55 p-3 text-sm leading-6 text-zinc-300">
-                  {exercise.instructions}
-                </p>
-              ) : null}
-
-              <div className="mt-4">
-                <ExerciseMuscleSummary exercise={exercise} compact />
-              </div>
-
-              <label className="mt-4 grid gap-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
-                Carga realizada pelo aluno
-                <input
-                  value={loads[index] || ''}
-                  disabled={preview}
-                  onChange={(event) => updateLoad(index, event.target.value)}
-                  placeholder={preview ? 'O aluno registra aqui a carga usada' : 'Ex.: 80 kg, 12 reps, RPE 8'}
-                  className="min-h-11 min-w-0 rounded-xl border border-emerald-300/20 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-400 disabled:opacity-70 sm:text-sm"
-                />
-              </label>
-
-              <div className="mt-3">
-                <ExerciseMedia exercise={exercise} compact />
-                <div className="mt-2">
-                  <ExerciseYouTubeLink exercise={exercise} compact />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <Empty text="Este treino ainda não possui exercícios cadastrados." />
-      )}
-
-      {!preview ? (
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
-          <label className="grid gap-2 text-sm font-bold text-zinc-300">
-            Como foi o esforço?
-            <select
-              value={effort}
-              onChange={(event) => setEffort(event.target.value)}
-              className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-400 sm:text-sm"
-            >
-              {['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={finishWorkout}
-            className="mt-4 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/25 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-          >
-            {saving ? 'Salvando...' : 'Concluir treino e ganhar XP'}
-          </button>
-          {message ? <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
-          {error ? <p className="mt-3 text-sm font-bold text-rose-200">{error}</p> : null}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan, onArchiveNutritionPlan }) {
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
-  const activePlan = studentPlans[0]
-  const activeMeals = activePlan?.meals?.length || 0
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-      <section className="xl:col-span-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(9,20,18,0.96),rgba(5,8,10,0.96))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
-        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-200">
-              <NavIcon name="nutrition" className="h-4 w-4" />
-              Central nutricional
-            </span>
-            <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">
-              Monte dietas claras, com macros automáticos e opções de substituição.
-            </h3>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
-              O treinador escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O aluno vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <NutritionQuickStat icon="nutrition" label="Biblioteca" value={`${foodDatabase.length}+`} detail="alimentos" />
-            <NutritionQuickStat icon="calendar" label="Refeições" value={activeMeals || '-'} detail="ativas" />
-            <NutritionQuickStat icon="chart" label="Plano atual" value={activePlan?.calories || selectedStudent?.calories || '-'} detail={activePlan?.protein || 'macros'} />
-          </div>
-        </div>
-      </section>
-
       <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action={`${foodDatabase.length}+ alimentos`}>
         {students.length ? (
           <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
@@ -10635,19 +4925,6 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
   )
 }
 
-function NutritionQuickStat({ icon, label, value, detail }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
-      <div className="mb-3 grid h-10 w-10 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
-        <NavIcon name={icon} className="h-5 w-5" />
-      </div>
-      <p className="text-xs font-black uppercase text-zinc-400">{label}</p>
-      <p className="mt-1 text-xl font-black text-white">{value}</p>
-      <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
-    </div>
-  )
-}
-
 function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const [meals, setMeals] = useState([
     { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
@@ -10658,234 +4935,6 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const planTotals = sumMacros(meals.map(calculateMealMacros))
-  const totalMeals = meals.length
-  const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
-
-  function updateMeal(index, field, value) {
-    setMeals((current) => current.map((meal, itemIndex) => (
-      itemIndex === index ? { ...meal, [field]: value } : meal
-    )))
-  }
-
-  function replaceMealItem(mealIndex, itemIndex, nextItem) {
-    setMeals((current) => current.map((meal, currentMealIndex) => {
-      if (currentMealIndex !== mealIndex) return meal
-
-      return {
-        ...meal,
-        items: meal.items.map((item, currentItemIndex) => (
-          currentItemIndex === itemIndex ? nextItem : item
-        )),
-      }
-    }))
-  }
-
-  function addMeal() {
-    setMeals((current) => [...current, { name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
-  }
-
-  function removeMeal(index) {
-    setMeals((current) => current.filter((_, itemIndex) => itemIndex !== index))
-  }
-
-  function addMealItem(mealIndex) {
-    setMeals((current) => current.map((meal, index) => (
-      index === mealIndex
-        ? { ...meal, items: [...meal.items, { category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }
-        : meal
-    )))
-  }
-
-  function removeMealItem(mealIndex, itemIndex) {
-    setMeals((current) => current.map((meal, index) => (
-      index === mealIndex ? { ...meal, items: meal.items.filter((_, currentItemIndex) => currentItemIndex !== itemIndex) } : meal
-    )))
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const filledMeals = meals
-      .filter((meal) => meal.name.trim())
-      .map((meal) => {
-        const totals = calculateMealMacros(meal)
-        return {
-          name: meal.name,
-          time: meal.time,
-          foods: meal.items
-            .filter((item) => item.foodName && Number(item.grams) > 0)
-            .map((item) => {
-              const alternatives = getEquivalentSubstitutions(item)
-              const suffix = alternatives.length
-                ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
-                : ''
-              return `${item.foodName} (${item.grams}g)${suffix}`
-            })
-            .join(', '),
-          macros: formatMacroSummary(totals),
-        }
-      })
-
-    setSaving(true)
-    setMessage('')
-    setError('')
-    try {
-      if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeição com alimentos e quantidades válidas.')
-      await onSaveNutritionPlan({
-        studentId: form.get('studentId')?.toString() || '',
-        title: form.get('title')?.toString() || 'Plano alimentar',
-        calories: `${Math.round(planTotals.calories)} kcal`,
-        protein: `${roundMacro(planTotals.protein)} g`,
-        notes: form.get('notes')?.toString() || '',
-        meals: filledMeals,
-      })
-      setMessage('Dieta salva com macros calculados automaticamente.')
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar a dieta.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
-      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
-                <NavIcon name="nutrition" className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="font-black text-emerald-100">Assistente inteligente de alimentos</p>
-                <p className="text-xs font-bold uppercase text-zinc-500">macros, porções e substituições em um só fluxo</p>
-              </div>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
-            </p>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:w-[420px]">
-            {['Escolha o alimento', 'Ajuste as gramas', 'Confira os macros'].map((step, index) => (
-              <div key={step} className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
-                <p className="mt-2 text-xs font-black text-zinc-100">{step}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <Select
-        label="Aluno"
-        name="studentId"
-        defaultValue={selectedStudent?.id}
-        options={students.map((student) => ({ label: student.name, value: student.id }))}
-      />
-
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <Field label="Nome da dieta" name="title" defaultValue="Plano base" />
-        <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
-          <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
-          <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
-          <NutritionQuickStat icon="chart" label="Calorias" value={`${Math.round(planTotals.calories)}`} detail="kcal" />
-          <NutritionQuickStat icon="dumbbell" label="Proteína" value={`${roundMacro(planTotals.protein)} g`} detail="calculada" />
-        </div>
-      </div>
-
-      <MacroSummaryGrid totals={planTotals} />
-      <TextArea label="Observações para o aluno" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." />
-
-      <div className="space-y-4">
-        {meals.map((meal, mealIndex) => {
-          const mealTotals = calculateMealMacros(meal)
-
-          return (
-            <div key={mealIndex} className="rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4 shadow-xl shadow-black/10">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-sm font-black text-emerald-100">
-                    {mealIndex + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-black text-white">Refeição {mealIndex + 1}</p>
-                    <p className="text-xs font-bold text-zinc-500">{meal.items.length} alimento(s) neste horário</p>
-                  </div>
-                </div>
-                <button type="button" onClick={() => removeMeal(mealIndex)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
-                  Remover refeição
-                </button>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
-                <InlineInput label="Refeição" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
-                <InlineInput label="Horário" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
-              </div>
-
-              <div className="mt-4">
-                <MacroSummaryGrid totals={mealTotals} compact />
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {meal.items.map((item, itemIndex) => {
-                  const itemTotals = calculateFoodItemMacros(item)
-
-                  return (
-                    <NutritionFoodItem
-                      key={itemIndex}
-                      item={item}
-                      totals={itemTotals}
-                      onChange={(nextItem) => replaceMealItem(mealIndex, itemIndex, nextItem)}
-                      onRemove={() => removeMealItem(mealIndex, itemIndex)}
-                    />
-                  )
-                })}
-              </div>
-
-              <button type="button" onClick={() => addMealItem(mealIndex)} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15">
-                <NavIcon name="plus" className="h-4 w-4" />
-                Adicionar alimento
-              </button>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={addMeal} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
-          <NavIcon name="plus" className="h-4 w-4" />
-          Adicionar refeição
-        </button>
-        <button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">
-          {saving ? 'Salvando...' : 'Salvar dieta'}
-        </button>
-      </div>
-      {message ? (
-        <p className="rounded-xl border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
-          {message}
-        </p>
-      ) : null}
-      {error ? (
-        <p className="rounded-xl border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">
-          {error}
-        </p>
-      ) : null}
-    </form>
-  )
-}
-
-function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan }) {
-  const [meals, setMeals] = useState([
-    { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
-    { name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 160 }] },
-  ])
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const planTotals = sumMacros(meals.map(calculateMealMacros))
-  const totalMeals = meals.length
-  const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
 
   function updateMeal(index, field, value) {
     setMeals((current) => current.map((meal, itemIndex) => (
@@ -11073,105 +5122,6 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
 }
 
 function NutritionPlanList({ plans, selectedStudent, onArchive }) {
-  const [archivingId, setArchivingId] = useState('')
-
-  async function handleArchive(plan) {
-    if (!onArchive) return
-    if (!window.confirm(`Arquivar a dieta "${plan.title}"? Ela deixará de aparecer para o aluno.`)) return
-    setArchivingId(String(plan.id))
-    try {
-      await onArchive(plan.id)
-    } finally {
-      setArchivingId('')
-    }
-  }
-
-  if (!plans.length) {
-    return (
-      <div className="space-y-3">
-        <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
-          <Info label="Proteína da ficha" value={selectedStudent?.protein ?? '-'} />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      {plans.map((plan) => {
-        const meals = Array.isArray(plan.meals) ? plan.meals : []
-
-        return (
-          <article key={plan.id} className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
-            <div className="border-b border-white/10 bg-emerald-300/[0.055] p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
-                    <NavIcon name="nutrition" className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
-                    <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      Plano alimentar organizado por horário, macros e substituições.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
-                    Ativa
-                  </span>
-                  {onArchive ? (
-                    <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100 disabled:opacity-50">
-                      {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <NutritionQuickStat icon="chart" label="Calorias" value={plan.calories || '-'} detail="meta diária" />
-                <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan.protein || '-'} detail="por dia" />
-                <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
-              </div>
-            </div>
-
-            <div className="space-y-3 p-4">
-              {plan.notes ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p>
-                </div>
-              ) : null}
-
-              {meals.map((meal, index) => (
-                <div key={meal.id ?? `${meal.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex min-w-0 gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <h5 className="break-words font-black text-white">{meal.time ? `${meal.time} - ` : ''}{meal.name}</h5>
-                        <p className="mt-2 break-words text-sm leading-6 text-zinc-300">{meal.foods}</p>
-                      </div>
-                    </div>
-                    <span className="w-fit shrink-0 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black leading-5 text-emerald-100">
-                      {meal.macros || 'Macros calculados'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
-        )
-      })}
-    </div>
-  )
-}
-
-function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(plan) {
@@ -11486,7 +5436,6 @@ function StudentPortalPreview({
   workouts = [],
   nutritionPlans = [],
   workoutLogs = [],
-  exerciseLibraryItems = [],
   messages = [],
   appointments = [],
   invoices = [],
@@ -11500,7 +5449,6 @@ function StudentPortalPreview({
   onRemoteError,
   canGenerateInvite = true,
 }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(student?.id) && workout.active !== false
@@ -11649,21 +5597,12 @@ function StudentPortalPreview({
 
       <Panel title="Treino de hoje" action={studentWorkouts[0]?.title ?? student.workout}>
         {studentWorkouts.length ? (
-          <div className="grid gap-4">
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
-              <p className="text-xs font-black uppercase text-emerald-200">O que o aluno enxerga</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Esta prévia mostra a tela de execução do treino com vídeo, orientação e campo de carga que o aluno registra no celular.
-              </p>
-            </div>
-        <StudentWorkoutExecution
-          student={student}
-          workout={studentWorkouts[0]}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onCompleteWorkout={onCompleteWorkout}
-          preview
-        />
-          </div>
+          <>
+            <WorkoutList workouts={studentWorkouts.slice(0, 2)} fallbackTitle={student.workout} />
+            {onCompleteWorkout ? (
+              <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={onCompleteWorkout} />
+            ) : null}
+          </>
         ) : (
           <div className="space-y-3">
             {workoutPlan.slice(0, 3).map((item) => (
@@ -12341,7 +6280,7 @@ function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -12366,14 +6305,12 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       workouts={workouts}
       nutritionPlans={nutritionPlans}
       workoutLogs={workoutLogs}
-      exerciseLibraryItems={exerciseLibraryItems}
       messages={messages}
       appointments={appointments}
       invoices={invoices}
       assessments={assessments}
       coachSettings={coachSettings}
       coachId={access.invite.coachId}
-      appAdminSettings={appAdminSettings}
       onCompleteWorkout={completeStudentWorkout}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
@@ -12382,8 +6319,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, coachId, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('inicio')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
@@ -12590,12 +6526,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           </div>
           {studentWorkouts.length ? (
             <>
-              <StudentWorkoutExecution
-                student={student}
-                workout={studentWorkouts[0]}
-                exerciseLibraryItems={availableExerciseLibrary}
-                onCompleteWorkout={completeWorkoutFromStudent}
-              />
+              <WorkoutList workouts={studentWorkouts.slice(0, 1)} fallbackTitle={student.workout} />
               {feedbackPrompt ? (
                 <WorkoutFeedbackPrompt
                   prompt={feedbackPrompt}
@@ -12608,6 +6539,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                   }}
                 />
               ) : null}
+              {onCompleteWorkout ? <CompleteWorkoutForm student={student} workout={studentWorkouts[0]} onCompleteWorkout={completeWorkoutFromStudent} /> : null}
             </>
           ) : (
             <Empty text="Seu treino ainda não foi liberado pelo coach." />
@@ -12617,39 +6549,8 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
     }
 
     if (activeTab === 'dieta') {
-      const todayPlan = studentNutritionPlans[0]
       return (
-        <StudentAppSection title="Dieta de hoje" action={todayPlan?.calories || student.calories || 'Macros'}>
-          {todayPlan ? (
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 shadow-xl shadow-emerald-950/10">
-              <div className="flex items-start gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-100">
-                  <NavIcon name="nutrition" className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-200">Plano alimentar liberado</p>
-                  <h3 className="mt-1 break-words text-xl font-black text-white">{todayPlan.title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    Siga uma refeição por vez. As substituições ficam dentro de cada alimento para manter os macros alinhados.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Kcal</p>
-                  <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.calories || '-'}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Proteína</p>
-                  <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.protein || '-'}</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Refeições</p>
-                  <p className="mt-1 text-sm font-black text-white">{todayPlan.meals?.length || 0}</p>
-                </div>
-              </div>
-            </div>
-          ) : null}
+        <StudentAppSection title="Dieta de hoje" action={studentNutritionPlans[0]?.calories || student.calories || 'Macros'}>
           <StudentReminderCard
             title="Lembrete de refeição"
             body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
@@ -12700,7 +6601,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   }
 
   return (
-    <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
+    <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <BrandLockup compact subtitle="Coach Fit Pro" />
@@ -12883,9 +6784,6 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
-              <div className="mb-3">
-                <RankMedal icon={reward.levelIcon} label={reward.levelName} />
-              </div>
               <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
               <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
             </div>
@@ -12943,9 +6841,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
               }`}>
                 <span className="text-[10px] font-black uppercase">{day.label}</span>
                 <span className="mt-1 text-base font-black">{day.dayNumber}</span>
-                <span className="mt-1 grid h-5 min-w-5 place-items-center rounded-full text-[10px] font-bold">
-                  {day.completed ? <NavIcon name="check" className="h-4 w-4" /> : day.isToday ? 'hoje' : '-'}
-                </span>
+                <span className="mt-1 text-[10px] font-bold">{day.completed ? 'feito' : day.isToday ? 'hoje' : '-'}</span>
               </div>
             ))}
           </div>
@@ -12979,11 +6875,11 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
   const hydrationXp = waterPercent >= 100 ? 40 : waterPercent >= 80 ? 25 : 0
   const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp)
   const levels = [
-    { name: 'Selo Bronze', min: 0, icon: 'bronze', tone: 'from-amber-700 to-orange-300' },
-    { name: 'Selo Prata', min: 450, icon: 'prata', tone: 'from-slate-500 to-zinc-100' },
-    { name: 'Selo Ouro', min: 900, icon: 'ouro', tone: 'from-yellow-600 to-amber-200' },
-    { name: 'Selo Diamante', min: 1600, icon: 'diamante', tone: 'from-cyan-400 to-emerald-200' },
-    { name: 'Elite Coach Fit', min: 2600, icon: 'elite', tone: 'from-emerald-300 to-lime-200' },
+    { name: 'Selo Bronze', min: 0 },
+    { name: 'Selo Prata', min: 450 },
+    { name: 'Selo Ouro', min: 900 },
+    { name: 'Selo Diamante', min: 1600 },
+    { name: 'Elite Coach Fit', min: 2600 },
   ]
   const currentIndex = levels.reduce((index, level, levelIndex) => (xp >= level.min ? levelIndex : index), 0)
   const current = levels[currentIndex]
@@ -12994,8 +6890,6 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
   return {
     xp,
     levelName: current.name,
-    levelIcon: current.icon,
-    levelTone: current.tone,
     nextLevelName: next?.name || 'Ranking máximo',
     remainingXp,
     progress: Math.min(100, Math.max(0, progress)),
@@ -13011,24 +6905,6 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
       { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
     ],
   }
-}
-
-function RankMedal({ icon = 'bronze', label = 'Selo Bronze', size = 'md' }) {
-  const tone = {
-    bronze: 'from-amber-800 via-orange-500 to-amber-200 text-amber-950',
-    prata: 'from-slate-500 via-zinc-200 to-white text-zinc-950',
-    ouro: 'from-yellow-700 via-amber-300 to-yellow-100 text-yellow-950',
-    diamante: 'from-cyan-500 via-emerald-200 to-white text-cyan-950',
-    elite: 'from-emerald-500 via-lime-200 to-white text-emerald-950',
-  }[icon] || 'from-amber-800 via-orange-500 to-amber-200 text-amber-950'
-  const dimensions = size === 'sm' ? 'h-10 w-10' : 'h-14 w-14'
-
-  return (
-    <span className={`relative grid ${dimensions} shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${tone} shadow-lg shadow-black/25`} title={label} aria-label={label}>
-      <span className="absolute inset-1 rounded-xl border border-black/20" />
-      <NavIcon name={icon === 'diamante' ? 'star' : 'trophy'} className={size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'} />
-    </span>
-  )
 }
 
 function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' }) {
@@ -13075,16 +6951,6 @@ function countWorkoutLogsThisMonth(logs = []) {
   return logs.filter((log) => {
     const date = new Date(log.completedAt)
     return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
-  }).length
-}
-
-function countWorkoutLogsThisWeek(logs = []) {
-  const start = getWeekStart(new Date())
-  const end = new Date(start)
-  end.setDate(start.getDate() + 7)
-  return (Array.isArray(logs) ? logs : []).filter((log) => {
-    const date = new Date(log?.completedAt || log?.createdAt || log?.date)
-    return Number.isFinite(date.getTime()) && date >= start && date < end
   }).length
 }
 
@@ -13547,7 +7413,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
 
     return {
       ...plan,
-      checkoutUrl: appendAttributionToCheckoutUrl(resolveCheckoutUrl(envUrl, plan.checkoutUrl), plan.id),
+      checkoutUrl: resolveCheckoutUrl(envUrl, plan.checkoutUrl),
     }
   })
   const subscriptionActive = isCoachSubscriptionActive(subscription)
@@ -13568,14 +7434,8 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   const firstMonthTotal = firstMonthPrice
   const regularTotal = regularPrice
   const currentBillingTotal = billingCycle.isPromotional ? firstMonthTotal : regularTotal
-  const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || appendAttributionToCheckoutUrl(regularCheckoutUrl, selectedCheckoutPlanId)
+  const currentCheckoutUrl = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId)?.checkoutUrl || regularCheckoutUrl
   const selectedCheckoutPlan = checkoutPlans.find((plan) => plan.id === selectedCheckoutPlanId) || checkoutPlans[0]
-  const selectedCyclePrice = selectedCheckoutPlan.id === 'mensal'
-    ? formatCurrency(billingCycle.isPromotional ? firstMonthPrice : regularPrice)
-    : selectedCheckoutPlan.price
-  const selectedCycleSuffix = selectedCheckoutPlan.id === 'mensal'
-    ? (billingCycle.isPromotional ? 'no 1º mês' : '/mês')
-    : selectedCheckoutPlan.suffix
   const retainedRevenue = Math.max(estimatedRevenue - regularTotal, 0)
   const costShare = estimatedRevenue > 0 ? (regularTotal / estimatedRevenue) * 100 : 0
   const returnMultiple = regularTotal > 0 ? estimatedRevenue / regularTotal : 0
@@ -13607,14 +7467,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
       const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
       if (stopped) return
       if (result?.active) {
-        setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
-        recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
+        setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
         stopped = true
-      } else if (attempts >= 120) {
-        setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
+      } else if (attempts >= 24) {
+        setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que o provedor enviar o pagamento aprovado, o painel será liberado.')
         stopped = true
       } else {
-        setPaymentMessage('Aguardando confirmação do pagamento. Use o mesmo e-mail da conta no checkout para a liberação automática funcionar.')
+        setPaymentMessage('Aguardando confirmação do pagamento. Pode levar alguns instantes após o checkout.')
       }
       busy = false
     }
@@ -13668,8 +7527,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
     if (!silent) setPaymentMessage('Verificando pagamento...')
     const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
     if (result?.active) {
-      setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
-      recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
+      setPaymentMessage('Pagamento confirmado. O painel foi liberado automaticamente.')
     } else if (!silent) {
       setPaymentMessage('Pagamento ainda não confirmado. Use o mesmo e-mail da conta no checkout e aguarde alguns instantes.')
     }
@@ -13689,25 +7547,24 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
   function handleCheckoutClick(planId = selectedCheckoutPlanId) {
     chooseCheckoutPlan(planId)
     setCheckoutStarted(true)
-    recordLeadEvent('checkout_clicked', { planId, checkoutUrl: currentCheckoutUrl })
     setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
   }
 
   if (!subscriptionActive) {
     return (
       <div className="grid min-w-0 gap-5 lg:gap-6">
-        <section className="overflow-hidden rounded-2xl border border-emerald-400/25 bg-zinc-950/90 shadow-2xl shadow-black/35">
-          <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(320px,0.72fr)] lg:items-start">
+        <section className="overflow-hidden rounded-2xl border border-blue-400/25 bg-zinc-950/90 shadow-2xl shadow-black/35">
+          <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.75fr)] lg:items-stretch">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase text-blue-300">Ativação da conta</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-4xl">
                 Falta só escolher o ciclo e ativar seu Coach Fit Pro.
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400">
                 Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
               </p>
 
-              <div className="mt-5 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
+              <div className="mt-6 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
                 {checkoutPlans.map((plan) => {
                   const selected = selectedCheckoutPlan.id === plan.id
                   return (
@@ -13729,24 +7586,19 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 })}
               </div>
 
-              <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-gradient-to-br from-emerald-400/12 via-white/[0.035] to-zinc-950 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase text-emerald-200">Escolha estratégica</p>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-zinc-100">{selectedCheckoutPlan.bestFor}</p>
-                  </div>
-                  <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">sem taxa por aluno</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <p className="text-xs font-black uppercase text-zinc-500">Por que este plano faz sentido</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.bestFor}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
                   {selectedCheckoutPlan.decisionPoints.map((item) => (
-                    <span key={item} className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-100">
+                    <span key={item} className="rounded-full border border-blue-300/25 bg-blue-400/10 px-3 py-1 text-xs font-black text-blue-100">
                       {item}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 {[
                   ['1', 'Conta criada', 'seus dados já estão salvos'],
                   ['2', 'Plano escolhido', selectedCheckoutPlan.name],
@@ -13761,7 +7613,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
               </div>
             </div>
 
-            <div className="min-w-0 rounded-2xl border border-emerald-400/35 bg-gradient-to-br from-emerald-500/14 via-zinc-950 to-zinc-950 p-4 shadow-xl shadow-emerald-950/20 sm:p-5">
+            <div className="min-w-0 rounded-2xl border border-blue-400/35 bg-gradient-to-br from-blue-500/16 via-zinc-950 to-zinc-950 p-5 shadow-xl shadow-blue-950/25 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-black uppercase text-blue-300">{selectedCheckoutPlan.cycle}</p>
@@ -13772,7 +7624,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 </span>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-6">
                 {selectedCheckoutPlan.oldPrice ? <p className="text-sm font-bold text-zinc-500 line-through">De {selectedCheckoutPlan.oldPrice}</p> : null}
                 <div className="mt-1 flex flex-wrap items-end gap-2">
                   <span className="text-4xl font-black leading-none text-white">{selectedCheckoutPlan.price}</span>
@@ -13782,13 +7634,13 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 <p className="mt-1 text-xs leading-5 text-emerald-200">{selectedCheckoutPlan.economy}</p>
               </div>
 
-              <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+              <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-xs font-black uppercase text-emerald-200">O que acontece depois</p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">{selectedCheckoutPlan.operatingPromise}</p>
               </div>
 
-              <div className="mt-4 grid gap-2">
-                {selectedCheckoutPlan.highlights.slice(0, 3).map((item) => (
+              <div className="mt-5 grid gap-2">
+                {selectedCheckoutPlan.highlights.slice(0, 4).map((item) => (
                   <div key={item} className="flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm text-zinc-200">
                     <span className="text-blue-300">✓</span>
                     <span>{item}</span>
@@ -13801,7 +7653,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => handleCheckoutClick(selectedCheckoutPlan.id)}
-                className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5"
+                className="mt-6 flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-500 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-blue-950/40 transition hover:-translate-y-0.5"
               >
                 Ativar {selectedCheckoutPlan.name} agora
               </a>
@@ -13905,33 +7757,20 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
         </Panel>
 
         <div className="grid min-w-0 gap-4">
-          <Panel title="Central de previsibilidade" action="Recebimentos">
-            <div className="grid gap-3">
-              <div className="rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
-                <p className="text-xs font-black uppercase text-emerald-200">Carteira ativa estimada</p>
-                <p className="mt-2 text-3xl font-black text-white">{formatCurrency(estimatedRevenue)}</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Soma mensal prevista a partir dos alunos ativos e dos planos cadastrados pelo treinador.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-amber-200">Atenção de cobrança</p>
-                  <p className="mt-2 text-2xl font-black text-white">{students.filter((student) => student.payment !== 'Pago' && student.status !== 'Inativo').length}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-400">Alunos ativos que ainda precisam de confirmação de pagamento.</p>
-                </div>
-                <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
-                  <p className="text-xs font-black uppercase text-blue-200">Planos configurados</p>
-                  <p className="mt-2 text-2xl font-black text-white">{coachPlans.length}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-400">Mantenha nomes, valores e ciclos atualizados para não perder previsibilidade.</p>
-                </div>
-              </div>
-              <div className="rounded-md border border-white/10 bg-white/[0.035] p-4">
-                <p className="text-xs font-black uppercase text-zinc-400">Próxima ação recomendada</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Revise alunos pendentes, envie cobrança pelo sistema e confirme como pago quando receber. Isso mantém o portal do aluno alinhado com a realidade financeira da carteira.
-                </p>
-              </div>
+          <Panel title="O investimento em perspectiva" action="Valor percebido">
+            <div className="rounded-md border border-cyan-300/20 bg-cyan-400/[0.05] p-4">
+              <p className="text-xs font-black uppercase text-cyan-200">Custo sobre a receita</p>
+              <p className="mt-2 text-4xl font-black text-white">{costShare.toFixed(1).replace('.', ',')}%</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                No cenário atual, o custo regular estimado representa apenas essa parcela da receita mensal da carteira.
+              </p>
+            </div>
+            <div className="mt-3 rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
+              <p className="text-xs font-black uppercase text-emerald-200">Receita comparada à assinatura</p>
+              <p className="mt-2 text-3xl font-black text-white">{returnMultiple.toFixed(1).replace('.', ',')}x</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Sua carteira estimada é maior que o custo da plataforma. Organização, retenção e percepção de valor ajudam a proteger esse resultado.
+              </p>
             </div>
           </Panel>
 
@@ -13942,7 +7781,7 @@ function CoachSubscription({ students, invoices, subscription, userCreatedAt, co
                 : 'Escolha o ciclo ideal para sua operação. Todos os planos liberam o painel completo, e a confirmação da Cartpanda desbloqueia suas ferramentas automaticamente.'}
             </p>
             {!subscriptionActive ? <div className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">Importante para validar mais rápido</p>
+              <p className="text-xs font-black uppercase text-amber-200">Importante para liberar automaticamente</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
                 No checkout, use o mesmo e-mail cadastrado aqui no Coach Fit Pro. E-mail diferente pode impedir a liberação automática das ferramentas.
               </p>
@@ -14043,19 +7882,6 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState('')
-  const autoBillingRunRef = useRef(false)
-  const [billingStudentId, setBillingStudentId] = useState(students[0]?.id ? String(students[0].id) : '')
-  const selectedBillingStudent = students.find((student) => String(student.id) === String(billingStudentId)) || students[0]
-  const selectedBillingPlan = coachPlans.find((plan) => plan.name === selectedBillingStudent?.plan) || coachPlans[0]
-  const selectedBillingAmount = getPlanBillingAmount(selectedBillingPlan?.name, coachPlans) || 0
-  const selectedBillingDueDate = getNextBillingDateForStudent(selectedBillingStudent, invoices, coachPlans)
-
-  useEffect(() => {
-    if (!billingStudentId && students[0]?.id) {
-      setBillingStudentId(String(students[0].id))
-    }
-  }, [billingStudentId, students])
-
   const paidTotal = invoices
     .filter((invoice) => invoice.status === 'Pago')
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
@@ -14163,8 +7989,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     }
   }
 
-  async function handleCreateAutoCharges(options = {}) {
-    const silent = Boolean(options.silent)
+  async function handleCreateAutoCharges() {
     const openStudentIds = new Set(
       invoices
         .filter((invoice) => ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
@@ -14177,47 +8002,34 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
     ))
 
     if (!chargeableStudents.length) {
-      if (!silent) setMessage('Nenhum aluno pendente sem cobrança em aberto.')
+      setMessage('Nenhum aluno pendente sem cobrança em aberto.')
       return
     }
 
     setSaving(true)
-    if (!silent) setMessage('')
+    setMessage('')
     setError('')
     try {
       for (const student of chargeableStudents) {
-        const plan = coachPlans.find((item) => item.name === student.plan) || coachPlans[0]
-        const amount = getPlanBillingAmount(plan?.name, coachPlans) || 197
-        const dueDate = getNextBillingDateForStudent(student, invoices, coachPlans)
+        const amount = getPlanBillingAmount(student.plan, coachPlans) || 197
+        const dueDate = getDefaultDueDate()
         await onSaveInvoice({
           studentId: student.id,
-          planName: plan?.name || student.plan || 'Acompanhamento',
-          description: buildBillingMessage(getBillingMessageTemplateForPlan(plan, coachSettings), { student, amount, dueDate, coachSettings, plan }),
+          planName: student.plan || 'Acompanhamento',
+          description: buildBillingMessage(coachSettings?.billingMessage, { student, amount, dueDate, coachSettings }),
           amount,
           dueDate,
           status: 'Pendente',
           paymentMethod: 'Pix',
         })
       }
-      setMessage(`${chargeableStudents.length} cobrança(s) criada(s) automaticamente conforme o ciclo do plano.`)
+      setMessage(`${chargeableStudents.length} cobrança(s) criada(s) automaticamente.`)
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível gerar as cobranças automáticas.')
     } finally {
       setSaving(false)
     }
   }
-
-  useEffect(() => {
-    if (autoBillingRunRef.current || saving || !students.length || coachSettings?.autoBillingEnabled === false) return
-    const hasChargeableStudent = students.some((student) => (
-      student.status !== 'Inativo'
-      && student.payment !== 'Pago'
-      && !invoices.some((invoice) => String(invoice.studentId) === String(student.id) && ['Pendente', 'Atrasado'].includes(getInvoiceStatus(invoice)))
-    ))
-    if (!hasChargeableStudent) return
-    autoBillingRunRef.current = true
-    handleCreateAutoCharges({ silent: true })
-  }, [students, invoices, saving, coachSettings?.autoBillingEnabled])
 
   return (
     <div className="grid gap-4 lg:gap-6">
@@ -14230,12 +8042,12 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${formatCount(activeStudents, 'aluno')} ${activeStudents === 1 ? 'ativo' : 'ativos'}`} />
+          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${activeStudents} aluno(s) ativos`} />
           <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
           <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
           <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
           <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
-          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${formatCount(paidStudents, 'aluno')} ${paidStudents === 1 ? 'liberado' : 'liberados'}`} />
+          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${paidStudents} aluno(s) liberados`} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
@@ -14273,10 +8085,10 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
           <div className="min-w-0">
             <p className="text-xs font-black uppercase text-amber-200">Cobrança automática dos alunos</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">
-              O sistema identifica alunos pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
+              Gere cobranças para alunos pendentes, bloqueie o acesso até a validação e envie os dados de Pix do coach no próprio app.
             </p>
-            <p className="hidden">
-              Pix: {coachSettings?.pixKey || 'cadastre em Gerenciamento'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              Pix: {coachSettings?.pixKey || 'cadastre em Configurações'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
             </p>
           </div>
           <button type="button" disabled={saving} onClick={handleCreateAutoCharges} className="rounded-md bg-amber-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
@@ -14289,57 +8101,13 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
         <Panel title="Gerar cobrança" action="Financeiro">
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
-              <Select
-                label="Aluno"
-                name="studentId"
-                value={String(selectedBillingStudent?.id || '')}
-                onChange={(event) => setBillingStudentId(event.target.value)}
-                options={students.map((student) => ({
-                  label: `${student.name} - ${student.plan || 'sem plano'}`,
-                  value: student.id,
-                }))}
-              />
-              <Field
-                key={`plan-${selectedBillingStudent?.id || 'none'}-${selectedBillingPlan?.name || 'plan'}`}
-                label="Plano aplicado"
-                name="planName"
-                defaultValue={selectedBillingPlan?.name || selectedBillingStudent?.plan || 'Acompanhamento'}
-              />
+              <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
+              <Field label="Nome do plano" name="planName" defaultValue={coachPlans[0]?.name || 'Acompanhamento mensal'} />
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  key={`amount-${selectedBillingStudent?.id || 'none'}-${selectedBillingAmount}`}
-                  label="Valor (R$)"
-                  name="amount"
-                  type="number"
-                  defaultValue={String(selectedBillingAmount || 197)}
-                />
-                <Field
-                  key={`due-${selectedBillingStudent?.id || 'none'}-${selectedBillingDueDate}`}
-                  label="Vencimento"
-                  name="dueDate"
-                  type="date"
-                  defaultValue={selectedBillingDueDate}
-                />
+                <Field label="Valor (R$)" name="amount" type="number" defaultValue={String(getPlanBillingAmount(coachPlans[0]?.name, coachPlans) || 197)} />
+                <Field label="Vencimento" name="dueDate" type="date" defaultValue={getDefaultDueDate()} />
               </div>
-              <Field
-                key={`desc-${selectedBillingStudent?.id || 'none'}-${selectedBillingPlan?.name || 'plan'}`}
-                label="Descrição"
-                name="description"
-                defaultValue={buildBillingMessage(getBillingMessageTemplateForPlan(selectedBillingPlan, coachSettings), {
-                  student: selectedBillingStudent,
-                  amount: selectedBillingAmount || 197,
-                  dueDate: selectedBillingDueDate,
-                  coachSettings,
-                  plan: selectedBillingPlan,
-                })}
-              />
-              <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-                <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança estimada</p>
-                <p className="mt-1 text-lg font-black text-white">{formatDate(selectedBillingDueDate)}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  Calculada pelo plano do aluno, ciclo cadastrado e histórico de cobranças já registradas.
-                </p>
-              </div>
+              <Field label="Descrição" name="description" defaultValue="Mensalidade do acompanhamento" />
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
                 {saving ? 'Gerando...' : 'Gerar cobrança'}
               </button>
@@ -14357,7 +8125,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
                   <div>
                     <h4 className="font-black">{plan.name}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{plan.features}</p>
-                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {formatCount(plan.students, 'aluno')} {plan.students === 1 ? 'ativo' : 'ativos'}</p>
+                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {plan.students} aluno(s) ativo(s)</p>
                   </div>
                   <span className="text-right text-lg font-black text-blue-300">{formatCurrency(plan.billingValue)}</span>
                 </div>
@@ -14546,45 +8314,41 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
 
 function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
+  const [salesContentJson, setSalesContentJson] = useState(() => JSON.stringify(normalizeAdminSettings(settings).salesContent, null, 2))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const [logoFileError, setLogoFileError] = useState('')
-  const [openSections, setOpenSections] = useState({
-    health: true,
-    traffic: true,
-    launch: false,
-    sales: true,
-    visualEditor: true,
-    salesTexts: false,
-    plans: false,
-    branding: false,
-    modules: false,
-  })
+  const [jsonError, setJsonError] = useState('')
+  const [overview, setOverview] = useState({ users: [], subscriptions: [] })
+  const [overviewError, setOverviewError] = useState('')
+  const [loadingOverview, setLoadingOverview] = useState(false)
+  const [updatingCoachId, setUpdatingCoachId] = useState('')
 
   useEffect(() => {
-    setDraft(normalizeAdminSettings(settings))
+    const normalized = normalizeAdminSettings(settings)
+    setDraft(normalized)
+    setSalesContentJson(JSON.stringify(normalized.salesContent, null, 2))
   }, [settings])
+
+  const refreshOverview = useCallback(async () => {
+    if (!supabaseEnabled) return
+    setLoadingOverview(true)
+    setOverviewError('')
+    try {
+      const loaded = await loadRemoteAdminOverview()
+      setOverview(loaded)
+    } catch (error) {
+      setOverviewError(error?.message || 'Não foi possível carregar usuários e assinaturas.')
+    } finally {
+      setLoadingOverview(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshOverview()
+  }, [refreshOverview])
 
   function updateField(field, value) {
     setDraft((current) => ({ ...current, [field]: value }))
-  }
-
-  function handleLogoFile(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setLogoFileError('')
-    if (!file.type.startsWith('image/')) {
-      setLogoFileError('Envie uma imagem em PNG, JPG ou WebP.')
-      return
-    }
-    if (file.size > 700 * 1024) {
-      setLogoFileError('A imagem ficou pesada. Use uma logo com até 700 KB para carregar rápido.')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => updateField('logoUrl', reader.result?.toString() || '')
-    reader.onerror = () => setLogoFileError('Não consegui ler a imagem. Tente outro arquivo.')
-    reader.readAsDataURL(file)
   }
 
   function updateFlag(field, value) {
@@ -14611,77 +8375,74 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     updatePlan(planIndex, field, items)
   }
 
-  function updateLandingTextOverride(index, field, value) {
-    setDraft((current) => ({
-      ...current,
-      landingTextOverrides: (current.landingTextOverrides || []).map((item, itemIndex) => (
-        itemIndex === index ? { ...item, [field]: value } : item
-      )),
-    }))
+  function parseSalesContentJson() {
+    try {
+      const parsed = JSON.parse(salesContentJson)
+      const normalized = normalizeSalesContent(parsed)
+      setJsonError('')
+      return normalized
+    } catch (error) {
+      setJsonError('JSON inválido. Revise vírgulas, aspas e chaves antes de salvar.')
+      return null
+    }
   }
 
-  function updateLandingVisual(device, field, value) {
-    setDraft((current) => ({
-      ...current,
-      landingVisual: {
-        ...current.landingVisual,
-        [device]: {
-          ...(current.landingVisual?.[device] || defaultLandingVisualSettings[device]),
-          [field]: value,
-        },
-      },
-    }))
-  }
-
-  function addLandingTextOverride() {
-    setDraft((current) => ({
-      ...current,
-      landingTextOverrides: [
-        ...(current.landingTextOverrides || []),
-        {
-          id: `custom-${Date.now()}`,
-          label: 'Texto personalizado',
-          source: '',
-          replacement: '',
-          color: '#00D2B2',
-          enabled: true,
-          custom: true,
-        },
-      ],
-    }))
-  }
-
-  function removeLandingTextOverride(index) {
-    setDraft((current) => ({
-      ...current,
-      landingTextOverrides: (current.landingTextOverrides || []).filter((_, itemIndex) => itemIndex !== index),
-    }))
-  }
-
-  function applyVisualPreset(preset) {
-    setDraft((current) => ({ ...current, ...preset }))
+  function applySalesContentJson() {
+    const parsed = parseSalesContentJson()
+    if (!parsed) return
+    setDraft((current) => ({ ...current, salesContent: parsed }))
+    setSalesContentJson(JSON.stringify(parsed, null, 2))
+    setMessage('Conteúdo avançado aplicado no rascunho. Clique em salvar para publicar.')
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
+    const parsedContent = parseSalesContentJson()
+    if (!parsedContent) return
     setSaving(true)
     setMessage('')
     try {
-      await onSave(draft)
-      setMessage('Gerenciamento salvo. As próximas visitas já usam esta versão.')
+      const normalizedDraft = normalizeAdminSettings({ ...draft, salesContent: parsedContent })
+      await onSave(normalizedDraft)
+      setDraft(normalizedDraft)
+      setSalesContentJson(JSON.stringify(normalizedDraft.salesContent, null, 2))
+      setMessage('Configurações salvas. As próximas visitas já usam esta versão.')
     } finally {
       setSaving(false)
     }
   }
 
   function resetDefaults() {
-    setDraft(defaultAppAdminSettings)
+    const normalized = normalizeAdminSettings(defaultAppAdminSettings)
+    setDraft(normalized)
+    setSalesContentJson(JSON.stringify(normalized.salesContent, null, 2))
     setMessage('Padrão carregado. Clique em salvar para publicar.')
   }
 
-  function toggleSection(section) {
-    setOpenSections((current) => ({ ...current, [section]: !current[section] }))
+  async function updateCoachSubscription(coachId, status) {
+    if (!coachId) return
+    setUpdatingCoachId(coachId)
+    setOverviewError('')
+    try {
+      const next = new Date()
+      next.setMonth(next.getMonth() + 1)
+      await updateRemoteAdminCoachSubscription({
+        coachId,
+        status,
+        provider: 'manual_admin',
+        paidAt: status === 'active' ? new Date().toISOString() : null,
+        currentPeriodEndsAt: status === 'active' ? next.toISOString() : null,
+        nextBillingAt: status === 'active' ? next.toISOString() : null,
+      })
+      await refreshOverview()
+    } catch (error) {
+      setOverviewError(error?.message || 'Não foi possível atualizar a assinatura.')
+    } finally {
+      setUpdatingCoachId('')
+    }
   }
+
+  const subscriptionByCoach = new Map((overview.subscriptions || []).map((item) => [String(item.coachId), item]))
 
   return (
     <div className="grid gap-5 lg:gap-6">
@@ -14691,184 +8452,62 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
             <p className="text-xs font-black uppercase text-emerald-300">Admin Master</p>
             <h2 className="mt-2 text-3xl font-black text-white">Controle central do Coach Fit Pro.</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-              Edite página de vendas, planos oficiais, links de checkout, cores e módulos sem precisar subir código no GitHub.
+              Acesso liberado somente para {MASTER_ADMIN_EMAIL}. Edite página de vendas, planos, checkout, módulos, suporte e assinaturas sem depender do GitHub para alterações comerciais.
             </p>
           </div>
           <div className="rounded-xl border border-blue-300/20 bg-blue-400/10 p-4">
             <p className="text-xs font-black uppercase text-blue-200">Status</p>
             <p className="mt-2 text-sm font-bold text-zinc-200">{remoteStatus || 'Pronto'}</p>
-            <p className="mt-2 text-xs leading-5 text-zinc-400">
-              {draft.publishedAt ? `Versao publicada em ${formatDateTime(draft.publishedAt)}.` : 'Nenhuma versao visual publicada ainda.'} Celulares buscam a versao nova ao abrir, voltar para a aba ou a cada 45 segundos.
-            </p>
-            <p className="hidden">
-              {remoteError ? remoteError : 'Quando o SQL do Admin Master estiver aplicado, salvar aqui publica no banco.'}
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
+              {remoteError ? remoteError : 'Quando o SQL atualizado estiver aplicado, salvar aqui publica no Supabase.'}
             </p>
           </div>
         </div>
       </section>
 
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
-        <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
-          <AdminSystemHealthPanel remoteStatus={remoteStatus} remoteError={remoteError} settings={draft} />
-        </AdminAccordionSection>
-
-        <AdminAccordionSection title="Tráfego e conversões" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
-          <AdminTrafficPanel />
-        </AdminAccordionSection>
-
-        <AdminAccordionSection title="Checklist de lançamento" action="Operação pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
-          <AdminLaunchChecklist />
-        </AdminAccordionSection>
-
-        <AdminAccordionSection title="Página de vendas" action="Textos principais" open={openSections.sales} onToggle={() => toggleSection('sales')}>
+        <Panel title="Página de vendas" action="Textos e operação">
           <div className="grid gap-4">
-            <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} hint="Use uma frase direta, com promessa clara. Evite prometer resultado financeiro garantido." />
-            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} hint="Explique o ganho operacional: mais controle, mais organização e melhor experiência para o aluno." />
+            <AdminTextInput label="Título principal" value={draft.salesHeadline} onChange={(value) => updateField('salesHeadline', value)} />
+            <AdminTextArea label="Descrição principal" value={draft.salesSubheadline} onChange={(value) => updateField('salesSubheadline', value)} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} hint="Prefira uma ação simples, como Escolher meu plano ou Começar por R$ 9,90." />
-              <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} hint="Use para reduzir medo antes do clique: sem taxa por aluno, planos flexíveis ou pagamento seguro." />
+              <AdminTextInput label="Texto do botão principal" value={draft.salesCta} onChange={(value) => updateField('salesCta', value)} />
+              <AdminTextInput label="Aviso abaixo do botão" value={draft.announcement} onChange={(value) => updateField('announcement', value)} />
+              <AdminTextInput label="Plano selecionado por padrão" value={draft.defaultCheckoutPlanId} onChange={(value) => updateField('defaultCheckoutPlanId', value)} />
+              <AdminTextInput label="E-mail de suporte" value={draft.supportEmail} onChange={(value) => updateField('supportEmail', value)} />
+              <AdminTextInput label="WhatsApp de suporte" value={draft.supportWhatsapp} onChange={(value) => updateField('supportWhatsapp', value)} />
+              <AdminTextInput label="Aviso de manutenção" value={draft.maintenanceNotice} onChange={(value) => updateField('maintenanceNotice', value)} />
             </div>
-            <AdminTextInput label="Texto de confiança" value={draft.salesTrustText} onChange={(value) => updateField('salesTrustText', value)} hint="Esse texto aparece como reforço de segurança perto da oferta. Mantenha curto." />
-          </div>
-        </AdminAccordionSection>
-
-        <AdminAccordionSection title="Editor visual por dispositivo" action="Desktop e mobile separados" open={openSections.visualEditor} onToggle={() => toggleSection('visualEditor')}>
-          <div className="grid gap-4">
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-              <p className="text-sm font-black text-emerald-100">Edite sem afetar a outra versão</p>
-              <p className="mt-2 text-xs leading-5 text-zinc-300">
-                Use os campos de Desktop para ajustar computador e notebook. Use os campos de Mobile para ajustar celular. Os valores aceitam medidas como 2.5rem, 44rem, 22px ou clamp(...).
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <a href="/?preview=vendas" target="_blank" rel="noreferrer" className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
-                  Prévia da página
-                </a>
-                <a href="/login?mode=signup" target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-100">
-                  Prévia do cadastro
-                </a>
-              </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase text-emerald-300">Desktop</p>
-                    <h3 className="mt-1 text-xl font-black text-white">Computador e notebook</h3>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">Ajustes aplicados apenas a telas grandes.</p>
-                  </div>
-                  <label className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs font-black text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={draft.landingVisual?.desktop?.showStudentJourney !== false}
-                      onChange={(event) => updateLandingVisual('desktop', 'showStudentJourney', event.target.checked)}
-                      className="h-4 w-4 accent-emerald-400"
-                    />
-                    Jornada visível
-                  </label>
-                </div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <AdminTextInput label="Tamanho do título" value={draft.landingVisual?.desktop?.heroTitleSize} onChange={(value) => updateLandingVisual('desktop', 'heroTitleSize', value)} hint="Exemplo: clamp(3.25rem, 4.55vw, 4.75rem)." />
-                  <AdminTextInput label="Largura máxima do título" value={draft.landingVisual?.desktop?.heroTitleWidth} onChange={(value) => updateLandingVisual('desktop', 'heroTitleWidth', value)} hint="Exemplo: 44rem. Aumente para deixar o título menos estreito." />
-                  <AdminTextInput label="Espaço entre seções" value={draft.landingVisual?.desktop?.sectionPadding} onChange={(value) => updateLandingVisual('desktop', 'sectionPadding', value)} hint="Exemplo: 2.5rem. Aumente ou reduza a rolagem." />
-                  <AdminTextInput label="Arredondamento dos cards" value={draft.landingVisual?.desktop?.cardRadius} onChange={(value) => updateLandingVisual('desktop', 'cardRadius', value)} hint="Exemplo: 24px." />
-                  <AdminTextInput label="Altura mínima dos planos" value={draft.landingVisual?.desktop?.planCardMinHeight} onChange={(value) => updateLandingVisual('desktop', 'planCardMinHeight', value)} hint="Use auto para padrão ou 520px para alinhar cards." />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase text-emerald-300">Mobile</p>
-                    <h3 className="mt-1 text-xl font-black text-white">Celular</h3>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">Ajustes aplicados apenas a telas pequenas.</p>
-                  </div>
-                  <label className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs font-black text-zinc-200">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(draft.landingVisual?.mobile?.showStudentJourney)}
-                      onChange={(event) => updateLandingVisual('mobile', 'showStudentJourney', event.target.checked)}
-                      className="h-4 w-4 accent-emerald-400"
-                    />
-                    Jornada visível
-                  </label>
-                </div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <AdminTextInput label="Tamanho do título" value={draft.landingVisual?.mobile?.heroTitleSize} onChange={(value) => updateLandingVisual('mobile', 'heroTitleSize', value)} hint="Exemplo: clamp(2.35rem, 11.5vw, 3rem)." />
-                  <AdminTextInput label="Largura máxima do título" value={draft.landingVisual?.mobile?.heroTitleWidth} onChange={(value) => updateLandingVisual('mobile', 'heroTitleWidth', value)} hint="Use 100% para ocupar a largura do celular." />
-                  <AdminTextInput label="Espaço entre seções" value={draft.landingVisual?.mobile?.sectionPadding} onChange={(value) => updateLandingVisual('mobile', 'sectionPadding', value)} hint="Exemplo: 2.5rem. Reduza para uma página menor." />
-                  <AdminTextInput label="Arredondamento dos cards" value={draft.landingVisual?.mobile?.cardRadius} onChange={(value) => updateLandingVisual('mobile', 'cardRadius', value)} hint="Exemplo: 22px." />
-                  <AdminTextInput label="Espaço interno dos planos" value={draft.landingVisual?.mobile?.planCardPadding} onChange={(value) => updateLandingVisual('mobile', 'planCardPadding', value)} hint="Exemplo: 1.05rem. Reduza se o card ficar longo." />
-                </div>
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AdminCheckbox label="Página de vendas ativa" checked={draft.salesPageEnabled !== false} onChange={(checked) => updateField('salesPageEnabled', checked)} />
+              <AdminCheckbox label="Permitir criação de conta pela página" checked={draft.signupEnabled !== false} onChange={(checked) => updateField('signupEnabled', checked)} />
             </div>
           </div>
-        </AdminAccordionSection>
+        </Panel>
 
-        <AdminAccordionSection title="Editor completo da página inicial" action={`${draft.landingTextOverrides?.length || 0} textos e cores`} open={openSections.salesTexts} onToggle={() => toggleSection('salesTexts')}>
-          <div className="grid gap-4">
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-              <p className="text-sm font-black text-emerald-100">Como usar</p>
-              <p className="mt-2 text-xs leading-5 text-zinc-300">
-                Edite o texto novo e a cor. O campo “texto que aparece hoje” é usado para localizar a frase na página. Para um texto novo que não está na lista, clique em adicionar texto e cole a frase exatamente como aparece na página.
-              </p>
-            </div>
-            <div className="grid gap-3">
-              {(draft.landingTextOverrides || []).map((item, index) => (
-                <div key={item.id || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-black uppercase text-emerald-300">{item.label || 'Texto da página inicial'}</p>
-                      <p className="mt-1 text-xs leading-5 text-zinc-500">Afeta a página inicial de vendas quando o texto for encontrado.</p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-xs font-black text-zinc-200">
-                        <input
-                          type="checkbox"
-                          checked={item.enabled !== false}
-                          onChange={(event) => updateLandingTextOverride(index, 'enabled', event.target.checked)}
-                          className="h-4 w-4 accent-emerald-400"
-                        />
-                        Ativo
-                      </label>
-                      {item.custom ? (
-                        <button type="button" onClick={() => removeLandingTextOverride(index)} className="rounded-xl border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-xs font-black text-rose-100">
-                          Remover
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_150px]">
-                    <AdminTextArea
-                      label="Texto que aparece hoje"
-                      value={item.source}
-                      onChange={(value) => updateLandingTextOverride(index, 'source', value)}
-                      hint="Para localizar corretamente, mantenha igual ao texto exibido na página."
-                    />
-                    <AdminTextArea
-                      label="Novo texto"
-                      value={item.replacement}
-                      onChange={(value) => updateLandingTextOverride(index, 'replacement', value)}
-                      hint="Esse será o texto mostrado ao visitante."
-                    />
-                    <AdminTextInput
-                      type="color"
-                      label="Cor deste texto"
-                      value={item.color || '#00D2B2'}
-                      onChange={(value) => updateLandingTextOverride(index, 'color', value)}
-                      hint="Escolha a cor exata deste texto."
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={addLandingTextOverride} className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:border-emerald-300/50 hover:bg-emerald-300/15">
-              Adicionar texto personalizado
+        <Panel title="Página principal de vendas" action="Editor avançado">
+          <p className="mb-3 text-sm leading-6 text-zinc-400">
+            Este JSON controla menu, cards, seções, dúvidas, textos dos blocos, rodapé e microcopy da página de vendas. Edite com cuidado e clique em “Aplicar JSON” antes de salvar.
+          </p>
+          <textarea
+            value={salesContentJson}
+            onChange={(event) => setSalesContentJson(event.target.value)}
+            rows={18}
+            spellCheck={false}
+            className="w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-3 font-mono text-xs leading-5 text-zinc-100 outline-none transition focus:border-emerald-300/50"
+          />
+          {jsonError ? <p className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{jsonError}</p> : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={applySalesContentJson} className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100">
+              Aplicar JSON no rascunho
+            </button>
+            <button type="button" onClick={() => setSalesContentJson(JSON.stringify(defaultSalesContent, null, 2))} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+              Carregar conteúdo padrão da página
             </button>
           </div>
-        </AdminAccordionSection>
+        </Panel>
 
-        <AdminAccordionSection title="Planos e checkout" action={`${draft.checkoutPlans.length} planos`} open={openSections.plans} onToggle={() => toggleSection('plans')}>
+        <Panel title="Planos e checkout" action={`${draft.checkoutPlans.length} planos`}>
           <div className="grid gap-4">
             {draft.checkoutPlans.map((plan, index) => (
               <div key={plan.id || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
@@ -14880,6 +8519,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                   <span className="w-fit rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{plan.badge}</span>
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <AdminTextInput label="ID interno do plano" value={plan.id} onChange={(value) => updatePlan(index, 'id', value)} />
                   <AdminTextInput label="Nome" value={plan.name} onChange={(value) => updatePlan(index, 'name', value)} />
                   <AdminTextInput label="Ciclo" value={plan.cycle} onChange={(value) => updatePlan(index, 'cycle', value)} />
                   <AdminTextInput label="Selo do card" value={plan.badge} onChange={(value) => updatePlan(index, 'badge', value)} />
@@ -14888,7 +8528,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                   <AdminTextInput label="Preço antigo" value={plan.oldPrice || ''} onChange={(value) => updatePlan(index, 'oldPrice', value)} />
                   <AdminTextInput label="Comparativo" value={plan.total} onChange={(value) => updatePlan(index, 'total', value)} />
                   <AdminTextInput label="Vantagem" value={plan.economy} onChange={(value) => updatePlan(index, 'economy', value)} />
-                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} hint="Cole o link completo do checkout. Recomendado: começar por https://pagamento.coachfitpro.com.br/checkout/." />
+                  <AdminTextInput label="Link Cartpanda" value={plan.checkoutUrl} onChange={(value) => updatePlan(index, 'checkoutUrl', value)} />
                 </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   <AdminTextArea label="Descrição" value={plan.description} onChange={(value) => updatePlan(index, 'description', value)} />
@@ -14901,72 +8541,79 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
               </div>
             ))}
           </div>
-        </AdminAccordionSection>
+        </Panel>
 
         <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-          <AdminAccordionSection title="Branding global" action="Visual" open={openSections.branding} onToggle={() => toggleSection('branding')}>
-            <div className="grid gap-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  ['Esmeralda premium', { primaryColor: '#00d2b2', accentColor: '#3b82f6', appBackgroundColor: '#000000', salesBackgroundColor: '#00150f', salesSurfaceColor: '#07110f', salesTextColor: '#f8fafc', ctaColor: '#00d2b2', ctaTextColor: '#020617', headerBackgroundColor: 'rgba(0, 0, 0, 0.68)' }],
-                  ['Fitness neon', { primaryColor: '#39ff88', accentColor: '#00d2b2', appBackgroundColor: '#020403', salesBackgroundColor: '#03140b', salesSurfaceColor: '#09120e', salesTextColor: '#f7fff9', ctaColor: '#39ff88', ctaTextColor: '#021006', headerBackgroundColor: 'rgba(2, 6, 4, 0.72)' }],
-                  ['Grafite safira', { primaryColor: '#10b981', accentColor: '#0ea5e9', appBackgroundColor: '#050505', salesBackgroundColor: '#06100d', salesSurfaceColor: '#101418', salesTextColor: '#f8fafc', ctaColor: '#10b981', ctaTextColor: '#02130d', headerBackgroundColor: 'rgba(5, 5, 5, 0.72)' }],
-                ].map(([label, preset]) => (
-                  <button key={label} type="button" onClick={() => applyVisualPreset(preset)} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-left text-xs font-black text-zinc-100 transition hover:border-emerald-300/40 hover:bg-emerald-300/10">
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <AdminTextInput type="color" label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} hint="Destaques, ícones e detalhes de marca." />
-                <AdminTextInput type="color" label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} hint="Contraste para bordas, selos e efeitos." />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <AdminTextInput type="color" label="Fundo do app" value={draft.appBackgroundColor} onChange={(value) => updateField('appBackgroundColor', value)} hint="Fundo quando coach e aluno estão logados." />
-                <AdminTextInput type="color" label="Fundo da página de vendas" value={draft.salesBackgroundColor} onChange={(value) => updateField('salesBackgroundColor', value)} hint="Base do site público." />
-                <AdminTextInput type="color" label="Fundo dos cards" value={draft.salesSurfaceColor} onChange={(value) => updateField('salesSurfaceColor', value)} hint="Cards, boxes e áreas com vidro." />
-                <AdminTextInput type="color" label="Texto principal" value={draft.salesTextColor} onChange={(value) => updateField('salesTextColor', value)} hint="Use cor clara para fundo escuro." />
-                <AdminTextInput type="color" label="Cor dos botões CTA" value={draft.ctaColor} onChange={(value) => updateField('ctaColor', value)} hint="Botão de compra e cadastro." />
-                <AdminTextInput type="color" label="Texto dos botões CTA" value={draft.ctaTextColor} onChange={(value) => updateField('ctaTextColor', value)} hint="Preto em botão claro costuma funcionar bem." />
-                <AdminTextInput label="Fundo do cabeçalho" value={draft.headerBackgroundColor} onChange={(value) => updateField('headerBackgroundColor', value)} hint="Aceita rgba. Exemplo: rgba(0, 0, 0, 0.70)." />
-              </div>
-              <AdminTextInput label="URL da logotipo principal" value={draft.logoUrl} onChange={(value) => updateField('logoUrl', value)} hint="Opcional. Use PNG horizontal com fundo transparente. Se deixar vazio, o app usa a logo padrão." />
-              <label className="grid gap-2 text-sm font-bold text-zinc-300">
-                Enviar logotipo
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoFile} className="rounded-xl border border-dashed border-white/15 bg-zinc-950 px-3 py-3 text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-400 file:px-3 file:py-2 file:text-sm file:font-black file:text-zinc-950" />
-                <span className="text-xs font-medium leading-5 text-zinc-500">Recomendação: imagem horizontal, até 700 KB, preferencialmente PNG/WebP transparente para combinar com o fundo preto.</span>
-                {logoFileError ? <span className="text-xs font-bold text-amber-200">{logoFileError}</span> : null}
-              </label>
+          <Panel title="Branding global" action="Visual">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <AdminTextInput label="Cor principal" value={draft.primaryColor} onChange={(value) => updateField('primaryColor', value)} />
+              <AdminTextInput label="Cor de apoio" value={draft.accentColor} onChange={(value) => updateField('accentColor', value)} />
             </div>
             <div className="mt-4 rounded-xl border border-white/10 p-4" style={{ background: `linear-gradient(135deg, ${draft.primaryColor}22, ${draft.accentColor}22)` }}>
-              <p className="text-sm font-black text-white">Prévia do visual</p>
-              <div className="mt-3 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-black/35 p-4">
-                <img src={draft.logoUrl || fitCoachLogo} alt="Prévia da logotipo" className="max-h-16 max-w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]" />
-              </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-400">Salve para publicar a logo e as cores nos acessos novos. Se a logo ficar apagada no preto, use uma versão clara ou com contorno.</p>
+              <p className="text-sm font-black text-white">Prévia das cores</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">Essas cores ficam disponíveis para a página de vendas e próximas evoluções visuais do app.</p>
             </div>
-          </AdminAccordionSection>
+          </Panel>
 
-          <AdminAccordionSection title="Módulos ativos" action="Funcionalidades" open={openSections.modules} onToggle={() => toggleSection('modules')}>
+          <Panel title="Módulos ativos" action="Funcionalidades">
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ['studentXp', 'XP e selos do aluno'],
                 ['financialDashboard', 'Dashboard financeiro'],
                 ['salesSimulator', 'Simulador da página inicial'],
                 ['waterGoal', 'Meta de água interativa'],
+                ['salesAppVisual', 'Seção visual do app'],
+                ['salesCommandCenter', 'Seção comando financeiro'],
+                ['salesComparison', 'Seção antes e depois'],
+                ['salesFaq', 'Dúvidas frequentes'],
               ].map(([key, label]) => (
-                <label key={key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
-                  <span className="text-sm font-black text-zinc-100">{label}</span>
-                  <input type="checkbox" checked={Boolean(draft.featureFlags?.[key])} onChange={(event) => updateFlag(key, event.target.checked)} className="h-5 w-5 accent-emerald-400" />
-                </label>
+                <AdminCheckbox key={key} label={label} checked={Boolean(draft.featureFlags?.[key])} onChange={(checked) => updateFlag(key, checked)} />
               ))}
             </div>
-          </AdminAccordionSection>
+          </Panel>
         </div>
+
+        <Panel title="Coaches e assinaturas" action={loadingOverview ? 'Carregando' : `${overview.users.length} usuários`}>
+          {overviewError ? <p className="mb-3 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm font-bold text-amber-100">{overviewError}</p> : null}
+          <div className="mb-3 flex flex-wrap gap-2">
+            <button type="button" onClick={refreshOverview} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+              Atualizar lista
+            </button>
+          </div>
+          <div className="grid gap-3">
+            {overview.users.length ? overview.users.map((user) => {
+              const subscription = subscriptionByCoach.get(String(user.id))
+              const status = subscription?.status || 'sem assinatura'
+              return (
+                <div key={user.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xs font-black uppercase text-zinc-500">{user.role || 'Coach'}</p>
+                      <h3 className="mt-1 break-words text-lg font-black text-white">{user.name || user.email}</h3>
+                      <p className="mt-1 break-words text-sm text-zinc-400">{user.email}</p>
+                      <p className="mt-2 text-xs text-zinc-500">Criado em {formatDate(user.createdAt)}</p>
+                    </div>
+                    <div className="grid gap-2 sm:min-w-64">
+                      <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black uppercase ${isCoachSubscriptionActive(subscription) ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
+                        {status}
+                      </span>
+                      <p className="text-xs leading-5 text-zinc-500">Próxima cobrança: {subscription?.nextBillingAt ? formatDate(subscription.nextBillingAt) : 'não definida'}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" disabled={updatingCoachId === user.id} onClick={() => updateCoachSubscription(user.id, 'active')} className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">Ativar</button>
+                        <button type="button" disabled={updatingCoachId === user.id} onClick={() => updateCoachSubscription(user.id, 'past_due')} className="rounded-lg border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-100 disabled:opacity-50">Pendente</button>
+                        <button type="button" disabled={updatingCoachId === user.id} onClick={() => updateCoachSubscription(user.id, 'canceled')} className="rounded-lg border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-50">Bloquear</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            }) : <Empty text="Nenhum usuário encontrado ou RLS ainda não liberou a visão admin." />}
+          </div>
+        </Panel>
 
         <div className="sticky bottom-3 z-20 flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-950/92 p-3 shadow-2xl shadow-black/35 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-zinc-400">
-            Depois de salvar no Supabase, textos, planos e links mudam sem precisar atualizar o GitHub.
+            Depois de salvar no Supabase, textos, planos, links, módulos e conteúdo da página mudam sem novo deploy.
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={resetDefaults} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -14984,266 +8631,37 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   )
 }
 
-function AdminSystemHealthPanel({ remoteStatus, remoteError, settings }) {
-  const [lastError, setLastError] = useState(() => loadLastAppError())
-  const checkoutPlans = normalizeAdminSettings(settings).checkoutPlans
-  const checks = buildSystemHealthChecks({ remoteStatus, remoteError, checkoutPlans, lastError })
-
-  function clearLastError() {
-    try {
-      window.localStorage.removeItem('coachfitpro-last-error')
-    } catch {
-      // Mantem a UI funcionando mesmo se o navegador bloquear storage.
-    }
-    setLastError(null)
-  }
-
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {checks.map((item) => (
-          <div key={item.title} className={`rounded-2xl border p-4 ${
-            item.status === 'ok'
-              ? 'border-emerald-300/25 bg-emerald-300/[0.075]'
-              : item.status === 'warning'
-                ? 'border-amber-300/25 bg-amber-300/[0.075]'
-                : 'border-rose-300/25 bg-rose-300/[0.075]'
-          }`}>
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-black text-white">{item.title}</p>
-              <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase ${
-                item.status === 'ok'
-                  ? 'bg-emerald-300/15 text-emerald-100'
-                  : item.status === 'warning'
-                    ? 'bg-amber-300/15 text-amber-100'
-                    : 'bg-rose-300/15 text-rose-100'
-              }`}>{item.label}</span>
-            </div>
-            <p className="mt-3 text-xs leading-5 text-zinc-300">{item.detail}</p>
-          </div>
-        ))}
-      </div>
-
-      {lastError ? (
-        <div className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.075] p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase text-amber-100">Último erro capturado</p>
-              <p className="mt-2 break-words text-sm font-bold text-white">{lastError.message}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">{formatDateTime(lastError.createdAt)}</p>
-            </div>
-            <button type="button" onClick={clearLastError} className="rounded-xl border border-white/10 px-4 py-2 text-xs font-black text-zinc-100">
-              Limpar aviso
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
-          <p className="text-sm font-black text-emerald-100">Nenhum erro crítico registrado neste navegador.</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-400">Se alguma tela quebrar, o diagnóstico aparece aqui para facilitar a correção.</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function AdminTrafficPanel() {
-  const [events, setEvents] = useState(() => getStoredLeadEvents())
-  const [status, setStatus] = useState('Eventos locais carregados')
-
-  const snapshot = useMemo(() => buildLeadTrafficSnapshot(events), [events])
-
-  useEffect(() => {
-    let active = true
-
-    async function refresh() {
-      const localEvents = getStoredLeadEvents()
-      if (!supabaseEnabled) {
-        if (active) {
-          setEvents(localEvents)
-          setStatus('Eventos locais carregados')
-        }
-        return
-      }
-
-      try {
-        const remoteEvents = await loadRemoteLeadEvents()
-        if (!active) return
-        const merged = mergeLeadEvents(remoteEvents, localEvents)
-        setEvents(merged)
-        setStatus(remoteEvents.length ? 'Sincronizado com Supabase' : 'Aguardando primeiros eventos no Supabase')
-      } catch {
-        if (!active) return
-        setEvents(localEvents)
-        setStatus('Mostrando eventos locais. Rode o SQL de tráfego para salvar tudo no Supabase.')
-      }
-    }
-
-    refresh()
-    const timer = window.setInterval(refresh, 8000)
-    return () => {
-      active = false
-      window.clearInterval(timer)
-    }
-  }, [])
-
-  function clearLocalEvents() {
-    saveStoredLeadEvents([])
-    setEvents([])
-    setStatus('Histórico local limpo. Os eventos do Supabase permanecem salvos.')
-  }
-
-  return (
-    <div className="grid gap-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/8 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase text-emerald-200">Captação em tempo real</p>
-          <p className="mt-1 text-sm leading-6 text-zinc-300">{status}</p>
-        </div>
-        <button type="button" onClick={clearLocalEvents} className="w-full rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:bg-white/[0.04] sm:w-auto">
-          Limpar local
-        </button>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          ['Visitas', snapshot.visits, 'Entradas na página'],
-          ['Planos escolhidos', snapshot.planSelections, 'Cliques em oferta'],
-          ['Cadastros', snapshot.signups, 'Conta iniciada'],
-          ['Checkouts', snapshot.checkouts, 'Compra aberta'],
-          ['Pagamentos', snapshot.payments, 'Liberação detectada'],
-        ].map(([label, value, detail]) => (
-          <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
-            <p className="mt-3 text-3xl font-black text-white">{value}</p>
-            <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="grid gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <p className="text-xs font-black uppercase text-zinc-500">Origem mais recente</p>
-            <h4 className="mt-2 text-xl font-black text-white">{snapshot.lastSource}</h4>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">{snapshot.lastCampaign}</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-            <p className="text-xs font-black uppercase text-zinc-500">Plano com mais intenção</p>
-            <h4 className="mt-2 text-xl font-black text-white">{snapshot.topPlan}</h4>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Use esse sinal para ajustar anúncios, criativos e destaque dos planos.</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase text-zinc-500">Últimos eventos</p>
-              <h4 className="mt-1 font-black text-white">Jornada do lead</h4>
-            </div>
-            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{events.length} registros</span>
-          </div>
-          <div className="mt-4 grid max-h-80 gap-2 overflow-y-auto pr-1">
-            {events.length ? events.slice(0, 18).map((event) => (
-              <div key={event.id || `${event.type}-${event.createdAt}`} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-black text-white">{formatLeadEventType(event.type)}</p>
-                  <p className="text-xs font-bold text-zinc-500">{formatDateTime(event.createdAt)}</p>
-                </div>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  {formatLeadEventDetail(event)}
-                </p>
-              </div>
-            )) : (
-              <Empty text="Assim que alguém entrar por campanha, escolher plano ou abrir checkout, os eventos aparecem aqui." />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AdminLaunchChecklist() {
-  const attribution = getStoredLeadAttribution()
-  const checks = [
-    { title: 'Domínio principal', status: 'Ativo', detail: 'coachfitpro.com.br e app.coachfitpro.com.br configurados para o app.' },
-    { title: 'Checkout Cartpanda', status: 'Ativo', detail: 'Planos mensal, semestral e anual vinculados aos botões da página.' },
-    { title: 'Webhook de pagamento', status: 'Conferir', detail: 'Teste um pagamento real sempre que trocar checkout, produto ou postback.' },
-    { title: 'UTM e campanhas', status: attribution.firstSeenAt ? 'Capturando' : 'Pronto', detail: 'Links com utm_source, utm_campaign ou cid são enviados para o checkout.' },
-    { title: 'Suporte e termos', status: 'Ativo', detail: 'Rodapé com Termos, Privacidade e Suporte para reduzir dúvidas antes da compra.' },
-  ]
-
-  return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {checks.map((item) => (
-        <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-          <div className="flex items-start justify-between gap-3">
-            <h4 className="font-black text-white">{item.title}</h4>
-            <span className={`rounded-full px-3 py-1 text-[11px] font-black ${
-              item.status === 'Ativo' || item.status === 'Capturando'
-                ? 'border border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
-                : 'border border-amber-300/25 bg-amber-300/10 text-amber-100'
-            }`}>{item.status}</span>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-zinc-400">{item.detail}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function AdminAccordionSection({ title, action, open, onToggle, children }) {
-  return (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/20">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full min-w-0 items-center justify-between gap-3 px-4 py-4 text-left transition hover:bg-white/[0.035] sm:px-5"
-      >
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-black text-white sm:text-lg">{title}</h3>
-          <p className="mt-1 truncate text-xs font-bold text-zinc-500">{formatUiText(action)}</p>
-        </div>
-        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-emerald-100 transition ${open ? 'rotate-180' : ''}`}>
-          <NavIcon name="chevronDown" className="h-5 w-5" />
-        </span>
-      </button>
-      {open ? (
-        <div className="border-t border-white/10 p-4 sm:p-5">
-          {children}
-        </div>
-      ) : null}
-    </section>
-  )
-}
-
-function AdminTextInput({ label, value, onChange, hint = '', type = 'text' }) {
+function AdminTextInput({ label, value, onChange }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
-      <input type={type} value={value || ''} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50" />
-      {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
+      <input value={value || ''} onChange={(event) => onChange(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50" />
     </label>
   )
 }
 
-function AdminTextArea({ label, value, onChange, hint = '' }) {
+function AdminTextArea({ label, value, onChange, rows = 4 }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
-      <textarea value={value || ''} onChange={(event) => onChange(event.target.value)} rows={4} className="min-h-28 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none transition focus:border-emerald-300/50" />
-      {hint ? <span className="text-xs font-medium leading-5 text-zinc-500">{hint}</span> : null}
+      <textarea value={value || ''} onChange={(event) => onChange(event.target.value)} rows={rows} className="min-h-28 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none transition focus:border-emerald-300/50" />
     </label>
   )
 }
 
-function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, masterAdmin = false, onOpenAdminMaster }) {
+function AdminCheckbox({ label, checked, onChange }) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4">
+      <span className="text-sm font-black text-zinc-100">{label}</span>
+      <input type="checkbox" checked={Boolean(checked)} onChange={(event) => onChange(event.target.checked)} className="h-5 w-5 accent-emerald-400" />
+    </label>
+  )
+}
+
+function CoachSettings({ user, settings, onSave, onExport }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [deleteConfirmation, setDeleteConfirmation] = useState('')
-  const [deletingAccount, setDeletingAccount] = useState(false)
   const current = {
     brandName: settings?.brandName || 'FitCoach',
     publicName: settings?.publicName || user?.name || '',
@@ -15255,103 +8673,17 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
     billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
-    autoBillingEnabled: settings?.autoBillingEnabled !== false,
     customPlans: getCoachPlans(settings),
     welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
     timezone: settings?.timezone || 'America/Sao_Paulo',
   }
   const [billingLogoUrl, setBillingLogoUrl] = useState(current.billingLogoUrl)
-  const [planEditorPlans, setPlanEditorPlans] = useState(current.customPlans)
-  const [editingPlanIndex, setEditingPlanIndex] = useState(-1)
-  const [planDraft, setPlanDraft] = useState({
-    name: '',
-    price: '',
-    cycle: 'mensal',
-    features: '',
-    billingMessage: '',
-  })
+  const [plansDraft, setPlansDraft] = useState(formatPlansDraft(current.customPlans))
 
   useEffect(() => {
     setBillingLogoUrl(current.billingLogoUrl)
-    setPlanEditorPlans(current.customPlans)
-    setEditingPlanIndex(-1)
-    setPlanDraft({ name: '', price: '', cycle: 'mensal', features: '', billingMessage: '' })
+    setPlansDraft(formatPlansDraft(current.customPlans))
   }, [settings?.billingLogoUrl, settings?.customPlans])
-
-  function updatePlanDraft(field, value) {
-    setPlanDraft((draft) => ({ ...draft, [field]: value }))
-  }
-
-  function resetPlanDraft() {
-    setPlanDraft({ name: '', price: '', cycle: 'mensal', features: '', billingMessage: '' })
-    setEditingPlanIndex(-1)
-  }
-
-  async function persistPlanEditorPlans(nextPlans, successMessage = 'Planos atualizados.') {
-    const normalizedPlans = nextPlans.map(normalizeCoachPlan).filter((plan) => plan.name)
-    setSaving(true)
-    setError('')
-    setMessage('')
-    try {
-      const savedSettings = await onSave({
-        ...current,
-        billingLogoUrl,
-        customPlans: normalizedPlans,
-      })
-      const savedPlans = getCoachPlans(savedSettings)
-      setPlanEditorPlans(savedPlans)
-      setMessage(successMessage)
-      return savedPlans
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar os planos agora.')
-      throw saveError
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function savePlanDraft() {
-    const normalizedPlan = normalizeCoachPlan(planDraft)
-    if (!normalizedPlan.name) {
-      setError('Informe o nome do plano.')
-      return
-    }
-    if (getPlanBillingAmount(normalizedPlan.name, [normalizedPlan]) <= 0) {
-      setError('Informe o valor que você cobra neste plano.')
-      return
-    }
-
-    const existingIndex = editingPlanIndex >= 0
-      ? editingPlanIndex
-      : planEditorPlans.findIndex((plan) => normalizeText(plan.name) === normalizeText(normalizedPlan.name))
-
-    const nextPlans = existingIndex >= 0
-      ? planEditorPlans.map((plan, index) => (index === existingIndex ? normalizedPlan : plan))
-      : [normalizedPlan, ...planEditorPlans]
-
-    await persistPlanEditorPlans(nextPlans, existingIndex >= 0 ? 'Plano atualizado e salvo.' : 'Plano adicionado e salvo.')
-    resetPlanDraft()
-  }
-
-  function editPlanDraft(plan, index) {
-    setPlanDraft({
-      name: plan.name || '',
-      price: plan.price || '',
-      cycle: normalizePlanCycle(plan.cycle),
-      features: plan.features || '',
-      billingMessage: plan.billingMessage || '',
-    })
-    setEditingPlanIndex(index)
-  }
-
-  async function removePlanDraft(index) {
-    if (planEditorPlans.length <= 1) {
-      setError('Mantenha pelo menos um plano cadastrado.')
-      return
-    }
-    await persistPlanEditorPlans(planEditorPlans.filter((_, planIndex) => planIndex !== index), 'Plano removido e salvo.')
-    if (editingPlanIndex === index) resetPlanDraft()
-  }
 
   function handleBillingLogoFile(event) {
     const file = event.target.files?.[0]
@@ -15375,39 +8707,6 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     reader.readAsDataURL(file)
   }
 
-  async function handleAccountDeletion() {
-    if (masterAdmin) {
-      setError('A conta Admin Master não pode ser excluída por este painel.')
-      return
-    }
-
-    if (!onDeleteAccount) {
-      setError('A exclusão de conta ainda não está configurada neste ambiente.')
-      return
-    }
-
-    const accountEmail = String(user?.email || '').trim().toLowerCase()
-    if (String(deleteConfirmation || '').trim().toLowerCase() !== accountEmail) {
-      setError('Digite exatamente o e-mail da conta para confirmar a exclusão definitiva.')
-      return
-    }
-
-    const confirmed = window.confirm('Esta ação exclui definitivamente a conta, alunos, treinos, dietas, fotos, mensagens e históricos vinculados. Deseja continuar?')
-    if (!confirmed) return
-
-    setDeletingAccount(true)
-    setMessage('')
-    setError('')
-    try {
-      await onDeleteAccount(deleteConfirmation)
-      setMessage('Conta excluída. Você será redirecionado para o acesso inicial.')
-    } catch (deleteError) {
-      setError(deleteError?.message || 'Não foi possível excluir a conta agora.')
-    } finally {
-      setDeletingAccount(false)
-    }
-  }
-
   async function handleSubmit(event) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -15426,14 +8725,13 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
         billingPrimaryColor: form.get('billingPrimaryColor')?.toString().trim() || '#10b981',
         billingAccentColor: form.get('billingAccentColor')?.toString().trim() || '#0f172a',
         billingMessage: form.get('billingMessage')?.toString().trim() || current.billingMessage,
-        autoBillingEnabled: form.get('autoBillingEnabled') === 'on',
-        customPlans: planEditorPlans.map(normalizeCoachPlan).filter((plan) => plan.name),
+        customPlans: parseCustomPlans(plansDraft),
         welcomeMessage: form.get('welcomeMessage')?.toString().trim() || '',
         timezone: current.timezone,
       })
-      setMessage('Gerenciamento profissional atualizado.')
+      setMessage('Configurações profissionais atualizadas.')
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o gerenciamento.')
+      setError(saveError?.message || 'Não foi possível salvar as configurações.')
     } finally {
       setSaving(false)
     }
@@ -15452,22 +8750,6 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_0.8fr]">
-      {masterAdmin ? (
-        <section className="xl:col-span-2 rounded-2xl border border-emerald-300/30 bg-emerald-300/[0.08] p-4 shadow-2xl shadow-emerald-950/10">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase text-emerald-200">Conta master reconhecida</p>
-              <h3 className="mt-1 text-xl font-black text-white">Acesso Admin Master liberado para esta conta.</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-300">
-                Use essa área para editar página de vendas, planos oficiais, branding global e acompanhar tráfego.
-              </p>
-            </div>
-            <button type="button" onClick={onOpenAdminMaster} className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30 transition hover:-translate-y-0.5">
-              Abrir Admin Master
-            </button>
-          </div>
-        </section>
-      ) : null}
       <Panel title="Identidade profissional" action="Conta do treinador">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -15507,101 +8789,26 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm font-black text-zinc-100">Planos e valores do treinador</p>
-            <p className="hidden">
+            <p className="mt-1 text-xs leading-5 text-zinc-400">
               Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | Descrição. Ciclos aceitos: semanal, mensal, semestral ou anual.
             </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">
-              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobrança automaticamente.
-            </p>
-            <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
-              <div className="grid gap-3 lg:grid-cols-[1fr_0.72fr_0.7fr]">
-                <label className="grid gap-2 text-sm font-bold text-zinc-300">
-                  Nome do plano
-                  <input value={planDraft.name} onChange={(event) => updatePlanDraft('name', event.target.value)} placeholder="Ex: Consultoria premium" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
-                </label>
-                <label className="grid gap-2 text-sm font-bold text-zinc-300">
-                  Valor
-                  <input value={planDraft.price} onChange={(event) => updatePlanDraft('price', event.target.value)} placeholder="Ex: 250,00" inputMode="decimal" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
-                </label>
-                <label className="grid gap-2 text-sm font-bold text-zinc-300">
-                  Ciclo
-                  <select value={planDraft.cycle} onChange={(event) => updatePlanDraft('cycle', event.target.value)} className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm">
-                    <option value="semanal">Semanal</option>
-                    <option value="mensal">Mensal</option>
-                    <option value="semestral">Semestral</option>
-                    <option value="anual">Anual</option>
-                  </select>
-                </label>
-              </div>
-              <label className="mt-3 grid gap-2 text-sm font-bold text-zinc-300">
-                O que inclui
-                <input value={planDraft.features} onChange={(event) => updatePlanDraft('features', event.target.value)} placeholder="Ex: treino, dieta, check-in semanal e suporte" className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
-              </label>
-              <label className="mt-3 grid gap-2 text-sm font-bold text-zinc-300">
-                Mensagem de cobrança deste plano
-                <textarea
-                  value={planDraft.billingMessage}
-                  onChange={(event) => updatePlanDraft('billingMessage', event.target.value)}
-                  rows={4}
-                  placeholder="Ex.: Olá, {aluno}. Sua mensalidade do plano {plano} vence em {vencimento}. Valor: {valor}. Pix: {pix}."
-                  className="min-h-28 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base leading-6 text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
-                />
-                <span className="text-xs leading-5 text-zinc-500">
-                  Use variáveis como {'{aluno}'}, {'{plano}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'} e {'{email}'}.
-                </span>
-              </label>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <button type="button" disabled={saving} onClick={savePlanDraft} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60">
-                  {saving ? 'Salvando...' : editingPlanIndex >= 0 ? 'Atualizar e salvar plano' : 'Adicionar e salvar plano'}
-                </button>
-                {editingPlanIndex >= 0 ? (
-                  <button type="button" disabled={saving} onClick={resetPlanDraft} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:opacity-60">
-                    Cancelar edição
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <p className="mt-4 text-xs font-black uppercase text-zinc-500">Planos cadastrados</p>
+            <textarea
+              value={plansDraft}
+              onChange={(event) => setPlansDraft(event.target.value)}
+              rows={6}
+              className="mt-3 w-full rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm leading-6 text-zinc-100 outline-none focus:border-emerald-500"
+            />
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {planEditorPlans.map((plan, index) => (
-                <div key={plan.name} className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
+              {getCoachPlans({ customPlans: parseCustomPlans(plansDraft) }).slice(0, 4).map((plan) => (
+                <div key={plan.name} className="rounded-md border border-white/10 bg-zinc-950/70 p-3">
                   <p className="text-sm font-black text-white">{plan.name}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">{plan.features || 'Plano do treinador'}</p>
-                  <p className="mt-2 text-xs font-bold text-cyan-100">
-                    {plan.billingMessage ? 'Mensagem de cobrança personalizada' : 'Usa a mensagem padrão de cobrança'}
-                  </p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={saving} onClick={() => editPlanDraft(plan, index)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60">
-                      Editar
-                    </button>
-                    <button type="button" disabled={saving} onClick={() => removePlanDraft(index)} className="rounded-md border border-rose-300/25 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-60">
-                      Remover
-                    </button>
-                  </div>
                   <p className="mt-1 text-xs font-bold text-emerald-200">{formatCurrency(getPlanBillingAmount(plan.name, [plan]))} · {getPlanCycleLabel(plan)}</p>
                 </div>
               ))}
             </div>
-            <label className="mt-4 flex items-start gap-3 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm leading-6 text-zinc-200">
-              <input
-                name="autoBillingEnabled"
-                type="checkbox"
-                defaultChecked={current.autoBillingEnabled}
-                className="mt-1 h-4 w-4 accent-emerald-400"
-              />
-              <span>
-                <strong className="block text-emerald-100">Cobrança automática dos alunos</strong>
-                <span className="block">Quando um aluno ficar pendente, o app cria a cobrança usando o valor do plano dele.</span>
-                <span className="hidden">
-                <strong className="block text-emerald-100">Gerar cobranças automaticamente</strong>
-                O sistema cria cobranças para alunos pendentes sem cobrança em aberto, usando o valor e o ciclo do plano cadastrado.
-                </span>
-              </span>
-            </label>
           </div>
           <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-            {saving ? 'Salvando...' : 'Salvar gerenciamento'}
+            {saving ? 'Salvando...' : 'Salvar configurações'}
           </button>
           {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
           {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
@@ -15634,12 +8841,11 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
               {billingLogoUrl ? <img src={billingLogoUrl} alt="Logo da cobrança" className="h-14 max-w-36 rounded-md bg-white object-contain p-2" /> : null}
             </div>
             <p className="mt-4 text-sm leading-6 text-zinc-200">
-              {buildBillingMessage(getBillingMessageTemplateForPlan(planEditorPlans[0], current), {
+              {buildBillingMessage(current.billingMessage, {
                 student: { name: 'Aluno exemplo' },
-                amount: getPlanBillingAmount(planEditorPlans[0]?.name, planEditorPlans),
+                amount: getPlanMonthlyPrice(getCoachPlans(settings)[0]?.name, getCoachPlans(settings)),
                 dueDate: getDefaultDueDate(),
                 coachSettings: current,
-                plan: planEditorPlans[0],
               })}
             </p>
           </div>
@@ -15660,53 +8866,13 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
             Baixar backup dos dados
           </button>
         </Panel>
-
-        <Panel title="Exclusão definitiva da conta" action="LGPD">
-          <div className="rounded-2xl border border-rose-300/25 bg-rose-500/[0.07] p-4">
-            <p className="text-sm font-black text-rose-100">Antes de excluir, baixe o backup dos seus dados.</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              A exclusão remove definitivamente a conta do treinador e os dados operacionais vinculados, incluindo alunos, fotos, anamnese, check-ins, treinos, nutrição, mensagens e cobranças internas.
-            </p>
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Registros financeiros ou de segurança podem ser retidos pelo prazo legal necessário para auditoria, prevenção a fraude e obrigações fiscais.
-            </p>
-          </div>
-          {masterAdmin ? (
-            <p className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3 text-sm font-bold leading-6 text-amber-100">
-              Por segurança, a conta Admin Master não pode ser excluída por este painel.
-            </p>
-          ) : (
-            <div className="mt-4 grid gap-3">
-              <button onClick={onExport} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-                Baixar backup antes de excluir
-              </button>
-              <label className="grid gap-2 text-sm font-bold text-zinc-300">
-                Digite seu e-mail para confirmar
-                <input
-                  value={deleteConfirmation}
-                  onChange={(event) => setDeleteConfirmation(event.target.value)}
-                  placeholder={user?.email || 'seu@email.com'}
-                  className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-rose-300 sm:text-sm"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={deletingAccount || String(deleteConfirmation || '').trim().toLowerCase() !== String(user?.email || '').trim().toLowerCase()}
-                onClick={handleAccountDeletion}
-                className="rounded-md border border-rose-300/40 bg-rose-500/12 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-500/18 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingAccount ? 'Excluindo conta...' : 'Excluir minha conta definitivamente'}
-              </button>
-            </div>
-          )}
-        </Panel>
       </div>
     </div>
   )
 }
 
-function Messages({ students, messages, selectedStudent: selectedStudentFromDashboard, onSendMessage, onMarkRead, onRefreshMessages }) {
-  const [selectedStudentId, setSelectedStudentId] = useState(selectedStudentFromDashboard?.id ?? students[0]?.id ?? '')
+function Messages({ students, messages, onSendMessage, onMarkRead, onRefreshMessages }) {
+  const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState('')
@@ -15720,12 +8886,6 @@ function Messages({ students, messages, selectedStudent: selectedStudentFromDash
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
   const latestMessageId = studentMessages.at(-1)?.id
   const suggestion = buildMessageSuggestion(selectedStudent)
-
-  useEffect(() => {
-    if (selectedStudentFromDashboard?.id) {
-      setSelectedStudentId(selectedStudentFromDashboard.id)
-    }
-  }, [selectedStudentFromDashboard?.id])
   const unreadForSelected = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
 
   useEffect(() => {
@@ -15956,8 +9116,25 @@ function ChartLoading() {
   )
 }
 
+function ThemeToggle({ theme, onToggle, className = '' }) {
+  const isDark = theme === 'dark'
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+      aria-pressed={isDark}
+      className={`theme-toggle ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
+    >
+      <span className="theme-toggle-icon" aria-hidden="true">{isDark ? 'CL' : 'ES'}</span>
+      <span className="theme-toggle-copy">
+        <span>{isDark ? 'Modo claro' : 'Modo escuro'}</span>
+        <small>{isDark ? 'Fundo branco' : 'Fundo preto'}</small>
+      </span>
+    </button>
+  )
+}
 function BrandLockup({ subtitle = '', large = false, compact = false }) {
-  const logoSrc = loadLocalAdminSettings().logoUrl || fitCoachLogo
   return (
     <div
       className={`fit-brand-lockup grid aspect-[400/71] shrink-0 place-items-center ${
@@ -15970,7 +9147,7 @@ function BrandLockup({ subtitle = '', large = false, compact = false }) {
       title={subtitle}
     >
       <img
-        src={logoSrc}
+        src={fitCoachLogo}
         alt="Coach Fit Pro"
         className="h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.48)]"
         decoding="async"
@@ -16088,23 +9265,11 @@ function NavIcon({ name, className = '' }) {
     settings: <><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22h-3.34v-.18A1.65 1.65 0 0 0 9.4 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2v-3.34h.18A1.65 1.65 0 0 0 4 9.4a1.65 1.65 0 0 0 .33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2h3.34v.18A1.65 1.65 0 0 0 14.6 4a1.65 1.65 0 0 0 1.82.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.36.4.71.6 1h2v3.34h-.18A1.65 1.65 0 0 0 20 14.6c-.2.14-.4.27-.6.4Z" /></>,
     credit: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>,
     water: <><path d="M12 2s6 6.5 6 12a6 6 0 0 1-12 0C6 8.5 12 2 12 2Z" /><path d="M9.5 15.5A3.1 3.1 0 0 0 12 17" /></>,
-    trophy: <><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" /><path d="M5 5H3v2a4 4 0 0 0 4 4" /><path d="M19 5h2v2a4 4 0 0 1-4 4" /></>,
-    muscle: <><path d="M12 3a3 3 0 0 1 3 3c0 1.1-.6 2-1.4 2.5l2.2 1.8 2 7.2-2.4.7-1.4-5-1.1 4.4.8 4.4h-3.4l.8-4.4-1.1-4.4-1.4 5-2.4-.7 2-7.2 2.2-1.8A2.9 2.9 0 0 1 9 6a3 3 0 0 1 3-3Z" /></>,
-    layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 16 9 5 9-5" /></>,
-    bulb: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M8.5 14.5A6 6 0 1 1 15.5 14c-.9.8-1.5 1.7-1.5 3h-4c0-1.2-.5-2-1.5-2.5Z" /></>,
-    alert: <><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" /></>,
-    play: <><path d="M8 5v14l11-7Z" /></>,
-    eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>,
-    star: <><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" /></>,
-    shield: <><path d="M12 3 19 6v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3Z" /><path d="m9 12 2 2 4-5" /></>,
-    check: <><path d="m20 6-11 11-5-5" /></>,
-    activity: <><path d="M22 12h-4l-3 8-6-16-3 8H2" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
     menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
     close: <><path d="M6 6l12 12M18 6 6 18" /></>,
     chevronRight: <><path d="m9 18 6-6-6-6" /></>,
-    chevronDown: <><path d="m6 9 6 6 6-6" /></>,
   }
 
   return (
@@ -16116,9 +9281,9 @@ function NavIcon({ name, className = '' }) {
 
 function Metric({ label, value, detail }) {
   return (
-    <div className="coach-metric-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+    <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
       <p className="text-sm text-zinc-400">{label}</p>
-      <h3 className="metric-money-value mt-2 font-black sm:mt-3">{value}</h3>
+      <h3 className="mt-2 break-words text-2xl font-black sm:mt-3 sm:text-3xl">{value}</h3>
       <p className="mt-2 text-xs font-semibold text-blue-300">{detail}</p>
     </div>
   )
@@ -16126,10 +9291,10 @@ function Metric({ label, value, detail }) {
 
 function Panel({ title, action, children }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
+    <section className="min-w-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900/70 p-4 shadow-2xl shadow-black/20 sm:p-5">
       <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-        <h3 className="min-w-0 break-words text-base font-black text-white sm:text-lg">{title}</h3>
-        <span className="max-w-full break-words rounded-xl border border-white/10 bg-white/[0.045] px-3 py-1.5 text-left text-xs font-bold leading-5 text-zinc-300 sm:shrink-0 sm:text-right">{formatUiText(action)}</span>
+        <h3 className="text-base font-black sm:text-lg">{title}</h3>
+        <span className="max-w-full break-words rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold leading-5 text-zinc-300">{formatUiText(action)}</span>
       </div>
       {children}
     </section>
@@ -16191,7 +9356,6 @@ function Field({
   autoComplete,
   maxLength,
   placeholder,
-  onChange,
 }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -16206,8 +9370,7 @@ function Field({
         autoComplete={autoComplete}
         maxLength={maxLength}
         placeholder={placeholder}
-        onChange={onChange}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
   )
@@ -16220,7 +9383,7 @@ function InlineInput({ label, value, onChange }) {
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
   )
@@ -16233,7 +9396,7 @@ function InlineSelect({ label, value, options, onChange }) {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       >
         {options.map((option) => <option key={option} value={option}>{formatUiText(option)}</option>)}
       </select>
@@ -16241,16 +9404,14 @@ function InlineSelect({ label, value, options, onChange }) {
   )
 }
 
-function Select({ label, name, defaultValue, value, onChange, options }) {
+function Select({ label, name, defaultValue, options }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <select
         name={name}
-        value={value}
         defaultValue={defaultValue}
-        onChange={onChange}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       >
         {options.map((option) => {
           const value = typeof option === 'string' ? option : option.value
@@ -16262,23 +9423,22 @@ function Select({ label, name, defaultValue, value, onChange, options }) {
   )
 }
 
-function TextArea({ label, name, defaultValue = '', onChange }) {
+function TextArea({ label, name, defaultValue = '' }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <textarea
         name={name}
         defaultValue={defaultValue}
-        onChange={onChange}
         rows={4}
-        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
       />
     </label>
   )
 }
 
 function buildCoachActionPlan(smartAlerts = []) {
-  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliação'].includes(alert.type))
+  const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliacao'].includes(alert.type))
   const hasPrescriptionGap = smartAlerts.some((alert) => ['Treino', 'Nutrição'].includes(alert.type))
   const hasOverduePayment = smartAlerts.some((alert) => alert.type === 'Financeiro')
   const hasAgenda = smartAlerts.some((alert) => alert.type === 'Agenda')
@@ -16338,525 +9498,6 @@ function buildCoachActionPlan(smartAlerts = []) {
   })
 
   return actions.slice(0, 4)
-}
-
-function DailyIntelligenceSummary({ dashboard, onOpenView }) {
-  const summary = dashboard?.summary || {}
-  const actions = dashboard?.recommendedActions || []
-
-  return (
-    <Panel title="Resumo inteligente do dia" action="Prioridades reais">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <PrioritySummaryMetric label="Alunos em risco" value={summary.riskStudents || 0} detail="abandono médio, alto ou crítico" tone="rose" />
-        <PrioritySummaryMetric label="Sem treino ativo" value={summary.withoutWorkout || 0} detail="precisam de prescrição" tone="amber" />
-        <PrioritySummaryMetric label="Check-ins pendentes" value={summary.pendingCheckins || 0} detail="retornos a revisar" tone="cyan" />
-        <PrioritySummaryMetric label="Cobranças próximas" value={summary.upcomingCharges || 0} detail="vencem em até 7 dias" tone="emerald" />
-        <PrioritySummaryMetric label="Mensagens pendentes" value={summary.pendingMessages || 0} detail="alunos aguardando resposta" tone="blue" />
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {actions.length ? actions.map((action) => (
-          <button
-            key={`${action.studentId}-${action.title}`}
-            type="button"
-            onClick={() => onOpenView?.(action.view)}
-            className="group rounded-xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/40 hover:bg-emerald-300/[0.07]"
-          >
-            <p className="text-xs font-black uppercase text-emerald-200">{action.label}</p>
-            <h4 className="mt-2 text-sm font-black text-white">{action.title}</h4>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">{action.body}</p>
-            <span className="mt-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-black text-emerald-100 group-hover:border-emerald-300/35">
-              Abrir ação
-            </span>
-          </button>
-        )) : (
-          <div className="lg:col-span-3">
-            <Empty text="Nenhuma ação urgente agora. Acompanhe check-ins, treinos e mensagens para manter a carteira aquecida." />
-          </div>
-        )}
-      </div>
-    </Panel>
-  )
-}
-
-function PrioritySummaryMetric({ label, value, detail, tone = 'emerald' }) {
-  const toneClass = {
-    rose: 'border-rose-300/25 bg-rose-300/[0.07] text-rose-100',
-    amber: 'border-amber-300/25 bg-amber-300/[0.07] text-amber-100',
-    cyan: 'border-cyan-300/25 bg-cyan-300/[0.07] text-cyan-100',
-    blue: 'border-blue-300/25 bg-blue-300/[0.07] text-blue-100',
-    emerald: 'border-emerald-300/25 bg-emerald-300/[0.07] text-emerald-100',
-  }[tone] || 'border-emerald-300/25 bg-emerald-300/[0.07] text-emerald-100'
-
-  return (
-    <div className={`rounded-xl border p-4 ${toneClass}`}>
-      <p className="text-xs font-black uppercase opacity-80">{label}</p>
-      <p className="mt-2 text-3xl font-black text-white">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-zinc-400">{detail}</p>
-    </div>
-  )
-}
-
-function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
-  const [filter, setFilter] = useState('todos')
-  const [loading, setLoading] = useState(true)
-  const items = dashboard?.items || []
-  const filters = [
-    ['todos', 'Todos'],
-    ['urgente', 'Urgente'],
-    ['baixa-adesao', 'Baixa adesão'],
-    ['risco-abandono', 'Risco de abandono'],
-    ['sem-treino', 'Sem treino'],
-    ['sem-checkin', 'Sem check-in'],
-    ['financeiro', 'Financeiro'],
-    ['sem-resposta', 'Sem resposta'],
-  ]
-
-  useEffect(() => {
-    setLoading(true)
-    const timer = window.setTimeout(() => setLoading(false), 180)
-    return () => window.clearTimeout(timer)
-  }, [dashboard?.generatedAt, filter])
-
-  const filteredItems = items.filter((item) => filter === 'todos' || item.filterTags.includes(filter))
-
-  return (
-    <Panel title="Alunos que precisam de atenção" action={`${filteredItems.length} no filtro`}>
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-soft">
-        {filters.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setFilter(id)}
-            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black transition ${
-              filter === id
-                ? 'border-emerald-300/60 bg-emerald-300 text-zinc-950'
-                : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-emerald-300/35 hover:text-white'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {[1, 2].map((item) => (
-            <div key={item} className="h-48 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />
-          ))}
-        </div>
-      ) : filteredItems.length ? (
-        <div className="mt-4 grid gap-3 xl:grid-cols-2">
-          {filteredItems.map((item) => (
-            <PriorityStudentCard
-              key={item.student.id}
-              item={item}
-              onOpenStudent={() => onOpenStudent?.(item.student.id)}
-              onMessageStudent={() => onMessageStudent?.(item.student.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="mt-4">
-          <Empty text="Nenhum aluno encontrado neste filtro. Use Todos para enxergar a carteira completa." />
-        </div>
-      )}
-    </Panel>
-  )
-}
-
-function PriorityStudentCard({ item, onOpenStudent, onMessageStudent }) {
-  const tone = getPriorityTone(item.priority)
-
-  return (
-    <article className={`rounded-2xl border p-4 ${tone.card}`}>
-      <div className="flex items-start gap-3">
-        <StudentPriorityAvatar student={item.student} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h4 className="truncate text-lg font-black text-white">{item.student.name}</h4>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">{item.lastActivity}</p>
-            </div>
-            <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${tone.badge}`}>{formatUiText(item.priority)}</span>
-          </div>
-          <p className="mt-3 text-sm font-black text-zinc-100">{item.reason}</p>
-          <p className="mt-1 text-sm leading-6 text-zinc-400">{item.recommendedAction}</p>
-        </div>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <ScoreBox label="Adesão" value={item.adherence.score} detail={item.adherence.classification} tone={item.adherence.score < 55 ? 'rose' : item.adherence.score < 75 ? 'amber' : 'emerald'} />
-        <ScoreBox label="Risco" value={item.risk.score} detail={item.risk.classification} tone={item.risk.classification === 'critico' || item.risk.classification === 'alto' ? 'rose' : item.risk.classification === 'medio' ? 'amber' : 'emerald'} />
-      </div>
-
-      <div className="mt-4 grid gap-2">
-        <p className="text-xs font-black uppercase text-zinc-500">Fatores detectados</p>
-        <div className="flex flex-wrap gap-2">
-          {item.factors.slice(0, 5).map((factor) => (
-            <span key={factor} className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-bold text-zinc-300">{factor}</span>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-        <p className="text-xs font-black uppercase text-zinc-500">Por que este score?</p>
-        <p className="mt-1 text-xs leading-5 text-zinc-300">{item.adherence.reason}</p>
-        <p className="mt-1 text-xs leading-5 text-zinc-400">{item.risk.reason}</p>
-      </div>
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={onOpenStudent} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/40 hover:bg-emerald-300/10">
-          Abrir perfil
-        </button>
-        <button type="button" onClick={onMessageStudent} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300">
-          Enviar mensagem
-        </button>
-      </div>
-    </article>
-  )
-}
-
-function StudentPriorityAvatar({ student }) {
-  const initials = String(student?.name || 'A')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-
-  if (student?.photo) {
-    return <img src={student.photo} alt={student.name} className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
-  }
-
-  return (
-    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
-      {initials || 'A'}
-    </div>
-  )
-}
-
-function ScoreBox({ label, value, detail, tone = 'emerald' }) {
-  const toneClass = {
-    rose: 'border-rose-300/25 bg-rose-300/[0.075] text-rose-100',
-    amber: 'border-amber-300/25 bg-amber-300/[0.075] text-amber-100',
-    emerald: 'border-emerald-300/25 bg-emerald-300/[0.075] text-emerald-100',
-  }[tone] || 'border-emerald-300/25 bg-emerald-300/[0.075] text-emerald-100'
-
-  return (
-    <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase opacity-80">{label}</p>
-        <p className="text-xl font-black text-white">{value}</p>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/30">
-        <div className="h-full rounded-full bg-current" style={{ width: `${clampPercent(value)}%` }} />
-      </div>
-      <p className="mt-2 text-xs font-bold">{formatUiText(detail)}</p>
-    </div>
-  )
-}
-
-function getPriorityTone(priority) {
-  if (priority === 'Urgente') {
-    return {
-      card: 'border-rose-300/30 bg-rose-300/[0.055]',
-      badge: 'border-rose-300/40 bg-rose-300/10 text-rose-100',
-    }
-  }
-  if (priority === 'Atencao') {
-    return {
-      card: 'border-orange-300/30 bg-orange-300/[0.055]',
-      badge: 'border-orange-300/40 bg-orange-300/10 text-orange-100',
-    }
-  }
-  if (priority === 'Acompanhar') {
-    return {
-      card: 'border-amber-300/30 bg-amber-300/[0.055]',
-      badge: 'border-amber-300/40 bg-amber-300/10 text-amber-100',
-    }
-  }
-  return {
-    card: 'border-emerald-300/25 bg-emerald-300/[0.045]',
-    badge: 'border-emerald-300/35 bg-emerald-300/10 text-emerald-100',
-  }
-}
-
-function buildPriorityDashboard({ students = [], checkins = [], workouts = [], workoutLogs = [], messages = [], invoices = [], assessments = [] } = {}) {
-  const activeStudents = (students || []).filter((student) => student && student.status !== 'Inativo')
-  const items = activeStudents
-    .map((student) => buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }))
-    .sort((a, b) => a.priorityRank - b.priorityRank || b.risk.score - a.risk.score || a.adherence.score - b.adherence.score)
-
-  const summary = {
-    riskStudents: items.filter((item) => ['medio', 'alto', 'critico'].includes(item.risk.classification)).length,
-    withoutWorkout: items.filter((item) => item.filterTags.includes('sem-treino')).length,
-    pendingCheckins: checkins.filter((checkin) => checkin.state !== 'Recebido').length,
-    upcomingCharges: items.filter((item) => item.filterTags.includes('financeiro') && item.financialDueSoon).length,
-    pendingMessages: items.reduce((total, item) => total + item.pendingMessages, 0),
-  }
-
-  const recommendedActions = items
-    .filter((item) => item.priority !== 'Regular')
-    .slice(0, 3)
-    .map((item) => ({
-      studentId: item.student.id,
-      label: item.priority,
-      title: item.student.name,
-      body: item.recommendedAction,
-      view: item.primaryView,
-    }))
-
-  return {
-    generatedAt: new Date().toISOString(),
-    summary,
-    recommendedActions,
-    items,
-  }
-}
-
-function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }) {
-  const studentId = String(student.id)
-  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
-  const studentLogs = workoutLogs.filter((log) => String(log.studentId) === studentId)
-  const studentCheckins = checkins.filter((checkin) => String(checkin.studentId) === studentId)
-  const studentMessages = messages.filter((message) => String(message.studentId) === studentId)
-  const studentInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) })).filter((invoice) => String(invoice.studentId) === studentId)
-  const studentAssessments = assessments.filter((assessment) => String(assessment.studentId) === studentId)
-
-  const latestWorkout = latestByDate(studentLogs, (item) => item.completedAt || item.createdAt || item.date)
-  const latestCheckin = latestByDate(studentCheckins, (item) => item.createdAt || item.due)
-  const latestMessage = latestByDate(studentMessages, (item) => item.createdAt)
-  const latestAssessment = latestByDate(studentAssessments, (item) => item.assessedAt)
-  const latestInvoice = latestByDate(studentInvoices, (item) => item.paidAt || item.dueDate || item.createdAt)
-  const lastActivityDate = [latestWorkout?.completedAt, latestCheckin?.createdAt || latestCheckin?.due, latestMessage?.createdAt, latestAssessment?.assessedAt, latestInvoice?.paidAt || latestInvoice?.createdAt]
-    .filter(Boolean)
-    .sort((a, b) => new Date(b) - new Date(a))[0]
-
-  const lastWorkoutDays = safeDaysSince(latestWorkout?.completedAt || latestWorkout?.createdAt || latestWorkout?.date)
-  const lastCheckinDays = safeDaysSince(latestCheckin?.createdAt || latestCheckin?.due)
-  const lastAssessmentDays = safeDaysSince(latestAssessment?.assessedAt)
-  const logs14 = countSince(studentLogs, 14, (item) => item.completedAt || item.createdAt || item.date)
-  const previousLogs14 = countBetweenDays(studentLogs, 15, 28, (item) => item.completedAt || item.createdAt || item.date)
-  const checkins30 = countSince(studentCheckins, 30, (item) => item.createdAt || item.due)
-  const unreadStudentMessages = studentMessages.filter((message) => message.sender === 'student' && !message.read).length
-  const latestMessageNeedsReply = latestMessage?.sender === 'student' && safeDaysSince(latestMessage.createdAt) >= 2
-  const overdueInvoices = studentInvoices.filter((invoice) => invoice.status === 'Atrasado')
-  const pendingInvoices = studentInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
-  const dueSoonInvoices = pendingInvoices.filter((invoice) => {
-    const daysUntilDue = daysUntilDate(invoice.dueDate)
-    return daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 7
-  })
-  const painOrFatigue = detectPainOrFatigue(latestCheckin)
-  const hasActiveWorkout = studentWorkouts.length > 0
-  const hasRecentAssessment = lastAssessmentDays !== null && lastAssessmentDays <= 45
-  const studentAdherence = Number(student.adherence || 0)
-  const adherence = calculateAdherenceScore({
-    logs14,
-    previousLogs14,
-    lastWorkoutDays,
-    lastCheckinDays,
-    checkins30,
-    unreadStudentMessages,
-    studentAdherence,
-  })
-  const risk = calculateAbandonmentRisk({
-    lastWorkoutDays,
-    lastCheckinDays,
-    unreadStudentMessages,
-    overdueInvoices,
-    logs14,
-    previousLogs14,
-    adherenceScore: adherence.score,
-    latestMessageNeedsReply,
-  })
-
-  const factors = []
-  const filterTags = ['todos']
-  const reasons = []
-  let primaryView = 'alunos'
-
-  if (!hasActiveWorkout) {
-    factors.push('Sem treino ativo')
-    filterTags.push('sem-treino')
-    reasons.push({ level: 'Atencao', text: 'sem treino ativo', action: 'Prescreva um treino para liberar a execução no app.', view: 'treinos' })
-  }
-  if (lastWorkoutDays === null || lastWorkoutDays >= 10) {
-    factors.push(lastWorkoutDays === null ? 'Sem treino concluído' : `${Math.floor(lastWorkoutDays)} dias sem treinar`)
-    filterTags.push('risco-abandono')
-    reasons.push({ level: lastWorkoutDays === null || lastWorkoutDays >= 14 ? 'Urgente' : 'Atencao', text: lastWorkoutDays === null ? 'sem treino concluído registrado' : 'muitos dias sem treinar', action: 'Envie uma mensagem e ajuste a próxima sessão.', view: 'mensagens' })
-  }
-  if (lastCheckinDays === null || lastCheckinDays >= 14) {
-    factors.push(lastCheckinDays === null ? 'Sem check-in' : `${Math.floor(lastCheckinDays)} dias sem check-in`)
-    filterTags.push('sem-checkin')
-    reasons.push({ level: lastCheckinDays === null || lastCheckinDays >= 21 ? 'Atencao' : 'Acompanhar', text: 'check-in atrasado', action: 'Solicite um retorno rápido sobre treino, dieta, sono e fome.', view: 'checkins' })
-  }
-  if (adherence.score < 65 || studentAdherence < 65) {
-    factors.push(`Adesão ${adherence.score}/100`)
-    filterTags.push('baixa-adesao')
-    reasons.push({ level: adherence.score < 45 ? 'Urgente' : 'Atencao', text: 'baixa adesão', action: 'Revise volume, rotina e barreiras do aluno antes que ele desengaje.', view: 'alunos' })
-  }
-  if (painOrFatigue) {
-    factors.push('Dor ou fadiga alta')
-    filterTags.push('risco-abandono')
-    reasons.push({ level: 'Urgente', text: 'sinal de dor ou fadiga no check-in', action: 'Avalie ajuste de carga, descanso ou encaminhamento adequado.', view: 'checkins' })
-  }
-  if (unreadStudentMessages || latestMessageNeedsReply) {
-    factors.push(unreadStudentMessages ? `${formatCount(unreadStudentMessages, 'mensagem', 'mensagens')} sem resposta` : 'Aluno aguardando resposta')
-    filterTags.push('sem-resposta')
-    reasons.push({ level: unreadStudentMessages > 1 || latestMessageNeedsReply ? 'Atencao' : 'Acompanhar', text: 'mensagem pendente', action: 'Responda o aluno para manter percepção de acompanhamento.', view: 'mensagens' })
-  }
-  if (overdueInvoices.length || student.payment === 'Pendente') {
-    factors.push('Financeiro pendente')
-    filterTags.push('financeiro')
-    reasons.push({ level: overdueInvoices.length ? 'Urgente' : 'Atencao', text: overdueInvoices.length ? 'inadimplência' : 'pagamento pendente', action: 'Abra recebimentos, confirme pagamento ou envie cobrança personalizada.', view: 'pagamentos' })
-  } else if (dueSoonInvoices.length) {
-    factors.push('Vencimento próximo')
-    filterTags.push('financeiro')
-    reasons.push({ level: 'Acompanhar', text: 'cobrança próxima do vencimento', action: 'Prepare lembrete antes do vencimento para evitar atraso.', view: 'pagamentos' })
-  }
-  if (!hasRecentAssessment) {
-    factors.push(lastAssessmentDays === null ? 'Sem avaliação' : 'Avaliação antiga')
-    filterTags.push('risco-abandono')
-    reasons.push({ level: lastAssessmentDays === null ? 'Atencao' : 'Acompanhar', text: 'sem avaliação recente', action: 'Atualize medidas e fotos para reforçar percepção de evolução.', view: 'avaliacoes' })
-  }
-  if (logs14 < 2 && studentLogs.length > 0) {
-    factors.push('Baixa frequência')
-    filterTags.push('baixa-adesao')
-    reasons.push({ level: 'Atencao', text: 'baixa frequência nas últimas duas semanas', action: 'Reduza fricção da rotina e combine uma meta mínima para a semana.', view: 'treinos' })
-  }
-
-  const mainReason = pickMainPriorityReason(reasons)
-  if (mainReason?.view) primaryView = mainReason.view
-  if (!factors.length) {
-    factors.push('Rotina regular')
-    filterTags.push('regular')
-  }
-
-  return {
-    student,
-    priority: mainReason?.level || 'Regular',
-    priorityRank: { Urgente: 0, Atencao: 1, Acompanhar: 2, Regular: 3 }[mainReason?.level || 'Regular'],
-    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operação em dia para este aluno.',
-    recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a próxima evolução.',
-    primaryView,
-    factors: [...new Set(factors)],
-    filterTags: [...new Set(filterTags.concat(mainReason ? [normalizePriorityFilter(mainReason.level)] : []))],
-    adherence,
-    risk,
-    pendingMessages: unreadStudentMessages,
-    financialDueSoon: dueSoonInvoices.length > 0,
-    lastActivity: lastActivityDate ? `Última atividade: ${formatDateTime(lastActivityDate)}` : 'Última atividade: sem registro',
-  }
-}
-
-function calculateAdherenceScore({ logs14, previousLogs14, lastWorkoutDays, lastCheckinDays, checkins30, unreadStudentMessages, studentAdherence }) {
-  const workoutScore = Math.min(100, Math.round((logs14 / 4) * 100))
-  const checkinScore = lastCheckinDays === null ? 35 : lastCheckinDays <= 7 ? 100 : lastCheckinDays <= 14 ? 70 : lastCheckinDays <= 21 ? 45 : 20
-  const responseScore = unreadStudentMessages ? Math.max(35, 100 - unreadStudentMessages * 20) : 100
-  const consistencyScore = studentAdherence > 0 ? clampPercent(studentAdherence) : Math.min(100, Math.round(((logs14 + checkins30) / 6) * 100))
-  const recencyScore = lastWorkoutDays === null ? 20 : lastWorkoutDays <= 3 ? 100 : lastWorkoutDays <= 7 ? 75 : lastWorkoutDays <= 14 ? 45 : 20
-  const score = clampPercent((workoutScore * 0.28) + (checkinScore * 0.2) + (responseScore * 0.16) + (consistencyScore * 0.2) + (recencyScore * 0.16))
-  const trend = logs14 - previousLogs14
-  const classification = score >= 85 ? 'excelente' : score >= 70 ? 'boa' : score >= 50 ? 'instavel' : 'baixa'
-  const reason = `Frequência ${logs14}/14 dias, check-ins ${checkins30}/30 dias, respostas ${responseScore}/100 e consistência ${consistencyScore}/100. Evolução: ${trend > 0 ? `subiu ${trend}` : trend < 0 ? `caiu ${Math.abs(trend)}` : 'estável'}.`
-
-  return { score, classification, trend, reason }
-}
-
-function calculateAbandonmentRisk({ lastWorkoutDays, lastCheckinDays, unreadStudentMessages, overdueInvoices, logs14, previousLogs14, adherenceScore, latestMessageNeedsReply }) {
-  const factors = []
-  let score = 0
-
-  if (lastWorkoutDays === null || lastWorkoutDays >= 14) {
-    score += 30
-    factors.push('muitos dias sem treinar')
-  } else if (lastWorkoutDays >= 8) {
-    score += 18
-    factors.push('queda de frequência')
-  }
-  if (lastCheckinDays === null || lastCheckinDays >= 21) {
-    score += 22
-    factors.push('falta de check-in')
-  } else if (lastCheckinDays >= 14) {
-    score += 12
-    factors.push('check-in atrasado')
-  }
-  if (unreadStudentMessages || latestMessageNeedsReply) {
-    score += Math.min(18, 8 + unreadStudentMessages * 5)
-    factors.push('ausência de resposta')
-  }
-  if (overdueInvoices.length) {
-    score += 24
-    factors.push('atraso financeiro')
-  }
-  if (logs14 < previousLogs14 && previousLogs14 > 0) {
-    score += 12
-    factors.push('queda de frequência')
-  }
-  if (adherenceScore < 55) {
-    score += 14
-    factors.push('baixa adesão')
-  }
-
-  const normalizedScore = clampPercent(score)
-  const classification = normalizedScore >= 75 ? 'critico' : normalizedScore >= 55 ? 'alto' : normalizedScore >= 30 ? 'medio' : 'baixo'
-  const reason = factors.length ? `Risco ${classification}: ${[...new Set(factors)].join(', ')}.` : 'Risco baixo: rotina recente sem sinal crítico.'
-
-  return { score: normalizedScore, classification, factors: [...new Set(factors)], reason }
-}
-
-function pickMainPriorityReason(reasons = []) {
-  const rank = { Urgente: 0, Atencao: 1, Acompanhar: 2 }
-  return reasons.slice().sort((a, b) => rank[a.level] - rank[b.level])[0] || null
-}
-
-function normalizePriorityFilter(priority) {
-  if (priority === 'Urgente') return 'urgente'
-  return priority === 'Atencao' ? 'atencao' : 'acompanhar'
-}
-
-function latestByDate(items = [], getDate) {
-  return items
-    .filter(Boolean)
-    .slice()
-    .sort((a, b) => new Date(getDate(b) || 0) - new Date(getDate(a) || 0))[0] || null
-}
-
-function countSince(items = [], days, getDate) {
-  return items.filter((item) => {
-    const age = safeDaysSince(getDate(item))
-    return age !== null && age <= days
-  }).length
-}
-
-function countBetweenDays(items = [], minDays, maxDays, getDate) {
-  return items.filter((item) => {
-    const age = safeDaysSince(getDate(item))
-    return age !== null && age >= minDays && age <= maxDays
-  }).length
-}
-
-function safeDaysSince(value) {
-  const days = daysSinceDate(value)
-  if (days === null || !Number.isFinite(days)) return null
-  return Math.max(0, days)
-}
-
-function daysUntilDate(value) {
-  if (!value) return null
-  const raw = String(value)
-  const normalized = raw.includes('T') ? raw : `${raw}T12:00:00`
-  const time = new Date(normalized).getTime()
-  if (Number.isNaN(time)) return null
-  return Math.ceil((time - Date.now()) / (24 * 60 * 60 * 1000))
-}
-
-function detectPainOrFatigue(checkin) {
-  if (!checkin) return false
-  const text = normalizeText(`${checkin.state || ''} ${checkin.note || ''} ${checkin.type || ''}`)
-  return checkin.state === 'Critico' || /dor|fadiga|cansad|exaust|lesao|lesion|sono ruim|muito dolor/.test(text)
 }
 
 function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointments = [], invoices = [], assessments = []) {
@@ -16925,7 +9566,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     if (!latestAssessment || assessmentAge === null || assessmentAge > 30) {
       alerts.push({
         id: `assessment-${student.id}`,
-        type: 'Avaliação',
+        type: 'Avaliacao',
         priority: latestAssessment ? 'Medio' : 'Alto',
         title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda não tem avaliação`,
         body: latestAssessment
@@ -17328,7 +9969,9 @@ function getPlanMonthlyPrice(planName, availablePlans = plans) {
 function getPlanBillingAmount(planName, availablePlans = plans) {
   const plan = availablePlans.find((item) => item.name === planName) ?? plans.find((item) => item.name === planName)
   if (!plan) return 0
-  return parseCurrencyNumber(plan.price)
+  const normalized = String(plan.price || '').replace(/[^\d,.-]/g, '').replace(',', '.')
+  const value = Number(normalized)
+  return Number.isFinite(value) ? value : 0
 }
 
 function getCoachPlans(settings) {
@@ -17340,42 +9983,10 @@ function getCoachPlans(settings) {
       cycle: normalizePlanCycle(plan?.cycle || plan?.duration || 'mensal'),
       duration: String(plan?.duration || getPlanCycleLabel(plan)).trim(),
       features: String(plan?.features || '').trim(),
-      billingMessage: String(plan?.billingMessage || plan?.billing_message || '').trim(),
     }))
     .filter((plan) => plan.name)
 
   return normalizedPlans.length ? normalizedPlans : plans
-}
-
-function buildCoachSettingsPayload(settings = {}, user = {}) {
-  return {
-    brandName: settings?.brandName || 'Coach Fit Pro',
-    publicName: settings?.publicName || user?.name || '',
-    cref: settings?.cref || '',
-    whatsapp: settings?.whatsapp || '',
-    supportEmail: settings?.supportEmail || user?.email || '',
-    pixKey: settings?.pixKey || '',
-    billingLogoUrl: settings?.billingLogoUrl || '',
-    billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
-    billingAccentColor: settings?.billingAccentColor || '#0f172a',
-    billingMessage: settings?.billingMessage || 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para validação.',
-    autoBillingEnabled: settings?.autoBillingEnabled !== false,
-    customPlans: getCoachPlans(settings),
-    welcomeMessage: settings?.welcomeMessage || 'Mantenha o plano, registre seu treino e use o check-in para me contar como você está evoluindo.',
-    timezone: settings?.timezone || 'America/Sao_Paulo',
-  }
-}
-
-function normalizeCoachPlan(plan = {}) {
-  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration || 'mensal')
-  return {
-    name: String(plan?.name || '').trim(),
-    price: normalizePlanPrice(plan?.price),
-    cycle,
-    duration: getPlanCycleLabel({ cycle }),
-    features: String(plan?.features || plan?.description || 'Plano personalizado do treinador').trim(),
-    billingMessage: String(plan?.billingMessage || plan?.billing_message || '').trim(),
-  }
 }
 
 function parseCustomPlans(value) {
@@ -17384,7 +9995,7 @@ function parseCustomPlans(value) {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const [name = '', price = '', cycleOrFeatures = '', featuresOrEmpty = '', billingMessage = ''] = line.split('|').map((part) => part.trim())
+      const [name = '', price = '', cycleOrFeatures = '', featuresOrEmpty = ''] = line.split('|').map((part) => part.trim())
       const hasExplicitCycle = ['semanal', 'mensal', 'semestral', 'anual'].includes(normalizePlanCycle(cycleOrFeatures))
       const cycle = hasExplicitCycle ? normalizePlanCycle(cycleOrFeatures) : 'mensal'
       const features = hasExplicitCycle ? featuresOrEmpty : cycleOrFeatures
@@ -17394,7 +10005,6 @@ function parseCustomPlans(value) {
         cycle,
         duration: getPlanCycleLabel({ cycle }),
         features: features || 'Plano do treinador',
-        billingMessage,
       }
     })
     .filter((plan) => plan.name)
@@ -17409,21 +10019,8 @@ function normalizePlanPrice(value) {
   const raw = String(value || '').trim()
   if (!raw) return 'R$ 0'
   if (/^r\$/i.test(raw)) return raw
-  const number = parseCurrencyNumber(raw)
+  const number = Number(raw.replace(/[^\d,.-]/g, '').replace(',', '.'))
   return Number.isFinite(number) ? formatCurrency(number) : raw
-}
-
-function parseCurrencyNumber(value) {
-  const raw = String(value || '').trim().replace(/[^\d,.-]/g, '')
-  if (!raw) return 0
-  const hasComma = raw.includes(',')
-  const normalized = hasComma
-    ? raw.replace(/\./g, '').replace(',', '.')
-    : raw.includes('.') && raw.split('.').at(-1)?.length === 3
-      ? raw.replace(/\./g, '')
-      : raw
-  const number = Number(normalized)
-  return Number.isFinite(number) ? number : 0
 }
 
 function normalizePlanCycle(value) {
@@ -17451,15 +10048,10 @@ function getBillingBrand(settings) {
   }
 }
 
-function getBillingMessageTemplateForPlan(plan, coachSettings) {
-  return plan?.billingMessage || coachSettings?.billingMessage || ''
-}
-
-function buildBillingMessage(template, { student, amount, dueDate, coachSettings, plan }) {
+function buildBillingMessage(template, { student, amount, dueDate, coachSettings }) {
   const fallback = 'Olá, {aluno}. Seu acesso está aguardando pagamento. Valor: {valor}. Vencimento: {vencimento}. Pix: {pix}. Após pagar, envie o comprovante no chat para o coach validar.'
   return String(template || fallback)
     .replaceAll('{aluno}', student?.name || 'aluno')
-    .replaceAll('{plano}', plan?.name || student?.plan || 'acompanhamento')
     .replaceAll('{valor}', formatCurrency(amount || 0))
     .replaceAll('{vencimento}', dueDate ? formatDate(dueDate) : 'a combinar')
     .replaceAll('{pix}', coachSettings?.pixKey || 'Pix não informado')
@@ -17519,236 +10111,6 @@ function resolveCheckoutUrl(value, fallback = primaryCartpandaCheckoutUrl) {
   const normalized = normalizeCheckoutUrl(value)
   if (!normalized || /lastlink\.com/i.test(normalized)) return fallback
   return normalized
-}
-
-function captureLeadAttribution() {
-  if (typeof window === 'undefined') return null
-  const params = new URLSearchParams(window.location.search)
-  const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'cid', 'src', 'campaign', 'adset', 'ad']
-  const values = {}
-  keys.forEach((key) => {
-    const value = params.get(key)
-    if (value) values[key] = value
-  })
-
-  const hasCampaignData = Object.keys(values).length > 0
-  let previous = {}
-  try {
-    previous = JSON.parse(window.localStorage.getItem(LEAD_ATTRIBUTION_KEY) || '{}')
-  } catch {
-    previous = {}
-  }
-
-  const attribution = {
-    ...previous,
-    ...values,
-    landingPage: previous.landingPage || window.location.href,
-    referrer: previous.referrer || document.referrer || '',
-    firstSeenAt: previous.firstSeenAt || new Date().toISOString(),
-    lastSeenAt: new Date().toISOString(),
-  }
-
-  if (hasCampaignData || !previous.firstSeenAt) {
-    try {
-      window.localStorage.setItem(LEAD_ATTRIBUTION_KEY, JSON.stringify(attribution))
-    } catch {
-      // O rastreamento segue opcional caso o navegador bloqueie armazenamento local.
-    }
-  }
-
-  try {
-    const sessionKey = `coachfitpro-visit-recorded-${attribution.firstSeenAt || 'default'}`
-    if (!window.sessionStorage.getItem(sessionKey)) {
-      window.sessionStorage.setItem(sessionKey, '1')
-      recordLeadEvent('visit', { page: window.location.pathname, hasCampaignData })
-    }
-  } catch {
-    recordLeadEvent('visit', { page: window.location.pathname, hasCampaignData })
-  }
-
-  return attribution
-}
-
-function getStoredLeadAttribution() {
-  if (typeof window === 'undefined') return {}
-  try {
-    return JSON.parse(window.localStorage.getItem(LEAD_ATTRIBUTION_KEY) || '{}')
-  } catch {
-    return {}
-  }
-}
-
-function getStoredLeadEvents() {
-  if (typeof window === 'undefined') return []
-  try {
-    const events = JSON.parse(window.localStorage.getItem(LEAD_EVENTS_KEY) || '[]')
-    return Array.isArray(events) ? events : []
-  } catch {
-    return []
-  }
-}
-
-function saveStoredLeadEvents(events) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(LEAD_EVENTS_KEY, JSON.stringify(events.slice(0, 160)))
-  } catch {
-    // O app continua funcionando mesmo se o navegador bloquear storage.
-  }
-}
-
-function recordLeadEvent(type, metadata = {}) {
-  if (typeof window === 'undefined') return null
-  const attribution = getStoredLeadAttribution()
-  const event = {
-    id: `lead-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    type,
-    planId: metadata.planId || '',
-    email: metadata.email || '',
-    attribution,
-    metadata,
-    createdAt: new Date().toISOString(),
-  }
-  const nextEvents = [event, ...getStoredLeadEvents()].slice(0, 160)
-  saveStoredLeadEvents(nextEvents)
-  if (supabaseEnabled) {
-    saveRemoteLeadEvent(event).catch(() => {})
-  }
-  return event
-}
-
-function mergeLeadEvents(...eventGroups) {
-  const records = new Map()
-  eventGroups.flat().forEach((event) => {
-    if (!event) return
-    const key = event.id || `${event.type}-${event.createdAt}-${event.email || event.metadata?.email || ''}-${event.planId || event.metadata?.planId || ''}`
-    records.set(key, event)
-  })
-  return [...records.values()].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-}
-
-function buildLeadTrafficSnapshot(events = []) {
-  const counts = events.reduce((acc, event) => {
-    acc[event.type] = (acc[event.type] || 0) + 1
-    return acc
-  }, {})
-  const planCounts = events.reduce((acc, event) => {
-    const planId = event.planId || event.metadata?.planId || ''
-    if (planId) acc[planId] = (acc[planId] || 0) + 1
-    return acc
-  }, {})
-  const topPlanEntry = Object.entries(planCounts).sort((a, b) => b[1] - a[1])[0]
-  const latestAttribution = events.find((event) => event.attribution && Object.keys(event.attribution).length)?.attribution || getStoredLeadAttribution()
-  const source = latestAttribution.utm_source || latestAttribution.src || latestAttribution.referrer || 'Direto / orgânico'
-  const campaign = latestAttribution.utm_campaign || latestAttribution.campaign || latestAttribution.cid || 'Sem campanha identificada'
-
-  return {
-    visits: counts.visit || 0,
-    planSelections: counts.plan_selected || 0,
-    signups: counts.signup_submitted || 0,
-    checkouts: counts.checkout_clicked || 0,
-    payments: counts.payment_confirmed || 0,
-    lastSource: source,
-    lastCampaign: campaign,
-    topPlan: topPlanEntry ? `${formatUiText(topPlanEntry[0])} (${topPlanEntry[1]})` : 'Sem dados ainda',
-  }
-}
-
-function formatLeadEventType(type) {
-  const labels = {
-    visit: 'Visita na página',
-    plan_selected: 'Plano escolhido',
-    signup_submitted: 'Cadastro iniciado',
-    checkout_clicked: 'Checkout aberto',
-    payment_confirmed: 'Pagamento confirmado',
-  }
-  return labels[type] || formatUiText(type)
-}
-
-function formatLeadEventDetail(event = {}) {
-  const planId = event.planId || event.metadata?.planId || ''
-  const email = event.email || event.metadata?.email || ''
-  const source = event.attribution?.utm_source || event.attribution?.src || ''
-  const campaign = event.attribution?.utm_campaign || event.attribution?.campaign || event.attribution?.cid || ''
-  const parts = []
-  if (planId) parts.push(`Plano: ${formatUiText(planId)}`)
-  if (email) parts.push(`E-mail: ${email}`)
-  if (source) parts.push(`Origem: ${source}`)
-  if (campaign) parts.push(`Campanha: ${campaign}`)
-  return parts.length ? parts.join(' · ') : 'Evento registrado sem campanha identificada.'
-}
-
-function loadLastAppError() {
-  if (typeof window === 'undefined') return null
-  try {
-    const error = JSON.parse(window.localStorage.getItem('coachfitpro-last-error') || 'null')
-    return error?.message ? error : null
-  } catch {
-    return null
-  }
-}
-
-function buildSystemHealthChecks({ remoteStatus = '', remoteError = '', checkoutPlans = [], lastError = null }) {
-  const hasCartpandaPlans = checkoutPlans.length >= 3 && checkoutPlans.every((plan) => /cartpanda|coachfitpro\.com\.br\/checkout/i.test(plan.checkoutUrl || ''))
-  const hasLogoIcon = true
-  const statusText = `${remoteStatus} ${remoteError}`.toLowerCase()
-  const supabaseOk = supabaseEnabled && !/erro|expirada|indispon/.test(statusText)
-  const webhookLikelyOk = !/postback|webhook|pagamento ainda|aguardando confirma/i.test(statusText)
-
-  return [
-    {
-      title: 'Supabase',
-      status: supabaseOk ? 'ok' : supabaseEnabled ? 'warning' : 'danger',
-      label: supabaseOk ? 'ok' : supabaseEnabled ? 'atenção' : 'pendente',
-      detail: supabaseOk ? 'Banco conectado e sessão operacional.' : supabaseEnabled ? 'Existe conexão, mas há aviso recente no app.' : 'Variáveis do Supabase não encontradas nesta publicação.',
-    },
-    {
-      title: 'Checkout Cartpanda',
-      status: hasCartpandaPlans ? 'ok' : 'warning',
-      label: hasCartpandaPlans ? 'ok' : 'revisar',
-      detail: hasCartpandaPlans ? 'Planos oficiais apontam para checkouts Cartpanda.' : 'Revise os links dos planos oficiais no Admin Master.',
-    },
-    {
-      title: 'Liberação automática',
-      status: webhookLikelyOk ? 'ok' : 'warning',
-      label: webhookLikelyOk ? 'ok' : 'testar',
-      detail: webhookLikelyOk ? 'Nenhum erro recente de confirmação de pagamento.' : 'Faça um teste de compra para confirmar o postback.',
-    },
-    {
-      title: 'Ícone e PWA',
-      status: hasLogoIcon ? 'ok' : 'warning',
-      label: hasLogoIcon ? 'ok' : 'revisar',
-      detail: 'Favicon e ícone instalável usam a logo abreviada do Coach Fit Pro.',
-    },
-    {
-      title: 'Erros críticos',
-      status: lastError ? 'warning' : 'ok',
-      label: lastError ? 'atenção' : 'limpo',
-      detail: lastError ? 'Há um erro capturado neste navegador para revisar.' : 'Nenhuma falha crítica capturada localmente.',
-    },
-  ]
-}
-
-function appendAttributionToCheckoutUrl(value, planId = '') {
-  const baseUrl = resolveCheckoutUrl(value)
-  const attribution = getStoredLeadAttribution()
-  const relevantKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'cid', 'src', 'campaign', 'adset', 'ad']
-  const hasAttribution = relevantKeys.some((key) => attribution[key])
-  if (!hasAttribution && !planId) return baseUrl
-
-  try {
-    const url = new URL(baseUrl)
-    relevantKeys.forEach((key) => {
-      if (attribution[key] && !url.searchParams.has(key)) url.searchParams.set(key, attribution[key])
-    })
-    if (planId && !url.searchParams.has('fitcoach_plan')) url.searchParams.set('fitcoach_plan', planId)
-    if (attribution.firstSeenAt && !url.searchParams.has('fitcoach_first_seen')) {
-      url.searchParams.set('fitcoach_first_seen', attribution.firstSeenAt)
-    }
-    return url.toString()
-  } catch {
-    return baseUrl
-  }
 }
 
 function parseValidDate(value) {
@@ -17895,73 +10257,11 @@ function getDefaultDueDate() {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }
 
-function toDateInputValue(date) {
-  const safeDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date()
-  const offset = safeDate.getTimezoneOffset() * 60 * 1000
-  return new Date(safeDate.getTime() - offset).toISOString().slice(0, 10)
-}
-
-function addPlanCycleToDate(value, plan) {
-  const date = parseValidDate(value) ?? new Date()
-  date.setHours(12, 0, 0, 0)
-  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
-
-  if (cycle === 'semanal') {
-    date.setDate(date.getDate() + 7)
-  } else if (cycle === 'semestral') {
-    date.setMonth(date.getMonth() + 6)
-  } else if (cycle === 'anual') {
-    date.setFullYear(date.getFullYear() + 1)
-  } else {
-    date.setMonth(date.getMonth() + 1)
-  }
-
-  return toDateInputValue(date)
-}
-
-function getNextBillingDateForStudent(student, invoices = [], availablePlans = plans) {
-  if (!student) return getDefaultDueDate()
-  const plan = availablePlans.find((item) => item.name === student.plan) || availablePlans[0]
-  const studentInvoices = invoices
-    .filter((invoice) => String(invoice.studentId) === String(student.id))
-    .map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
-    .sort((a, b) => new Date(b.paidAt || b.dueDate || b.createdAt || 0) - new Date(a.paidAt || a.dueDate || a.createdAt || 0))
-
-  const openInvoice = studentInvoices.find((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
-  if (openInvoice?.dueDate) return openInvoice.dueDate
-
-  const latestPaid = studentInvoices.find((invoice) => invoice.status === 'Pago')
-  if (latestPaid) return addPlanCycleToDate(latestPaid.paidAt || latestPaid.dueDate || latestPaid.createdAt, plan)
-
-  if (student.payment === 'Pendente') return toDateInputValue(new Date())
-
-  return getDueDateForPlan(plan)
-}
-
-function getDueDateForPlan(plan) {
-  const date = new Date()
-  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
-  if (cycle === 'semanal') {
-    date.setDate(date.getDate() + 7)
-  } else if (cycle === 'semestral') {
-    date.setMonth(date.getMonth() + 6)
-  } else if (cycle === 'anual') {
-    date.setFullYear(date.getFullYear() + 1)
-  } else {
-    date.setMonth(date.getMonth() + 1)
-  }
-  const offset = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
-}
-
 function formatUiText(value) {
   if (typeof value !== 'string') return value
   const labels = {
     Medio: 'Médio',
     Critico: 'Crítico',
-    medio: 'médio',
-    critico: 'crítico',
-    instavel: 'instável',
     Atencao: 'Atenção',
     Concluido: 'Concluído',
     Proximos: 'Próximos',
@@ -17969,7 +10269,7 @@ function formatUiText(value) {
     Avaliacao: 'Avaliação',
     Inicio: 'Início',
     Previa: 'Prévia',
-    Configuracoes: 'Gerenciamento',
+    Configuracoes: 'Configurações',
   }
   return labels[value] ?? value
 }
