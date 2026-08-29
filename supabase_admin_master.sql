@@ -1,10 +1,41 @@
-﻿create table if not exists public.app_admin_settings (
+-- COACH FIT PRO - Admin Master / Página de Vendas Editável
+-- Execute este arquivo no SQL Editor do Supabase antes de publicar o novo build.
+
+create table if not exists public.app_admin_settings (
   key text primary key default 'global',
   settings jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.admin_users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  role text not null default 'master',
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.admin_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  admin_email text not null,
+  action text not null,
+  target_table text,
+  target_id text,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+insert into public.admin_users (email, role, active)
+values ('sac@coachfitpro.com.br', 'master', true)
+on conflict (email) do update
+set role = excluded.role,
+    active = excluded.active,
+    updated_at = now();
+
 alter table public.app_admin_settings enable row level security;
+alter table public.admin_users enable row level security;
+alter table public.admin_audit_logs enable row level security;
 
 drop policy if exists "app_admin_settings_public_read" on public.app_admin_settings;
 create policy "app_admin_settings_public_read"
@@ -12,69 +43,113 @@ on public.app_admin_settings
 for select
 using (true);
 
-drop policy if exists "app_admin_settings_admin_insert" on public.app_admin_settings;
-create policy "app_admin_settings_admin_insert"
+drop policy if exists "app_admin_settings_master_insert" on public.app_admin_settings;
+create policy "app_admin_settings_master_insert"
 on public.app_admin_settings
 for insert
-with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br'
-);
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br');
 
-drop policy if exists "app_admin_settings_admin_update" on public.app_admin_settings;
-create policy "app_admin_settings_admin_update"
+drop policy if exists "app_admin_settings_master_update" on public.app_admin_settings;
+create policy "app_admin_settings_master_update"
 on public.app_admin_settings
 for update
-using (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br'
-)
-with check (
-  lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br'
-);
+using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br')
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br');
+
+drop policy if exists "admin_users_master_read" on public.admin_users;
+create policy "admin_users_master_read"
+on public.admin_users
+for select
+using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br');
+
+drop policy if exists "admin_users_master_write" on public.admin_users;
+create policy "admin_users_master_write"
+on public.admin_users
+for all
+using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br')
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br');
+
+drop policy if exists "admin_audit_logs_master_read" on public.admin_audit_logs;
+create policy "admin_audit_logs_master_read"
+on public.admin_audit_logs
+for select
+using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br');
+
+drop policy if exists "admin_audit_logs_master_insert" on public.admin_audit_logs;
+create policy "admin_audit_logs_master_insert"
+on public.admin_audit_logs
+for insert
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'sac@coachfitpro.com.br');
+
+-- Visão administrativa sobre coaches e assinaturas.
+-- O bloco abaixo só cria policies se as tabelas já existirem.
+do $$
+begin
+  if to_regclass('public.users') is not null then
+    execute 'alter table public.users enable row level security';
+    execute 'drop policy if exists "users_master_select_all" on public.users';
+    execute 'create policy "users_master_select_all" on public.users for select using (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'')';
+    execute 'drop policy if exists "users_master_update_all" on public.users';
+    execute 'create policy "users_master_update_all" on public.users for update using (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'') with check (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'')';
+  end if;
+
+  if to_regclass('public.coach_subscriptions') is not null then
+    execute 'alter table public.coach_subscriptions enable row level security';
+    execute 'drop policy if exists "coach_subscriptions_master_select_all" on public.coach_subscriptions';
+    execute 'create policy "coach_subscriptions_master_select_all" on public.coach_subscriptions for select using (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'')';
+    execute 'drop policy if exists "coach_subscriptions_master_insert_all" on public.coach_subscriptions';
+    execute 'create policy "coach_subscriptions_master_insert_all" on public.coach_subscriptions for insert with check (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'')';
+    execute 'drop policy if exists "coach_subscriptions_master_update_all" on public.coach_subscriptions';
+    execute 'create policy "coach_subscriptions_master_update_all" on public.coach_subscriptions for update using (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'') with check (lower(coalesce(auth.jwt() ->> ''email'', '''')) = ''sac@coachfitpro.com.br'')';
+  end if;
+end $$;
 
 insert into public.app_admin_settings (key, settings)
 values (
   'global',
   jsonb_build_object(
-    'salesHeadline', 'A forma mais simples de organizar sua consultoria online.',
-    'salesSubheadline', 'Gerencie alunos, treino, dieta, cobrança recorrente e evolução em uma plataforma com experiência de app. Menos caos, mais previsibilidade e uma entrega que parece premium desde o primeiro acesso.',
-    'salesCta', 'Começar agora',
-    'announcement', 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.',
-    'logoUrl', '',
-    'salesTrustText', 'Pagamento pela Cartpanda, acesso liberado automaticamente e sem taxa por aluno cadastrado.',
+    'salesHeadline', 'A forma mais profissional de entregar consultoria fitness online.',
+    'salesSubheadline', 'Centralize alunos, treinos, dieta, evolução, cobranças e chat em um painel moderno. Menos WhatsApp perdido, menos planilha solta e mais percepção de valor para vender acompanhamento recorrente.',
+    'salesCta', 'Escolher meu plano',
+    'announcement', 'Planos mensal, semestral e anual com pagamento integrado pela Cartpanda. Sem taxa por aluno.',
     'primaryColor', '#00c7a8',
     'accentColor', '#3b82f6',
-    'appBackgroundColor', '#000000',
-    'salesBackgroundColor', '#00150f',
-    'salesSurfaceColor', '#07110f',
-    'salesTextColor', '#f8fafc',
-    'ctaColor', '#00d2b2',
-    'ctaTextColor', '#020617',
-    'headerBackgroundColor', 'rgba(0, 0, 0, 0.68)',
-    'publishedAt', now()::text,
+    'defaultCheckoutPlanId', 'semestral',
+    'signupEnabled', true,
+    'salesPageEnabled', true,
+    'maintenanceNotice', '',
+    'supportEmail', 'sac@coachfitpro.com.br',
+    'supportWhatsapp', '',
     'featureFlags', jsonb_build_object(
       'studentXp', true,
       'financialDashboard', true,
       'salesSimulator', true,
-      'waterGoal', true
+      'waterGoal', true,
+      'salesAppVisual', true,
+      'salesCommandCenter', true,
+      'salesComparison', true,
+      'salesFaq', true
     ),
+    'salesContent', '{}'::jsonb,
     'checkoutPlans', jsonb_build_array(
       jsonb_build_object(
         'id', 'mensal',
         'name', 'Mensal',
         'cycle', 'cobrança mensal',
-        'badge', 'Primeiro mês R$ 9,90',
-        'price', 'R$ 9,90',
-        'suffix', 'no 1º mês',
-        'oldPrice', 'R$ 49,90',
-        'total', 'Depois R$ 49,90/mês',
-        'economy', 'Economize R$ 40,00 na ativação',
+        'badge', 'Mais flexível',
+        'price', 'R$ 49,90',
+        'suffix', '/mês',
+        'oldPrice', '',
+        'total', 'Total em 12 meses: R$ 598,80',
+        'economy', 'Pague mês a mês',
+        'equivalent', 'sem compromisso de ciclo longo',
         'checkoutUrl', 'https://pagamento.coachfitpro.com.br/checkout/211362994:1?subscription=4475',
-        'description', 'Comece pagando pouco no primeiro mês, valide a operação com alunos reais e mantenha liberdade para continuar mês a mês.',
-        'bestFor', 'Coach que quer entrar com baixo risco, testar a experiência premium com os primeiros alunos e validar o impacto antes de assumir um ciclo maior.',
-        'operatingPromise', 'A oferta de entrada reduz a barreira para começar agora. Você ativa a estrutura, organiza os alunos atuais e decide a continuidade com dados reais da operação.',
-        'highlights', jsonb_build_array('Primeiro mês por R$ 9,90', 'Depois R$ 49,90/mês', 'Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'),
-        'activationPlan', jsonb_build_array('Ativar o primeiro mês promocional', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'),
-        'decisionPoints', jsonb_build_array('R$ 9,90 para começar', 'baixo risco de entrada', 'renovação mensal depois')
+        'description', 'Ideal para começar agora, validar o Coach Fit Pro na rotina e manter liberdade mês a mês.',
+        'bestFor', 'Coach que quer iniciar sem compromisso longo e validar a experiência com os primeiros alunos.',
+        'operatingPromise', 'Implante em etapas, cadastre alunos ativos e acompanhe o ganho de organização desde a primeira semana.',
+        'highlights', jsonb_build_array('Acesso completo ao painel', 'Portal do aluno liberado', 'Sem taxa por aluno', 'Liberação automática após pagamento'),
+        'activationPlan', jsonb_build_array('Criar conta e ativar o ciclo mensal', 'Cadastrar planos próprios e alunos atuais', 'Enviar convites e acompanhar a rotina pelo painel'),
+        'decisionPoints', jsonb_build_array('mais flexibilidade', 'melhor para teste operacional', 'renovação mês a mês')
       ),
       jsonb_build_object(
         'id', 'semestral',
@@ -86,6 +161,7 @@ values (
         'oldPrice', 'R$ 299,40',
         'total', 'Equivale a R$ 39,90/mês',
         'economy', 'Economize R$ 60,00',
+        'equivalent', 'melhor equilíbrio entre economia e flexibilidade',
         'checkoutUrl', 'https://pagamento.coachfitpro.com.br/checkout/211373219:1?subscription=4479',
         'description', 'Para coaches que querem estabilidade, previsibilidade e tempo suficiente para profissionalizar a carteira.',
         'bestFor', 'Coach que já tem carteira ativa e quer estruturar a operação sem ficar repensando assinatura todo mês.',
@@ -104,6 +180,7 @@ values (
         'oldPrice', 'R$ 598,00',
         'total', 'Equivale a R$ 29,90/mês',
         'economy', 'Economize R$ 239,20',
+        'equivalent', 'menor custo para operar o ano inteiro',
         'checkoutUrl', 'https://pagamento.coachfitpro.com.br/checkout/211363657:1?subscription=4476',
         'description', 'Para quem decidiu colocar o Coach Fit Pro como estrutura principal da operação.',
         'bestFor', 'Coach que quer operar o ano inteiro com menor custo mensal e foco em escala, retenção e rotina de equipe.',
@@ -115,32 +192,4 @@ values (
     )
   )
 )
-on conflict (key) do update
-set
-  settings = public.app_admin_settings.settings || jsonb_build_object(
-    'checkoutPlans', excluded.settings -> 'checkoutPlans',
-    'featureFlags', coalesce(public.app_admin_settings.settings -> 'featureFlags', '{}'::jsonb) || coalesce(excluded.settings -> 'featureFlags', '{}'::jsonb),
-    'salesTrustText', excluded.settings ->> 'salesTrustText',
-    'primaryColor', excluded.settings ->> 'primaryColor',
-    'accentColor', excluded.settings ->> 'accentColor',
-    'appBackgroundColor', excluded.settings ->> 'appBackgroundColor',
-    'salesBackgroundColor', excluded.settings ->> 'salesBackgroundColor',
-    'salesSurfaceColor', excluded.settings ->> 'salesSurfaceColor',
-    'salesTextColor', excluded.settings ->> 'salesTextColor',
-    'ctaColor', excluded.settings ->> 'ctaColor',
-    'ctaTextColor', excluded.settings ->> 'ctaTextColor',
-    'headerBackgroundColor', excluded.settings ->> 'headerBackgroundColor',
-    'publishedAt', coalesce(public.app_admin_settings.settings ->> 'publishedAt', excluded.settings ->> 'publishedAt', now()::text)
-  ),
-  updated_at = now();
-
-update public.app_admin_settings
-set
-  settings = settings || jsonb_build_object(
-    'salesHeadline', 'A forma mais simples de organizar sua consultoria online.',
-    'salesSubheadline', 'Gerencie alunos, treino, dieta, cobrança recorrente e evolução em uma plataforma com experiência de app. Menos caos, mais previsibilidade e uma entrega que parece premium desde o primeiro acesso.',
-    'salesCta', 'Começar agora',
-    'announcement', 'Sem planilha solta. Sem cobrança perdida. Sem aluno perguntando onde está o treino.'
-  ),
-  updated_at = now()
-where key = 'global';
+on conflict (key) do nothing;
