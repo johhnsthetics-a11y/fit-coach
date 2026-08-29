@@ -2502,6 +2502,25 @@ function PasswordRecovery({ onSave }) {
 
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings }) {
   const [mode, setMode] = useState('signin')
+  const [salesTheme, setSalesTheme] = useState(() => {
+    try {
+      return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
+    } catch {
+      return 'light'
+    }
+  })
+
+  function toggleSalesTheme() {
+    setSalesTheme((current) => {
+      const nextTheme = current === 'dark' ? 'light' : 'dark'
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+      } catch {
+        // Mantem a troca visual mesmo quando o navegador bloqueia armazenamento local.
+      }
+      return nextTheme
+    })
+  }
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const [revenueScenario, setRevenueScenario] = useState({
@@ -2644,7 +2663,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className="sales-page fit-gradient-bg min-h-screen text-zinc-100">
+    <div id="sales-page" className={`sales-page fit-gradient-bg sales-theme-${salesTheme} min-h-screen`} data-theme={salesTheme}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/10 bg-[#020816]/94 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:py-4">
@@ -2662,6 +2681,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <ThemeToggle theme={salesTheme} onToggle={toggleSalesTheme} className="hidden sm:inline-flex" />
             <button type="button" onClick={() => openAccess('signin')} className="hidden rounded-xl px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/[0.07] hover:text-white sm:inline-flex">
               {salesContent.loginButton}
             </button>
