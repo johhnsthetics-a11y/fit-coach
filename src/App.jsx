@@ -2943,10 +2943,6 @@ function AppContent() {
             })}
           </nav>
 
-          <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="mt-3 hidden w-full lg:flex" />
-
-
-
           <button type="button" onClick={logout} className="mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
             Sair
           </button>
@@ -10903,12 +10899,12 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={addMeal} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
+      <div className="nutrition-actions grid gap-3 sm:flex sm:flex-wrap">
+        <button type="button" onClick={addMeal} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10 sm:w-auto">
           <NavIcon name="plus" className="h-4 w-4" />
           Adicionar refeição
         </button>
-        <button disabled={saving} className="rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60">
+        <button disabled={saving} className="w-full rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
           {saving ? 'Salvando...' : 'Salvar dieta'}
         </button>
       </div>
@@ -11102,7 +11098,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
         })}
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="nutrition-actions grid gap-3 sm:flex sm:flex-wrap">
         <button type="button" onClick={addMeal} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Adicionar refeição
         </button>
@@ -16020,7 +16016,7 @@ function ThemeToggle({ theme, onToggle, className = '' }) {
       className={`theme-toggle theme-toggle-icon-only ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
     >
       <span className="theme-toggle-symbol" aria-hidden="true">
-        {isDark ? <span className="theme-toggle-sun" /> : <span className="theme-toggle-moon" />}
+        {isDark ? <span className="theme-toggle-moon" /> : <span className="theme-toggle-sun" />}
       </span>
     </button>
   )
@@ -18054,6 +18050,9 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
+
+
 
 
 

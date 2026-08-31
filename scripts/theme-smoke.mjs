@@ -32,8 +32,13 @@ const checks = [
   ['Authenticated app premium cleanup exists', css.includes('app-theme-light-premium-cleanup-v5')],
   ['Authenticated app uses white-first token', css.includes('--app-light-bg: #FFFFFF')],
   ['Theme toggle uses clean moon and sun icons', app.includes('theme-toggle-moon') && app.includes('theme-toggle-sun') && !app.includes('theme-toggle-orb')],
+  ['Theme toggle shows current mode icon', app.includes('{isDark ? <span className="theme-toggle-moon" /> : <span className="theme-toggle-sun" />}')],
+  ['Only one authenticated theme shortcut per viewport', !app.includes('mt-3 hidden w-full lg:flex')],
+  ['Logged app theme shortcut is desktop-only by CSS', /\.coach-page-theme-toggle\s*\{\s*display: none !important;[\s\S]*?@media \(min-width: 1024px\) \{[\s\S]*?\.coach-page-theme-toggle\s*\{\s*display: inline-flex !important;/.test(css)],
   ['Logged app page header has theme shortcut', app.includes('coach-page-theme-toggle')],
   ['Authenticated app dark residues are normalized', css.includes('.app-theme-light [class*="bg-zinc-950"]')],
+  ['Light app progress rails keep readable contrast', css.includes('.app-theme-light .h-1\\.5[class*="bg-black"]') && css.includes('rgba(15, 23, 42, 0.08)')],
+  ['Nutrition actions are mobile-first', app.includes('nutrition-actions grid gap-3 sm:flex sm:flex-wrap') && app.includes('inline-flex w-full') && app.includes('justify-center') && app.includes('sm:w-auto')],
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
@@ -45,6 +50,15 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
+
+
+
+
+
+
+
+
 
 
 

@@ -8061,6 +8061,27 @@ textarea {
 }
 
 .coach-page-theme-toggle {
+  display: none !important;
   flex: 0 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .coach-page-theme-toggle {
+    display: inline-flex !important;
+  }
+}
+
+.app-theme-light .coach-page-theme-toggle {
+  background: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+
+
+/* Light app progress rail guard */
+.app-theme-light .h-1\.5[class*="bg-black"],
+.app-theme-light .h-2[class*="bg-black"],
+.app-theme-light .overflow-hidden.rounded-full[class*="bg-black"] {
+  background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
