@@ -2859,6 +2859,7 @@ function AppContent() {
       <div className="coach-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
         <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="ml-auto mr-2" />
+        <NotificationShortcut count={totalAlertCount} onOpen={() => { setActiveView('notificacoes'); setMobileMenuOpen(false) }} className="coach-mobile-notification-shortcut" />
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
@@ -2966,6 +2967,7 @@ function AppContent() {
 
             <div className="mt-4 flex flex-wrap items-center gap-2 xl:mt-0">
               <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="coach-page-theme-toggle" />
+              <NotificationShortcut count={totalAlertCount} onOpen={() => setActiveView('notificacoes')} className="coach-page-notification-shortcut" />
               {masterAdmin ? (
                 <button
                   type="button"
@@ -2987,6 +2989,7 @@ function AppContent() {
             </div>
           </header>
 
+          {activeView === 'visao' ? (
           <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label="Ações rápidas do treinador">
             {coachMobileQuickActions.map((action) => {
               const isLocked = shouldLockCoachTools && action.id !== 'assinatura' && action.id !== 'admin-master'
@@ -3015,6 +3018,7 @@ function AppContent() {
               )
             })}
           </section>
+          ) : null}
 
           {shouldLockCoachTools ? (
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
@@ -3025,12 +3029,14 @@ function AppContent() {
             </div>
           ) : null}
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric label="Alunos ativos" value={data.students.length} detail={`${paidStudents} com plano pago`} />
-            <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
-            <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
-            <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
-          </section>
+          {activeView === 'visao' ? (
+            <section className="coach-dashboard-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric label="Alunos ativos" value={data.students.length} detail={`${paidStudents} com plano pago`} />
+              <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
+              <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
+              <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
+            </section>
+          ) : null}
 
           <div className="mt-5 xl:mt-6">
             {activeView === 'visao' && (
@@ -16004,6 +16010,21 @@ function ChartLoading() {
   )
 }
 
+function NotificationShortcut({ count = 0, onOpen, className = '' }) {
+  const visibleCount = Math.min(Number(count || 0), 99)
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={visibleCount ? `Abrir notificações, ${visibleCount} pendentes` : 'Abrir notificações'}
+      title="Notificações"
+      className={`coach-notification-shortcut ${className}`}
+    >
+      <NavIcon name="bell" className="h-5 w-5" />
+      {visibleCount ? <span className="coach-notification-shortcut-badge">{visibleCount}</span> : null}
+    </button>
+  )
+}
 function ThemeToggle({ theme, onToggle, className = '' }) {
   const isDark = theme === 'dark'
   return (
@@ -18050,6 +18071,11 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
+
+
+
+
 
 
 

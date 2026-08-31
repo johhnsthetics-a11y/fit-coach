@@ -8085,3 +8085,112 @@ textarea {
   background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
+
+.coach-notification-shortcut {
+  position: relative;
+  display: inline-grid;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+  color: currentColor;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.coach-notification-shortcut:hover,
+.coach-notification-shortcut:focus-visible {
+  border-color: rgba(0, 210, 178, 0.44);
+  background: rgba(0, 210, 178, 0.12);
+  box-shadow: 0 16px 34px rgba(0, 210, 178, 0.14);
+  outline: none;
+}
+
+.coach-notification-shortcut-badge {
+  position: absolute;
+  right: -0.2rem;
+  top: -0.25rem;
+  display: grid;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid rgba(2, 6, 23, 0.92);
+  background: #00D2B2;
+  color: #02110e;
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.coach-page-notification-shortcut {
+  display: none !important;
+}
+
+@media (min-width: 1024px) {
+  .coach-page-notification-shortcut {
+    display: inline-grid !important;
+  }
+}
+
+.app-theme-light .coach-notification-shortcut {
+  border-color: var(--border-subtle) !important;
+  background: var(--surface-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.app-theme-light .coach-notification-shortcut-badge {
+  border-color: #ffffff;
+}
+
+/* workout-add-cta-responsive-guard */
+.mobile-workout-day-open-actions {
+  position: relative;
+  z-index: 4;
+  min-width: 0;
+}
+
+.mobile-workout-add-exercise-cta {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+}
+
+@media (max-width: 767px) {
+  .mobile-workout-day-editor-screen {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .mobile-workout-day-open-actions {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch;
+    padding: 0.45rem;
+    margin-inline: -0.45rem;
+    border-radius: 1.25rem;
+    background: rgba(2, 8, 13, 0.72);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-workout-day-open-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-workout-day-open-actions {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    align-items: stretch;
+  }
+
+  .mobile-workout-day-editor-screen .mobile-workout-add-exercise-cta {
+    grid-column: auto;
+  }
+}
+

@@ -39,6 +39,11 @@ const checks = [
   ['Authenticated app dark residues are normalized', css.includes('.app-theme-light [class*="bg-zinc-950"]')],
   ['Light app progress rails keep readable contrast', css.includes('.app-theme-light .h-1\\.5[class*="bg-black"]') && css.includes('rgba(15, 23, 42, 0.08)')],
   ['Nutrition actions are mobile-first', app.includes('nutrition-actions grid gap-3 sm:flex sm:flex-wrap') && app.includes('inline-flex w-full') && app.includes('justify-center') && app.includes('sm:w-auto')],
+  ['Quick actions render only on overview', app.includes("{activeView === 'visao' ? (") && app.includes('coach-mobile-quick-actions')],
+  ['Dashboard metrics render only on overview', app.includes('coach-dashboard-metrics') && app.includes("activeView === 'visao' ?")],
+  ['Notification shortcut appears in app header', app.includes('coach-notification-shortcut') && app.includes("setActiveView('notificacoes')") && app.includes('totalAlertCount')],
+  ['Workout add exercise CTA has responsive safe guard', app.includes('mobile-workout-add-exercise-cta') && css.includes('workout-add-cta-responsive-guard')],
+  ['Workout add exercise CTA releases desktop grid span', css.includes('.mobile-workout-day-editor-screen .mobile-workout-add-exercise-cta') && css.includes('grid-column: auto;')],
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
@@ -50,6 +55,9 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
+
+
 
 
 
