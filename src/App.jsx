@@ -2968,7 +2968,8 @@ function AppContent() {
               </p>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2 xl:mt-0">
+            <div className="mt-4 flex flex-wrap items-center gap-2 xl:mt-0">
+              <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="coach-page-theme-toggle" />
               {masterAdmin ? (
                 <button
                   type="button"
@@ -16019,7 +16020,7 @@ function ThemeToggle({ theme, onToggle, className = '' }) {
       className={`theme-toggle theme-toggle-icon-only ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
     >
       <span className="theme-toggle-symbol" aria-hidden="true">
-        <span className="theme-toggle-orb" />
+        {isDark ? <span className="theme-toggle-sun" /> : <span className="theme-toggle-moon" />}
       </span>
     </button>
   )
@@ -18053,6 +18054,7 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
 
 
 

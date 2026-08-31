@@ -31,6 +31,8 @@ const checks = [
   ['Theme toggle is icon-only', app.includes('theme-toggle-symbol') && !app.includes('theme-toggle-copy')],
   ['Authenticated app premium cleanup exists', css.includes('app-theme-light-premium-cleanup-v5')],
   ['Authenticated app uses white-first token', css.includes('--app-light-bg: #FFFFFF')],
+  ['Theme toggle uses clean moon and sun icons', app.includes('theme-toggle-moon') && app.includes('theme-toggle-sun') && !app.includes('theme-toggle-orb')],
+  ['Logged app page header has theme shortcut', app.includes('coach-page-theme-toggle')],
   ['Authenticated app dark residues are normalized', css.includes('.app-theme-light [class*="bg-zinc-950"]')],
 ]
 
@@ -43,6 +45,7 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
 
 
 

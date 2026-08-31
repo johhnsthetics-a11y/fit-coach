@@ -8016,38 +8016,51 @@ textarea {
   place-items: center;
 }
 
-.theme-toggle-orb {
+.theme-toggle-moon,
+.theme-toggle-sun {
   position: relative;
   display: block;
-  width: 13px;
-  height: 13px;
+  width: 20px;
+  height: 20px;
+}
+
+.theme-toggle-moon {
   border-radius: 999px;
-  background: currentColor;
-  color: var(--brand-primary, #00D2B2);
+  background: #0f172a;
+  box-shadow: inset 7px -2px 0 #ffffff, 0 0 0 4px rgba(0, 210, 178, 0.1);
+}
+
+.theme-toggle-sun {
+  border-radius: 999px;
+  background: #00D2B2;
   box-shadow: 0 0 0 4px rgba(0, 210, 178, 0.13);
 }
 
-.theme-toggle-orb::before,
-.theme-toggle-orb::after {
+.theme-toggle-sun::before {
   position: absolute;
-  inset: -6px;
+  inset: -5px;
   border-radius: 999px;
-  border: 2px solid currentColor;
+  border: 2px solid rgba(0, 210, 178, 0.52);
   content: '';
-  opacity: 0.42;
 }
 
-.theme-toggle-orb::after {
-  inset: 2px -7px;
-  border-left: 0;
-  border-right: 0;
-  border-radius: 0;
-  opacity: 0.58;
+.theme-toggle-icon-only:hover .theme-toggle-moon,
+.theme-toggle-icon-only:focus-visible .theme-toggle-moon,
+.theme-toggle-icon-only:hover .theme-toggle-sun,
+.theme-toggle-icon-only:focus-visible .theme-toggle-sun {
+  box-shadow: 0 0 0 5px rgba(0, 210, 178, 0.16), 0 10px 20px rgba(0, 143, 122, 0.16);
 }
 
-.theme-toggle-dark .theme-toggle-orb {
-  background: transparent;
-  color: #F8FAFC;
-  box-shadow: inset -5px 0 0 currentColor, 0 0 0 4px rgba(255, 255, 255, 0.12);
+.theme-toggle-dark .theme-toggle-sun {
+  background: #F8FAFC;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+.theme-toggle-dark .theme-toggle-sun::before {
+  border-color: rgba(255, 255, 255, 0.46);
+}
+
+.coach-page-theme-toggle {
+  flex: 0 0 auto;
 }
 
