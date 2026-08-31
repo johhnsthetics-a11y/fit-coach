@@ -1,4 +1,4 @@
-﻿import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -51,6 +51,10 @@ const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
+const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
+const COACH_FIT_PRO_BUILD_MARKER = 'tema-claro-vendas-app-base-2796c2e-20260831'
+const DEFAULT_UI_THEME = 'light'
+const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 const cartpandaCheckoutPlans = [
   {
@@ -335,6 +339,23 @@ function normalizeAdminSettings(settings = {}) {
       ...(settings.featureFlags || {}),
     },
   }
+}
+
+const LIGHT_THEME_STYLE = {
+  '--admin-primary': '#00D2B2',
+  '--admin-accent': '#047c6d',
+  '--admin-app-bg': '#f7fbfa',
+  '--admin-sales-bg': '#f7fbfa',
+  '--admin-sales-surface': '#ffffff',
+  '--admin-sales-text': '#0f172a',
+  '--admin-cta': '#00D2B2',
+  '--admin-cta-text': '#02110e',
+  '--admin-header-bg': 'rgba(247, 251, 250, 0.9)',
+}
+
+function mergeThemeStyle(settings, themeMode) {
+  const baseStyle = buildAdminThemeStyle(settings)
+  return themeMode === 'light' ? { ...baseStyle, ...LIGHT_THEME_STYLE } : baseStyle
 }
 
 function buildAdminThemeStyle(settings = {}) {
@@ -1317,6 +1338,18 @@ function AppContent() {
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [billingClock, setBillingClock] = useState(Date.now())
+  const [uiTheme, setUiTheme] = useState(DEFAULT_UI_THEME)
+  const toggleUiTheme = useCallback(() => {
+    setUiTheme((currentTheme) => {
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+      } catch (error) {
+        console.warn('Não foi possível salvar a preferência de tema.', error)
+      }
+      return nextTheme
+    })
+  }, [])
   const subscriptionCheckRef = useRef(0)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
@@ -2822,9 +2855,10 @@ function AppContent() {
   }).filter(Boolean)
 
   return (
-    <div className="app-shell coach-auth-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
+    <div className={`app-shell coach-auth-shell fit-gradient-bg app-theme-${uiTheme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={uiTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, uiTheme)}>
       <div className="coach-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
+        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="ml-auto mr-2" />
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
@@ -2908,6 +2942,10 @@ function AppContent() {
               )
             })}
           </nav>
+
+          <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="mt-3 hidden w-full lg:flex" />
+
+
 
           <button type="button" onClick={logout} className="mt-2 w-full rounded-md border border-white/10 px-3 py-2 text-sm font-bold text-zinc-300 transition hover:border-white/25 hover:bg-white/[0.04]">
             Sair
@@ -3272,6 +3310,18 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
+  const [salesTheme, setSalesTheme] = useState(DEFAULT_UI_THEME)
+  const toggleSalesTheme = useCallback(() => {
+    setSalesTheme((currentTheme) => {
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+      } catch (error) {
+        console.warn('Não foi possível salvar a preferência de tema.', error)
+      }
+      return nextTheme
+    })
+  }, [])
   const [signupPlanId, setSignupPlanId] = useState(() => {
     try {
       return window.localStorage.getItem(SELECTED_CHECKOUT_PLAN_KEY) || 'mensal'
@@ -3596,7 +3646,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} style={buildAdminThemeStyle(salesSettings)}>
+    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
@@ -3629,6 +3679,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
           </nav>
 
           <div className="sales-header-actions flex items-center justify-end gap-2">
+            <ThemeToggle theme={salesTheme} onToggle={toggleSalesTheme} className="sales-theme-toggle" />
             <button type="button" onClick={() => openAccess('signin')} className="rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
               Entrar
             </button>
@@ -15956,8 +16007,26 @@ function ChartLoading() {
   )
 }
 
+function ThemeToggle({ theme, onToggle, className = '' }) {
+  const isDark = theme === 'dark'
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+      aria-label={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+      aria-pressed={isDark}
+      className={`theme-toggle theme-toggle-icon-only ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
+    >
+      <span className="theme-toggle-symbol" aria-hidden="true">
+        <span className="theme-toggle-orb" />
+      </span>
+    </button>
+  )
+}
+
 function BrandLockup({ subtitle = '', large = false, compact = false }) {
-  const logoSrc = loadLocalAdminSettings().logoUrl || fitCoachLogo
+  const logoSrc = OFFICIAL_BRAND_LOGO
   return (
     <div
       className={`fit-brand-lockup grid aspect-[400/71] shrink-0 place-items-center ${
@@ -17984,3 +18053,8 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
+
+
+
+

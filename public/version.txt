@@ -1,3 +1,1 @@
-coach-fit-pro-base-correta-2796c2e-20260831-142706
-source-commit:2796c2e38429e530f2e1021899b27894e74c4822
-landing:headline-nova-preservada
+auth-app-white-sapphire-premium-v5-20260831

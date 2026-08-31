@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fit-coach-app-v20260709-admin-theme'
+const CACHE_NAME = 'coach-fit-pro-pwa-20260831-theme-light-auth-app-v5'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
@@ -48,3 +48,9 @@ self.addEventListener('fetch', (event) => {
     }),
   )
 })
+
+
+
+
+
+
