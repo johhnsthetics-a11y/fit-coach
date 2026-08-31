@@ -44,6 +44,10 @@ const checks = [
   ['Notification shortcut appears in app header', app.includes('coach-notification-shortcut') && app.includes("setActiveView('notificacoes')") && app.includes('totalAlertCount')],
   ['Workout add exercise CTA has responsive safe guard', app.includes('mobile-workout-add-exercise-cta') && css.includes('workout-add-cta-responsive-guard')],
   ['Workout add exercise CTA releases desktop grid span', css.includes('.mobile-workout-day-editor-screen .mobile-workout-add-exercise-cta') && css.includes('grid-column: auto;')],
+  ['Workout day save button is polished', app.includes('mobile-workout-save-day-action') && css.includes('workout-nutrition-action-polish-v1') && css.includes('.mobile-workout-save-day-action')],
+  ['Workout exercise save button is prominent', app.includes('mobile-workout-exercise-save-action') && css.includes('.mobile-workout-exercise-save-action')],
+  ['Nutrition primary and secondary actions are polished', app.includes('nutrition-primary-action') && app.includes('nutrition-secondary-action') && css.includes('nutrition-actions-polish-v1')],
+  ['Nutrition meal controls are touch friendly', app.includes('nutrition-inline-add-action') && app.includes('nutrition-danger-action') && css.includes('.nutrition-inline-add-action')],
 ]
 
 const failed = checks.filter(([, passed]) => !passed)

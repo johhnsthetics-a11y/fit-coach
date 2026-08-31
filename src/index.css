@@ -8194,3 +8194,111 @@ textarea {
   }
 }
 
+
+/* workout-nutrition-action-polish-v1 */
+/* nutrition-actions-polish-v1 */
+.mobile-workout-save-day-action,
+.mobile-workout-exercise-save-action,
+.nutrition-primary-action,
+.nutrition-secondary-action,
+.nutrition-inline-add-action,
+.nutrition-danger-action {
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  font-weight: 950;
+  letter-spacing: 0;
+  touch-action: manipulation;
+}
+
+.mobile-workout-sheet .mobile-workout-save-day-action {
+  width: min(100%, 18rem);
+  justify-self: end;
+  padding: 0 1.25rem;
+  box-shadow: 0 18px 42px rgba(0, 210, 178, 0.2);
+}
+
+.mobile-workout-exercise-save-action {
+  border-color: rgba(0, 210, 178, 0.38) !important;
+  background: linear-gradient(135deg, #00d2b2, #62e7d1) !important;
+  color: #02110e !important;
+  box-shadow: 0 14px 34px rgba(0, 210, 178, 0.18);
+}
+
+.mobile-workout-day-actions {
+  align-items: stretch;
+}
+
+.nutrition-actions {
+  align-items: center;
+  padding-top: 0.25rem;
+}
+
+.nutrition-primary-action {
+  min-width: 11.5rem;
+  padding-inline: 1.35rem !important;
+  border: 1px solid rgba(0, 210, 178, 0.4);
+  box-shadow: 0 18px 40px rgba(0, 210, 178, 0.18) !important;
+}
+
+.nutrition-secondary-action,
+.nutrition-inline-add-action {
+  min-width: 11.5rem;
+  border-color: rgba(0, 210, 178, 0.24) !important;
+  background: rgba(0, 210, 178, 0.08) !important;
+  color: #007d6c !important;
+}
+
+.nutrition-danger-action {
+  min-height: 44px;
+  color: #b42336 !important;
+}
+
+.app-theme-dark .nutrition-secondary-action,
+.app-theme-dark .nutrition-inline-add-action {
+  color: #a7fff2 !important;
+}
+
+@media (max-width: 767px) {
+  .mobile-workout-sheet .mobile-workout-save-day-action,
+  .nutrition-primary-action,
+  .nutrition-secondary-action,
+  .nutrition-inline-add-action,
+  .nutrition-danger-action {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .mobile-workout-day-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    overflow: visible;
+  }
+
+  .mobile-workout-day-actions button {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    white-space: nowrap;
+  }
+
+  .mobile-workout-day-actions .mobile-workout-exercise-save-action {
+    grid-column: 1 / -1;
+    min-height: 52px;
+  }
+
+  .nutrition-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .nutrition-primary-action,
+  .nutrition-secondary-action,
+  .nutrition-inline-add-action {
+    width: auto;
+  }
+}

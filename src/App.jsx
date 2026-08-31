@@ -7928,7 +7928,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 </select>
               </label>
             ) : null}
-            <button type="button" className="mobile-workout-primary" onClick={saveDayEditor}>Salvar dia</button>
+            <button type="button" className="mobile-workout-primary mobile-workout-save-day-action" onClick={saveDayEditor}>Salvar dia</button>
           </section>
         </div>
       ) : null}
@@ -8241,7 +8241,7 @@ function MobileWorkoutEditableDay({
                   <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
                   <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
                   <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
-                  <button type="button" onClick={() => setExpandedExerciseKey('')}>Salvar</button>
+                  <button type="button" className="mobile-workout-exercise-save-action" onClick={() => setExpandedExerciseKey('')}>Salvar</button>
                 </div>
               </div>
             ) : null}
@@ -10866,7 +10866,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
                     <p className="text-xs font-bold text-zinc-500">{meal.items.length} alimento(s) neste horário</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => removeMeal(mealIndex)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
+                <button type="button" onClick={() => removeMeal(mealIndex)} className="nutrition-danger-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
                   Remover refeição
                 </button>
               </div>
@@ -10896,7 +10896,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
                 })}
               </div>
 
-              <button type="button" onClick={() => addMealItem(mealIndex)} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15">
+              <button type="button" onClick={() => addMealItem(mealIndex)} className="nutrition-inline-add-action mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15">
                 <NavIcon name="plus" className="h-4 w-4" />
                 Adicionar alimento
               </button>
@@ -10906,11 +10906,11 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       </div>
 
       <div className="nutrition-actions grid gap-3 sm:flex sm:flex-wrap">
-        <button type="button" onClick={addMeal} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10 sm:w-auto">
+        <button type="button" onClick={addMeal} className="nutrition-secondary-action inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10 sm:w-auto">
           <NavIcon name="plus" className="h-4 w-4" />
           Adicionar refeição
         </button>
-        <button disabled={saving} className="w-full rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
+        <button disabled={saving} className="nutrition-primary-action w-full rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
           {saving ? 'Salvando...' : 'Salvar dieta'}
         </button>
       </div>
