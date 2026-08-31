@@ -1337,6 +1337,7 @@ function AppContent() {
   const [studentAccess, setStudentAccess] = useState(null)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [billingClock, setBillingClock] = useState(Date.now())
   const [uiTheme, setUiTheme] = useState(DEFAULT_UI_THEME)
   const toggleUiTheme = useCallback(() => {
@@ -2859,7 +2860,25 @@ function AppContent() {
       <div className="coach-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
         <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="ml-auto mr-2" />
-        <NotificationShortcut count={totalAlertCount} onOpen={() => { setActiveView('notificacoes'); setMobileMenuOpen(false) }} className="coach-mobile-notification-shortcut" />
+        <NotificationShortcut
+          count={totalAlertCount}
+          notifications={data.notifications}
+          smartAlerts={smartAlerts}
+          open={notificationPopoverOpen}
+          onToggle={() => setNotificationPopoverOpen((open) => !open)}
+          onClose={() => setNotificationPopoverOpen(false)}
+          onOpenAll={() => {
+            setActiveView('notificacoes')
+            setMobileMenuOpen(false)
+            setNotificationPopoverOpen(false)
+          }}
+          onOpenView={(view) => {
+            setActiveView(view)
+            setMobileMenuOpen(false)
+            setNotificationPopoverOpen(false)
+          }}
+          className="coach-mobile-notification-shortcut"
+        />
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
@@ -2919,7 +2938,7 @@ function AppContent() {
                     setActiveView(item.id)
                     setMobileMenuOpen(false)
                   }}
-                  className={`group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
+                  className={`coach-nav-item group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
                     isActive
                       ? `${tone.active} shadow-lg shadow-black/20`
                       : isLocked
@@ -2927,7 +2946,7 @@ function AppContent() {
                         : `${tone.idle} hover:-translate-y-0.5 hover:bg-white/[0.065]`
                   }`}
                 >
-                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
+                  <span className={`coach-menu-icon-shell grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
                     isActive ? tone.iconActive : isLocked ? 'border-white/5 bg-zinc-900 text-zinc-700' : tone.iconIdle
                   }`}>
                     <NavIcon name={item.icon} className="h-3.5 w-3.5" />
@@ -2954,7 +2973,7 @@ function AppContent() {
           <header className="coach-mobile-page-header mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
               <div className="mb-3 flex items-center gap-3">
-                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
+                <span className={`coach-current-view-icon grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
                   <NavIcon name={activeNavItem?.icon} className="h-5 w-5" />
                 </span>
                 <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro / Central do coach</p>
@@ -2967,7 +2986,23 @@ function AppContent() {
 
             <div className="mt-4 flex flex-wrap items-center gap-2 xl:mt-0">
               <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="coach-page-theme-toggle" />
-              <NotificationShortcut count={totalAlertCount} onOpen={() => setActiveView('notificacoes')} className="coach-page-notification-shortcut" />
+              <NotificationShortcut
+                count={totalAlertCount}
+                notifications={data.notifications}
+                smartAlerts={smartAlerts}
+                open={notificationPopoverOpen}
+                onToggle={() => setNotificationPopoverOpen((open) => !open)}
+                onClose={() => setNotificationPopoverOpen(false)}
+                onOpenAll={() => {
+                  setActiveView('notificacoes')
+                  setNotificationPopoverOpen(false)
+                }}
+                onOpenView={(view) => {
+                  setActiveView(view)
+                  setNotificationPopoverOpen(false)
+                }}
+                className="coach-page-notification-shortcut"
+              />
               {masterAdmin ? (
                 <button
                   type="button"
@@ -16010,21 +16045,97 @@ function ChartLoading() {
   )
 }
 
-function NotificationShortcut({ count = 0, onOpen, className = '' }) {
+function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [], open = false, onToggle, onClose, onOpenAll, onOpenView, className = '' }) {
   const visibleCount = Math.min(Number(count || 0), 99)
+  const recentNotifications = (notifications || []).slice(0, 4)
+  const recentAlerts = (smartAlerts || []).slice(0, 2)
+  const hasItems = recentAlerts.length > 0 || recentNotifications.length > 0
+  const notificationRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handleNotificationKeyDown = (event) => {
+      if (event.key === 'Escape') onClose?.()
+    }
+    const handlePointerDown = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        onClose?.()
+      }
+    }
+
+    document.addEventListener('keydown', handleNotificationKeyDown)
+    document.addEventListener('pointerdown', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleNotificationKeyDown)
+      document.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [open, onClose])
+
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={visibleCount ? `Abrir notificações, ${visibleCount} pendentes` : 'Abrir notificações'}
-      title="Notificações"
-      className={`coach-notification-shortcut ${className}`}
-    >
-      <NavIcon name="bell" className="h-5 w-5" />
-      {visibleCount ? <span className="coach-notification-shortcut-badge">{visibleCount}</span> : null}
-    </button>
+    <div className={`coach-notification-wrap ${className}`} ref={notificationRef}>
+      <button
+        type="button"
+        onClick={onToggle || onOpenAll}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={visibleCount ? `Abrir notificações, ${visibleCount} pendentes` : 'Abrir notificações'}
+        title="Notificações"
+        className="coach-notification-shortcut"
+      >
+        <NavIcon name="bell" className="h-5 w-5" />
+        {visibleCount ? <span className="coach-notification-shortcut-badge">{visibleCount}</span> : null}
+      </button>
+
+      {open ? (
+        <>
+          <button type="button" className="coach-notification-popover-backdrop" aria-label="Fechar notificações" onClick={onClose} />
+          <section className="coach-notification-popover" role="dialog" aria-label="Notificações rápidas">
+            <div className="coach-notification-popover-head">
+              <div>
+                <p>Notificações</p>
+                <h4>Atualizações recentes</h4>
+              </div>
+              <button type="button" onClick={onClose} aria-label="Fechar notificações">
+                <NavIcon name="close" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="coach-notification-popover-list">
+              {recentAlerts.map((alert) => (
+                <button key={alert.id} type="button" className="coach-notification-popover-item is-alert" onClick={() => onOpenView?.(alert.view)}>
+                  <span className="coach-notification-dot" />
+                  <span>
+                    <strong>{alert.title}</strong>
+                    <small>{alert.body}</small>
+                    <em>Alerta ativo</em>
+                  </span>
+                </button>
+              ))}
+              {recentNotifications.map((item) => (
+                <article key={item.id} className={`coach-notification-popover-item ${item.read ? '' : 'is-unread'}`}>
+                  <span className="coach-notification-dot" />
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.body}</small>
+                    <em>{item.read ? 'Lida' : 'Nova'}</em>
+                  </span>
+                </article>
+              ))}
+              {!hasItems ? <p className="coach-notification-popover-empty">Nenhuma notificação recente.</p> : null}
+            </div>
+
+            <button type="button" className="coach-notification-popover-all" onClick={onOpenAll}>
+              Ver todas as notificações
+            </button>
+          </section>
+        </>
+      ) : null}
+    </div>
   )
 }
+
 function ThemeToggle({ theme, onToggle, className = '' }) {
   const isDark = theme === 'dark'
   return (

@@ -50,6 +50,9 @@ const checks = [
   ['Nutrition meal controls are touch friendly', app.includes('nutrition-inline-add-action') && app.includes('nutrition-danger-action') && css.includes('.nutrition-inline-add-action')],
   ['Ranking medals keep visible icons in light theme', app.includes('rank-medal-icon') && css.includes('rank-light-theme-polish-v1') && css.includes('.app-theme-light .rank-medal .rank-medal-icon')],
   ['Ranking panels have dedicated light theme polish', app.includes('student-ranking-panel') && app.includes('student-reward-ranking-card') && css.includes('.app-theme-light .student-ranking-panel')],
+  ['Light mode menu icons have dedicated polish', app.includes('coach-menu-icon-shell') && app.includes('coach-nav-item') && css.includes('menu-icon-light-polish-v1') && css.includes('.app-theme-light .coach-nav-item .coach-menu-icon-shell')],
+  ['Notification shortcut opens an overlay instead of navigating immediately', app.includes('coach-notification-popover') && app.includes('notificationPopoverOpen') && app.includes('Ver todas as notificações') && app.includes('onOpenAll')],
+  ['Notification overlay supports close controls', app.includes('handleNotificationKeyDown') && app.includes('coach-notification-popover-backdrop') && app.includes('Fechar notificações')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
