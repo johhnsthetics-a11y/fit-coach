@@ -1,6 +1,6 @@
 {
-  "name": "Coach Fit Pro",
-  "short_name": "Coach Fit Pro",
+  "name": "FIT COACH",
+  "short_name": "FIT COACH",
   "description": "Acompanhamento de treino, dieta, check-ins e mensagens do aluno.",
   "start_url": "/",
   "scope": "/",
@@ -10,9 +10,9 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/logoabre.png",
-      "sizes": "1024x1024",
-      "type": "image/png",
+      "src": "/fit-coach-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]

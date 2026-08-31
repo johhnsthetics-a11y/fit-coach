@@ -17,7 +17,7 @@ async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    return await fetch(url, { cache: 'no-store', ...options, signal: controller.signal })
+    return await fetch(url, { ...options, signal: controller.signal })
   } catch (error) {
     if (error?.name === 'AbortError') {
       throw new Error('A conexão demorou demais. Verifique sua internet e tente novamente.')
@@ -146,32 +146,6 @@ async function rpcRequest(functionName, body) {
   })
 }
 
-async function functionRequest(functionName, body) {
-  if (!supabaseEnabled) {
-    throw new Error('Supabase não configurado')
-  }
-
-  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${functionName}`, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(body),
-  })
-
-  const text = await response.text()
-  let payload = {}
-  try {
-    payload = text ? JSON.parse(text) : {}
-  } catch {
-    payload = { message: text }
-  }
-
-  if (!response.ok) {
-    throw new Error(payload.error || payload.message || `Erro na função ${functionName}`)
-  }
-
-  return payload
-}
-
 export async function signUpCoach({ name, email, password }) {
   const payload = await authRequest('signup', {
     email,
@@ -238,21 +212,6 @@ export async function updateRecoveredPassword(accessToken, password) {
   }
 }
 
-export async function deleteRemoteCoachAccount({ email, confirmation }) {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  const normalizedConfirmation = String(confirmation || '').trim().toLowerCase()
-
-  if (!normalizedEmail || normalizedConfirmation !== normalizedEmail) {
-    throw new Error('Confirme a exclusao digitando exatamente o e-mail da conta.')
-  }
-
-  return functionRequest('delete-coach-account', {
-    email: normalizedEmail,
-    confirmation: normalizedConfirmation,
-    requestedAt: new Date().toISOString(),
-  })
-}
-
 export async function refreshCoachSession(refreshToken) {
   if (!refreshToken) {
     throw new Error('Sessão sem token de renovação')
@@ -267,7 +226,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, appAdminSettings] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -283,24 +242,20 @@ export async function loadRemoteData() {
     request('student_invites?select=*&order=created_at.desc'),
     request('student_anamneses?select=*&order=submitted_at.desc'),
     optionalTableRequest('coach_subscriptions?select=*&limit=1'),
-    optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
-    optionalTableRequest('workout_progression_decisions?select=*&order=created_at.desc'),
     loadRemoteAppAdminSettings().catch(() => null),
   ])
 
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
-  const hydratedMessages = await Promise.all(messages.map(hydrateMessageRow))
-  const hydratedWorkouts = await Promise.all(workouts.map(hydrateWorkoutRow))
 
   return {
     user: users[0] ? fromUserRow(users[0]) : null,
     students: students.map(fromStudentRow),
     checkins: hydratedCheckins,
     notifications: notifications.map(fromNotificationRow),
-    workouts: hydratedWorkouts,
+    workouts: workouts.map(fromWorkoutRow),
     nutritionPlans: nutritionPlans.map(fromNutritionPlanRow),
     workoutLogs: workoutLogs.map(fromWorkoutLogRow),
-    messages: hydratedMessages,
+    messages: messages.map(fromMessageRow),
     appointments: appointments.map(fromAppointmentRow),
     invoices: invoices.map(fromInvoiceRow),
     assessments: assessments.map(fromAssessmentRow),
@@ -308,8 +263,6 @@ export async function loadRemoteData() {
     invites: invites.map(fromInviteRow),
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
-    exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
-    workoutProgressionDecisions: workoutProgressionDecisions.map(fromWorkoutProgressionDecisionRow),
     appAdminSettings,
   }
 }
@@ -332,23 +285,47 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
-export async function loadRemoteLeadEvents(limit = 120) {
-  const rows = await optionalTableRequest(`lead_events?select=*&order=created_at.desc&limit=${encodeURIComponent(limit)}`)
-  return rows.map(fromLeadEventRow)
+
+export async function loadRemoteAdminOverview() {
+  const [users, subscriptions] = await Promise.all([
+    optionalTableRequest('users?select=*&order=created_at.desc'),
+    optionalTableRequest('coach_subscriptions?select=*&order=updated_at.desc'),
+  ])
+
+  return {
+    users: users.map(fromUserRow),
+    subscriptions: subscriptions.map(fromCoachSubscriptionRow),
+  }
 }
 
-export async function saveRemoteLeadEvent(event) {
-  const rows = await request('lead_events', {
+export async function updateRemoteAdminCoachSubscription(input = {}) {
+  if (!isUuid(input.coachId)) return null
+
+  const now = new Date().toISOString()
+  const payload = {
+    coach_id: input.coachId,
+    status: input.status || 'active',
+    updated_at: now,
+  }
+
+  if (input.nextBillingAt !== undefined) payload.next_billing_at = input.nextBillingAt || null
+  if (input.currentPeriodEndsAt !== undefined) payload.current_period_ends_at = input.currentPeriodEndsAt || null
+  if (input.paidAt !== undefined) payload.paid_at = input.paidAt || null
+  if (input.provider !== undefined) payload.provider = input.provider || 'manual_admin'
+
+  const rows = await request('coach_subscriptions?on_conflict=coach_id', {
     method: 'POST',
-    body: JSON.stringify(toLeadEventRow(event)),
+    body: JSON.stringify(payload),
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
   })
-  return rows?.[0] ? fromLeadEventRow(rows[0]) : event
+
+  return rows[0] ? fromCoachSubscriptionRow(rows[0]) : null
 }
 
 export async function loadRemoteMessages(studentId = '') {
   const filter = studentId ? `&student_id=eq.${encodeURIComponent(studentId)}` : ''
   const rows = await request(`messages?select=*${filter}&order=created_at.desc`)
-  return Promise.all(rows.map(hydrateMessageRow))
+  return rows.map(fromMessageRow)
 }
 
 export async function loadRemoteStudentMessages(studentId) {
@@ -359,19 +336,7 @@ export async function loadRemoteStudentMessages(studentId) {
 export async function loadRemoteStudentMessagesByInvite(inviteCode) {
   if (!inviteCode) return []
   const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
-  return Promise.all((Array.isArray(result) ? result : []).map(hydrateMessageRow))
-}
-
-export async function fetchRemoteExerciseMedia(query) {
-  const search = String(query || '').trim()
-  if (!search) throw new Error('Digite o nome do exercício antes de buscar na biblioteca.')
-
-  const payload = await functionRequest('ascendapi-exercises', { query: search })
-  if (!payload?.exercise) {
-    throw new Error(payload?.message || 'Exercício não encontrado na AscendAPI.')
-  }
-
-  return payload.exercise
+  return (Array.isArray(result) ? result : []).map(fromMessageRow)
 }
 
 export async function upsertRemoteUser(user) {
@@ -524,7 +489,7 @@ async function uploadWorkoutVideo(file, workoutId, exerciseIndex) {
     throw serviceError(response.status, message || 'Erro ao enviar vídeo do exercício')
   }
 
-  return safeName
+  return `${SUPABASE_URL}/storage/v1/object/public/${WORKOUT_VIDEO_BUCKET}/${safeName}`
 }
 
 export async function updateRemotePayment(studentId, payment) {
@@ -578,26 +543,22 @@ export async function loadRemoteStudentByInvite(code) {
   }
 
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
-  const hydratedWorkouts = await Promise.all((payload.workouts ?? []).map(hydrateWorkoutRow))
-  const hydratedMessages = await Promise.all((payload.messages ?? []).map(hydrateMessageRow))
 
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
-  const exerciseLibrary = await optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc')
 
   return {
     invite: fromInviteRow(invite),
     student: fromStudentRow(payload.student),
     consentAccepted: Boolean(payload.consent_accepted),
     checkins: hydratedCheckins,
-    workouts: hydratedWorkouts,
+    workouts: (payload.workouts ?? []).map(fromWorkoutRow),
     nutritionPlans: (payload.nutrition_plans ?? []).map(fromNutritionPlanRow),
     workoutLogs: (payload.workout_logs ?? []).map(fromWorkoutLogRow),
-    messages: hydratedMessages,
+    messages: (payload.messages ?? []).map(fromMessageRow),
     appointments: (payload.appointments ?? []).map(fromAppointmentRow),
     invoices: (payload.invoices ?? []).map(fromInvoiceRow),
     assessments: (payload.assessments ?? []).map(fromAssessmentRow),
-    exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
     coachSettings: payload.coach_settings ? fromCoachSettingsRow(payload.coach_settings) : null,
     anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
     anamnesisRequired: payload.student.require_anamnesis !== false,
@@ -608,7 +569,7 @@ export async function loadRemoteStudentByInvite(code) {
 export async function acceptRemoteStudentConsent(code) {
   await rpcRequest('accept_student_consent', {
     invite_code: code,
-    consent_version_value: '2026-07-13-web-pwa',
+    consent_version_value: '1.0',
   })
 
   return loadRemoteStudentByInvite(code)
@@ -660,8 +621,6 @@ export async function saveRemoteWorkout(workout, coachId) {
         equipment: exercise.equipment || null,
         instructions: exercise.instructions || null,
         video_url: uploadedVideoUrl || exercise.videoUrl || null,
-        image_url: exercise.imageUrl || exercise.thumbnailUrl || null,
-        external_id: exercise.ascendapiId || exercise.exerciseId || null,
         order_index: index,
       }
     }))
@@ -692,27 +651,6 @@ export async function archiveRemoteWorkout(workoutId) {
     body: JSON.stringify({ active: false }),
   })
   return rows[0] ? fromWorkoutRow(rows[0]) : null
-}
-
-export async function saveRemoteWorkoutProgressionDecision(decision, coachId) {
-  const rows = await request('workout_progression_decisions', {
-    method: 'POST',
-    body: JSON.stringify({
-      coach_id: coachId || null,
-      student_id: decision.studentId,
-      workout_id: isUuid(decision.workoutId) ? decision.workoutId : null,
-      exercise_name: decision.exerciseName,
-      action: decision.action,
-      suggestion: decision.suggestion,
-      reason: decision.reason,
-      confidence: decision.confidence,
-      status: decision.status || 'approved',
-      previous_target: decision.previousTarget || {},
-      next_target: decision.nextTarget || {},
-      source: decision.source || 'local_rules',
-    }),
-  })
-  return rows[0] ? fromWorkoutProgressionDecisionRow(rows[0]) : decision
 }
 
 export async function saveRemoteNutritionPlan(plan, coachId) {
@@ -807,7 +745,7 @@ export async function saveRemoteMessage(message) {
       attachment_type: attachmentType || null,
       attachment_name: attachmentName || null,
     })
-    return hydrateMessageRow(Array.isArray(result) ? result[0] : result)
+    return fromMessageRow(Array.isArray(result) ? result[0] : result)
   }
 
   const rows = await request('messages', {
@@ -824,7 +762,7 @@ export async function saveRemoteMessage(message) {
     }),
   })
 
-  return hydrateMessageRow(rows[0])
+  return fromMessageRow(rows[0])
 }
 
 async function uploadMessageAttachment(file, studentId, inviteCode = '') {
@@ -845,7 +783,7 @@ async function uploadMessageAttachment(file, studentId, inviteCode = '') {
     throw serviceError(response.status, message || 'Erro ao enviar anexo da conversa')
   }
 
-  return safeName
+  return `${SUPABASE_URL}/storage/v1/object/public/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`
 }
 
 export async function markRemoteStudentMessagesRead(studentId) {
@@ -1003,29 +941,6 @@ function fromUserRow(row) {
   }
 }
 
-function fromLeadEventRow(row) {
-  return {
-    id: row.id,
-    type: row.event_type,
-    email: row.email ?? '',
-    planId: row.plan_id ?? '',
-    attribution: row.attribution ?? {},
-    metadata: row.metadata ?? {},
-    createdAt: row.created_at,
-  }
-}
-
-function toLeadEventRow(event = {}) {
-  return {
-    event_type: event.type || event.eventType || 'visit',
-    email: event.email || event.metadata?.email || null,
-    plan_id: event.planId || event.metadata?.planId || null,
-    attribution: event.attribution || {},
-    metadata: event.metadata || {},
-    created_at: event.createdAt || new Date().toISOString(),
-  }
-}
-
 function fromCoachSubscriptionRow(row) {
   return {
     id: row.id,
@@ -1142,55 +1057,15 @@ async function hydrateCheckinRow(row) {
 }
 
 async function signCheckinPhoto(storageValue) {
-  return signStorageObject(PHOTO_BUCKET, storageValue, 60 * 60)
-}
-
-async function hydrateMessageRow(row) {
-  const message = fromMessageRow(row)
-  if (!message.attachmentUrl) return message
-
-  const path = extractStoragePath(message.attachmentUrl, MESSAGE_ATTACHMENT_BUCKET)
-  if (!path) return message
-
-  const signedUrl = await signStorageObject(MESSAGE_ATTACHMENT_BUCKET, path, 60 * 60).catch(() => '')
-  return {
-    ...message,
-    attachmentPath: path,
-    attachmentUrl: signedUrl || message.attachmentUrl,
-  }
-}
-
-async function hydrateWorkoutRow(row) {
-  const workout = fromWorkoutRow(row)
-  const exercises = await Promise.all(workout.exercises.map(async (exercise) => {
-    const path = extractStoragePath(exercise.videoUrl, WORKOUT_VIDEO_BUCKET)
-    if (!path || /^https?:\/\//i.test(path)) return exercise
-
-    const signedUrl = await signStorageObject(WORKOUT_VIDEO_BUCKET, path, 60 * 60).catch(() => '')
-    return {
-      ...exercise,
-      videoPath: path,
-      videoUrl: signedUrl || exercise.videoUrl,
-    }
-  }))
-
-  return { ...workout, exercises }
-}
-
-async function signStorageObject(bucket, storageValue, expiresIn = 3600) {
-  if (/^https?:\/\//i.test(String(storageValue || '')) && !String(storageValue).includes('/storage/v1/object/')) {
-    return String(storageValue)
-  }
-
-  const path = extractStoragePath(storageValue, bucket)
+  const path = extractStoragePath(storageValue)
   if (!path) return ''
 
   const response = await fetchWithTimeout(
-    `${SUPABASE_URL}/storage/v1/object/sign/${bucket}/${encodeStoragePath(path)}`,
+    `${SUPABASE_URL}/storage/v1/object/sign/${PHOTO_BUCKET}/${encodeStoragePath(path)}`,
     {
       method: 'POST',
       headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ expiresIn }),
+      body: JSON.stringify({ expiresIn: 60 * 60 }),
     },
   )
 
@@ -1204,25 +1079,20 @@ async function signStorageObject(bucket, storageValue, expiresIn = 3600) {
   return signedPath.startsWith('http') ? signedPath : `${SUPABASE_URL}${signedPath}`
 }
 
-function extractStoragePath(value, bucket = PHOTO_BUCKET) {
+function extractStoragePath(value) {
   if (!value) return ''
-  const normalized = String(value)
-  if (!/^https?:\/\//i.test(normalized) && !normalized.includes('/storage/v1/object/')) {
-    return normalized.replace(/^\/+/, '')
+  const publicMarker = `/storage/v1/object/public/${PHOTO_BUCKET}/`
+  const signedMarker = `/storage/v1/object/sign/${PHOTO_BUCKET}/`
+
+  if (value.includes(publicMarker)) {
+    return decodeURIComponent(value.split(publicMarker)[1].split('?')[0])
   }
 
-  const publicMarker = `/storage/v1/object/public/${bucket}/`
-  const signedMarker = `/storage/v1/object/sign/${bucket}/`
-
-  if (normalized.includes(publicMarker)) {
-    return decodeURIComponent(normalized.split(publicMarker)[1].split('?')[0])
+  if (value.includes(signedMarker)) {
+    return decodeURIComponent(value.split(signedMarker)[1].split('?')[0])
   }
 
-  if (normalized.includes(signedMarker)) {
-    return decodeURIComponent(normalized.split(signedMarker)[1].split('?')[0])
-  }
-
-  return normalized
+  return String(value).replace(/^\/+/, '')
 }
 
 function encodeStoragePath(path) {
@@ -1308,54 +1178,10 @@ function fromWorkoutRow(row) {
         load: exercise.load ?? '',
         rest: exercise.rest ?? '',
         muscleGroup: exercise.muscle_group ?? '',
-        primaryMuscle: exercise.primary_muscle ?? '',
-        secondaryMuscles: Array.isArray(exercise.secondary_muscles) ? exercise.secondary_muscles : [],
         equipment: exercise.equipment ?? '',
         instructions: exercise.instructions ?? '',
         videoUrl: exercise.video_url ?? '',
-        imageUrl: exercise.image_url ?? '',
-        thumbnailUrl: exercise.image_url ?? '',
-        ascendapiId: exercise.external_id ?? '',
       })),
-  }
-}
-
-function fromExerciseLibraryRow(row) {
-  return {
-    id: row.id,
-    name: row.name ?? '',
-    group: row.muscle_group ?? row.group_name ?? '',
-    primaryMuscle: row.primary_muscle ?? '',
-    secondaryMuscles: Array.isArray(row.secondary_muscles) ? row.secondary_muscles : [],
-    equipment: row.equipment ?? '',
-    cues: row.instructions ?? row.cues ?? '',
-    videoUrl: row.video_url ?? '',
-    thumbnailUrl: row.thumbnail_url ?? row.image_url ?? '',
-    imageUrl: row.image_url ?? row.thumbnail_url ?? '',
-    externalId: row.external_id ?? row.exercise_id ?? '',
-    exerciseId: row.external_id ?? row.exercise_id ?? '',
-    muscleMap: row.muscle_map ?? '',
-    aliases: Array.isArray(row.aliases) ? row.aliases : [],
-    source: 'supabase',
-  }
-}
-
-function fromWorkoutProgressionDecisionRow(row) {
-  return {
-    id: row.id,
-    coachId: row.coach_id,
-    studentId: row.student_id,
-    workoutId: row.workout_id,
-    exerciseName: row.exercise_name ?? '',
-    action: row.action ?? '',
-    suggestion: row.suggestion ?? '',
-    reason: row.reason ?? '',
-    confidence: row.confidence ?? '',
-    status: row.status ?? '',
-    previousTarget: row.previous_target ?? {},
-    nextTarget: row.next_target ?? {},
-    source: row.source ?? 'local_rules',
-    createdAt: row.created_at,
   }
 }
 
