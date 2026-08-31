@@ -5792,8 +5792,8 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
   return (
     <Panel title="Ranking dos alunos" action={`${ranking.length} no placar`}>
       {ranking.length ? (
-        <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
-          <div className="rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-300/12 via-white/[0.035] to-blue-400/10 p-4">
+        <div className="student-ranking-panel grid gap-4 xl:grid-cols-[1.05fr_1fr]">
+          <div className="student-ranking-podium rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-300/12 via-white/[0.035] to-blue-400/10 p-4">
             <p className="text-xs font-black uppercase text-emerald-200">Pódio de evolução</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {ranking.slice(0, 3).map((item, index) => (
@@ -5801,7 +5801,7 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                   key={item.student.id}
                   type="button"
                   onClick={() => onSelectStudent(item.student.id)}
-                  className={`min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${
+                  className={`student-ranking-podium-card min-w-0 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${
                     String(selectedStudentId) === String(item.student.id)
                       ? 'border-emerald-300/60 bg-emerald-300/15'
                       : 'border-white/10 bg-black/25 hover:border-emerald-300/35'
@@ -5809,7 +5809,7 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <RankMedal icon={item.levelIcon} label={item.levelName} size="sm" />
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] font-black text-zinc-300">#{item.position}</span>
+                    <span className="student-ranking-position rounded-full border border-white/10 px-2 py-1 text-[11px] font-black text-zinc-300">#{item.position}</span>
                   </div>
                   <h4 className="mt-4 truncate text-base font-black text-white">{item.student.name}</h4>
                   <p className="mt-1 text-xs font-bold text-zinc-400">{item.levelName}</p>
@@ -5828,7 +5828,7 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                 key={item.student.id}
                 type="button"
                 onClick={() => onSelectStudent(item.student.id)}
-                className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                className={`student-ranking-list-card flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition ${
                   String(selectedStudentId) === String(item.student.id)
                     ? 'border-blue-300/60 bg-blue-400/12'
                     : 'border-white/10 bg-white/[0.035] hover:border-blue-300/35'
@@ -12933,7 +12933,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           <NavIcon name="chevronRight" className="h-5 w-5 text-emerald-200" />
         </button>
 
-        <div className="overflow-hidden rounded-xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/12 via-zinc-950 to-blue-500/10 p-4">
+        <div className="student-reward-ranking-card overflow-hidden rounded-xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/12 via-zinc-950 to-blue-500/10 p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
@@ -12943,7 +12943,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
               <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
               <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
+            <div className="student-reward-next-card rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
               <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
               <p className="mt-1 text-lg font-black text-emerald-100">{reward.nextLevelName}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-500">{reward.remainingXp > 0 ? `faltam ${reward.remainingXp} XP` : 'ranking máximo'}</p>
@@ -12954,7 +12954,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-4">
             {reward.badges.map((badge) => (
-              <div key={badge.label} className={`rounded-lg border p-3 ${badge.done ? 'border-emerald-300/35 bg-emerald-300/12' : 'border-white/10 bg-white/[0.03]'}`}>
+              <div key={badge.label} className={`student-reward-badge-card rounded-lg border p-3 ${badge.done ? 'border-emerald-300/35 bg-emerald-300/12' : 'border-white/10 bg-white/[0.03]'}`}>
                 <p className={`text-xs font-black uppercase ${badge.done ? 'text-emerald-100' : 'text-zinc-500'}`}>{badge.label}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">{badge.detail}</p>
               </div>
@@ -12962,7 +12962,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             {reward.sources.map((source) => (
-              <div key={source.label} className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div key={source.label} className="student-reward-source-card rounded-lg border border-white/10 bg-black/20 p-3">
                 <p className="text-xs font-black uppercase text-zinc-500">{source.label}</p>
                 <p className="mt-1 text-lg font-black text-white">{source.value}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-500">{source.detail}</p>
@@ -13078,9 +13078,9 @@ function RankMedal({ icon = 'bronze', label = 'Selo Bronze', size = 'md' }) {
   const dimensions = size === 'sm' ? 'h-10 w-10' : 'h-14 w-14'
 
   return (
-    <span className={`relative grid ${dimensions} shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${tone} shadow-lg shadow-black/25`} title={label} aria-label={label}>
-      <span className="absolute inset-1 rounded-xl border border-black/20" />
-      <NavIcon name={icon === 'diamante' ? 'star' : 'trophy'} className={size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'} />
+    <span className={`rank-medal rank-medal-${icon} rank-medal-${size} relative grid ${dimensions} shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${tone} shadow-lg shadow-black/25`} title={label} aria-label={label}>
+      <span className="rank-medal-ring absolute inset-1 rounded-xl border border-black/20" />
+      <NavIcon name={icon === 'diamante' ? 'star' : 'trophy'} className={`rank-medal-icon ${size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'}`} />
     </span>
   )
 }

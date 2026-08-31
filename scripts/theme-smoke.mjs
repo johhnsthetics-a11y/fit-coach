@@ -48,6 +48,8 @@ const checks = [
   ['Workout exercise save button is prominent', app.includes('mobile-workout-exercise-save-action') && css.includes('.mobile-workout-exercise-save-action')],
   ['Nutrition primary and secondary actions are polished', app.includes('nutrition-primary-action') && app.includes('nutrition-secondary-action') && css.includes('nutrition-actions-polish-v1')],
   ['Nutrition meal controls are touch friendly', app.includes('nutrition-inline-add-action') && app.includes('nutrition-danger-action') && css.includes('.nutrition-inline-add-action')],
+  ['Ranking medals keep visible icons in light theme', app.includes('rank-medal-icon') && css.includes('rank-light-theme-polish-v1') && css.includes('.app-theme-light .rank-medal .rank-medal-icon')],
+  ['Ranking panels have dedicated light theme polish', app.includes('student-ranking-panel') && app.includes('student-reward-ranking-card') && css.includes('.app-theme-light .student-ranking-panel')],
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
