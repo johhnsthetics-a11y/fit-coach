@@ -9233,3 +9233,77 @@ html[data-theme="dark"] body { background: #05070d; }
   background: rgba(255, 255, 255, 0.9) !important;
   border-color: rgba(0, 156, 134, 0.15) !important;
 }
+
+/* nutrition-student-preview-portal-theme-v4 */
+.nutrition-student-preview-v2.app-theme-light {
+  background: rgba(15, 23, 42, 0.26) !important;
+}
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel {
+  background: #ffffff !important;
+  color: var(--app-light-title, #13201d) !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18) !important;
+}
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel h3,
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel h4,
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel strong {
+  color: var(--app-light-title, #13201d) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel p,
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel small {
+  color: var(--app-light-body, #47615b) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel article,
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel .rounded-2xl {
+  background: rgba(248, 251, 250, 0.96) !important;
+  border-color: rgba(0, 156, 134, 0.13) !important;
+}
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel button {
+  color: var(--app-light-title, #13201d) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+}
+.nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel {
+  background: #090f12 !important;
+}
+
+/* nutrition-stepper-fluid-v4 */
+.nutrition-stepper-professional-v3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)) !important;
+  gap: clamp(0.55rem, 1.2vw, 0.85rem) !important;
+}
+.nutrition-stepper-professional-v3 .nutrition-assistant-step {
+  margin-right: 0 !important;
+  min-width: 0;
+  min-height: clamp(3.7rem, 5vw, 4.5rem);
+  padding: clamp(0.78rem, 1.4vw, 1rem) !important;
+}
+.nutrition-step-label {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+@media (min-width: 768px) {
+  .nutrition-stepper-professional-v3 {
+    grid-template-columns: repeat(3, minmax(10.75rem, 1fr)) !important;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .nutrition-assistant-card > .flex {
+    align-items: stretch !important;
+  }
+  .nutrition-stepper-professional-v3 {
+    width: 100% !important;
+  }
+}
+@media (max-width: 767px) {
+  .nutrition-stepper-professional-v3 {
+    grid-template-columns: 1fr !important;
+  }
+  .nutrition-stepper-professional-v3 .nutrition-assistant-step {
+    min-height: 3.25rem;
+  }
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-pwa-20260901-nutrition-10-v1'
+const CACHE_NAME = 'coach-fit-pro-pwa-20260901-nutrition-preview-light-v2'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
@@ -48,6 +48,7 @@ self.addEventListener('fetch', (event) => {
     }),
   )
 })
+
 
 
 

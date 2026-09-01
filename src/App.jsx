@@ -3316,6 +3316,7 @@ function AppContent() {
                 nutritionPlans={data.nutritionPlans ?? []}
                 onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveNutritionPlan={archiveNutritionPlan}
+                uiTheme={uiTheme}
               />
             )}
             {activeView === 'checkins' && (
@@ -10850,7 +10851,7 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
   )
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan, onArchiveNutritionPlan }) {
+function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan, onArchiveNutritionPlan, uiTheme = DEFAULT_UI_THEME }) {
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
@@ -10884,7 +10885,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
 
       <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action="Plano alimentar">
         {students.length ? (
-          <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
+          <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} uiTheme={uiTheme} />
         ) : (
           <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
         )}
@@ -10910,7 +10911,7 @@ function NutritionQuickStat({ icon, label, value, detail }) {
   )
 }
 
-function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
+function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState([
     { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
     { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
@@ -11087,7 +11088,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   return (
     <form onSubmit={handleSubmit} className="nutrition-form-shell grid gap-4">
       <div className="nutrition-assistant-card rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
@@ -11102,7 +11103,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
               Pesquise pelo nome, apelido, preparo ou categoria. Depois ajuste a porção e confira kcal, proteína, carboidratos, gordura, fibra e sódio em tempo real.
             </p>
           </div>
-          <div className="nutrition-stepper-professional-v3 nutrition-assistant-steps grid gap-0 sm:grid-cols-3 lg:w-[min(100%,620px)]">
+          <div className="nutrition-stepper-professional-v3 nutrition-assistant-steps grid grid-cols-1 gap-2 md:grid-cols-3 xl:w-[min(100%,660px)]">
             {assistantSteps.map((step, index) => {
               const stateClass = index < assistantStepIndex ? 'is-complete' : index === assistantStepIndex ? 'is-current' : 'is-next'
               return (
@@ -11118,7 +11119,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       </div>
 
       <div className="nutrition-pro-controls-v1 grid gap-3 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Modelos rápidos</p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">Comece por uma estrutura pronta e ajuste porções, refeições e observações para cada aluno.</p>
@@ -11139,7 +11140,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       </div>
 
       {previewOpen ? (
-        <NutritionStudentDietPreview plan={previewPlan} student={selectedStudent} onClose={() => setPreviewOpen(false)} />
+        <NutritionStudentDietPreview plan={previewPlan} student={selectedStudent} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
       ) : null}
 
       <Select
@@ -11249,11 +11250,11 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   )
 }
 
-function NutritionStudentDietPreview({ plan, student, onClose }) {
+function NutritionStudentDietPreview({ plan, student, theme = DEFAULT_UI_THEME, onClose }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
 
   return createPortal((
-    <div className="nutrition-student-preview-v1 nutrition-student-preview-v2 fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5" role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
+    <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
       <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -14741,7 +14742,7 @@ function Payments({ students, invoices, coachSettings, coachPlans = plans, onSav
       </section>
 
       <section className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase text-amber-200">Cobrança automática dos alunos</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">
@@ -16429,9 +16430,10 @@ function ChartLoading() {
 }
 
 function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [], open = false, onToggle, onClose, onOpenAll, onOpenView, className = '' }) {
-  const visibleCount = Math.min(Number(count || 0), 99)
-  const recentNotifications = (notifications || []).slice(0, 4)
-  const recentAlerts = (smartAlerts || []).slice(0, 2)
+  const numericCount = Number(count || 0)
+  const visibleCount = numericCount > 99 ? '99+' : numericCount
+  const recentNotifications = notifications || []
+  const recentAlerts = smartAlerts || []
   const hasItems = recentAlerts.length > 0 || recentNotifications.length > 0
   const notificationRef = useRef(null)
 
@@ -18577,6 +18579,7 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
 
 
 
