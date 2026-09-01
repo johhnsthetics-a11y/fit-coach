@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   acceptRemoteStudentConsent,
@@ -11176,8 +11177,8 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
 function NutritionStudentDietPreview({ plan, student, onClose }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
 
-  return (
-    <div className="nutrition-student-preview-v1 fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5" role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
+  return createPortal((
+    <div className="nutrition-student-preview-v1 nutrition-student-preview-v2 fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5" role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
       <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -11221,7 +11222,7 @@ function NutritionStudentDietPreview({ plan, student, onClose }) {
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan }) {
@@ -11608,8 +11609,9 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
       const bRecent = recentSet.has(normalizeText(b.name)) ? 1 : 0
       return bRecent - aRecent
     })
-  const quickFavoriteFoods = favoriteFoodNames.map(findExactFood).filter(Boolean).slice(0, 4)
-  const quickRecentFoods = recentFoodNames.map(findExactFood).filter(Boolean).slice(0, 4)
+  const quickFavoriteFoods = favoriteFoodNames.map(findExactFood).filter(Boolean).slice(0, 8)
+  const quickRecentFoods = recentFoodNames.map(findExactFood).filter(Boolean).slice(0, 6)
+  const favoriteQuickPickFoods = quickFavoriteFoods.length ? quickFavoriteFoods : quickRecentFoods.slice(0, 4)
   const substitutions = getEquivalentSubstitutions(item)
   const intelligence = recognizedFood
     ? { label: recognition.matchType === 'exact' ? 'Encontrado na base' : 'Reconhecido por nome semelhante', confidence: recognition.confidence }
@@ -11665,6 +11667,21 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
 
   return (
     <div className="nutrition-food-item-card rounded-md border border-white/10 bg-zinc-950/60 p-3">
+      {favoriteQuickPickFoods.length ? (
+        <div className="nutrition-favorites-rail-v2 mb-3 rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">{quickFavoriteFoods.length ? 'Favoritos' : 'Recentes'}</p>
+            <span className="text-[11px] font-bold text-zinc-500">toque para usar</span>
+          </div>
+          <div className="nutrition-favorites-rail-list scrollbar-soft flex gap-2 overflow-x-auto pb-1">
+            {favoriteQuickPickFoods.map((food) => (
+              <button key={`favorite-rail-${food.category}-${food.name}`} type="button" onClick={() => selectFood(food)} className="nutrition-favorite-food-chip shrink-0 rounded-full border border-emerald-300/25 bg-zinc-950/55 px-3 py-2 text-xs font-black text-emerald-100 transition hover:border-emerald-300/45 hover:bg-emerald-300/12">
+                {quickFavoriteFoods.length ? '★ ' : ''}{food.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="nutrition-food-item-grid grid gap-3 xl:grid-cols-[0.85fr_1.25fr_0.42fr_auto]">
         <InlineSelect
           label="Tipo"
@@ -11771,7 +11788,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
         </div>
       ) : null}
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <button type="button" onClick={() => onToggleFavorite?.(activeFoodName)} className={`nutrition-favorite-action inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-black transition ${isFavoriteFood ? 'border-emerald-300/40 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10'}`}>
+        <button type="button" onClick={() => onToggleFavorite?.(activeFoodName)} className={`nutrition-favorite-action ${isFavoriteFood ? 'is-favorite' : ''} inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-black transition ${isFavoriteFood ? 'border-emerald-300/40 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10'}`}>
           <NavIcon name="star" className="h-4 w-4" />
           {isFavoriteFood ? 'Favorito' : 'Favoritar alimento'}
         </button>

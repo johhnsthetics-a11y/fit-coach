@@ -9109,3 +9109,50 @@ button.coach-notification-popover-item:hover {
 @media (prefers-reduced-motion: reduce) {
   .nutrition-student-preview-panel { animation: none; }
 }
+
+
+/* notification-popover-desktop-readable-v3 */
+.coach-notification-popover {
+  position: fixed !important;
+  top: calc(env(safe-area-inset-top, 0px) + 5.4rem) !important;
+  right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+  left: auto !important;
+  inline-size: clamp(360px, 32vw, 460px) !important;
+  width: auto !important;
+  max-inline-size: calc(100vw - 2rem) !important;
+  min-inline-size: min(360px, calc(100vw - 2rem)) !important;
+  max-height: min(74dvh, 560px) !important;
+}
+.coach-notification-popover-list {
+  max-height: min(46dvh, 360px);
+  overflow-y: auto;
+}
+.coach-notification-popover-item span:last-child {
+  min-width: 0;
+}
+.coach-notification-popover-item strong,
+.coach-notification-popover-item small {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 639px) {
+  .coach-notification-popover {
+    top: calc(env(safe-area-inset-top, 0px) + 4.25rem) !important;
+    right: 0.75rem !important;
+    left: 0.75rem !important;
+    inline-size: auto !important;
+    min-inline-size: 0 !important;
+    max-inline-size: none !important;
+    max-height: calc(100dvh - 5.25rem - env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+
+/* nutrition-favorites-fast-access-v2 */
+.nutrition-favorites-rail-v2,
+.nutrition-favorites-rail-v2 * { min-width: 0; }
+.nutrition-favorites-rail-list { scroll-snap-type: x proximity; }
+.nutrition-favorite-food-chip { scroll-snap-align: start; max-width: min(16rem, 72vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nutrition-favorite-action.is-favorite svg { fill: currentColor; filter: drop-shadow(0 0 8px rgba(0, 210, 178, 0.28)); }
+.app-theme-light .nutrition-favorites-rail-v2 { background: rgba(0, 210, 178, 0.08) !important; border-color: rgba(0, 156, 134, 0.18) !important; }
+.app-theme-light .nutrition-favorite-food-chip { background: #ffffff !important; color: #006b5e !important; border-color: rgba(0, 156, 134, 0.18) !important; box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06) !important; }
+.app-theme-light .nutrition-favorite-action.is-favorite { background: rgba(0, 210, 178, 0.14) !important; color: #006b5e !important; }

@@ -15,7 +15,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-10safe-v1')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-ux-v2')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -72,7 +72,10 @@ const checks = [
   ['Nutrition has isolated professional controls', app.includes('nutrition-pro-controls-v1') && app.includes('favoriteFoodNames') && app.includes('recentFoodNames')],
   ['Nutrition offers meal templates without changing database schema', app.includes('nutritionMealTemplates') && app.includes('applyNutritionTemplate')],
   ['Nutrition has student preview mode', app.includes('nutrition-student-preview-v1') && app.includes('Visão do aluno')],
-  ['Nutrition professional polish CSS exists', css.includes('nutrition-professional-controls-v1') && css.includes('nutrition-student-preview-responsive-v1')]
+  ['Nutrition professional polish CSS exists', css.includes('nutrition-professional-controls-v1') && css.includes('nutrition-student-preview-responsive-v1')],
+  ['Nutrition favorites rail is fast and persistent', app.includes('nutrition-favorites-rail-v2') && app.includes('is-favorite') && app.includes('coachfitpro-favorite-foods') && css.includes('.nutrition-favorite-action.is-favorite svg')],
+  ['Nutrition student preview opens through a top-level portal', app.includes('createPortal(') && app.includes('nutrition-student-preview-v2')],
+  ['Notification popover has readable responsive desktop sizing', css.includes('notification-popover-desktop-readable-v3') && css.includes('inline-size: clamp(360px, 32vw, 460px)')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
