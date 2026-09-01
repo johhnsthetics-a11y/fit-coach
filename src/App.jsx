@@ -1397,6 +1397,7 @@ function AppContent() {
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
+  const activeCoachId = data.session?.user?.id || data.user?.id
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
@@ -1931,10 +1932,10 @@ function AppContent() {
 
     if (supabaseEnabled) {
       try {
-        savedStudent = await saveRemoteStudent(student, data.user?.id)
+        savedStudent = await saveRemoteStudent(student, activeCoachId)
         if (isNewStudent) {
           try {
-            createdInvite = await createRemoteStudentInvite(savedStudent.id, data.user?.id)
+            createdInvite = await createRemoteStudentInvite(savedStudent.id, activeCoachId)
           } catch (inviteError) {
             setRemoteStatus('Aluno salvo, mas o código não foi gerado')
             setRemoteError(inviteError.message)
@@ -1988,7 +1989,7 @@ function AppContent() {
 
   async function generateStudentInvite(studentId) {
     try {
-      const createdInvite = await createRemoteStudentInvite(studentId, data.user?.id)
+      const createdInvite = await createRemoteStudentInvite(studentId, activeCoachId)
       setData((current) => ({
         ...current,
         invites: [
@@ -16144,7 +16145,7 @@ function ThemeToggle({ theme, onToggle, className = '' }) {
       className={`theme-toggle theme-toggle-icon-only ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
     >
       <span className="theme-toggle-symbol" aria-hidden="true">
-        {isDark ? <span className="theme-toggle-bulb theme-toggle-bulb-off" /> : <span className="theme-toggle-bulb theme-toggle-bulb-on" />}
+        <span className={`theme-toggle-lamp ${isDark ? 'is-off' : 'is-on'}`}><NavIcon name="lightbulb" className="h-5 w-5" /></span>
       </span>
     </button>
   )
@@ -16285,6 +16286,7 @@ function NavIcon({ name, className = '' }) {
     trophy: <><path d="M8 21h8" /><path d="M12 17v4" /><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" /><path d="M5 5H3v2a4 4 0 0 0 4 4" /><path d="M19 5h2v2a4 4 0 0 1-4 4" /></>,
     muscle: <><path d="M12 3a3 3 0 0 1 3 3c0 1.1-.6 2-1.4 2.5l2.2 1.8 2 7.2-2.4.7-1.4-5-1.1 4.4.8 4.4h-3.4l.8-4.4-1.1-4.4-1.4 5-2.4-.7 2-7.2 2.2-1.8A2.9 2.9 0 0 1 9 6a3 3 0 0 1 3-3Z" /></>,
     layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 16 9 5 9-5" /></>,
+    lightbulb: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M8.5 14.5A6 6 0 1 1 15.5 14c-.9.8-1.5 1.7-1.5 3h-4c0-1.2-.5-2-1.5-2.5Z" /></>,
     bulb: <><path d="M9 18h6" /><path d="M10 22h4" /><path d="M8.5 14.5A6 6 0 1 1 15.5 14c-.9.8-1.5 1.7-1.5 3h-4c0-1.2-.5-2-1.5-2.5Z" /></>,
     alert: <><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" /></>,
     play: <><path d="M8 5v14l11-7Z" /></>,

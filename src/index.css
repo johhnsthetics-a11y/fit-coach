@@ -8835,75 +8835,207 @@ button.coach-notification-popover-item:hover {
   }
 }
 
-/* theme-toggle-bulb-v1 */
-.theme-toggle-bulb {
-  position: relative;
-  display: block;
-  width: 17px;
-  height: 19px;
-  border-radius: 999px 999px 75% 75%;
-  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
-}
 
-.theme-toggle-bulb::before {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: -4px;
-  height: 5px;
-  border-radius: 2px 2px 5px 5px;
-  content: '';
-}
-
-.theme-toggle-bulb::after {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 6px;
-  height: 6px;
+/* theme-toggle-lamp-natural-v2 */
+.theme-toggle-lamp {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
   border-radius: 999px;
-  content: '';
-  transform: translate(-50%, -52%);
+  color: #00d2b2;
+  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
-.theme-toggle-bulb-on {
-  background: linear-gradient(145deg, #fff7cc 0%, #00d2b2 72%);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow: 0 0 0 5px rgba(0, 210, 178, 0.13), 0 0 22px rgba(0, 210, 178, 0.5), inset 0 2px 5px rgba(255, 255, 255, 0.7);
+.theme-toggle-lamp svg {
+  display: block;
+  stroke-width: 2.15;
 }
 
-.theme-toggle-bulb-on::before {
-  background: linear-gradient(180deg, #0c3d36, #06231f);
-  box-shadow: 0 2px 5px rgba(0, 105, 88, 0.2);
+.theme-toggle-lamp.is-on {
+  background: rgba(0, 210, 178, 0.12);
+  color: #007d6c;
+  box-shadow: inset 0 0 0 1px rgba(0, 156, 134, 0.12), 0 0 0 4px rgba(0, 210, 178, 0.08);
 }
 
-.theme-toggle-bulb-on::after {
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: 0 0 16px rgba(255, 255, 255, 0.5);
+.theme-toggle-lamp.is-off {
+  background: rgba(148, 163, 184, 0.11);
+  color: #8ba19d;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
 }
 
-.theme-toggle-bulb-off {
-  background: linear-gradient(145deg, #263238 0%, #0f172a 100%);
-  border: 1px solid rgba(148, 163, 184, 0.36);
-  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.1), 0 0 0 4px rgba(15, 23, 42, 0.18);
-  opacity: 0.92;
+.theme-toggle-icon-only:hover .theme-toggle-lamp.is-on,
+.theme-toggle-icon-only:focus-visible .theme-toggle-lamp.is-on {
+  color: #005f52;
+  box-shadow: inset 0 0 0 1px rgba(0, 156, 134, 0.18), 0 0 0 5px rgba(0, 210, 178, 0.11);
 }
 
-.theme-toggle-bulb-off::before {
-  background: linear-gradient(180deg, #64748b, #334155);
+.theme-toggle-icon-only:hover .theme-toggle-lamp.is-off,
+.theme-toggle-icon-only:focus-visible .theme-toggle-lamp.is-off {
+  color: #00d2b2;
+  background: rgba(0, 210, 178, 0.09);
 }
 
-.theme-toggle-bulb-off::after {
-  background: rgba(148, 163, 184, 0.26);
+.app-theme-light .theme-toggle-lamp.is-on,
+.sales-theme-light .theme-toggle-lamp.is-on {
+  color: #006f60;
+  background: rgba(0, 210, 178, 0.13);
 }
 
-.theme-toggle-icon-only:hover .theme-toggle-bulb-on,
-.theme-toggle-icon-only:focus-visible .theme-toggle-bulb-on {
-  box-shadow: 0 0 0 6px rgba(0, 210, 178, 0.16), 0 0 26px rgba(0, 210, 178, 0.58), 0 10px 20px rgba(0, 143, 122, 0.16);
+.app-theme-light .theme-toggle-lamp.is-off,
+.sales-theme-light .theme-toggle-lamp.is-off {
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.06);
 }
 
-.theme-toggle-icon-only:hover .theme-toggle-bulb-off,
-.theme-toggle-icon-only:focus-visible .theme-toggle-bulb-off {
-  border-color: rgba(0, 210, 178, 0.32);
-  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.12), 0 0 0 5px rgba(0, 210, 178, 0.08);
+/* notification-shortcut-responsive-v2 */
+.coach-notification-wrap {
+  flex: 0 0 auto;
+  min-width: 44px;
+  max-width: 100%;
+}
+
+.coach-notification-shortcut {
+  flex: 0 0 44px;
+  aspect-ratio: 1 / 1;
+}
+
+.coach-page-notification-shortcut {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+}
+
+@media (min-width: 1024px) {
+  .coach-page-notification-shortcut {
+    display: inline-grid !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .coach-mobile-notification-shortcut {
+    width: 44px;
+    min-width: 44px;
+  }
+}
+
+/* app-workouts-light-polish-v1 */
+.app-theme-light .mobile-workout-manager,
+.app-theme-light .workout-exercise-picker,
+.app-theme-light .workout-exercise-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfa 100%) !important;
+  border-color: rgba(0, 156, 134, 0.15) !important;
+  color: var(--app-light-title) !important;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.07) !important;
+}
+
+.app-theme-light .mobile-workout-hero,
+.app-theme-light .mobile-workout-detail,
+.app-theme-light .mobile-workout-creator,
+.app-theme-light .mobile-workout-card,
+.app-theme-light .mobile-workout-day-card,
+.app-theme-light .mobile-workout-exercise-editor,
+.app-theme-light .mobile-workout-exercise-view,
+.app-theme-light .mobile-workout-review-card,
+.app-theme-light .mobile-workout-routine-details,
+.app-theme-light .mobile-workout-sheet,
+.app-theme-light .workout-exercise-card details,
+.app-theme-light .workout-exercise-card [class*="bg-zinc-950"],
+.app-theme-light .workout-exercise-picker [class*="bg-zinc-950"] {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.13) !important;
+  color: var(--app-light-title) !important;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055) !important;
+}
+
+.app-theme-light .mobile-workout-card.is-selected,
+.app-theme-light .mobile-workout-day-card.is-selected,
+.app-theme-light .mobile-workout-exercise-editor.is-open,
+.app-theme-light .mobile-workout-exercise-view.is-open,
+.app-theme-light .workout-exercise-card:hover,
+.app-theme-light .workout-exercise-picker .group:hover {
+  background: linear-gradient(135deg, rgba(0, 210, 178, 0.105), #ffffff 62%) !important;
+  border-color: rgba(0, 210, 178, 0.32) !important;
+  box-shadow: 0 16px 34px rgba(0, 105, 88, 0.09) !important;
+}
+
+.app-theme-light .workout-exercise-picker input,
+.app-theme-light .workout-exercise-picker select,
+.app-theme-light .workout-exercise-card input,
+.app-theme-light .workout-exercise-card select,
+.app-theme-light .workout-exercise-card textarea,
+.app-theme-light .mobile-workout-manager input,
+.app-theme-light .mobile-workout-manager select,
+.app-theme-light .mobile-workout-manager textarea {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: var(--app-light-title) !important;
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03) !important;
+}
+
+.app-theme-light .workout-exercise-picker input::placeholder,
+.app-theme-light .workout-exercise-card textarea::placeholder,
+.app-theme-light .mobile-workout-manager input::placeholder,
+.app-theme-light .mobile-workout-manager textarea::placeholder {
+  color: #87958f !important;
+}
+
+.app-theme-light .workout-exercise-picker button:not(.bg-emerald-300):not(.bg-emerald-400):not(.bg-emerald-500),
+.app-theme-light .workout-exercise-card button:not(.bg-emerald-300):not(.bg-emerald-400):not(.bg-emerald-500),
+.app-theme-light .mobile-workout-secondary-action,
+.app-theme-light .mobile-workout-day-actions button,
+.app-theme-light .mobile-workout-menu button,
+.app-theme-light .mobile-workout-picker-filters button,
+.app-theme-light .mobile-workout-save-bar button:first-child {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  color: #07594f !important;
+}
+
+.app-theme-light .mobile-workout-primary,
+.app-theme-light .mobile-workout-save-bar button:last-child,
+.app-theme-light .mobile-workout-picker-actions button,
+.app-theme-light .mobile-workout-add-exercise-cta,
+.app-theme-light .mobile-workout-save-day-action,
+.app-theme-light .mobile-workout-exercise-save-action,
+.app-theme-light .workout-exercise-picker button.bg-emerald-300,
+.app-theme-light .workout-exercise-card button.bg-emerald-500 {
+  background: #00d2b2 !important;
+  border-color: rgba(0, 156, 134, 0.34) !important;
+  color: #04231f !important;
+  box-shadow: 0 12px 26px rgba(0, 156, 134, 0.18) !important;
+}
+
+.app-theme-light .workout-exercise-picker h4,
+.app-theme-light .workout-exercise-picker strong,
+.app-theme-light .workout-exercise-card h4,
+.app-theme-light .workout-exercise-card h5,
+.app-theme-light .mobile-workout-manager h3,
+.app-theme-light .mobile-workout-manager h4,
+.app-theme-light .mobile-workout-manager strong {
+  color: var(--app-light-title) !important;
+  -webkit-text-fill-color: var(--app-light-title) !important;
+}
+
+.app-theme-light .workout-exercise-picker p,
+.app-theme-light .workout-exercise-picker small,
+.app-theme-light .workout-exercise-card p,
+.app-theme-light .workout-exercise-card small,
+.app-theme-light .mobile-workout-manager p,
+.app-theme-light .mobile-workout-manager small,
+.app-theme-light .mobile-workout-manager span {
+  color: var(--app-light-body) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-theme-light .workout-exercise-picker .text-emerald-100,
+.app-theme-light .workout-exercise-picker .text-emerald-200,
+.app-theme-light .workout-exercise-picker .text-emerald-300,
+.app-theme-light .workout-exercise-card .text-emerald-100,
+.app-theme-light .workout-exercise-card .text-emerald-200,
+.app-theme-light .workout-exercise-card .text-emerald-300,
+.app-theme-light .mobile-workout-manager .is-active,
+.app-theme-light .mobile-workout-section-title span {
+  color: #007d6c !important;
+  -webkit-text-fill-color: #007d6c !important;
 }

@@ -546,9 +546,10 @@ export async function markRemoteNotificationsRead() {
 }
 
 export async function createRemoteStudentInvite(studentId, coachId) {
+  const safeCoachId = requireCoachId(coachId)
   const now = encodeURIComponent(new Date().toISOString())
   const activeInvites = await request(
-    `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(coachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
+    `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(safeCoachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
   )
 
   if (activeInvites[0]) {
@@ -559,7 +560,7 @@ export async function createRemoteStudentInvite(studentId, coachId) {
   const rows = await request('student_invites', {
     method: 'POST',
     body: JSON.stringify({
-      coach_id: coachId,
+      coach_id: safeCoachId,
       student_id: studentId,
       code,
       status: 'active',
@@ -1058,6 +1059,13 @@ function toUserRow(user) {
   }
 }
 
+function requireCoachId(coachId) {
+  if (!isUuid(coachId)) {
+    throw new Error('Sessão do treinador não identificada. Saia e entre novamente antes de cadastrar alunos.')
+  }
+  return coachId
+}
+
 function fromStudentRow(row) {
   return {
     id: row.id,
@@ -1088,7 +1096,7 @@ function fromStudentRow(row) {
 
 function toStudentRow(student, coachId) {
   return {
-    coach_id: coachId || null,
+    coach_id: requireCoachId(coachId),
     name: student.name,
     email: student.email,
     phone: student.phone,
