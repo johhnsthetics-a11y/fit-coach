@@ -15,7 +15,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-theme-workouts-student-v2')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -63,7 +63,12 @@ const checks = [
   ['Workouts light mode has dedicated page polish', css.includes('app-workouts-light-polish-v1') && css.includes('.app-theme-light .workout-exercise-picker') && css.includes('.app-theme-light .mobile-workout-manager')],
   ['Notification shortcut keeps fixed size on desktop', css.includes('notification-shortcut-responsive-v2') && css.includes('.coach-page-notification-shortcut') && css.includes('flex: 0 0 44px')],
   ['Student save uses authenticated coach id', app.includes('const activeCoachId = data.session?.user?.id || data.user?.id') && app.includes('saveRemoteStudent(student, activeCoachId)') && app.includes('createRemoteStudentInvite(savedStudent.id, activeCoachId)')],
-  ['Student rows reject missing coach id before hitting RLS', api.includes('function requireCoachId') && api.includes('coach_id: requireCoachId(coachId)')]
+  ['Student rows reject missing coach id before hitting RLS', api.includes('function requireCoachId') && api.includes('coach_id: requireCoachId(coachId)')],
+  ['Nutrition has professional food expansion', app.includes('nutrition-professional-food-expansion-v1') && app.includes('foodSource:')],
+  ['Nutrition suggestions search aliases and preparation tags', app.includes('getFoodSearchTerms') && app.includes('preparation') && app.includes('servings')],
+  ['Nutrition assistant has responsive step classes', app.includes('nutrition-assistant-card') && app.includes('nutrition-assistant-steps') && css.includes('nutrition-assistant-responsive-v2')],
+  ['Nutrition food item editor has professional layout classes', app.includes('nutrition-food-item-card') && app.includes('nutrition-food-suggestions') && css.includes('nutrition-food-item-responsive-v2')],
+  ['Notification badge handles multiple digit counts', css.includes('notification-badge-readable-v3') && css.includes('min-width: 1.35rem') && css.includes('max-width: 2.5rem')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)

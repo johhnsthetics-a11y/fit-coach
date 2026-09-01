@@ -1015,7 +1015,94 @@ const expandedFoodDatabase = [
   name, category, calories, protein, carbs, fat, fiber, sodium, aliases,
 }))
 
-foodDatabase.push(...expandedFoodDatabase)
+
+
+// nutrition-professional-food-expansion-v1
+// Valores por 100g baseados em tabelas publicas de composicao (TACO/TBCA/USDA) e mantidos como referencia editavel no app.
+const professionalFoodDatabase = [
+  ['Alcatra Grelhada', 'Carnes', 239, 31.9, 0, 11.6, 0, 58, ['alcatra', 'bife de alcatra'], ['1 bife medio (100g)'], 'grelhado', 'TACO/TBCA'],
+  ['Contrafile Grelhado', 'Carnes', 278, 32.4, 0, 16.1, 0, 61, ['contra file', 'contrafile'], ['1 bife medio (100g)'], 'grelhado', 'TACO/TBCA'],
+  ['Coxao Duro Cozido', 'Carnes', 217, 31.9, 0, 8.9, 0, 49, ['coxao duro'], ['1 porcao (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Fraldinha Grelhada', 'Carnes', 245, 30.4, 0, 13.5, 0, 58, ['fraldinha'], ['1 bife medio (100g)'], 'grelhado', 'TACO/TBCA'],
+  ['Maminha Grelhada', 'Carnes', 153, 30.7, 0, 2.4, 0, 51, ['maminha'], ['1 fatia media (100g)'], 'grelhado', 'TACO/TBCA'],
+  ['Pernil Suino Assado', 'Carnes', 262, 32.1, 0, 13.9, 0, 62, ['pernil', 'pernil de porco'], ['1 fatia media (100g)'], 'assado', 'TACO/TBCA'],
+  ['Sobrecoxa de Frango Assada sem Pele', 'Carnes', 233, 29.2, 0, 12.0, 0, 95, ['sobrecoxa', 'sobrecoxa assada'], ['1 unidade pequena sem osso (100g)'], 'assado', 'TACO/TBCA'],
+  ['Bacalhau Cozido', 'Peixes', 140, 29, 0, 2.2, 0, 372, ['bacalhau'], ['1 posta pequena (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Pescada Branca Cozida', 'Peixes', 111, 24.4, 0, 1.2, 0, 84, ['pescada', 'pescada branca'], ['1 file medio (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Linguado Grelhado', 'Peixes', 122, 24.2, 0, 2.8, 0, 74, ['linguado'], ['1 file medio (100g)'], 'grelhado', 'USDA/TBCA'],
+  ['Mexilhao Cozido', 'Frutos do Mar', 172, 24, 7.4, 4.5, 0, 369, ['mexilhao', 'marisco'], ['1 xicara (150g)'], 'cozido', 'USDA/TBCA'],
+  ['Lula Cozida', 'Frutos do Mar', 92, 15.6, 3.1, 1.4, 0, 44, ['lula'], ['1 porcao (100g)'], 'cozido', 'USDA/TBCA'],
+  ['Ovo de Codorna', 'Ovos', 158, 13.1, 0.4, 11.1, 0, 141, ['ovos de codorna'], ['5 unidades (50g)'], 'cozido', 'TACO/TBCA'],
+  ['Leite Sem Lactose Semidesnatado', 'Laticínios', 45, 3.1, 4.7, 1.5, 0, 50, ['leite sem lactose'], ['1 copo (200ml)'], 'bebida', 'Rotulagem/USDA'],
+  ['Bebida Vegetal de Amendoas', 'Bebidas', 17, 0.6, 0.6, 1.4, 0.3, 65, ['leite de amendoas', 'bebida de amendoa'], ['1 copo (200ml)'], 'bebida', 'USDA'],
+  ['Bebida Vegetal de Soja', 'Bebidas', 45, 3.3, 3, 1.8, 0.6, 45, ['leite de soja', 'bebida de soja'], ['1 copo (200ml)'], 'bebida', 'USDA'],
+  ['Skyr Natural', 'Laticínios', 63, 11, 3.8, 0.2, 0, 40, ['iogurte skyr', 'skyr'], ['1 pote (140g)'], 'pronto para consumo', 'USDA/Rotulagem'],
+  ['Queijo Prato', 'Laticínios', 360, 26, 1.9, 28, 0, 580, ['queijo prato'], ['1 fatia (30g)'], 'pronto para consumo', 'TACO/TBCA'],
+  ['Parmesao', 'Laticínios', 392, 35.8, 3.2, 25.8, 0, 1840, ['queijo parmesao'], ['1 colher de sopa ralada (10g)'], 'pronto para consumo', 'TACO/TBCA'],
+  ['Macarrao Integral Cozido', 'Carboidratos', 124, 5.3, 26, 0.5, 3.9, 1, ['massa integral', 'macarrao integral'], ['1 pegador (100g)'], 'cozido', 'USDA/TBCA'],
+  ['Milho Verde Cozido', 'Carboidratos', 98, 3.2, 17.1, 2.4, 4.6, 1, ['milho', 'milho cozido'], ['1 espiga pequena (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Pure de Batata', 'Carboidratos', 113, 1.9, 16.8, 4.2, 1.5, 306, ['pure', 'pure batata'], ['3 colheres de sopa (100g)'], 'preparacao', 'TACO/TBCA'],
+  ['Abobora Cabotia Cozida', 'Carboidratos', 48, 1.4, 10.8, 0.7, 2.5, 1, ['abobora cabotia', 'abobora japonesa'], ['3 colheres de sopa (100g)'], 'cozido', 'TBCA'],
+  ['Cara Cozido', 'Carboidratos', 78, 1.5, 18.9, 0.1, 2.6, 7, ['cara'], ['1 pedaco medio (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Polenta Cozida', 'Carboidratos', 85, 1.8, 18.8, 0.6, 1.0, 250, ['angu', 'polenta'], ['1 fatia media (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Wrap Integral', 'Carboidratos', 290, 9, 48, 7, 6, 620, ['tortilha integral', 'wrap'], ['1 unidade (45g)'], 'pronto para consumo', 'Rotulagem/USDA'],
+  ['Feijao Fradinho Cozido', 'Leguminosas', 116, 7.7, 20.8, 0.5, 6.5, 3, ['feijao fradinho'], ['1 concha media (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Feijao Vermelho Cozido', 'Leguminosas', 127, 8.7, 22.8, 0.5, 6.4, 2, ['feijao vermelho'], ['1 concha media (100g)'], 'cozido', 'USDA/TBCA'],
+  ['Tofu Firme', 'Vegetarianos', 144, 15.8, 3.9, 8.7, 2.3, 14, ['tofu'], ['1 fatia grossa (100g)'], 'pronto para consumo', 'USDA/TBCA'],
+  ['Tempeh', 'Vegetarianos', 193, 20.3, 7.6, 10.8, 0, 9, ['tempe'], ['1 porcao (100g)'], 'fermentado', 'USDA'],
+  ['Proteina Texturizada de Soja Hidratada', 'Vegetarianos', 106, 15, 9, 0.6, 5.3, 8, ['pts', 'proteina de soja', 'soja texturizada'], ['1 xicara (100g)'], 'hidratado', 'TACO/TBCA'],
+  ['Hamburguer Vegetal de Grao de Bico', 'Vegetarianos', 190, 8, 24, 7, 5, 390, ['hamburguer vegetal', 'burger vegetal'], ['1 unidade (100g)'], 'preparacao', 'Rotulagem/USDA'],
+  ['Seitan', 'Vegetarianos', 370, 75, 14, 2, 1, 29, ['gluten de trigo'], ['1 porcao (100g)'], 'pronto para consumo', 'USDA'],
+  ['Banana Prata', 'Frutas', 89, 1.3, 22.8, 0.1, 2.0, 0, ['banana prata'], ['1 unidade media (86g)'], 'in natura', 'TACO/TBCA'],
+  ['Banana Nanica', 'Frutas', 92, 1.4, 23.8, 0.1, 1.9, 0, ['banana nanica', 'banana caturra'], ['1 unidade media (86g)'], 'in natura', 'TACO/TBCA'],
+  ['Goiaba Vermelha', 'Frutas', 54, 1.1, 13, 0.4, 6.2, 1, ['goiaba'], ['1 unidade pequena (100g)'], 'in natura', 'TACO/TBCA'],
+  ['Maracuja', 'Frutas', 68, 2.0, 12.3, 2.1, 11.8, 2, ['maracuja azedo'], ['1 unidade (100g polpa)'], 'in natura', 'TACO/TBCA'],
+  ['Tangerina', 'Frutas', 53, 0.8, 13.3, 0.3, 1.8, 2, ['mexerica', 'bergamota'], ['1 unidade media (100g)'], 'in natura', 'USDA/TBCA'],
+  ['Mirtilo', 'Frutas', 57, 0.7, 14.5, 0.3, 2.4, 1, ['blueberry'], ['1 xicara (148g)'], 'in natura', 'USDA'],
+  ['Rucula Crua', 'Vegetais', 25, 2.6, 3.7, 0.7, 1.6, 27, ['rucula'], ['2 xicaras (40g)'], 'cru', 'USDA/TBCA'],
+  ['Agriao Cru', 'Vegetais', 11, 2.3, 1.3, 0.1, 0.5, 41, ['agriao'], ['2 xicaras (68g)'], 'cru', 'USDA/TBCA'],
+  ['Berinjela Cozida', 'Vegetais', 35, 0.8, 8.7, 0.2, 2.5, 1, ['berinjela'], ['3 colheres de sopa (100g)'], 'cozido', 'USDA/TBCA'],
+  ['Quiabo Cozido', 'Vegetais', 22, 1.9, 4.5, 0.2, 2.5, 6, ['quiabo'], ['3 colheres de sopa (100g)'], 'cozido', 'TACO/TBCA'],
+  ['Pimentao Vermelho Cru', 'Vegetais', 31, 1, 6, 0.3, 2.1, 4, ['pimentao vermelho'], ['1 unidade pequena (100g)'], 'cru', 'USDA/TBCA'],
+  ['Cogumelo Paris', 'Vegetais', 22, 3.1, 3.3, 0.3, 1, 5, ['champignon', 'cogumelo'], ['1 xicara fatiada (70g)'], 'cru', 'USDA/TBCA'],
+  ['Semente de Abobora', 'Sementes', 559, 30.2, 10.7, 49, 6, 7, ['pepita', 'semente de abobora'], ['1 colher de sopa (10g)'], 'torrado', 'USDA/TBCA'],
+  ['Semente de Girassol', 'Sementes', 584, 20.8, 20, 51.5, 8.6, 9, ['girassol'], ['1 colher de sopa (10g)'], 'torrado', 'USDA'],
+  ['Tahine', 'Oleaginosas', 595, 17, 21, 54, 9, 115, ['pasta de gergelim', 'tahini'], ['1 colher de sopa (15g)'], 'pasta', 'USDA'],
+  ['Pistache', 'Oleaginosas', 560, 20.2, 27.2, 45.3, 10.6, 1, ['pistache'], ['1 punhado (30g)'], 'pronto para consumo', 'USDA'],
+  ['Oleo de Coco', 'Gorduras', 862, 0, 0, 100, 0, 0, ['oleo coco'], ['1 colher de sopa (13ml)'], 'oleo', 'USDA'],
+  ['Oleo de Canola', 'Gorduras', 884, 0, 0, 100, 0, 0, ['oleo canola'], ['1 colher de sopa (13ml)'], 'oleo', 'USDA'],
+  ['Cha Verde sem Acucar', 'Bebidas', 1, 0, 0.2, 0, 0, 1, ['cha verde'], ['1 xicara (200ml)'], 'bebida', 'USDA'],
+  ['Agua Mineral', 'Bebidas', 0, 0, 0, 0, 0, 1, ['agua'], ['1 copo (200ml)'], 'bebida', 'TBCA'],
+  ['Refrigerante Zero', 'Bebidas', 1, 0, 0, 0, 0, 12, ['refri zero', 'cola zero'], ['1 lata (350ml)'], 'bebida', 'Rotulagem'],
+  ['Alho Cru', 'Temperos', 149, 6.4, 33.1, 0.5, 2.1, 17, ['alho'], ['1 dente (3g)'], 'cru', 'USDA/TBCA'],
+  ['Cebola Crua', 'Temperos', 40, 1.1, 9.3, 0.1, 1.7, 4, ['cebola'], ['1 unidade pequena (70g)'], 'cru', 'USDA/TBCA'],
+  ['Molho de Tomate', 'Molhos', 29, 1.3, 5.3, 0.2, 1.5, 400, ['passata', 'molho vermelho'], ['1 concha pequena (100g)'], 'molho', 'Rotulagem/TBCA'],
+  ['Mostarda', 'Molhos', 66, 4.4, 5.8, 4, 3.3, 1135, ['molho mostarda'], ['1 colher de sopa (15g)'], 'molho', 'USDA'],
+  ['Geleia sem Acucar', 'Diet e Light', 80, 0.3, 20, 0.1, 1.2, 20, ['geleia diet', 'geleia zero'], ['1 colher de sopa (20g)'], 'pronto para consumo', 'Rotulagem'],
+  ['Pao sem Gluten', 'Sem Gluten', 250, 4, 48, 5, 4, 450, ['pao sem gluten'], ['2 fatias (50g)'], 'pronto para consumo', 'Rotulagem'],
+  ['Massa sem Gluten Cozida', 'Sem Gluten', 150, 3.5, 33, 0.8, 1.5, 2, ['macarrao sem gluten'], ['1 pegador (100g)'], 'cozido', 'Rotulagem/USDA'],
+  ['Albumina em Po', 'Suplementos', 360, 80, 5, 0, 0, 1100, ['albumina'], ['1 scoop (30g)'], 'suplemento', 'Rotulagem/USDA'],
+  ['Barra de Proteina', 'Suplementos', 360, 32, 35, 12, 8, 220, ['protein bar', 'barra proteica'], ['1 unidade (60g)'], 'pronto para consumo', 'Rotulagem'],
+  ['Feijoada Magra', 'Preparacoes', 152, 11.4, 13.8, 5.8, 5.1, 430, ['feijoada light'], ['1 concha grande (180g)'], 'preparacao brasileira', 'TACO/TBCA'],
+  ['Strogonoff de Frango', 'Preparacoes', 172, 15, 6, 10, 0.8, 330, ['estrogonofe', 'strogonoff'], ['1 concha media (150g)'], 'preparacao brasileira', 'TACO/TBCA'],
+  ['Panqueca de Aveia e Banana', 'Preparacoes', 184, 8.5, 27, 5.2, 3.8, 105, ['panqueca fit', 'panqueca banana'], ['1 unidade media (120g)'], 'preparacao', 'Receita padrao/TBCA'],
+  ['Omelete de Claras', 'Preparacoes', 96, 17, 1, 2, 0, 220, ['omelete claras'], ['1 unidade (150g)'], 'preparacao', 'Receita padrao/TBCA'],
+].map(([name, category, calories, protein, carbs, fat, fiber, sodium, aliases, servings, preparation, foodSource]) => ({
+  name,
+  category,
+  calories,
+  protein,
+  carbs,
+  fat,
+  fiber,
+  sodium,
+  aliases,
+  servings,
+  preparation,
+  foodSource: foodSource,
+}))
+
+foodDatabase.push(...expandedFoodDatabase, ...professionalFoodDatabase)
 
 const foodCategories = [...new Set([...foodDatabase.map((food) => food.category), 'Preparações'])]
 
@@ -10834,8 +10921,8 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
-      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+    <form onSubmit={handleSubmit} className="nutrition-form-shell grid gap-4">
+      <div className="nutrition-assistant-card rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
@@ -10844,16 +10931,16 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
               </span>
               <div>
                 <p className="font-black text-emerald-100">Assistente inteligente de alimentos</p>
-                <p className="text-xs font-bold uppercase text-zinc-500">macros, porções e substituições em um só fluxo</p>
+                <p className="text-xs font-bold uppercase text-zinc-500">macros, porções e substituições rápidas</p>
               </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Digite o alimento e a quantidade. O Coach Fit Pro procura na biblioteca, reconhece nomes semelhantes e preenche kcal, proteína, carboidratos, gordura, fibra e sódio automaticamente.
+              Pesquise pelo nome, apelido, preparo ou categoria. Depois ajuste a porção e confira kcal, proteína, carboidratos, gordura, fibra e sódio em tempo real.
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3 lg:w-[420px]">
-            {['Escolha o alimento', 'Ajuste as gramas', 'Confira os macros'].map((step, index) => (
-              <div key={step} className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+          <div className="nutrition-assistant-steps grid gap-2 sm:grid-cols-3 lg:w-[min(100%,520px)]">
+            {['Escolha o alimento', 'Defina a porção', 'Confira os macros'].map((step, index) => (
+              <div key={step} className="nutrition-assistant-step rounded-xl border border-white/10 bg-zinc-950/45 p-3">
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
                 <p className="mt-2 text-xs font-black text-zinc-100">{step}</p>
               </div>
@@ -10887,7 +10974,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
           const mealTotals = calculateMealMacros(meal)
 
           return (
-            <div key={mealIndex} className="rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4 shadow-xl shadow-black/10">
+            <div key={mealIndex} className="nutrition-meal-card rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4 shadow-xl shadow-black/10">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-sm font-black text-emerald-100">
@@ -11385,8 +11472,8 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
   }
 
   return (
-    <div className="rounded-md border border-white/10 bg-zinc-950/60 p-3">
-      <div className="grid gap-3 xl:grid-cols-[1fr_1.1fr_0.45fr_auto]">
+    <div className="nutrition-food-item-card rounded-md border border-white/10 bg-zinc-950/60 p-3">
+      <div className="nutrition-food-item-grid grid gap-3 xl:grid-cols-[0.85fr_1.25fr_0.42fr_auto]">
         <InlineSelect
           label="Tipo"
           value={item.category}
@@ -11414,7 +11501,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
             className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
           {suggestionsOpen ? (
-            <div className="scrollbar-soft max-h-72 overflow-y-auto rounded-md border border-white/10 bg-zinc-900 p-1 normal-case tracking-normal shadow-2xl">
+            <div className="nutrition-food-suggestions scrollbar-soft max-h-72 overflow-y-auto rounded-md border border-white/10 bg-zinc-900 p-1 normal-case tracking-normal shadow-2xl">
               <p className="px-3 py-2 text-xs font-bold text-blue-300">
                 {searchEdited && item.foodName.trim() ? 'Resultados da busca' : `Mais usados em ${item.category}`}
               </p>
@@ -11428,9 +11515,9 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-bold text-zinc-100">{food.name}</span>
-                    <span className="block text-xs text-zinc-500">{food.category}</span>
+                    <span className="block text-xs text-zinc-500">{food.category}{food.preparation ? ' • ' + food.preparation : ''}</span>
                   </span>
-                  <span className="shrink-0 text-xs font-black text-blue-200">{Math.round(food.calories)} kcal</span>
+                  <span className="shrink-0 text-right text-xs font-black text-blue-200">{Math.round(food.calories)} kcal<span className="block text-[10px] font-bold text-zinc-500">100g</span></span>
                 </button>
               )) : (
                 <div className="px-3 py-3">
@@ -11456,7 +11543,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
             {Math.round(totals.calories)} kcal | P {roundMacro(totals.protein)}g | C {roundMacro(totals.carbs)}g | G {roundMacro(totals.fat)}g
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Valores para {Number(item.grams) || 0}g · confiança {Math.round(intelligence.confidence * 100)}%
+            Valores para {Number(item.grams) || 0}g · confiança {Math.round(intelligence.confidence * 100)}%{recognizedFood?.servings?.[0] ? ' · medida: ' + recognizedFood.servings[0] : ''}{recognizedFood?.foodSource ? ' · fonte: ' + recognizedFood.foodSource : ''}
             {recognizedFood && normalizeText(recognizedFood.name) !== normalizeText(item.foodName) ? ` · referência: ${recognizedFood.name}` : ''}
           </p>
         </div>
@@ -11491,7 +11578,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
           Ajustar macros manualmente
         </button>
       ) : null}
-      <div className="mt-3 rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-3">
+      <div className="nutrition-substitution-card mt-3 rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Substituições equivalentes</p>
           <span className="text-[11px] font-bold text-zinc-500">mantendo o plano próximo dos mesmos macros</span>
@@ -17314,40 +17401,51 @@ function findFoodByName(name) {
   return recognizeFood(name).food
 }
 
+function getFoodSearchTerms(food) {
+  return [food.name, food.category, food.preparation, food.foodSource, ...(food.aliases ?? []), ...(food.servings ?? [])]
+    .filter(Boolean)
+    .map(normalizeText)
+}
+
 function findExactFood(name) {
   const normalizedName = normalizeText(name)
   if (!normalizedName) return null
 
-  return foodDatabase.find((food) => (
-    [food.name, ...(food.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalizedName)
-  )) ?? null
+  return foodDatabase.find((food) => getFoodSearchTerms(food).some((candidate) => candidate === normalizedName)) ?? null
 }
 
 function getFoodSuggestions(query, category) {
   const normalizedQuery = normalizeText(query)
+  const normalizedCategory = normalizeText(category)
   const commonFoods = [
     'Arroz Branco', 'Peito de Frango', 'Ovo Inteiro', 'Aveia em Flocos',
     'Banana', 'Batata Doce', 'Patinho Grelhado', 'Feijão Carioca',
     'Pão Integral', 'Iogurte Natural', 'Tilápia Grelhada', 'Whey Protein Concentrado',
+    'Alcatra Grelhada', 'Tofu Firme', 'Macarrão Integral Cozido', 'Feijoada Magra',
   ]
 
   return foodDatabase
     .filter((food) => {
-      if (!normalizedQuery) return food.category === category
-      return [food.name, ...(food.aliases ?? [])]
-        .some((candidate) => normalizeText(candidate).includes(normalizedQuery))
+      const terms = getFoodSearchTerms(food)
+      const sameCategory = !normalizedCategory || normalizeText(food.category) === normalizedCategory
+      if (!normalizedQuery) return sameCategory
+      return terms.some((candidate) => candidate.includes(normalizedQuery))
+        || meaningfulFoodTokens(normalizedQuery).some((token) => terms.some((candidate) => candidate.includes(token)))
     })
-    .sort((a, b) => {
-      const aCommon = commonFoods.indexOf(a.name)
-      const bCommon = commonFoods.indexOf(b.name)
-      if (aCommon >= 0 || bCommon >= 0) {
-        if (aCommon < 0) return 1
-        if (bCommon < 0) return -1
-        return aCommon - bCommon
-      }
-      return a.name.localeCompare(b.name, 'pt-BR')
-    })
-    .slice(0, normalizedQuery ? 14 : 10)
+    .sort((a, b) => getFoodSuggestionScore(b, normalizedQuery, commonFoods) - getFoodSuggestionScore(a, normalizedQuery, commonFoods) || a.name.localeCompare(b.name, 'pt-BR'))
+    .slice(0, normalizedQuery ? 18 : 12)
+}
+
+function getFoodSuggestionScore(food, normalizedQuery, commonFoods) {
+  const terms = getFoodSearchTerms(food)
+  const commonIndex = commonFoods.indexOf(food.name)
+  const commonBoost = commonIndex >= 0 ? 40 - commonIndex : 0
+  if (!normalizedQuery) return commonBoost
+  const exactBoost = terms.some((term) => term === normalizedQuery) ? 120 : 0
+  const startsBoost = terms.some((term) => term.startsWith(normalizedQuery)) ? 70 : 0
+  const containsBoost = terms.some((term) => term.includes(normalizedQuery)) ? 45 : 0
+  const tokenBoost = meaningfulFoodTokens(normalizedQuery).reduce((score, token) => score + (terms.some((term) => term.includes(token)) ? 8 : 0), 0)
+  return exactBoost + startsBoost + containsBoost + tokenBoost + commonBoost
 }
 
 function recognizeFood(name) {
@@ -17356,7 +17454,7 @@ function recognizeFood(name) {
 
   const candidates = foodDatabase.map((food) => ({
     food,
-    names: [food.name, ...(food.aliases ?? [])].map(normalizeText),
+    names: getFoodSearchTerms(food),
   }))
   const exact = candidates.find((candidate) => candidate.names.includes(normalizedName))
   if (exact) return { food: exact.food, confidence: 1, matchType: 'exact' }

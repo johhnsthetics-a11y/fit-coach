@@ -9039,3 +9039,38 @@ button.coach-notification-popover-item:hover {
   color: #007d6c !important;
   -webkit-text-fill-color: #007d6c !important;
 }
+
+/* nutrition-assistant-responsive-v2 */
+.nutrition-form-shell,
+.nutrition-form-shell * { min-width: 0; }
+.nutrition-assistant-card { overflow: hidden; }
+.nutrition-assistant-steps { grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); align-items: stretch; }
+.nutrition-assistant-step { min-height: 5.75rem; display: grid; align-content: start; gap: 0.45rem; }
+.nutrition-meal-card { overflow: visible; }
+.app-theme-light .nutrition-assistant-card,
+.app-theme-light .nutrition-meal-card,
+.app-theme-light .nutrition-food-item-card,
+.app-theme-light .nutrition-substitution-card { background: linear-gradient(180deg, #ffffff 0%, #f6fbfa 100%) !important; border-color: rgba(0, 156, 134, 0.16) !important; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.07) !important; }
+.app-theme-light .nutrition-assistant-step { background: rgba(0, 210, 178, 0.08) !important; border-color: rgba(0, 156, 134, 0.16) !important; }
+/* nutrition-food-item-responsive-v2 */
+.nutrition-food-item-card { position: relative; overflow: visible; }
+.nutrition-food-item-grid { align-items: end; }
+.nutrition-food-suggestions { position: absolute; left: 0; right: 0; top: calc(100% + 0.35rem); z-index: 60; width: 100%; }
+.app-theme-light .nutrition-food-suggestions { background: #ffffff !important; border-color: rgba(0, 156, 134, 0.18) !important; box-shadow: 0 22px 50px rgba(15, 23, 42, 0.14) !important; }
+.app-theme-light .nutrition-substitution-card button { background: #ffffff !important; border-color: rgba(0, 156, 134, 0.14) !important; }
+@media (max-width: 767px) {
+  .nutrition-assistant-card { padding: 1rem !important; }
+  .nutrition-assistant-steps { grid-template-columns: 1fr; }
+  .nutrition-assistant-step { min-height: auto; grid-template-columns: auto 1fr; align-items: center; gap: 0.75rem; }
+  .nutrition-assistant-step p { margin-top: 0 !important; }
+  .nutrition-food-item-grid { grid-template-columns: 1fr; }
+  .nutrition-food-suggestions { max-height: min(18rem, 48vh); }
+}
+@media (min-width: 1024px) {
+  .nutrition-assistant-card > div { align-items: stretch !important; }
+  .nutrition-assistant-steps { align-self: stretch; }
+  .nutrition-food-item-grid { grid-template-columns: minmax(10rem, 0.8fr) minmax(15rem, 1.4fr) minmax(7rem, 0.42fr) auto !important; }
+}
+/* notification-badge-readable-v3 */
+.coach-notification-shortcut-badge { min-width: 1.35rem; max-width: 2.5rem; height: 1.35rem; padding-inline: 0.32rem; display: inline-grid; place-items: center; white-space: nowrap; line-height: 1; font-variant-numeric: tabular-nums; }
+@media (max-width: 430px) { .coach-notification-shortcut-badge { right: -0.12rem; top: -0.16rem; } }
