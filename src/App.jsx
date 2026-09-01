@@ -53,6 +53,7 @@ const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
+const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
 const COACH_FIT_PRO_BUILD_MARKER = 'tema-claro-vendas-app-base-2796c2e-20260831'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
@@ -494,7 +495,7 @@ const navItems = [
   { id: 'alunos', label: 'Alunos', icon: 'users', tone: 'cyan' },
   { id: 'avaliacoes', label: 'Avaliações', icon: 'chart', tone: 'amber' },
   { id: 'treinos', label: 'Treinos', icon: 'dumbbell', tone: 'lime' },
-  { id: 'nutricao', label: 'Nutrição', icon: 'nutrition', tone: 'orange' },
+  { id: 'nutricao', label: 'Nutrição', icon: 'nutrition', tone: 'emerald' },
   { id: 'checkins', label: 'Check-ins', icon: 'camera', tone: 'rose' },
   { id: 'pagamentos', label: 'Recebimentos', icon: 'wallet', tone: 'green' },
   { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
@@ -503,6 +504,53 @@ const navItems = [
   { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
+
+const coachViewIds = new Set(navItems.map((item) => item.id))
+
+function getStoredUiTheme() {
+  if (typeof window === 'undefined') return DEFAULT_UI_THEME
+
+  try {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+    return savedTheme === 'dark' ? 'dark' : DEFAULT_UI_THEME
+  } catch (error) {
+    return DEFAULT_UI_THEME
+  }
+}
+
+function getInitialCoachView() {
+  if (typeof window === 'undefined') return 'visao'
+
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const viewFromUrl = params.get('area') || params.get('view')
+    if (coachViewIds.has(viewFromUrl)) return viewFromUrl
+
+    const savedView = window.localStorage.getItem(COACH_ACTIVE_VIEW_STORAGE_KEY)
+    if (coachViewIds.has(savedView)) return savedView
+  } catch (error) {
+    return 'visao'
+  }
+
+  return 'visao'
+}
+
+function persistCoachView(view) {
+  if (typeof window === 'undefined' || !coachViewIds.has(view)) return
+
+  try {
+    window.localStorage.setItem(COACH_ACTIVE_VIEW_STORAGE_KEY, view)
+    const url = new URL(window.location.href)
+    if (view === 'visao') {
+      url.searchParams.delete('area')
+    } else {
+      url.searchParams.set('area', view)
+    }
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  } catch (error) {
+    // Persistência de navegação não deve interromper o uso do painel.
+  }
+}
 
 const workoutPlan = [
   { day: 'Segunda', focus: 'Upper A', items: 'Supino, remada, desenvolvimento', status: 'Publicado' },
@@ -1457,14 +1505,14 @@ class AppErrorBoundary extends Component {
 
 function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
-  const [activeView, setActiveView] = useState('visao')
+  const [activeView, setActiveView] = useState(() => getInitialCoachView())
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [studentAccess, setStudentAccess] = useState(null)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [billingClock, setBillingClock] = useState(Date.now())
-  const [uiTheme, setUiTheme] = useState(DEFAULT_UI_THEME)
+  const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   const toggleUiTheme = useCallback(() => {
     setUiTheme((currentTheme) => {
       const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
@@ -1544,6 +1592,7 @@ function AppContent() {
   }, [])
 
   useEffect(() => {
+    persistCoachView(activeView)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [activeView])
 
@@ -3392,13 +3441,15 @@ function AppContent() {
 }
 
 function AppLoading() {
+  const loadingTheme = getStoredUiTheme()
+
   return (
-    <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
-      <section className="w-full max-w-sm rounded-md border border-white/10 bg-zinc-950/85 p-6 text-center shadow-2xl shadow-black/30">
+    <main className={`app-loading-shell app-shell fit-gradient-bg app-theme-${loadingTheme} grid min-h-screen place-items-center p-4 text-zinc-100`} data-theme={loadingTheme}>
+      <section className="app-loading-card w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950/85 p-6 text-center shadow-2xl shadow-black/30">
         <div className="flex justify-center">
           <BrandLockup large subtitle="Coach Fit Pro" />
         </div>
-        <div className="mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
+        <div className="app-loading-progress mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
           <span className="block h-full w-1/2 animate-pulse rounded bg-emerald-400" />
         </div>
         <p className="mt-4 text-sm font-bold text-emerald-100">Carregando sua operação...</p>
@@ -3474,7 +3525,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
-  const [salesTheme, setSalesTheme] = useState(DEFAULT_UI_THEME)
+  const [salesTheme, setSalesTheme] = useState(() => getStoredUiTheme())
   const toggleSalesTheme = useCallback(() => {
     setSalesTheme((currentTheme) => {
       const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
@@ -10808,7 +10859,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-      <section className="xl:col-span-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(9,20,18,0.96),rgba(5,8,10,0.96))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
+      <section className="nutrition-hero-card xl:col-span-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(9,20,18,0.96),rgba(5,8,10,0.96))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
         <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black uppercase text-emerald-200">
@@ -10824,14 +10875,14 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <NutritionQuickStat icon="nutrition" label="Biblioteca" value={`${foodDatabase.length}+`} detail="alimentos" />
+            <NutritionQuickStat icon="nutrition" label="Biblioteca" value="Completa" detail="organizada" />
             <NutritionQuickStat icon="calendar" label="Refeições" value={activeMeals || '-'} detail="ativas" />
             <NutritionQuickStat icon="chart" label="Plano atual" value={activePlan?.calories || selectedStudent?.calories || '-'} detail={activePlan?.protein || 'macros'} />
           </div>
         </div>
       </section>
 
-      <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action={`${foodDatabase.length}+ alimentos`}>
+      <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action="Plano alimentar">
         {students.length ? (
           <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} />
         ) : (
@@ -10880,6 +10931,8 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const planTotals = sumMacros(meals.map(calculateMealMacros))
   const totalMeals = meals.length
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
+  const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
+  const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
     title: titleDraft || 'Plano alimentar',
     calories: `${Math.round(planTotals.calories)} kcal`,
@@ -10959,6 +11012,19 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
     setMeals((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }
 
+  function duplicateMeal(index) {
+    setMeals((current) => {
+      const sourceMeal = current[index]
+      if (!sourceMeal) return current
+      const copy = {
+        ...sourceMeal,
+        name: `${sourceMeal.name || 'Refeição'} cópia`,
+        items: sourceMeal.items.map((item) => ({ ...item })),
+      }
+      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
+    })
+  }
+
   function addMealItem(mealIndex) {
     setMeals((current) => current.map((meal, index) => (
       index === mealIndex
@@ -11036,13 +11102,17 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
               Pesquise pelo nome, apelido, preparo ou categoria. Depois ajuste a porção e confira kcal, proteína, carboidratos, gordura, fibra e sódio em tempo real.
             </p>
           </div>
-          <div className="nutrition-assistant-steps grid gap-2 sm:grid-cols-3 lg:w-[min(100%,520px)]">
-            {['Escolha o alimento', 'Defina a porção', 'Confira os macros'].map((step, index) => (
-              <div key={step} className="nutrition-assistant-step rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
-                <p className="mt-2 text-xs font-black text-zinc-100">{step}</p>
-              </div>
-            ))}
+          <div className="nutrition-stepper-professional-v3 nutrition-assistant-steps grid gap-0 sm:grid-cols-3 lg:w-[min(100%,620px)]">
+            {assistantSteps.map((step, index) => {
+              const stateClass = index < assistantStepIndex ? 'is-complete' : index === assistantStepIndex ? 'is-current' : 'is-next'
+              return (
+                <div key={step} className={`nutrition-assistant-step ${stateClass} relative rounded-xl border border-white/10 bg-zinc-950/45 p-3`}>
+                  <span className="nutrition-step-number grid h-8 w-8 place-items-center rounded-full bg-emerald-300 text-xs font-black text-zinc-950">{index + 1}</span>
+                  <p className="nutrition-step-label mt-2 text-xs font-black text-zinc-100">{step}</p>
+                  {index < assistantSteps.length - 1 ? <span className="nutrition-step-connector" aria-hidden="true" /> : null}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -11079,9 +11149,9 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
         options={students.map((student) => ({ label: student.name, value: student.id }))}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.78fr)_minmax(28rem,1.22fr)] lg:items-start">
         <Field label="Nome da dieta" name="title" defaultValue="Plano base" onChange={(event) => setTitleDraft(event.target.value)} />
-        <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
+        <div className="nutrition-plan-stat-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
           <NutritionQuickStat icon="chart" label="Calorias" value={`${Math.round(planTotals.calories)}`} detail="kcal" />
@@ -11108,9 +11178,14 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
                     <p className="text-xs font-bold text-zinc-500">{meal.items.length} alimento(s) neste horário</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => removeMeal(mealIndex)} className="nutrition-danger-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
-                  Remover refeição
-                </button>
+                <div className="nutrition-meal-toolbar-v2 flex flex-wrap gap-2 sm:justify-end">
+                  <button type="button" onClick={() => duplicateMeal(mealIndex)} className="nutrition-secondary-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
+                    Duplicar refeição
+                  </button>
+                  <button type="button" onClick={() => removeMeal(mealIndex)} className="nutrition-danger-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
+                    Remover refeição
+                  </button>
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
@@ -11186,7 +11261,7 @@ function NutritionStudentDietPreview({ plan, student, onClose }) {
             <h3 className="mt-1 break-words text-2xl font-black text-white">{plan?.title || 'Plano alimentar'}</h3>
             <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || 'Aluno'} verá refeições, horários e macros de forma simples.</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label="Fechar notificações">
+          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label="Fechar visão do aluno">
             <NavIcon name="close" className="h-5 w-5" />
           </button>
         </div>
@@ -16585,7 +16660,7 @@ function NavIcon({ name, className = '' }) {
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" /><circle cx="9.5" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
     chart: <><path d="M4 19V5" /><path d="M4 19h17" /><path d="M8 15l3-4 3 2 5-7" /><path d="M18 6h1v1" /></>,
     dumbbell: <><path d="M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12" /></>,
-    nutrition: <><path d="M12 3c2.5 2.2 4 4.7 4 7.5A5.5 5.5 0 0 1 10.5 16 5.5 5.5 0 0 1 5 10.5C5 7.7 7.5 5 12 3Z" /><path d="M12 3c.5 3.3-.2 6-2 8" /><path d="M14 6c2.2-.4 4.1.1 5.5 1.5" /></>,
+    nutrition: <><path d="M6 3.5h11.5a2 2 0 0 1 2 2v12.2a2.8 2.8 0 0 1-2.8 2.8H6a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" /><path d="M8 7.5h7" /><path d="M8 11.5h8.5" /><path d="M8 15.5h5" /><path d="M17.5 5.5v13" /><path d="M16.5 9.5h2" /></>,
     camera: <><path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" /><circle cx="12" cy="13" r="4" /></>,
     wallet: <><path d="M3 7a2 2 0 0 1 2-2h14v4H5a2 2 0 0 1 0-4" /><path d="M3 7v12a2 2 0 0 0 2 2h16V9H5" /><path d="M17 14h.01" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,
@@ -18502,6 +18577,9 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
+
+
 
 
 

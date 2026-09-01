@@ -15,7 +15,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-ux-v2')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-10-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -75,7 +75,16 @@ const checks = [
   ['Nutrition professional polish CSS exists', css.includes('nutrition-professional-controls-v1') && css.includes('nutrition-student-preview-responsive-v1')],
   ['Nutrition favorites rail is fast and persistent', app.includes('nutrition-favorites-rail-v2') && app.includes('is-favorite') && app.includes('coachfitpro-favorite-foods') && css.includes('.nutrition-favorite-action.is-favorite svg')],
   ['Nutrition student preview opens through a top-level portal', app.includes('createPortal(') && app.includes('nutrition-student-preview-v2')],
-  ['Notification popover has readable responsive desktop sizing', css.includes('notification-popover-desktop-readable-v3') && css.includes('inline-size: clamp(360px, 32vw, 460px)')]
+  ['Notification popover has readable responsive desktop sizing', css.includes('notification-popover-desktop-readable-v3') && css.includes('inline-size: clamp(360px, 32vw, 460px)')],
+  ['Notification popover has robust internal scroll', css.includes('notification-popover-scroll-v4') && css.includes('overscroll-behavior: contain') && css.includes('scrollbar-gutter: stable')],
+  ['App persists active view across refresh', app.includes('COACH_ACTIVE_VIEW_STORAGE_KEY') && app.includes('getInitialCoachView') && app.includes('window.history.replaceState')],
+  ['Loading screen respects saved theme', app.includes('getStoredUiTheme') && app.includes('app-loading-shell') && css.includes('loading-theme-sync-v1')],
+  ['Nutrition assistant uses professional stepper', app.includes('nutrition-stepper-professional-v3') && css.includes('nutrition-stepper-professional-v3') && css.includes('nutrition-step-connector')],
+  ['Nutrition removes artificial food count from UI', !app.includes('foodDatabase.length') && !app.includes('+ alimentos')],
+  ['Nutrition layout removes diet title whitespace', app.includes('nutrition-plan-meta-grid-v2') && css.includes('nutrition-layout-density-v3')],
+  ['Nutrition preview has theme-aware colors', css.includes('nutrition-preview-theme-v3') && css.includes('.app-theme-light .nutrition-student-preview-v2')],
+  ['Nutrition productivity controls exist', app.includes('duplicateMeal(') && app.includes('Duplicar refeição') && app.includes('nutrition-meal-toolbar-v2')],
+  ['Nutrition icon is refined', app.includes('nutrition: <><path d="M6 3.5') && app.includes('M17.5 5.5')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
