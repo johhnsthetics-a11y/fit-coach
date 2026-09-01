@@ -9074,3 +9074,38 @@ button.coach-notification-popover-item:hover {
 /* notification-badge-readable-v3 */
 .coach-notification-shortcut-badge { min-width: 1.35rem; max-width: 2.5rem; height: 1.35rem; padding-inline: 0.32rem; display: inline-grid; place-items: center; white-space: nowrap; line-height: 1; font-variant-numeric: tabular-nums; }
 @media (max-width: 430px) { .coach-notification-shortcut-badge { right: -0.12rem; top: -0.16rem; } }
+
+
+/* nutrition-professional-controls-v1 */
+.nutrition-pro-controls-v1,
+.nutrition-student-preview-v1,
+.nutrition-student-preview-v1 * { min-width: 0; }
+.nutrition-template-row { scroll-snap-type: x proximity; }
+.nutrition-template-chip { min-width: min(15rem, 84vw); scroll-snap-align: start; }
+.nutrition-preview-action,
+.nutrition-primary-action,
+.nutrition-secondary-action,
+.nutrition-inline-add-action,
+.nutrition-favorite-action { min-height: 2.75rem; }
+.nutrition-food-quick-row { scrollbar-width: thin; }
+.app-theme-light .nutrition-pro-controls-v1,
+.app-theme-light .nutrition-student-preview-panel { background: linear-gradient(180deg, #ffffff 0%, #f5fffd 100%) !important; border-color: rgba(0, 156, 134, 0.18) !important; box-shadow: 0 22px 50px rgba(15, 23, 42, 0.10) !important; }
+.app-theme-light .nutrition-template-chip { background: #ffffff !important; border-color: rgba(0, 156, 134, 0.16) !important; box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06) !important; }
+.app-theme-light .nutrition-preview-action,
+.app-theme-light .nutrition-favorite-action.border-emerald-300\/40 { background: rgba(0, 210, 178, 0.12) !important; color: #006b5e !important; border-color: rgba(0, 156, 134, 0.24) !important; }
+.app-theme-light .nutrition-food-quick-row button { background: rgba(0, 210, 178, 0.10) !important; color: #006b5e !important; border-color: rgba(0, 156, 134, 0.22) !important; }
+
+/* nutrition-student-preview-responsive-v1 */
+.nutrition-student-preview-v1 { overscroll-behavior: contain; }
+.nutrition-student-preview-panel { animation: nutritionPreviewIn 180ms ease-out; }
+@keyframes nutritionPreviewIn { from { opacity: 0; transform: translateY(14px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 767px) {
+  .nutrition-pro-controls-v1 { padding: 0.875rem !important; }
+  .nutrition-template-row { margin-inline: -0.25rem; padding-inline: 0.25rem; }
+  .nutrition-template-chip { min-width: min(13.5rem, 78vw); }
+  .nutrition-preview-action { width: 100%; }
+  .nutrition-student-preview-panel { max-height: 88dvh; padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nutrition-student-preview-panel { animation: none; }
+}

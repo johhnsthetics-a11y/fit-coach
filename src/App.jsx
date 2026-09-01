@@ -1106,6 +1106,43 @@ foodDatabase.push(...expandedFoodDatabase, ...professionalFoodDatabase)
 
 const foodCategories = [...new Set([...foodDatabase.map((food) => food.category), 'Preparações'])]
 
+const nutritionMealTemplates = [
+  {
+    id: 'hipertrofia',
+    label: 'Hipertrofia',
+    description: 'Base rica em proteina e carboidratos para ganho muscular.',
+    meals: [
+      { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }, { category: 'Carboidratos', foodName: 'Aveia em Flocos', grams: 60 }] },
+      { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 220 }, { category: 'Leguminosas', foodName: 'Feijão Carioca', grams: 120 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
+      { name: 'Pré-treino', time: '16:30', items: [{ category: 'Frutas', foodName: 'Banana', grams: 100 }, { category: 'Suplementos', foodName: 'Whey Protein Concentrado', grams: 30 }] },
+      { name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Patinho Grelhado', grams: 160 }] },
+    ],
+  },
+  {
+    id: 'emagrecimento',
+    label: 'Emagrecimento',
+    description: 'Saciedade, proteina magra e alimentos simples de ajustar.',
+    meals: [
+      { name: 'Café da manhã', time: '07:30', items: [{ category: 'Ovos', foodName: 'Clara de Ovo', grams: 120 }, { category: 'Frutas', foodName: 'Morango', grams: 120 }] },
+      { name: 'Almoço', time: '12:30', items: [{ category: 'Vegetais', foodName: 'Brócolis Cozido', grams: 120 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 170 }, { category: 'Carboidratos', foodName: 'Arroz Integral Cozido', grams: 120 }] },
+      { name: 'Lanche', time: '16:00', items: [{ category: 'Laticínios', foodName: 'Iogurte Natural', grams: 170 }, { category: 'Sementes', foodName: 'Chia', grams: 10 }] },
+      { name: 'Jantar', time: '20:00', items: [{ category: 'Peixes', foodName: 'Tilápia Grelhada', grams: 170 }, { category: 'Vegetais', foodName: 'Abobrinha', grams: 160 }] },
+    ],
+  },
+  {
+    id: 'vegetariano',
+    label: 'Vegetariano',
+    description: 'Proteinas vegetais e refeicoes praticas para adesao.',
+    meals: [
+      { name: 'Café da manhã', time: '07:00', items: [{ category: 'Carboidratos', foodName: 'Pão Integral', grams: 60 }, { category: 'Laticínios', foodName: 'Queijo Cottage', grams: 80 }] },
+      { name: 'Almoço', time: '12:30', items: [{ category: 'Vegetarianos', foodName: 'Tofu Firme', grams: 160 }, { category: 'Carboidratos', foodName: 'Quinoa Cozida', grams: 160 }, { category: 'Vegetais', foodName: 'Cenoura', grams: 100 }] },
+      { name: 'Lanche', time: '16:00', items: [{ category: 'Oleaginosas', foodName: 'Pasta de Amendoim Integral', grams: 20 }, { category: 'Frutas', foodName: 'Banana Prata', grams: 90 }] },
+      { name: 'Jantar', time: '20:00', items: [{ category: 'Vegetarianos', foodName: 'Proteina Texturizada de Soja Hidratada', grams: 150 }, { category: 'Leguminosas', foodName: 'Lentilha', grams: 140 }] },
+    ],
+  },
+]
+
+
 const foodEstimateRules = [
   { keywords: ['whey', 'proteina em po', 'protein'], category: 'Suplementos', macros: { calories: 400, protein: 78, carbs: 8, fat: 6, fiber: 0, sodium: 180 } },
   { keywords: ['aveia'], category: 'Carboidratos', macros: { calories: 389, protein: 16.9, carbs: 66.3, fat: 6.9, fiber: 10.6, sodium: 2 } },
@@ -10830,9 +10867,69 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [titleDraft, setTitleDraft] = useState('Plano base')
+  const [notesDraft, setNotesDraft] = useState('Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [favoriteFoodNames, setFavoriteFoodNames] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-foods') || '[]') } catch { return [] }
+  })
+  const [recentFoodNames, setRecentFoodNames] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem('coachfitpro-recent-foods') || '[]') } catch { return [] }
+  })
   const planTotals = sumMacros(meals.map(calculateMealMacros))
   const totalMeals = meals.length
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
+  const previewPlan = {
+    title: titleDraft || 'Plano alimentar',
+    calories: `${Math.round(planTotals.calories)} kcal`,
+    protein: `${roundMacro(planTotals.protein)} g`,
+    notes: notesDraft,
+    meals: meals
+      .filter((meal) => meal.name.trim())
+      .map((meal) => ({
+        name: meal.name,
+        time: meal.time,
+        foods: meal.items
+          .filter((item) => item.foodName && Number(item.grams) > 0)
+          .map((item) => `${item.foodName} (${item.grams}g)`)
+          .join(', '),
+        macros: formatMacroSummary(calculateMealMacros(meal)),
+      })),
+  }
+
+  useEffect(() => {
+    try { window.localStorage.setItem('coachfitpro-favorite-foods', JSON.stringify(favoriteFoodNames.slice(0, 100))) } catch {}
+  }, [favoriteFoodNames])
+
+  useEffect(() => {
+    try { window.localStorage.setItem('coachfitpro-recent-foods', JSON.stringify(recentFoodNames.slice(0, 30))) } catch {}
+  }, [recentFoodNames])
+
+  function toggleFavoriteFood(foodName) {
+    const normalizedName = normalizeText(foodName)
+    if (!normalizedName) return
+    setFavoriteFoodNames((current) => {
+      const exists = current.some((name) => normalizeText(name) === normalizedName)
+      return exists ? current.filter((name) => normalizeText(name) !== normalizedName) : [foodName, ...current].slice(0, 100)
+    })
+  }
+
+  function rememberRecentFood(foodName) {
+    const normalizedName = normalizeText(foodName)
+    if (!normalizedName) return
+    setRecentFoodNames((current) => [foodName, ...current.filter((name) => normalizeText(name) !== normalizedName)].slice(0, 30))
+  }
+
+  function applyNutritionTemplate(templateId) {
+    const template = nutritionMealTemplates.find((item) => item.id === templateId)
+    if (!template) return
+    setMeals(template.meals.map((meal) => ({
+      ...meal,
+      items: meal.items.map((item) => ({ ...item, mode: 'database' })),
+    })))
+    setMessage(`Modelo ${template.label} aplicado. Revise as porções antes de salvar.`)
+    setError('')
+  }
 
   function updateMeal(index, field, value) {
     setMeals((current) => current.map((meal, itemIndex) => (
@@ -10949,6 +11046,31 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
         </div>
       </div>
 
+      <div className="nutrition-pro-controls-v1 grid gap-3 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Modelos rápidos</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Comece por uma estrutura pronta e ajuste porções, refeições e observações para cada aluno.</p>
+          </div>
+          <button type="button" onClick={() => setPreviewOpen(true)} className="nutrition-preview-action inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
+            <NavIcon name="eye" className="h-4 w-4" />
+            Visão do aluno
+          </button>
+        </div>
+        <div className="nutrition-template-row scrollbar-soft flex gap-2 overflow-x-auto pb-1">
+          {nutritionMealTemplates.map((template) => (
+            <button key={template.id} type="button" onClick={() => applyNutritionTemplate(template.id)} className="nutrition-template-chip shrink-0 rounded-xl border border-white/10 bg-zinc-950/45 px-4 py-3 text-left transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
+              <span className="block text-sm font-black text-zinc-100">{template.label}</span>
+              <span className="mt-1 block text-xs font-bold text-zinc-500">{template.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {previewOpen ? (
+        <NutritionStudentDietPreview plan={previewPlan} student={selectedStudent} onClose={() => setPreviewOpen(false)} />
+      ) : null}
+
       <Select
         label="Aluno"
         name="studentId"
@@ -10957,7 +11079,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       />
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <Field label="Nome da dieta" name="title" defaultValue="Plano base" />
+        <Field label="Nome da dieta" name="title" defaultValue="Plano base" onChange={(event) => setTitleDraft(event.target.value)} />
         <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-2">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
@@ -10967,7 +11089,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
       </div>
 
       <MacroSummaryGrid totals={planTotals} />
-      <TextArea label="Observações para o aluno" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." />
+      <TextArea label="Observações para o aluno" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." onChange={(event) => setNotesDraft(event.target.value)} />
 
       <div className="space-y-4">
         {meals.map((meal, mealIndex) => {
@@ -11010,6 +11132,10 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
                       totals={itemTotals}
                       onChange={(nextItem) => replaceMealItem(mealIndex, itemIndex, nextItem)}
                       onRemove={() => removeMealItem(mealIndex, itemIndex)}
+                      favoriteFoodNames={favoriteFoodNames}
+                      recentFoodNames={recentFoodNames}
+                      onToggleFavorite={toggleFavoriteFood}
+                      onRememberRecent={rememberRecentFood}
                     />
                   )
                 })}
@@ -11044,6 +11170,57 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan }) {
         </p>
       ) : null}
     </form>
+  )
+}
+
+function NutritionStudentDietPreview({ plan, student, onClose }) {
+  const meals = Array.isArray(plan?.meals) ? plan.meals : []
+
+  return (
+    <div className="nutrition-student-preview-v1 fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5" role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
+      <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do aluno</p>
+            <h3 className="mt-1 break-words text-2xl font-black text-white">{plan?.title || 'Plano alimentar'}</h3>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || 'Aluno'} verá refeições, horários e macros de forma simples.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label="Fechar notificações">
+            <NavIcon name="close" className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <NutritionQuickStat icon="chart" label="Calorias" value={plan?.calories || '-'} detail="por dia" />
+          <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan?.protein || '-'} detail="estimada" />
+          <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
+        </div>
+
+        {plan?.notes ? (
+          <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
+            <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid gap-3">
+          {meals.length ? meals.map((meal, index) => (
+            <article key={meal.name || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-200">{meal.time || 'Horário livre'}</p>
+                  <h4 className="mt-1 break-words text-lg font-black text-white">{meal.name}</h4>
+                  <p className="mt-2 break-words text-sm leading-6 text-zinc-300">{meal.foods || 'Alimentos em ajuste.'}</p>
+                </div>
+                <span className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-right text-xs font-black leading-5 text-emerald-100">{meal.macros || 'Macros'}</span>
+              </div>
+            </article>
+          )) : (
+            <Empty text="Adicione refeições para visualizar a dieta como o aluno verá." />
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -11411,14 +11588,28 @@ function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
   )
 }
 
-function NutritionFoodItem({ item, totals, onChange, onRemove }) {
+function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames = [], recentFoodNames = [], onToggleFavorite, onRememberRecent }) {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [searchEdited, setSearchEdited] = useState(false)
   const recognition = recognizeFood(item.foodName)
   const recognizedFood = item.mode === 'database' ? recognition.food : findExactFood(item.foodName)
   const manualMode = item.mode === 'manual'
   const estimatedFood = !recognizedFood ? estimateFoodMacros(item.foodName, item.category) : null
+  const favoriteSet = new Set(favoriteFoodNames.map(normalizeText))
+  const recentSet = new Set(recentFoodNames.map(normalizeText))
+  const activeFoodName = recognizedFood?.name || item.foodName
+  const isFavoriteFood = favoriteSet.has(normalizeText(activeFoodName))
   const foodSuggestions = getFoodSuggestions(searchEdited ? item.foodName : '', item.category)
+    .sort((a, b) => {
+      const aFav = favoriteSet.has(normalizeText(a.name)) ? 1 : 0
+      const bFav = favoriteSet.has(normalizeText(b.name)) ? 1 : 0
+      if (aFav !== bFav) return bFav - aFav
+      const aRecent = recentSet.has(normalizeText(a.name)) ? 1 : 0
+      const bRecent = recentSet.has(normalizeText(b.name)) ? 1 : 0
+      return bRecent - aRecent
+    })
+  const quickFavoriteFoods = favoriteFoodNames.map(findExactFood).filter(Boolean).slice(0, 4)
+  const quickRecentFoods = recentFoodNames.map(findExactFood).filter(Boolean).slice(0, 4)
   const substitutions = getEquivalentSubstitutions(item)
   const intelligence = recognizedFood
     ? { label: recognition.matchType === 'exact' ? 'Encontrado na base' : 'Reconhecido por nome semelhante', confidence: recognition.confidence }
@@ -11439,6 +11630,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
   }
 
   function selectFood(food) {
+    onRememberRecent?.(food.name)
     onChange({
       ...item,
       foodName: food.name,
@@ -11505,6 +11697,15 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
               <p className="px-3 py-2 text-xs font-bold text-blue-300">
                 {searchEdited && item.foodName.trim() ? 'Resultados da busca' : `Mais usados em ${item.category}`}
               </p>
+              {quickFavoriteFoods.length || quickRecentFoods.length ? (
+                <div className="nutrition-food-quick-row flex gap-2 overflow-x-auto px-2 pb-2">
+                  {[...quickFavoriteFoods, ...quickRecentFoods.filter((food) => !favoriteSet.has(normalizeText(food.name)))].slice(0, 6).map((food) => (
+                    <button key={`quick-${food.category}-${food.name}`} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectFood(food)} className="shrink-0 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
+                      {favoriteSet.has(normalizeText(food.name)) ? '★ ' : ''}{food.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {foodSuggestions.length ? foodSuggestions.map((food) => (
                 <button
                   key={`${food.category}-${food.name}`}
@@ -11569,15 +11770,21 @@ function NutritionFoodItem({ item, totals, onChange, onRemove }) {
           <InlineInput label="Sódio/100g" value={item.customMacros?.sodium ?? 0} onChange={(value) => setManualMacro('sodium', value)} />
         </div>
       ) : null}
-      {recognizedFood && !manualMode ? (
-        <button
-          type="button"
-          onClick={() => onChange({ ...item, mode: 'manual', customMacros: { ...recognizedFood } })}
-          className="mt-3 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300"
-        >
-          Ajustar macros manualmente
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <button type="button" onClick={() => onToggleFavorite?.(activeFoodName)} className={`nutrition-favorite-action inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-black transition ${isFavoriteFood ? 'border-emerald-300/40 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10'}`}>
+          <NavIcon name="star" className="h-4 w-4" />
+          {isFavoriteFood ? 'Favorito' : 'Favoritar alimento'}
         </button>
-      ) : null}
+        {recognizedFood && !manualMode ? (
+          <button
+            type="button"
+            onClick={() => onChange({ ...item, mode: 'manual', customMacros: { ...recognizedFood } })}
+            className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300"
+          >
+            Ajustar macros manualmente
+          </button>
+        ) : null}
+      </div>
       <div className="nutrition-substitution-card mt-3 rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Substituições equivalentes</p>

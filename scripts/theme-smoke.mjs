@@ -15,7 +15,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-v1')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-10safe-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -68,7 +68,11 @@ const checks = [
   ['Nutrition suggestions search aliases and preparation tags', app.includes('getFoodSearchTerms') && app.includes('preparation') && app.includes('servings')],
   ['Nutrition assistant has responsive step classes', app.includes('nutrition-assistant-card') && app.includes('nutrition-assistant-steps') && css.includes('nutrition-assistant-responsive-v2')],
   ['Nutrition food item editor has professional layout classes', app.includes('nutrition-food-item-card') && app.includes('nutrition-food-suggestions') && css.includes('nutrition-food-item-responsive-v2')],
-  ['Notification badge handles multiple digit counts', css.includes('notification-badge-readable-v3') && css.includes('min-width: 1.35rem') && css.includes('max-width: 2.5rem')]
+  ['Notification badge handles multiple digit counts', css.includes('notification-badge-readable-v3') && css.includes('min-width: 1.35rem') && css.includes('max-width: 2.5rem')],
+  ['Nutrition has isolated professional controls', app.includes('nutrition-pro-controls-v1') && app.includes('favoriteFoodNames') && app.includes('recentFoodNames')],
+  ['Nutrition offers meal templates without changing database schema', app.includes('nutritionMealTemplates') && app.includes('applyNutritionTemplate')],
+  ['Nutrition has student preview mode', app.includes('nutrition-student-preview-v1') && app.includes('Visão do aluno')],
+  ['Nutrition professional polish CSS exists', css.includes('nutrition-professional-controls-v1') && css.includes('nutrition-student-preview-responsive-v1')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
