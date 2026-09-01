@@ -14,7 +14,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260831-theme-light')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-sales-light-simulator-polish-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -52,7 +52,11 @@ const checks = [
   ['Ranking panels have dedicated light theme polish', app.includes('student-ranking-panel') && app.includes('student-reward-ranking-card') && css.includes('.app-theme-light .student-ranking-panel')],
   ['Light mode menu icons have dedicated polish', app.includes('coach-menu-icon-shell') && app.includes('coach-nav-item') && css.includes('menu-icon-light-polish-v1') && css.includes('.app-theme-light .coach-nav-item .coach-menu-icon-shell')],
   ['Notification shortcut opens an overlay instead of navigating immediately', app.includes('coach-notification-popover') && app.includes('notificationPopoverOpen') && app.includes('Ver todas as notificações') && app.includes('onOpenAll')],
-  ['Notification overlay supports close controls', app.includes('handleNotificationKeyDown') && app.includes('coach-notification-popover-backdrop') && app.includes('Fechar notificações')]
+['Notification overlay supports close controls', app.includes('handleNotificationKeyDown') && app.includes('coach-notification-popover-backdrop') && app.includes('Fechar notificações')],
+  ['Sales simulator has refined light theme polish', app.includes('sales-simulator-panel') && app.includes('sales-revenue-note') && css.includes('sales-light-simulator-polish-v1') && css.includes('.sales-theme-light .sales-simulator-panel')],
+  ['Sales revenue cards expose horizontal scroll hint', app.includes('sales-revenue-scroll-cards') && app.includes('Arraste para ver mais') && css.includes('.sales-revenue-scroll-cards::after')],
+  ['Sales objection copy is clearer', app.includes('Você também pode cadastrar seus próprios exercícios e alimentos, sem ficar preso à biblioteca.')],
+  ['First month offer has dedicated highlight', app.includes('sales-first-month-highlight') && css.includes('.sales-theme-light .sales-first-month-highlight')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)

@@ -4262,7 +4262,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <p className="mt-4 leading-7 text-zinc-300">
                 O Coach Fit Pro reúne tudo que sustenta um acompanhamento de maior valor: entrega organizada, experiência do aluno, histórico, comunicação, financeiro e capacidade para atender uma carteira maior.
               </p>
-              <div className="mt-6 grid gap-3">
+              <p className="sales-scroll-hint mt-5 text-xs font-black uppercase text-emerald-200 sm:hidden">Arraste para ver mais</p>
+              <div className="sales-revenue-scroll-cards mt-3 grid gap-3 sm:mt-6">
                 {[
                   ['Mais capacidade', 'Processos centralizados reduzem tarefas repetitivas e facilitam acompanhar mais alunos.'],
                   ['Maior valor percebido', 'Um portal completo torna visível tudo que existe dentro do acompanhamento.'],
@@ -4280,7 +4281,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               </div>
             </div>
 
-            <div data-reveal className="sales-interactive rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
+            <div data-reveal className="sales-interactive sales-simulator-panel rounded-md border border-white/10 bg-zinc-950/90 p-5 shadow-2xl shadow-black/30 sm:p-6">
               <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase text-emerald-200">Simulador de cenário</p>
@@ -4332,7 +4333,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <RevenueResult label="Potencial adicional" value={`+${formatCurrency(projectedIncrease)}`} accent />
               </div>
 
-              <div className="mt-4 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
+              <div className="sales-revenue-note mt-4 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
                 <p className="text-sm font-black text-emerald-100">
                   Neste cenário: {projectedStudents} alunos a {formatCurrency(projectedPrice)} por mês.
                 </p>
@@ -4374,7 +4375,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                     'Não substitui sua análise e sua responsabilidade profissional.',
                     'Não garante faturamento sem posicionamento e execução.',
                     'Não obriga você a migrar todos os alunos de uma vez.',
-                    'Não limita exercícios ou alimentos apenas aos itens da biblioteca.',
+                    'Você também pode cadastrar seus próprios exercícios e alimentos, sem ficar preso à biblioteca.',
                   ].map((item) => <ObjectionPoint key={item} text={item} />)}
                 </div>
               </div>
@@ -4561,8 +4562,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                           <span className={`block text-xs font-black uppercase ${selected ? 'text-emerald-100' : 'text-zinc-500'}`}>{plan.cycle}</span>
                           <span className="mt-2 block text-2xl font-black text-white">{plan.name}</span>
                         </span>
-                        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-black uppercase ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-300'}`}>
-                          {selected ? 'Selecionado' : plan.badge}
+                        <span className={`sales-plan-badge shrink-0 rounded-full px-3 py-1 text-[11px] font-black uppercase ${plan.id === 'mensal' ? 'sales-first-month-highlight' : ''} ${selected ? 'bg-emerald-300 text-zinc-950' : 'border border-white/10 text-zinc-300'}`}>
+                          {selected ? (plan.id === 'mensal' ? plan.badge : 'Selecionado') : plan.badge}
                         </span>
                       </span>
                       <span className="relative mt-5 block">
@@ -4641,7 +4642,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       <p className="text-xs font-black uppercase text-emerald-200">{selectedOfferPlan.cycle}</p>
                       <h3 className="mt-2 text-3xl font-black text-white sm:text-4xl">{selectedOfferPlan.name}</h3>
                     </div>
-                    <span className="w-fit rounded-full bg-emerald-300 px-4 py-2 text-xs font-black uppercase text-zinc-950 shadow-lg shadow-emerald-950/30">
+                    <span className={`sales-plan-badge w-fit rounded-full bg-emerald-300 px-4 py-2 text-xs font-black uppercase text-zinc-950 shadow-lg shadow-emerald-950/30 ${selectedOfferPlan.id === 'mensal' ? 'sales-first-month-highlight' : ''}`}>
                       {selectedOfferPlan.badge}
                     </span>
                   </div>
@@ -5179,7 +5180,7 @@ function ObjectionPoint({ text, positive = false }) {
 
 function RevenueControl({ label, value, min, max, step = 1, prefix = '', suffix = '', onChange }) {
   return (
-    <label className="grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
+    <label className="sales-revenue-control grid gap-3 rounded-md border border-white/10 bg-white/[0.035] p-4">
       <span className="flex items-center justify-between gap-3">
         <span className="text-sm font-bold text-zinc-300">{label}</span>
         <span className="text-sm font-black text-white">{prefix}{value}{suffix}</span>
@@ -5205,7 +5206,7 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
       : 'border-white/10 bg-white/[0.035]'
 
   return (
-    <div className={`rounded-md border p-4 ${tone}`}>
+    <div className={`sales-revenue-result ${highlight ? 'is-highlight' : ''} ${accent ? 'is-accent' : ''} rounded-md border p-4 ${tone}`}>
       <p className="text-xs font-bold text-zinc-400">{label}</p>
       <p className="mt-2 break-words text-xl font-black text-white">{value}</p>
       <p className="mt-1 text-xs text-zinc-500">por mês</p>
