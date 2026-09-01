@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-pwa-20260901-sales-light-simulator-polish-v1'
+const CACHE_NAME = 'coach-fit-pro-pwa-20260901-sales-label-bulb-toggle-v1'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {

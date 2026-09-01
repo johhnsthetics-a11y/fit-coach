@@ -4317,7 +4317,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   onChange={(value) => setRevenueScenario((current) => ({ ...current, additionalStudents: value }))}
                 />
                 <RevenueControl
-                  label="Valorização por aluno"
+                  label="Aumento na mensalidade por aluno"
                   value={revenueScenario.priceIncrease}
                   min={0}
                   max={500}
@@ -4604,11 +4604,6 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                         <button type="button" onClick={() => startPlanSignup(plan.id)} className={`w-full rounded-2xl px-4 py-4 text-sm font-black transition active:scale-[0.98] ${selected ? 'bg-emerald-300 text-zinc-950 shadow-xl shadow-emerald-950/30' : 'border border-white/10 bg-white/[0.04] text-zinc-100 hover:border-emerald-300/40 hover:bg-emerald-300/10'}`}>
                           Escolher este plano
                         </button>
-                        {!selected ? (
-                          <button type="button" onClick={() => selectOfferPlan(plan.id)} className="mt-3 w-full rounded-2xl border border-transparent px-4 py-2 text-xs font-black uppercase text-emerald-100 transition hover:border-emerald-300/25">
-                            Destacar este plano
-                          </button>
-                        ) : null}
                       </span>
                     </div>
                   )
@@ -16149,7 +16144,7 @@ function ThemeToggle({ theme, onToggle, className = '' }) {
       className={`theme-toggle theme-toggle-icon-only ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
     >
       <span className="theme-toggle-symbol" aria-hidden="true">
-        {isDark ? <span className="theme-toggle-moon" /> : <span className="theme-toggle-sun" />}
+        {isDark ? <span className="theme-toggle-bulb theme-toggle-bulb-off" /> : <span className="theme-toggle-bulb theme-toggle-bulb-on" />}
       </span>
     </button>
   )

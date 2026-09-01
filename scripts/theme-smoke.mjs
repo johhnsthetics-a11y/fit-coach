@@ -14,7 +14,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-sales-light-simulator-polish-v1')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-sales-label-bulb-toggle-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -31,8 +31,8 @@ const checks = [
   ['Theme toggle is icon-only', app.includes('theme-toggle-symbol') && !app.includes('theme-toggle-copy')],
   ['Authenticated app premium cleanup exists', css.includes('app-theme-light-premium-cleanup-v5')],
   ['Authenticated app uses white-first token', css.includes('--app-light-bg: #FFFFFF')],
-  ['Theme toggle uses clean moon and sun icons', app.includes('theme-toggle-moon') && app.includes('theme-toggle-sun') && !app.includes('theme-toggle-orb')],
-  ['Theme toggle shows current mode icon', app.includes('{isDark ? <span className="theme-toggle-moon" /> : <span className="theme-toggle-sun" />}')],
+  ['Theme toggle uses light bulb icons', app.includes('theme-toggle-bulb') && app.includes('theme-toggle-bulb-off') && !app.includes('theme-toggle-moon') && !app.includes('theme-toggle-sun')],
+  ['Theme toggle shows lamp on light mode and lamp off dark mode', app.includes('theme-toggle-bulb theme-toggle-bulb-off') && app.includes('theme-toggle-bulb theme-toggle-bulb-on')],
   ['Only one authenticated theme shortcut per viewport', !app.includes('mt-3 hidden w-full lg:flex')],
   ['Logged app theme shortcut is desktop-only by CSS', /\.coach-page-theme-toggle\s*\{\s*display: none !important;[\s\S]*?@media \(min-width: 1024px\) \{[\s\S]*?\.coach-page-theme-toggle\s*\{\s*display: inline-flex !important;/.test(css)],
   ['Logged app page header has theme shortcut', app.includes('coach-page-theme-toggle')],
@@ -56,7 +56,9 @@ const checks = [
   ['Sales simulator has refined light theme polish', app.includes('sales-simulator-panel') && app.includes('sales-revenue-note') && css.includes('sales-light-simulator-polish-v1') && css.includes('.sales-theme-light .sales-simulator-panel')],
   ['Sales revenue cards expose horizontal scroll hint', app.includes('sales-revenue-scroll-cards') && app.includes('Arraste para ver mais') && css.includes('.sales-revenue-scroll-cards::after')],
   ['Sales objection copy is clearer', app.includes('Você também pode cadastrar seus próprios exercícios e alimentos, sem ficar preso à biblioteca.')],
-  ['First month offer has dedicated highlight', app.includes('sales-first-month-highlight') && css.includes('.sales-theme-light .sales-first-month-highlight')]
+  ['First month offer has dedicated highlight', app.includes('sales-first-month-highlight') && css.includes('.sales-theme-light .sales-first-month-highlight')],
+  ['Sales plan cards do not show secondary highlight button', !app.includes('Destacar este plano')],
+  ['Revenue simulator uses clearer price increase label', app.includes('Aumento na mensalidade por aluno') && !app.includes('Valorização por aluno')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
