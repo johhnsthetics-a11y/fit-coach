@@ -6984,7 +6984,8 @@ textarea {
   --brand-primary-active: #009C86;
   --brand-primary-soft: rgba(0, 210, 178, 0.08);
   --brand-primary-border: rgba(0, 210, 178, 0.22);
-  --background: #FFFFFF;
+  --background: #E0E0E0;
+  --app-light-bg: #E0E0E0;
   --text-primary: #111827;
   --text-secondary: #3F4A47;
   --text-tertiary: #66736F;
@@ -9481,4 +9482,18 @@ html[data-theme="dark"] body { background: #05070d; }
     gap: 0.6rem;
     padding-inline: 0.75rem !important;
   }
+}
+
+
+/* nutrition-crud-light-base-test-v1 */
+.app-theme-light .nutrition-layout-grid-v5 {
+  background: transparent !important;
+}
+
+.app-theme-light .nutrition-hero-card,
+.app-theme-light .nutrition-meal-card,
+.app-theme-light .nutrition-form-shell > .rounded-2xl,
+.app-theme-light .nutrition-prescribed-empty-v5,
+.app-theme-light .nutrition-student-preview-panel {
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08) !important;
 }

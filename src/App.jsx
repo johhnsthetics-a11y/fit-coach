@@ -54,7 +54,7 @@ const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
 const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
-const COACH_FIT_PRO_BUILD_MARKER = 'tema-claro-vendas-app-base-2796c2e-20260831'
+const COACH_FIT_PRO_BUILD_MARKER = 'nutrition-crud-light-20260902'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1503,6 +1503,22 @@ class AppErrorBoundary extends Component {
   }
 }
 
+function sameId(left, right) {
+  return left !== undefined && left !== null && right !== undefined && right !== null && String(left) === String(right)
+}
+
+function upsertNutritionPlans(plans, savedPlan) {
+  const currentPlans = Array.isArray(plans) ? plans : []
+  const requestId = savedPlan?.clientRequestId
+  const withoutSamePlan = currentPlans.filter((plan) => {
+    const samePlanId = sameId(plan.id, savedPlan.id)
+    const sameRequest = requestId && plan.clientRequestId === requestId
+    return !samePlanId && !sameRequest
+  })
+
+  return [savedPlan, ...withoutSamePlan]
+}
+
 function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
@@ -2436,13 +2452,21 @@ function AppContent() {
   }
 
   async function saveNutritionPlan(plan) {
-    let savedPlan = { ...plan, id: Date.now(), active: true }
+    const isUpdatingNutritionPlan = Boolean(plan.id)
+    const now = new Date().toISOString()
+    let savedPlan = {
+      ...plan,
+      id: plan.id || Date.now(),
+      active: true,
+      createdAt: plan.createdAt || now,
+      updatedAt: now,
+    }
     const isFirstPlan = !(data.nutritionPlans ?? []).length
 
     if (supabaseEnabled) {
       try {
         savedPlan = await saveRemoteNutritionPlan(plan, data.user?.id)
-        setRemoteStatus('Dieta salva')
+        setRemoteStatus(isUpdatingNutritionPlan ? 'Dieta atualizada' : 'Dieta salva')
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar dieta')
@@ -2452,11 +2476,12 @@ function AppContent() {
 
     setData((current) => ({
       ...current,
-      nutritionPlans: [savedPlan, ...(current.nutritionPlans ?? [])],
+      nutritionPlans: upsertNutritionPlans(current.nutritionPlans ?? [], savedPlan),
     }))
 
-    recordLeadEvent(isFirstPlan ? 'first_plan_published' : 'nutrition_plan_published', {
+    recordLeadEvent(isUpdatingNutritionPlan ? 'nutrition_plan_updated' : isFirstPlan ? 'first_plan_published' : 'nutrition_plan_published', {
       studentId: savedPlan.studentId,
+      planId: savedPlan.id,
       meals: savedPlan.meals?.length || 0,
       source: plan.source || 'coach_panel',
     })
@@ -10851,12 +10876,97 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
   )
 }
 
+function createNutritionDraftId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+function createNutritionMealItem(item = {}) {
+  const recognized = findFoodByName(item.foodName || item.name || '')
+  return {
+    id: item.id || createNutritionDraftId('food'),
+    category: item.category || recognized?.category || 'Carboidratos',
+    foodName: item.foodName || item.name || recognized?.name || '',
+    grams: Number(item.grams || item.quantity || 100),
+    mode: item.mode || (recognized ? 'database' : 'database'),
+    customMacros: item.customMacros,
+  }
+}
+
+function parseNutritionFoodItems(foodText = '') {
+  return String(foodText)
+    .split(/,(?![^|]*\|)/)
+    .map((part) => part.replace(/\|\s*Substituições:.*/i, '').trim())
+    .filter(Boolean)
+    .map((part) => {
+      const gramsMatch = part.match(/\((\d+(?:[.,]\d+)?)\s*g\)/i)
+      const grams = gramsMatch ? Number(gramsMatch[1].replace(',', '.')) : 100
+      const name = part.replace(/\s*\(\d+(?:[.,]\d+)?\s*g\)/i, '').trim()
+      const recognized = findFoodByName(name)
+      const estimated = recognized ? null : estimateFoodMacros(name, recognized?.category || 'Carboidratos')
+      return createNutritionMealItem({
+        category: recognized?.category || estimated?.category || 'Carboidratos',
+        foodName: recognized?.name || name,
+        grams,
+        mode: recognized ? 'database' : 'manual',
+        customMacros: recognized ? undefined : estimated,
+      })
+    })
+}
+
+function createNutritionMeal(meal = {}) {
+  const parsedItems = Array.isArray(meal.items) && meal.items.length
+    ? meal.items.map(createNutritionMealItem)
+    : parseNutritionFoodItems(meal.foods)
+
+  return {
+    id: meal.id || createNutritionDraftId('meal'),
+    name: meal.name || 'Nova refeição',
+    time: meal.time || meal.timeLabel || '',
+    items: parsedItems.length ? parsedItems : [createNutritionMealItem({ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 })],
+  }
+}
+
+function createNutritionDefaultMeals() {
+  return [
+    createNutritionMeal({ name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] }),
+    createNutritionMeal({ name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] }),
+    createNutritionMeal({ name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 160 }] }),
+  ]
+}
+
+function normalizeNutritionMealDraft(meal, index = 0) {
+  return createNutritionMeal({
+    id: meal?.id,
+    name: meal?.name || `Refeição ${index + 1}`,
+    time: meal?.time || meal?.timeLabel || '',
+    foods: meal?.foods || '',
+    items: meal?.items,
+  })
+}
+
+function cloneNutritionMeal(meal) {
+  return createNutritionMeal({
+    ...meal,
+    id: undefined,
+    name: `Cópia de ${meal?.name || 'refeição'}`,
+    items: (meal?.items ?? []).map((item) => createNutritionMealItem({ ...item, id: undefined })),
+  })
+}
+
 function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan, onArchiveNutritionPlan, uiTheme = DEFAULT_UI_THEME }) {
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
   const activePlan = studentPlans[0]
-  const activeMeals = activePlan?.meals?.length || 0
+  const [editingPlanId, setEditingPlanId] = useState('')
+  const editingPlan = editingPlanId === 'new'
+    ? null
+    : studentPlans.find((plan) => sameId(plan.id, editingPlanId)) || activePlan || null
+  const activeMeals = editingPlan?.meals?.length || activePlan?.meals?.length || 0
+
+  useEffect(() => {
+    setEditingPlanId('')
+  }, [selectedStudent?.id])
 
   return (
     <div className="nutrition-layout-grid-v5 grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
@@ -10883,16 +10993,16 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
         </div>
       </section>
 
-      <Panel title={`Prescrever dieta - ${selectedStudent?.name ?? 'Aluno'}`} action="Plano alimentar">
+      <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${selectedStudent?.name ?? 'Aluno'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
         {students.length ? (
-          <NutritionForm students={students} selectedStudent={selectedStudent} onSaveNutritionPlan={onSaveNutritionPlan} uiTheme={uiTheme} />
+          <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} editingPlan={editingPlan} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => setEditingPlanId(String(savedPlan?.id || ''))} uiTheme={uiTheme} />
         ) : (
           <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
         )}
       </Panel>
 
       <Panel title="Dietas prescritas" action={`${studentPlans.length} ativas`}>
-        <NutritionPlanList plans={studentPlans} selectedStudent={selectedStudent} onArchive={onArchiveNutritionPlan} />
+        <NutritionPlanList plans={studentPlans} selectedStudent={selectedStudent} editingPlanId={editingPlan?.id} onEdit={(plan) => setEditingPlanId(String(plan.id))} onArchive={onArchiveNutritionPlan} />
       </Panel>
     </div>
   )
@@ -10911,24 +11021,32 @@ function NutritionQuickStat({ icon, label, value, detail }) {
   )
 }
 
-function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme = DEFAULT_UI_THEME }) {
-  const [meals, setMeals] = useState([
-    { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
-    { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
-    { name: 'Jantar', time: '20:00', items: [{ category: 'Carboidratos', foodName: 'Batata Doce', grams: 250 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 160 }] },
-  ])
+function NutritionForm({ students, selectedStudent, editingPlan = null, onStartNewPlan, onSaveNutritionPlan, onSaved, uiTheme = DEFAULT_UI_THEME }) {
+  const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [titleDraft, setTitleDraft] = useState('Plano base')
-  const [notesDraft, setNotesDraft] = useState('Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+  const [titleDraft, setTitleDraft] = useState(editingPlan?.title || 'Plano base')
+  const [notesDraft, setNotesDraft] = useState(editingPlan?.notes || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
   const [previewOpen, setPreviewOpen] = useState(false)
+  const savingRef = useRef(false)
+  const clientRequestIdRef = useRef(createNutritionDraftId('nutrition-save'))
   const [favoriteFoodNames, setFavoriteFoodNames] = useState(() => {
     try { return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-foods') || '[]') } catch { return [] }
   })
   const [recentFoodNames, setRecentFoodNames] = useState(() => {
     try { return JSON.parse(window.localStorage.getItem('coachfitpro-recent-foods') || '[]') } catch { return [] }
   })
+  useEffect(() => {
+    setMeals(editingPlan?.meals?.length ? editingPlan.meals.map(normalizeNutritionMealDraft) : createNutritionDefaultMeals())
+    setTitleDraft(editingPlan?.title || 'Plano base')
+    setNotesDraft(editingPlan?.notes || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+    setMessage('')
+    setError('')
+    savingRef.current = false
+    clientRequestIdRef.current = createNutritionDraftId('nutrition-save')
+  }, [editingPlan?.id])
+
   const planTotals = sumMacros(meals.map(calculateMealMacros))
   const totalMeals = meals.length
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
@@ -10978,78 +11096,76 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
   function applyNutritionTemplate(templateId) {
     const template = nutritionMealTemplates.find((item) => item.id === templateId)
     if (!template) return
-    setMeals(template.meals.map((meal) => ({
-      ...meal,
-      items: meal.items.map((item) => ({ ...item, mode: 'database' })),
-    })))
+    setMeals(template.meals.map(createNutritionMeal))
     setMessage(`Modelo ${template.label} aplicado. Revise as porções antes de salvar.`)
     setError('')
   }
 
-  function updateMeal(index, field, value) {
-    setMeals((current) => current.map((meal, itemIndex) => (
-      itemIndex === index ? { ...meal, [field]: value } : meal
+  function updateMeal(mealId, field, value) {
+    setMeals((current) => current.map((meal) => (
+      sameId(meal.id, mealId) ? { ...meal, [field]: value } : meal
     )))
   }
 
-  function replaceMealItem(mealIndex, itemIndex, nextItem) {
-    setMeals((current) => current.map((meal, currentMealIndex) => {
-      if (currentMealIndex !== mealIndex) return meal
+  function replaceMealItem(mealId, itemId, nextItem) {
+    setMeals((current) => current.map((meal) => {
+      if (!sameId(meal.id, mealId)) return meal
 
       return {
         ...meal,
-        items: meal.items.map((item, currentItemIndex) => (
-          currentItemIndex === itemIndex ? nextItem : item
+        items: meal.items.map((item) => (
+          sameId(item.id, itemId) ? createNutritionMealItem({ ...nextItem, id: item.id }) : item
         )),
       }
     }))
   }
 
   function addMeal() {
-    setMeals((current) => [...current, { name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }])
+    setMeals((current) => [...current, createNutritionMeal({ name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] })])
   }
 
-  function removeMeal(index) {
-    setMeals((current) => current.filter((_, itemIndex) => itemIndex !== index))
+  function removeMeal(mealId) {
+    setMeals((current) => current.filter((meal) => !sameId(meal.id, mealId)))
   }
 
-  function duplicateMeal(index) {
+  function duplicateMeal(mealId) {
     setMeals((current) => {
-      const sourceMeal = current[index]
+      const sourceMeal = current.find((meal) => sameId(meal.id, mealId))
       if (!sourceMeal) return current
-      const copy = {
-        ...sourceMeal,
-        name: `${sourceMeal.name || 'Refeição'} cópia`,
-        items: sourceMeal.items.map((item) => ({ ...item })),
-      }
-      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
+      const sourceIndex = current.findIndex((meal) => sameId(meal.id, mealId))
+      const copy = cloneNutritionMeal(sourceMeal)
+      return [...current.slice(0, sourceIndex + 1), copy, ...current.slice(sourceIndex + 1)]
     })
   }
 
-  function addMealItem(mealIndex) {
-    setMeals((current) => current.map((meal, index) => (
-      index === mealIndex
-        ? { ...meal, items: [...meal.items, { category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] }
+  function addMealItem(mealId) {
+    setMeals((current) => current.map((meal) => (
+      sameId(meal.id, mealId)
+        ? { ...meal, items: [...meal.items, createNutritionMealItem({ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 })] }
         : meal
     )))
   }
 
-  function removeMealItem(mealIndex, itemIndex) {
-    setMeals((current) => current.map((meal, index) => (
-      index === mealIndex ? { ...meal, items: meal.items.filter((_, currentItemIndex) => currentItemIndex !== itemIndex) } : meal
+  function removeMealItem(mealId, itemId) {
+    setMeals((current) => current.map((meal) => (
+      sameId(meal.id, mealId) ? { ...meal, items: meal.items.filter((item) => !sameId(item.id, itemId)) } : meal
     )))
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
+    if (savingRef.current || saving) return
+    savingRef.current = true
     const form = new FormData(event.currentTarget)
     const filledMeals = meals
       .filter((meal) => meal.name.trim())
       .map((meal) => {
         const totals = calculateMealMacros(meal)
         return {
+          id: meal.id,
           name: meal.name,
           time: meal.time,
+          items: meal.items.map((item) => ({ ...item })),
           foods: meal.items
             .filter((item) => item.foodName && Number(item.grams) > 0)
             .map((item) => {
@@ -11069,18 +11185,23 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
     setError('')
     try {
       if (!filledMeals.length) throw new Error('Adicione pelo menos uma refeição com alimentos e quantidades válidas.')
-      await onSaveNutritionPlan({
-        studentId: form.get('studentId')?.toString() || '',
+      const savedPlan = await onSaveNutritionPlan({
+        id: editingPlan?.id,
+        clientRequestId: clientRequestIdRef.current,
+        createdAt: editingPlan?.createdAt,
+        studentId: form.get('studentId')?.toString() || selectedStudent?.id || '',
         title: form.get('title')?.toString() || 'Plano alimentar',
         calories: `${Math.round(planTotals.calories)} kcal`,
         protein: `${roundMacro(planTotals.protein)} g`,
         notes: form.get('notes')?.toString() || '',
         meals: filledMeals,
       })
-      setMessage('Dieta salva com macros calculados automaticamente.')
+      onSaved?.(savedPlan)
+      setMessage(editingPlan?.id ? 'Dieta atualizada com sucesso.' : 'Dieta salva com macros calculados automaticamente.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar a dieta.')
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -11121,13 +11242,20 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
       <div className="nutrition-pro-controls-v1 grid gap-3 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Modelos rápidos</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">Comece por uma estrutura pronta e ajuste porções, refeições e observações para cada aluno.</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">{editingPlan?.id ? 'Editando dieta existente' : 'Modelos rápidos'}</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{editingPlan?.id ? 'As alterações atualizam esta mesma dieta, sem criar uma nova prescrição para o aluno.' : 'Comece por uma estrutura pronta e ajuste porções, refeições e observações para cada aluno.'}</p>
           </div>
-          <button type="button" onClick={() => setPreviewOpen(true)} className="nutrition-preview-action inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
-            <NavIcon name="eye" className="h-4 w-4" />
-            Visão do aluno
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {editingPlan?.id ? (
+              <button type="button" onClick={onStartNewPlan} className="nutrition-secondary-action inline-flex w-full items-center justify-center rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10 sm:w-auto">
+                Nova dieta
+              </button>
+            ) : null}
+            <button type="button" onClick={() => setPreviewOpen(true)} className="nutrition-preview-action inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
+              <NavIcon name="eye" className="h-4 w-4" />
+              Visão do aluno
+            </button>
+          </div>
         </div>
         <div className="nutrition-template-row scrollbar-soft flex gap-2 overflow-x-auto pb-1">
           {nutritionMealTemplates.map((template) => (
@@ -11151,7 +11279,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
       />
 
       <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.78fr)_minmax(28rem,1.22fr)] lg:items-start">
-        <Field label="Nome da dieta" name="title" defaultValue="Plano base" onChange={(event) => setTitleDraft(event.target.value)} />
+        <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
         <div className="nutrition-plan-stat-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
@@ -11161,14 +11289,14 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
       </div>
 
       <MacroSummaryGrid totals={planTotals} />
-      <TextArea label="Observações para o aluno" name="notes" defaultValue="Manter água e fibras. Reportar fome, sono e digestão no check-in." onChange={(event) => setNotesDraft(event.target.value)} />
+      <TextArea label="Observações para o aluno" name="notes" defaultValue={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} />
 
       <div className="space-y-4">
         {meals.map((meal, mealIndex) => {
           const mealTotals = calculateMealMacros(meal)
 
           return (
-            <div key={mealIndex} className="nutrition-meal-card rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4 shadow-xl shadow-black/10">
+            <div key={meal.id} className="nutrition-meal-card rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4 shadow-xl shadow-black/10">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-sm font-black text-emerald-100">
@@ -11180,18 +11308,18 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
                   </div>
                 </div>
                 <div className="nutrition-meal-toolbar-v2 flex flex-wrap gap-2 sm:justify-end">
-                  <button type="button" onClick={() => duplicateMeal(mealIndex)} className="nutrition-secondary-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
+                  <button type="button" onClick={() => duplicateMeal(meal.id)} className="nutrition-secondary-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10">
                     Duplicar refeição
                   </button>
-                  <button type="button" onClick={() => removeMeal(mealIndex)} className="nutrition-danger-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
+                  <button type="button" onClick={() => removeMeal(meal.id)} className="nutrition-danger-action rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-100 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100">
                     Remover refeição
                   </button>
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
-                <InlineInput label="Refeição" value={meal.name} onChange={(value) => updateMeal(mealIndex, 'name', value)} />
-                <InlineInput label="Horário" value={meal.time} onChange={(value) => updateMeal(mealIndex, 'time', value)} />
+                <InlineInput label="Refeição" value={meal.name} onChange={(value) => updateMeal(meal.id, 'name', value)} />
+                <InlineInput label="Horário" value={meal.time} onChange={(value) => updateMeal(meal.id, 'time', value)} />
               </div>
 
               <div className="mt-4">
@@ -11204,11 +11332,11 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
 
                   return (
                     <NutritionFoodItem
-                      key={itemIndex}
+                      key={item.id}
                       item={item}
                       totals={itemTotals}
-                      onChange={(nextItem) => replaceMealItem(mealIndex, itemIndex, nextItem)}
-                      onRemove={() => removeMealItem(mealIndex, itemIndex)}
+                      onChange={(nextItem) => replaceMealItem(meal.id, item.id, nextItem)}
+                      onRemove={() => removeMealItem(meal.id, item.id)}
                       favoriteFoodNames={favoriteFoodNames}
                       recentFoodNames={recentFoodNames}
                       onToggleFavorite={toggleFavoriteFood}
@@ -11218,7 +11346,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
                 })}
               </div>
 
-              <button type="button" onClick={() => addMealItem(mealIndex)} className="nutrition-inline-add-action mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15">
+              <button type="button" onClick={() => addMealItem(meal.id)} className="nutrition-inline-add-action mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/15">
                 <NavIcon name="plus" className="h-4 w-4" />
                 Adicionar alimento
               </button>
@@ -11233,7 +11361,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
           Adicionar refeição
         </button>
         <button disabled={saving} className="nutrition-primary-action w-full rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-200 disabled:cursor-wait disabled:opacity-60 sm:w-auto">
-          {saving ? 'Salvando...' : 'Salvar dieta'}
+          {saving ? 'Salvando...' : editingPlan?.id ? 'Atualizar dieta' : 'Salvar dieta'}
         </button>
       </div>
       {message ? (
@@ -11499,7 +11627,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
   )
 }
 
-function NutritionPlanList({ plans, selectedStudent, onArchive }) {
+function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
 
   async function handleArchive(plan) {
@@ -11549,6 +11677,11 @@ function NutritionPlanList({ plans, selectedStudent, onArchive }) {
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
                     Ativa
                   </span>
+                  {onEdit ? (
+                    <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
+                      {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar'}
+                    </button>
+                  ) : null}
                   {onArchive ? (
                     <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100 disabled:opacity-50">
                       {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
@@ -18590,6 +18723,7 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
 
 
 

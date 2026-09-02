@@ -717,8 +717,10 @@ export async function saveRemoteWorkoutProgressionDecision(decision, coachId) {
 }
 
 export async function saveRemoteNutritionPlan(plan, coachId) {
-  const planRows = await request('nutrition_plans', {
-    method: 'POST',
+  const isUpdatingNutritionPlan = Boolean(plan.id)
+  const planPath = isUpdatingNutritionPlan ? `nutrition_plans?id=eq.${encodeURIComponent(plan.id)}` : 'nutrition_plans'
+  const planRows = await request(planPath, {
+    method: isUpdatingNutritionPlan ? 'PATCH' : 'POST',
     body: JSON.stringify({
       coach_id: coachId,
       student_id: plan.studentId,
@@ -730,30 +732,48 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
     }),
   })
 
-  const savedPlan = planRows[0]
-  const meals = plan.meals.map((meal, index) => ({
-    nutrition_plan_id: savedPlan.id,
-    name: meal.name,
-    foods: meal.foods,
-    macros: meal.macros,
-    time_label: meal.time,
-    order_index: index,
-  }))
+  const savedPlan = planRows?.[0] ?? { ...plan, id: plan.id }
+  const previousMealRows = isUpdatingNutritionPlan
+    ? await request(`nutrition_meals?nutrition_plan_id=eq.${encodeURIComponent(savedPlan.id)}&select=id`).catch(() => [])
+    : []
+  const currentMealIds = new Set((plan.meals ?? []).map((meal) => meal.id).filter(Boolean).map(String))
+  const removedMealIds = previousMealRows
+    .map((meal) => meal.id)
+    .filter((mealId) => mealId && !currentMealIds.has(String(mealId)))
 
-  let mealRows = []
-  try {
-    mealRows = meals.length
-      ? await request('nutrition_meals', {
-        method: 'POST',
-        body: JSON.stringify(meals),
-      })
-      : []
-  } catch (error) {
-    await request(`nutrition_plans?id=eq.${savedPlan.id}`, { method: 'DELETE' }).catch(() => null)
-    throw error
+  const savedMeals = []
+  for (const [index, meal] of (plan.meals ?? []).entries()) {
+    const mealPayload = {
+      nutrition_plan_id: savedPlan.id,
+      name: meal.name,
+      foods: meal.foods,
+      macros: meal.macros,
+      time_label: meal.time,
+      order_index: index,
+    }
+    const isExistingMeal = isUpdatingNutritionPlan && meal.id && previousMealRows.some((row) => String(row.id) === String(meal.id))
+    const mealRows = await request(isExistingMeal ? `nutrition_meals?id=eq.${encodeURIComponent(meal.id)}` : 'nutrition_meals', {
+      method: isExistingMeal ? 'PATCH' : 'POST',
+      body: JSON.stringify(mealPayload),
+    })
+    savedMeals.push(mealRows?.[0] ?? { ...mealPayload, id: meal.id })
   }
 
-  return fromNutritionPlanRow({ ...savedPlan, nutrition_meals: mealRows })
+  for (const mealId of removedMealIds) {
+    await request(`nutrition_meals?id=eq.${encodeURIComponent(mealId)}`, { method: 'DELETE' }).catch(() => null)
+  }
+
+  const normalizedPlan = fromNutritionPlanRow({ ...savedPlan, nutrition_meals: savedMeals })
+  return {
+    ...normalizedPlan,
+    clientRequestId: plan.clientRequestId,
+    createdAt: plan.createdAt,
+    meals: normalizedPlan.meals.map((meal, index) => ({
+      ...meal,
+      id: meal.id ?? plan.meals?.[index]?.id,
+      items: plan.meals?.[index]?.items ?? [],
+    })),
+  }
 }
 
 export async function archiveRemoteNutritionPlan(planId) {

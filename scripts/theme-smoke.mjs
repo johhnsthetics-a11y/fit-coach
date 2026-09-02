@@ -15,13 +15,13 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260902-nutrition-stepper-notifications-v6')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260902-nutrition-crud-light-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
   ['Light theme uses sapphire accent', css.includes('--coach-sapphire: #00D2B2')],
   ['Brand primary token exists', css.includes('--brand-primary: #00D2B2')],
-  ['White background token exists', css.includes('--background: #FFFFFF')],
+  ['Light background token uses requested neutral test base', css.includes('--background: #E0E0E0')],
   ['Light cards stay white', css.includes('--surface-primary: #FFFFFF')],
   ['Light theme removes dark surface residues', css.includes('.sales-theme-light .from-zinc-950')],
   ['Accessible focus ring uses brand color', css.includes('rgba(0, 210, 178, 0.12)')],
@@ -31,7 +31,7 @@ const checks = [
   ['Sales landing phone mockups keep contrast intentionally', css.includes('--sales-device-frame: #101820')],
   ['Theme toggle is icon-only', app.includes('theme-toggle-symbol') && !app.includes('theme-toggle-copy')],
   ['Authenticated app premium cleanup exists', css.includes('app-theme-light-premium-cleanup-v5')],
-  ['Authenticated app uses white-first token', css.includes('--app-light-bg: #FFFFFF')],
+  ['Authenticated app uses requested neutral light base token', css.includes('--app-light-bg: #E0E0E0')],
   ['Theme toggle uses natural outline lamp icon', app.includes('theme-toggle-lamp') && app.includes('NavIcon name="lightbulb"') && !app.includes('theme-toggle-bulb')],
   ['Theme toggle lamp has natural CSS polish', css.includes('theme-toggle-lamp-natural-v2') && css.includes('.theme-toggle-lamp.is-on') && css.includes('.theme-toggle-lamp.is-off')],
   ['Only one authenticated theme shortcut per viewport', !app.includes('mt-3 hidden w-full lg:flex')],
@@ -89,7 +89,13 @@ const checks = [
   ['Nutrition food item grid stays inside card', css.includes('nutrition-food-grid-contained-v5') && css.includes('box-sizing: border-box') && css.includes('grid-template-columns: minmax(0, 1fr)')],
   ['Nutrition prescribed plans empty state is compact', css.includes('nutrition-prescribed-empty-compact-v5') && css.includes('min-height: 0 !important')],
   ['Nutrition assistant stepper uses full-width stacked desktop layout', app.includes('nutrition-assistant-stacked-stepper-v6') && css.includes('nutrition-assistant-stacked-stepper-v6') && css.includes('flex-direction: column !important') && css.includes('repeat(3, minmax(0, 1fr))')],
-  ['Notification popover keeps open during internal interactions', app.includes('notificationPanelRef') && app.includes('composedPath') && app.includes('clientX >= rect.left') && app.includes('onWheel={(event) => event.stopPropagation()}')]
+  ['Notification popover keeps open during internal interactions', app.includes('notificationPanelRef') && app.includes('composedPath') && app.includes('clientX >= rect.left') && app.includes('onWheel={(event) => event.stopPropagation()}')],
+  ['Nutrition save upserts existing plan instead of prepending duplicates', app.includes('function upsertNutritionPlans') && app.includes('isUpdatingNutritionPlan') && app.includes('upsertNutritionPlans(current.nutritionPlans ?? [], savedPlan)')],
+  ['Nutrition form guards duplicate concurrent submits', app.includes('savingRef') && app.includes('clientRequestIdRef') && app.includes('if (savingRef.current || saving) return')],
+  ['Nutrition meals and foods use stable ids', app.includes('createNutritionMeal(') && app.includes('createNutritionMealItem(') && app.includes('cloneNutritionMeal(') && app.includes('key={meal.id') && app.includes('key={item.id')],
+  ['Nutrition duplicate meal copies the selected meal by id', app.includes('function duplicateMeal(mealId)') && app.includes('const sourceMeal = current.find((meal) => sameId(meal.id, mealId))') && app.includes('Cópia de')],
+  ['Remote nutrition save updates existing plan with PATCH', api.includes('const isUpdatingNutritionPlan = Boolean(plan.id)') && api.includes("method: isUpdatingNutritionPlan ? 'PATCH' : 'POST'") && api.includes('nutrition_plans?id=eq.')],
+  ['Light app background tests #E0E0E0 as base only', css.includes('--app-light-bg: #E0E0E0') && css.includes('nutrition-crud-light-base-test-v1')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
@@ -101,6 +107,8 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
+
 
 
 
