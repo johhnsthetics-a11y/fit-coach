@@ -10859,7 +10859,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
   const activeMeals = activePlan?.meals?.length || 0
 
   return (
-    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+    <div className="nutrition-layout-grid-v5 grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
       <section className="nutrition-hero-card xl:col-span-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(9,20,18,0.96),rgba(5,8,10,0.96))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
         <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div className="min-w-0">
@@ -11515,7 +11515,7 @@ function NutritionPlanList({ plans, selectedStudent, onArchive }) {
 
   if (!plans.length) {
     return (
-      <div className="space-y-3">
+      <div className="nutrition-prescribed-empty-v5 space-y-3">
         <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
         <div className="grid gap-3 sm:grid-cols-2">
           <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
@@ -11613,7 +11613,7 @@ function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
 
   if (!plans.length) {
     return (
-      <div className="space-y-3">
+      <div className="nutrition-prescribed-empty-v5 space-y-3">
         <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
         <div className="grid gap-3 sm:grid-cols-2">
           <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
@@ -18579,6 +18579,7 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
+
 
 
 

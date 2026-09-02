@@ -9307,3 +9307,122 @@ html[data-theme="dark"] body { background: #05070d; }
     min-height: 3.25rem;
   }
 }
+
+/* nutrition-stepper-no-horizontal-clip-v5 */
+.nutrition-assistant-card {
+  overflow: visible !important;
+}
+.nutrition-assistant-card > .flex {
+  min-width: 0;
+}
+.nutrition-stepper-professional-v3,
+.nutrition-assistant-steps {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible !important;
+  align-items: stretch;
+}
+.nutrition-stepper-professional-v3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.nutrition-stepper-professional-v3 .nutrition-assistant-step {
+  min-width: 0;
+  overflow: visible;
+  box-sizing: border-box;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  min-height: 4rem;
+  gap: 0.8rem;
+}
+.nutrition-stepper-professional-v3 .nutrition-step-number {
+  flex: 0 0 auto;
+  box-shadow: 0 10px 24px rgba(0, 210, 178, 0.22);
+}
+.nutrition-stepper-professional-v3 .nutrition-step-label {
+  min-width: 0;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+  line-height: 1.2;
+}
+.nutrition-stepper-professional-v3 .nutrition-step-connector {
+  right: -0.55rem;
+  width: 0.7rem;
+  z-index: 1;
+}
+@media (max-width: 1279px) {
+  .nutrition-assistant-card > .flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
+@media (max-width: 767px) {
+  .nutrition-stepper-professional-v3 {
+    grid-template-columns: 1fr !important;
+  }
+  .nutrition-stepper-professional-v3 .nutrition-step-connector {
+    display: none;
+  }
+}
+
+/* nutrition-food-grid-contained-v5 */
+.nutrition-food-item-card,
+.nutrition-food-item-grid,
+.nutrition-food-item-grid > * {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.nutrition-food-item-grid {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: end;
+  overflow: visible;
+}
+.nutrition-food-item-grid input,
+.nutrition-food-item-grid select,
+.nutrition-food-item-grid button {
+  max-width: 100%;
+}
+@media (min-width: 768px) {
+  .nutrition-food-item-grid {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) !important;
+  }
+  .nutrition-food-item-grid > :nth-child(3) {
+    grid-column: span 1;
+  }
+  .nutrition-food-item-grid > :nth-child(4) {
+    width: 100%;
+  }
+}
+@media (min-width: 1280px) {
+  .nutrition-food-item-grid {
+    grid-template-columns: minmax(9rem, 0.85fr) minmax(14rem, 1.25fr) minmax(6.5rem, 0.42fr) minmax(5.5rem, auto) !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  .nutrition-food-item-grid > :nth-child(4) {
+    align-self: end;
+  }
+}
+
+/* nutrition-prescribed-empty-compact-v5 */
+.nutrition-layout-grid-v5 {
+  align-items: start;
+}
+.nutrition-prescribed-empty-v5,
+.nutrition-prescribed-empty-v5 > * {
+  min-height: 0 !important;
+}
+.nutrition-prescribed-empty-v5 .empty-state,
+.nutrition-prescribed-empty-v5 [class*="min-h"] {
+  min-height: 0 !important;
+}
+.nutrition-prescribed-empty-v5 .grid {
+  align-items: stretch;
+}
+.nutrition-prescribed-empty-v5 + * {
+  margin-top: 0 !important;
+}

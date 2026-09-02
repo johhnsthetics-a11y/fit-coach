@@ -15,7 +15,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260901-nutrition-preview-light-v2')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260902-nutrition-layout-v5')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -84,7 +84,10 @@ const checks = [
   ['Nutrition layout removes diet title whitespace', app.includes('nutrition-plan-meta-grid-v2') && css.includes('nutrition-layout-density-v3')],
   ['Nutrition preview has theme-aware colors', app.includes('theme={uiTheme}') && app.includes('app-theme-${theme}') && css.includes('nutrition-preview-theme-v3') && css.includes('nutrition-student-preview-portal-theme-v4') && css.includes('.nutrition-student-preview-v2.app-theme-light')],
   ['Nutrition productivity controls exist', app.includes('duplicateMeal(') && app.includes('Duplicar refeição') && app.includes('nutrition-meal-toolbar-v2')],
-  ['Nutrition icon is refined', app.includes('nutrition: <><path d="M6 3.5') && app.includes('M17.5 5.5')]
+  ['Nutrition icon is refined', app.includes('nutrition: <><path d="M6 3.5') && app.includes('M17.5 5.5')],
+  ['Nutrition stepper avoids horizontal clipping', css.includes('nutrition-stepper-no-horizontal-clip-v5') && css.includes('grid-template-columns: repeat(3, minmax(0, 1fr))') && css.includes('overflow: visible !important')],
+  ['Nutrition food item grid stays inside card', css.includes('nutrition-food-grid-contained-v5') && css.includes('box-sizing: border-box') && css.includes('grid-template-columns: minmax(0, 1fr)')],
+  ['Nutrition prescribed plans empty state is compact', css.includes('nutrition-prescribed-empty-compact-v5') && css.includes('min-height: 0 !important')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
@@ -96,6 +99,7 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
 
 
 
