@@ -15,7 +15,7 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260902-nutrition-layout-v5')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260902-nutrition-stepper-notifications-v6')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -87,7 +87,9 @@ const checks = [
   ['Nutrition icon is refined', app.includes('nutrition: <><path d="M6 3.5') && app.includes('M17.5 5.5')],
   ['Nutrition stepper avoids horizontal clipping', css.includes('nutrition-stepper-no-horizontal-clip-v5') && css.includes('grid-template-columns: repeat(3, minmax(0, 1fr))') && css.includes('overflow: visible !important')],
   ['Nutrition food item grid stays inside card', css.includes('nutrition-food-grid-contained-v5') && css.includes('box-sizing: border-box') && css.includes('grid-template-columns: minmax(0, 1fr)')],
-  ['Nutrition prescribed plans empty state is compact', css.includes('nutrition-prescribed-empty-compact-v5') && css.includes('min-height: 0 !important')]
+  ['Nutrition prescribed plans empty state is compact', css.includes('nutrition-prescribed-empty-compact-v5') && css.includes('min-height: 0 !important')],
+  ['Nutrition assistant stepper uses full-width stacked desktop layout', app.includes('nutrition-assistant-stacked-stepper-v6') && css.includes('nutrition-assistant-stacked-stepper-v6') && css.includes('flex-direction: column !important') && css.includes('repeat(3, minmax(0, 1fr))')],
+  ['Notification popover keeps open during internal interactions', app.includes('notificationPanelRef') && app.includes('composedPath') && app.includes('clientX >= rect.left') && app.includes('onWheel={(event) => event.stopPropagation()}')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
@@ -99,6 +101,7 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
 
 
 

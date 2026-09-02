@@ -9426,3 +9426,59 @@ html[data-theme="dark"] body { background: #05070d; }
 .nutrition-prescribed-empty-v5 + * {
   margin-top: 0 !important;
 }
+
+/* nutrition-assistant-stacked-stepper-v6 */
+.nutrition-assistant-stacked-stepper-v6 {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  width: 100%;
+  min-width: 0;
+}
+.nutrition-assistant-stacked-stepper-v6 > .min-w-0 {
+  width: 100%;
+  max-width: min(100%, 52rem);
+}
+.nutrition-assistant-stacked-stepper-v6 .nutrition-stepper-professional-v3 {
+  width: 100% !important;
+  max-width: 100% !important;
+  inline-size: 100% !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: clamp(0.65rem, 1.4vw, 1rem) !important;
+  overflow: visible !important;
+}
+.nutrition-assistant-stacked-stepper-v6 .nutrition-assistant-step {
+  min-width: 0;
+  min-height: clamp(4.35rem, 7vw, 5.4rem);
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  align-content: center !important;
+  padding: clamp(0.95rem, 1.6vw, 1.15rem) !important;
+}
+.nutrition-assistant-stacked-stepper-v6 .nutrition-step-label {
+  max-width: 100%;
+  font-size: clamp(0.82rem, 1vw, 0.95rem) !important;
+  line-height: 1.15 !important;
+  text-wrap: balance;
+}
+.nutrition-assistant-stacked-stepper-v6 .nutrition-step-number {
+  width: 2.45rem;
+  height: 2.45rem;
+}
+@media (max-width: 767px) {
+  .nutrition-assistant-stacked-stepper-v6 .nutrition-stepper-professional-v3 {
+    grid-template-columns: 1fr !important;
+  }
+  .nutrition-assistant-stacked-stepper-v6 .nutrition-assistant-step {
+    min-height: 3.65rem;
+  }
+}
+@media (min-width: 768px) and (max-width: 1180px) {
+  .nutrition-assistant-stacked-stepper-v6 .nutrition-step-label {
+    font-size: 0.78rem !important;
+  }
+  .nutrition-assistant-stacked-stepper-v6 .nutrition-assistant-step {
+    gap: 0.6rem;
+    padding-inline: 0.75rem !important;
+  }
+}

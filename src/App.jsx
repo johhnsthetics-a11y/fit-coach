@@ -11088,7 +11088,7 @@ function NutritionForm({ students, selectedStudent, onSaveNutritionPlan, uiTheme
   return (
     <form onSubmit={handleSubmit} className="nutrition-form-shell grid gap-4">
       <div className="nutrition-assistant-card rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="nutrition-assistant-stacked-stepper-v6 flex flex-col gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
@@ -16436,6 +16436,7 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
   const recentAlerts = smartAlerts || []
   const hasItems = recentAlerts.length > 0 || recentNotifications.length > 0
   const notificationRef = useRef(null)
+  const notificationPanelRef = useRef(null)
 
   useEffect(() => {
     if (!open) return undefined
@@ -16444,9 +16445,19 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
       if (event.key === 'Escape') onClose?.()
     }
     const handlePointerDown = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-        onClose?.()
+      const eventPath = typeof event.composedPath === 'function' ? event.composedPath() : []
+      const insideTrigger = notificationRef.current && (notificationRef.current.contains(event.target) || eventPath.includes(notificationRef.current))
+      const insidePanel = notificationPanelRef.current && (notificationPanelRef.current.contains(event.target) || eventPath.includes(notificationPanelRef.current))
+
+      if (insideTrigger || insidePanel) return
+
+      if (notificationPanelRef.current && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+        const rect = notificationPanelRef.current.getBoundingClientRect()
+        const pointerInsidePanelBox = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom
+        if (pointerInsidePanelBox) return
       }
+
+      onClose?.()
     }
 
     document.addEventListener('keydown', handleNotificationKeyDown)
@@ -16476,7 +16487,7 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
       {open ? (
         <>
           <button type="button" className="coach-notification-popover-backdrop" aria-label="Fechar notificações" onClick={onClose} />
-          <section className="coach-notification-popover" role="dialog" aria-label="Notificações rápidas">
+          <section ref={notificationPanelRef} className="coach-notification-popover" role="dialog" aria-label="Notificações rápidas" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
             <div className="coach-notification-popover-head">
               <div>
                 <p>Notificações</p>
