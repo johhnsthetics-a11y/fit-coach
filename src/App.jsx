@@ -26,6 +26,7 @@ import {
   saveRemoteLeadEvent,
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
+  saveRemoteNutritionQuestionnaire,
   saveRemoteStudent,
   saveRemoteMessage,
   saveRemoteWorkout,
@@ -56,6 +57,9 @@ const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
 const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
 const WORKOUT_DRAFT_STORAGE_KEY = 'coachfitpro-workout-quick-draft-20260908'
 const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
+const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
+const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaires'
+const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const COACH_FIT_PRO_BUILD_MARKER = 'student-theme-sync-20260908'
@@ -1159,6 +1163,20 @@ foodDatabase.push(...expandedFoodDatabase, ...professionalFoodDatabase)
 
 const foodCategories = [...new Set([...foodDatabase.map((food) => food.category), 'Preparações'])]
 
+const NUTRITION_HOUSEHOLD_MEASURES = [
+  { id: 'g', label: 'Gramas', unitLabel: 'g', grams: 1, categories: [] },
+  { id: 'unidade', label: 'Unidade média', unitLabel: 'unidade', grams: 50, categories: ['Ovos', 'Frutas', 'Carboidratos', 'Vegetais', 'Suplementos'] },
+  { id: 'fatia', label: 'Fatia', unitLabel: 'fatia', grams: 30, categories: ['Laticínios', 'Carboidratos', 'Carnes', 'Sem Gluten'] },
+  { id: 'colher_sopa', label: 'Colher de sopa', unitLabel: 'colher de sopa', grams: 15, categories: ['Gorduras', 'Oleaginosas', 'Sementes', 'Temperos', 'Molhos', 'Açúcares'] },
+  { id: 'colher_cha', label: 'Colher de chá', unitLabel: 'colher de chá', grams: 5, categories: ['Gorduras', 'Temperos', 'Molhos', 'Sementes'] },
+  { id: 'xicara', label: 'Xícara', unitLabel: 'xícara', grams: 120, categories: ['Carboidratos', 'Leguminosas', 'Vegetais', 'Bebidas', 'Preparacoes', 'Preparações'] },
+  { id: 'copo', label: 'Copo', unitLabel: 'copo', grams: 200, categories: ['Bebidas', 'Laticínios'] },
+  { id: 'concha', label: 'Concha', unitLabel: 'concha', grams: 100, categories: ['Leguminosas', 'Preparacoes', 'Preparações', 'Molhos'] },
+  { id: 'punhado', label: 'Punhado', unitLabel: 'punhado', grams: 30, categories: ['Oleaginosas', 'Sementes', 'Frutas'] },
+  { id: 'scoop', label: 'Scoop', unitLabel: 'scoop', grams: 30, categories: ['Suplementos'] },
+  { id: 'custom', label: 'Medida personalizada', unitLabel: 'medida', grams: 0, categories: [] },
+]
+
 const nutritionMealTemplates = [
   {
     id: 'hipertrofia',
@@ -1227,6 +1245,8 @@ function createInitialData() {
     notifications: [],
     workouts: [],
     nutritionPlans: [],
+    nutritionQuestionnaires: [],
+    studentQuestionnaireAssignments: [],
     workoutLogs: [],
     workoutProgressionDecisions: [],
     exerciseLibrary: [],
@@ -1264,6 +1284,15 @@ function mergeRecords(current = [], loaded = []) {
   return [...records.values()]
 }
 
+function upsertById(records = [], nextRecord = {}) {
+  const key = String(nextRecord?.id || '')
+  if (!key) return [nextRecord, ...records]
+  const exists = records.some((item) => String(item?.id) === key)
+  return exists
+    ? records.map((item) => (String(item?.id) === key ? nextRecord : item))
+    : [nextRecord, ...records]
+}
+
 function prepareDataForStorage(data) {
   if (supabaseEnabled) {
     return {
@@ -1271,6 +1300,8 @@ function prepareDataForStorage(data) {
       user: data.user ?? null,
       session: data.session ?? null,
       coachSettings: data.coachSettings ?? null,
+      nutritionQuestionnaires: data.nutritionQuestionnaires ?? [],
+      studentQuestionnaireAssignments: data.studentQuestionnaireAssignments ?? [],
       appAdminSettings: data.appAdminSettings ?? loadLocalAdminSettings(),
     }
   }
@@ -2493,6 +2524,88 @@ function AppContent() {
     return savedPlan
   }
 
+  async function saveNutritionQuestionnaire(questionnaire) {
+    const now = new Date().toISOString()
+    const savedQuestionnaire = {
+      ...questionnaire,
+      id: questionnaire.id || createNutritionDraftId('nutrition-questionnaire'),
+      coachId: data.user?.id || '',
+      status: questionnaire.status || 'Rascunho',
+      updatedAt: now,
+      createdAt: questionnaire.createdAt || now,
+    }
+    if (supabaseEnabled) {
+      await saveRemoteNutritionQuestionnaire(savedQuestionnaire, data.user?.id).catch(() => {
+        setRemoteStatus('Questionário salvo localmente')
+        setRemoteError('')
+      })
+    }
+    setData((current) => ({
+      ...current,
+      nutritionQuestionnaires: upsertById(current.nutritionQuestionnaires ?? [], savedQuestionnaire),
+    }))
+    try { window.localStorage.setItem(NUTRITION_QUESTIONNAIRE_STORAGE_KEY, JSON.stringify(savedQuestionnaire)) } catch {}
+    return savedQuestionnaire
+  }
+
+  async function assignNutritionQuestionnaire(questionnaire, studentId) {
+    const savedQuestionnaire = await saveNutritionQuestionnaire({ ...questionnaire, status: 'Enviado' })
+    const now = new Date().toISOString()
+    const assignment = {
+      id: createNutritionDraftId('student-questionnaire'),
+      questionnaireId: savedQuestionnaire.id,
+      studentId,
+      coachId: data.user?.id || '',
+      status: 'Enviado',
+      questionSnapshot: savedQuestionnaire,
+      answers: {},
+      xpAwarded: false,
+      sentAt: now,
+      updatedAt: now,
+    }
+    setData((current) => ({
+      ...current,
+      nutritionQuestionnaires: upsertById(current.nutritionQuestionnaires ?? [], savedQuestionnaire),
+      studentQuestionnaireAssignments: [assignment, ...(current.studentQuestionnaireAssignments ?? [])],
+      notifications: [
+        { id: Date.now() + 2, title: 'Questionário enviado', body: `Questionário nutricional liberado para ${data.students.find((student) => String(student.id) === String(studentId))?.name || 'o aluno'}.`, read: false },
+        ...current.notifications,
+      ],
+    }))
+    return assignment
+  }
+
+  async function submitStudentQuestionnaire(assignmentId, answers = {}) {
+    const now = new Date().toISOString()
+    let completedAssignment = null
+    setData((current) => {
+      const assignments = (current.studentQuestionnaireAssignments ?? []).map((assignment) => {
+        if (!sameId(assignment.id, assignmentId)) return assignment
+        completedAssignment = {
+          ...assignment,
+          answers,
+          status: 'Respondido',
+          completedAt: now,
+          updatedAt: now,
+          xpAwarded: assignment.xpAwarded || true,
+        }
+        return completedAssignment
+      })
+      const student = current.students.find((item) => sameId(item.id, completedAssignment?.studentId))
+      return {
+        ...current,
+        studentQuestionnaireAssignments: assignments,
+        notifications: completedAssignment
+          ? [
+            { id: Date.now() + 3, title: 'Questionário respondido', body: `${student?.name || 'Aluno'} concluiu o questionário nutricional.`, read: false },
+            ...current.notifications,
+          ]
+          : current.notifications,
+      }
+    })
+    return completedAssignment
+  }
+
   async function archiveNutritionPlan(planId) {
     if (supabaseEnabled) {
       try {
@@ -3012,6 +3125,8 @@ function AppContent() {
         checkins={data.checkins}
         workouts={studentAccess.workouts ?? []}
         nutritionPlans={studentAccess.nutritionPlans ?? []}
+        nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
+        questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
         workoutLogs={mergeRecords(data.workoutLogs, studentAccess.workoutLogs)}
         exerciseLibraryItems={studentAccess.exerciseLibrary ?? data.exerciseLibrary ?? []}
         messages={mergeRecords(data.messages, studentAccess.messages)}
@@ -3022,6 +3137,7 @@ function AppContent() {
         onCompleteWorkout={completeWorkout}
         onAddCheckin={addCheckin}
         onSendMessage={sendMessage}
+        onSubmitQuestionnaire={submitStudentQuestionnaire}
         onRefreshMessages={refreshStudentConversation}
         appAdminSettings={appAdminSettings}
         uiTheme={uiTheme}
@@ -3355,8 +3471,12 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 students={data.students}
                 nutritionPlans={data.nutritionPlans ?? []}
+                nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
+                questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveNutritionPlan={archiveNutritionPlan}
+                onSaveQuestionnaire={saveNutritionQuestionnaire}
+                onAssignQuestionnaire={assignNutritionQuestionnaire}
                 uiTheme={uiTheme}
               />
             )}
@@ -6976,7 +7096,7 @@ function buildExpressNutritionDraft({ student, objective, mealCount }) {
       name: base.name,
       time: base.time,
       foods: items
-        .map((item) => `${item.foodName} (${item.grams}g)`)
+        .map(formatStudentFoodServing)
         .join(', '),
       macros: formatMacroSummary(totals),
     }
@@ -11112,11 +11232,28 @@ function createNutritionDraftId(prefix) {
 
 function createNutritionMealItem(item = {}) {
   const recognized = findFoodByName(item.foodName || item.name || '')
+  const category = item.category || recognized?.category || 'Carboidratos'
+  const measureOptions = getFoodMeasureOptions({ category, foodName: item.foodName || item.name || recognized?.name || '' })
+  const requestedMeasure = item.measureUnit || item.measureId || (Number(item.quantity) && !item.grams ? 'unidade' : 'g')
+  const measureUnit = measureOptions.some((option) => option.id === requestedMeasure) ? requestedMeasure : 'g'
+  const quantity = Number(item.quantity ?? (measureUnit === 'g' ? item.grams : 1)) || (measureUnit === 'g' ? Number(item.grams || 100) : 1)
+  const customMeasureGrams = Number(item.customMeasureGrams || 0)
+  const grams = calculateFoodServingGrams({
+    ...item,
+    category,
+    measureUnit,
+    quantity,
+    customMeasureGrams,
+  }) || Number(item.grams || 100)
   return {
     id: item.id || createNutritionDraftId('food'),
-    category: item.category || recognized?.category || 'Carboidratos',
+    category,
     foodName: item.foodName || item.name || recognized?.name || '',
-    grams: Number(item.grams || item.quantity || 100),
+    grams,
+    quantity,
+    measureUnit,
+    customMeasureName: item.customMeasureName || '',
+    customMeasureGrams,
     mode: item.mode || (recognized ? 'database' : 'database'),
     customMacros: item.customMacros,
   }
@@ -11141,6 +11278,37 @@ function parseNutritionFoodItems(foodText = '') {
         customMacros: recognized ? undefined : estimated,
       })
     })
+}
+
+function stripNutritionPlanMetadata(notes = '') {
+  return String(notes || '').replace(new RegExp(`\\n?${escapeRegExp(NUTRITION_PLAN_METADATA_PREFIX)}[\\s\\S]*$`), '').trim()
+}
+
+function buildNutritionPlanNotesWithMetadata(notes = '', meals = []) {
+  const cleanNotes = stripNutritionPlanMetadata(notes)
+  const metadata = {
+    version: 1,
+    meals: meals.map((meal) => ({
+      id: meal.id,
+      items: (meal.items || []).map((item) => ({
+        id: item.id,
+        category: item.category,
+        foodName: item.foodName,
+        grams: calculateFoodServingGrams(item),
+        quantity: item.quantity,
+        measureUnit: item.measureUnit,
+        customMeasureName: item.customMeasureName,
+        customMeasureGrams: item.customMeasureGrams,
+        mode: item.mode,
+        customMacros: item.customMacros,
+      })),
+    })),
+  }
+  return `${cleanNotes}${cleanNotes ? '\n\n' : ''}${NUTRITION_PLAN_METADATA_PREFIX}${JSON.stringify(metadata)}`
+}
+
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function createNutritionMeal(meal = {}) {
@@ -11183,7 +11351,7 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionPlan, onArchiveNutritionPlan, uiTheme = DEFAULT_UI_THEME }) {
+function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
@@ -11234,6 +11402,16 @@ function Nutrition({ selectedStudent, students, nutritionPlans, onSaveNutritionP
       <Panel title="Dietas prescritas" action={`${studentPlans.length} ativas`}>
         <NutritionPlanList plans={studentPlans} selectedStudent={selectedStudent} editingPlanId={editingPlan?.id} onEdit={(plan) => setEditingPlanId(String(plan.id))} onArchive={onArchiveNutritionPlan} />
       </Panel>
+
+      <Panel title="Questionários nutricionais" action="Coach e aluno">
+        <NutritionQuestionnaires
+          selectedStudent={selectedStudent}
+          questionnaires={nutritionQuestionnaires}
+          assignments={questionnaireAssignments}
+          onSaveQuestionnaire={onSaveQuestionnaire}
+          onAssignQuestionnaire={onAssignQuestionnaire}
+        />
+      </Panel>
     </div>
   )
 }
@@ -11251,13 +11429,34 @@ function NutritionQuickStat({ icon, label, value, detail }) {
   )
 }
 
+function NutritionBmrStrip({ student }) {
+  const bmr = calculateBasalMetabolicRate(student)
+
+  return (
+    <div className="nutrition-tmb-strip-v1 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">TMB do aluno</p>
+          <p className="mt-1 text-sm leading-6 text-zinc-300">
+            {bmr ? 'Estimativa diária pela ficha do aluno, útil para definir meta calórica.' : 'Complete os dados do aluno para calcular a TMB.'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-zinc-950/50 px-4 py-3 text-left sm:min-w-40">
+          <p className="text-[11px] font-bold uppercase text-zinc-500">kcal/dia</p>
+          <p className="mt-1 text-2xl font-black text-white">{bmr ? `${bmr}` : '-'}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NutritionForm({ students, selectedStudent, editingPlan = null, onStartNewPlan, onSaveNutritionPlan, onSaved, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [titleDraft, setTitleDraft] = useState(editingPlan?.title || 'Plano base')
-  const [notesDraft, setNotesDraft] = useState(editingPlan?.notes || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+  const [notesDraft, setNotesDraft] = useState(stripNutritionPlanMetadata(editingPlan?.notes) || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
   const [previewOpen, setPreviewOpen] = useState(false)
   const savingRef = useRef(false)
   const clientRequestIdRef = useRef(createNutritionDraftId('nutrition-save'))
@@ -11270,7 +11469,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
   useEffect(() => {
     setMeals(editingPlan?.meals?.length ? editingPlan.meals.map(normalizeNutritionMealDraft) : createNutritionDefaultMeals())
     setTitleDraft(editingPlan?.title || 'Plano base')
-    setNotesDraft(editingPlan?.notes || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+    setNotesDraft(stripNutritionPlanMetadata(editingPlan?.notes) || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
     setMessage('')
     setError('')
     savingRef.current = false
@@ -11286,7 +11485,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
     title: titleDraft || 'Plano alimentar',
     calories: `${Math.round(planTotals.calories)} kcal`,
     protein: `${roundMacro(planTotals.protein)} g`,
-    notes: notesDraft,
+        notes: stripNutritionPlanMetadata(notesDraft),
     meals: meals
       .filter((meal) => meal.name.trim())
       .map((meal) => ({
@@ -11294,7 +11493,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
         time: meal.time,
         foods: meal.items
           .filter((item) => item.foodName && Number(item.grams) > 0)
-          .map((item) => `${item.foodName} (${item.grams}g)`)
+          .map(formatStudentFoodServing)
           .join(', '),
         macros: formatMacroSummary(calculateMealMacros(meal)),
       })),
@@ -11403,7 +11602,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
               const suffix = alternatives.length
                 ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
                 : ''
-              return `${item.foodName} (${item.grams}g)${suffix}`
+              return `${formatStudentFoodServing(item)}${suffix}`
             })
             .join(', '),
           macros: formatMacroSummary(totals),
@@ -11423,7 +11622,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
         title: form.get('title')?.toString() || 'Plano alimentar',
         calories: `${Math.round(planTotals.calories)} kcal`,
         protein: `${roundMacro(planTotals.protein)} g`,
-        notes: form.get('notes')?.toString() || '',
+        notes: buildNutritionPlanNotesWithMetadata(form.get('notes')?.toString() || '', filledMeals),
         meals: filledMeals,
       })
       onSaved?.(savedPlan)
@@ -11468,6 +11667,8 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
           </div>
         </div>
       </div>
+
+      <NutritionBmrStrip student={selectedStudent} />
 
       <div className="nutrition-pro-controls-v1 grid gap-3 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -11634,7 +11835,7 @@ function NutritionStudentDietPreview({ plan, student, theme = DEFAULT_UI_THEME, 
         {plan?.notes ? (
           <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
             <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
           </div>
         ) : null}
 
@@ -11743,7 +11944,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
               const suffix = alternatives.length
                 ? ` | Substituições: ${alternatives.map((option) => `${option.name} (${option.grams}g)`).join(' ou ')}`
                 : ''
-              return `${item.foodName} (${item.grams}g)${suffix}`
+              return `${formatStudentFoodServing(item)}${suffix}`
             })
             .join(', '),
           macros: formatMacroSummary(totals),
@@ -11928,10 +12129,10 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
             </div>
 
             <div className="space-y-3 p-4">
-              {plan.notes ? (
+              {stripNutritionPlanMetadata(plan.notes) ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                   <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
-                  <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
                 </div>
               ) : null}
 
@@ -11958,6 +12159,170 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
         )
       })}
     </div>
+  )
+}
+
+function createNutritionQuestionnaireDraft(base = {}) {
+  return {
+    id: base.id || '',
+    title: base.title || 'Questionário nutricional',
+    description: base.description || 'Preferências, rotina e restrições para ajustar o plano alimentar.',
+    status: base.status || 'Rascunho',
+    questions: (base.questions?.length ? base.questions : [
+      { id: createNutritionDraftId('question'), type: 'text', label: 'Quais alimentos você não gosta ou evita?', required: false, options: [] },
+      { id: createNutritionDraftId('question'), type: 'multiple', label: 'Quais refeições costuma fazer no dia?', required: true, options: ['Café da manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'] },
+      { id: createNutritionDraftId('question'), type: 'single', label: 'Você possui alguma restrição alimentar?', required: true, options: ['Não', 'Lactose', 'Glúten', 'Vegetariano', 'Outra'] },
+    ]).map((question, index) => ({
+      id: question.id || createNutritionDraftId('question'),
+      type: question.type || 'text',
+      label: question.label || `Pergunta ${index + 1}`,
+      required: Boolean(question.required),
+      options: Array.isArray(question.options) ? question.options : String(question.options || '').split(',').map((item) => item.trim()).filter(Boolean),
+    })),
+  }
+}
+
+function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire }) {
+  const [draft, setDraft] = useState(() => createNutritionQuestionnaireDraft())
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [message, setMessage] = useState('')
+  const studentAssignments = assignments.filter((assignment) => String(assignment.studentId) === String(selectedStudent?.id))
+
+  function updateQuestion(questionId, field, value) {
+    setDraft((current) => ({
+      ...current,
+      questions: current.questions.map((question) => sameId(question.id, questionId) ? { ...question, [field]: value } : question),
+    }))
+  }
+
+  function addQuestion(type = 'text') {
+    setDraft((current) => ({
+      ...current,
+      questions: [...current.questions, { id: createNutritionDraftId('question'), type, label: 'Nova pergunta', required: false, options: type === 'text' ? [] : ['Opção 1', 'Opção 2'] }],
+    }))
+  }
+
+  function duplicateQuestionnaire(questionnaire) {
+    setDraft(createNutritionQuestionnaireDraft({
+      ...questionnaire,
+      id: '',
+      title: `${questionnaire.title || 'Questionário'} - cópia`,
+      status: 'Rascunho',
+      questions: questionnaire.questions?.map((question) => ({ ...question, id: createNutritionDraftId('question') })),
+    }))
+    setMessage('Modelo duplicado para edição.')
+  }
+
+  async function handleSave(status = 'Rascunho') {
+    const saved = await onSaveQuestionnaire?.({ ...draft, status })
+    if (saved) setDraft(createNutritionQuestionnaireDraft(saved))
+    setMessage(status === 'Rascunho' ? 'Rascunho salvo.' : 'Questionário salvo.')
+  }
+
+  async function handleSend() {
+    if (!selectedStudent?.id) return
+    await onAssignQuestionnaire?.({ ...draft, status: 'Enviado' }, selectedStudent.id)
+    setMessage(`Questionário enviado para ${selectedStudent.name}.`)
+  }
+
+  return (
+    <div className="nutrition-questionnaire-polish-v1 grid gap-4">
+      <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Questionários</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Crie, reutilize e envie questionários de nutrição para coletar respostas antes de ajustar a dieta.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setPreviewOpen(true)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Pré-visualizar</button>
+            <button type="button" onClick={() => handleSave('Rascunho')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Salvar rascunho</button>
+            <button type="button" onClick={handleSend} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950">Enviar ao aluno</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        <InlineInput label="Título" value={draft.title} onChange={(value) => setDraft((current) => ({ ...current, title: value }))} />
+        <InlineInput label="Descrição" value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} />
+        {draft.questions.map((question, index) => (
+          <div key={question.id} className="rounded-2xl border border-white/10 bg-zinc-950/45 p-3">
+            <div className="grid gap-3 sm:grid-cols-[1fr_160px_auto]">
+              <InlineInput label={`Pergunta ${index + 1}`} value={question.label} onChange={(value) => updateQuestion(question.id, 'label', value)} />
+              <InlineSelect label="Tipo" value={question.type} options={[{ value: 'text', label: 'Texto' }, { value: 'single', label: 'Única escolha' }, { value: 'multiple', label: 'Múltipla escolha' }]} onChange={(value) => updateQuestion(question.id, 'type', value)} />
+              <label className="flex items-end gap-2 text-xs font-bold uppercase text-zinc-500">
+                <input type="checkbox" checked={question.required} onChange={(event) => updateQuestion(question.id, 'required', event.target.checked)} className="mb-3 h-4 w-4 accent-emerald-400" />
+                Obrigatória
+              </label>
+            </div>
+            {question.type !== 'text' ? (
+              <InlineInput label="Opções separadas por vírgula" value={question.options.join(', ')} onChange={(value) => updateQuestion(question.id, 'options', value.split(',').map((item) => item.trim()).filter(Boolean))} />
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={() => addQuestion('text')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Pergunta aberta</button>
+        <button type="button" onClick={() => addQuestion('single')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Única escolha</button>
+        <button type="button" onClick={() => addQuestion('multiple')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Múltipla escolha</button>
+      </div>
+
+      {questionnaires.length ? (
+        <div className="grid gap-2">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Modelos salvos</p>
+          {questionnaires.slice(0, 4).map((questionnaire) => (
+            <div key={questionnaire.id} className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="font-black text-zinc-100">{questionnaire.title}</p>
+                <p className="text-xs text-zinc-500">{questionnaire.questions?.length || 0} perguntas • {questionnaire.status || 'Rascunho'}</p>
+              </div>
+              <button type="button" onClick={() => duplicateQuestionnaire(questionnaire)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Duplicar</button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {studentAssignments.length ? (
+        <div className="grid gap-2">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Envios para {selectedStudent?.name || 'aluno'}</p>
+          {studentAssignments.slice(0, 5).map((assignment) => (
+            <div key={assignment.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="font-black text-zinc-100">{assignment.questionSnapshot?.title || 'Questionário'}</p>
+              <p className="mt-1 text-xs text-zinc-500">{assignment.status} • {assignment.completedAt ? formatDateTime(assignment.completedAt) : 'aguardando resposta'}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+      {previewOpen ? <QuestionnairePreviewModal questionnaire={draft} onClose={() => setPreviewOpen(false)} /> : null}
+    </div>
+  )
+}
+
+function QuestionnairePreviewModal({ questionnaire, onClose }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="max-h-[86vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase text-emerald-200">Prévia do aluno</p>
+            <h3 className="mt-1 text-xl font-black text-white">{questionnaire.title}</h3>
+            <p className="mt-1 text-sm leading-6 text-zinc-400">{questionnaire.description}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Fechar</button>
+        </div>
+        <div className="mt-4 grid gap-3">
+          {questionnaire.questions.map((question) => (
+            <div key={question.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <p className="font-black text-zinc-100">{question.label}{question.required ? ' *' : ''}</p>
+              <p className="mt-1 text-xs text-zinc-500">{question.type === 'text' ? 'Resposta aberta' : question.options.join(', ')}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -11994,7 +12359,7 @@ function NutritionPlanListLegacy({ plans, selectedStudent, onArchive }) {
             <div>
               <h4 className="text-lg font-black">{plan.title}</h4>
               <p className="mt-1 text-sm text-zinc-400">{plan.calories} | {plan.protein}</p>
-              {plan.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{plan.notes}</p> : null}
+              {stripNutritionPlanMetadata(plan.notes) ? <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p> : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
@@ -12039,6 +12404,9 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
   const recentSet = new Set(recentFoodNames.map(normalizeText))
   const activeFoodName = recognizedFood?.name || item.foodName
   const isFavoriteFood = favoriteSet.has(normalizeText(activeFoodName))
+  const measureOptions = getFoodMeasureOptions(item)
+  const activeMeasure = getFoodMeasure(item)
+  const servingGrams = Math.round(calculateFoodServingGrams(item) || Number(item.grams || 0))
   const foodSuggestions = getFoodSuggestions(searchEdited ? item.foodName : '', item.category)
     .sort((a, b) => {
       const aFav = favoriteSet.has(normalizeText(a.name)) ? 1 : 0
@@ -12065,6 +12433,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
       ...item,
       foodName: value,
       category: recognized?.category ?? estimate?.category ?? item.category,
+      grams: calculateFoodServingGrams({ ...item, foodName: value, category: recognized?.category ?? estimate?.category ?? item.category }),
       mode: recognized ? 'database' : 'estimated',
       customMacros: recognized ? undefined : estimate ?? item.customMacros ?? emptyMacros(),
     })
@@ -12076,6 +12445,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
       ...item,
       foodName: food.name,
       category: food.category,
+      grams: calculateFoodServingGrams({ ...item, foodName: food.name, category: food.category }),
       mode: 'database',
       customMacros: undefined,
     })
@@ -12104,6 +12474,14 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
     })
   }
 
+  function updateServing(nextFields) {
+    const nextItem = { ...item, ...nextFields }
+    onChange({
+      ...nextItem,
+      grams: Math.round(calculateFoodServingGrams(nextItem)),
+    })
+  }
+
   return (
     <div className="nutrition-food-item-card rounded-md border border-white/10 bg-zinc-950/60 p-3">
       {favoriteQuickPickFoods.length ? (
@@ -12121,14 +12499,15 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
           </div>
         </div>
       ) : null}
-      <div className="nutrition-food-item-grid grid gap-3 xl:grid-cols-[0.85fr_1.25fr_0.42fr_auto]">
+      <div className="nutrition-food-item-grid grid gap-3 xl:grid-cols-[0.8fr_1.2fr_0.52fr_0.8fr_auto]">
         <InlineSelect
           label="Tipo"
           value={item.category}
           options={foodCategories}
           onChange={(value) => {
             const firstFood = getFoodSuggestions('', value)[0]
-            onChange({ ...item, category: value, foodName: firstFood?.name ?? '', mode: firstFood ? 'database' : 'estimated', customMacros: undefined })
+            const nextItem = { ...item, category: value, foodName: firstFood?.name ?? '', measureUnit: 'g', mode: firstFood ? 'database' : 'estimated', customMacros: undefined }
+            onChange({ ...nextItem, grams: calculateFoodServingGrams(nextItem) || 100 })
             setSearchEdited(false)
             setSuggestionsOpen(true)
           }}
@@ -12185,10 +12564,34 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
             </div>
           ) : null}
         </label>
-        <InlineInput label="Gramas" value={item.grams} onChange={(value) => onChange({ ...item, grams: Number(value) || 0 })} />
+        <InlineInput label="Quantidade" value={item.quantity} onChange={(value) => updateServing({ quantity: Number(value) || 0 })} />
+        <InlineSelect
+          label="Medida"
+          value={item.measureUnit || 'g'}
+          options={measureOptions.map((option) => ({ value: option.id, label: option.label }))}
+          onChange={(value) => updateServing({ measureUnit: value, quantity: value === 'g' ? servingGrams : item.measureUnit === 'g' ? 1 : item.quantity || 1 })}
+        />
         <button type="button" onClick={onRemove} className="self-end rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-100">
           Remover
         </button>
+      </div>
+
+      <div className="nutrition-serving-controls-v1 mt-3 grid gap-3 rounded-xl border border-emerald-300/15 bg-emerald-300/[0.045] p-3 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Porção calculada</p>
+          <p className="mt-1 text-sm font-bold text-zinc-300">{formatStudentFoodServing(item)}</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            Equivalência usada: {activeMeasure.id === 'custom' ? `${item.customMeasureGrams || 0}g por ${item.customMeasureName || 'medida'}` : `${activeMeasure.grams || 1}g por ${activeMeasure.unitLabel || activeMeasure.label}`}.
+          </p>
+        </div>
+        {item.measureUnit === 'custom' ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InlineInput label="Nome da medida" value={item.customMeasureName || ''} onChange={(value) => updateServing({ customMeasureName: value })} />
+            <InlineInput label="Gramas por medida" value={item.customMeasureGrams || ''} onChange={(value) => updateServing({ customMeasureGrams: Number(value) || 0 })} />
+          </div>
+        ) : (
+          <span className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">{servingGrams}g finais</span>
+        )}
       </div>
 
       <div className="mt-3 flex flex-col gap-2 rounded-md border border-blue-300/20 bg-blue-300/5 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -12200,7 +12603,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
             {Math.round(totals.calories)} kcal | P {roundMacro(totals.protein)}g | C {roundMacro(totals.carbs)}g | G {roundMacro(totals.fat)}g
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Valores para {Number(item.grams) || 0}g · confiança {Math.round(intelligence.confidence * 100)}%{recognizedFood?.servings?.[0] ? ' · medida: ' + recognizedFood.servings[0] : ''}{recognizedFood?.foodSource ? ' · fonte: ' + recognizedFood.foodSource : ''}
+            Valores para {servingGrams}g · confiança {Math.round(intelligence.confidence * 100)}%{recognizedFood?.servings?.[0] ? ' · medida: ' + recognizedFood.servings[0] : ''}{recognizedFood?.foodSource ? ' · fonte: ' + recognizedFood.foodSource : ''}
             {recognizedFood && normalizeText(recognizedFood.name) !== normalizeText(item.foodName) ? ` · referência: ${recognizedFood.name}` : ''}
           </p>
         </div>
@@ -13183,7 +13586,7 @@ function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -13207,6 +13610,8 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       checkins={studentCheckins}
       workouts={workouts}
       nutritionPlans={nutritionPlans}
+      nutritionQuestionnaires={nutritionQuestionnaires}
+      questionnaireAssignments={questionnaireAssignments}
       workoutLogs={workoutLogs}
       exerciseLibraryItems={exerciseLibraryItems}
       messages={messages}
@@ -13221,12 +13626,13 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       onCompleteWorkout={completeStudentWorkout}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
+      onSubmitQuestionnaire={onSubmitQuestionnaire}
       onRefreshMessages={onRefreshMessages}
       onExit={onExit}
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('inicio')
@@ -13239,6 +13645,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
+  const studentQuestionnaireAssignments = questionnaireAssignments.filter((assignment) => String(assignment.studentId) === String(student?.id))
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
   const studentAppointments = appointments
@@ -13499,6 +13906,12 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
             body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
             action="Ativar lembrete"
           />
+          <StudentQuestionnaireCenter
+            student={student}
+            questionnaires={nutritionQuestionnaires}
+            assignments={studentQuestionnaireAssignments}
+            onSubmitQuestionnaire={onSubmitQuestionnaire}
+          />
           {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
         </StudentAppSection>
       )
@@ -13706,7 +14119,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
-  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent })
+  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments: studentQuestionnaireAssignments })
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextAppointment
@@ -13820,12 +14233,123 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   )
 }
 
-function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0, waterPercent = 0 }) {
+function StudentQuestionnaireCenter({ student, questionnaires = [], assignments = [], onSubmitQuestionnaire }) {
+  const activeAssignments = assignments
+    .filter((assignment) => assignment.status !== 'Respondido')
+    .concat(assignments.filter((assignment) => assignment.status === 'Respondido').slice(0, 2))
+  const [openAssignmentId, setOpenAssignmentId] = useState(activeAssignments[0]?.id || '')
+  const currentAssignment = activeAssignments.find((assignment) => sameId(assignment.id, openAssignmentId)) || activeAssignments[0]
+  const questionnaire = currentAssignment?.questionSnapshot || questionnaires.find((item) => sameId(item.id, currentAssignment?.questionnaireId))
+  const draftKey = `coachfitpro-student-questionnaire-draft-${student?.id || 'student'}-${currentAssignment?.id || 'none'}`
+  const [answers, setAnswers] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem(draftKey) || '{}') } catch { return {} }
+  })
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    try { setAnswers(JSON.parse(window.localStorage.getItem(draftKey) || '{}')) } catch { setAnswers({}) }
+    setMessage('')
+  }, [draftKey])
+
+  useEffect(() => {
+    try { window.localStorage.setItem(draftKey, JSON.stringify(answers)) } catch {}
+  }, [answers, draftKey])
+
+  if (!activeAssignments.length || !questionnaire) return null
+
+  const questions = questionnaire.questions || []
+  const answeredCount = questions.filter((question) => {
+    const answer = answers[question.id]
+    return Array.isArray(answer) ? answer.length > 0 : Boolean(String(answer || '').trim())
+  }).length
+  const progress = Math.round((answeredCount / Math.max(1, questions.length)) * 100)
+
+  function updateAnswer(question, value) {
+    setAnswers((current) => ({ ...current, [question.id]: value }))
+  }
+
+  async function submitAnswers() {
+    const missing = questions.find((question) => question.required && !(Array.isArray(answers[question.id]) ? answers[question.id].length : String(answers[question.id] || '').trim()))
+    if (missing) {
+      setMessage(`Responda: ${missing.label}`)
+      return
+    }
+    await onSubmitQuestionnaire?.(currentAssignment.id, answers)
+    try { window.localStorage.removeItem(draftKey) } catch {}
+    setMessage(`Questionário concluído! Você ganhou ${QUESTIONNAIRE_XP_REWARD} XP.`)
+  }
+
+  return (
+    <div className="student-questionnaire-center rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-emerald-200">Questionário nutricional</p>
+          <h3 className="mt-1 text-lg font-black text-white">{questionnaire.title}</h3>
+          <p className="mt-1 text-sm leading-6 text-zinc-400">{questionnaire.description}</p>
+        </div>
+        <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{currentAssignment.status}</span>
+      </div>
+      {activeAssignments.length > 1 ? (
+        <div className="scrollbar-soft mt-3 flex gap-2 overflow-x-auto pb-1">
+          {activeAssignments.map((assignment) => (
+            <button key={assignment.id} type="button" onClick={() => setOpenAssignmentId(assignment.id)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${sameId(openAssignmentId, assignment.id) ? 'border-emerald-300/45 bg-emerald-300/14 text-emerald-100' : 'border-white/10 text-zinc-400'}`}>
+              {assignment.questionSnapshot?.title || 'Questionário'}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/25">
+        <div className="h-full rounded-full bg-emerald-300 transition-all duration-300" style={{ width: `${progress}%` }} />
+      </div>
+      <p className="mt-2 text-xs font-bold text-zinc-400">{answeredCount} de {questions.length} respostas salvas parcialmente.</p>
+      <div className="mt-4 grid gap-3">
+        {questions.map((question) => (
+          <div key={question.id} className="rounded-xl border border-white/10 bg-zinc-950/40 p-3">
+            <p className="text-sm font-black text-white">{question.label}{question.required ? ' *' : ''}</p>
+            {question.type === 'text' ? (
+              <textarea value={answers[question.id] || ''} onChange={(event) => updateAnswer(question, event.target.value)} rows={3} className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-400" />
+            ) : (
+              <div className="mt-2 grid gap-2">
+                {(question.options || []).map((option) => {
+                  const current = answers[question.id]
+                  const selected = question.type === 'multiple' ? (current || []).includes(option) : current === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => {
+                        if (question.type === 'multiple') {
+                          updateAnswer(question, selected ? (current || []).filter((item) => item !== option) : [...(current || []), option])
+                        } else {
+                          updateAnswer(question, option)
+                        }
+                      }}
+                      className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${selected ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300'}`}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={submitAnswers} disabled={currentAssignment.status === 'Respondido'} className="mt-4 w-full rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
+        {currentAssignment.status === 'Respondido' ? 'Questionário respondido' : 'Concluir questionário'}
+      </button>
+      {message ? <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+    </div>
+  )
+}
+
+function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0, waterPercent = 0, questionnaireAssignments = [] }) {
   const workoutXp = completedThisMonth * 80
   const weeklyBonusXp = completedThisWeek >= 3 ? 120 : 0
   const monthlyBonusXp = completedThisMonth >= 12 ? 300 : 0
   const hydrationXp = waterPercent >= 100 ? 40 : waterPercent >= 80 ? 25 : 0
-  const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp)
+  const questionnaireXp = questionnaireAssignments.filter((assignment) => assignment.status === 'Respondido' && assignment.xpAwarded).length * QUESTIONNAIRE_XP_REWARD
+  const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp + questionnaireXp)
   const levels = [
     { name: 'Selo Bronze', min: 0, icon: 'bronze', tone: 'from-amber-700 to-orange-300' },
     { name: 'Selo Prata', min: 450, icon: 'prata', tone: 'from-slate-500 to-zinc-100' },
@@ -13857,6 +14381,7 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
       { label: 'Treinos concluídos', value: `+${workoutXp} XP`, detail: '80 XP por treino finalizado' },
       { label: 'Bônus semanal', value: `+${weeklyBonusXp} XP`, detail: 'meta mínima de treinos da semana' },
       { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
+      { label: 'Questionários', value: `+${questionnaireXp} XP`, detail: `${QUESTIONNAIRE_XP_REWARD} XP por questionário concluído` },
     ],
   }
 }
@@ -17205,7 +17730,11 @@ function InlineSelect({ label, value, options, onChange }) {
         onChange={(event) => onChange(event.target.value)}
         className="min-h-10 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
       >
-        {options.map((option) => <option key={option} value={option}>{formatUiText(option)}</option>)}
+        {options.map((option) => {
+          const optionValue = typeof option === 'string' ? option : option.value
+          const optionLabel = typeof option === 'string' ? option : option.label
+          return <option key={optionValue} value={optionValue}>{formatUiText(optionLabel)}</option>
+        })}
       </select>
     </label>
   )
@@ -18004,7 +18533,7 @@ function calculateMealMacros(meal) {
 function calculateFoodItemMacros(item) {
   const food = !item.mode || item.mode === 'database' ? findFoodByName(item.foodName) : null
   const source = food ?? item.customMacros
-  const multiplier = Number(item.grams || 0) / 100
+  const multiplier = calculateFoodServingGrams(item) / 100
 
   if (!source || !Number.isFinite(multiplier)) return emptyMacros()
 
@@ -18016,6 +18545,71 @@ function calculateFoodItemMacros(item) {
     fiber: Number(source.fiber || 0) * multiplier,
     sodium: Number(source.sodium || 0) * multiplier,
   }
+}
+
+function getFoodMeasureOptions(foodOrItem = {}) {
+  const food = typeof foodOrItem === 'string' ? findFoodByName(foodOrItem) : findFoodByName(foodOrItem.foodName || foodOrItem.name || '')
+  const category = foodOrItem.category || food?.category || ''
+  const servingOptions = (food?.servings || [])
+    .map((serving, index) => {
+      const gramsMatch = String(serving).match(/(\d+(?:[.,]\d+)?)\s*g/i)
+      const label = String(serving).replace(/\s*\(\s*\d+(?:[.,]\d+)?\s*g\s*\)/i, '').trim()
+      const grams = gramsMatch ? Number(gramsMatch[1].replace(',', '.')) : 0
+      return grams > 0 ? { id: `serving-${index}`, label: label || serving, unitLabel: label || 'porção', grams, source: 'food' } : null
+    })
+    .filter(Boolean)
+  const categoryOptions = NUTRITION_HOUSEHOLD_MEASURES
+    .filter((measure) => measure.id === 'g' || measure.id === 'custom' || !measure.categories.length || measure.categories.some((item) => normalizeText(item) === normalizeText(category)))
+    .map((measure) => ({ ...measure, source: measure.id === 'g' || measure.id === 'custom' ? 'base' : 'category' }))
+  const options = [...categoryOptions.slice(0, 1), ...servingOptions, ...categoryOptions.slice(1)]
+  const seen = new Set()
+  return options.filter((option) => {
+    const key = `${normalizeText(option.label)}-${Number(option.grams || 0)}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function getFoodMeasure(item = {}) {
+  const measureOptions = getFoodMeasureOptions(item)
+  return measureOptions.find((option) => option.id === item.measureUnit) || measureOptions.find((option) => option.id === 'g') || NUTRITION_HOUSEHOLD_MEASURES[0]
+}
+
+function calculateFoodServingGrams(item = {}) {
+  const measure = getFoodMeasure(item)
+  const quantity = Number(item.quantity ?? item.grams ?? 0)
+  if (measure.id === 'g') return Math.max(0, Number(item.grams ?? quantity) || 0)
+  if (measure.id === 'custom') return Math.max(0, quantity * (Number(item.customMeasureGrams) || 0))
+  return Math.max(0, quantity * (Number(measure.grams) || 0))
+}
+
+function formatStudentFoodServing(item = {}) {
+  const grams = Math.round(calculateFoodServingGrams(item) || Number(item.grams || 0))
+  const foodName = item.foodName || item.name || 'Alimento'
+  const measure = getFoodMeasure(item)
+  if (!item.measureUnit || measure.id === 'g') return `${foodName} (${grams}g)`
+  const quantity = Number(item.quantity || 0)
+  const customName = item.customMeasureName || measure.unitLabel || measure.label
+  const measureName = quantity === 1 ? customName : pluralizeServingLabel(customName)
+  return `${foodName} - ${roundMacro(quantity)} ${measureName} (${grams}g)`
+}
+
+function pluralizeServingLabel(label = 'medida') {
+  const clean = String(label || 'medida').trim()
+  if (/s$/i.test(clean)) return clean
+  if (/xícara|xicara|fatia|concha|colher|unidade|medida/i.test(clean)) return `${clean}s`
+  return `${clean}s`
+}
+
+function calculateBasalMetabolicRate(student = {}) {
+  const weight = Number(student.weightKg || student.weight || student.currentWeight || String(student.weightText || '').replace(',', '.'))
+  const height = Number(student.heightCm || student.height || student.heightInCm || String(student.heightText || '').replace(',', '.'))
+  const age = Number(student.age || student.ageYears)
+  const gender = normalizeText(student.gender || student.sex || student.biologicalSex || '')
+  if (!weight || !height || !age) return null
+  const adjustment = gender.startsWith('f') || gender.includes('mulher') || gender.includes('feminino') ? -161 : 5
+  return Math.round((10 * weight) + (6.25 * height) - (5 * age) + adjustment)
 }
 
 function getEquivalentSubstitutions(item) {

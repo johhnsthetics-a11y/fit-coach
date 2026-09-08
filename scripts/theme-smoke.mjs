@@ -108,7 +108,14 @@ const checks = [
   ['Workout picker has confirmed add state and duplicate guard', app.includes('addingExerciseKey') && app.includes('isExerciseAlreadyInDraftDay') && app.includes('Adicionando...') && app.includes('✓ Adicionado')],
   ['Workout draft is recoverable before publishing', app.includes('WORKOUT_DRAFT_STORAGE_KEY') && app.includes('persistWorkoutDraft') && app.includes('recoverStoredWorkoutDraft')],
   ['Workout student PDF export respects routine setting', app.includes('canStudentDownloadPdf') && app.includes('Baixar treino em PDF')],
-  ['Workout quick flow light panels have solid theme polish', css.includes('workout-quick-flow-light-panels-v1') && css.includes('.app-theme-light .mobile-workout-sheet') && css.includes('.app-theme-light .mobile-workout-day-screen')]
+  ['Workout quick flow light panels have solid theme polish', css.includes('workout-quick-flow-light-panels-v1') && css.includes('.app-theme-light .mobile-workout-sheet') && css.includes('.app-theme-light .mobile-workout-day-screen')],
+  ['Nutrition supports household measures per food', app.includes('NUTRITION_HOUSEHOLD_MEASURES') && app.includes('getFoodMeasureOptions') && app.includes('calculateFoodServingGrams') && app.includes('customMeasureGrams')],
+  ['Nutrition student servings show household measure and grams', app.includes('formatStudentFoodServing') && app.includes('nutrition-serving-controls-v1') && css.includes('nutrition-serving-controls-v1')],
+  ['Nutrition metadata persists structured servings without SQL', app.includes('NUTRITION_PLAN_METADATA_PREFIX') && api.includes('NUTRITION_PLAN_METADATA_PREFIX') && api.includes('parseNutritionPlanMetadata')],
+  ['Nutrition shows student TMB context while prescribing', app.includes('calculateBasalMetabolicRate') && app.includes('NutritionBmrStrip') && app.includes('Complete os dados do aluno para calcular a TMB')],
+  ['Nutrition questionnaires exist for coach and student', app.includes('NutritionQuestionnaires') && app.includes('StudentQuestionnaireCenter') && app.includes('coachfitpro-nutrition-questionnaires')],
+  ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
+  ['Nutrition questionnaire schema is documented but not executed', api.includes('saveRemoteNutritionQuestionnaire') && api.includes('Remote nutrition questionnaires require Supabase schema setup')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)

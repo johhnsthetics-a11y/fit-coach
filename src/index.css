@@ -9823,3 +9823,86 @@ html[data-theme="dark"] body { background: #05070d; }
   width: 44px;
   height: 44px;
 }
+
+/* nutrition-serving-controls-v1 */
+.nutrition-serving-controls-v1 {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.nutrition-serving-controls-v1 input,
+.nutrition-serving-controls-v1 select,
+.nutrition-questionnaire-polish-v1 input,
+.nutrition-questionnaire-polish-v1 select,
+.nutrition-questionnaire-polish-v1 textarea,
+.student-questionnaire-center textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* nutrition-tmb-strip-v1 */
+.nutrition-tmb-strip-v1 {
+  min-width: 0;
+}
+
+/* nutrition-questionnaire-polish-v1 */
+.nutrition-questionnaire-polish-v1 {
+  min-width: 0;
+}
+
+.nutrition-questionnaire-polish-v1 > *,
+.student-questionnaire-center {
+  min-width: 0;
+}
+
+.app-theme-light .nutrition-serving-controls-v1,
+.app-theme-light .nutrition-tmb-strip-v1,
+.app-theme-light .nutrition-questionnaire-polish-v1 .rounded-2xl,
+.student-mobile-shell.app-theme-light .student-questionnaire-center {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: var(--app-light-title, #13201d) !important;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07) !important;
+}
+
+.app-theme-light .nutrition-serving-controls-v1 p,
+.app-theme-light .nutrition-tmb-strip-v1 p,
+.app-theme-light .nutrition-questionnaire-polish-v1 p,
+.student-mobile-shell.app-theme-light .student-questionnaire-center p {
+  color: var(--app-light-body, #47615b) !important;
+}
+
+.app-theme-light .nutrition-serving-controls-v1 .text-emerald-100,
+.app-theme-light .nutrition-serving-controls-v1 .text-emerald-200,
+.app-theme-light .nutrition-tmb-strip-v1 .text-emerald-100,
+.app-theme-light .nutrition-tmb-strip-v1 .text-emerald-200,
+.app-theme-light .nutrition-questionnaire-polish-v1 .text-emerald-100,
+.app-theme-light .nutrition-questionnaire-polish-v1 .text-emerald-200,
+.student-mobile-shell.app-theme-light .student-questionnaire-center .text-emerald-100,
+.student-mobile-shell.app-theme-light .student-questionnaire-center .text-emerald-200 {
+  color: var(--app-light-brand-deep, #007d6c) !important;
+}
+
+.app-theme-light .nutrition-serving-controls-v1 [class*="bg-zinc-950"],
+.app-theme-light .nutrition-tmb-strip-v1 [class*="bg-zinc-950"],
+.app-theme-light .nutrition-questionnaire-polish-v1 [class*="bg-zinc-950"],
+.student-mobile-shell.app-theme-light .student-questionnaire-center [class*="bg-zinc-950"] {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+}
+
+.app-theme-light .nutrition-questionnaire-polish-v1 button,
+.student-mobile-shell.app-theme-light .student-questionnaire-center button {
+  border-color: rgba(0, 156, 134, 0.18) !important;
+}
+
+@media (max-width: 640px) {
+  .nutrition-food-item-grid,
+  .nutrition-serving-controls-v1 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nutrition-questionnaire-polish-v1 .flex-wrap > button {
+    flex: 1 1 10rem;
+  }
+}

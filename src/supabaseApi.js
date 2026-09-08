@@ -3,6 +3,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
 const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
+const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
 
 let sessionToken = ''
 const REQUEST_TIMEOUT_MS = 25000
@@ -797,6 +798,11 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
   }
 }
 
+export async function saveRemoteNutritionQuestionnaire() {
+  // Remote nutrition questionnaires require Supabase schema setup before server persistence.
+  throw new Error('Questionários de nutrição ainda precisam da atualização de schema no Supabase para sincronização remota.')
+}
+
 export async function archiveRemoteNutritionPlan(planId) {
   if (!isUuid(planId)) return null
   const rows = await request(`nutrition_plans?id=eq.${planId}`, {
@@ -1417,6 +1423,7 @@ function fromWorkoutProgressionDecisionRow(row) {
 }
 
 function fromNutritionPlanRow(row) {
+  const metadata = parseNutritionPlanMetadata(row.notes)
   return {
     id: row.id,
     coachId: row.coach_id,
@@ -1424,19 +1431,35 @@ function fromNutritionPlanRow(row) {
     title: row.title ?? '',
     calories: row.calories ?? '',
     protein: row.protein ?? '',
-    notes: row.notes ?? '',
+    notes: stripNutritionPlanMetadata(row.notes ?? ''),
     active: Boolean(row.active),
     meals: (row.nutrition_meals ?? [])
       .slice()
       .sort((a, b) => Number(a.order_index ?? 0) - Number(b.order_index ?? 0))
-      .map((meal) => ({
+      .map((meal, index) => ({
         id: meal.id,
         name: meal.name ?? '',
         foods: meal.foods ?? '',
         macros: meal.macros ?? '',
         time: meal.time_label ?? '',
+        items: metadata.meals?.find((item) => String(item.id) === String(meal.id))?.items ?? metadata.meals?.[index]?.items ?? [],
       })),
   }
+}
+
+function parseNutritionPlanMetadata(notes = '') {
+  const markerIndex = String(notes || '').indexOf(NUTRITION_PLAN_METADATA_PREFIX)
+  if (markerIndex < 0) return {}
+  try {
+    return JSON.parse(String(notes).slice(markerIndex + NUTRITION_PLAN_METADATA_PREFIX.length).trim()) || {}
+  } catch {
+    return {}
+  }
+}
+
+function stripNutritionPlanMetadata(notes = '') {
+  const markerIndex = String(notes || '').indexOf(NUTRITION_PLAN_METADATA_PREFIX)
+  return markerIndex >= 0 ? String(notes).slice(0, markerIndex).trim() : String(notes || '')
 }
 
 function fromWorkoutLogRow(row) {
