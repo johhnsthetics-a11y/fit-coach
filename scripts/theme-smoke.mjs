@@ -12,10 +12,11 @@ const checks = [
   ['Sales page receives theme class', app.includes('sales-theme-${salesTheme}')],
   ['Theme toggle component exists', app.includes('function ThemeToggle')],
   ['Sales header renders theme toggle', app.includes('theme={salesTheme}')],
+  ['Login screen uses shared app theme state', app.includes('uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}') && app.includes('const salesTheme = uiTheme') && app.includes('const toggleSalesTheme = toggleUiTheme')],
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260902-nutrition-crud-light-v1')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260908-student-theme-sync-v1')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -91,6 +92,10 @@ const checks = [
   ['Nutrition assistant stepper uses full-width stacked desktop layout', app.includes('nutrition-assistant-stacked-stepper-v6') && css.includes('nutrition-assistant-stacked-stepper-v6') && css.includes('flex-direction: column !important') && css.includes('repeat(3, minmax(0, 1fr))')],
   ['Notification popover keeps open during internal interactions', app.includes('notificationPanelRef') && app.includes('composedPath') && app.includes('clientX >= rect.left') && app.includes('onWheel={(event) => event.stopPropagation()}')],
   ['Nutrition save upserts existing plan instead of prepending duplicates', app.includes('function upsertNutritionPlans') && app.includes('isUpdatingNutritionPlan') && app.includes('upsertNutritionPlans(current.nutritionPlans ?? [], savedPlan)')],
+  ['Student app receives the shared UI theme', app.includes('uiTheme={uiTheme}') && app.includes('toggleUiTheme={toggleUiTheme}') && app.includes('function StudentMobileApp') && app.includes('theme = DEFAULT_UI_THEME')],
+  ['Student app shell uses shared app theme classes', app.includes('student-theme-sync-v1') && app.includes('app-theme-') && app.includes('data-theme={theme}')],
+  ['Student app exposes a theme shortcut in logged student view', app.includes('student-theme-toggle') && app.includes('ThemeToggle theme={theme}')],
+  ['Student app light and dark theme CSS is synchronized', css.includes('student-theme-sync-v1') && css.includes('.student-mobile-shell.app-theme-light') && css.includes('.student-mobile-shell.app-theme-dark')],
   ['Nutrition form guards duplicate concurrent submits', app.includes('savingRef') && app.includes('clientRequestIdRef') && app.includes('if (savingRef.current || saving) return')],
   ['Nutrition meals and foods use stable ids', app.includes('createNutritionMeal(') && app.includes('createNutritionMealItem(') && app.includes('cloneNutritionMeal(') && app.includes('key={meal.id') && app.includes('key={item.id')],
   ['Nutrition duplicate meal copies the selected meal by id', app.includes('function duplicateMeal(mealId)') && app.includes('const sourceMeal = current.find((meal) => sameId(meal.id, mealId))') && app.includes('Cópia de')],
@@ -107,6 +112,7 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
 
 
 

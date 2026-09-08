@@ -54,7 +54,7 @@ const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
 const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
-const COACH_FIT_PRO_BUILD_MARKER = 'nutrition-crud-light-20260902'
+const COACH_FIT_PRO_BUILD_MARKER = 'student-theme-sync-20260908'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -2967,6 +2967,8 @@ function AppContent() {
         remoteStatus={remoteStatus}
         remoteError={remoteError}
         appAdminSettings={appAdminSettings}
+        uiTheme={uiTheme}
+        toggleUiTheme={toggleUiTheme}
       />
     )
   }
@@ -2979,6 +2981,9 @@ function AppContent() {
           onAccept={acceptStudentConsent}
           onExit={exitStudentAccess}
           error={remoteError}
+          appAdminSettings={appAdminSettings}
+          uiTheme={uiTheme}
+          toggleUiTheme={toggleUiTheme}
         />
       )
     }
@@ -2990,6 +2995,9 @@ function AppContent() {
           onSubmit={submitStudentAnamnesis}
           onExit={exitStudentAccess}
           error={remoteError}
+          appAdminSettings={appAdminSettings}
+          uiTheme={uiTheme}
+          toggleUiTheme={toggleUiTheme}
         />
       )
     }
@@ -3012,6 +3020,8 @@ function AppContent() {
         onSendMessage={sendMessage}
         onRefreshMessages={refreshStudentConversation}
         appAdminSettings={appAdminSettings}
+        uiTheme={uiTheme}
+        toggleUiTheme={toggleUiTheme}
         onExit={exitStudentAccess}
       />
     )
@@ -3025,6 +3035,8 @@ function AppContent() {
         remoteStatus={remoteStatus}
         remoteError={remoteError}
         appAdminSettings={appAdminSettings}
+        uiTheme={uiTheme}
+        toggleUiTheme={toggleUiTheme}
       />
     )
   }
@@ -3545,24 +3557,14 @@ function PasswordRecovery({ onSave }) {
   )
 }
 
-function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings }) {
+function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
   const initialMode = new URLSearchParams(window.location.search).get('mode')
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
-  const [salesTheme, setSalesTheme] = useState(() => getStoredUiTheme())
-  const toggleSalesTheme = useCallback(() => {
-    setSalesTheme((currentTheme) => {
-      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
-      try {
-        window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
-      } catch (error) {
-        console.warn('Não foi possível salvar a preferência de tema.', error)
-      }
-      return nextTheme
-    })
-  }, [])
+  const salesTheme = uiTheme
+  const toggleSalesTheme = toggleUiTheme
   const [signupPlanId, setSignupPlanId] = useState(() => {
     try {
       return window.localStorage.getItem(SELECTED_CHECKOUT_PLAN_KEY) || 'mensal'
@@ -12561,7 +12563,7 @@ function AudioRecorderButton({ onAudio, onError }) {
   )
 }
 
-function StudentConsent({ access, onAccept, onExit, error }) {
+function StudentConsent({ access, onAccept, onExit, error, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [accepting, setAccepting] = useState(false)
 
   async function handleAccept() {
@@ -12574,8 +12576,11 @@ function StudentConsent({ access, onAccept, onExit, error }) {
   }
 
   return (
-    <div className="fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
-      <div className="w-full max-w-2xl rounded-md border border-white/10 bg-zinc-900 p-5 shadow-2xl shadow-black/30 sm:p-7">
+    <div className={`app-shell student-access-shell student-theme-sync-v1 fit-gradient-bg app-theme-${uiTheme} grid min-h-screen place-items-center p-4 text-zinc-100`} data-theme={uiTheme} style={mergeThemeStyle(appAdminSettings, uiTheme)}>
+      <div className="fixed right-4 top-4 z-20">
+        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="student-theme-toggle" />
+      </div>
+      <div className="student-access-card w-full max-w-2xl rounded-md border border-white/10 bg-zinc-900 p-5 shadow-2xl shadow-black/30 sm:p-7">
         <BrandLockup subtitle={`por ${access.coachSettings?.brandName || access.coachSettings?.publicName || 'seu treinador'}`} />
         <div className="mt-7 h-px bg-white/10" />
         <h1 className="mt-2 text-3xl font-black">Consentimento de dados</h1>
@@ -12614,7 +12619,7 @@ function StudentConsent({ access, onAccept, onExit, error }) {
   )
 }
 
-function StudentAnamnesis({ access, onSubmit, onExit, error }) {
+function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(event) {
@@ -12651,8 +12656,11 @@ function StudentAnamnesis({ access, onSubmit, onExit, error }) {
   }
 
   return (
-    <div className="app-shell fit-gradient-bg min-h-screen p-3 text-zinc-100 sm:p-6">
-      <form onSubmit={handleSubmit} className="mx-auto grid max-w-4xl gap-5 rounded-md border border-white/10 bg-zinc-950/85 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
+    <div className={`app-shell student-access-shell student-theme-sync-v1 fit-gradient-bg app-theme-${uiTheme} min-h-screen p-3 text-zinc-100 sm:p-6`} data-theme={uiTheme} style={mergeThemeStyle(appAdminSettings, uiTheme)}>
+      <div className="mx-auto mb-3 flex max-w-4xl justify-end">
+        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="student-theme-toggle" />
+      </div>
+      <form onSubmit={handleSubmit} className="student-access-card mx-auto grid max-w-4xl gap-5 rounded-md border border-white/10 bg-zinc-950/85 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
         <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-300">Primeiro acesso</p>
@@ -12947,7 +12955,7 @@ function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -12980,6 +12988,8 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
       coachSettings={coachSettings}
       coachId={access.invite.coachId}
       appAdminSettings={appAdminSettings}
+      theme={uiTheme}
+      toggleUiTheme={toggleUiTheme}
       onCompleteWorkout={completeStudentWorkout}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
@@ -12988,7 +12998,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, workoutL
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
+function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('inicio')
@@ -13306,7 +13316,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
   }
 
   return (
-    <div className="app-shell student-mobile-shell fit-gradient-bg min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100" style={buildAdminThemeStyle(appAdminSettings)}>
+    <div className={`app-shell student-mobile-shell student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <BrandLockup compact subtitle="Coach Fit Pro" />
@@ -13317,6 +13327,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
           {!appInstalled && installPrompt ? (
             <button type="button" onClick={installStudentApp} className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">Instalar</button>
           ) : null}
+          <ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0" />
           <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Sair</button>
         </div>
       </header>
@@ -13391,7 +13402,10 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
                 )
               })}
             </div>
-            <button type="button" onClick={onExit} className="mt-4 w-full rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
+            <div className="mt-4 flex gap-2">
+              <ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0" />
+              <button type="button" onClick={onExit} className="min-h-11 flex-1 rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
+            </div>
             {!appInstalled ? (
               <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
                 <p className="text-xs font-black uppercase text-blue-200">Instalar no celular</p>
@@ -13433,7 +13447,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, workout
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-emerald-300/15 bg-black/95 px-2 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl lg:hidden">
+      <nav className="student-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-emerald-300/15 bg-black/95 px-2 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
           {bottomNavItems.map((item) => {
             const active = activeTab === item.id

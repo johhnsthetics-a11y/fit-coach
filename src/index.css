@@ -9497,3 +9497,150 @@ html[data-theme="dark"] body { background: #05070d; }
 .app-theme-light .nutrition-student-preview-panel {
   box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08) !important;
 }
+
+/* student-theme-sync-v1 */
+.student-mobile-shell.app-theme-light,
+.student-access-shell.app-theme-light {
+  --student-surface: #ffffff;
+  --student-surface-soft: rgba(255, 255, 255, 0.92);
+  --student-border: rgba(0, 156, 134, 0.16);
+  --student-title: var(--app-light-title, #13201d);
+  --student-body: var(--app-light-body, #47615b);
+  --student-muted: #64748b;
+  color: var(--student-title) !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+.student-mobile-shell.app-theme-dark,
+.student-access-shell.app-theme-dark {
+  --student-surface: rgba(9, 15, 18, 0.88);
+  --student-surface-soft: rgba(255, 255, 255, 0.04);
+  --student-border: rgba(255, 255, 255, 0.10);
+  --student-title: #f8fafc;
+  --student-body: #d1d5db;
+  --student-muted: #94a3b8;
+}
+
+.student-mobile-shell.app-theme-light.fit-gradient-bg,
+.student-access-shell.app-theme-light.fit-gradient-bg {
+  background-color: var(--app-light-bg, #E0E0E0) !important;
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(0, 210, 178, 0.16), transparent 30%),
+    radial-gradient(circle at 92% 6%, rgba(0, 156, 134, 0.10), transparent 32%),
+    linear-gradient(135deg, #f8fbfa 0%, var(--app-light-bg, #E0E0E0) 100%) !important;
+}
+
+.student-access-shell.app-theme-light .student-access-card,
+.student-mobile-shell.app-theme-light header,
+.student-mobile-shell.app-theme-light aside > div,
+.student-mobile-shell.app-theme-light main > section,
+.student-mobile-shell.app-theme-light .student-app-section,
+.student-mobile-shell.app-theme-light .student-bottom-nav,
+.student-mobile-shell.app-theme-light [class*="bg-zinc-950"],
+.student-mobile-shell.app-theme-light [class*="bg-zinc-900"],
+.student-mobile-shell.app-theme-light [class*="bg-white/"] {
+  background-color: var(--student-surface) !important;
+  border-color: var(--student-border) !important;
+  color: var(--student-title) !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.08) !important;
+}
+
+.student-mobile-shell.app-theme-light .student-bottom-nav {
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(18px);
+}
+
+.student-mobile-shell.app-theme-light p,
+.student-mobile-shell.app-theme-light span,
+.student-mobile-shell.app-theme-light label,
+.student-mobile-shell.app-theme-light small,
+.student-access-shell.app-theme-light p,
+.student-access-shell.app-theme-light label,
+.student-access-shell.app-theme-light small {
+  color: var(--student-body) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light h1,
+.student-mobile-shell.app-theme-light h2,
+.student-mobile-shell.app-theme-light h3,
+.student-mobile-shell.app-theme-light h4,
+.student-mobile-shell.app-theme-light strong,
+.student-access-shell.app-theme-light h1,
+.student-access-shell.app-theme-light h2,
+.student-access-shell.app-theme-light h3,
+.student-access-shell.app-theme-light h4,
+.student-access-shell.app-theme-light strong {
+  color: var(--student-title) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light .text-zinc-100,
+.student-mobile-shell.app-theme-light .text-zinc-200,
+.student-mobile-shell.app-theme-light .text-zinc-300,
+.student-mobile-shell.app-theme-light .text-zinc-400,
+.student-access-shell.app-theme-light .text-zinc-100,
+.student-access-shell.app-theme-light .text-zinc-200,
+.student-access-shell.app-theme-light .text-zinc-300,
+.student-access-shell.app-theme-light .text-zinc-400 {
+  color: var(--student-body) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light .text-white,
+.student-access-shell.app-theme-light .text-white {
+  color: var(--student-title) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light .text-emerald-100,
+.student-mobile-shell.app-theme-light .text-emerald-200,
+.student-mobile-shell.app-theme-light .text-emerald-300,
+.student-access-shell.app-theme-light .text-emerald-100,
+.student-access-shell.app-theme-light .text-emerald-200,
+.student-access-shell.app-theme-light .text-emerald-300 {
+  color: var(--app-light-brand-deep, #007d6c) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light button,
+.student-access-shell.app-theme-light button {
+  border-color: rgba(0, 156, 134, 0.18) !important;
+}
+
+.student-mobile-shell.app-theme-light button:not(.theme-toggle):not([class*="bg-emerald"]):not([class*="bg-blue"]),
+.student-access-shell.app-theme-light button:not(.theme-toggle):not([class*="bg-emerald"]):not([class*="bg-blue"]) {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  color: var(--student-title) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light input,
+.student-mobile-shell.app-theme-light select,
+.student-mobile-shell.app-theme-light textarea,
+.student-access-shell.app-theme-light input,
+.student-access-shell.app-theme-light select,
+.student-access-shell.app-theme-light textarea {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: var(--student-title) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-shell.app-theme-light .student-bottom-nav button {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.student-mobile-shell.app-theme-light .student-bottom-nav button[class*="bg-emerald"],
+.student-mobile-shell.app-theme-light .student-bottom-nav button:hover {
+  background: rgba(0, 210, 178, 0.10) !important;
+}
+
+.student-mobile-shell .student-theme-toggle,
+.student-access-shell .student-theme-toggle {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+}
