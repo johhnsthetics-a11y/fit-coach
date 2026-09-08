@@ -100,7 +100,15 @@ const checks = [
   ['Nutrition meals and foods use stable ids', app.includes('createNutritionMeal(') && app.includes('createNutritionMealItem(') && app.includes('cloneNutritionMeal(') && app.includes('key={meal.id') && app.includes('key={item.id')],
   ['Nutrition duplicate meal copies the selected meal by id', app.includes('function duplicateMeal(mealId)') && app.includes('const sourceMeal = current.find((meal) => sameId(meal.id, mealId))') && app.includes('Cópia de')],
   ['Remote nutrition save updates existing plan with PATCH', api.includes('const isUpdatingNutritionPlan = Boolean(plan.id)') && api.includes("method: isUpdatingNutritionPlan ? 'PATCH' : 'POST'") && api.includes('nutrition_plans?id=eq.')],
-  ['Light app background tests #E0E0E0 as base only', css.includes('--app-light-bg: #E0E0E0') && css.includes('nutrition-crud-light-base-test-v1')]
+  ['Light app background tests #E0E0E0 as base only', css.includes('--app-light-bg: #E0E0E0') && css.includes('nutrition-crud-light-base-test-v1')],
+  ['Workout quick flow has predefined training level select', app.includes('WORKOUT_TRAINING_LEVEL_OPTIONS') && app.includes('Nível de treinamento') && app.includes('Selecione o nível')],
+  ['Workout quick flow has predefined objective select', app.includes('WORKOUT_OBJECTIVE_OPTIONS') && app.includes('Redução de gordura + hipertrofia') && app.includes('Qualidade de vida')],
+  ['Workout quick flow info step keeps advanced settings visible', app.includes('mobile-workout-settings-section') && !app.includes('<summary>Mais opções</summary>')],
+  ['Workout quick flow stores student PDF permission', app.includes('allowStudentPdfDownload') && app.includes('Permitir que o aluno baixe o treino em PDF') && app.includes('Quando ativado, o aluno poderá baixar este treino em PDF.')],
+  ['Workout picker has confirmed add state and duplicate guard', app.includes('addingExerciseKey') && app.includes('isExerciseAlreadyInDraftDay') && app.includes('Adicionando...') && app.includes('✓ Adicionado')],
+  ['Workout draft is recoverable before publishing', app.includes('WORKOUT_DRAFT_STORAGE_KEY') && app.includes('persistWorkoutDraft') && app.includes('recoverStoredWorkoutDraft')],
+  ['Workout student PDF export respects routine setting', app.includes('canStudentDownloadPdf') && app.includes('Baixar treino em PDF')],
+  ['Workout quick flow light panels have solid theme polish', css.includes('workout-quick-flow-light-panels-v1') && css.includes('.app-theme-light .mobile-workout-sheet') && css.includes('.app-theme-light .mobile-workout-day-screen')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
@@ -112,6 +120,7 @@ if (failed.length) {
 }
 
 console.log('Theme smoke check passed')
+
 
 
 

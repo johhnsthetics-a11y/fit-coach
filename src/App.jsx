@@ -54,6 +54,10 @@ const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
 const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
+const WORKOUT_DRAFT_STORAGE_KEY = 'coachfitpro-workout-quick-draft-20260908'
+const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
+const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
+const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const COACH_FIT_PRO_BUILD_MARKER = 'student-theme-sync-20260908'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
@@ -2305,7 +2309,7 @@ function AppContent() {
   }
 
   async function saveWorkout(workout) {
-    let savedWorkout = { ...workout, id: Date.now(), active: true }
+    let savedWorkout = { ...workout, id: Date.now(), notes: stripWorkoutMetadata(workout.notes), active: true }
     const isFirstWorkout = !(data.workouts ?? []).length
 
     if (supabaseEnabled) {
@@ -7114,6 +7118,111 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
   )
 }
 
+function getWorkoutDraftStorageKey(studentId = '') {
+  return `${WORKOUT_DRAFT_STORAGE_KEY}:${studentId || 'sem-aluno'}`
+}
+
+function sanitizeWorkoutDaysForStorage(days = []) {
+  return (Array.isArray(days) ? days : []).map((day, dayIndex) => ({
+    id: day.id || `dia-${dayIndex + 1}`,
+    day: day.day || `Dia ${dayIndex + 1}`,
+    focus: day.focus || '',
+    guidance: day.guidance || '',
+    exercises: (day.exercises || []).map((exercise, exerciseIndex) => ({
+      ...exercise,
+      id: exercise.id || `${normalizeText(exercise.name || 'exercicio')}-${exerciseIndex + 1}`,
+      videoFile: undefined,
+      videoPreviewUrl: '',
+    })),
+  }))
+}
+
+function serializeWorkoutMetadata(draft = {}) {
+  return {
+    schemaVersion: 2,
+    level: draft.level || '',
+    frequency: draft.frequency || '',
+    organization: draft.organization || 'Dias da semana',
+    displayMode: draft.displayMode || 'Sempre visível para o aluno',
+    guidance: draft.guidance || '',
+    allowStudentPdfDownload: Boolean(draft.allowStudentPdfDownload),
+    days: sanitizeWorkoutDaysForStorage(draft.days || []),
+  }
+}
+
+function stripWorkoutMetadata(value = '') {
+  return String(value || '')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith(WORKOUT_METADATA_PREFIX))
+    .join('\n')
+    .trim()
+}
+
+function buildWorkoutNotesWithMetadata(draft = {}) {
+  const metadata = serializeWorkoutMetadata(draft)
+  const humanNotes = [
+    draft.guidance,
+    `Organização por dias: ${(draft.days || []).map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
+  ].filter(Boolean).join(' | ')
+  return [humanNotes, `${WORKOUT_METADATA_PREFIX}${JSON.stringify(metadata)}`].filter(Boolean).join('\n')
+}
+
+function recoverStoredWorkoutDraft(studentId, library = exerciseLibrary) {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(getWorkoutDraftStorageKey(studentId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return {
+      ...parsed,
+      allowStudentPdfDownload: Boolean(parsed.allowStudentPdfDownload),
+      days: sanitizeWorkoutDaysForStorage(parsed.days || []).map((day) => ({
+        ...day,
+        exercises: (day.exercises || []).map((exercise) => enrichExercise(exercise, library)),
+      })),
+    }
+  } catch {
+    return null
+  }
+}
+
+function persistWorkoutDraft(studentId, draft) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(getWorkoutDraftStorageKey(studentId), JSON.stringify({
+      ...draft,
+      days: sanitizeWorkoutDaysForStorage(draft.days || []),
+      updatedAt: new Date().toISOString(),
+    }))
+  } catch {
+    // O rascunho continua disponível na sessão atual mesmo sem persistência local.
+  }
+}
+
+function clearStoredWorkoutDraft(studentId) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(getWorkoutDraftStorageKey(studentId))
+  } catch {
+    // Sem ação: a publicação já foi concluída.
+  }
+}
+
+function getWorkoutExerciseKey(name = '') {
+  return normalizeText(name || '').replace(/\s+/g, '-')
+}
+
+function isExerciseAlreadyInDraftDay(day, exerciseName) {
+  const target = getWorkoutExerciseKey(exerciseName)
+  if (!target) return false
+  return (day?.exercises || []).some((exercise) => getWorkoutExerciseKey(exercise.name) === target)
+}
+
+function getSupportedWorkoutSelectValue(value, options) {
+  const normalized = normalizeText(value)
+  return options.find((item) => normalizeText(item) === normalized) || ''
+}
+
 function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
@@ -7147,6 +7256,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
   const [dayEditor, setDayEditor] = useState(null)
   const [workoutStudentPreviewOpen, setWorkoutStudentPreviewOpen] = useState(false)
+  const [addingExerciseKey, setAddingExerciseKey] = useState('')
   const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
   const [favoriteExerciseNames, setFavoriteExerciseNames] = useState(() => {
     try {
@@ -7198,6 +7308,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   useEffect(() => {
     setWorkoutStudentPreviewOpen(false)
   }, [selectedWorkoutId, selectedStudentId, showCreator])
+
+  useEffect(() => {
+    if (!showCreator) return
+    persistWorkoutDraft(selectedStudentId || selectedStudent?.id || '', draft)
+  }, [draft, selectedStudent?.id, selectedStudentId, showCreator])
 
   const activeWorkouts = useMemo(
     () => (workouts || []).filter((workout) => workout.active !== false),
@@ -7261,23 +7376,26 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 
   function resetDraftFromWorkout(workout = null) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+    const storedDraft = !workout ? recoverStoredWorkoutDraft(selectedStudentId || selectedStudent?.id || '', availableExerciseLibrary) : null
     setDraft({
-      title: workout?.title ? `${workout.title} - cópia` : 'Novo treino',
-      focus: workout?.focus || selectedStudent?.goal || 'Hipertrofia',
-      level: workout?.level || selectedStudent?.level || 'Intermediário',
-      frequency: inferWorkoutFrequency(workout),
-      organization: workout?.organization || 'Dias da semana',
-      displayMode: workout?.displayMode || 'Sempre visível para o aluno',
-      guidance: workout?.guidance || workout?.notes || '',
+      ...(storedDraft || {}),
+      title: storedDraft?.title || (workout?.title ? `${workout.title} - cópia` : 'Novo treino'),
+      focus: storedDraft?.focus || workout?.focus || selectedStudent?.goal || 'Hipertrofia',
+      level: storedDraft?.level || workout?.level || selectedStudent?.level || 'Intermediário',
+      frequency: storedDraft?.frequency || inferWorkoutFrequency(workout),
+      organization: storedDraft?.organization || workout?.organization || 'Dias da semana',
+      displayMode: storedDraft?.displayMode || workout?.displayMode || 'Sempre visível para o aluno',
+      guidance: storedDraft?.guidance || workout?.guidance || stripWorkoutMetadata(workout?.notes || '') || '',
+      allowStudentPdfDownload: Boolean(storedDraft?.allowStudentPdfDownload ?? workout?.allowStudentPdfDownload),
       status: 'Rascunho',
-      days: days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : [],
+      days: storedDraft?.days?.length ? storedDraft.days : (days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : []),
     })
     setShowCreator(true)
     setTab('library')
     setCreatorStep(workout ? 'days' : 'info')
     setActiveDayIndex(null)
     setExpandedExerciseKey('')
-    setMessage(workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : '')
+    setMessage(storedDraft ? 'Rascunho recuperado. Continue de onde parou.' : (workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : ''))
   }
 
   function editSelectedWorkoutAtExercises(workout) {
@@ -7390,10 +7508,65 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       ...current,
       days: current.days.map((day, index) => (
         index === dayIndex
-          ? { ...day, exercises: [...day.exercises, createExerciseDraft(name, {}, availableExerciseLibrary)] }
+          ? isExerciseAlreadyInDraftDay(day, name)
+            ? day
+            : { ...day, exercises: [...day.exercises, createExerciseDraft(name, {}, availableExerciseLibrary)] }
           : day
       )),
     }))
+  }
+
+  async function addExercisesToCurrentDay(names = [], { closeAfterAdd = false } = {}) {
+    if (exercisePickerDayIndex === null || addingExerciseKey) return
+    const day = draft.days[exercisePickerDayIndex]
+    if (!day) {
+      setError('Selecione um dia válido antes de adicionar exercícios.')
+      return
+    }
+
+    const uniqueNames = []
+    const seen = new Set()
+    names.filter(Boolean).forEach((name) => {
+      const key = getWorkoutExerciseKey(name)
+      if (!key || seen.has(key)) return
+      seen.add(key)
+      uniqueNames.push(name)
+    })
+
+    const pendingKey = `${day.id || exercisePickerDayIndex}:${uniqueNames.map(getWorkoutExerciseKey).join('|')}`
+    setAddingExerciseKey(pendingKey)
+    setError('')
+
+    try {
+      await Promise.resolve()
+      const addableNames = uniqueNames.filter((name) => !isExerciseAlreadyInDraftDay(day, name))
+      if (!addableNames.length) {
+        setMessage('Este exercício já está neste dia.')
+        return
+      }
+
+      setDraft((current) => ({
+        ...current,
+        days: current.days.map((currentDay, index) => {
+          if (index !== exercisePickerDayIndex) return currentDay
+          const newExercises = addableNames
+            .filter((name) => !isExerciseAlreadyInDraftDay(currentDay, name))
+            .map((name) => createExerciseDraft(name, {}, availableExerciseLibrary))
+          return newExercises.length
+            ? { ...currentDay, exercises: [...currentDay.exercises, ...newExercises] }
+            : currentDay
+        }),
+      }))
+      rememberRecentExercises(addableNames)
+      setExpandedExerciseKey(`${exercisePickerDayIndex}-${day.exercises.length}`)
+      setCreatorStep('exercises')
+      setMessage(`${formatCount(addableNames.length, 'exercício')} ${addableNames.length === 1 ? 'adicionado' : 'adicionados'} ao dia.`)
+      if (closeAfterAdd) closeExercisePicker()
+    } catch (addError) {
+      setError(addError?.message || 'Não foi possível adicionar o exercício. Tente novamente.')
+    } finally {
+      setAddingExerciseKey('')
+    }
   }
 
   function openExercisePicker(dayIndex) {
@@ -7468,19 +7641,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setMessage('Exercício personalizado removido.')
   }
 
-  function confirmExercisePicker() {
+  async function confirmExercisePicker() {
     if (exercisePickerDayIndex === null) return
     const names = exercisePickerSelections.length
       ? exercisePickerSelections
       : exercisePickerResults[0]?.name
         ? [exercisePickerResults[0].name]
         : ['Novo exercício']
-    names.forEach((name) => addDraftExercise(exercisePickerDayIndex, name))
-    rememberRecentExercises(names)
-    setExpandedExerciseKey(`${exercisePickerDayIndex}-${draft.days[exercisePickerDayIndex]?.exercises?.length || 0}`)
-    setMessage(`${formatCount(names.length, 'exercício')} ${names.length === 1 ? 'adicionado' : 'adicionados'}.`)
-    closeExercisePicker()
-    setCreatorStep('exercises')
+    await addExercisesToCurrentDay(names, { closeAfterAdd: true })
   }
 
   function applyExercisePreset(dayIndex, exerciseIndex, preset) {
@@ -7570,6 +7738,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       source: 'coach_custom',
       updatedAt: new Date().toISOString(),
     }, availableExerciseLibrary)
+    const targetDay = draft.days[exercisePickerDayIndex]
+    if (isExerciseAlreadyInDraftDay(targetDay, name)) {
+      setMessage('Este exercício personalizado já está neste dia.')
+      return
+    }
     setCustomExerciseLibrary((current) => {
       const normalizedName = normalizeText(name)
       return [customExercise, ...current.filter((item) => normalizeText(item.name) !== normalizedName)].slice(0, 500)
@@ -7589,7 +7762,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   function continueCreatorFlow() {
     if (creatorStep === 'info') {
       if (!draft.title?.trim() || !draft.focus?.trim() || !draft.level?.trim()) {
-        setError('Preencha nome, objetivo e nível para continuar.')
+        setError('Preencha nome, objetivo e nível de treinamento para continuar.')
         return
       }
       setError('')
@@ -7694,12 +7867,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         organization: draft.organization,
         displayMode: draft.displayMode,
         guidance: draft.guidance,
-        notes: [draft.guidance, `Organização por dias: ${draft.days.map((day) => `${day.day} - ${day.focus}`).join('; ')}`].filter(Boolean).join(' | '),
+        allowStudentPdfDownload: Boolean(draft.allowStudentPdfDownload),
+        notes: buildWorkoutNotesWithMetadata(draft),
         days: draft.days,
         exercises: filledExercises,
         source: 'mobile_workout_manager',
       })
       setSelectedWorkoutId(saved?.id || selectedWorkoutId)
+      clearStoredWorkoutDraft(studentId)
       setMessage(status === 'Rascunho' ? 'Rascunho salvo para continuar depois.' : 'Treino publicado e atribuído ao aluno.')
       setShowCreator(false)
     } catch (saveError) {
@@ -7990,11 +8165,26 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             <div className="mobile-workout-step-panel">
               <div className="mobile-workout-form-grid">
                 <label>Nome da rotina<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Ex.: Semanal 5x" /></label>
-                <label>Objetivo<input value={draft.focus} onChange={(event) => updateDraft('focus', event.target.value)} placeholder="Hipertrofia, definição..." /></label>
-                <label>Nível<input value={draft.level} onChange={(event) => updateDraft('level', event.target.value)} placeholder="Iniciante, intermediário..." /></label>
+                <label>
+                  Objetivo
+                  <select value={getSupportedWorkoutSelectValue(draft.focus, WORKOUT_OBJECTIVE_OPTIONS) || draft.focus} onChange={(event) => updateDraft('focus', event.target.value)}>
+                    {!getSupportedWorkoutSelectValue(draft.focus, WORKOUT_OBJECTIVE_OPTIONS) && draft.focus ? <option value={draft.focus}>{draft.focus}</option> : <option value="">Selecione o objetivo</option>}
+                    {WORKOUT_OBJECTIVE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Nível de treinamento
+                  <select value={getSupportedWorkoutSelectValue(draft.level, WORKOUT_TRAINING_LEVEL_OPTIONS) || draft.level} onChange={(event) => updateDraft('level', event.target.value)}>
+                    {!getSupportedWorkoutSelectValue(draft.level, WORKOUT_TRAINING_LEVEL_OPTIONS) && draft.level ? <option value={draft.level}>{draft.level}</option> : <option value="">Selecione o nível</option>}
+                    {WORKOUT_TRAINING_LEVEL_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
               </div>
-              <details className="mobile-workout-advanced-options">
-                <summary>Mais opções</summary>
+              <div className="mobile-workout-settings-section">
+                <div>
+                  <p>Configurações da rotina</p>
+                  <span>Esses campos já ficam visíveis para revisar antes de avançar.</span>
+                </div>
                 <div className="mobile-workout-form-grid">
                   <label>Frequência<input value={draft.frequency} onChange={(event) => updateDraft('frequency', event.target.value)} placeholder="Calculada pelos dias adicionados" /></label>
                 </div>
@@ -8014,7 +8204,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   Orientações gerais
                   <textarea value={draft.guidance || ''} onChange={(event) => updateDraft('guidance', event.target.value)} rows={3} placeholder="Aquecimento, descanso, observações gerais..." />
                 </label>
-              </details>
+                <label className="mobile-workout-toggle-row">
+                  <input type="checkbox" checked={Boolean(draft.allowStudentPdfDownload)} onChange={(event) => updateDraft('allowStudentPdfDownload', event.target.checked)} />
+                  <span>
+                    <strong>Permitir que o aluno baixe o treino em PDF</strong>
+                    <small>Quando ativado, o aluno poderá baixar este treino em PDF.</small>
+                  </span>
+                </label>
+              </div>
             </div>
           ) : null}
 
@@ -8231,6 +8428,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 const selected = exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(exercise.name))
                 const isFavorite = favoriteExerciseNames.some((item) => normalizeText(item) === normalizeText(exercise.name))
                 const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
+                const currentDay = exercisePickerDayIndex === null ? null : draft.days[exercisePickerDayIndex]
+                const exerciseAlreadyAdded = isExerciseAlreadyInDraftDay(currentDay, exercise.name)
+                const exerciseAddKey = `${currentDay?.id || exercisePickerDayIndex}:${getWorkoutExerciseKey(exercise.name)}`
+                const isAddingExercise = addingExerciseKey === exerciseAddKey
                 return (
                   <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={selected ? 'is-selected' : ''}>
                     <span className="mobile-workout-avatar"><NavIcon name="dumbbell" className="h-4 w-4" /></span>
@@ -8248,6 +8449,24 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                           <span role="button" tabIndex={0} onClick={(event) => { event.stopPropagation(); removeCustomExercise(exercise) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); removeCustomExercise(exercise) } }}>Excluir</span>
                         </>
                       ) : null}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className={`mobile-workout-add-state ${exerciseAlreadyAdded ? 'is-added' : ''}`}
+                        aria-disabled={exerciseAlreadyAdded || isAddingExercise}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          if (exerciseAlreadyAdded || isAddingExercise) return
+                          addExercisesToCurrentDay([exercise.name])
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter' || exerciseAlreadyAdded || isAddingExercise) return
+                          event.stopPropagation()
+                          addExercisesToCurrentDay([exercise.name])
+                        }}
+                      >
+                        {isAddingExercise ? 'Adicionando...' : exerciseAlreadyAdded ? '✓ Adicionado' : 'Adicionar'}
+                      </span>
                       <span className="mobile-workout-picker-check">{selected ? '✓' : '+'}</span>
                     </span>
                   </button>
@@ -8260,8 +8479,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 </div>
               ) : null}
             </div>
-            <button type="button" onClick={confirmExercisePicker} className="mobile-workout-primary">
-              {exercisePickerSelections.length ? `Adicionar ${exercisePickerSelections.length}` : 'Adicionar primeiro resultado'}
+            <button type="button" onClick={confirmExercisePicker} className="mobile-workout-primary" disabled={Boolean(addingExerciseKey)}>
+              {addingExerciseKey ? 'Adicionando...' : exercisePickerSelections.length ? `Adicionar ${exercisePickerSelections.length}` : 'Adicionar primeiro resultado'}
             </button>
           </section>
         </div>
@@ -8497,6 +8716,7 @@ function createMobileWorkoutDraft(student, library = exerciseLibrary) {
     organization: 'Dias da semana',
     displayMode: 'Sempre visível para o aluno',
     guidance: '',
+    allowStudentPdfDownload: false,
     status: 'Rascunho',
     days: createDefaultWorkoutDays(library),
   }
@@ -8546,6 +8766,7 @@ function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
       id: day.id || `${day.day || 'dia'}-${index}`,
       day: day.day || `Dia ${index + 1}`,
       focus: day.focus || day.title || workout.focus || 'Treino',
+      guidance: day.guidance || '',
       exercises: (day.exercises || []).map((exercise) => enrichExercise(exercise, library)),
     }))
   }
@@ -8629,6 +8850,7 @@ function inferWorkoutFrequency(workout) {
 
 function inferWorkoutLevel(workout) {
   const text = normalizeText(`${workout?.level || ''} ${workout?.focus || ''} ${workout?.notes || ''}`)
+  if (text.includes('adaptacao') || text.includes('adaptação')) return 'Adaptação'
   if (text.includes('iniciante')) return 'Iniciante'
   if (text.includes('avancado') || text.includes('avançado')) return 'Avançado'
   return 'Intermediário'
@@ -8640,6 +8862,7 @@ function formatCount(total, singular, plural = `${singular}s`) {
 }
 
 function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCount = 0, expandedExerciseKey, setExpandedExerciseKey, onBack }) {
+  const canStudentDownloadPdf = Boolean(workout?.allowStudentPdfDownload)
   return (
     <section className="mobile-workout-student-preview" aria-label="Visão do aluno">
       <div className="mobile-workout-student-preview-head">
@@ -8649,6 +8872,11 @@ function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCoun
           <h4>{workout?.title || 'Treino selecionado'}</h4>
           <span>{student?.name || 'Aluno selecionado'} • {formatCount(days.length, 'dia')} • {formatCount(exerciseCount, 'exercício')}</span>
         </div>
+        {canStudentDownloadPdf ? (
+          <button type="button" className="mobile-workout-pdf-action" onClick={() => window.print()}>
+            Baixar treino em PDF
+          </button>
+        ) : null}
       </div>
 
       {days.length ? (

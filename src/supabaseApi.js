@@ -686,6 +686,27 @@ export async function saveRemoteWorkout(workout, coachId) {
   }
 }
 
+const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
+
+function parseWorkoutMetadata(notes = '') {
+  const line = String(notes || '').split('\n').find((item) => item.trim().startsWith(WORKOUT_METADATA_PREFIX))
+  if (!line) return {}
+  try {
+    const parsed = JSON.parse(line.trim().slice(WORKOUT_METADATA_PREFIX.length))
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function stripWorkoutMetadata(notes = '') {
+  return String(notes || '')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith(WORKOUT_METADATA_PREFIX))
+    .join('\n')
+    .trim()
+}
+
 export async function archiveRemoteWorkout(workoutId) {
   if (!isUuid(workoutId)) return null
   const rows = await request(`workouts?id=eq.${workoutId}`, {
@@ -1317,13 +1338,21 @@ function fromAnamnesisRow(row) {
 }
 
 function fromWorkoutRow(row) {
+  const workoutMetadata = parseWorkoutMetadata(row.notes)
   return {
     id: row.id,
     coachId: row.coach_id,
     studentId: row.student_id,
     title: row.title ?? '',
     focus: row.focus ?? '',
-    notes: row.notes ?? '',
+    notes: stripWorkoutMetadata(row.notes ?? ''),
+    level: workoutMetadata.level ?? '',
+    frequency: workoutMetadata.frequency ?? '',
+    organization: workoutMetadata.organization ?? '',
+    displayMode: workoutMetadata.displayMode ?? '',
+    guidance: workoutMetadata.guidance ?? '',
+    allowStudentPdfDownload: Boolean(workoutMetadata.allowStudentPdfDownload),
+    days: Array.isArray(workoutMetadata.days) ? workoutMetadata.days : undefined,
     active: Boolean(row.active),
     exercises: (row.workout_exercises ?? [])
       .slice()
