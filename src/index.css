@@ -9667,6 +9667,81 @@ button.coach-notification-popover-item:hover {
     overflow-x: hidden;
   }
 }
+
+/* nutrition-rls-professional-polish-v1 */
+.nutrition-form-shell > p {
+  overflow-wrap: anywhere;
+}
+
+.app-theme-light .nutrition-form-shell > p[class*="border-rose"] {
+  background: #fff5f6 !important;
+  border-color: rgba(225, 29, 72, 0.24) !important;
+  color: #9f1239 !important;
+}
+
+.app-theme-light .nutrition-form-shell > p[class*="border-emerald"] {
+  background: #ecfffb !important;
+  border-color: rgba(0, 156, 134, 0.22) !important;
+  color: #07594f !important;
+}
+
+/* nutrition-plan-list-theme-v6 */
+.nutrition-plan-card-v6,
+.nutrition-plan-meal-card-v6 {
+  min-width: 0;
+}
+
+.app-theme-light .nutrition-plan-card-v6,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 {
+  background: linear-gradient(180deg, #ffffff 0%, #f6fbfa 100%) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.075) !important;
+}
+
+.app-theme-light .nutrition-plan-card-v6 > div:first-child,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 > div:first-child {
+  background: linear-gradient(135deg, rgba(0, 210, 178, 0.1), rgba(255, 255, 255, 0.95)) !important;
+  border-color: rgba(0, 156, 134, 0.14) !important;
+}
+
+.app-theme-light .nutrition-plan-meal-card-v6,
+.student-mobile-shell.app-theme-light .nutrition-plan-meal-card-v6 {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.14) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055) !important;
+}
+
+.app-theme-light .nutrition-plan-card-v6 h4,
+.app-theme-light .nutrition-plan-card-v6 h5,
+.app-theme-light .nutrition-plan-card-v6 strong,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 h4,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 h5,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 strong {
+  color: var(--app-light-title, #13201d) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-theme-light .nutrition-plan-card-v6 p,
+.app-theme-light .nutrition-plan-card-v6 small,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 p,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 small {
+  color: var(--app-light-body, #47615b) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-theme-light .nutrition-plan-card-v6 .text-emerald-100,
+.app-theme-light .nutrition-plan-card-v6 .text-emerald-200,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 .text-emerald-100,
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 .text-emerald-200 {
+  color: #007d6c !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-theme-light .nutrition-plan-card-v6 [class*="bg-zinc-950"],
+.student-mobile-shell.app-theme-light .nutrition-plan-card-v6 [class*="bg-zinc-950"] {
+  background: #f8fbfa !important;
+  border-color: rgba(0, 156, 134, 0.13) !important;
+}
 .coach-notification-shortcut-badge { min-width: 1.35rem; max-width: 2.5rem; height: 1.35rem; padding-inline: 0.32rem; display: inline-grid; place-items: center; white-space: nowrap; line-height: 1; font-variant-numeric: tabular-nums; }
 @media (max-width: 430px) { .coach-notification-shortcut-badge { right: -0.12rem; top: -0.16rem; } }
 

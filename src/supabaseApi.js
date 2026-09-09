@@ -4,6 +4,7 @@ const PHOTO_BUCKET = 'checkin-photos'
 const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
 const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
+export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies.sql'
 
 let sessionToken = ''
 const REQUEST_TIMEOUT_MS = 25000
@@ -748,13 +749,22 @@ export async function saveRemoteWorkoutProgressionDecision(decision, coachId) {
   return rows[0] ? fromWorkoutProgressionDecisionRow(rows[0]) : decision
 }
 
+async function loadRemoteNutritionMealIdsForCoach(planId, coachId) {
+  try {
+    return await request(`nutrition_meals?select=id,nutrition_plans!inner(coach_id)&nutrition_plan_id=eq.${encodeURIComponent(planId)}&nutrition_plans.coach_id=eq.${encodeURIComponent(coachId)}`)
+  } catch {
+    return request(`nutrition_meals?nutrition_plan_id=eq.${encodeURIComponent(planId)}&select=id`)
+  }
+}
+
 export async function saveRemoteNutritionPlan(plan, coachId) {
-  const isUpdatingNutritionPlan = Boolean(plan.id)
-  const planPath = isUpdatingNutritionPlan ? `nutrition_plans?id=eq.${encodeURIComponent(plan.id)}` : 'nutrition_plans'
+  const safeCoachId = requireCoachId(coachId)
+  const isUpdatingNutritionPlan = isUuid(plan.id)
+  const planPath = isUpdatingNutritionPlan ? `nutrition_plans?id=eq.${encodeURIComponent(plan.id)}&coach_id=eq.${encodeURIComponent(safeCoachId)}` : 'nutrition_plans'
   const planRows = await request(planPath, {
     method: isUpdatingNutritionPlan ? 'PATCH' : 'POST',
     body: JSON.stringify({
-      coach_id: coachId,
+      coach_id: safeCoachId,
       student_id: plan.studentId,
       title: plan.title,
       calories: plan.calories,
@@ -764,9 +774,12 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
     }),
   })
 
-  const savedPlan = planRows?.[0] ?? { ...plan, id: plan.id }
+  if (!planRows?.[0]) {
+    throw new Error('Não foi possível confirmar o salvamento da dieta no banco. Verifique o vínculo do aluno com sua conta.')
+  }
+  const savedPlan = planRows[0]
   const previousMealRows = isUpdatingNutritionPlan
-    ? await request(`nutrition_meals?nutrition_plan_id=eq.${encodeURIComponent(savedPlan.id)}&select=id`).catch(() => [])
+    ? await loadRemoteNutritionMealIdsForCoach(savedPlan.id, safeCoachId).catch(() => [])
     : []
   const currentMealIds = new Set((plan.meals ?? []).map((meal) => meal.id).filter(Boolean).map(String))
   const removedMealIds = previousMealRows
@@ -784,7 +797,10 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
       order_index: index,
     }
     const isExistingMeal = isUpdatingNutritionPlan && meal.id && previousMealRows.some((row) => String(row.id) === String(meal.id))
-    const mealRows = await request(isExistingMeal ? `nutrition_meals?id=eq.${encodeURIComponent(meal.id)}` : 'nutrition_meals', {
+    const mealPath = isExistingMeal
+      ? `nutrition_meals?id=eq.${encodeURIComponent(meal.id)}&nutrition_plan_id=eq.${encodeURIComponent(savedPlan.id)}`
+      : 'nutrition_meals'
+    const mealRows = await request(mealPath, {
       method: isExistingMeal ? 'PATCH' : 'POST',
       body: JSON.stringify(mealPayload),
     })
@@ -792,7 +808,7 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
   }
 
   for (const mealId of removedMealIds) {
-    await request(`nutrition_meals?id=eq.${encodeURIComponent(mealId)}`, { method: 'DELETE' }).catch(() => null)
+    await request(`nutrition_meals?id=eq.${encodeURIComponent(mealId)}&nutrition_plan_id=eq.${encodeURIComponent(savedPlan.id)}`, { method: 'DELETE' }).catch(() => null)
   }
 
   const normalizedPlan = fromNutritionPlanRow({ ...savedPlan, nutrition_meals: savedMeals })
@@ -813,9 +829,10 @@ export async function saveRemoteNutritionQuestionnaire() {
   throw new Error('Questionários de nutrição ainda precisam da atualização de schema no Supabase para sincronização remota.')
 }
 
-export async function archiveRemoteNutritionPlan(planId) {
+export async function archiveRemoteNutritionPlan(planId, coachId) {
   if (!isUuid(planId)) return null
-  const rows = await request(`nutrition_plans?id=eq.${planId}`, {
+  const safeCoachId = requireCoachId(coachId)
+  const rows = await request(`nutrition_plans?id=eq.${planId}&coach_id=eq.${encodeURIComponent(safeCoachId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ active: false }),
   })
@@ -1369,7 +1386,7 @@ function fromWorkoutRow(row) {
     guidance: workoutMetadata.guidance ?? '',
     allowStudentPdfDownload: Boolean(workoutMetadata.allowStudentPdfDownload),
     days: Array.isArray(workoutMetadata.days) ? workoutMetadata.days : undefined,
-    active: Boolean(row.active),
+    active: row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? row.created_at ?? '',
     exercises: (row.workout_exercises ?? [])

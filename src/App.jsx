@@ -62,7 +62,7 @@ const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaire
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-light-polish-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'nutricao-rls-save-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -2615,7 +2615,7 @@ function AppContent() {
   async function archiveNutritionPlan(planId) {
     if (supabaseEnabled) {
       try {
-        await archiveRemoteNutritionPlan(planId)
+        await archiveRemoteNutritionPlan(planId, data.user?.id)
         setRemoteStatus('Dieta arquivada')
         setRemoteError('')
       } catch (error) {
@@ -12109,7 +12109,7 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
         const meals = Array.isArray(plan.meals) ? plan.meals : []
 
         return (
-          <article key={plan.id} className="overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
+          <article key={plan.id} className="nutrition-plan-card-v6 overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
             <div className="border-b border-white/10 bg-emerald-300/[0.055] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
@@ -12156,7 +12156,7 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
               ) : null}
 
               {meals.map((meal, index) => (
-                <div key={meal.id ?? `${meal.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
+                <div key={meal.id ?? `${meal.name}-${index}`} className="nutrition-plan-meal-card-v6 rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 gap-3">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
