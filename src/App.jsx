@@ -13891,7 +13891,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
       return (
         <StudentAppSection title="Dieta de hoje" action={todayPlan?.calories || student.calories || 'Macros'}>
           {todayPlan ? (
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 shadow-xl shadow-emerald-950/10">
+            <div className="student-nutrition-current-plan-v1 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 shadow-xl shadow-emerald-950/10">
               <div className="flex items-start gap-3">
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-100">
                   <NavIcon name="nutrition" className="h-5 w-5" />
@@ -13905,15 +13905,15 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                <div className="student-nutrition-metric-v1 rounded-xl border border-white/10 bg-zinc-950/45 p-3">
                   <p className="text-xs font-bold text-zinc-500">Kcal</p>
                   <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.calories || '-'}</p>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                <div className="student-nutrition-metric-v1 rounded-xl border border-white/10 bg-zinc-950/45 p-3">
                   <p className="text-xs font-bold text-zinc-500">Proteína</p>
                   <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.protein || '-'}</p>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-zinc-950/45 p-3">
+                <div className="student-nutrition-metric-v1 rounded-xl border border-white/10 bg-zinc-950/45 p-3">
                   <p className="text-xs font-bold text-zinc-500">Refeições</p>
                   <p className="mt-1 text-sm font-black text-white">{todayPlan.meals?.length || 0}</p>
                 </div>
