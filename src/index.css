@@ -9400,6 +9400,103 @@ button.coach-notification-popover-item:hover {
   }
 }
 
+/* nutrition-archive-pdf-role-polish-v1 */
+.nutrition-student-context-v1,
+.nutrition-plan-card-v6,
+.nutrition-pdf-action-v1 {
+  min-width: 0;
+}
+
+.nutrition-plan-card-v6.is-archived {
+  opacity: 0.86;
+}
+
+.nutrition-plan-card-v6.is-archived .nutrition-plan-summary-button-v1 {
+  background: rgba(148, 163, 184, 0.07) !important;
+}
+
+.app-theme-light .nutrition-hero-card,
+.app-theme-light .nutrition-assistant-card,
+.app-theme-light .nutrition-pro-controls-v1,
+.app-theme-light .nutrition-meal-card,
+.app-theme-light .nutrition-student-context-v1,
+.app-theme-light .nutrition-plan-card-v6,
+.app-theme-light .nutrition-plan-meal-card-v6,
+.app-theme-light .nutrition-prescribed-empty-v5 > div,
+.app-theme-light .nutrition-questionnaire-polish-v1 > div {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfa 100%) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  color: var(--app-light-title) !important;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.065) !important;
+}
+
+.app-theme-light .nutrition-plan-summary-button-v1,
+.app-theme-light .nutrition-plan-card-v6 > div,
+.app-theme-light .nutrition-archived-plans-v1 > p {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.13) !important;
+  color: var(--app-light-title) !important;
+}
+
+.app-theme-light .nutrition-plan-card-v6.is-archived {
+  opacity: 1;
+}
+
+.app-theme-light .nutrition-plan-card-v6.is-archived .nutrition-plan-summary-button-v1 {
+  background: #f8faf9 !important;
+}
+
+.app-theme-light .nutrition-hero-card h3,
+.app-theme-light .nutrition-hero-card p,
+.app-theme-light .nutrition-quick-stat,
+.app-theme-light .nutrition-student-context-v1 p,
+.app-theme-light .nutrition-plan-card-v6 h4,
+.app-theme-light .nutrition-plan-card-v6 h5,
+.app-theme-light .nutrition-plan-card-v6 strong,
+.app-theme-light .nutrition-meal-card p,
+.app-theme-light .nutrition-meal-card h5,
+.app-theme-light .nutrition-meal-card strong {
+  color: var(--app-light-title) !important;
+  -webkit-text-fill-color: var(--app-light-title) !important;
+}
+
+.app-theme-light .nutrition-hero-card .text-zinc-300,
+.app-theme-light .nutrition-hero-card .text-zinc-400,
+.app-theme-light .nutrition-student-context-v1 .text-zinc-400,
+.app-theme-light .nutrition-plan-card-v6 .text-zinc-300,
+.app-theme-light .nutrition-plan-card-v6 .text-zinc-400,
+.app-theme-light .nutrition-meal-card .text-zinc-300,
+.app-theme-light .nutrition-meal-card .text-zinc-400,
+.app-theme-light .nutrition-meal-card .text-zinc-500 {
+  color: var(--app-light-body) !important;
+  -webkit-text-fill-color: var(--app-light-body) !important;
+}
+
+.app-theme-light .nutrition-hero-card .text-emerald-100,
+.app-theme-light .nutrition-hero-card .text-emerald-200,
+.app-theme-light .nutrition-student-context-v1 .text-emerald-200,
+.app-theme-light .nutrition-plan-card-v6 .text-emerald-100,
+.app-theme-light .nutrition-plan-card-v6 .text-emerald-200,
+.app-theme-light .nutrition-archived-plans-v1 h4 {
+  color: #007d6c !important;
+  -webkit-text-fill-color: #007d6c !important;
+}
+
+.app-theme-light .nutrition-pdf-action-v1,
+.app-theme-light .nutrition-preview-action,
+.app-theme-light .nutrition-inline-add-action {
+  background: #ecfffb !important;
+  border-color: rgba(0, 156, 134, 0.22) !important;
+  color: #07594f !important;
+}
+
+.app-theme-light .nutrition-pdf-action-v1:hover,
+.app-theme-light .nutrition-preview-action:hover,
+.app-theme-light .nutrition-inline-add-action:hover {
+  background: #dcfff8 !important;
+  border-color: rgba(0, 156, 134, 0.34) !important;
+}
+
 @media (min-width: 1024px) {
   .mobile-workout-creator-full {
     max-width: 100%;
@@ -10656,37 +10753,457 @@ html[data-theme="dark"] body { background: #05070d; }
 /* coachfit-student-nutrition-workout-audit-v1 */
 .questionnaire-preview-portal-v1 {
   overscroll-behavior: contain;
+  display: grid;
+  place-items: center;
 }
 
 .questionnaire-preview-panel-v1 {
   scrollbar-gutter: stable;
+  width: min(100%, 980px);
+  max-height: min(92vh, 860px);
+  overflow: hidden;
+  border: 1px solid rgba(0, 210, 178, 0.22);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(0, 210, 178, 0.18), transparent 36%),
+    #07100f;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.44);
+}
+
+.questionnaire-preview-toolbar-v1 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.questionnaire-preview-toolbar-v1 p,
+.student-questionnaire-app-head-v1 p {
+  margin: 0;
+  color: #6ee7d8;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.questionnaire-preview-toolbar-v1 h3 {
+  margin: 0.2rem 0 0;
+  color: #f8fffd;
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  font-weight: 950;
+}
+
+.questionnaire-preview-actions-v1 {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.questionnaire-preview-actions-v1 button {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  color: #d7eeea;
+  font-size: 0.76rem;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.questionnaire-preview-actions-v1 button.is-active {
+  border-color: rgba(0, 210, 178, 0.52);
+  color: #062522;
+  background: linear-gradient(135deg, #62f5df, #05c7ad);
+}
+
+.questionnaire-preview-stage-v1 {
+  max-height: calc(min(92vh, 860px) - 86px);
+  overflow-y: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.student-questionnaire-simulator-v1 {
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid rgba(0, 210, 178, 0.2);
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 22%),
+    #081513;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035), 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+
+.questionnaire-preview-mobile-v1 .student-questionnaire-simulator-v1 {
+  max-width: 390px;
+}
+
+.questionnaire-preview-desktop-v1 .student-questionnaire-simulator-v1 {
+  max-width: 820px;
+}
+
+.student-questionnaire-app-head-v1 {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.student-questionnaire-logo-v1 {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 210, 178, 0.26);
+  border-radius: 16px;
+  color: #45ead5;
+  background: rgba(0, 210, 178, 0.1);
+}
+
+.student-questionnaire-app-head-v1 strong {
+  display: block;
+  margin-top: 0.15rem;
+  color: #f8fffd;
+  font-weight: 950;
+}
+
+.student-questionnaire-app-head-v1 > span {
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.35rem 0.62rem;
+  color: #8eece0;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.student-questionnaire-preview-card-v1,
+.student-questionnaire-center {
+  display: grid;
+  gap: 1rem;
+}
+
+.student-questionnaire-title-row-v1 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.student-questionnaire-status-v1 {
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 210, 178, 0.24);
+  border-radius: 999px;
+  padding: 0.38rem 0.64rem;
+  color: #91f7ea;
+  font-size: 0.7rem;
+  font-weight: 900;
+  background: rgba(0, 210, 178, 0.08);
+}
+
+.student-questionnaire-progress-v1 {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.student-questionnaire-progress-v1 > div {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.student-questionnaire-progress-v1 span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3ff2dd, #08c8ae);
+  transition: width 180ms ease;
+}
+
+.student-questionnaire-progress-v1 p {
+  margin: 0;
+  color: #9aa9a6;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.student-questionnaire-fields {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.student-questionnaire-field {
+  display: grid;
+  gap: 0.72rem;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 0.9rem;
+  background: rgba(2, 9, 8, 0.52);
+}
+
+.student-questionnaire-field.has-error {
+  border-color: rgba(244, 63, 94, 0.55);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12);
+}
+
+.student-questionnaire-field-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.student-questionnaire-field-head p {
+  margin: 0;
+  color: #f8fffd;
+  font-size: 0.94rem;
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.student-questionnaire-field-head span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem;
+  color: #83dcd1;
+  font-size: 0.64rem;
+  font-weight: 900;
+  background: rgba(0, 210, 178, 0.08);
+}
+
+.student-questionnaire-field textarea,
+.student-questionnaire-field input {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 0.72rem 0.8rem;
+  color: #f8fffd;
+  background: rgba(0, 0, 0, 0.26);
+  outline: none;
+}
+
+.student-questionnaire-field textarea:focus,
+.student-questionnaire-field input:focus {
+  border-color: rgba(0, 210, 178, 0.62);
+  box-shadow: 0 0 0 3px rgba(0, 210, 178, 0.14);
+}
+
+.student-questionnaire-options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.student-questionnaire-options button,
+.student-questionnaire-scale button {
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 0.7rem 0.8rem;
+  color: #d7e7e4;
+  font-size: 0.9rem;
+  font-weight: 850;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.student-questionnaire-options button {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.student-questionnaire-options button.is-selected,
+.student-questionnaire-scale button.is-selected {
+  border-color: rgba(0, 210, 178, 0.56);
+  color: #79f4e5;
+  background: rgba(0, 210, 178, 0.13);
+}
+
+.student-questionnaire-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.student-questionnaire-scale button {
+  text-align: center;
+}
+
+.student-questionnaire-error {
+  color: #fecdd3;
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.student-questionnaire-submit-v1 {
+  min-height: 48px;
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  padding: 0.85rem 1rem;
+  color: #062522;
+  font-size: 0.92rem;
+  font-weight: 950;
+  background: linear-gradient(135deg, #62f5df, #07c7ad);
+}
+
+.student-questionnaire-submit-v1:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.student-questionnaire-message-v1 {
+  margin: 0;
+  border: 1px solid rgba(0, 210, 178, 0.2);
+  border-radius: 16px;
+  padding: 0.8rem;
+  color: #92f7ea;
+  font-size: 0.85rem;
+  font-weight: 850;
+  background: rgba(0, 210, 178, 0.09);
+}
+
+.student-questionnaire-message-v1.is-error {
+  border-color: rgba(244, 63, 94, 0.28);
+  color: #fecdd3;
+  background: rgba(244, 63, 94, 0.11);
 }
 
 .questionnaire-preview-portal-v1.app-theme-light {
-  background: rgba(15, 23, 42, 0.28) !important;
+  background: rgba(15, 23, 42, 0.24) !important;
 }
 
 .questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 {
-  background: linear-gradient(180deg, #ffffff 0%, #f6fbfa 100%) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eefaf7 100%) !important;
   border-color: rgba(0, 156, 134, 0.18) !important;
   color: var(--app-light-title, #13201d) !important;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.16) !important;
 }
 
+.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-toolbar-v1 {
+  border-color: rgba(0, 156, 134, 0.13) !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-toolbar-v1 h3,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-app-head-v1 strong {
+  color: #13201d !important;
+  -webkit-text-fill-color: #13201d !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-actions-v1 button:not(.is-active) {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: #38514c !important;
+  -webkit-text-fill-color: #38514c !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-simulator-v1,
+.student-mobile-shell.app-theme-light .student-questionnaire-center {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfa 100%) !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-app-head-v1 {
+  border-color: rgba(0, 156, 134, 0.12) !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-app-head-v1 > span,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-status-v1 {
+  background: rgba(0, 197, 168, 0.1) !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: #007d6c !important;
+  -webkit-text-fill-color: #007d6c !important;
+}
+
 .questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 h3,
-.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 strong {
+.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 strong,
+.student-mobile-shell.app-theme-light .student-questionnaire-center strong,
+.student-mobile-shell.app-theme-light .student-questionnaire-field-head p {
   color: var(--app-light-title, #13201d) !important;
   -webkit-text-fill-color: currentColor !important;
 }
 
-.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 p {
+.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 p,
+.student-mobile-shell.app-theme-light .student-questionnaire-progress-v1 p {
   color: var(--app-light-body, #47615b) !important;
   -webkit-text-fill-color: currentColor !important;
 }
 
-.questionnaire-preview-portal-v1.app-theme-light .questionnaire-preview-panel-v1 .rounded-xl {
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-field,
+.student-mobile-shell.app-theme-light .student-questionnaire-field {
   background: #ffffff !important;
-  border-color: rgba(0, 156, 134, 0.14) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045) !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-field textarea,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-field input,
+.student-mobile-shell.app-theme-light .student-questionnaire-field textarea,
+.student-mobile-shell.app-theme-light .student-questionnaire-field input {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: #13201d !important;
+  -webkit-text-fill-color: #13201d !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-options button,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-scale button,
+.student-mobile-shell.app-theme-light .student-questionnaire-options button,
+.student-mobile-shell.app-theme-light .student-questionnaire-scale button {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  color: #38514c !important;
+  -webkit-text-fill-color: #38514c !important;
+}
+
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-options button.is-selected,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-scale button.is-selected,
+.student-mobile-shell.app-theme-light .student-questionnaire-options button.is-selected,
+.student-mobile-shell.app-theme-light .student-questionnaire-scale button.is-selected {
+  background: rgba(0, 197, 168, 0.1) !important;
+  border-color: rgba(0, 156, 134, 0.34) !important;
+  color: #007d6c !important;
+  -webkit-text-fill-color: #007d6c !important;
+}
+
+@media (max-width: 640px) {
+  .questionnaire-preview-portal-v1 {
+    align-items: end;
+    padding: 0.65rem;
+  }
+
+  .questionnaire-preview-panel-v1 {
+    max-height: 94vh;
+    border-radius: 24px;
+  }
+
+  .questionnaire-preview-toolbar-v1,
+  .student-questionnaire-title-row-v1,
+  .student-questionnaire-field-head {
+    flex-direction: column;
+  }
+
+  .questionnaire-preview-actions-v1 {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .questionnaire-preview-actions-v1 button {
+    flex: 1 1 5.5rem;
+  }
+
+  .questionnaire-preview-stage-v1 {
+    max-height: calc(94vh - 128px);
+    padding: 0.8rem;
+  }
 }
 
 .nutrition-tmb-compact-v1 {
@@ -10751,6 +11268,8 @@ html[data-theme="dark"] body { background: #05070d; }
   --workout-light-title: var(--app-light-title, #13201d);
   --workout-light-body: var(--app-light-body, #47615b);
   --workout-light-brand: var(--app-light-brand-deep, #007d6c);
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .app-theme-light .mobile-workout-creator,
@@ -10800,6 +11319,7 @@ html[data-theme="dark"] body { background: #05070d; }
 .app-theme-light .mobile-workout-exercise-accordion {
   background: #ffffff !important;
   border-color: rgba(0, 156, 134, 0.16) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045) !important;
 }
 
 .app-theme-light .mobile-workout-card-main > span:last-child,
@@ -10829,6 +11349,36 @@ html[data-theme="dark"] body { background: #05070d; }
   -webkit-text-fill-color: #6b7c77 !important;
 }
 
+.app-theme-light .mobile-workout-search,
+.app-theme-light .mobile-workout-manager input,
+.app-theme-light .mobile-workout-manager select,
+.app-theme-light .mobile-workout-manager textarea {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.18) !important;
+  color: var(--workout-light-title) !important;
+  -webkit-text-fill-color: var(--workout-light-title) !important;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.02) !important;
+}
+
+.app-theme-light .mobile-workout-tabs button:not(.is-active),
+.app-theme-light .mobile-workout-filters button:not(.is-active),
+.app-theme-light .mobile-workout-choice-grid button:not(.is-active) {
+  color: #49615c !important;
+  -webkit-text-fill-color: #49615c !important;
+  background: rgba(255, 255, 255, 0.84) !important;
+  border-color: rgba(0, 156, 134, 0.12) !important;
+}
+
+.app-theme-light .mobile-workout-tabs button.is-active,
+.app-theme-light .mobile-workout-filters button.is-active,
+.app-theme-light .mobile-workout-choice-grid button.is-active,
+.app-theme-light .mobile-workout-stepper button.is-active {
+  color: #062522 !important;
+  -webkit-text-fill-color: #062522 !important;
+  background: linear-gradient(135deg, #18d4bd, #00b99f) !important;
+  border-color: rgba(0, 156, 134, 0.36) !important;
+}
+
 .app-theme-light .mobile-workout-add-exercise-cta,
 .app-theme-light .mobile-workout-save-day-action,
 .app-theme-light .mobile-workout-save-bar button:last-child {
@@ -10836,10 +11386,43 @@ html[data-theme="dark"] body { background: #05070d; }
   border-radius: 18px;
 }
 
+.app-theme-light .mobile-workout-save-bar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08) !important;
+}
+
+.app-theme-light .mobile-workout-save-bar button:first-child {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.22) !important;
+  color: var(--workout-light-brand) !important;
+  -webkit-text-fill-color: var(--workout-light-brand) !important;
+}
+
 .mobile-workout-day-preview-panel,
 .mobile-workout-student-preview-panel,
 .mobile-workout-sheet {
   max-width: min(100%, 960px);
+  overflow-x: clip;
+}
+
+.mobile-workout-card,
+.mobile-workout-day-card,
+.mobile-workout-exercise-editor,
+.mobile-workout-exercise-view,
+.mobile-workout-exercise-accordion,
+.mobile-workout-step-panel,
+.mobile-workout-form-grid,
+.mobile-workout-days,
+.mobile-workout-exercises {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mobile-workout-exercise-accordion > span,
+.mobile-workout-day-card button > span,
+.mobile-workout-card-main > span {
+  min-width: 0;
 }
 
 .mobile-workout-student-preview-portal.app-theme-dark .mobile-workout-student-preview-panel,

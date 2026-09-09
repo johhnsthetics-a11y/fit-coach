@@ -517,6 +517,16 @@ const navItems = [
 
 const coachViewIds = new Set(navItems.map((item) => item.id))
 const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
+const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+
+function getProfessionalRole(user = {}) {
+  const role = normalizeText(user?.role || user?.profession || user?.profile || '')
+  return role.includes('nutricionista') ? 'Nutricionista' : 'Coach principal'
+}
+
+function isNutritionistUser(user = {}) {
+  return getProfessionalRole(user) === 'Nutricionista'
+}
 
 function getStoredUiTheme() {
   if (typeof window === 'undefined') return DEFAULT_UI_THEME
@@ -1269,12 +1279,29 @@ function normalizeStoredData(value) {
   const initial = createInitialData()
   if (!value || typeof value !== 'object' || Array.isArray(value)) return initial
 
-  return Object.fromEntries(
+  const normalized = Object.fromEntries(
     Object.entries({ ...initial, ...value }).map(([key, item]) => [
       key,
       Array.isArray(initial[key]) ? (Array.isArray(item) ? item : []) : item,
     ]),
   )
+
+  normalized.workouts = normalized.workouts
+    .filter((workout) => workout && typeof workout === 'object')
+    .map((workout) => ({
+      ...workout,
+      days: Array.isArray(workout.days)
+        ? workout.days.filter(Boolean).map((day, dayIndex) => ({
+          ...day,
+          id: day.id || `dia-${dayIndex + 1}`,
+          day: day.day || `Dia ${dayIndex + 1}`,
+          exercises: getWorkoutExercisesArray(day.exercises).map(normalizeWorkoutExerciseInput),
+        }))
+        : workout.days,
+      exercises: getWorkoutExercisesArray(workout.exercises).map(normalizeWorkoutExerciseInput),
+    }))
+
+  return normalized
 }
 
 function mergeRecords(current = [], loaded = []) {
@@ -1351,7 +1378,19 @@ function prepareDataForStorage(data) {
     })),
     workouts: (data.workouts ?? []).map((workout) => ({
       ...workout,
-      exercises: (workout.exercises ?? []).map(({ videoFile, ...exercise }) => exercise),
+      exercises: getWorkoutExercisesArray(workout.exercises).map((exercise) => {
+        const { videoFile, ...safeExercise } = normalizeWorkoutExerciseInput(exercise)
+        return safeExercise
+      }),
+      days: Array.isArray(workout.days)
+        ? workout.days.filter(Boolean).map((day) => ({
+          ...day,
+          exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => {
+            const { videoFile, ...safeExercise } = normalizeWorkoutExerciseInput(exercise)
+            return safeExercise
+          }),
+        }))
+        : workout.days,
     })),
     messages: (data.messages ?? []).map(({ attachmentFile, attachmentPreview, ...message }) => message),
   }
@@ -1601,6 +1640,7 @@ function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
+  const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
   const [studentAccess, setStudentAccess] = useState(null)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -1664,15 +1704,39 @@ function AppContent() {
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
+  const nutritionistUser = isNutritionistUser(data.user)
   const activeCoachId = data.session?.user?.id || data.user?.id
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
-  const visibleNavItems = useMemo(() => (
-    masterAdmin
-      ? [...navItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
-      : navItems
-  ), [masterAdmin])
+  const visibleNavItems = useMemo(() => {
+    const scopedItems = nutritionistUser ? navItems.filter((item) => nutritionistViewIds.has(item.id)) : navItems
+    return masterAdmin
+      ? [...scopedItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
+      : scopedItems
+  }, [masterAdmin, nutritionistUser])
+
+  const setActiveViewSafely = useCallback((nextView) => {
+    const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
+    if (nutritionistUser && !nutritionistViewIds.has(resolvedView) && resolvedView !== 'admin-master') {
+      setActiveView('nutricao')
+      return
+    }
+    setActiveView(resolvedView)
+  }, [activeView, nutritionistUser])
+
+  const setSelectedStudentIdSafely = useCallback((nextStudentId) => {
+    if (
+      activeView === 'nutricao'
+      && nutritionDraftDirty
+      && !sameId(nextStudentId, selectedStudentId)
+      && !window.confirm('Existem alterações não salvas. Deseja trocar de aluno e descartá-las?')
+    ) {
+      return
+    }
+    setNutritionDraftDirty(false)
+    setSelectedStudentId(nextStudentId)
+  }, [activeView, nutritionDraftDirty, selectedStudentId])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -1695,6 +1759,12 @@ function AppContent() {
       setActiveView('assinatura')
     }
   }, [shouldLockCoachTools, activeView])
+
+  useEffect(() => {
+    if (nutritionistUser && !nutritionistViewIds.has(activeView) && activeView !== 'admin-master') {
+      setActiveView('nutricao')
+    }
+  }, [activeView, nutritionistUser])
 
   useEffect(() => {
     if (!mobileMenuOpen) return undefined
@@ -1996,7 +2066,8 @@ function AppContent() {
     const email = formData.get('email')?.toString().trim() || ''
     const password = formData.get('password')?.toString() || ''
     const mode = formData.get('mode')?.toString() || 'signin'
-    const user = { name, email, role: 'Coach principal' }
+    const role = mode === 'signup' ? (formData.get('role')?.toString() || 'Coach principal') : 'Coach principal'
+    const user = { name, email, role }
 
     if (productionWithoutSupabase) {
       setRemoteStatus('Configuração pendente')
@@ -2026,10 +2097,12 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         session = mode === 'signup'
-          ? await signUpCoach({ name, email, password })
+          ? await signUpCoach({ name, email, password, role })
           : await signInCoach({ email, password })
-        savedUser = await upsertRemoteUser({ ...session.user, name: session.user.name || name })
         const remoteData = await loadRemoteData()
+        savedUser = mode === 'signup'
+          ? await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || role })
+          : remoteData.user || await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || undefined })
         setData((current) => ({
           ...current,
           session,
@@ -2055,7 +2128,7 @@ function AppContent() {
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
         if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
-          setActiveView('assinatura')
+          setActiveViewSafely('assinatura')
         }
         return true
       } catch (error) {
@@ -2649,21 +2722,21 @@ function AppContent() {
     return completedAssignment
   }
 
-  async function archiveNutritionPlan(planId) {
+  async function archiveNutritionPlan(planId, active = false) {
     if (supabaseEnabled) {
       try {
-        await archiveRemoteNutritionPlan(planId, data.user?.id)
-        setRemoteStatus('Dieta arquivada')
+        await archiveRemoteNutritionPlan(planId, data.user?.id, active)
+        setRemoteStatus(active ? 'Dieta restaurada' : 'Dieta arquivada')
         setRemoteError('')
       } catch (error) {
-        handleRemoteError(error, 'Erro ao arquivar dieta')
+        handleRemoteError(error, active ? 'Erro ao restaurar dieta' : 'Erro ao arquivar dieta')
         return false
       }
     }
     setData((current) => ({
       ...current,
       nutritionPlans: current.nutritionPlans.map((plan) => (
-        String(plan.id) === String(planId) ? { ...plan, active: false } : plan
+        String(plan.id) === String(planId) ? { ...plan, active: Boolean(active) } : plan
       )),
     }))
     return true
@@ -3243,12 +3316,12 @@ function AppContent() {
           onToggle={() => setNotificationPopoverOpen((open) => !open)}
           onClose={() => setNotificationPopoverOpen(false)}
           onOpenAll={() => {
-            setActiveView('notificacoes')
+            setActiveViewSafely('notificacoes')
             setMobileMenuOpen(false)
             setNotificationPopoverOpen(false)
           }}
           onOpenView={(view) => {
-            setActiveView(view)
+            setActiveViewSafely(view)
             setMobileMenuOpen(false)
             setNotificationPopoverOpen(false)
           }}
@@ -3310,7 +3383,7 @@ function AppContent() {
                   disabled={isLocked}
                   onClick={() => {
                     if (isLocked) return
-                    setActiveView(item.id)
+                    setActiveViewSafely(item.id)
                     setMobileMenuOpen(false)
                   }}
                   className={`coach-nav-item group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
@@ -3351,11 +3424,11 @@ function AppContent() {
                 <span className={`coach-current-view-icon grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
                   <NavIcon name={activeNavItem?.icon} className="h-5 w-5" />
                 </span>
-                <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro / Central do coach</p>
+                <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro / {nutritionistUser ? 'Central do nutricionista' : 'Central do coach'}</p>
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-                Gerencie alunos, prescrições, evolução, agenda, comunicação e financeiro em um único lugar.
+                {nutritionistUser ? 'Gerencie pacientes, questionários, avaliações, dietas e comunicação em um único lugar.' : 'Gerencie alunos, prescrições, evolução, agenda, comunicação e financeiro em um único lugar.'}
               </p>
             </div>
 
@@ -3369,11 +3442,11 @@ function AppContent() {
                 onToggle={() => setNotificationPopoverOpen((open) => !open)}
                 onClose={() => setNotificationPopoverOpen(false)}
                 onOpenAll={() => {
-                  setActiveView('notificacoes')
+                  setActiveViewSafely('notificacoes')
                   setNotificationPopoverOpen(false)
                 }}
                 onOpenView={(view) => {
-                  setActiveView(view)
+                  setActiveViewSafely(view)
                   setNotificationPopoverOpen(false)
                 }}
                 className="coach-page-notification-shortcut"
@@ -3381,7 +3454,7 @@ function AppContent() {
               {masterAdmin ? (
                 <button
                   type="button"
-                  onClick={() => setActiveView('admin-master')}
+                  onClick={() => setActiveViewSafely('admin-master')}
                   className="rounded-md border border-blue-300/30 bg-blue-400/10 px-4 py-2 text-left text-sm font-bold text-blue-100"
                 >
                   <span className="block text-[10px] font-black uppercase text-blue-300">Admin</span>
@@ -3390,7 +3463,7 @@ function AppContent() {
               ) : null}
               <button
                 type="button"
-                onClick={() => setActiveView('assinatura')}
+                onClick={() => setActiveViewSafely('assinatura')}
                 className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
               >
                 <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
@@ -3410,7 +3483,7 @@ function AppContent() {
                   disabled={isLocked}
                   onClick={() => {
                     if (isLocked) return
-                    setActiveView(action.id)
+                    setActiveViewSafely(action.id)
                     setMobileMenuOpen(false)
                   }}
                   className="coach-mobile-action-card min-w-0 rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45"
@@ -3456,8 +3529,8 @@ function AppContent() {
                 priorityDashboard={priorityDashboard}
                 assessments={data.assessments ?? []}
                 invoices={data.invoices ?? []}
-                setSelectedStudentId={setSelectedStudentId}
-                setActiveView={setActiveView}
+                setSelectedStudentId={setSelectedStudentIdSafely}
+                setActiveView={setActiveViewSafely}
               />
             )}
             {activeView === 'agenda' && (
@@ -3475,7 +3548,7 @@ function AppContent() {
                 invites={data.invites ?? []}
                 anamneses={data.anamneses ?? []}
                 selectedStudent={selectedStudent}
-                setSelectedStudentId={setSelectedStudentId}
+                setSelectedStudentId={setSelectedStudentIdSafely}
                 onSave={saveStudent}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateInvite={generateStudentInvite}
@@ -3491,7 +3564,7 @@ function AppContent() {
                 onSaveAssessment={saveAssessment}
               />
             )}
-            {activeView === 'treinos' && (
+            {activeView === 'treinos' && !nutritionistUser && (
               <Workouts
                 selectedStudent={selectedStudent}
                 students={data.students}
@@ -3518,17 +3591,19 @@ function AppContent() {
                 anamneses={data.anamneses ?? []}
                 nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
+                professional={data.user}
                 onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveNutritionPlan={archiveNutritionPlan}
                 onSaveQuestionnaire={saveNutritionQuestionnaire}
                 onAssignQuestionnaire={assignNutritionQuestionnaire}
+                onDirtyChange={setNutritionDraftDirty}
                 uiTheme={uiTheme}
               />
             )}
-            {activeView === 'checkins' && (
+            {activeView === 'checkins' && !nutritionistUser && (
               <Checkins checkins={data.checkins} students={data.students} onAddCheckin={addCheckin} />
             )}
-            {activeView === 'pagamentos' && (
+            {activeView === 'pagamentos' && !nutritionistUser && (
               <Payments
                 students={data.students}
                 invoices={data.invoices ?? []}
@@ -3563,7 +3638,7 @@ function AppContent() {
                 notifications={data.notifications}
                 smartAlerts={smartAlerts}
                 onReadAll={markNotificationsRead}
-                onOpenView={setActiveView}
+                onOpenView={setActiveViewSafely}
               />
             )}
             {activeView === 'mensagens' && (
@@ -4222,7 +4297,20 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <Field label="E-mail cadastrado" name="email" type="email" defaultValue="" />
               ) : (
                 <>
-                  {mode === 'signup' ? <Field label="Nome profissional" name="name" defaultValue="" /> : null}
+                  {mode === 'signup' ? (
+                    <>
+                      <Field label="Nome profissional" name="name" defaultValue="" />
+                      <Select
+                        label="Área de atuação"
+                        name="role"
+                        defaultValue="Coach principal"
+                        options={[
+                          { label: 'Personal trainer', value: 'Coach principal' },
+                          { label: 'Nutricionista', value: 'Nutricionista' },
+                        ]}
+                      />
+                    </>
+                  ) : null}
                   <Field label="E-mail" name="email" type="email" defaultValue="" />
                   <Field label="Senha" name="password" type="password" defaultValue="" />
                 </>
@@ -7335,17 +7423,20 @@ function getWorkoutDraftStorageKey(studentId = '') {
 }
 
 function sanitizeWorkoutDaysForStorage(days = []) {
-  return (Array.isArray(days) ? days : []).map((day, dayIndex) => ({
+  return (Array.isArray(days) ? days : []).filter(Boolean).map((day, dayIndex) => ({
     id: day.id || `dia-${dayIndex + 1}`,
     day: day.day || `Dia ${dayIndex + 1}`,
     focus: day.focus || '',
     guidance: day.guidance || '',
-    exercises: (day.exercises || []).map((exercise, exerciseIndex) => ({
-      ...exercise,
-      id: exercise.id || `${normalizeText(exercise.name || 'exercicio')}-${exerciseIndex + 1}`,
-      videoFile: undefined,
-      videoPreviewUrl: '',
-    })),
+    exercises: getWorkoutExercisesArray(day.exercises).map((exercise, exerciseIndex) => {
+      const safeExercise = normalizeWorkoutExerciseInput(exercise)
+      return {
+        ...safeExercise,
+        id: safeExercise.id || `${normalizeText(safeExercise.name || 'exercicio')}-${exerciseIndex + 1}`,
+        videoFile: undefined,
+        videoPreviewUrl: '',
+      }
+    }),
   }))
 }
 
@@ -7390,7 +7481,7 @@ function recoverStoredWorkoutDraft(studentId, library = exerciseLibrary) {
       allowStudentPdfDownload: Boolean(parsed.allowStudentPdfDownload),
       days: sanitizeWorkoutDaysForStorage(parsed.days || []).map((day) => ({
         ...day,
-        exercises: (day.exercises || []).map((exercise) => enrichExercise(exercise, library)),
+        exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => enrichExercise(exercise, library)),
       })),
     }
   } catch {
@@ -7424,10 +7515,40 @@ function getWorkoutExerciseKey(name = '') {
   return normalizeText(name || '').replace(/\s+/g, '-')
 }
 
+function normalizeWorkoutExerciseInput(exercise = {}) {
+  if (!exercise || typeof exercise !== 'object') {
+    const fallbackName = String(exercise || '').trim()
+    return { name: fallbackName || 'Exercício' }
+  }
+
+  const name = String(
+    exercise.name
+      || exercise.title
+      || exercise.label
+      || exercise.exerciseName
+      || exercise.exercise_name
+      || exercise.movement
+      || '',
+  ).trim()
+
+  return {
+    ...exercise,
+    name: name || 'Exercício',
+  }
+}
+
+function getWorkoutExercisesArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
+function getWorkoutDayExerciseCount(day) {
+  return getWorkoutExercisesArray(day?.exercises).length
+}
+
 function isExerciseAlreadyInDraftDay(day, exerciseName) {
   const target = getWorkoutExerciseKey(exerciseName)
   if (!target) return false
-  return (day?.exercises || []).some((exercise) => getWorkoutExerciseKey(exercise.name) === target)
+  return getWorkoutExercisesArray(day?.exercises).some((exercise) => getWorkoutExerciseKey(normalizeWorkoutExerciseInput(exercise).name) === target)
 }
 
 function getSupportedWorkoutSelectValue(value, options) {
@@ -7514,9 +7635,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
   }, [selectedStudent?.id, students])
 
+  const firstStudentWorkoutId = studentWorkouts[0]?.id || ''
+
   useEffect(() => {
-    if (studentWorkouts[0]?.id) setSelectedWorkoutId(studentWorkouts[0].id)
-  }, [studentWorkouts])
+    if (firstStudentWorkoutId) setSelectedWorkoutId(firstStudentWorkoutId)
+  }, [firstStudentWorkoutId])
 
   useEffect(() => {
     setWorkoutStudentPreviewOpen(false)
@@ -7677,7 +7800,15 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setDraft((current) => {
       const day = current.days[dayIndex]
       if (!day) return current
-      const copy = { ...day, id: Date.now(), day: `${day.day} - cópia`, exercises: day.exercises.map((exercise) => ({ ...exercise, id: `${exercise.id || exercise.name}-${Date.now()}` })) }
+      const copy = {
+        ...day,
+        id: Date.now(),
+        day: `${day.day} - cópia`,
+        exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => {
+          const safeExercise = normalizeWorkoutExerciseInput(exercise)
+          return { ...safeExercise, id: `${safeExercise.id || safeExercise.name}-${Date.now()}` }
+        }),
+      }
       return { ...current, days: [...current.days.slice(0, dayIndex + 1), copy, ...current.days.slice(dayIndex + 1)] }
     })
     setMessage('Dia duplicado para edição rápida.')
@@ -7706,12 +7837,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         if (index !== dayIndex) return day
         return {
           ...day,
-          exercises: day.exercises.map((exercise, currentExerciseIndex) => {
+          exercises: getWorkoutExercisesArray(day.exercises).map((exercise, currentExerciseIndex) => {
             if (currentExerciseIndex !== exerciseIndex) return exercise
             if (field === 'name') {
-              return enrichExercise({ ...exercise, name: value }, availableExerciseLibrary)
+              return enrichExercise({ ...normalizeWorkoutExerciseInput(exercise), name: value }, availableExerciseLibrary)
             }
-            return { ...exercise, [field]: value }
+            return { ...normalizeWorkoutExerciseInput(exercise), [field]: value }
           }),
         }
       }),
@@ -7725,7 +7856,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         index === dayIndex
           ? isExerciseAlreadyInDraftDay(day, name)
             ? day
-            : { ...day, exercises: [...day.exercises, createExerciseDraft(name, {}, availableExerciseLibrary)] }
+            : { ...day, exercises: [...getWorkoutExercisesArray(day.exercises), createExerciseDraft(name, {}, availableExerciseLibrary)] }
           : day
       )),
     }))
@@ -7768,12 +7899,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             .filter((name) => !isExerciseAlreadyInDraftDay(currentDay, name))
             .map((name) => createExerciseDraft(name, {}, availableExerciseLibrary))
           return newExercises.length
-            ? { ...currentDay, exercises: [...currentDay.exercises, ...newExercises] }
+            ? { ...currentDay, exercises: [...getWorkoutExercisesArray(currentDay.exercises), ...newExercises] }
             : currentDay
         }),
       }))
       rememberRecentExercises(addableNames)
-      setExpandedExerciseKey(`${exercisePickerDayIndex}-${day.exercises.length}`)
+      setExpandedExerciseKey(`${exercisePickerDayIndex}-${getWorkoutExercisesArray(day.exercises).length}`)
       setCreatorStep('exercises')
       setMessage(`${formatCount(addableNames.length, 'exercício')} ${addableNames.length === 1 ? 'adicionado' : 'adicionados'} ao dia.`)
       if (closeAfterAdd) closeExercisePicker()
@@ -7881,7 +8012,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       days: current.days.map((day, index) => index === dayIndex
         ? {
           ...day,
-          exercises: day.exercises.map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex ? { ...exercise, ...changes } : exercise),
+          exercises: getWorkoutExercisesArray(day.exercises).map((exercise, currentExerciseIndex) => (
+            currentExerciseIndex === exerciseIndex ? { ...normalizeWorkoutExerciseInput(exercise), ...changes } : exercise
+          )),
         }
         : day),
     }))
@@ -7903,8 +8036,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       days: current.days.map((day, index) => index === dayIndex
         ? {
           ...day,
-          exercises: day.exercises.map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex
-            ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '', videoPreviewUrl: previewUrl }
+          exercises: getWorkoutExercisesArray(day.exercises).map((exercise, currentExerciseIndex) => currentExerciseIndex === exerciseIndex
+            ? { ...normalizeWorkoutExerciseInput(exercise), videoFile: file || null, videoFileName: file?.name || '', videoPreviewUrl: previewUrl }
             : exercise),
         }
         : day),
@@ -7965,7 +8098,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setDraft((current) => ({
       ...current,
       days: current.days.map((day, index) => index === exercisePickerDayIndex
-        ? { ...day, exercises: [...day.exercises, customExercise] }
+        ? { ...day, exercises: [...getWorkoutExercisesArray(day.exercises), customExercise] }
         : day),
     }))
     rememberRecentExercises([name])
@@ -8016,10 +8149,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       ...current,
       days: current.days.map((day, index) => {
         if (index !== dayIndex) return day
-        const source = day.exercises[exerciseIndex]
+        const dayExercises = getWorkoutExercisesArray(day.exercises)
+        const source = dayExercises[exerciseIndex]
         if (!source) return day
-        const copy = { ...source, name: `${source.name} - variação` }
-        return { ...day, exercises: [...day.exercises.slice(0, exerciseIndex + 1), copy, ...day.exercises.slice(exerciseIndex + 1)] }
+        const safeSource = normalizeWorkoutExerciseInput(source)
+        const copy = { ...safeSource, name: `${safeSource.name} - variação` }
+        return { ...day, exercises: [...dayExercises.slice(0, exerciseIndex + 1), copy, ...dayExercises.slice(exerciseIndex + 1)] }
       }),
     }))
   }
@@ -8030,11 +8165,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       days: current.days.map((day, index) => {
         if (index !== dayIndex) return day
         const nextIndex = exerciseIndex + direction
-        if (nextIndex < 0 || nextIndex >= day.exercises.length) return day
-        const exercises = [...day.exercises]
-        const [exercise] = exercises.splice(exerciseIndex, 1)
-        exercises.splice(nextIndex, 0, exercise)
-        return { ...day, exercises }
+        const exercises = getWorkoutExercisesArray(day.exercises)
+        if (nextIndex < 0 || nextIndex >= exercises.length) return day
+        const nextExercises = [...exercises]
+        const [exercise] = nextExercises.splice(exerciseIndex, 1)
+        nextExercises.splice(nextIndex, 0, exercise)
+        return { ...day, exercises: nextExercises }
       }),
     }))
   }
@@ -8042,14 +8178,15 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   function removeDraftExercise(dayIndex, exerciseIndex) {
     setDraft((current) => ({
       ...current,
-      days: current.days.map((day, index) => index === dayIndex ? { ...day, exercises: day.exercises.filter((_, currentExerciseIndex) => currentExerciseIndex !== exerciseIndex) } : day),
+      days: current.days.map((day, index) => index === dayIndex ? { ...day, exercises: getWorkoutExercisesArray(day.exercises).filter((_, currentExerciseIndex) => currentExerciseIndex !== exerciseIndex) } : day),
     }))
   }
 
   async function saveDraft(status = 'Publicado') {
     const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
     const filledExercises = draft.days.flatMap((day) => (
-      day.exercises
+      getWorkoutExercisesArray(day.exercises)
+        .map((exercise) => normalizeWorkoutExerciseInput(exercise))
         .filter((exercise) => exercise.name?.trim())
         .map((exercise) => enrichExercise({
           ...exercise,
@@ -8334,7 +8471,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                     <strong>{day.day}</strong>
                     <small>{day.focus}</small>
                   </span>
-                  <span>{formatCount(day.exercises.length, 'exercício')}</span>
+                  <span>{formatCount(getWorkoutDayExerciseCount(day), 'exercício')}</span>
                 </button>
               </article>
             ))}
@@ -8448,7 +8585,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                           <strong>{day.day}</strong>
                           <small>{day.focus || 'Foco do treino'}</small>
                         </span>
-                        <span>{formatCount(day.exercises.length, 'exercício')}</span>
+                        <span>{formatCount(getWorkoutDayExerciseCount(day), 'exercício')}</span>
                       </button>
                       <div className="mobile-workout-day-footer">
                         <button type="button" onClick={() => { setActiveDayIndex(dayIndex); setExpandedDay(dayIndex); setCreatorStep('exercises') }}>Abrir dia</button>
@@ -8487,7 +8624,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                           <strong>{day.day}</strong>
                           <small>{day.focus}</small>
                         </span>
-                        <span>{formatCount(day.exercises.length, 'exercício')}</span>
+                        <span>{formatCount(getWorkoutDayExerciseCount(day), 'exercício')}</span>
                       </button>
                     </article>
                   ))}
@@ -8521,12 +8658,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <div className="mobile-workout-review-card">
                 <p>Resumo da publicação</p>
                 <h5>{draft.title || 'Treino sem nome'}</h5>
-                <span>{formatCount(draft.days.length, 'dia')} · {formatCount(draft.days.reduce((total, day) => total + day.exercises.length, 0), 'exercício')}</span>
+                <span>{formatCount(draft.days.length, 'dia')} · {formatCount(draft.days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0), 'exercício')}</span>
                 <small>{draft.focus} · {draft.frequency} · {draft.displayMode}</small>
               </div>
               <div className="mobile-workout-days">
                 {draft.days.map((day) => (
-                  <article key={day.id} className={`mobile-workout-day-card ${day.exercises.length ? '' : 'has-warning'}`}>
+                  <article key={day.id} className={`mobile-workout-day-card ${getWorkoutDayExerciseCount(day) ? '' : 'has-warning'}`}>
                     <button type="button" onClick={() => {
                       const index = draft.days.findIndex((item) => item.id === day.id)
                       setActiveDayIndex(index >= 0 ? index : 0)
@@ -8534,9 +8671,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                     }}>
                       <span>
                         <strong>{day.day}</strong>
-                        <small>{day.exercises.length ? day.focus : 'Este dia ainda não possui exercícios.'}</small>
+                        <small>{getWorkoutDayExerciseCount(day) ? day.focus : 'Este dia ainda não possui exercícios.'}</small>
                       </span>
-                      <span>{formatCount(day.exercises.length, 'exercício')}</span>
+                      <span>{formatCount(getWorkoutDayExerciseCount(day), 'exercício')}</span>
                     </button>
                   </article>
                 ))}
@@ -8748,6 +8885,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 }
 
 function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpandedExerciseKey, onBack, onEdit, previewMode = false }) {
+  const dayExercises = getWorkoutExercisesArray(day?.exercises).map((exercise) => enrichExercise(exercise))
   return (
     <section className="mobile-workout-day-screen">
       <div className="mobile-workout-day-screen-head">
@@ -8764,7 +8902,7 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
         </button>
       ) : null}
       <div className="mobile-workout-exercises">
-        {day.exercises.map((exercise, exerciseIndex) => {
+        {dayExercises.map((exercise, exerciseIndex) => {
           const key = `view-${dayIndex}-${exerciseIndex}`
           const isOpen = expandedExerciseKey === key
           return (
@@ -8817,6 +8955,7 @@ function MobileWorkoutEditableDay({
   onEditDay,
 }) {
   const [studentPreviewOpen, setStudentPreviewOpen] = useState(false)
+  const dayExercises = getWorkoutExercisesArray(day?.exercises).map((exercise) => enrichExercise(exercise))
 
   return (
     <>
@@ -8827,12 +8966,12 @@ function MobileWorkoutEditableDay({
           <p>DIA {dayIndex + 1}</p>
           <h4>{day.day}</h4>
           <span>{day.focus || 'Foco do treino'}</span>
-          <small>{formatCount(day.exercises.length, 'exercício')}</small>
+          <small>{formatCount(dayExercises.length, 'exercício')}</small>
         </div>
       </div>
       <div className="mobile-workout-day-open-actions">
         <button type="button" className="mobile-workout-primary mobile-workout-add-exercise-cta" onClick={() => openExercisePicker(dayIndex)}>
-          {day.exercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
+          {dayExercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
         </button>
         <button type="button" onClick={() => setStudentPreviewOpen(true)}>
           <NavIcon name="eye" className="h-4 w-4" />
@@ -8840,14 +8979,14 @@ function MobileWorkoutEditableDay({
         </button>
         <button type="button" onClick={onEditDay}>Editar dia</button>
       </div>
-      {!day.exercises.length ? (
+      {!dayExercises.length ? (
         <div className="mobile-workout-empty">
           <strong>Este dia ainda não possui exercícios.</strong>
           <span>Adicione exercícios pela biblioteca e eles ficarão vinculados somente a este dia.</span>
         </div>
       ) : null}
       <div className="mobile-workout-exercises">
-        {day.exercises.map((exercise, exerciseIndex) => (
+        {dayExercises.map((exercise, exerciseIndex) => (
           <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
             <button
               type="button"
@@ -8866,7 +9005,7 @@ function MobileWorkoutEditableDay({
               <div className="mobile-workout-exercise-fields">
                 <ExerciseMedia exercise={exercise} compact />
                 <ExerciseMuscleSummary exercise={exercise} compact />
-                <input list="mobile-exercise-library" value={exercise.name} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
+                <input list="mobile-exercise-library" value={exercise.name || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
                 <div>
                   <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
                   <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
@@ -8898,7 +9037,7 @@ function MobileWorkoutEditableDay({
                 <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
                 <div className="mobile-workout-day-actions">
                   <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
-                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === day.exercises.length - 1}>Descer</button>
+                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === dayExercises.length - 1}>Descer</button>
                   <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
                   <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
                   <button type="button" className="mobile-workout-exercise-save-action" onClick={() => setExpandedExerciseKey('')}>Salvar</button>
@@ -8983,16 +9122,16 @@ function createDefaultWorkoutDays(library = exerciseLibrary) {
 function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
   if (!workout) return []
   if (Array.isArray(workout.days) && workout.days.length) {
-    return workout.days.map((day, index) => ({
+    return workout.days.filter(Boolean).map((day, index) => ({
       id: day.id || `${day.day || 'dia'}-${index}`,
       day: day.day || `Dia ${index + 1}`,
       focus: day.focus || day.title || workout.focus || 'Treino',
       guidance: day.guidance || '',
-      exercises: (day.exercises || []).map((exercise) => enrichExercise(exercise, library)),
+      exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => enrichExercise(exercise, library)),
     }))
   }
 
-  const exercises = (workout.exercises || []).map((exercise) => enrichExercise(exercise, library))
+  const exercises = getWorkoutExercisesArray(workout.exercises).map((exercise) => enrichExercise(exercise, library))
   const groups = exercises.reduce((acc, exercise) => {
     const day = exercise.day || exercise.weekday || exercise.trainingDay || 'Treino principal'
     if (!acc[day]) acc[day] = []
@@ -9028,14 +9167,15 @@ function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
 
 function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
   const normalizedSearch = normalizeText(search)
-  return workouts.filter((workout) => {
+  return getWorkoutExercisesArray(workouts).filter((workout) => {
+    if (!workout || typeof workout !== 'object') return false
     const text = normalizeText([
       workout.title,
       workout.focus,
       workout.level,
       workout.status,
       workout.notes,
-      ...(workout.exercises || []).map((exercise) => exercise.name),
+      ...getWorkoutExercisesArray(workout.exercises).map((exercise) => normalizeWorkoutExerciseInput(exercise).name),
     ].filter(Boolean).join(' '))
     const matchesSearch = !normalizedSearch || text.includes(normalizedSearch)
     if (!matchesSearch) return false
@@ -9103,18 +9243,20 @@ function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCoun
 
       {days.length ? (
         <div className="mobile-workout-student-preview-days">
-          {days.map((day, dayIndex) => (
-            <article key={day.id || dayIndex} className="mobile-workout-student-preview-day">
+          {days.map((day, dayIndex) => {
+            const dayExercises = getWorkoutExercisesArray(day?.exercises).map((exercise) => enrichExercise(exercise))
+            return (
+            <article key={day?.id || dayIndex} className="mobile-workout-student-preview-day">
               <div className="mobile-workout-student-preview-day-head">
                 <span>{String(dayIndex + 1).padStart(2, '0')}</span>
                 <div>
-                  <h5>{day.day}</h5>
-                  <p>{day.focus || 'Treino do dia'} • {formatCount(day.exercises?.length || 0, 'exercício')}</p>
+                  <h5>{day?.day || `Dia ${dayIndex + 1}`}</h5>
+                  <p>{day?.focus || 'Treino do dia'} • {formatCount(dayExercises.length, 'exercício')}</p>
                 </div>
               </div>
-              {day.exercises?.length ? (
+              {dayExercises.length ? (
                 <div className="mobile-workout-exercises">
-                  {day.exercises.map((exercise, exerciseIndex) => {
+                  {dayExercises.map((exercise, exerciseIndex) => {
                     const key = `student-preview-${dayIndex}-${exerciseIndex}`
                     const isOpen = expandedExerciseKey === key
                     return (
@@ -9152,7 +9294,8 @@ function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCoun
                 </div>
               )}
             </article>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <div className="mobile-workout-empty">
@@ -10491,37 +10634,42 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
 }
 
 function enrichExercise(exercise, library = exerciseLibrary) {
-  const profile = findExerciseProfile(exercise.name, library)
+  const safeExercise = normalizeWorkoutExerciseInput(exercise)
+  const profile = findExerciseProfile(safeExercise.name, library)
   const muscleProfile = getExerciseMuscleProfile({
     ...profile,
-    ...exercise,
-    muscleGroup: exercise.muscleGroup || profile?.group || '',
+    ...safeExercise,
+    muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
   })
   return {
-    ...exercise,
-    muscleGroup: exercise.muscleGroup || profile?.group || '',
-    primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
-    secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
-    equipment: exercise.equipment || profile?.equipment || '',
-    movementType: exercise.movementType || profile?.movementType || profile?.movement || '',
-    objective: exercise.objective || profile?.objective || profile?.category || '',
-    level: exercise.level || profile?.level || '',
-    mechanic: exercise.mechanic || profile?.mechanic || profile?.mechanics || '',
-    laterality: exercise.laterality || profile?.laterality || '',
-    composition: exercise.composition || profile?.composition || '',
-    difficulty: exercise.difficulty || profile?.difficulty || '',
-    instructions: exercise.instructions || profile?.cues || '',
-    tips: exercise.tips || profile?.tips || '',
-    commonMistakes: exercise.commonMistakes || profile?.commonMistakes || '',
-    videoUrl: exercise.videoUrl || profile?.videoUrl || '',
-    thumbnailUrl: exercise.thumbnailUrl || profile?.thumbnailUrl || '',
-    imageUrl: exercise.imageUrl || profile?.imageUrl || profile?.thumbnailUrl || '',
-    videoFile: exercise.videoFile || null,
-    videoFileName: exercise.videoFileName || '',
-    cadence: exercise.cadence || '',
-    rir: exercise.rir || '',
-    rpe: exercise.rpe || '',
-    notes: exercise.notes || '',
+    ...safeExercise,
+    muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
+    primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
+    secondaryMuscles: Array.isArray(safeExercise.secondaryMuscles)
+      ? safeExercise.secondaryMuscles
+      : Array.isArray(safeExercise.secondary_muscles)
+        ? safeExercise.secondary_muscles
+        : profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
+    equipment: safeExercise.equipment || profile?.equipment || '',
+    movementType: safeExercise.movementType || safeExercise.movement_type || profile?.movementType || profile?.movement || '',
+    objective: safeExercise.objective || safeExercise.goal || profile?.objective || profile?.category || '',
+    level: safeExercise.level || profile?.level || '',
+    mechanic: safeExercise.mechanic || safeExercise.mechanics || profile?.mechanic || profile?.mechanics || '',
+    laterality: safeExercise.laterality || profile?.laterality || '',
+    composition: safeExercise.composition || profile?.composition || '',
+    difficulty: safeExercise.difficulty || profile?.difficulty || '',
+    instructions: safeExercise.instructions || safeExercise.cues || profile?.cues || '',
+    tips: safeExercise.tips || profile?.tips || '',
+    commonMistakes: safeExercise.commonMistakes || safeExercise.common_mistakes || profile?.commonMistakes || '',
+    videoUrl: safeExercise.videoUrl || safeExercise.video_url || profile?.videoUrl || '',
+    thumbnailUrl: safeExercise.thumbnailUrl || safeExercise.thumbnail_url || profile?.thumbnailUrl || '',
+    imageUrl: safeExercise.imageUrl || safeExercise.image_url || profile?.imageUrl || profile?.thumbnailUrl || '',
+    videoFile: safeExercise.videoFile || null,
+    videoFileName: safeExercise.videoFileName || '',
+    cadence: safeExercise.cadence || '',
+    rir: safeExercise.rir || '',
+    rpe: safeExercise.rpe || '',
+    notes: safeExercise.notes || '',
   }
 }
 
@@ -11454,7 +11602,7 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
+function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
   const [nutritionTab, setNutritionTab] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search)
@@ -11471,6 +11619,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
   ))
   const studentAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
   const activeNutritionPlans = nutritionPlans.filter((plan) => plan.active !== false)
+  const archivedNutritionPlans = nutritionPlans.filter((plan) => plan.active === false)
   const activePlan = studentPlans[0]
   const [editingPlanId, setEditingPlanId] = useState('')
   const editingPlan = editingPlanId === 'new'
@@ -11539,7 +11688,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${selectedStudent?.name ?? 'Aluno'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} selectedAnamnesis={studentAnamnesis} anamneses={anamneses} editingPlan={editingPlan} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => setEditingPlanId(String(savedPlan?.id || ''))} uiTheme={uiTheme} />
+              <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} selectedAnamnesis={studentAnamnesis} anamneses={anamneses} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -11550,7 +11699,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
       {nutritionTab === 'prescritas' ? (
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title="Dietas prescritas" action={`${activeNutritionPlans.length} ativas`}>
-            <NutritionPlanList plans={activeNutritionPlans} selectedStudent={selectedStudent} students={students} editingPlanId={editingPlan?.id} onEdit={(plan) => { setEditingPlanId(String(plan.id)); setNutritionTab('dieta') }} onArchive={onArchiveNutritionPlan} />
+            <NutritionPlanList plans={activeNutritionPlans} archivedPlans={archivedNutritionPlans} selectedStudent={selectedStudent} students={students} professional={professional} editingPlanId={editingPlan?.id} onEdit={(plan) => { setEditingPlanId(String(plan.id)); setNutritionTab('dieta') }} onArchive={onArchiveNutritionPlan} />
           </Panel>
         </div>
       ) : null}
@@ -11625,7 +11774,7 @@ function NutritionBmrStrip({ student, anamnesis = null, compact = false }) {
   )
 }
 
-function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, anamneses = [], editingPlan = null, onStartNewPlan, onSaveNutritionPlan, onSaved, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, anamneses = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -11649,7 +11798,8 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
     setError('')
     savingRef.current = false
     clientRequestIdRef.current = createNutritionDraftId('nutrition-save')
-  }, [editingPlan?.id])
+    onDirtyChange?.(false)
+  }, [editingPlan?.id, selectedStudent?.id])
 
   const planTotals = sumMacros(meals.map(calculateMealMacros))
   const totalMeals = meals.length
@@ -11699,21 +11849,28 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
     setRecentFoodNames((current) => [foodName, ...current.filter((name) => normalizeText(name) !== normalizedName)].slice(0, 30))
   }
 
+  function markNutritionDraftDirty() {
+    onDirtyChange?.(true)
+  }
+
   function applyNutritionTemplate(templateId) {
     const template = nutritionMealTemplates.find((item) => item.id === templateId)
     if (!template) return
+    markNutritionDraftDirty()
     setMeals(template.meals.map(createNutritionMeal))
     setMessage(`Modelo ${template.label} aplicado. Revise as porções antes de salvar.`)
     setError('')
   }
 
   function updateMeal(mealId, field, value) {
+    markNutritionDraftDirty()
     setMeals((current) => current.map((meal) => (
       sameId(meal.id, mealId) ? { ...meal, [field]: value } : meal
     )))
   }
 
   function replaceMealItem(mealId, itemId, nextItem) {
+    markNutritionDraftDirty()
     setMeals((current) => current.map((meal) => {
       if (!sameId(meal.id, mealId)) return meal
 
@@ -11727,14 +11884,17 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
   }
 
   function addMeal() {
+    markNutritionDraftDirty()
     setMeals((current) => [...current, createNutritionMeal({ name: 'Nova refeição', time: '', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 }] })])
   }
 
   function removeMeal(mealId) {
+    markNutritionDraftDirty()
     setMeals((current) => current.filter((meal) => !sameId(meal.id, mealId)))
   }
 
   function duplicateMeal(mealId) {
+    markNutritionDraftDirty()
     setMeals((current) => {
       const sourceMeal = current.find((meal) => sameId(meal.id, mealId))
       if (!sourceMeal) return current
@@ -11745,6 +11905,7 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
   }
 
   function addMealItem(mealId) {
+    markNutritionDraftDirty()
     setMeals((current) => current.map((meal) => (
       sameId(meal.id, mealId)
         ? { ...meal, items: [...meal.items, createNutritionMealItem({ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 100 })] }
@@ -11753,6 +11914,7 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
   }
 
   function removeMealItem(mealId, itemId) {
+    markNutritionDraftDirty()
     setMeals((current) => current.map((meal) => (
       sameId(meal.id, mealId) ? { ...meal, items: meal.items.filter((item) => !sameId(item.id, itemId)) } : meal
     )))
@@ -11795,7 +11957,7 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
         id: editingPlan?.id,
         clientRequestId: clientRequestIdRef.current,
         createdAt: editingPlan?.createdAt,
-        studentId: form.get('studentId')?.toString() || selectedStudent?.id || '',
+        studentId: formStudent?.id || selectedStudent?.id || '',
         title: form.get('title')?.toString() || 'Plano alimentar',
         calories: `${Math.round(planTotals.calories)} kcal`,
         protein: `${roundMacro(planTotals.protein)} g`,
@@ -11803,6 +11965,7 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
         meals: filledMeals,
       })
       onSaved?.(savedPlan)
+      onDirtyChange?.(false)
       setMessage(editingPlan?.id ? 'Dieta atualizada com sucesso.' : 'Dieta salva com macros calculados automaticamente.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar a dieta.')
@@ -11874,18 +12037,18 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
       </div>
 
       {previewOpen ? (
-        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
+        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} professional={professional} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
       ) : null}
 
-      <Select
-        label="Aluno"
-        name="studentId"
-        defaultValue={formStudent?.id}
-        options={students.map((student) => ({ label: student.name, value: student.id }))}
-      />
+      <input type="hidden" name="studentId" value={formStudent?.id || ''} />
+      <div className="nutrition-student-context-v1 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Paciente em edição</p>
+        <p className="mt-1 break-words text-lg font-black text-white">{formStudent?.name || 'Selecione um aluno'}</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este aluno selecionado no painel.</p>
+      </div>
 
       <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.72fr)_minmax(16rem,0.58fr)_minmax(28rem,1.28fr)] lg:items-end">
-        <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
+        <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => { setTitleDraft(event.target.value); markNutritionDraftDirty() }} />
         <NutritionBmrStrip student={formStudent} anamnesis={formAnamnesis} compact />
         <div className="nutrition-plan-stat-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
@@ -11896,7 +12059,7 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
       </div>
 
       <MacroSummaryGrid totals={planTotals} />
-      <TextArea label="Observações para o aluno" name="notes" defaultValue={notesDraft} onChange={(event) => setNotesDraft(event.target.value)} />
+      <TextArea label="Observações para o aluno" name="notes" defaultValue={notesDraft} onChange={(event) => { setNotesDraft(event.target.value); markNutritionDraftDirty() }} />
 
       <div className="space-y-4">
         {meals.map((meal, mealIndex) => {
@@ -11985,7 +12148,91 @@ function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, an
   )
 }
 
-function NutritionStudentDietPreview({ plan, student, theme = DEFAULT_UI_THEME, onClose }) {
+function escapeNutritionPdfHtml(value = '') {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function openNutritionPlanPdf(plan, student = {}, professional = {}) {
+  const meals = Array.isArray(plan?.meals) ? plan.meals : []
+  const today = formatDate(new Date().toISOString())
+  const rows = meals.length
+    ? meals.map((meal, index) => `
+      <section class="meal">
+        <div class="meal-head">
+          <span>${String(index + 1).padStart(2, '0')}</span>
+          <div>
+            <strong>${escapeNutritionPdfHtml(meal.time ? `${meal.time} - ${meal.name}` : meal.name || 'Refeição')}</strong>
+            <small>${escapeNutritionPdfHtml(meal.macros || 'Macros em ajuste')}</small>
+          </div>
+        </div>
+        <p>${escapeNutritionPdfHtml(meal.foods || 'Alimentos em ajuste.')}</p>
+      </section>
+    `).join('')
+    : '<p class="empty">Nenhuma refeição adicionada a esta dieta.</p>'
+  const notes = stripNutritionPlanMetadata(plan?.notes || '')
+  const documentHtml = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeNutritionPdfHtml(plan?.title || 'Plano alimentar')}</title>
+  <style>
+    @page { margin: 18mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #10201d; font-family: Inter, Arial, sans-serif; background: #ffffff; }
+    .page { max-width: 860px; margin: 0 auto; }
+    header { border-bottom: 2px solid #00a88f; padding-bottom: 18px; }
+    .eyebrow { color: #007d6c; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0 8px; font-size: 30px; line-height: 1.1; }
+    .meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+    .card { border: 1px solid #c9efea; border-radius: 14px; padding: 12px; background: #f5fffc; }
+    .card small { display: block; color: #5a6b66; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .card strong { display: block; margin-top: 5px; font-size: 15px; }
+    .meal { break-inside: avoid; margin-top: 12px; border: 1px solid #d9e7e4; border-radius: 16px; padding: 14px; }
+    .meal-head { display: flex; gap: 12px; align-items: flex-start; }
+    .meal-head span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #00d2b2; color: #06231f; font-weight: 900; }
+    .meal strong { display: block; font-size: 17px; }
+    .meal small { display: block; margin-top: 4px; color: #007d6c; font-weight: 800; }
+    .meal p, .notes p { color: #344540; font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+    .notes { break-inside: avoid; margin-top: 14px; border: 1px solid #c9efea; border-radius: 16px; background: #f7fbfa; padding: 14px; }
+    .empty { border: 1px dashed #b5d9d4; border-radius: 14px; color: #63716d; padding: 14px; }
+    footer { margin-top: 24px; color: #63716d; font-size: 11px; }
+    @media print { button { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="eyebrow">Coach Fit Pro · Plano alimentar</div>
+      <h1>${escapeNutritionPdfHtml(plan?.title || 'Plano alimentar')}</h1>
+      <p>Paciente: <strong>${escapeNutritionPdfHtml(student?.name || 'Aluno')}</strong> · Profissional: <strong>${escapeNutritionPdfHtml(professional?.name || professional?.email || 'Profissional')}</strong> · ${today}</p>
+      <div class="meta">
+        <div class="card"><small>Calorias</small><strong>${escapeNutritionPdfHtml(plan?.calories || '-')}</strong></div>
+        <div class="card"><small>Proteína</small><strong>${escapeNutritionPdfHtml(plan?.protein || '-')}</strong></div>
+        <div class="card"><small>Refeições</small><strong>${meals.length || '-'}</strong></div>
+      </div>
+    </header>
+    ${rows}
+    ${notes ? `<section class="notes"><div class="eyebrow">Orientações</div><p>${escapeNutritionPdfHtml(notes)}</p></section>` : ''}
+    <footer>Documento gerado pelo Coach Fit Pro. Revise as orientações individualmente antes de enviar ao paciente.</footer>
+  </main>
+  <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script>
+</body>
+</html>`
+  const pdfWindow = window.open('', '_blank', 'noopener,noreferrer,width=980,height=760')
+  if (!pdfWindow) {
+    throw new Error('Permita pop-ups para gerar o PDF da dieta.')
+  }
+  pdfWindow.document.open()
+  pdfWindow.document.write(documentHtml)
+  pdfWindow.document.close()
+}
+
+function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, onClose }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
 
   return createPortal((
@@ -12001,6 +12248,11 @@ function NutritionStudentDietPreview({ plan, student, theme = DEFAULT_UI_THEME, 
             <NavIcon name="close" className="h-5 w-5" />
           </button>
         </div>
+
+        <button type="button" onClick={() => openNutritionPlanPdf(plan, student, professional)} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
+          <NavIcon name="download" className="h-4 w-4" />
+          Baixar PDF da dieta
+        </button>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <NutritionQuickStat icon="chart" label="Calorias" value={plan?.calories || '-'} detail="por dia" />
@@ -12234,22 +12486,27 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
   )
 }
 
-function NutritionPlanList({ plans, selectedStudent, students = [], editingPlanId, onEdit, onArchive }) {
+function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
 
-  async function handleArchive(plan) {
+  async function handleArchive(plan, active = false) {
     if (!onArchive) return
-    if (!window.confirm(`Arquivar a dieta "${plan.title}"? Ela deixará de aparecer para o aluno.`)) return
+    const confirmText = active
+      ? `Restaurar a dieta "${plan.title}" para a lista ativa?`
+      : `Arquivar a dieta "${plan.title}"? Ela deixará de aparecer para o aluno.`
+    if (!window.confirm(confirmText)) return
     setArchivingId(String(plan.id))
     try {
-      await onArchive(plan.id)
+      await onArchive(plan.id, active)
     } finally {
       setArchivingId('')
     }
   }
 
-  if (!plans.length) {
+  const allPlans = [...plans, ...archivedPlans]
+
+  if (!allPlans.length) {
     return (
       <div className="nutrition-prescribed-empty-v5 space-y-3">
         <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
@@ -12261,15 +12518,13 @@ function NutritionPlanList({ plans, selectedStudent, students = [], editingPlanI
     )
   }
 
-  return (
-    <div className="space-y-4">
-      {plans.map((plan) => {
-        const meals = Array.isArray(plan.meals) ? plan.meals : []
-        const isExpanded = sameId(expandedPlanId, plan.id)
-        const planStudent = students.find((student) => String(student.id) === String(plan.studentId)) || selectedStudent
+  function renderPlan(plan, archived = false) {
+    const meals = Array.isArray(plan.meals) ? plan.meals : []
+    const isExpanded = sameId(expandedPlanId, plan.id)
+    const planStudent = students.find((student) => String(student.id) === String(plan.studentId)) || selectedStudent
 
-        return (
-          <article key={plan.id} className="nutrition-plan-card-v6 overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
+    return (
+      <article key={plan.id} className={`nutrition-plan-card-v6 ${archived ? 'is-archived' : ''} overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20`}>
             <button
               type="button"
               onClick={() => setExpandedPlanId((current) => sameId(current, plan.id) ? '' : String(plan.id))}
@@ -12284,13 +12539,13 @@ function NutritionPlanList({ plans, selectedStudent, students = [], editingPlanI
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      {planStudent?.name || 'Aluno'} • {plan.calories || 'kcal em ajuste'} • {meals.length || 0} refeição(ões)
+                      Paciente: {planStudent?.name || 'Aluno'}
                     </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
-                    Ativa
+                    {archived ? 'Arquivada' : 'Ativa'}
                   </span>
                   <span className="nutrition-plan-expand-indicator-v1 grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-zinc-300">
                     <NavIcon name={isExpanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
@@ -12312,8 +12567,13 @@ function NutritionPlanList({ plans, selectedStudent, students = [], editingPlanI
                   </button>
                 ) : null}
                 {onArchive ? (
-                  <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100 disabled:opacity-50">
-                    {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
+                  <button type="button" onClick={() => openNutritionPlanPdf(plan, planStudent, professional)} className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/15">
+                    Baixar PDF
+                  </button>
+                ) : null}
+                {onArchive ? (
+                  <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan, archived)} className={`rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition disabled:opacity-50 ${archived ? 'hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-100' : 'hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100'}`}>
+                    {archivingId === String(plan.id) ? (archived ? 'Restaurando...' : 'Arquivando...') : archived ? 'Restaurar' : 'Arquivar'}
                   </button>
                 ) : null}
               </div>
@@ -12354,8 +12614,30 @@ function NutritionPlanList({ plans, selectedStudent, students = [], editingPlanI
               </>
             ) : null}
           </article>
-        )
-      })}
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-emerald-200">Dietas ativas</h4>
+          <span className="rounded-full border border-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-100">{plans.length}</span>
+        </div>
+        {plans.length ? plans.map((plan) => renderPlan(plan, false)) : <Empty text="Nenhuma dieta ativa no momento." />}
+      </div>
+
+      <div className="nutrition-archived-plans-v1 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Dietas arquivadas</h4>
+          <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-zinc-400">{archivedPlans.length}</span>
+        </div>
+        {archivedPlans.length ? archivedPlans.map((plan) => renderPlan(plan, true)) : (
+          <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-bold text-zinc-400">
+            Nenhuma dieta arquivada.
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -12498,25 +12780,191 @@ function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignm
   )
 }
 
-function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, onClose }) {
-  return createPortal(
-    <div className={`questionnaire-preview-portal-v1 app-theme-${theme} fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4 backdrop-blur-sm`}>
-      <div className="questionnaire-preview-panel-v1 scrollbar-soft max-h-[86vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase text-emerald-200">Prévia do aluno</p>
-            <h3 className="mt-1 text-xl font-black text-white">{questionnaire.title}</h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-400">{questionnaire.description}</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Fechar</button>
-        </div>
-        <div className="mt-4 grid gap-3">
-          {questionnaire.questions.map((question) => (
-            <div key={question.id} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-              <p className="font-black text-zinc-100">{question.label}{question.required ? ' *' : ''}</p>
-              <p className="mt-1 text-xs text-zinc-500">{question.type === 'text' ? 'Resposta aberta' : question.options.join(', ')}</p>
+function getQuestionnaireAnsweredCount(questions = [], answers = {}) {
+  return questions.filter((question) => {
+    const answer = answers[question.id]
+    return Array.isArray(answer) ? answer.length > 0 : Boolean(String(answer || '').trim())
+  }).length
+}
+
+function getMissingRequiredQuestion(questions = [], answers = {}) {
+  return questions.find((question) => (
+    question.required && !(Array.isArray(answers[question.id]) ? answers[question.id].length : String(answers[question.id] || '').trim())
+  )) || null
+}
+
+function getQuestionnaireInputKind(type = 'text') {
+  const normalized = normalizeText(type)
+  if (['single', 'radio', 'select', 'unica', 'unica-escolha'].includes(normalized)) return 'single'
+  if (['multiple', 'checkbox', 'multiplas', 'multipla-escolha'].includes(normalized)) return 'multiple'
+  if (['scale', 'escala'].includes(normalized)) return 'scale'
+  if (['number', 'numero'].includes(normalized)) return 'number'
+  if (['date', 'data'].includes(normalized)) return 'date'
+  return 'text'
+}
+
+function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, missingQuestionId = '', readOnly = false }) {
+  return (
+    <div className="student-questionnaire-fields">
+      {questions.map((question) => {
+        const kind = getQuestionnaireInputKind(question.type)
+        const value = answers[question.id]
+        const hasError = missingQuestionId && sameId(missingQuestionId, question.id)
+        const options = question.options?.length ? question.options : ['Sim', 'Não']
+
+        return (
+          <div key={question.id} className={`student-questionnaire-field ${hasError ? 'has-error' : ''}`}>
+            <div className="student-questionnaire-field-head">
+              <p>{question.label}{question.required ? ' *' : ''}</p>
+              {question.required ? <span>Obrigatória</span> : <span>Opcional</span>}
             </div>
-          ))}
+
+            {kind === 'text' ? (
+              <textarea
+                value={value || ''}
+                onChange={(event) => onAnswer?.(question, event.target.value)}
+                rows={3}
+                disabled={readOnly}
+                placeholder="Digite sua resposta"
+              />
+            ) : null}
+
+            {kind === 'number' || kind === 'date' ? (
+              <input
+                type={kind === 'date' ? 'date' : 'number'}
+                value={value || ''}
+                onChange={(event) => onAnswer?.(question, event.target.value)}
+                disabled={readOnly}
+                placeholder={kind === 'number' ? 'Informe o valor' : undefined}
+              />
+            ) : null}
+
+            {kind === 'scale' ? (
+              <div className="student-questionnaire-scale" role="group" aria-label={question.label}>
+                {[1, 2, 3, 4, 5].map((option) => {
+                  const selected = String(value || '') === String(option)
+                  return (
+                    <button key={option} type="button" disabled={readOnly} onClick={() => onAnswer?.(question, option)} className={selected ? 'is-selected' : ''}>
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {kind === 'single' || kind === 'multiple' ? (
+              <div className="student-questionnaire-options">
+                {options.map((option) => {
+                  const current = value
+                  const selected = kind === 'multiple' ? (current || []).includes(option) : current === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => {
+                        if (kind === 'multiple') {
+                          onAnswer?.(question, selected ? (current || []).filter((item) => item !== option) : [...(current || []), option])
+                        } else {
+                          onAnswer?.(question, option)
+                        }
+                      }}
+                      className={selected ? 'is-selected' : ''}
+                    >
+                      <span aria-hidden="true">{kind === 'multiple' ? (selected ? '✓' : '+') : (selected ? '●' : '○')}</span>
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {hasError ? <small className="student-questionnaire-error">Responda esta pergunta para concluir.</small> : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, onClose }) {
+  const [viewport, setViewport] = useState('mobile')
+  const [answers, setAnswers] = useState({})
+  const [missingQuestionId, setMissingQuestionId] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const questions = questionnaire.questions || []
+  const answeredCount = getQuestionnaireAnsweredCount(questions, answers)
+  const progress = Math.round((answeredCount / Math.max(1, questions.length)) * 100)
+
+  function updateAnswer(question, value) {
+    setAnswers((current) => ({ ...current, [question.id]: value }))
+    if (sameId(missingQuestionId, question.id)) setMissingQuestionId('')
+    setSubmitted(false)
+  }
+
+  function simulateSubmit() {
+    const missing = getMissingRequiredQuestion(questions, answers)
+    if (missing) {
+      setMissingQuestionId(missing.id)
+      setSubmitted(false)
+      return
+    }
+    setSubmitting(true)
+    window.setTimeout(() => {
+      setSubmitting(false)
+      setSubmitted(true)
+    }, 450)
+  }
+
+  return createPortal(
+    <div className={`questionnaire-preview-portal-v1 app-theme-${theme} fixed inset-0 z-[90] bg-black/70 p-4 backdrop-blur-sm`} role="presentation" onClick={onClose}>
+      <div className={`questionnaire-preview-panel-v1 questionnaire-preview-${viewport}-v1 scrollbar-soft`} role="dialog" aria-modal="true" aria-label="Prévia do questionário nutricional" onClick={(event) => event.stopPropagation()}>
+        <div className="questionnaire-preview-toolbar-v1">
+          <div>
+            <p>Prévia fiel do paciente</p>
+            <h3>Questionário nutricional</h3>
+          </div>
+          <div className="questionnaire-preview-actions-v1">
+            <button type="button" className={viewport === 'mobile' ? 'is-active' : ''} onClick={() => setViewport('mobile')}>Mobile</button>
+            <button type="button" className={viewport === 'desktop' ? 'is-active' : ''} onClick={() => setViewport('desktop')}>Desktop</button>
+            <button type="button" onClick={onClose}>Fechar</button>
+          </div>
+        </div>
+        <div className="questionnaire-preview-stage-v1">
+          <section className="student-questionnaire-simulator-v1">
+            <header className="student-questionnaire-app-head-v1">
+              <div className="student-questionnaire-logo-v1">
+                <NavIcon name="nutrition" className="h-5 w-5" />
+              </div>
+              <div>
+                <p>Coach Fit Pro</p>
+                <strong>Área do paciente</strong>
+              </div>
+              <span>{theme === 'light' ? 'Claro' : 'Escuro'}</span>
+            </header>
+
+            <div className="student-questionnaire-center student-questionnaire-preview-card-v1">
+              <div className="student-questionnaire-title-row-v1">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-200">Questionário nutricional</p>
+                  <h3 className="mt-1 text-lg font-black text-white">{questionnaire.title}</h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-400">{questionnaire.description}</p>
+                </div>
+                <span className="student-questionnaire-status-v1">Pendente</span>
+              </div>
+              <div className="student-questionnaire-progress-v1">
+                <div><span style={{ width: `${progress}%` }} /></div>
+                <p>{answeredCount} de {questions.length} respostas salvas parcialmente.</p>
+              </div>
+              <StudentQuestionnaireRenderer questions={questions} answers={answers} onAnswer={updateAnswer} missingQuestionId={missingQuestionId} />
+              <button type="button" onClick={simulateSubmit} disabled={submitting} className="student-questionnaire-submit-v1">
+                {submitting ? 'Enviando...' : submitted ? 'Questionário concluído' : 'Concluir questionário'}
+              </button>
+              {missingQuestionId ? <p className="student-questionnaire-message-v1 is-error">Existem perguntas obrigatórias sem resposta.</p> : null}
+              {submitted ? <p className="student-questionnaire-message-v1">Questionário concluído. Suas respostas foram enviadas ao profissional.</p> : null}
+            </div>
+          </section>
         </div>
       </div>
     </div>,
@@ -14459,10 +14907,12 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
     try { return JSON.parse(window.localStorage.getItem(draftKey) || '{}') } catch { return {} }
   })
   const [message, setMessage] = useState('')
+  const [missingQuestionId, setMissingQuestionId] = useState('')
 
   useEffect(() => {
     try { setAnswers(JSON.parse(window.localStorage.getItem(draftKey) || '{}')) } catch { setAnswers({}) }
     setMessage('')
+    setMissingQuestionId('')
   }, [draftKey])
 
   useEffect(() => {
@@ -14472,19 +14922,18 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   if (!activeAssignments.length || !questionnaire) return null
 
   const questions = questionnaire.questions || []
-  const answeredCount = questions.filter((question) => {
-    const answer = answers[question.id]
-    return Array.isArray(answer) ? answer.length > 0 : Boolean(String(answer || '').trim())
-  }).length
+  const answeredCount = getQuestionnaireAnsweredCount(questions, answers)
   const progress = Math.round((answeredCount / Math.max(1, questions.length)) * 100)
 
   function updateAnswer(question, value) {
     setAnswers((current) => ({ ...current, [question.id]: value }))
+    if (sameId(missingQuestionId, question.id)) setMissingQuestionId('')
   }
 
   async function submitAnswers() {
-    const missing = questions.find((question) => question.required && !(Array.isArray(answers[question.id]) ? answers[question.id].length : String(answers[question.id] || '').trim()))
+    const missing = getMissingRequiredQuestion(questions, answers)
     if (missing) {
+      setMissingQuestionId(missing.id)
       setMessage(`Responda: ${missing.label}`)
       return
     }
@@ -14512,44 +14961,12 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
           ))}
         </div>
       ) : null}
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/25">
-        <div className="h-full rounded-full bg-emerald-300 transition-all duration-300" style={{ width: `${progress}%` }} />
+      <div className="student-questionnaire-progress-v1">
+        <div><span style={{ width: `${progress}%` }} /></div>
+        <p>{answeredCount} de {questions.length} respostas salvas parcialmente.</p>
       </div>
-      <p className="mt-2 text-xs font-bold text-zinc-400">{answeredCount} de {questions.length} respostas salvas parcialmente.</p>
-      <div className="mt-4 grid gap-3">
-        {questions.map((question) => (
-          <div key={question.id} className="rounded-xl border border-white/10 bg-zinc-950/40 p-3">
-            <p className="text-sm font-black text-white">{question.label}{question.required ? ' *' : ''}</p>
-            {question.type === 'text' ? (
-              <textarea value={answers[question.id] || ''} onChange={(event) => updateAnswer(question, event.target.value)} rows={3} className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-400" />
-            ) : (
-              <div className="mt-2 grid gap-2">
-                {(question.options || []).map((option) => {
-                  const current = answers[question.id]
-                  const selected = question.type === 'multiple' ? (current || []).includes(option) : current === option
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => {
-                        if (question.type === 'multiple') {
-                          updateAnswer(question, selected ? (current || []).filter((item) => item !== option) : [...(current || []), option])
-                        } else {
-                          updateAnswer(question, option)
-                        }
-                      }}
-                      className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${selected ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300'}`}
-                    >
-                      {option}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <button type="button" onClick={submitAnswers} disabled={currentAssignment.status === 'Respondido'} className="mt-4 w-full rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
+      <StudentQuestionnaireRenderer questions={questions} answers={answers} onAnswer={updateAnswer} missingQuestionId={missingQuestionId} readOnly={currentAssignment.status === 'Respondido'} />
+      <button type="button" onClick={submitAnswers} disabled={currentAssignment.status === 'Respondido'} className="student-questionnaire-submit-v1">
         {currentAssignment.status === 'Respondido' ? 'Questionário respondido' : 'Concluir questionário'}
       </button>
       {message ? <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
@@ -17804,6 +18221,7 @@ function NavIcon({ name, className = '' }) {
     alert: <><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" /></>,
     play: <><path d="M8 5v14l11-7Z" /></>,
     eye: <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>,
+    download: <><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>,
     star: <><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z" /></>,
     shield: <><path d="M12 3 19 6v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3Z" /><path d="m9 12 2 2 4-5" /></>,
     check: <><path d="m20 6-11 11-5-5" /></>,

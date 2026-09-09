@@ -174,11 +174,11 @@ async function functionRequest(functionName, body) {
   return payload
 }
 
-export async function signUpCoach({ name, email, password }) {
+export async function signUpCoach({ name, email, password, role = 'Coach principal' }) {
   const payload = await authRequest('signup', {
     email,
     password,
-    data: { name },
+    data: { name, role },
   })
 
   if (!payload.access_token) {
@@ -186,7 +186,7 @@ export async function signUpCoach({ name, email, password }) {
   }
 
   setSupabaseSession(payload.access_token)
-  return toSession(payload, name, email)
+  return toSession(payload, name, email, role)
 }
 
 export async function signInCoach({ email, password }) {
@@ -873,14 +873,17 @@ export async function saveRemoteNutritionQuestionnaire() {
   throw new Error('Questionários de nutrição ainda precisam da atualização de schema no Supabase para sincronização remota.')
 }
 
-export async function archiveRemoteNutritionPlan(planId, coachId) {
+export async function archiveRemoteNutritionPlan(planId, coachId, active = false) {
   if (!isUuid(planId)) return null
   const safeCoachId = requireCoachId(coachId)
   const rows = await request(`nutrition_plans?id=eq.${planId}&coach_id=eq.${encodeURIComponent(safeCoachId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ active: false }),
+    body: JSON.stringify({ active: Boolean(active) }),
   })
-  return rows[0] ? fromNutritionPlanRow(rows[0]) : null
+  if (!rows?.[0]) {
+    throw new Error(active ? 'Não foi possível confirmar a restauração da dieta no banco.' : 'Não foi possível confirmar o arquivamento da dieta no banco.')
+  }
+  return fromNutritionPlanRow(rows[0])
 }
 
 export async function saveRemoteWorkoutLog(log) {
@@ -1094,7 +1097,7 @@ export async function saveRemoteCoachSettings(settings, coachId) {
   return fromCoachSettingsRow(rows[0])
 }
 
-function toSession(payload, fallbackName, fallbackEmail) {
+function toSession(payload, fallbackName, fallbackEmail, fallbackRole = 'Coach principal') {
   const user = payload.user ?? {}
   const metadata = user.user_metadata ?? {}
 
@@ -1107,7 +1110,7 @@ function toSession(payload, fallbackName, fallbackEmail) {
       id: user.id,
       name: metadata.name || fallbackName || user.email || 'Coach',
       email: user.email || fallbackEmail,
-      role: 'Coach principal',
+      role: metadata.role || fallbackRole || 'Coach principal',
     },
   }
 }
