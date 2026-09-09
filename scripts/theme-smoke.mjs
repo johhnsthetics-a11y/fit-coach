@@ -143,6 +143,7 @@ const checks = [
   ['Student portal preserves active tab across refresh', app.includes('STUDENT_ACTIVE_TAB_STORAGE_KEY') && app.includes('getInitialStudentTab') && app.includes('persistStudentTab')],
   ['Nutrition subtab persists across refresh', app.includes('coachfitpro-nutrition-active-tab-20260909') && app.includes('nutricaoTab')],
   ['Questionnaire preview follows active theme', app.includes('questionnaire-preview-portal-v1') && css.includes('questionnaire-preview-portal-v1.app-theme-light')],
+  ['Nutrition receives shared theme toggle for questionnaire preview', app.includes('onDirtyChange={setNutritionDraftDirty}\n                uiTheme={uiTheme}\n                toggleUiTheme={toggleUiTheme}')],
   ['Student first access collects metabolic inputs', app.includes('Sexo biológico para cálculo metabólico') && app.includes('Altura (cm)') && app.includes('Peso atual (kg)') && app.includes('Nível de atividade atual')],
   ['Nutrition questionnaires exist for coach and student', app.includes('NutritionQuestionnaires') && app.includes('StudentQuestionnaireCenter') && app.includes('coachfitpro-nutrition-questionnaires')],
   ['Login tab copy uses Login instead of Coach', app.includes("['signin', 'Login']") && !app.includes("['signin', 'Coach']")],
@@ -150,6 +151,8 @@ const checks = [
   ['Questionnaire other option captures typed text', app.includes('optionRequiresOtherText') && app.includes('Especifique') && app.includes('otherText')],
   ['Student questionnaire can be postponed without completing', app.includes('dismissedQuestionnairePriorityIds') && app.includes('Responder depois') && app.includes('Você possui um questionário pendente')],
   ['Questionnaire received area separates pending and completed submissions', app.includes('questionnaire-received-list-v1') && app.includes('Recebidos') && app.includes('Aguardando resposta')],
+  ['Questionnaire patient preview uses header theme toggle instead of static theme badge', app.includes('questionnaire-student-head-toggle-v1') && !app.includes("<span>{theme === 'light' ? 'Claro' : 'Escuro'}</span>")],
+  ['Questionnaire patient preview prevents mobile frame overflow', css.includes('questionnaire-preview-mobile-v1 .student-questionnaire-simulator-v1') && css.includes('width: min(100%, 390px)') && css.includes('.student-questionnaire-center') && css.includes('min-width: 0') && css.includes('max-width: 100%')],
   ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
   ['Nutrition questionnaire schema is documented but not executed', api.includes('saveRemoteNutritionQuestionnaire') && api.includes('Remote nutrition questionnaires require Supabase schema setup')]
 ]

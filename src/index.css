@@ -10838,6 +10838,7 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 .questionnaire-preview-mobile-v1 .student-questionnaire-simulator-v1 {
+  width: min(100%, 390px);
   max-width: 390px;
 }
 
@@ -10851,6 +10852,10 @@ html[data-theme="dark"] body { background: #05070d; }
   gap: 0.85rem;
   padding: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.student-questionnaire-app-head-v1 > div:not(.student-questionnaire-logo-v1) {
+  min-width: 0;
 }
 
 .student-questionnaire-logo-v1 {
@@ -10882,10 +10887,18 @@ html[data-theme="dark"] body { background: #05070d; }
   font-weight: 900;
 }
 
+.student-questionnaire-app-head-v1 .questionnaire-student-head-toggle-v1 {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .student-questionnaire-preview-card-v1,
 .student-questionnaire-center {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .student-questionnaire-title-row-v1 {
@@ -10893,6 +10906,7 @@ html[data-theme="dark"] body { background: #05070d; }
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .student-questionnaire-status-v1 {

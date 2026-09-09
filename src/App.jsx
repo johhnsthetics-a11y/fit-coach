@@ -3611,6 +3611,7 @@ function AppContent() {
                 onAssignQuestionnaire={assignNutritionQuestionnaire}
                 onDirtyChange={setNutritionDraftDirty}
                 uiTheme={uiTheme}
+                toggleUiTheme={toggleUiTheme}
               />
             )}
             {activeView === 'checkins' && !nutritionistUser && (
@@ -13070,7 +13071,6 @@ function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, on
             <h3>Questionário nutricional</h3>
           </div>
           <div className="questionnaire-preview-actions-v1">
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} className="questionnaire-preview-theme-toggle-v1" />
             <button type="button" className={viewport === 'mobile' ? 'is-active' : ''} onClick={() => setViewport('mobile')}>Mobile</button>
             <button type="button" className={viewport === 'desktop' ? 'is-active' : ''} onClick={() => setViewport('desktop')}>Desktop</button>
             <button type="button" onClick={onClose}>Fechar</button>
@@ -13086,7 +13086,7 @@ function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, on
                 <p>Coach Fit Pro</p>
                 <strong>Área do paciente</strong>
               </div>
-              <span>{theme === 'light' ? 'Claro' : 'Escuro'}</span>
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} className="questionnaire-student-head-toggle-v1" />
             </header>
 
             <div className="student-questionnaire-center student-questionnaire-preview-card-v1">
