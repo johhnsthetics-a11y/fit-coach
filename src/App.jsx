@@ -62,7 +62,7 @@ const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaire
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
-const COACH_FIT_PRO_BUILD_MARKER = 'nutricao-dietas-prescritas-responsive-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'nutricao-tabs-layout-responsive-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -9835,7 +9835,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       <Select
         label="Aluno"
         name="studentId"
-        defaultValue={selectedStudent?.id}
+        defaultValue={editingPlan?.studentId || selectedStudent?.id}
         options={students.map((student) => ({ label: student.name, value: student.id }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
@@ -11371,9 +11371,11 @@ function cloneNutritionMeal(meal) {
 }
 
 function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
+  const [nutritionTab, setNutritionTab] = useState('dieta')
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
+  const activeNutritionPlans = nutritionPlans.filter((plan) => plan.active !== false)
   const activePlan = studentPlans[0]
   const [editingPlanId, setEditingPlanId] = useState('')
   const editingPlan = editingPlanId === 'new'
@@ -11410,27 +11412,51 @@ function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestio
         </div>
       </section>
 
-      <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${selectedStudent?.name ?? 'Aluno'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
-        {students.length ? (
-          <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} editingPlan={editingPlan} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => setEditingPlanId(String(savedPlan?.id || ''))} uiTheme={uiTheme} />
-        ) : (
-          <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
-        )}
-      </Panel>
+      <div className="nutrition-subnav-v1 xl:col-span-2 flex flex-col gap-2 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-2 sm:flex-row">
+        {[
+          ['dieta', 'Dieta'],
+          ['questionario', 'Questionário'],
+          ['prescritas', 'Dietas prescritas'],
+        ].map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setNutritionTab(id)} className={`min-h-11 flex-1 rounded-xl px-4 py-3 text-sm font-black transition ${nutritionTab === id ? 'bg-emerald-300 text-zinc-950 shadow-lg shadow-emerald-950/15' : 'text-zinc-300 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-      <Panel title="Dietas prescritas" action={`${studentPlans.length} ativas`}>
-        <NutritionPlanList plans={studentPlans} selectedStudent={selectedStudent} editingPlanId={editingPlan?.id} onEdit={(plan) => setEditingPlanId(String(plan.id))} onArchive={onArchiveNutritionPlan} />
-      </Panel>
+      {nutritionTab === 'dieta' ? (
+        <div className="nutrition-tab-panel-v1 xl:col-span-2">
+          <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${selectedStudent?.name ?? 'Aluno'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
+            {students.length ? (
+              <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} editingPlan={editingPlan} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => setEditingPlanId(String(savedPlan?.id || ''))} uiTheme={uiTheme} />
+            ) : (
+              <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
+            )}
+          </Panel>
+        </div>
+      ) : null}
 
-      <Panel title="Questionários nutricionais" action="Coach e aluno">
-        <NutritionQuestionnaires
-          selectedStudent={selectedStudent}
-          questionnaires={nutritionQuestionnaires}
-          assignments={questionnaireAssignments}
-          onSaveQuestionnaire={onSaveQuestionnaire}
-          onAssignQuestionnaire={onAssignQuestionnaire}
-        />
-      </Panel>
+      {nutritionTab === 'prescritas' ? (
+        <div className="nutrition-tab-panel-v1 xl:col-span-2">
+          <Panel title="Dietas prescritas" action={`${activeNutritionPlans.length} ativas`}>
+            <NutritionPlanList plans={activeNutritionPlans} selectedStudent={selectedStudent} students={students} editingPlanId={editingPlan?.id} onEdit={(plan) => { setEditingPlanId(String(plan.id)); setNutritionTab('dieta') }} onArchive={onArchiveNutritionPlan} />
+          </Panel>
+        </div>
+      ) : null}
+
+      {nutritionTab === 'questionario' ? (
+        <div className="nutrition-tab-panel-v1 xl:col-span-2">
+          <Panel title="Questionário" action="Coach e aluno">
+            <NutritionQuestionnaires
+              selectedStudent={selectedStudent}
+              questionnaires={nutritionQuestionnaires}
+              assignments={questionnaireAssignments}
+              onSaveQuestionnaire={onSaveQuestionnaire}
+              onAssignQuestionnaire={onAssignQuestionnaire}
+            />
+          </Panel>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -11515,13 +11541,14 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
   const planTotals = sumMacros(meals.map(calculateMealMacros))
   const totalMeals = meals.length
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
+  const formStudent = students.find((student) => String(student.id) === String(editingPlan?.studentId || selectedStudent?.id)) || selectedStudent
   const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
   const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
     title: titleDraft || 'Plano alimentar',
     calories: `${Math.round(planTotals.calories)} kcal`,
     protein: `${roundMacro(planTotals.protein)} g`,
-        notes: stripNutritionPlanMetadata(notesDraft),
+    notes: stripNutritionPlanMetadata(notesDraft),
     meals: meals
       .filter((meal) => meal.name.trim())
       .map((meal) => ({
@@ -11733,19 +11760,19 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
       </div>
 
       {previewOpen ? (
-        <NutritionStudentDietPreview plan={previewPlan} student={selectedStudent} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
+        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
       ) : null}
 
       <Select
         label="Aluno"
         name="studentId"
-        defaultValue={selectedStudent?.id}
+        defaultValue={formStudent?.id}
         options={students.map((student) => ({ label: student.name, value: student.id }))}
       />
 
       <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.72fr)_minmax(16rem,0.58fr)_minmax(28rem,1.28fr)] lg:items-end">
         <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
-        <NutritionBmrStrip student={selectedStudent} compact />
+        <NutritionBmrStrip student={formStudent} compact />
         <div className="nutrition-plan-stat-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
@@ -12093,7 +12120,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
   )
 }
 
-function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onArchive }) {
+function NutritionPlanList({ plans, selectedStudent, students = [], editingPlanId, onEdit, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
 
@@ -12125,6 +12152,7 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
       {plans.map((plan) => {
         const meals = Array.isArray(plan.meals) ? plan.meals : []
         const isExpanded = sameId(expandedPlanId, plan.id)
+        const planStudent = students.find((student) => String(student.id) === String(plan.studentId)) || selectedStudent
 
         return (
           <article key={plan.id} className="nutrition-plan-card-v6 overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
@@ -12142,7 +12170,7 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      {selectedStudent?.name || 'Aluno'} • {plan.calories || 'kcal em ajuste'} • {meals.length || 0} refeição(ões)
+                      {planStudent?.name || 'Aluno'} • {plan.calories || 'kcal em ajuste'} • {meals.length || 0} refeição(ões)
                     </p>
                   </div>
                 </div>
@@ -12162,7 +12190,7 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
             <div className="border-b border-white/10 bg-emerald-300/[0.035] p-4">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
-                  Paciente: {selectedStudent?.name || 'Aluno'}
+                  Paciente: {planStudent?.name || 'Aluno'}
                 </span>
                 {onEdit ? (
                   <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
