@@ -55,6 +55,7 @@ const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
 const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
 const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
+const STUDENT_ACTIVE_TAB_STORAGE_KEY = 'coachfitpro-student-active-tab-20260909'
 const WORKOUT_DRAFT_STORAGE_KEY = 'coachfitpro-workout-quick-draft-20260908'
 const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
 const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
@@ -62,7 +63,8 @@ const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaire
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
-const COACH_FIT_PRO_BUILD_MARKER = 'nutricao-tabs-layout-responsive-20260909'
+const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
+const COACH_FIT_PRO_BUILD_MARKER = 'sales-app-modern-showcase-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -514,6 +516,7 @@ const navItems = [
 ]
 
 const coachViewIds = new Set(navItems.map((item) => item.id))
+const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
 
 function getStoredUiTheme() {
   if (typeof window === 'undefined') return DEFAULT_UI_THEME
@@ -1282,6 +1285,40 @@ function mergeRecords(current = [], loaded = []) {
     records.set(key, item)
   })
   return [...records.values()]
+}
+
+function getInitialStudentTab(studentId = '') {
+  if (typeof window === 'undefined') return 'inicio'
+
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const tabFromUrl = params.get('alunoTab') || params.get('studentTab')
+    if (studentPortalTabIds.has(tabFromUrl)) return tabFromUrl
+
+    const savedTab = window.localStorage.getItem(`${STUDENT_ACTIVE_TAB_STORAGE_KEY}:${studentId || 'portal'}`)
+    if (studentPortalTabIds.has(savedTab)) return savedTab
+  } catch {
+    return 'inicio'
+  }
+
+  return 'inicio'
+}
+
+function persistStudentTab(studentId = '', tab = 'inicio') {
+  if (typeof window === 'undefined' || !studentPortalTabIds.has(tab)) return
+
+  try {
+    window.localStorage.setItem(`${STUDENT_ACTIVE_TAB_STORAGE_KEY}:${studentId || 'portal'}`, tab)
+    const url = new URL(window.location.href)
+    if (tab === 'inicio') {
+      url.searchParams.delete('alunoTab')
+    } else {
+      url.searchParams.set('alunoTab', tab)
+    }
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  } catch {
+    // A aba continua funcionando mesmo se o navegador bloquear persistência.
+  }
 }
 
 function upsertById(records = [], nextRecord = {}) {
@@ -3478,6 +3515,7 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 students={data.students}
                 nutritionPlans={data.nutritionPlans ?? []}
+                anamneses={data.anamneses ?? []}
                 nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 onSaveNutritionPlan={saveNutritionPlan}
@@ -5391,19 +5429,49 @@ function SalesStat({ value, label }) {
 function SalesPhoneShowcase() {
   const [activeIndex, setActiveIndex] = useState(1)
   const screens = [
-    ['Início do aluno', 'Olá, aluno', 'Semana, água e desafios', 'Meta do dia em progresso', ['Treino concluído: +80 XP', 'Água 1,8L / 2,5L', 'Desafio semanal 3/5'], 'trophy', '+80 XP', 'ranking atualizado'],
-    ['Treino de hoje', 'LEGS', 'Carga por exercício', 'Registrar série realizada', ['Agachamento: 80 kg', 'Leg press: 160 kg', 'Cadeira extensora: 45 kg'], 'dumbbell', 'Treino', 'em execução'],
-    ['Dashboard financeiro', 'Recebimentos', 'Vendas e renovações', 'Cobranças organizadas', ['Pagamentos confirmados', 'Renovações próximas', 'Pendências visíveis'], 'wallet', 'Financeiro', 'organizado'],
+    {
+      kicker: 'Início do aluno',
+      title: 'Olá, Teste1',
+      subtitle: 'Treino, dieta e evolução no mesmo lugar',
+      action: 'Meta do dia',
+      rows: ['Treino Legs liberado', 'Dieta 1191 kcal', 'Água 1,8L / 2,5L'],
+      floatingIcon: 'dashboard',
+      floatingTitle: 'Painel único',
+      floatingText: 'rotina guiada',
+      type: 'home',
+    },
+    {
+      kicker: 'Treino de hoje',
+      title: 'Segunda-feira',
+      subtitle: 'Peito e tríceps',
+      action: 'Registrar série realizada',
+      rows: ['Supino reto · 3 x 12 · 60s', 'Crucifixo inclinado · 3 x 12', 'Tríceps corda · 3 x 15'],
+      floatingIcon: 'dumbbell',
+      floatingTitle: 'Treino',
+      floatingText: 'carga e séries',
+      type: 'workout',
+    },
+    {
+      kicker: 'Dieta e progresso',
+      title: 'Plano alimentar',
+      subtitle: '1191 kcal · 127.8g proteína',
+      action: 'Macros do dia',
+      rows: ['Café da manhã · ovos e aveia', 'Almoço · frango, arroz e salada', 'Jantar · patinho e legumes'],
+      floatingIcon: 'nutrition',
+      floatingTitle: 'Nutrição',
+      floatingText: 'macros claros',
+      type: 'nutrition',
+    },
   ]
 
   const metrics = [
-    ['dashboard', 'Painel único', 'treino, dieta e cobrança'],
-    ['trophy', 'Evolução', 'check-ins e progresso'],
-    ['message', 'Aluno ativo', 'rotina guiada no celular'],
+    ['nutrition', 'Dieta liberada', 'macros e refeições'],
+    ['trophy', 'Evolução', 'check-ins e ranking'],
+    ['wallet', 'Financeiro', 'cobranças visíveis'],
   ]
 
   return (
-    <div className="sales-hero-phone-wrap" aria-label="Prévia do aplicativo Coach Fit Pro">
+    <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1" aria-label="Prévia do aplicativo Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
       {metrics.map(([icon, value, label], index) => (
         <div key={label} className={`sales-showcase-metric metric-${index + 1}`}>
@@ -5416,7 +5484,7 @@ function SalesPhoneShowcase() {
           </span>
         </div>
       ))}
-      {screens.map(([kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText], index) => {
+      {screens.map(({ kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText, type }, index) => {
         const active = activeIndex === index
         return (
         <button
@@ -5446,17 +5514,32 @@ function SalesPhoneShowcase() {
               </span>
             </div>
             <div className="sales-phone-notch" />
-            <div className="flex items-center justify-between">
+            <div className="sales-app-mini-header flex items-center justify-between">
               <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
               <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{active ? 'ao vivo' : 'prévia'}</span>
             </div>
             <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
             <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
-            <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/35 to-emerald-300/10 p-3">
+            <div className={`sales-app-preview-card sales-app-preview-card-${type} mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/35 to-emerald-300/10 p-3`}>
               <p className="text-xs font-black text-emerald-100">{action}</p>
-              <div className="mt-3 h-2 rounded-full bg-zinc-800">
-                <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${68 + index * 9}%` }} />
-              </div>
+              {type === 'nutrition' ? (
+                <div className="sales-macro-grid mt-3 grid grid-cols-3 gap-2">
+                  {[
+                    ['Kcal', '1191'],
+                    ['Prot.', '127g'],
+                    ['Fibra', '8.3g'],
+                  ].map(([label, value]) => (
+                    <span key={label} className="rounded-xl border border-white/10 bg-white/[0.07] px-2 py-2">
+                      <small className="block text-[9px] font-black uppercase text-zinc-400">{label}</small>
+                      <strong className="mt-0.5 block text-xs font-black text-white">{value}</strong>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 h-2 rounded-full bg-zinc-800">
+                  <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${68 + index * 9}%` }} />
+                </div>
+              )}
             </div>
             <div className="mt-4 grid gap-2">
               {rows.map((row) => (
@@ -5469,8 +5552,9 @@ function SalesPhoneShowcase() {
             <div className="sales-phone-bottom-nav">
               {[
                 ['dashboard', 'Início'],
-                ['wallet', 'Fatura'],
                 ['dumbbell', 'Treino'],
+                ['nutrition', 'Dieta'],
+                ['wallet', 'Fatura'],
                 ['message', 'Chat'],
               ].map(([icon, label]) => (
                 <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
@@ -5486,9 +5570,9 @@ function SalesPhoneShowcase() {
       <div className="sales-showcase-tabs" aria-label="Selecionar prévia">
         {screens.map((screen, index) => (
           <button
-            key={screen[1]}
+            key={screen.title}
             type="button"
-            aria-label={`Mostrar ${screen[1]}`}
+            aria-label={`Mostrar ${screen.title}`}
             onClick={() => setActiveIndex(index)}
             className={`sales-showcase-tab ${activeIndex === index ? 'is-active' : ''}`}
           />
@@ -11370,11 +11454,22 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
-  const [nutritionTab, setNutritionTab] = useState('dieta')
+function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
+  const [nutritionTab, setNutritionTab] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const tabFromUrl = params.get('nutricaoTab')
+      if (NUTRITION_TAB_IDS.includes(tabFromUrl)) return tabFromUrl
+      const savedTab = window.localStorage.getItem('coachfitpro-nutrition-active-tab-20260909')
+      return NUTRITION_TAB_IDS.includes(savedTab) ? savedTab : 'dieta'
+    } catch {
+      return 'dieta'
+    }
+  })
   const studentPlans = nutritionPlans.filter((plan) => (
     String(plan.studentId) === String(selectedStudent?.id) && plan.active !== false
   ))
+  const studentAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
   const activeNutritionPlans = nutritionPlans.filter((plan) => plan.active !== false)
   const activePlan = studentPlans[0]
   const [editingPlanId, setEditingPlanId] = useState('')
@@ -11386,6 +11481,22 @@ function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestio
   useEffect(() => {
     setEditingPlanId('')
   }, [selectedStudent?.id])
+
+  useEffect(() => {
+    if (!NUTRITION_TAB_IDS.includes(nutritionTab)) return
+    try {
+      window.localStorage.setItem('coachfitpro-nutrition-active-tab-20260909', nutritionTab)
+      const url = new URL(window.location.href)
+      if (nutritionTab === 'dieta') {
+        url.searchParams.delete('nutricaoTab')
+      } else {
+        url.searchParams.set('nutricaoTab', nutritionTab)
+      }
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    } catch {
+      // Persistência da subaba não deve interromper a prescrição.
+    }
+  }, [nutritionTab])
 
   return (
     <div className="nutrition-layout-grid-v5 grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
@@ -11428,7 +11539,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestio
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${selectedStudent?.name ?? 'Aluno'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} editingPlan={editingPlan} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => setEditingPlanId(String(savedPlan?.id || ''))} uiTheme={uiTheme} />
+              <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} selectedAnamnesis={studentAnamnesis} anamneses={anamneses} editingPlan={editingPlan} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => setEditingPlanId(String(savedPlan?.id || ''))} uiTheme={uiTheme} />
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -11453,6 +11564,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, nutritionQuestio
               assignments={questionnaireAssignments}
               onSaveQuestionnaire={onSaveQuestionnaire}
               onAssignQuestionnaire={onAssignQuestionnaire}
+              uiTheme={uiTheme}
             />
           </Panel>
         </div>
@@ -11474,8 +11586,9 @@ function NutritionQuickStat({ icon, label, value, detail }) {
   )
 }
 
-function NutritionBmrStrip({ student, compact = false }) {
-  const bmr = calculateBasalMetabolicRate(student)
+function NutritionBmrStrip({ student, anamnesis = null, compact = false }) {
+  const bmrDetails = calculateBasalMetabolicRateDetails(student, anamnesis)
+  const bmr = bmrDetails.bmr
 
   if (compact) {
     return (
@@ -11484,7 +11597,7 @@ function NutritionBmrStrip({ student, compact = false }) {
         <div className="mt-2 flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="text-2xl font-black text-white">{bmr ? `${bmr}` : '-'}</p>
-            <p className="text-xs font-bold text-zinc-500">kcal/dia</p>
+            <p className="text-xs font-bold text-zinc-500">{bmr ? 'kcal/dia' : bmrDetails.missingLabel}</p>
           </div>
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
             <NavIcon name="chart" className="h-5 w-5" />
@@ -11500,7 +11613,7 @@ function NutritionBmrStrip({ student, compact = false }) {
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">TMB do aluno</p>
           <p className="mt-1 text-sm leading-6 text-zinc-300">
-            {bmr ? 'Estimativa diária pela ficha do aluno, útil para definir meta calórica.' : 'Complete os dados do aluno para calcular a TMB.'}
+            {bmr ? `${bmrDetails.formula}. Estimativa útil para definir a meta calórica com segurança.` : `Complete ${bmrDetails.missingLabel.toLowerCase()} para calcular a TMB.`}
           </p>
         </div>
         <div className="rounded-xl border border-white/10 bg-zinc-950/50 px-4 py-3 text-left sm:min-w-40">
@@ -11512,7 +11625,7 @@ function NutritionBmrStrip({ student, compact = false }) {
   )
 }
 
-function NutritionForm({ students, selectedStudent, editingPlan = null, onStartNewPlan, onSaveNutritionPlan, onSaved, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, anamneses = [], editingPlan = null, onStartNewPlan, onSaveNutritionPlan, onSaved, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -11542,6 +11655,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
   const totalMeals = meals.length
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
   const formStudent = students.find((student) => String(student.id) === String(editingPlan?.studentId || selectedStudent?.id)) || selectedStudent
+  const formAnamnesis = anamneses.find((item) => String(item.studentId) === String(formStudent?.id)) || selectedAnamnesis
   const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
   const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
@@ -11772,7 +11886,7 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
 
       <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.72fr)_minmax(16rem,0.58fr)_minmax(28rem,1.28fr)] lg:items-end">
         <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
-        <NutritionBmrStrip student={formStudent} compact />
+        <NutritionBmrStrip student={formStudent} anamnesis={formAnamnesis} compact />
         <div className="nutrition-plan-stat-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
@@ -12266,7 +12380,7 @@ function createNutritionQuestionnaireDraft(base = {}) {
   }
 }
 
-function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire }) {
+function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
   const [draft, setDraft] = useState(() => createNutritionQuestionnaireDraft())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [message, setMessage] = useState('')
@@ -12379,15 +12493,15 @@ function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignm
       ) : null}
 
       {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
-      {previewOpen ? <QuestionnairePreviewModal questionnaire={draft} onClose={() => setPreviewOpen(false)} /> : null}
+      {previewOpen ? <QuestionnairePreviewModal questionnaire={draft} theme={uiTheme} onClose={() => setPreviewOpen(false)} /> : null}
     </div>
   )
 }
 
-function QuestionnairePreviewModal({ questionnaire, onClose }) {
+function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, onClose }) {
   return createPortal(
-    <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="max-h-[86vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl">
+    <div className={`questionnaire-preview-portal-v1 app-theme-${theme} fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4 backdrop-blur-sm`}>
+      <div className="questionnaire-preview-panel-v1 scrollbar-soft max-h-[86vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase text-emerald-200">Prévia do aluno</p>
@@ -13345,6 +13459,10 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
     try {
       await onSubmit({
         birthDate: form.get('birthDate')?.toString() || '',
+        biologicalSex: form.get('biologicalSex')?.toString() || '',
+        heightCm: form.get('heightCm')?.toString() || '',
+        weightKg: form.get('weightKg')?.toString() || '',
+        activityLevel: form.get('activityLevel')?.toString() || '',
         occupation: form.get('occupation')?.toString() || '',
         trainingExperience: form.get('trainingExperience')?.toString() || '',
         trainingFrequency: form.get('trainingFrequency')?.toString() || '',
@@ -13389,9 +13507,13 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
           <h2 className="font-black text-blue-200">Perfil e objetivo</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Data de nascimento" name="birthDate" type="date" />
+            <Select label="Sexo biológico para cálculo metabólico" name="biologicalSex" defaultValue="" options={['Masculino', 'Feminino']} />
+            <Field label="Altura (cm)" name="heightCm" type="number" />
+            <Field label="Peso atual (kg)" name="weightKg" type="number" />
             <Field label="Profissão" name="occupation" />
             <Select label="Experiência com treino" name="trainingExperience" defaultValue="Iniciante" options={['Nunca treinei', 'Iniciante', 'Intermediário', 'Avançado']} />
             <Select label="Frequência disponível" name="trainingFrequency" defaultValue="3 vezes por semana" options={['1 vez por semana', '2 vezes por semana', '3 vezes por semana', '4 vezes por semana', '5 vezes por semana', '6 ou mais vezes']} />
+            <Select label="Nível de atividade atual" name="activityLevel" defaultValue="Moderado" options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
           </div>
           <TextArea label="Objetivo principal e resultado esperado" name="primaryGoal" defaultValue="" />
         </section>
@@ -13719,7 +13841,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
 function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('inicio')
+  const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0)
   const [workoutClock, setWorkoutClock] = useState(Date.now())
@@ -13784,6 +13906,14 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
     const timer = window.setInterval(() => setWorkoutClock(Date.now()), 1000)
     return () => window.clearInterval(timer)
   }, [workoutStartedAt])
+
+  useEffect(() => {
+    setActiveTab(getInitialStudentTab(student?.id))
+  }, [student?.id])
+
+  useEffect(() => {
+    persistStudentTab(student?.id, activeTab)
+  }, [activeTab, student?.id])
 
   useEffect(() => {
     const savedWater = Number(window.localStorage?.getItem(waterStorageKey) || 0)
@@ -18686,14 +18816,70 @@ function pluralizeServingLabel(label = 'medida') {
   return `${clean}s`
 }
 
-function calculateBasalMetabolicRate(student = {}) {
-  const weight = Number(student.weightKg || student.weight || student.currentWeight || String(student.weightText || '').replace(',', '.'))
-  const height = Number(student.heightCm || student.height || student.heightInCm || String(student.heightText || '').replace(',', '.'))
-  const age = Number(student.age || student.ageYears)
-  const gender = normalizeText(student.gender || student.sex || student.biologicalSex || '')
-  if (!weight || !height || !age) return null
-  const adjustment = gender.startsWith('f') || gender.includes('mulher') || gender.includes('feminino') ? -161 : 5
-  return Math.round((10 * weight) + (6.25 * height) - (5 * age) + adjustment)
+function parseNutritionMetricNumber(...values) {
+  const raw = values.find((value) => value !== undefined && value !== null && String(value).trim() !== '')
+  if (raw === undefined) return null
+  const normalized = String(raw).replace(',', '.').match(/-?\d+(\.\d+)?/)?.[0]
+  const number = Number(normalized)
+  return Number.isFinite(number) && number > 0 ? number : null
+}
+
+function calculateAgeFromBirthDate(value) {
+  if (!value) return null
+  const birthDate = new Date(value)
+  if (Number.isNaN(birthDate.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1
+  return age > 0 && age < 120 ? age : null
+}
+
+function getNutritionProfileValue(student = {}, anamnesis = {}, keys = []) {
+  for (const key of keys) {
+    if (student?.[key] !== undefined && student?.[key] !== null && String(student[key]).trim() !== '') return student[key]
+    if (anamnesis?.[key] !== undefined && anamnesis?.[key] !== null && String(anamnesis[key]).trim() !== '') return anamnesis[key]
+    if (anamnesis?.answers?.[key] !== undefined && anamnesis?.answers?.[key] !== null && String(anamnesis.answers[key]).trim() !== '') return anamnesis.answers[key]
+  }
+  return ''
+}
+
+function calculateBasalMetabolicRateDetails(student = {}, anamnesis = {}) {
+  const weight = parseNutritionMetricNumber(getNutritionProfileValue(student, anamnesis, ['weightKg', 'weight', 'currentWeight', 'weightText']))
+  const height = parseNutritionMetricNumber(getNutritionProfileValue(student, anamnesis, ['heightCm', 'height', 'heightInCm', 'heightText']))
+  const age = parseNutritionMetricNumber(getNutritionProfileValue(student, anamnesis, ['age', 'ageYears']))
+    || calculateAgeFromBirthDate(getNutritionProfileValue(student, anamnesis, ['birthDate', 'dateOfBirth']))
+  const gender = normalizeText(getNutritionProfileValue(student, anamnesis, ['gender', 'sex', 'biologicalSex']))
+  const missing = [
+    !weight ? 'peso' : '',
+    !height ? 'altura' : '',
+    !age ? 'idade' : '',
+    !gender ? 'sexo' : '',
+  ].filter(Boolean)
+
+  if (missing.length) {
+    return {
+      bmr: null,
+      formula: 'Mifflin-St Jeor',
+      missing,
+      missingLabel: missing.join(', '),
+    }
+  }
+
+  const isFemale = gender.startsWith('f') || gender.includes('mulher') || gender.includes('feminino')
+  const adjustment = isFemale ? -161 : 5
+  const bmr = Math.round((10 * weight) + (6.25 * height) - (5 * age) + adjustment)
+  return {
+    bmr,
+    formula: 'Mifflin-St Jeor',
+    missing: [],
+    missingLabel: '',
+    inputs: { weight, height, age, gender: isFemale ? 'feminino' : 'masculino' },
+  }
+}
+
+function calculateBasalMetabolicRate(student = {}, anamnesis = {}) {
+  return calculateBasalMetabolicRateDetails(student, anamnesis).bmr
 }
 
 function getEquivalentSubstitutions(item) {

@@ -1387,12 +1387,19 @@ function fromInviteRow(row) {
 }
 
 function fromAnamnesisRow(row) {
+  const answers = row.answers && typeof row.answers === 'object' ? row.answers : {}
   return {
     id: row.id,
     coachId: row.coach_id,
     studentId: row.student_id,
     inviteId: row.invite_id,
+    answers,
     birthDate: row.birth_date ?? '',
+    biologicalSex: row.biological_sex ?? answers.biologicalSex ?? answers.gender ?? '',
+    gender: row.gender ?? row.sex ?? row.biological_sex ?? answers.biologicalSex ?? answers.gender ?? '',
+    heightCm: row.height_cm ?? answers.heightCm ?? '',
+    weightKg: row.weight_kg ?? answers.weightKg ?? '',
+    activityLevel: row.activity_level ?? answers.activityLevel ?? '',
     occupation: row.occupation ?? '',
     trainingExperience: row.training_experience ?? '',
     trainingFrequency: row.training_frequency ?? '',
