@@ -8,6 +8,23 @@ alter table if exists public.nutrition_meals enable row level security;
 grant select, insert, update, delete on public.nutrition_plans to authenticated;
 grant select, insert, update, delete on public.nutrition_meals to authenticated;
 
+create or replace function public.coachfit_owns_student(target_student_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.students
+    where students.id = target_student_id
+      and students.coach_id = auth.uid()
+  );
+$$;
+
+revoke all on function public.coachfit_owns_student(uuid) from public;
+grant execute on function public.coachfit_owns_student(uuid) to authenticated;
+
 drop policy if exists "nutrition_plans_select_own_coach" on public.nutrition_plans;
 drop policy if exists "nutrition_plans_insert_own_student" on public.nutrition_plans;
 drop policy if exists "nutrition_plans_update_own_coach" on public.nutrition_plans;
@@ -25,12 +42,7 @@ for insert
 to authenticated
 with check (
   coach_id = auth.uid()
-  and exists (
-    select 1
-    from public.students
-    where students.id = nutrition_plans.student_id
-      and students.coach_id = auth.uid()
-  )
+  and public.coachfit_owns_student(student_id)
 );
 
 create policy "nutrition_plans_update_own_coach"
@@ -40,12 +52,7 @@ to authenticated
 using (coach_id = auth.uid())
 with check (
   coach_id = auth.uid()
-  and exists (
-    select 1
-    from public.students
-    where students.id = nutrition_plans.student_id
-      and students.coach_id = auth.uid()
-  )
+  and public.coachfit_owns_student(student_id)
 );
 
 create policy "nutrition_plans_delete_own_coach"

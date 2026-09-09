@@ -5,6 +5,7 @@ const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const sw = readFileSync(new URL('../public/service-worker.js', import.meta.url), 'utf8')
 const version = readFileSync(new URL('../public/version.txt', import.meta.url), 'utf8')
+const nutritionRlsMigration = readFileSync(new URL('../supabase/migrations/20260909_fix_nutrition_rls_policies.sql', import.meta.url), 'utf8')
 
 const checks = [
   ['App uses a build marker', app.includes('COACH_FIT_PRO_BUILD_MARKER')],
@@ -115,6 +116,7 @@ const checks = [
   ['Remote nutrition save requires confirmed database row', api.includes('if (!planRows?.[0])') && api.includes('Não foi possível confirmar o salvamento da dieta')],
   ['Existing nutrition plans with null active remain visible', api.includes('active: row.active !== false')],
   ['Nutrition RLS migration is included but not executed', api.includes('20260909_fix_nutrition_rls_policies.sql') && css.includes('nutrition-rls-professional-polish-v1')],
+  ['Nutrition RLS owns-student check bypasses nested student RLS safely', nutritionRlsMigration.includes('security definer') && nutritionRlsMigration.includes('public.coachfit_owns_student(student_id)')],
   ['Light app background tests #E0E0E0 as base only', css.includes('--app-light-bg: #E0E0E0') && css.includes('nutrition-crud-light-base-test-v1')],
   ['Workout quick flow has predefined training level select', app.includes('WORKOUT_TRAINING_LEVEL_OPTIONS') && app.includes('Nível de treinamento') && app.includes('Selecione o nível')],
   ['Workout quick flow has predefined objective select', app.includes('WORKOUT_OBJECTIVE_OPTIONS') && app.includes('Redução de gordura + hipertrofia') && app.includes('Qualidade de vida')],
