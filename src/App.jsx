@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-deep-stability-fix-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-dom-stability-fix-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1311,6 +1311,15 @@ function normalizeRuntimeData(value, current = createInitialData()) {
   })
 }
 
+function ensureArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
+function ensureRecordArray(value) {
+  const items = ensureArray(value)
+  return items.every((item) => item && typeof item === 'object') ? items : items.filter((item) => item && typeof item === 'object')
+}
+
 async function clearAppRuntimeCacheAndReload() {
   try {
     if ('caches' in window) {
@@ -1635,6 +1644,71 @@ class AppErrorBoundary extends Component {
           </button>
         </section>
       </main>
+    )
+  }
+}
+
+class ViewErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null })
+    }
+  }
+
+  componentDidCatch(error, info) {
+    try {
+      window.localStorage.setItem('coachfitpro-last-view-error', JSON.stringify({
+        scope: this.props.scope || 'view',
+        message: error?.message || 'Erro inesperado',
+        stack: error?.stack || '',
+        componentStack: info?.componentStack || '',
+        build: COACH_FIT_PRO_BUILD_MARKER,
+        createdAt: new Date().toISOString(),
+      }))
+    } catch {
+      // O fallback visual continua funcionando mesmo se o storage estiver bloqueado.
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+
+    return (
+      <section className="rounded-3xl border border-emerald-300/25 bg-zinc-950/80 p-6 text-zinc-100 shadow-2xl shadow-black/30">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">Treinos em recuperação</p>
+        <h2 className="mt-2 text-2xl font-black text-white">Encontramos um dado antigo nesta tela.</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300">
+          Seus dados seguem seguros. Limpe o cache da aplicação para buscar a versão mais nova ou volte para a visão geral enquanto o app se recupera.
+        </p>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={clearAppRuntimeCacheAndReload}
+            className="min-h-11 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950"
+          >
+            Limpar cache e tentar novamente
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ error: null })
+              this.props.onReset?.()
+            }}
+            className="min-h-11 rounded-xl border border-white/10 px-5 py-3 text-sm font-black text-zinc-100"
+          >
+            Voltar para visão geral
+          </button>
+        </div>
+      </section>
     )
   }
 }
@@ -3603,23 +3677,29 @@ function AppContent() {
               />
             )}
             {activeView === 'treinos' && !nutritionistUser && (
-              <Workouts
-                selectedStudent={selectedStudent}
-                students={data.students}
-                workouts={data.workouts ?? []}
-                nutritionPlans={data.nutritionPlans ?? []}
-                workoutLogs={data.workoutLogs ?? []}
-                progressionDecisions={data.workoutProgressionDecisions ?? []}
-                exerciseLibraryItems={data.exerciseLibrary ?? []}
-                onSaveWorkout={saveWorkout}
-                onSaveNutritionPlan={saveNutritionPlan}
-                onArchiveWorkout={archiveWorkout}
-                onApproveProgression={approveWorkoutProgression}
-                onIgnoreProgression={ignoreWorkoutProgression}
-                onUndoProgression={undoWorkoutProgression}
-                onSaveStudent={saveStudent}
-                uiTheme={uiTheme}
-              />
+              <ViewErrorBoundary
+                scope="treinos"
+                resetKey={`treinos-${selectedStudent?.id || selectedStudentId}-${uiTheme}`}
+                onReset={() => setActiveViewSafely('visao')}
+              >
+                <Workouts
+                  selectedStudent={selectedStudent}
+                  students={data.students}
+                  workouts={data.workouts ?? []}
+                  nutritionPlans={data.nutritionPlans ?? []}
+                  workoutLogs={data.workoutLogs ?? []}
+                  progressionDecisions={data.workoutProgressionDecisions ?? []}
+                  exerciseLibraryItems={data.exerciseLibrary ?? []}
+                  onSaveWorkout={saveWorkout}
+                  onSaveNutritionPlan={saveNutritionPlan}
+                  onArchiveWorkout={archiveWorkout}
+                  onApproveProgression={approveWorkoutProgression}
+                  onIgnoreProgression={ignoreWorkoutProgression}
+                  onUndoProgression={undoWorkoutProgression}
+                  onSaveStudent={saveStudent}
+                  uiTheme={uiTheme}
+                />
+              </ViewErrorBoundary>
             )}
             {activeView === 'nutricao' && (
               <Nutrition
@@ -7389,18 +7469,24 @@ function parseMacroSummary(value = '') {
 }
 
 function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const studentWorkouts = workouts.filter((workout) => (
+  const safeStudents = ensureRecordArray(students)
+  const safeWorkouts = ensureRecordArray(workouts)
+  const safeNutritionPlans = ensureRecordArray(nutritionPlans)
+  const safeWorkoutLogs = ensureRecordArray(workoutLogs)
+  const safeProgressionDecisions = ensureRecordArray(progressionDecisions)
+  const safeExerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(safeExerciseLibraryItems), [safeExerciseLibraryItems])
+  const studentWorkouts = safeWorkouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
   ))
-  const studentLogs = workoutLogs.filter((log) => String(log.studentId) === String(selectedStudent?.id))
+  const studentLogs = safeWorkoutLogs.filter((log) => String(log.studentId) === String(selectedStudent?.id))
 
   return (
     <>
     <MobileWorkoutManager
       selectedStudent={selectedStudent}
-      students={students}
-      workouts={workouts}
+      students={safeStudents}
+      workouts={safeWorkouts}
       studentWorkouts={studentWorkouts}
       exerciseLibraryItems={availableExerciseLibrary}
       onSaveWorkout={onSaveWorkout}
@@ -7412,9 +7498,9 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       <div className="xl:col-span-2">
         <ExpressCreationModule
           selectedStudent={selectedStudent}
-          students={students}
-          workouts={workouts}
-          nutritionPlans={nutritionPlans}
+          students={safeStudents}
+          workouts={safeWorkouts}
+          nutritionPlans={safeNutritionPlans}
           exerciseLibraryItems={availableExerciseLibrary}
           onSaveWorkout={onSaveWorkout}
           onSaveNutritionPlan={onSaveNutritionPlan}
@@ -7422,8 +7508,8 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       </div>
 
       <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
-        {students.length ? (
-          <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
+        {safeStudents.length ? (
+          <WorkoutForm students={safeStudents} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
         ) : (
           <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
         )}
@@ -7438,7 +7524,7 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
           student={selectedStudent}
           workouts={studentWorkouts}
           logs={studentLogs}
-          decisions={progressionDecisions.filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
+          decisions={safeProgressionDecisions.filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
           exerciseLibraryItems={availableExerciseLibrary}
           onApprove={onApproveProgression}
           onIgnore={onIgnoreProgression}
@@ -7618,7 +7704,11 @@ function getSupportedWorkoutSelectValue(value, options) {
   return options.find((item) => normalizeText(item) === normalized) || ''
 }
 
-function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
+function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
+  students = ensureRecordArray(students)
+  workouts = ensureRecordArray(workouts)
+  studentWorkouts = ensureRecordArray(studentWorkouts)
+  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
     try {
@@ -9383,6 +9473,10 @@ function getInitials(value = '') {
 }
 
 function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
+  workouts = ensureRecordArray(workouts)
+  logs = ensureRecordArray(logs)
+  decisions = ensureRecordArray(decisions)
+  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
   const [loading, setLoading] = useState(true)
   const [busyKey, setBusyKey] = useState('')
   const [message, setMessage] = useState('')
@@ -9532,6 +9626,10 @@ function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], 
 }
 
 function buildWorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [] }) {
+  workouts = ensureRecordArray(workouts)
+  logs = ensureRecordArray(logs)
+  decisions = ensureRecordArray(decisions)
+  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
   if (!student || !workouts.length) return []
   const latestWorkout = workouts.slice().sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
   const latestWorkoutExercises = getWorkoutExercisesArray(latestWorkout?.exercises)
@@ -10512,7 +10610,7 @@ function getExerciseLibrary(remoteItems = []) {
   const records = new Map()
   const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
 
-  ;(remoteItems || []).forEach((exercise) => {
+  ensureRecordArray(remoteItems).forEach((exercise) => {
     if (!exercise?.name) return
     const key = normalizeText(exercise.name)
     const local = localByName.get(key) || {}
@@ -13582,6 +13680,16 @@ function StudentPortalPreview({
   onRemoteError,
   canGenerateInvite = true,
 }) {
+  students = ensureRecordArray(students)
+  checkins = ensureRecordArray(checkins)
+  workouts = ensureRecordArray(workouts)
+  nutritionPlans = ensureRecordArray(nutritionPlans)
+  workoutLogs = ensureRecordArray(workoutLogs)
+  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
+  messages = ensureRecordArray(messages)
+  appointments = ensureRecordArray(appointments)
+  invoices = ensureRecordArray(invoices)
+  assessments = ensureRecordArray(assessments)
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
   const studentWorkouts = workouts.filter((workout) => (
@@ -14484,6 +14592,17 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
   )
 }
 function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
+  checkins = ensureRecordArray(checkins)
+  workouts = ensureRecordArray(workouts)
+  nutritionPlans = ensureRecordArray(nutritionPlans)
+  nutritionQuestionnaires = ensureRecordArray(nutritionQuestionnaires)
+  questionnaireAssignments = ensureRecordArray(questionnaireAssignments)
+  workoutLogs = ensureRecordArray(workoutLogs)
+  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
+  messages = ensureRecordArray(messages)
+  appointments = ensureRecordArray(appointments)
+  invoices = ensureRecordArray(invoices)
+  assessments = ensureRecordArray(assessments)
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))

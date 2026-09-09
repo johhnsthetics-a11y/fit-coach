@@ -3,6 +3,34 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+function installSafeDomMutationGuards() {
+  if (typeof Node === 'undefined') return
+  if (Node.prototype.__coachFitProSafeDomGuards) return
+
+  const nativeRemoveChild = Node.prototype.removeChild
+  const nativeInsertBefore = Node.prototype.insertBefore
+
+  Object.defineProperty(Node.prototype, '__coachFitProSafeDomGuards', {
+    configurable: false,
+    enumerable: false,
+    value: true,
+  })
+
+  Node.prototype.removeChild = function removeChildSafely(child) {
+    if (child && child.parentNode !== this) return child
+    return nativeRemoveChild.call(this, child)
+  }
+
+  Node.prototype.insertBefore = function insertBeforeSafely(newNode, referenceNode) {
+    if (referenceNode && referenceNode.parentNode !== this) {
+      return this.appendChild(newNode)
+    }
+    return nativeInsertBefore.call(this, newNode, referenceNode)
+  }
+}
+
+installSafeDomMutationGuards()
+
 async function clearAppRuntimeCacheAndReload() {
   try {
     if ('caches' in window) {
