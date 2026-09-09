@@ -757,8 +757,52 @@ async function loadRemoteNutritionMealIdsForCoach(planId, coachId) {
   }
 }
 
+async function saveRemoteNutritionPlanViaRpc(plan, coachId) {
+  const payload = await rpcRequest('save_nutrition_plan', {
+    plan: {
+      id: isUuid(plan.id) ? plan.id : null,
+      coach_id: coachId,
+      student_id: plan.studentId,
+      title: plan.title,
+      calories: plan.calories,
+      protein: plan.protein,
+      notes: plan.notes,
+      meals: (plan.meals ?? []).map((meal, index) => ({
+        id: isUuid(meal.id) ? meal.id : null,
+        name: meal.name,
+        foods: meal.foods,
+        macros: meal.macros,
+        time: meal.time,
+        order_index: index,
+      })),
+    },
+  })
+  const row = Array.isArray(payload) ? payload[0] : payload
+  if (!row?.id) {
+    throw new Error('Não foi possível confirmar o salvamento da dieta no banco.')
+  }
+  return fromNutritionPlanRow(row)
+}
+
 export async function saveRemoteNutritionPlan(plan, coachId) {
   const safeCoachId = requireCoachId(coachId)
+  try {
+    const normalizedPlan = await saveRemoteNutritionPlanViaRpc(plan, safeCoachId)
+    return {
+      ...normalizedPlan,
+      clientRequestId: plan.clientRequestId,
+      createdAt: plan.createdAt,
+      meals: normalizedPlan.meals.map((meal, index) => ({
+        ...meal,
+        items: plan.meals?.[index]?.items ?? [],
+      })),
+    }
+  } catch (rpcError) {
+    if (!/PGRST202|save_nutrition_plan|function/i.test(rpcError?.message || '')) {
+      throw rpcError
+    }
+  }
+
   const isUpdatingNutritionPlan = isUuid(plan.id)
   const planPath = isUpdatingNutritionPlan ? `nutrition_plans?id=eq.${encodeURIComponent(plan.id)}&coach_id=eq.${encodeURIComponent(safeCoachId)}` : 'nutrition_plans'
   const planRows = await request(planPath, {
@@ -1461,7 +1505,7 @@ function fromNutritionPlanRow(row) {
     calories: row.calories ?? '',
     protein: row.protein ?? '',
     notes: stripNutritionPlanMetadata(row.notes ?? ''),
-    active: Boolean(row.active),
+    active: row.active !== false,
     meals: (row.nutrition_meals ?? [])
       .slice()
       .sort((a, b) => Number(a.order_index ?? 0) - Number(b.order_index ?? 0))

@@ -25,6 +25,102 @@ $$;
 revoke all on function public.coachfit_owns_student(uuid) from public;
 grant execute on function public.coachfit_owns_student(uuid) to authenticated;
 
+create or replace function public.save_nutrition_plan(plan jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_coach_id uuid := auth.uid();
+  v_plan_id uuid := nullif(plan->>'id', '')::uuid;
+  v_student_id uuid := nullif(plan->>'student_id', '')::uuid;
+  v_saved_plan public.nutrition_plans%rowtype;
+  v_saved_meal public.nutrition_meals%rowtype;
+  v_meal jsonb;
+  v_saved_meals jsonb := '[]'::jsonb;
+  v_order_index integer := 0;
+begin
+  if v_coach_id is null then
+    raise exception 'Sessão do treinador não identificada.' using errcode = '42501';
+  end if;
+
+  if v_student_id is null or not public.coachfit_owns_student(v_student_id) then
+    raise exception 'Aluno não pertence ao treinador autenticado.' using errcode = '42501';
+  end if;
+
+  if v_plan_id is not null then
+    update public.nutrition_plans
+       set title = coalesce(plan->>'title', title),
+           calories = coalesce(plan->>'calories', calories),
+           protein = coalesce(plan->>'protein', protein),
+           notes = coalesce(plan->>'notes', notes),
+           active = true
+     where id = v_plan_id
+       and coach_id = v_coach_id
+       and student_id = v_student_id
+     returning * into v_saved_plan;
+
+    if not found then
+      raise exception 'Dieta não encontrada para este treinador.' using errcode = '42501';
+    end if;
+
+    delete from public.nutrition_meals
+     where nutrition_plan_id = v_saved_plan.id;
+  else
+    insert into public.nutrition_plans (
+      coach_id,
+      student_id,
+      title,
+      calories,
+      protein,
+      notes,
+      active
+    ) values (
+      v_coach_id,
+      v_student_id,
+      coalesce(plan->>'title', 'Plano alimentar'),
+      coalesce(plan->>'calories', ''),
+      coalesce(plan->>'protein', ''),
+      coalesce(plan->>'notes', ''),
+      true
+    )
+    returning * into v_saved_plan;
+  end if;
+
+  for v_meal in
+    select value
+    from jsonb_array_elements(coalesce(plan->'meals', '[]'::jsonb))
+  loop
+    insert into public.nutrition_meals (
+      nutrition_plan_id,
+      name,
+      foods,
+      macros,
+      time_label,
+      order_index
+    ) values (
+      v_saved_plan.id,
+      coalesce(v_meal->>'name', ''),
+      coalesce(v_meal->>'foods', ''),
+      coalesce(v_meal->>'macros', ''),
+      coalesce(v_meal->>'time', ''),
+      coalesce(nullif(v_meal->>'order_index', '')::integer, v_order_index)
+    )
+    returning * into v_saved_meal;
+
+    v_saved_meals := v_saved_meals || jsonb_build_array(to_jsonb(v_saved_meal));
+
+    v_order_index := v_order_index + 1;
+  end loop;
+
+  return to_jsonb(v_saved_plan) || jsonb_build_object('nutrition_meals', v_saved_meals);
+end;
+$$;
+
+revoke all on function public.save_nutrition_plan(jsonb) from public;
+grant execute on function public.save_nutrition_plan(jsonb) to authenticated;
+
 drop policy if exists "nutrition_plans_select_own_coach" on public.nutrition_plans;
 drop policy if exists "nutrition_plans_insert_own_student" on public.nutrition_plans;
 drop policy if exists "nutrition_plans_update_own_coach" on public.nutrition_plans;
