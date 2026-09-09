@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'sales-app-modern-showcase-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-legacy-visual-fix-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -7553,7 +7553,29 @@ function normalizeWorkoutExerciseInput(exercise = {}) {
 }
 
 function getWorkoutExercisesArray(value) {
-  return Array.isArray(value) ? value : []
+  if (Array.isArray(value)) return value
+  if (!value) return []
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,;]+/)
+      .map((name) => normalizeWorkoutExerciseInput(name))
+      .filter((exercise) => normalizeText(exercise.name) !== normalizeText('Exercício'))
+  }
+  if (typeof value === 'object') return [normalizeWorkoutExerciseInput(value)]
+  return []
+}
+
+function formatWorkoutFilterLabel(value) {
+  const labels = {
+    todos: 'Todos',
+    hipertrofia: 'Hipertrofia',
+    emagrecimento: 'Emagrecimento',
+    força: 'Força',
+    publicado: 'Publicado',
+    'com-treino': 'Com treino',
+    'sem-treino': 'Sem treino',
+  }
+  return labels[value] || formatUiText(value)
 }
 
 function getWorkoutDayExerciseCount(day) {
@@ -8331,7 +8353,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       <div className="mobile-workout-filters">
         {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
           <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
-            {formatUiText(item)}
+            {formatWorkoutFilterLabel(item)}
           </button>
         ))}
         {filter !== 'todos' || search ? (
@@ -8735,7 +8757,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         </div>
       ) : null}
 
-      {exercisePickerDayIndex !== null ? (
+      {exercisePickerDayIndex !== null && typeof document !== 'undefined' ? createPortal((
         <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={closeExercisePicker}>
           <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Adicionar exercício" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
@@ -8802,8 +8824,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 const exerciseAddKey = `${currentDay?.id || exercisePickerDayIndex}:${getWorkoutExerciseKey(exercise.name)}`
                 const isAddingExercise = addingExerciseKey === exerciseAddKey
                 return (
-                  <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={selected ? 'is-selected' : ''}>
-                    <span className="mobile-workout-avatar"><NavIcon name="dumbbell" className="h-4 w-4" /></span>
+              <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={`mobile-workout-picker-card ${selected ? 'is-selected' : ''}`}>
+                    <span className="mobile-workout-avatar workout-exercise-cover-mini"><MuscleMapMini exercise={exercise} /></span>
                     <span>
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
@@ -8853,9 +8875,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             </button>
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
 
-      {exercisePickerPreview ? (
+      {exercisePickerPreview && typeof document !== 'undefined' ? createPortal((
         <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setExercisePickerPreview(null)}>
           <section className="mobile-workout-sheet is-preview" role="dialog" aria-modal="true" aria-label="Prévia do exercício" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
@@ -8887,7 +8909,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             </button>
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
 
       <datalist id="mobile-exercise-library">
         {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
@@ -10939,7 +10961,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
   const hoveredConfig = hovered ? muscleConfig[hovered] : null
 
   return (
-    <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
+    <div className={`muscle-map-card workout-muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Músculo alvo</p>
@@ -10983,9 +11005,9 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
 }
 
 function BodySilhouette({ view }) {
-  const neutral = '#86a0ad'
-  const neutralSoft = '#607986'
-  const outline = '#dbe7ec'
+  const neutral = '#d7e8e4'
+  const neutralSoft = '#b8cfca'
+  const outline = '#f8fafc'
   return (
     <g opacity="0.98">
       <circle cx="50" cy="11" r="7.2" fill="#f8fafc" stroke={outline} strokeWidth="0.9" />
@@ -11012,9 +11034,9 @@ function BodySilhouette({ view }) {
 }
 
 function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
-  const primary = '#ef4444'
-  const secondary = 'rgba(239, 68, 68, 0.72)'
-  const idle = 'rgba(255,255,255,0.10)'
+  const primary = '#dc2626'
+  const secondary = 'rgba(248, 113, 113, 0.76)'
+  const idle = 'rgba(15, 23, 42, 0.08)'
 
   function regionProps(key) {
     const state = activeMuscles.get(key)
@@ -11028,7 +11050,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       onFocus: () => onHover(key),
       onBlur: () => onHover(''),
       fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
-      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.22)',
+      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fee2e2' : 'rgba(15,23,42,0.12)',
       strokeWidth: state === 'primary' ? 1.35 : 0.75,
       opacity: active ? 1 : 0.42,
       filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,
@@ -11245,20 +11267,15 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
   const target = exercise.muscleGroup || 'Músculo alvo'
   const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
   return (
-    <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`exercise-cover-card rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
+        <div className="exercise-cover-visual relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
           {imageUrl ? (
             <img src={imageUrl} alt={`Execução de ${exercise.name}`} className="h-full w-full object-cover" />
           ) : (
-            <>
-              <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
-              <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
-              <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
-              <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
-              <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
-              <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
-            </>
+            <div className="exercise-cover-anatomy">
+              <MuscleMap exercise={exercise} compact className="exercise-cover-map" />
+            </div>
           )}
           <span className="absolute bottom-2 left-2 rounded-full border border-emerald-300/25 bg-zinc-950/80 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">
             {target}
