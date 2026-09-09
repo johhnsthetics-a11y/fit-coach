@@ -62,7 +62,7 @@ const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaire
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
-const COACH_FIT_PRO_BUILD_MARKER = 'nutricao-rls-rpc-save-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'nutricao-dietas-prescritas-responsive-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -11448,8 +11448,25 @@ function NutritionQuickStat({ icon, label, value, detail }) {
   )
 }
 
-function NutritionBmrStrip({ student }) {
+function NutritionBmrStrip({ student, compact = false }) {
   const bmr = calculateBasalMetabolicRate(student)
+
+  if (compact) {
+    return (
+      <div className="nutrition-tmb-strip-v1 nutrition-tmb-compact-v1 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Taxa de metabolismo basal</p>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-2xl font-black text-white">{bmr ? `${bmr}` : '-'}</p>
+            <p className="text-xs font-bold text-zinc-500">kcal/dia</p>
+          </div>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
+            <NavIcon name="chart" className="h-5 w-5" />
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="nutrition-tmb-strip-v1 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
@@ -11687,8 +11704,6 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
         </div>
       </div>
 
-      <NutritionBmrStrip student={selectedStudent} />
-
       <div className="nutrition-pro-controls-v1 grid gap-3 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
@@ -11728,8 +11743,9 @@ function NutritionForm({ students, selectedStudent, editingPlan = null, onStartN
         options={students.map((student) => ({ label: student.name, value: student.id }))}
       />
 
-      <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.78fr)_minmax(28rem,1.22fr)] lg:items-start">
+      <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.72fr)_minmax(16rem,0.58fr)_minmax(28rem,1.28fr)] lg:items-end">
         <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} />
+        <NutritionBmrStrip student={selectedStudent} compact />
         <div className="nutrition-plan-stat-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <NutritionQuickStat icon="calendar" label="Refeições" value={totalMeals} detail="no dia" />
           <NutritionQuickStat icon="nutrition" label="Alimentos" value={totalItems} detail="itens" />
@@ -12079,6 +12095,7 @@ function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan })
 
 function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
+  const [expandedPlanId, setExpandedPlanId] = useState('')
 
   async function handleArchive(plan) {
     if (!onArchive) return
@@ -12107,10 +12124,16 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
     <div className="space-y-4">
       {plans.map((plan) => {
         const meals = Array.isArray(plan.meals) ? plan.meals : []
+        const isExpanded = sameId(expandedPlanId, plan.id)
 
         return (
           <article key={plan.id} className="nutrition-plan-card-v6 overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20">
-            <div className="border-b border-white/10 bg-emerald-300/[0.055] p-4">
+            <button
+              type="button"
+              onClick={() => setExpandedPlanId((current) => sameId(current, plan.id) ? '' : String(plan.id))}
+              className="nutrition-plan-summary-button-v1 block w-full border-b border-white/10 bg-emerald-300/[0.055] p-4 text-left transition hover:bg-emerald-300/[0.08]"
+              aria-expanded={isExpanded}
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
@@ -12119,7 +12142,7 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      Plano alimentar organizado por horário, macros e substituições.
+                      {selectedStudent?.name || 'Aluno'} • {plan.calories || 'kcal em ajuste'} • {meals.length || 0} refeição(ões)
                     </p>
                   </div>
                 </div>
@@ -12127,19 +12150,31 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
                     Ativa
                   </span>
-                  {onEdit ? (
-                    <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
-                      {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar'}
-                    </button>
-                  ) : null}
-                  {onArchive ? (
-                    <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100 disabled:opacity-50">
-                      {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
-                    </button>
-                  ) : null}
+                  <span className="nutrition-plan-expand-indicator-v1 grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-zinc-300">
+                    <NavIcon name={isExpanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
+                  </span>
                 </div>
               </div>
+            </button>
 
+            {isExpanded ? (
+              <>
+            <div className="border-b border-white/10 bg-emerald-300/[0.035] p-4">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
+                  Paciente: {selectedStudent?.name || 'Aluno'}
+                </span>
+                {onEdit ? (
+                  <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
+                    {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar dieta'}
+                  </button>
+                ) : null}
+                {onArchive ? (
+                  <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100 disabled:opacity-50">
+                    {archivingId === String(plan.id) ? 'Arquivando...' : 'Arquivar'}
+                  </button>
+                ) : null}
+              </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <NutritionQuickStat icon="chart" label="Calorias" value={plan.calories || '-'} detail="meta diária" />
                 <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan.protein || '-'} detail="por dia" />
@@ -12174,6 +12209,8 @@ function NutritionPlanList({ plans, selectedStudent, editingPlanId, onEdit, onAr
                 </div>
               ))}
             </div>
+              </>
+            ) : null}
           </article>
         )
       })}
