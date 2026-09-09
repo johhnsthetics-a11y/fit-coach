@@ -62,7 +62,7 @@ const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaire
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
-const COACH_FIT_PRO_BUILD_MARKER = 'student-theme-sync-20260908'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-auditoria-20260908'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1554,6 +1554,12 @@ function upsertNutritionPlans(plans, savedPlan) {
   return [savedPlan, ...withoutSamePlan]
 }
 
+function upsertWorkouts(workouts, savedWorkout) {
+  const currentWorkouts = Array.isArray(workouts) ? workouts : []
+  const withoutSameWorkout = currentWorkouts.filter((workout) => !sameId(workout.id, savedWorkout?.id))
+  return [savedWorkout, ...withoutSameWorkout]
+}
+
 function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
@@ -2340,7 +2346,7 @@ function AppContent() {
   }
 
   async function saveWorkout(workout) {
-    let savedWorkout = { ...workout, id: Date.now(), notes: stripWorkoutMetadata(workout.notes), active: true }
+    let savedWorkout = { ...workout, id: workout.id || Date.now(), notes: stripWorkoutMetadata(workout.notes), active: true }
     const isFirstWorkout = !(data.workouts ?? []).length
 
     if (supabaseEnabled) {
@@ -2356,7 +2362,7 @@ function AppContent() {
 
     setData((current) => ({
       ...current,
-      workouts: [savedWorkout, ...(current.workouts ?? [])],
+      workouts: upsertWorkouts(current.workouts ?? [], savedWorkout),
     }))
 
     recordLeadEvent(isFirstWorkout ? 'first_workout_created' : 'workout_created', {
@@ -3464,6 +3470,7 @@ function AppContent() {
                 onIgnoreProgression={ignoreWorkoutProgression}
                 onUndoProgression={undoWorkoutProgression}
                 onSaveStudent={saveStudent}
+                uiTheme={uiTheme}
               />
             )}
             {activeView === 'nutricao' && (
@@ -7169,7 +7176,7 @@ function parseMacroSummary(value = '') {
   }
 }
 
-function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent }) {
+function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
@@ -7186,6 +7193,7 @@ function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], wo
       exerciseLibraryItems={availableExerciseLibrary}
       onSaveWorkout={onSaveWorkout}
       onArchiveWorkout={onArchiveWorkout}
+      uiTheme={uiTheme}
     />
 
     <div className="hidden gap-4 md:grid lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
@@ -7343,7 +7351,7 @@ function getSupportedWorkoutSelectValue(value, options) {
   return options.find((item) => normalizeText(item) === normalized) || ''
 }
 
-function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout }) {
+function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
     try {
@@ -7361,6 +7369,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [expandedDay, setExpandedDay] = useState(0)
   const [showCreator, setShowCreator] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editingWorkoutId, setEditingWorkoutId] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [draft, setDraft] = useState(() => createMobileWorkoutDraft(selectedStudent, availableExerciseLibrary))
@@ -7494,12 +7503,13 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       .slice(0, 36)
   }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
 
-  function resetDraftFromWorkout(workout = null) {
+  function resetDraftFromWorkout(workout = null, { mode = 'copy' } = {}) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
     const storedDraft = !workout ? recoverStoredWorkoutDraft(selectedStudentId || selectedStudent?.id || '', availableExerciseLibrary) : null
+    const isEditingExistingWorkout = mode === 'edit' && workout?.id
     setDraft({
       ...(storedDraft || {}),
-      title: storedDraft?.title || (workout?.title ? `${workout.title} - cópia` : 'Novo treino'),
+      title: storedDraft?.title || (workout?.title ? (isEditingExistingWorkout ? workout.title : `${workout.title} - cópia`) : 'Novo treino'),
       focus: storedDraft?.focus || workout?.focus || selectedStudent?.goal || 'Hipertrofia',
       level: storedDraft?.level || workout?.level || selectedStudent?.level || 'Intermediário',
       frequency: storedDraft?.frequency || inferWorkoutFrequency(workout),
@@ -7508,18 +7518,19 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       guidance: storedDraft?.guidance || workout?.guidance || stripWorkoutMetadata(workout?.notes || '') || '',
       allowStudentPdfDownload: Boolean(storedDraft?.allowStudentPdfDownload ?? workout?.allowStudentPdfDownload),
       status: 'Rascunho',
-      days: storedDraft?.days?.length ? storedDraft.days : (days.length ? days.map((day) => ({ ...day, id: `${day.id}-copy-${Date.now()}` })) : []),
+      days: storedDraft?.days?.length ? storedDraft.days : (days.length ? days.map((day) => ({ ...day, id: isEditingExistingWorkout ? day.id : `${day.id}-copy-${Date.now()}` })) : []),
     })
+    setEditingWorkoutId(isEditingExistingWorkout ? workout.id : '')
     setShowCreator(true)
     setTab('library')
     setCreatorStep(workout ? 'days' : 'info')
     setActiveDayIndex(null)
     setExpandedExerciseKey('')
-    setMessage(storedDraft ? 'Rascunho recuperado. Continue de onde parou.' : (workout ? 'Modelo carregado como cópia. Revise e publique quando estiver pronto.' : ''))
+    setMessage(storedDraft ? 'Rascunho recuperado. Continue de onde parou.' : (workout ? (isEditingExistingWorkout ? 'Treino aberto para edição. As alterações serão salvas nesta rotina.' : 'Modelo carregado como cópia. Revise e publique quando estiver pronto.') : ''))
   }
 
   function editSelectedWorkoutAtExercises(workout) {
-    resetDraftFromWorkout(workout)
+    resetDraftFromWorkout(workout, { mode: 'edit' })
     setCreatorStep('exercises')
     setActiveDayIndex(0)
     setExpandedDay(0)
@@ -7977,7 +7988,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     setError('')
     setMessage('')
     try {
+      const isEditingWorkout = Boolean(editingWorkoutId)
       const saved = await onSaveWorkout?.({
+        id: editingWorkoutId || undefined,
         studentId,
         title: draft.title || 'Treino',
         focus: draft.focus || '',
@@ -7991,11 +8004,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         notes: buildWorkoutNotesWithMetadata(draft),
         days: draft.days,
         exercises: filledExercises,
-        source: 'mobile_workout_manager',
+        source: isEditingWorkout ? 'mobile_workout_edit' : 'mobile_workout_manager',
       })
       setSelectedWorkoutId(saved?.id || selectedWorkoutId)
       clearStoredWorkoutDraft(studentId)
-      setMessage(status === 'Rascunho' ? 'Rascunho salvo para continuar depois.' : 'Treino publicado e atribuído ao aluno.')
+      setEditingWorkoutId('')
+      setMessage(isEditingWorkout ? 'Treino atualizado para este aluno.' : (status === 'Rascunho' ? 'Rascunho salvo para continuar depois.' : 'Treino publicado e atribuído ao aluno.'))
       setShowCreator(false)
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar o treino.')
@@ -8148,7 +8162,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <small>{formatCount(assigned.length, 'treino')} · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
                 </span>
               </button>
-              <button type="button" onClick={() => { setSelectedStudentId(student.id); resetDraftFromWorkout(latest) }} className="mobile-workout-mini-action">
+              <button type="button" onClick={() => { setSelectedStudentId(student.id); latest ? editSelectedWorkoutAtExercises(latest) : resetDraftFromWorkout(null) }} className="mobile-workout-mini-action">
                 {latest ? 'Personalizar' : 'Criar'}
               </button>
             </article>
@@ -8158,21 +8172,6 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 
       {selectedWorkout && !showCreator ? (
         <div className="mobile-workout-detail">
-          {workoutStudentPreviewOpen ? (
-            <MobileWorkoutStudentPreview
-              student={selectedWorkoutStudent}
-              workout={selectedWorkout}
-              days={selectedWorkoutDays}
-              exerciseCount={selectedWorkoutExerciseCount}
-              expandedExerciseKey={expandedExerciseKey}
-              setExpandedExerciseKey={setExpandedExerciseKey}
-              onBack={() => {
-                setWorkoutStudentPreviewOpen(false)
-                setExpandedExerciseKey('')
-              }}
-            />
-          ) : (
-            <>
           <div className="mobile-workout-student-context">
             <div className="mobile-workout-student-avatar">
               {selectedWorkoutStudent?.photo ? (
@@ -8215,7 +8214,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               dayIndex={activeDayIndex}
               expandedExerciseKey={expandedExerciseKey}
               setExpandedExerciseKey={setExpandedExerciseKey}
-              onEdit={() => resetDraftFromWorkout(selectedWorkout)}
+              onEdit={() => editSelectedWorkoutAtExercises(selectedWorkout)}
               onBack={() => {
                 setActiveDayIndex(null)
                 setExpandedExerciseKey('')
@@ -8256,9 +8255,22 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               </article>
             ))}
           </div>
-          </>
-          )}
         </div>
+      ) : null}
+      {workoutStudentPreviewOpen && selectedWorkout && !showCreator ? (
+        <MobileWorkoutStudentPreview
+          student={selectedWorkoutStudent}
+          workout={selectedWorkout}
+          days={selectedWorkoutDays}
+          exerciseCount={selectedWorkoutExerciseCount}
+          expandedExerciseKey={expandedExerciseKey}
+          setExpandedExerciseKey={setExpandedExerciseKey}
+          theme={uiTheme}
+          onBack={() => {
+            setWorkoutStudentPreviewOpen(false)
+            setExpandedExerciseKey('')
+          }}
+        />
       ) : null}
         </>
       ) : null}
@@ -8409,6 +8421,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   applyExercisePreset={applyExercisePreset}
                   updateDraftExerciseVideoFile={updateDraftExerciseVideoFile}
                   openExercisePicker={openExercisePicker}
+                  theme={uiTheme}
                   onBack={() => {
                     setActiveDayIndex(null)
                     setExpandedExerciseKey('')
@@ -8558,7 +8571,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                     <span>
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
-                      <small>{[exercise.level, exercise.mechanic || exercise.composition, exercise.movementType].filter(Boolean).slice(0, 3).join(' · ')}</small>
+                      <small>{[exercise.isFavorite ? 'Favorito' : '', exercise.isRecent ? 'Usado recentemente' : '', exercise.category || exercise.objective || ''].filter(Boolean).slice(0, 2).join(' · ')}</small>
                     </span>
                     <span className="mobile-workout-picker-actions">
                       <span role="button" tabIndex={0} aria-label={isFavorite ? 'Remover dos favoritos' : 'Favoritar exercício'} onClick={(event) => { event.stopPropagation(); toggleFavoriteExercise(exercise.name) }} onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); toggleFavoriteExercise(exercise.name) } }}>{isFavorite ? '★' : '☆'}</span>
@@ -8715,26 +8728,14 @@ function MobileWorkoutEditableDay({
   applyExercisePreset,
   updateDraftExerciseVideoFile,
   openExercisePicker,
+  theme = DEFAULT_UI_THEME,
   onBack,
   onEditDay,
 }) {
   const [studentPreviewOpen, setStudentPreviewOpen] = useState(false)
 
-  if (studentPreviewOpen) {
-    return (
-      <MobileWorkoutDayScreen
-        day={day}
-        dayIndex={dayIndex}
-        expandedExerciseKey={expandedExerciseKey}
-        setExpandedExerciseKey={setExpandedExerciseKey}
-        onBack={() => setStudentPreviewOpen(false)}
-        onEdit={() => setStudentPreviewOpen(false)}
-        previewMode
-      />
-    )
-  }
-
   return (
+    <>
     <section className="mobile-workout-day-screen mobile-workout-day-editor-screen">
       <div className="mobile-workout-day-editor-hero">
         <button type="button" className="mobile-workout-back-link" onClick={onBack}>Voltar</button>
@@ -8824,6 +8825,22 @@ function MobileWorkoutEditableDay({
         ))}
       </div>
     </section>
+    {studentPreviewOpen ? createPortal((
+      <div className={`workout-day-preview-portal-v1 mobile-workout-day-preview-portal app-theme-${theme}`} role="presentation" onClick={() => setStudentPreviewOpen(false)}>
+        <div className="mobile-workout-day-preview-panel" role="dialog" aria-modal="true" aria-label="Ver como o aluno verá este dia" onClick={(event) => event.stopPropagation()}>
+          <MobileWorkoutDayScreen
+            day={day}
+            dayIndex={dayIndex}
+            expandedExerciseKey={expandedExerciseKey}
+            setExpandedExerciseKey={setExpandedExerciseKey}
+            onBack={() => setStudentPreviewOpen(false)}
+            onEdit={() => setStudentPreviewOpen(false)}
+            previewMode
+          />
+        </div>
+      </div>
+    ), document.body) : null}
+    </>
   )
 }
 
@@ -8981,10 +8998,11 @@ function formatCount(total, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`
 }
 
-function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCount = 0, expandedExerciseKey, setExpandedExerciseKey, onBack }) {
+function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCount = 0, expandedExerciseKey, setExpandedExerciseKey, theme = DEFAULT_UI_THEME, onBack }) {
   const canStudentDownloadPdf = Boolean(workout?.allowStudentPdfDownload)
-  return (
-    <section className="mobile-workout-student-preview" aria-label="Visão do aluno">
+  return createPortal((
+    <div className={`workout-student-preview-portal-v1 mobile-workout-student-preview-portal app-theme-${theme}`} role="presentation" onClick={onBack}>
+    <section className="mobile-workout-student-preview mobile-workout-student-preview-panel" aria-label="Visão do aluno" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
       <div className="mobile-workout-student-preview-head">
         <button type="button" onClick={onBack}>← Voltar para edição</button>
         <div>
@@ -9059,7 +9077,8 @@ function MobileWorkoutStudentPreview({ student, workout, days = [], exerciseCoun
         </div>
       )}
     </section>
-  )
+    </div>
+  ), document.body)
 }
 
 function summarizeWorkoutFocus(exercises = []) {

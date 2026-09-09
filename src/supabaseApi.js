@@ -626,8 +626,10 @@ export async function submitRemoteStudentAnamnesis(code, answers) {
 }
 
 export async function saveRemoteWorkout(workout, coachId) {
-  const workoutRows = await request('workouts', {
-    method: 'POST',
+  const isUpdatingWorkout = isUuid(workout.id)
+  const workoutPath = isUpdatingWorkout ? `workouts?id=eq.${encodeURIComponent(workout.id)}` : 'workouts'
+  const workoutRows = await request(workoutPath, {
+    method: isUpdatingWorkout ? 'PATCH' : 'POST',
     body: JSON.stringify({
       coach_id: coachId,
       student_id: workout.studentId,
@@ -641,6 +643,12 @@ export async function saveRemoteWorkout(workout, coachId) {
   let exerciseRows = []
   const uploadWarnings = []
   try {
+    if (isUpdatingWorkout) {
+      await request(`workout_exercises?workout_id=eq.${encodeURIComponent(workoutRows[0].id)}`, {
+        method: 'DELETE',
+      })
+    }
+
     const exercises = await Promise.all(workout.exercises.map(async (exercise, index) => {
       let uploadedVideoUrl = ''
       if (exercise.videoFile) {
@@ -675,7 +683,9 @@ export async function saveRemoteWorkout(workout, coachId) {
       })
     }
   } catch (error) {
-    await request(`workouts?id=eq.${workoutRows[0].id}`, { method: 'DELETE' }).catch(() => null)
+    if (!isUpdatingWorkout) {
+      await request(`workouts?id=eq.${workoutRows[0].id}`, { method: 'DELETE' }).catch(() => null)
+    }
     throw error
   }
 
@@ -1360,6 +1370,8 @@ function fromWorkoutRow(row) {
     allowStudentPdfDownload: Boolean(workoutMetadata.allowStudentPdfDownload),
     days: Array.isArray(workoutMetadata.days) ? workoutMetadata.days : undefined,
     active: Boolean(row.active),
+    createdAt: row.created_at ?? '',
+    updatedAt: row.updated_at ?? row.created_at ?? '',
     exercises: (row.workout_exercises ?? [])
       .slice()
       .sort((a, b) => Number(a.order_index ?? 0) - Number(b.order_index ?? 0))

@@ -4,6 +4,7 @@ const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const sw = readFileSync(new URL('../public/service-worker.js', import.meta.url), 'utf8')
+const version = readFileSync(new URL('../public/version.txt', import.meta.url), 'utf8')
 
 const checks = [
   ['App uses a build marker', app.includes('COACH_FIT_PRO_BUILD_MARKER')],
@@ -16,7 +17,9 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260908-student-theme-sync-v1')],
+  ['Build marker was bumped for workouts audit', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'treinos-auditoria-20260908'")],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260908-treinos-auditoria-v1')],
+  ['Public version file was bumped', version.includes('treinos-auditoria-v1-20260908')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -106,9 +109,15 @@ const checks = [
   ['Workout quick flow info step keeps advanced settings visible', app.includes('mobile-workout-settings-section') && !app.includes('<summary>Mais opções</summary>')],
   ['Workout quick flow stores student PDF permission', app.includes('allowStudentPdfDownload') && app.includes('Permitir que o aluno baixe o treino em PDF') && app.includes('Quando ativado, o aluno poderá baixar este treino em PDF.')],
   ['Workout picker has confirmed add state and duplicate guard', app.includes('addingExerciseKey') && app.includes('isExerciseAlreadyInDraftDay') && app.includes('Adicionando...') && app.includes('✓ Adicionado')],
+  ['Workout picker result cards avoid technical movement labels', !app.includes('exercise.mechanic || exercise.composition, exercise.movementType')],
   ['Workout draft is recoverable before publishing', app.includes('WORKOUT_DRAFT_STORAGE_KEY') && app.includes('persistWorkoutDraft') && app.includes('recoverStoredWorkoutDraft')],
   ['Workout student PDF export respects routine setting', app.includes('canStudentDownloadPdf') && app.includes('Baixar treino em PDF')],
   ['Workout quick flow light panels have solid theme polish', css.includes('workout-quick-flow-light-panels-v1') && css.includes('.app-theme-light .mobile-workout-sheet') && css.includes('.app-theme-light .mobile-workout-day-screen')],
+  ['Workout edits update the existing routine instead of duplicating it', app.includes('editingWorkoutId') && app.includes('function upsertWorkouts') && app.includes('upsertWorkouts(current.workouts ?? [], savedWorkout)')],
+  ['Remote workout save patches existing routines and refreshes exercises', api.includes('const isUpdatingWorkout = isUuid(workout.id)') && api.includes("method: isUpdatingWorkout ? 'PATCH' : 'POST'") && api.includes('workout_exercises?workout_id=eq.')],
+  ['Workout student preview opens as a theme-aware portal', app.includes('workout-student-preview-portal-v1') && app.includes('mobile-workout-student-preview-panel') && css.includes('workout-student-preview-portal-v1') && css.includes('.mobile-workout-student-preview-portal.app-theme-light')],
+  ['Workout day preview opens in a focused overlay, not buried inline', app.includes('workout-day-preview-portal-v1') && app.includes('mobile-workout-day-preview-panel') && css.includes('workout-day-preview-portal-v1')],
+  ['Workout audit polish keeps critical actions and picker scroll accessible', css.includes('workout-audit-responsive-polish-v2') && css.includes('max-height: min(88dvh, 760px)') && css.includes('position: sticky')],
   ['Nutrition supports household measures per food', app.includes('NUTRITION_HOUSEHOLD_MEASURES') && app.includes('getFoodMeasureOptions') && app.includes('calculateFoodServingGrams') && app.includes('customMeasureGrams')],
   ['Nutrition student servings show household measure and grams', app.includes('formatStudentFoodServing') && app.includes('nutrition-serving-controls-v1') && css.includes('nutrition-serving-controls-v1')],
   ['Nutrition metadata persists structured servings without SQL', app.includes('NUTRITION_PLAN_METADATA_PREFIX') && api.includes('NUTRITION_PLAN_METADATA_PREFIX') && api.includes('parseNutritionPlanMetadata')],
