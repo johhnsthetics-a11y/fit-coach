@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-legacy-visual-fix-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-deep-stability-fix-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1304,6 +1304,31 @@ function normalizeStoredData(value) {
   return normalized
 }
 
+function normalizeRuntimeData(value, current = createInitialData()) {
+  return normalizeStoredData({
+    ...current,
+    ...(value && typeof value === 'object' ? value : {}),
+  })
+}
+
+async function clearAppRuntimeCacheAndReload() {
+  try {
+    if ('caches' in window) {
+      const keys = await window.caches.keys()
+      await Promise.all(keys.filter((key) => key.includes('coach-fit-pro')).map((key) => window.caches.delete(key)))
+    }
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(registrations.map((registration) => registration.unregister()))
+    }
+    window.localStorage.removeItem('coachfitpro-last-error')
+  } catch {
+    // Mesmo se o navegador bloquear a limpeza, o reload comum ainda pode recuperar a tela.
+  } finally {
+    window.location.reload()
+  }
+}
+
 function mergeRecords(current = [], loaded = []) {
   const records = new Map()
   const combined = [...loaded, ...current]
@@ -1471,7 +1496,7 @@ function useStoredData() {
     loadRemoteData()
       .then((remoteData) => {
         if (!active) return
-        setData((current) => ({
+        setData((current) => normalizeRuntimeData({
           ...current,
           ...remoteData,
           user: remoteData.user ?? current.user,
@@ -1492,7 +1517,7 @@ function useStoredData() {
           coachSettings: remoteData.coachSettings ?? current.coachSettings,
           coachSubscription: remoteData.coachSubscription ?? current.coachSubscription,
           appAdminSettings: remoteData.appAdminSettings ?? current.appAdminSettings,
-        }))
+        }, current))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
       })
@@ -1603,7 +1628,7 @@ class AppErrorBoundary extends Component {
           </p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={clearAppRuntimeCacheAndReload}
             className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30"
           >
             Atualizar aplicativo
@@ -1820,7 +1845,7 @@ function AppContent() {
     setData((current) => {
       const wasActive = isCoachSubscriptionActive(current.coachSubscription)
       const unlockedNow = !wasActive && activeSubscription
-      return {
+      return normalizeRuntimeData({
         ...current,
         user: remoteData.user ?? current.user,
         students: remoteData.students,
@@ -1848,7 +1873,7 @@ function AppContent() {
         anamneses: remoteData.anamneses ?? [],
         coachSettings: remoteData.coachSettings,
         coachSubscription: remoteData.coachSubscription,
-      }
+      }, current)
     })
 
     if (activeSubscription) {
@@ -2103,7 +2128,7 @@ function AppContent() {
         savedUser = mode === 'signup'
           ? await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || role })
           : remoteData.user || await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || undefined })
-        setData((current) => ({
+        setData((current) => normalizeRuntimeData({
           ...current,
           session,
           user: savedUser,
@@ -2124,7 +2149,7 @@ function AppContent() {
           anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings,
           coachSubscription: remoteData.coachSubscription,
-        }))
+        }, current))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
         if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {

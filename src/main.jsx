@@ -3,6 +3,24 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+async function clearAppRuntimeCacheAndReload() {
+  try {
+    if ('caches' in window) {
+      const keys = await window.caches.keys()
+      await Promise.all(keys.filter((key) => key.includes('coach-fit-pro')).map((key) => window.caches.delete(key)))
+    }
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(registrations.map((registration) => registration.unregister()))
+    }
+    window.localStorage.removeItem('coachfitpro-last-error')
+  } catch {
+    // Recarrega mesmo se o navegador bloquear alguma API de cache.
+  } finally {
+    window.location.reload()
+  }
+}
+
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
@@ -25,7 +43,7 @@ class AppErrorBoundary extends React.Component {
             <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
             <h1 className="mt-3 text-2xl font-black">Não foi possível exibir esta tela</h1>
             <p className="mt-3 text-sm leading-6 text-zinc-400">Seus dados salvos não foram apagados. Atualize o aplicativo para tentar novamente.</p>
-            <button type="button" onClick={() => window.location.reload()} className="mt-6 w-full rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950">
+            <button type="button" onClick={clearAppRuntimeCacheAndReload} className="mt-6 w-full rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950">
               Atualizar aplicativo
             </button>
           </section>
