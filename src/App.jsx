@@ -2571,7 +2571,7 @@ function AppContent() {
     const activeWorkout = data.workouts.find((workout) => (
       String(workout.studentId) === String(decision.studentId)
       && workout.active !== false
-      && (workout.exercises || []).some((exercise) => normalizeText(exercise.name) === normalizeText(decision.exerciseName))
+      && getWorkoutExercisesArray(workout.exercises).some((exercise) => normalizeText(normalizeWorkoutExerciseInput(exercise).name) === normalizeText(decision.exerciseName))
     ))
     if (!activeWorkout) throw new Error('Treino ativo para desfazer não encontrado.')
     const recommendation = {
@@ -5731,7 +5731,7 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
   )
 }
 
-function Overview({ selectedStudent, smartAlerts, priorityDashboard, assessments, invoices, setSelectedStudentId, setActiveView }) {
+function Overview({ selectedStudent, smartAlerts = [], priorityDashboard = {}, assessments = [], invoices = [], setSelectedStudentId, setActiveView }) {
   if (!selectedStudent) {
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -5933,7 +5933,7 @@ function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
   )
 }
 
-function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
+function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateStatus }) {
   const [filter, setFilter] = useState('Proximos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -6130,7 +6130,7 @@ function Agenda({ students, appointments, onSaveAppointment, onUpdateStatus }) {
   )
 }
 
-function Students({ students, workoutLogs = [], invites, anamneses, selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ students = [], workoutLogs = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -6666,7 +6666,7 @@ function StudentPlanPreview({ plan, availablePlans = plans }) {
   )
 }
 
-function Assessments({ students, selectedStudent, assessments, onSaveAssessment }) {
+function Assessments({ students = [], selectedStudent, assessments = [], onSaveAssessment }) {
   const [studentId, setStudentId] = useState(selectedStudent?.id ?? students[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -6777,7 +6777,7 @@ function Assessments({ students, selectedStudent, assessments, onSaveAssessment 
   )
 }
 
-function AssessmentProgress({ assessments, student, detailed = false, checkins = [] }) {
+function AssessmentProgress({ assessments = [], student, detailed = false, checkins = [] }) {
   const ordered = assessments.slice().sort((a, b) => new Date(a.assessedAt) - new Date(b.assessedAt))
   const latest = ordered.at(-1)
   const first = ordered[0]
@@ -7210,10 +7210,11 @@ function getExpressStepLabel(step) {
 
 function buildExpressWorkoutModels(workouts = [], exerciseLibraryItems = []) {
   return workouts
-    .filter((workout) => workout?.exercises?.length)
+    .filter((workout) => getWorkoutExercisesArray(workout?.exercises).length)
     .slice(0, 12)
     .map((workout) => {
-      const enriched = workout.exercises.map((exercise) => enrichExercise(exercise, exerciseLibraryItems))
+      const exercises = getWorkoutExercisesArray(workout?.exercises)
+      const enriched = exercises.map((exercise) => enrichExercise(exercise, exerciseLibraryItems))
       const muscles = summarizeExpressWorkout({ exercises: enriched }).topMuscles
       return {
         id: workout.id,
@@ -7227,11 +7228,11 @@ function buildExpressWorkoutModels(workouts = [], exerciseLibraryItems = []) {
 function buildExpressWorkoutDraft({ student, objective, level, frequency, location, mode, workouts = [], availableExerciseLibrary = [], bulkSets = '', bulkReps = '', bulkRest = '' }) {
   const blueprint = expressWorkoutBlueprints[objective] || expressWorkoutBlueprints.hipertrofia
   const reusableWorkout = ['duplicar', 'adaptar'].includes(mode)
-    ? workouts.find((workout) => workout?.exercises?.length && String(workout.studentId) === String(student?.id))
-      || workouts.find((workout) => workout?.exercises?.length)
+    ? workouts.find((workout) => getWorkoutExercisesArray(workout?.exercises).length && String(workout.studentId) === String(student?.id))
+      || workouts.find((workout) => getWorkoutExercisesArray(workout?.exercises).length)
     : null
-  const sourceExercises = reusableWorkout?.exercises?.length
-    ? reusableWorkout.exercises
+  const sourceExercises = getWorkoutExercisesArray(reusableWorkout?.exercises).length
+    ? getWorkoutExercisesArray(reusableWorkout?.exercises)
     : blueprint.exercises.map((name) => createExerciseDraft(name, {}, availableExerciseLibrary))
   const levelAdjust = {
     iniciante: { sets: '2-3', reps: objective === 'forca' ? '5-6' : '10-12', load: 'RPE 6-7' },
@@ -7362,7 +7363,7 @@ function parseMacroSummary(value = '') {
   }
 }
 
-function Workouts({ selectedStudent, students, workouts, nutritionPlans = [], workoutLogs, progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
+function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
@@ -9334,7 +9335,7 @@ function getInitials(value = '') {
   return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'AL'
 }
 
-function WorkoutProgressionRecommendations({ student, workouts, logs, decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
+function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
   const [loading, setLoading] = useState(true)
   const [busyKey, setBusyKey] = useState('')
   const [message, setMessage] = useState('')
@@ -10369,7 +10370,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   )
 }
 
-function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
+function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [archivingId, setArchivingId] = useState('')
 
@@ -10394,59 +10395,66 @@ function WorkoutList({ workouts, fallbackTitle, exerciseLibraryItems = exerciseL
 
   return (
     <div className="space-y-4">
-      {workouts.map((workout) => (
-        <div key={workout.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h4 className="text-lg font-black">{workout.title}</h4>
-              <p className="mt-1 text-sm text-zinc-400">{workout.focus}</p>
-              {workout.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
+      {workouts.map((workout) => {
+        const workoutExercises = getWorkoutExercisesArray(workout.exercises)
+        return (
+          <div key={workout.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h4 className="text-lg font-black">{workout.title}</h4>
+                <p className="mt-1 text-sm text-zinc-400">{workout.focus}</p>
+                {workout.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
+                  Ativo
+                </span>
+                {onArchive ? (
+                  <button disabled={archivingId === String(workout.id)} type="button" onClick={() => handleArchive(workout)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 disabled:opacity-50">
+                    {archivingId === String(workout.id) ? 'Arquivando...' : 'Arquivar'}
+                  </button>
+                ) : null}
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
-                Ativo
-              </span>
-              {onArchive ? (
-                <button disabled={archivingId === String(workout.id)} type="button" onClick={() => handleArchive(workout)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 disabled:opacity-50">
-                  {archivingId === String(workout.id) ? 'Arquivando...' : 'Arquivar'}
-                </button>
-              ) : null}
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3">
-            {workout.exercises.map((exercise, index) => {
-              const enriched = enrichExercise(exercise, availableExerciseLibrary)
-              return (
-                <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
-                      <h5 className="mt-1 text-base font-black text-white">{enriched.name}</h5>
-                      <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
+            <div className="mt-4 grid gap-3">
+              {workoutExercises.length ? workoutExercises.map((exercise, index) => {
+                const enriched = enrichExercise(exercise, availableExerciseLibrary)
+                return (
+                  <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                        <h5 className="mt-1 text-base font-black text-white">{enriched.name}</h5>
+                        <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                        <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
+                        <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
+                        <ExerciseMetric label="Carga" value={enriched.load || '-'} />
+                        <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                      <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
-                      <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
-                      <ExerciseMetric label="Carga" value={enriched.load || '-'} />
-                      <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
+                    <div className="mt-4">
+                      <ExerciseMuscleSummary exercise={enriched} />
                     </div>
-                  </div>
-                  <div className="mt-4">
-                    <ExerciseMuscleSummary exercise={enriched} />
-                  </div>
-                  {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
-                  <div className="mt-3">
-                    <ExerciseMedia exercise={enriched} />
-                    <div className="mt-2">
-                      <ExerciseYouTubeLink exercise={enriched} />
+                    {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
+                    <div className="mt-3">
+                      <ExerciseMedia exercise={enriched} />
+                      <div className="mt-2">
+                        <ExerciseYouTubeLink exercise={enriched} />
+                      </div>
                     </div>
                   </div>
+                )
+              }) : (
+                <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-4 text-sm font-bold text-zinc-400">
+                  Este treino ainda não possui exercícios cadastrados.
                 </div>
-              )
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -11790,7 +11798,7 @@ function NutritionBmrStrip({ student, anamnesis = null, compact = false }) {
   )
 }
 
-function NutritionForm({ students, selectedStudent, selectedAnamnesis = null, anamneses = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionForm({ students = [], selectedStudent, selectedAnamnesis = null, anamneses = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -12304,7 +12312,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
   ), document.body)
 }
 
-function NutritionFormLegacy({ students, selectedStudent, onSaveNutritionPlan }) {
+function NutritionFormLegacy({ students = [], selectedStudent, onSaveNutritionPlan }) {
   const [meals, setMeals] = useState([
     { name: 'Café da manhã', time: '07:00', items: [{ category: 'Ovos', foodName: 'Ovo Inteiro', grams: 100 }] },
     { name: 'Almoço', time: '12:30', items: [{ category: 'Carboidratos', foodName: 'Arroz Branco', grams: 200 }, { category: 'Carnes', foodName: 'Peito de Frango', grams: 180 }] },
@@ -13471,7 +13479,7 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
   )
 }
 
-function Checkins({ checkins, students, onAddCheckin }) {
+function Checkins({ checkins = [], students = [], onAddCheckin }) {
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <Panel title="Novo check-in" action="Upload local">
@@ -13753,7 +13761,7 @@ function StudentPortalPreview({
   )
 }
 
-function StudentMessagePanel({ student, coachId, messages, onSendMessage, fullScreen = false }) {
+function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, fullScreen = false }) {
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState('')
@@ -15393,7 +15401,7 @@ function StudentPaymentLock({ coachSettings, onOpenPayments, onOpenChat }) {
   )
 }
 
-function StudentPaymentStatement({ student, invoices, coachSettings, onSendMessage }) {
+function StudentPaymentStatement({ student, invoices = [], coachSettings, onSendMessage }) {
   const [noticeSending, setNoticeSending] = useState(false)
   const [noticeSent, setNoticeSent] = useState(false)
   const visibleInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
@@ -15584,7 +15592,7 @@ function escapeStatementHtml(value) {
     .replace(/'/g, '&#039;')
 }
 
-function StudentChatScreen({ student, coachId, messages, onSendMessage, onRefreshMessages }) {
+function StudentChatScreen({ student, coachId, messages = [], onSendMessage, onRefreshMessages }) {
   useEffect(() => {
     if (!onRefreshMessages) return undefined
     let active = true
@@ -15624,7 +15632,7 @@ function StudentStatusCard({ label, value, detail }) {
     </div>
   )
 }
-function CheckinForm({ students, onAddCheckin }) {
+function CheckinForm({ students = [], onAddCheckin }) {
   const [photo, setPhoto] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -15714,7 +15722,7 @@ function CheckinForm({ students, onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students, invoices, subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -16230,7 +16238,7 @@ function BillingLine({ label, value, note }) {
   )
 }
 
-function Payments({ students, invoices, coachSettings, coachPlans = plans, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
+function Payments({ students = [], invoices = [], coachSettings, coachPlans = plans, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
   const [filter, setFilter] = useState('Todos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -16655,7 +16663,7 @@ function PaymentStatus({ status }) {
   )
 }
 
-function Notifications({ notifications, onReadAll }) {
+function Notifications({ notifications = [], onReadAll }) {
   return (
     <Panel title="Central de notificações" action={`${notifications.filter((item) => !item.read).length} não lidas`}>
       <button onClick={onReadAll} className="mb-4 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
@@ -16673,7 +16681,7 @@ function Notifications({ notifications, onReadAll }) {
   )
 }
 
-function SmartNotifications({ notifications, smartAlerts, onReadAll, onOpenView }) {
+function SmartNotifications({ notifications = [], smartAlerts = [], onReadAll, onOpenView }) {
   const unread = notifications.filter((item) => !item.read).length
 
   return (
@@ -17898,7 +17906,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
   )
 }
 
-function Messages({ students, messages, selectedStudent: selectedStudentFromDashboard, onSendMessage, onMarkRead, onRefreshMessages }) {
+function Messages({ students = [], messages = [], selectedStudent: selectedStudentFromDashboard, onSendMessage, onMarkRead, onRefreshMessages }) {
   const [selectedStudentId, setSelectedStudentId] = useState(selectedStudentFromDashboard?.id ?? students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
