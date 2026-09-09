@@ -7308,7 +7308,7 @@ function buildExpressNutritionDraft({ student, objective, mealCount }) {
 }
 
 function summarizeExpressWorkout(workout = {}) {
-  const exercises = workout.exercises || []
+  const exercises = getWorkoutExercisesArray(workout?.exercises).map(normalizeWorkoutExerciseInput)
   const muscleCounts = exercises.reduce((acc, exercise) => {
     const profile = getExerciseMuscleProfile(exercise)
     const label = profile.primaryLabel && profile.primaryLabel !== 'Músculo alvo não identificado' ? profile.primaryLabel : (exercise.muscleGroup || 'Outros')
@@ -8355,7 +8355,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <span>
                     <strong>{workout.title || 'Treino sem nome'}</strong>
                     <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)} · {formatCount(days.length || 1, 'dia')}</small>
-                  <small>{formatCount((workout.exercises || []).length, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                  <small>{formatCount(getWorkoutExercisesArray(workout.exercises).length, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
                   </span>
                 </button>
                 <details className="mobile-workout-menu">
@@ -9487,7 +9487,8 @@ function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], 
 function buildWorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [] }) {
   if (!student || !workouts.length) return []
   const latestWorkout = workouts.slice().sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
-  if (!latestWorkout?.exercises?.length) return []
+  const latestWorkoutExercises = getWorkoutExercisesArray(latestWorkout?.exercises)
+  if (!latestWorkoutExercises.length) return []
   const recentLogs = logs
     .slice()
     .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0))
@@ -9495,7 +9496,7 @@ function buildWorkoutProgressionRecommendations({ student, workouts = [], logs =
   const recentDecisions = new Set(decisions.slice(0, 12).filter((decision) => ['approved', 'ignored'].includes(decision.status)).map((decision) => `${normalizeText(decision.exerciseName)}-${decision.status}`))
   const frequency14 = countSince(logs, 14, (log) => log.completedAt)
 
-  return latestWorkout.exercises
+  return latestWorkoutExercises
     .map((rawExercise, index) => {
       const exercise = enrichExercise(rawExercise, exerciseLibraryItems)
       const key = `${latestWorkout.id}-${normalizeText(exercise.name)}-${index}`
@@ -9652,7 +9653,8 @@ function summarizeExerciseSessions(sessions = []) {
 
 function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
   const targetName = normalizeText(recommendation.exercise.name)
-  const exercises = (workout.exercises || []).map((exercise) => {
+  const exercises = getWorkoutExercisesArray(workout?.exercises).map((rawExercise) => {
+    const exercise = normalizeWorkoutExerciseInput(rawExercise)
     if (normalizeText(exercise.name) !== targetName) return exercise
     const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
     return {
@@ -11358,7 +11360,7 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
 
 function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const exercises = (workout?.exercises || []).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
+  const exercises = getWorkoutExercisesArray(workout?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const [loads, setLoads] = useState({})
   const [effort, setEffort] = useState('Moderado')
   const [saving, setSaving] = useState(false)
