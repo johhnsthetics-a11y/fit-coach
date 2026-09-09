@@ -145,6 +145,11 @@ const checks = [
   ['Questionnaire preview follows active theme', app.includes('questionnaire-preview-portal-v1') && css.includes('questionnaire-preview-portal-v1.app-theme-light')],
   ['Student first access collects metabolic inputs', app.includes('Sexo biológico para cálculo metabólico') && app.includes('Altura (cm)') && app.includes('Peso atual (kg)') && app.includes('Nível de atividade atual')],
   ['Nutrition questionnaires exist for coach and student', app.includes('NutritionQuestionnaires') && app.includes('StudentQuestionnaireCenter') && app.includes('coachfitpro-nutrition-questionnaires')],
+  ['Login tab copy uses Login instead of Coach', app.includes("['signin', 'Login']") && !app.includes("['signin', 'Coach']")],
+  ['Questionnaire renderer persists selectable observations', app.includes('getQuestionnaireAnswerValue') && app.includes('updateQuestionnaireAnswerMeta') && app.includes('Observação opcional')],
+  ['Questionnaire other option captures typed text', app.includes('optionRequiresOtherText') && app.includes('Especifique') && app.includes('otherText')],
+  ['Student questionnaire can be postponed without completing', app.includes('dismissedQuestionnairePriorityIds') && app.includes('Responder depois') && app.includes('Você possui um questionário pendente')],
+  ['Questionnaire received area separates pending and completed submissions', app.includes('questionnaire-received-list-v1') && app.includes('Recebidos') && app.includes('Aguardando resposta')],
   ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
   ['Nutrition questionnaire schema is documented but not executed', api.includes('saveRemoteNutritionQuestionnaire') && api.includes('Remote nutrition questionnaires require Supabase schema setup')]
 ]

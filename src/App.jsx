@@ -2667,25 +2667,38 @@ function AppContent() {
   async function assignNutritionQuestionnaire(questionnaire, studentId) {
     const savedQuestionnaire = await saveNutritionQuestionnaire({ ...questionnaire, status: 'Enviado' })
     const now = new Date().toISOString()
-    const assignment = {
-      id: createNutritionDraftId('student-questionnaire'),
-      questionnaireId: savedQuestionnaire.id,
-      studentId,
-      coachId: data.user?.id || '',
-      status: 'Enviado',
-      questionSnapshot: savedQuestionnaire,
-      answers: {},
-      xpAwarded: false,
-      sentAt: now,
-      updatedAt: now,
-    }
+    const notificationKey = `questionnaire-${savedQuestionnaire.id}-${studentId}`
+    let assignment = null
     setData((current) => ({
       ...current,
       nutritionQuestionnaires: upsertById(current.nutritionQuestionnaires ?? [], savedQuestionnaire),
-      studentQuestionnaireAssignments: [assignment, ...(current.studentQuestionnaireAssignments ?? [])],
+      studentQuestionnaireAssignments: (() => {
+        const currentAssignments = current.studentQuestionnaireAssignments ?? []
+        const existingPending = currentAssignments.find((item) => (
+          sameId(item.studentId, studentId)
+          && sameId(item.questionnaireId, savedQuestionnaire.id)
+          && item.status !== 'Respondido'
+        ))
+        assignment = {
+          ...(existingPending || {}),
+          id: existingPending?.id || createNutritionDraftId('student-questionnaire'),
+          questionnaireId: savedQuestionnaire.id,
+          studentId,
+          coachId: data.user?.id || '',
+          status: 'Pendente',
+          questionSnapshot: savedQuestionnaire,
+          answers: existingPending?.answers || {},
+          xpAwarded: false,
+          sentAt: existingPending?.sentAt || now,
+          updatedAt: now,
+        }
+        return existingPending
+          ? currentAssignments.map((item) => sameId(item.id, assignment.id) ? assignment : item)
+          : [assignment, ...currentAssignments]
+      })(),
       notifications: [
-        { id: Date.now() + 2, title: 'Questionário enviado', body: `Questionário nutricional liberado para ${data.students.find((student) => String(student.id) === String(studentId))?.name || 'o aluno'}.`, read: false },
-        ...current.notifications,
+        { id: notificationKey, title: 'Questionário enviado', body: `Questionário nutricional liberado para ${current.students.find((student) => String(student.id) === String(studentId))?.name || 'o aluno'}.`, read: false },
+        ...current.notifications.filter((notification) => notification.id !== notificationKey),
       ],
     }))
     return assignment
@@ -4275,7 +4288,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             ) : null}
             <div className="mt-5 grid grid-cols-3 gap-2">
               {[
-                ['signin', 'Coach'],
+                ['signin', 'Login'],
                 ['signup', 'Criar conta'],
                 ['student', 'Aluno'],
               ].map(([id, label]) => (
@@ -11602,7 +11615,7 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
+function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [nutritionTab, setNutritionTab] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search)
@@ -11709,11 +11722,13 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
           <Panel title="Questionário" action="Coach e aluno">
             <NutritionQuestionnaires
               selectedStudent={selectedStudent}
+              students={students}
               questionnaires={nutritionQuestionnaires}
               assignments={questionnaireAssignments}
               onSaveQuestionnaire={onSaveQuestionnaire}
               onAssignQuestionnaire={onAssignQuestionnaire}
               uiTheme={uiTheme}
+              toggleUiTheme={toggleUiTheme}
             />
           </Panel>
         </div>
@@ -12662,11 +12677,10 @@ function createNutritionQuestionnaireDraft(base = {}) {
   }
 }
 
-function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionQuestionnaires({ selectedStudent, students = [], questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [draft, setDraft] = useState(() => createNutritionQuestionnaireDraft())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [message, setMessage] = useState('')
-  const studentAssignments = assignments.filter((assignment) => String(assignment.studentId) === String(selectedStudent?.id))
 
   function updateQuestion(questionId, field, value) {
     setDraft((current) => ({
@@ -12762,40 +12776,92 @@ function NutritionQuestionnaires({ selectedStudent, questionnaires = [], assignm
         </div>
       ) : null}
 
-      {studentAssignments.length ? (
-        <div className="grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Envios para {selectedStudent?.name || 'aluno'}</p>
-          {studentAssignments.slice(0, 5).map((assignment) => (
-            <div key={assignment.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-              <p className="font-black text-zinc-100">{assignment.questionSnapshot?.title || 'Questionário'}</p>
-              <p className="mt-1 text-xs text-zinc-500">{assignment.status} • {assignment.completedAt ? formatDateTime(assignment.completedAt) : 'aguardando resposta'}</p>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <div className="grid gap-2">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Recebidos</p>
+        <QuestionnaireReceivedList assignments={assignments} students={students} />
+      </div>
 
       {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
-      {previewOpen ? <QuestionnairePreviewModal questionnaire={draft} theme={uiTheme} onClose={() => setPreviewOpen(false)} /> : null}
+      {previewOpen ? <QuestionnairePreviewModal questionnaire={draft} theme={uiTheme} onToggleTheme={toggleUiTheme} onClose={() => setPreviewOpen(false)} /> : null}
+    </div>
+  )
+}
+
+function QuestionnaireReceivedList({ assignments = [], students = [] }) {
+  const [expandedId, setExpandedId] = useState('')
+  const sortedAssignments = assignments.slice().sort((a, b) => new Date(b.completedAt || b.sentAt || b.updatedAt || 0) - new Date(a.completedAt || a.sentAt || a.updatedAt || 0))
+
+  if (!sortedAssignments.length) {
+    return <Empty text="Nenhum questionário enviado ainda." />
+  }
+
+  return (
+    <div className="questionnaire-received-list-v1 grid gap-3">
+      {sortedAssignments.map((assignment) => {
+        const student = students.find((item) => sameId(item.id, assignment.studentId))
+        const questionnaire = assignment.questionSnapshot || {}
+        const questions = questionnaire.questions || []
+        const answered = getQuestionnaireAnsweredCount(questions, assignment.answers || {})
+        const isExpanded = sameId(expandedId, assignment.id)
+        const isCompleted = assignment.status === 'Respondido'
+
+        return (
+          <article key={assignment.id} className={`questionnaire-received-card-v1 rounded-2xl border border-white/10 bg-white/[0.035] p-3 ${isCompleted ? 'is-completed' : 'is-pending'}`}>
+            <button type="button" onClick={() => setExpandedId(isExpanded ? '' : String(assignment.id))} className="flex w-full min-w-0 flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between">
+              <span className="min-w-0">
+                <span className="block text-xs font-black uppercase tracking-[0.12em] text-emerald-200">{isCompleted ? 'Recebido' : 'Aguardando resposta'}</span>
+                <strong className="mt-1 block break-words text-base text-white">{questionnaire.title || 'Questionário nutricional'}</strong>
+                <span className="mt-1 block text-sm leading-5 text-zinc-400">
+                  {student?.name || 'Paciente'} • enviado em {assignment.sentAt ? formatDateTime(assignment.sentAt) : 'data não informada'}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{assignment.status || 'Pendente'}</span>
+                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-zinc-400">{answered}/{questions.length}</span>
+              </span>
+            </button>
+
+            {isExpanded ? (
+              <div className="mt-3 grid gap-2 border-t border-white/10 pt-3">
+                <p className="text-xs font-bold uppercase text-zinc-500">
+                  {assignment.completedAt ? `Respondido em ${formatDateTime(assignment.completedAt)}` : 'Paciente ainda não concluiu este questionário.'}
+                </p>
+                {questions.map((question) => {
+                  const answer = formatQuestionnaireAnswerDisplay(assignment.answers?.[question.id])
+                  return (
+                    <div key={question.id} className="rounded-xl border border-white/10 bg-zinc-950/35 p-3">
+                      <p className="text-sm font-black text-zinc-100">{question.label}</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-300">{answer.valueLabel}</p>
+                      {answer.otherText ? <p className="mt-1 text-xs font-bold text-emerald-200">Outra: {answer.otherText}</p> : null}
+                      {answer.observation ? <p className="mt-1 text-xs leading-5 text-zinc-400">Observação: {answer.observation}</p> : null}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+          </article>
+        )
+      })}
     </div>
   )
 }
 
 function getQuestionnaireAnsweredCount(questions = [], answers = {}) {
   return questions.filter((question) => {
-    const answer = answers[question.id]
+    const answer = getQuestionnaireAnswerValue(answers[question.id])
     return Array.isArray(answer) ? answer.length > 0 : Boolean(String(answer || '').trim())
   }).length
 }
 
 function getMissingRequiredQuestion(questions = [], answers = {}) {
   return questions.find((question) => (
-    question.required && !(Array.isArray(answers[question.id]) ? answers[question.id].length : String(answers[question.id] || '').trim())
+    question.required && !(Array.isArray(getQuestionnaireAnswerValue(answers[question.id])) ? getQuestionnaireAnswerValue(answers[question.id]).length : String(getQuestionnaireAnswerValue(answers[question.id]) || '').trim())
   )) || null
 }
 
 function getQuestionnaireInputKind(type = 'text') {
   const normalized = normalizeText(type)
-  if (['single', 'radio', 'select', 'unica', 'unica-escolha'].includes(normalized)) return 'single'
+  if (['single', 'radio', 'select', 'unica', 'unica-escolha', 'yesno', 'sim-nao', 'simnao', 'boolean', 'bool'].includes(normalized)) return 'single'
   if (['multiple', 'checkbox', 'multiplas', 'multipla-escolha'].includes(normalized)) return 'multiple'
   if (['scale', 'escala'].includes(normalized)) return 'scale'
   if (['number', 'numero'].includes(normalized)) return 'number'
@@ -12803,14 +12869,66 @@ function getQuestionnaireInputKind(type = 'text') {
   return 'text'
 }
 
+function getQuestionnaireAnswerValue(answer) {
+  if (answer && typeof answer === 'object' && !Array.isArray(answer) && Object.prototype.hasOwnProperty.call(answer, 'value')) {
+    return answer.value
+  }
+  return answer
+}
+
+function getQuestionnaireAnswerMeta(answer) {
+  return answer && typeof answer === 'object' && !Array.isArray(answer)
+    ? answer
+    : { value: answer ?? '', observation: '', otherText: '' }
+}
+
+function updateQuestionnaireAnswerValue(previousAnswer, value) {
+  const previousMeta = getQuestionnaireAnswerMeta(previousAnswer)
+  return {
+    ...previousMeta,
+    value,
+  }
+}
+
+function updateQuestionnaireAnswerMeta(previousAnswer, field, value) {
+  const previousMeta = getQuestionnaireAnswerMeta(previousAnswer)
+  return {
+    ...previousMeta,
+    [field]: value,
+  }
+}
+
+function optionRequiresOtherText(option = '') {
+  return ['outra', 'outro', 'outros'].includes(normalizeText(option))
+}
+
+function isQuestionnaireOptionSelected(kind, answerValue, option) {
+  return kind === 'multiple' ? (answerValue || []).includes(option) : answerValue === option
+}
+
+function formatQuestionnaireAnswerDisplay(answer) {
+  const meta = getQuestionnaireAnswerMeta(answer)
+  const value = getQuestionnaireAnswerValue(answer)
+  const valueLabel = Array.isArray(value) ? value.join(', ') : String(value || '').trim()
+  return {
+    valueLabel: valueLabel || 'Sem resposta',
+    observation: String(meta.observation || '').trim(),
+    otherText: String(meta.otherText || '').trim(),
+  }
+}
+
 function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, missingQuestionId = '', readOnly = false }) {
   return (
     <div className="student-questionnaire-fields">
       {questions.map((question) => {
         const kind = getQuestionnaireInputKind(question.type)
-        const value = answers[question.id]
+        const rawAnswer = answers[question.id]
+        const answerMeta = getQuestionnaireAnswerMeta(rawAnswer)
+        const value = getQuestionnaireAnswerValue(rawAnswer)
         const hasError = missingQuestionId && sameId(missingQuestionId, question.id)
         const options = question.options?.length ? question.options : ['Sim', 'Não']
+        const selectable = kind === 'single' || kind === 'multiple' || kind === 'scale'
+        const selectedOtherOption = options.find((option) => optionRequiresOtherText(option) && isQuestionnaireOptionSelected(kind, value, option))
 
         return (
           <div key={question.id} className={`student-questionnaire-field ${hasError ? 'has-error' : ''}`}>
@@ -12844,7 +12962,7 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
                 {[1, 2, 3, 4, 5].map((option) => {
                   const selected = String(value || '') === String(option)
                   return (
-                    <button key={option} type="button" disabled={readOnly} onClick={() => onAnswer?.(question, option)} className={selected ? 'is-selected' : ''}>
+                    <button key={option} type="button" disabled={readOnly} onClick={() => onAnswer?.(question, updateQuestionnaireAnswerValue(rawAnswer, option))} className={selected ? 'is-selected' : ''}>
                       {option}
                     </button>
                   )
@@ -12864,9 +12982,10 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
                       disabled={readOnly}
                       onClick={() => {
                         if (kind === 'multiple') {
-                          onAnswer?.(question, selected ? (current || []).filter((item) => item !== option) : [...(current || []), option])
+                          const nextValue = selected ? (current || []).filter((item) => item !== option) : [...(current || []), option]
+                          onAnswer?.(question, updateQuestionnaireAnswerValue(rawAnswer, nextValue))
                         } else {
-                          onAnswer?.(question, option)
+                          onAnswer?.(question, updateQuestionnaireAnswerValue(rawAnswer, option))
                         }
                       }}
                       className={selected ? 'is-selected' : ''}
@@ -12879,6 +12998,31 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
               </div>
             ) : null}
 
+            {selectedOtherOption ? (
+              <label className="student-questionnaire-other-v1">
+                <span>Especifique</span>
+                <input
+                  value={answerMeta.otherText || ''}
+                  onChange={(event) => onAnswer?.(question, updateQuestionnaireAnswerMeta(rawAnswer, 'otherText', event.target.value))}
+                  disabled={readOnly}
+                  placeholder="Descreva sua resposta"
+                />
+              </label>
+            ) : null}
+
+            {selectable ? (
+              <label className="student-questionnaire-observation-v1">
+                <span>Observação opcional</span>
+                <textarea
+                  value={answerMeta.observation || ''}
+                  onChange={(event) => onAnswer?.(question, updateQuestionnaireAnswerMeta(rawAnswer, 'observation', event.target.value))}
+                  rows={2}
+                  disabled={readOnly}
+                  placeholder="Explique, se necessário..."
+                />
+              </label>
+            ) : null}
+
             {hasError ? <small className="student-questionnaire-error">Responda esta pergunta para concluir.</small> : null}
           </div>
         )
@@ -12887,7 +13031,7 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
   )
 }
 
-function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, onClose }) {
+function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, onToggleTheme = () => {}, onClose }) {
   const [viewport, setViewport] = useState('mobile')
   const [answers, setAnswers] = useState({})
   const [missingQuestionId, setMissingQuestionId] = useState('')
@@ -12926,6 +13070,7 @@ function QuestionnairePreviewModal({ questionnaire, theme = DEFAULT_UI_THEME, on
             <h3>Questionário nutricional</h3>
           </div>
           <div className="questionnaire-preview-actions-v1">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} className="questionnaire-preview-theme-toggle-v1" />
             <button type="button" className={viewport === 'mobile' ? 'is-active' : ''} onClick={() => setViewport('mobile')}>Mobile</button>
             <button type="button" className={viewport === 'desktop' ? 'is-active' : ''} onClick={() => setViewport('desktop')}>Desktop</button>
             <button type="button" onClick={onClose}>Fechar</button>
@@ -14300,6 +14445,11 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
   const studentQuestionnaireAssignments = questionnaireAssignments.filter((assignment) => String(assignment.studentId) === String(student?.id))
+  const pendingQuestionnaireAssignments = studentQuestionnaireAssignments.filter((assignment) => assignment.status !== 'Respondido')
+  const dismissedQuestionnaireStorageKey = `coachfitpro-dismissed-questionnaire-priority-${student?.id || 'student'}`
+  const [dismissedQuestionnairePriorityIds, setDismissedQuestionnairePriorityIds] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem(dismissedQuestionnaireStorageKey) || '[]') } catch { return [] }
+  })
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
   const studentAppointments = appointments
@@ -14362,6 +14512,14 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
   useEffect(() => {
     persistStudentTab(student?.id, activeTab)
   }, [activeTab, student?.id])
+
+  useEffect(() => {
+    try { setDismissedQuestionnairePriorityIds(JSON.parse(window.localStorage.getItem(dismissedQuestionnaireStorageKey) || '[]')) } catch { setDismissedQuestionnairePriorityIds([]) }
+  }, [dismissedQuestionnaireStorageKey])
+
+  useEffect(() => {
+    try { window.localStorage.setItem(dismissedQuestionnaireStorageKey, JSON.stringify(dismissedQuestionnairePriorityIds.slice(0, 40))) } catch {}
+  }, [dismissedQuestionnairePriorityIds, dismissedQuestionnaireStorageKey])
 
   useEffect(() => {
     const savedWater = Number(window.localStorage?.getItem(waterStorageKey) || 0)
@@ -14476,9 +14634,12 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
           nextAppointment={nextAppointment}
           waterMl={waterMl}
           waterGoalMl={waterGoalMl}
+          questionnaireAssignments={pendingQuestionnaireAssignments}
+          dismissedQuestionnairePriorityIds={dismissedQuestionnairePriorityIds}
           onAddWater={addWater}
           onResetWater={resetWater}
           onOpenTab={openTab}
+          onDismissQuestionnaire={(assignmentId) => setDismissedQuestionnairePriorityIds((current) => [...new Set([...current, assignmentId])])}
         />
       )
     }
@@ -14776,12 +14937,13 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
   )
 }
 
-function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextAppointment, waterMl, waterGoalMl, onAddWater, onResetWater, onOpenTab }) {
+function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
   const firstName = String(student?.name || 'aluno').split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
-  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments: studentQuestionnaireAssignments })
+  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments })
+  const priorityQuestionnaire = questionnaireAssignments.find((assignment) => !dismissedQuestionnairePriorityIds.includes(assignment.id))
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextAppointment
@@ -14791,6 +14953,26 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   return (
     <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
       <div className="grid gap-4">
+        {priorityQuestionnaire ? (
+          <div className="student-questionnaire-priority-v1 rounded-xl border border-emerald-300/30 bg-emerald-300/12 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase text-emerald-200">Você possui um questionário pendente</p>
+                <h3 className="mt-1 break-words text-lg font-black text-white">{priorityQuestionnaire.questionSnapshot?.title || 'Questionário nutricional'}</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-400">Suas respostas ajudam o profissional a ajustar dieta, rotina e preferências com mais precisão.</p>
+              </div>
+              <div className="grid gap-2 sm:min-w-40">
+                <button type="button" onClick={() => onOpenTab('dieta')} className="rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950">
+                  Responder agora
+                </button>
+                <button type="button" onClick={() => onDismissQuestionnaire?.(priorityQuestionnaire.id)} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
+                  Responder depois
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <button type="button" onClick={() => onOpenTab(nextAction.tab)} className="flex items-center gap-3 rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4 text-left transition hover:border-emerald-200/45">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
             <NavIcon name={nextAction.icon} className="h-5 w-5" />
@@ -14910,14 +15092,21 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   const [missingQuestionId, setMissingQuestionId] = useState('')
 
   useEffect(() => {
+    if (currentAssignment?.status === 'Respondido') {
+      setAnswers(currentAssignment.answers || {})
+      setMessage('')
+      setMissingQuestionId('')
+      return
+    }
     try { setAnswers(JSON.parse(window.localStorage.getItem(draftKey) || '{}')) } catch { setAnswers({}) }
     setMessage('')
     setMissingQuestionId('')
-  }, [draftKey])
+  }, [draftKey, currentAssignment?.status, currentAssignment?.id])
 
   useEffect(() => {
+    if (currentAssignment?.status === 'Respondido') return
     try { window.localStorage.setItem(draftKey, JSON.stringify(answers)) } catch {}
-  }, [answers, draftKey])
+  }, [answers, draftKey, currentAssignment?.status])
 
   if (!activeAssignments.length || !questionnaire) return null
 

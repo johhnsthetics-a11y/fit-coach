@@ -11206,6 +11206,150 @@ html[data-theme="dark"] body { background: #05070d; }
   }
 }
 
+/* questionnaire-flow-polish-v1 */
+.student-questionnaire-other-v1,
+.student-questionnaire-observation-v1 {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.student-questionnaire-other-v1 span,
+.student-questionnaire-observation-v1 span {
+  color: #90aaa5;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-questionnaire-observation-v1 textarea {
+  min-height: 76px;
+  opacity: 0.94;
+}
+
+.questionnaire-received-list-v1,
+.questionnaire-received-card-v1,
+.student-questionnaire-priority-v1 {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.questionnaire-received-card-v1 {
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+
+.questionnaire-received-card-v1:hover {
+  border-color: rgba(0, 210, 178, 0.24);
+}
+
+.questionnaire-received-card-v1.is-completed {
+  border-color: rgba(0, 210, 178, 0.2);
+}
+
+.questionnaire-received-card-v1.is-pending {
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.student-questionnaire-priority-v1 {
+  box-shadow: 0 16px 38px rgba(0, 210, 178, 0.1);
+}
+
+.questionnaire-preview-panel-v1 {
+  width: min(100%, 1040px);
+  max-width: calc(100vw - 1.5rem);
+  max-height: min(94dvh, 880px);
+}
+
+.questionnaire-preview-desktop-v1 .student-questionnaire-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.questionnaire-preview-desktop-v1 .student-questionnaire-field:first-child,
+.questionnaire-preview-desktop-v1 .student-questionnaire-field:only-child {
+  grid-column: 1 / -1;
+}
+
+.student-questionnaire-field,
+.student-questionnaire-field * {
+  box-sizing: border-box;
+}
+
+.student-questionnaire-field p,
+.questionnaire-received-card-v1 strong,
+.questionnaire-received-card-v1 p,
+.student-questionnaire-priority-v1 h3,
+.student-questionnaire-priority-v1 p {
+  overflow-wrap: anywhere;
+}
+
+.app-theme-light .student-questionnaire-other-v1 span,
+.app-theme-light .student-questionnaire-observation-v1 span,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-other-v1 span,
+.questionnaire-preview-portal-v1.app-theme-light .student-questionnaire-observation-v1 span {
+  color: #007d6c !important;
+  -webkit-text-fill-color: #007d6c !important;
+}
+
+.app-theme-light .questionnaire-received-card-v1,
+.student-mobile-shell.app-theme-light .student-questionnaire-priority-v1 {
+  background: #ffffff !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  color: var(--app-light-title, #13201d) !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055) !important;
+}
+
+.app-theme-light .questionnaire-received-card-v1 .bg-zinc-950\/35 {
+  background: #f7fbfa !important;
+  border-color: rgba(0, 156, 134, 0.13) !important;
+}
+
+.app-theme-light .questionnaire-received-card-v1 strong,
+.app-theme-light .questionnaire-received-card-v1 .text-white,
+.student-mobile-shell.app-theme-light .student-questionnaire-priority-v1 h3,
+.student-mobile-shell.app-theme-light .student-questionnaire-priority-v1 .text-white {
+  color: var(--app-light-title, #13201d) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-theme-light .questionnaire-received-card-v1 p,
+.app-theme-light .questionnaire-received-card-v1 span,
+.student-mobile-shell.app-theme-light .student-questionnaire-priority-v1 p,
+.student-mobile-shell.app-theme-light .student-questionnaire-priority-v1 span {
+  color: var(--app-light-body, #47615b) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-theme-light .questionnaire-received-card-v1 .text-emerald-100,
+.app-theme-light .questionnaire-received-card-v1 .text-emerald-200,
+.student-mobile-shell.app-theme-light .student-questionnaire-priority-v1 .text-emerald-200 {
+  color: #007d6c !important;
+  -webkit-text-fill-color: #007d6c !important;
+}
+
+@media (max-width: 640px) {
+  .questionnaire-preview-panel-v1 {
+    max-width: 100%;
+    max-height: 96dvh;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .questionnaire-preview-stage-v1 {
+    max-height: calc(96dvh - 132px);
+  }
+
+  .questionnaire-preview-desktop-v1 .student-questionnaire-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .student-questionnaire-options button,
+  .student-questionnaire-scale button,
+  .student-questionnaire-submit-v1,
+  .student-questionnaire-priority-v1 button {
+    min-height: 48px;
+  }
+}
+
 .nutrition-tmb-compact-v1 {
   align-self: stretch;
 }
