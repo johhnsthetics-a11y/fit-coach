@@ -79,8 +79,6 @@ class AppErrorBoundary extends React.Component {
   }
 
   render() {
-    if (this.state.recoverableDomError) return this.props.children
-
     if (this.state.failed) {
       return (
         <main className="fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">

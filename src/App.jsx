@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-root-cause-shape-fix-20260910'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-notranslate-root-fix-20260910'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1674,7 +1674,6 @@ class AppErrorBoundary extends Component {
 
   render() {
     if (!this.state.error) return this.props.children
-    if (this.state.recoverableDomError) return this.props.children
 
     return (
       <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
