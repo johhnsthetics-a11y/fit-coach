@@ -39,6 +39,12 @@ function installSafeDomMutationGuards() {
 
 installSafeDomMutationGuards()
 
+function isRecoverableDomMutationError(error) {
+  const message = `${error?.name || ''} ${error?.message || ''}`.toLowerCase()
+  return message.includes('notfounderror')
+    && (message.includes('removechild') || message.includes('insertbefore') || message.includes('replacechild') || message.includes('node'))
+}
+
 async function clearAppRuntimeCacheAndReload() {
   try {
     if ('caches' in window) {
@@ -61,11 +67,11 @@ async function clearAppRuntimeCacheAndReload() {
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { failed: false }
+    this.state = { failed: false, recoverableDomError: false }
   }
 
-  static getDerivedStateFromError() {
-    return { failed: true }
+  static getDerivedStateFromError(error) {
+    return { failed: true, recoverableDomError: isRecoverableDomMutationError(error) }
   }
 
   componentDidCatch(error) {
@@ -73,6 +79,8 @@ class AppErrorBoundary extends React.Component {
   }
 
   render() {
+    if (this.state.recoverableDomError) return this.props.children
+
     if (this.state.failed) {
       return (
         <main className="fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
