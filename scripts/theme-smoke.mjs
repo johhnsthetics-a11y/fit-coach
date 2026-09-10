@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import './workout-shape-smoke.mjs'
 
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
@@ -19,9 +20,9 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Build marker was bumped for workouts audit', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'treinos-boundary-recovery-fix-20260910'")],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260910-treinos-boundary-recovery-fix-v1')],
-  ['Public version file was bumped', version.includes('treinos-boundary-recovery-fix-v1-20260910')],
+  ['Build marker was bumped for workouts audit', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'treinos-root-cause-shape-fix-20260910'")],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260910-treinos-root-cause-shape-fix-v1')],
+  ['Public version file was bumped', version.includes('treinos-root-cause-shape-fix-v1-20260910')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -155,6 +156,10 @@ const checks = [
   ['Questionnaire patient preview uses header theme toggle instead of static theme badge', app.includes('questionnaire-student-head-toggle-v1') && !app.includes("<span>{theme === 'light' ? 'Claro' : 'Escuro'}</span>")],
   ['Questionnaire patient preview prevents mobile frame overflow', css.includes('questionnaire-preview-mobile-v1 .student-questionnaire-simulator-v1') && css.includes('width: min(100%, 390px)') && css.includes('.student-questionnaire-center') && css.includes('min-width: 0') && css.includes('max-width: 100%')],
   ['Workout prescribed list safely renders routines without exercises array', app.includes('const workoutExercises = getWorkoutExercisesArray(workout.exercises)') && !app.includes('{workout.exercises.map((exercise, index) => {')],
+  ['Workout day inputs are normalized centrally', app.includes('function normalizeWorkoutDayInput') && app.includes('function getWorkoutDaysArray') && app.includes('function normalizeWorkoutRecord')],
+  ['Workout records normalize legacy days before render', app.includes('const safeWorkouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord)') && app.includes('normalizeWorkoutRecord(workout)')],
+  ['Remote exercise muscle arrays are normalized', app.includes('function normalizeStringArray') && app.includes('secondaryMuscles: normalizeStringArray')],
+  ['Legacy workout day shapes are not rendered directly', !/(workout\.days\s*\|\|\s*\[\])\.map|workout\.days\?\.map|Array\.isArray\(workout\.days\)\s*&&\s*workout\.days\.length/.test(app)],
   ['Workout express models safely normalize legacy exercise payloads', app.includes('const exercises = getWorkoutExercisesArray(workout?.exercises)') && app.includes('const sourceExercises = getWorkoutExercisesArray(reusableWorkout?.exercises)') && !app.includes('workout.exercises.map((exercise) => enrichExercise')],
   ['Workout progression undo safely handles legacy exercise payloads', app.includes('getWorkoutExercisesArray(workout.exercises).some((exercise) => normalizeText(normalizeWorkoutExerciseInput(exercise).name)') && !app.includes('(workout.exercises || []).some((exercise)')],
   ['Workout runtime paths do not assume exercises is already an array', !app.includes('workout.exercises || []') && !app.includes('workout?.exercises || []') && !app.includes('latestWorkout.exercises') && !app.includes('workout.exercises?.length')],
@@ -168,7 +173,7 @@ const checks = [
   ['Workout exercise picker and cover received visual polish', app.includes('mobile-workout-picker-card') && app.includes('workout-exercise-cover-mini') && app.includes('exercise-cover-card') && css.includes('workout-legacy-visual-fix-v2')],
   ['Workout exercise overlays render through document portal', app.includes("aria-label=\"Adicionar exercício\"") && app.includes('), document.body) : null}')],
   ['Remote runtime data is normalized before reaching workouts', app.includes('function normalizeRuntimeData') && (app.match(/normalizeRuntimeData\(/g) || []).length >= 4],
-  ['Error recovery clears stale app cache and service worker', app.includes('function clearAppRuntimeCacheAndReload') && app.includes('coachfitpro-last-view-error') && app.includes('window.caches.delete') && sw.includes('treinos-boundary-recovery-fix-v1')],
+  ['Error recovery clears stale app cache and service worker', app.includes('function clearAppRuntimeCacheAndReload') && app.includes('coachfitpro-last-view-error') && app.includes('window.caches.delete') && sw.includes('treinos-root-cause-shape-fix-v1')],
   ['Core app pages tolerate temporarily missing collection props', app.includes('function Workouts({ selectedStudent, students = [], workouts = []') && app.includes('function Payments({ students = [], invoices = []') && app.includes('function Messages({ students = [], messages = []') && app.includes('function Notifications({ notifications = []')],
   ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
   ['Nutrition questionnaire schema is documented but not executed', api.includes('saveRemoteNutritionQuestionnaire') && api.includes('Remote nutrition questionnaires require Supabase schema setup')]

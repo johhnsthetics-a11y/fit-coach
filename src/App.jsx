@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-boundary-recovery-fix-20260910'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-root-cause-shape-fix-20260910'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1288,18 +1288,8 @@ function normalizeStoredData(value) {
 
   normalized.workouts = normalized.workouts
     .filter((workout) => workout && typeof workout === 'object')
-    .map((workout) => ({
-      ...workout,
-      days: Array.isArray(workout.days)
-        ? workout.days.filter(Boolean).map((day, dayIndex) => ({
-          ...day,
-          id: day.id || `dia-${dayIndex + 1}`,
-          day: day.day || `Dia ${dayIndex + 1}`,
-          exercises: getWorkoutExercisesArray(day.exercises).map(normalizeWorkoutExerciseInput),
-        }))
-        : workout.days,
-      exercises: getWorkoutExercisesArray(workout.exercises).map(normalizeWorkoutExerciseInput),
-    }))
+    .map((workout) => normalizeWorkoutRecord(workout))
+    .filter(Boolean)
 
   return normalized
 }
@@ -1318,6 +1308,60 @@ function ensureArray(value) {
 function ensureRecordArray(value) {
   const items = ensureArray(value)
   return items.every((item) => item && typeof item === 'object') ? items : items.filter((item) => item && typeof item === 'object')
+}
+
+function normalizeStringArray(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean)
+  if (typeof value === 'string') {
+    return value
+      .split(/,|;|\/|\+| e | and |&/i)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+function normalizeWorkoutDayInput(day = {}, dayIndex = 0) {
+  if (!day || typeof day !== 'object') {
+    const label = String(day || '').trim()
+    return {
+      id: `dia-${dayIndex + 1}`,
+      day: label || `Dia ${dayIndex + 1}`,
+      focus: '',
+      guidance: '',
+      exercises: [],
+    }
+  }
+
+  return {
+    ...day,
+    id: day.id || `dia-${dayIndex + 1}`,
+    day: day.day || day.name || day.title || `Dia ${dayIndex + 1}`,
+    focus: day.focus || day.title || day.name || '',
+    guidance: day.guidance || day.notes || '',
+    exercises: getWorkoutExercisesArray(day.exercises || day.items || day.movements).map(normalizeWorkoutExerciseInput),
+  }
+}
+
+function getWorkoutDaysArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(normalizeWorkoutDayInput)
+  if (!value) return []
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n;]+/)
+      .map((day, dayIndex) => normalizeWorkoutDayInput(day, dayIndex))
+  }
+  if (typeof value === 'object') return [normalizeWorkoutDayInput(value, 0)]
+  return []
+}
+
+function normalizeWorkoutRecord(workout = {}) {
+  if (!workout || typeof workout !== 'object') return null
+  return {
+    ...workout,
+    days: getWorkoutDaysArray(workout.days),
+    exercises: getWorkoutExercisesArray(workout.exercises).map(normalizeWorkoutExerciseInput),
+  }
 }
 
 function isRecoverableDomMutationError(error) {
@@ -1418,20 +1462,19 @@ function prepareDataForStorage(data) {
       photo: typeof checkin.photo === 'string' && checkin.photo.startsWith('data:') ? '' : checkin.photo,
     })),
     workouts: (data.workouts ?? []).map((workout) => ({
-      ...workout,
+      ...normalizeWorkoutRecord(workout),
       exercises: getWorkoutExercisesArray(workout.exercises).map((exercise) => {
         const { videoFile, ...safeExercise } = normalizeWorkoutExerciseInput(exercise)
         return safeExercise
       }),
-      days: Array.isArray(workout.days)
-        ? workout.days.filter(Boolean).map((day) => ({
+      days: getWorkoutDaysArray(workout.days)
+        .map((day) => ({
           ...day,
           exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => {
             const { videoFile, ...safeExercise } = normalizeWorkoutExerciseInput(exercise)
             return safeExercise
           }),
-        }))
-        : workout.days,
+        })),
     })),
     messages: (data.messages ?? []).map(({ attachmentFile, attachmentPreview, ...message }) => message),
   }
@@ -7407,7 +7450,7 @@ function parseMacroSummary(value = '') {
 
 function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
   const safeStudents = ensureRecordArray(students)
-  const safeWorkouts = ensureRecordArray(workouts)
+  const safeWorkouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   const safeNutritionPlans = ensureRecordArray(nutritionPlans)
   const safeWorkoutLogs = ensureRecordArray(workoutLogs)
   const safeProgressionDecisions = ensureRecordArray(progressionDecisions)
@@ -7486,7 +7529,7 @@ function getWorkoutDraftStorageKey(studentId = '') {
 }
 
 function sanitizeWorkoutDaysForStorage(days = []) {
-  return (Array.isArray(days) ? days : []).filter(Boolean).map((day, dayIndex) => ({
+  return getWorkoutDaysArray(days).map((day, dayIndex) => ({
     id: day.id || `dia-${dayIndex + 1}`,
     day: day.day || `Dia ${dayIndex + 1}`,
     focus: day.focus || '',
@@ -7526,9 +7569,10 @@ function stripWorkoutMetadata(value = '') {
 
 function buildWorkoutNotesWithMetadata(draft = {}) {
   const metadata = serializeWorkoutMetadata(draft)
+  const draftDays = getWorkoutDaysArray(draft.days)
   const humanNotes = [
     draft.guidance,
-    `Organização por dias: ${(draft.days || []).map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
+    `Organização por dias: ${draftDays.map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
   ].filter(Boolean).join(' | ')
   return [humanNotes, `${WORKOUT_METADATA_PREFIX}${JSON.stringify(metadata)}`].filter(Boolean).join('\n')
 }
@@ -7542,7 +7586,7 @@ function recoverStoredWorkoutDraft(studentId, library = exerciseLibrary) {
     return {
       ...parsed,
       allowStudentPdfDownload: Boolean(parsed.allowStudentPdfDownload),
-      days: sanitizeWorkoutDaysForStorage(parsed.days || []).map((day) => ({
+      days: sanitizeWorkoutDaysForStorage(parsed.days).map((day) => ({
         ...day,
         exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => enrichExercise(exercise, library)),
       })),
@@ -7557,7 +7601,7 @@ function persistWorkoutDraft(studentId, draft) {
   try {
     window.localStorage.setItem(getWorkoutDraftStorageKey(studentId), JSON.stringify({
       ...draft,
-      days: sanitizeWorkoutDaysForStorage(draft.days || []),
+      days: sanitizeWorkoutDaysForStorage(draft.days),
       updatedAt: new Date().toISOString(),
     }))
   } catch {
@@ -7581,7 +7625,7 @@ function getWorkoutExerciseKey(name = '') {
 function normalizeWorkoutExerciseInput(exercise = {}) {
   if (!exercise || typeof exercise !== 'object') {
     const fallbackName = String(exercise || '').trim()
-    return { name: fallbackName || 'Exercício' }
+    return { name: fallbackName || 'Exercício', secondaryMuscles: [] }
   }
 
   const name = String(
@@ -7597,6 +7641,7 @@ function normalizeWorkoutExerciseInput(exercise = {}) {
   return {
     ...exercise,
     name: name || 'Exercício',
+    secondaryMuscles: normalizeStringArray(exercise.secondaryMuscles || exercise.secondary_muscles),
   }
 }
 
@@ -7643,8 +7688,8 @@ function getSupportedWorkoutSelectValue(value, options) {
 
 function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   students = ensureRecordArray(students)
-  workouts = ensureRecordArray(workouts)
-  studentWorkouts = ensureRecordArray(studentWorkouts)
+  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
+  studentWorkouts = ensureRecordArray(studentWorkouts).map(normalizeWorkoutRecord).filter(Boolean)
   exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
@@ -9210,8 +9255,9 @@ function createDefaultWorkoutDays(library = exerciseLibrary) {
 
 function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
   if (!workout) return []
-  if (Array.isArray(workout.days) && workout.days.length) {
-    return workout.days.filter(Boolean).map((day, index) => ({
+  const workoutDays = getWorkoutDaysArray(workout.days)
+  if (workoutDays.length) {
+    return workoutDays.map((day, index) => ({
       id: day.id || `${day.day || 'dia'}-${index}`,
       day: day.day || `Dia ${index + 1}`,
       focus: day.focus || day.title || workout.focus || 'Treino',
@@ -9410,7 +9456,7 @@ function getInitials(value = '') {
 }
 
 function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
-  workouts = ensureRecordArray(workouts)
+  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   logs = ensureRecordArray(logs)
   decisions = ensureRecordArray(decisions)
   exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
@@ -9563,7 +9609,7 @@ function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], 
 }
 
 function buildWorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [] }) {
-  workouts = ensureRecordArray(workouts)
+  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   logs = ensureRecordArray(logs)
   decisions = ensureRecordArray(decisions)
   exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
@@ -10455,6 +10501,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 }
 
 function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
+  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [archivingId, setArchivingId] = useState('')
 
@@ -10557,7 +10604,7 @@ function getExerciseLibrary(remoteItems = []) {
       name: local.name || exercise.name,
       group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
       primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
-      secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
+      secondaryMuscles: normalizeStringArray(exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles),
       equipment: exercise.equipment || local.equipment || '',
       movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
       movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
@@ -10751,11 +10798,7 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     ...safeExercise,
     muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
     primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
-    secondaryMuscles: Array.isArray(safeExercise.secondaryMuscles)
-      ? safeExercise.secondaryMuscles
-      : Array.isArray(safeExercise.secondary_muscles)
-        ? safeExercise.secondary_muscles
-        : profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
+    secondaryMuscles: normalizeStringArray(safeExercise.secondaryMuscles || safeExercise.secondary_muscles || profile?.secondaryMuscles || muscleProfile.secondaryMuscles),
     equipment: safeExercise.equipment || profile?.equipment || '',
     movementType: safeExercise.movementType || safeExercise.movement_type || profile?.movementType || profile?.movement || '',
     objective: safeExercise.objective || safeExercise.goal || profile?.objective || profile?.category || '',
@@ -11437,14 +11480,15 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
 
 function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const exercises = getWorkoutExercisesArray(workout?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
+  const safeWorkout = useMemo(() => normalizeWorkoutRecord(workout), [workout])
+  const exercises = getWorkoutExercisesArray(safeWorkout?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const [loads, setLoads] = useState({})
   const [effort, setEffort] = useState('Moderado')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
+  if (!safeWorkout) return <Empty text="Nenhum treino ativo para este aluno." />
 
   function updateLoad(index, value) {
     setLoads((current) => ({ ...current, [index]: value }))
@@ -11463,10 +11507,10 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
     setError('')
     try {
       await onCompleteWorkout({
-        coachId: workout.coachId,
+        coachId: safeWorkout.coachId,
         studentId: student.id,
-        workoutId: workout.id,
-        title: workout.title,
+        workoutId: safeWorkout.id,
+        title: safeWorkout.title,
         effort,
         notes: loadNotes.length
           ? `Cargas registradas pelo aluno:\n${loadNotes.join('\n')}`
@@ -11486,14 +11530,14 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase text-emerald-200">{preview ? 'Prévia do aluno' : 'Execução do treino'}</p>
-            <h4 className="mt-1 text-xl font-black text-white">{workout.title}</h4>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{workout.focus || student.goal || 'Plano do dia'}</p>
+            <h4 className="mt-1 text-xl font-black text-white">{safeWorkout.title}</h4>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{safeWorkout.focus || student.goal || 'Plano do dia'}</p>
           </div>
           <div className="rounded-xl border border-emerald-300/20 bg-zinc-950/55 px-3 py-2 text-sm font-black text-emerald-100">
             +80 XP ao concluir
           </div>
         </div>
-        {workout.notes ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
+        {safeWorkout.notes ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-6 text-zinc-300">{safeWorkout.notes}</p> : null}
       </div>
 
       {exercises.length ? (
@@ -13619,7 +13663,7 @@ function StudentPortalPreview({
 }) {
   students = ensureRecordArray(students)
   checkins = ensureRecordArray(checkins)
-  workouts = ensureRecordArray(workouts)
+  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   nutritionPlans = ensureRecordArray(nutritionPlans)
   workoutLogs = ensureRecordArray(workoutLogs)
   exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
@@ -14530,7 +14574,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
 }
 function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   checkins = ensureRecordArray(checkins)
-  workouts = ensureRecordArray(workouts)
+  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   nutritionPlans = ensureRecordArray(nutritionPlans)
   nutritionQuestionnaires = ensureRecordArray(nutritionQuestionnaires)
   questionnaireAssignments = ensureRecordArray(questionnaireAssignments)
@@ -19046,7 +19090,7 @@ function buildPriorityDashboard({ students = [], checkins = [], workouts = [], w
 
 function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }) {
   const studentId = String(student.id)
-  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
+  const studentWorkouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean).filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
   const studentLogs = workoutLogs.filter((log) => String(log.studentId) === studentId)
   const studentCheckins = checkins.filter((checkin) => String(checkin.studentId) === studentId)
   const studentMessages = messages.filter((message) => String(message.studentId) === studentId)
