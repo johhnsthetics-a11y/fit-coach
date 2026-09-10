@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-notranslate-root-fix-20260910'
+const COACH_FIT_PRO_BUILD_MARKER = 'workouts-data-api-guard-20260910'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1288,105 +1288,20 @@ function normalizeStoredData(value) {
 
   normalized.workouts = normalized.workouts
     .filter((workout) => workout && typeof workout === 'object')
-    .map((workout) => normalizeWorkoutRecord(workout))
-    .filter(Boolean)
+    .map((workout) => ({
+      ...workout,
+      days: Array.isArray(workout.days)
+        ? workout.days.filter(Boolean).map((day, dayIndex) => ({
+          ...day,
+          id: day.id || `dia-${dayIndex + 1}`,
+          day: day.day || `Dia ${dayIndex + 1}`,
+          exercises: getWorkoutExercisesArray(day.exercises).map(normalizeWorkoutExerciseInput),
+        }))
+        : workout.days,
+      exercises: getWorkoutExercisesArray(workout.exercises).map(normalizeWorkoutExerciseInput),
+    }))
 
   return normalized
-}
-
-function normalizeRuntimeData(value, current = createInitialData()) {
-  return normalizeStoredData({
-    ...current,
-    ...(value && typeof value === 'object' ? value : {}),
-  })
-}
-
-function ensureArray(value) {
-  return Array.isArray(value) ? value : []
-}
-
-function ensureRecordArray(value) {
-  const items = ensureArray(value)
-  return items.every((item) => item && typeof item === 'object') ? items : items.filter((item) => item && typeof item === 'object')
-}
-
-function normalizeStringArray(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean)
-  if (typeof value === 'string') {
-    return value
-      .split(/,|;|\/|\+| e | and |&/i)
-      .map((item) => item.trim())
-      .filter(Boolean)
-  }
-  return []
-}
-
-function normalizeWorkoutDayInput(day = {}, dayIndex = 0) {
-  if (!day || typeof day !== 'object') {
-    const label = String(day || '').trim()
-    return {
-      id: `dia-${dayIndex + 1}`,
-      day: label || `Dia ${dayIndex + 1}`,
-      focus: '',
-      guidance: '',
-      exercises: [],
-    }
-  }
-
-  return {
-    ...day,
-    id: day.id || `dia-${dayIndex + 1}`,
-    day: day.day || day.name || day.title || `Dia ${dayIndex + 1}`,
-    focus: day.focus || day.title || day.name || '',
-    guidance: day.guidance || day.notes || '',
-    exercises: getWorkoutExercisesArray(day.exercises || day.items || day.movements).map(normalizeWorkoutExerciseInput),
-  }
-}
-
-function getWorkoutDaysArray(value) {
-  if (Array.isArray(value)) return value.filter(Boolean).map(normalizeWorkoutDayInput)
-  if (!value) return []
-  if (typeof value === 'string') {
-    return value
-      .split(/[\n;]+/)
-      .map((day, dayIndex) => normalizeWorkoutDayInput(day, dayIndex))
-  }
-  if (typeof value === 'object') return [normalizeWorkoutDayInput(value, 0)]
-  return []
-}
-
-function normalizeWorkoutRecord(workout = {}) {
-  if (!workout || typeof workout !== 'object') return null
-  return {
-    ...workout,
-    days: getWorkoutDaysArray(workout.days),
-    exercises: getWorkoutExercisesArray(workout.exercises).map(normalizeWorkoutExerciseInput),
-  }
-}
-
-function isRecoverableDomMutationError(error) {
-  const message = `${error?.name || ''} ${error?.message || ''}`.toLowerCase()
-  return message.includes('notfounderror')
-    && (message.includes('removechild') || message.includes('insertbefore') || message.includes('replacechild') || message.includes('node'))
-}
-
-async function clearAppRuntimeCacheAndReload() {
-  try {
-    if ('caches' in window) {
-      const keys = await window.caches.keys()
-      await Promise.all(keys.filter((key) => key.includes('coach-fit-pro')).map((key) => window.caches.delete(key)))
-    }
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(registrations.map((registration) => registration.unregister()))
-    }
-    window.localStorage.removeItem('coachfitpro-last-error')
-    window.localStorage.removeItem('coachfitpro-last-view-error')
-  } catch {
-    // Mesmo se o navegador bloquear a limpeza, o reload comum ainda pode recuperar a tela.
-  } finally {
-    window.location.reload()
-  }
 }
 
 function mergeRecords(current = [], loaded = []) {
@@ -1462,19 +1377,20 @@ function prepareDataForStorage(data) {
       photo: typeof checkin.photo === 'string' && checkin.photo.startsWith('data:') ? '' : checkin.photo,
     })),
     workouts: (data.workouts ?? []).map((workout) => ({
-      ...normalizeWorkoutRecord(workout),
+      ...workout,
       exercises: getWorkoutExercisesArray(workout.exercises).map((exercise) => {
         const { videoFile, ...safeExercise } = normalizeWorkoutExerciseInput(exercise)
         return safeExercise
       }),
-      days: getWorkoutDaysArray(workout.days)
-        .map((day) => ({
+      days: Array.isArray(workout.days)
+        ? workout.days.filter(Boolean).map((day) => ({
           ...day,
           exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => {
             const { videoFile, ...safeExercise } = normalizeWorkoutExerciseInput(exercise)
             return safeExercise
           }),
-        })),
+        }))
+        : workout.days,
     })),
     messages: (data.messages ?? []).map(({ attachmentFile, attachmentPreview, ...message }) => message),
   }
@@ -1555,7 +1471,7 @@ function useStoredData() {
     loadRemoteData()
       .then((remoteData) => {
         if (!active) return
-        setData((current) => normalizeRuntimeData({
+        setData((current) => ({
           ...current,
           ...remoteData,
           user: remoteData.user ?? current.user,
@@ -1576,7 +1492,7 @@ function useStoredData() {
           coachSettings: remoteData.coachSettings ?? current.coachSettings,
           coachSubscription: remoteData.coachSubscription ?? current.coachSubscription,
           appAdminSettings: remoteData.appAdminSettings ?? current.appAdminSettings,
-        }, current))
+        }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
       })
@@ -1652,14 +1568,15 @@ export default function App() {
 class AppErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { error: null, recoverableDomError: false }
+    this.state = { error: null }
   }
 
   static getDerivedStateFromError(error) {
-    return { error, recoverableDomError: isRecoverableDomMutationError(error) }
+    return { error }
   }
 
   componentDidCatch(error, info) {
+    console.error('Coach Fit Pro app error', { error, componentStack: info?.componentStack || '' })
     try {
       window.localStorage.setItem('coachfitpro-last-error', JSON.stringify({
         message: error?.message || 'Erro inesperado',
@@ -1687,7 +1604,7 @@ class AppErrorBoundary extends Component {
           </p>
           <button
             type="button"
-            onClick={clearAppRuntimeCacheAndReload}
+            onClick={() => window.location.reload()}
             className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/30"
           >
             Atualizar aplicativo
@@ -1904,7 +1821,7 @@ function AppContent() {
     setData((current) => {
       const wasActive = isCoachSubscriptionActive(current.coachSubscription)
       const unlockedNow = !wasActive && activeSubscription
-      return normalizeRuntimeData({
+      return {
         ...current,
         user: remoteData.user ?? current.user,
         students: remoteData.students,
@@ -1932,7 +1849,7 @@ function AppContent() {
         anamneses: remoteData.anamneses ?? [],
         coachSettings: remoteData.coachSettings,
         coachSubscription: remoteData.coachSubscription,
-      }, current)
+      }
     })
 
     if (activeSubscription) {
@@ -2187,7 +2104,7 @@ function AppContent() {
         savedUser = mode === 'signup'
           ? await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || role })
           : remoteData.user || await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || undefined })
-        setData((current) => normalizeRuntimeData({
+        setData((current) => ({
           ...current,
           session,
           user: savedUser,
@@ -2208,7 +2125,7 @@ function AppContent() {
           anamneses: remoteData.anamneses ?? [],
           coachSettings: remoteData.coachSettings,
           coachSubscription: remoteData.coachSubscription,
-        }, current))
+        }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
         if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
@@ -7392,7 +7309,7 @@ function buildExpressNutritionDraft({ student, objective, mealCount }) {
 }
 
 function summarizeExpressWorkout(workout = {}) {
-  const exercises = getWorkoutExercisesArray(workout?.exercises).map(normalizeWorkoutExerciseInput)
+  const exercises = getWorkoutExercisesArray(workout.exercises).map(normalizeWorkoutExerciseInput)
   const muscleCounts = exercises.reduce((acc, exercise) => {
     const profile = getExerciseMuscleProfile(exercise)
     const label = profile.primaryLabel && profile.primaryLabel !== 'Músculo alvo não identificado' ? profile.primaryLabel : (exercise.muscleGroup || 'Outros')
@@ -7448,13 +7365,9 @@ function parseMacroSummary(value = '') {
 }
 
 function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
-  const safeStudents = ensureRecordArray(students)
-  const safeWorkouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
-  const safeNutritionPlans = ensureRecordArray(nutritionPlans)
-  const safeWorkoutLogs = ensureRecordArray(workoutLogs)
-  const safeProgressionDecisions = ensureRecordArray(progressionDecisions)
-  const safeExerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(safeExerciseLibraryItems), [safeExerciseLibraryItems])
+  const safeWorkouts = getRecordArray(workouts)
+  const safeWorkoutLogs = getRecordArray(workoutLogs)
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = safeWorkouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
   ))
@@ -7464,7 +7377,7 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
     <>
     <MobileWorkoutManager
       selectedStudent={selectedStudent}
-      students={safeStudents}
+      students={students}
       workouts={safeWorkouts}
       studentWorkouts={studentWorkouts}
       exerciseLibraryItems={availableExerciseLibrary}
@@ -7477,9 +7390,9 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       <div className="xl:col-span-2">
         <ExpressCreationModule
           selectedStudent={selectedStudent}
-          students={safeStudents}
+          students={students}
           workouts={safeWorkouts}
-          nutritionPlans={safeNutritionPlans}
+          nutritionPlans={nutritionPlans}
           exerciseLibraryItems={availableExerciseLibrary}
           onSaveWorkout={onSaveWorkout}
           onSaveNutritionPlan={onSaveNutritionPlan}
@@ -7487,8 +7400,8 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       </div>
 
       <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
-        {safeStudents.length ? (
-          <WorkoutForm students={safeStudents} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
+        {students.length ? (
+          <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
         ) : (
           <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
         )}
@@ -7503,7 +7416,7 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
           student={selectedStudent}
           workouts={studentWorkouts}
           logs={studentLogs}
-          decisions={safeProgressionDecisions.filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
+          decisions={getRecordArray(progressionDecisions).filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
           exerciseLibraryItems={availableExerciseLibrary}
           onApprove={onApproveProgression}
           onIgnore={onIgnoreProgression}
@@ -7528,7 +7441,7 @@ function getWorkoutDraftStorageKey(studentId = '') {
 }
 
 function sanitizeWorkoutDaysForStorage(days = []) {
-  return getWorkoutDaysArray(days).map((day, dayIndex) => ({
+  return (Array.isArray(days) ? days : []).filter(Boolean).map((day, dayIndex) => ({
     id: day.id || `dia-${dayIndex + 1}`,
     day: day.day || `Dia ${dayIndex + 1}`,
     focus: day.focus || '',
@@ -7568,10 +7481,9 @@ function stripWorkoutMetadata(value = '') {
 
 function buildWorkoutNotesWithMetadata(draft = {}) {
   const metadata = serializeWorkoutMetadata(draft)
-  const draftDays = getWorkoutDaysArray(draft.days)
   const humanNotes = [
     draft.guidance,
-    `Organização por dias: ${draftDays.map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
+    `Organização por dias: ${(draft.days || []).map((day) => `${day.day} - ${day.focus}`).join('; ')}`,
   ].filter(Boolean).join(' | ')
   return [humanNotes, `${WORKOUT_METADATA_PREFIX}${JSON.stringify(metadata)}`].filter(Boolean).join('\n')
 }
@@ -7585,7 +7497,7 @@ function recoverStoredWorkoutDraft(studentId, library = exerciseLibrary) {
     return {
       ...parsed,
       allowStudentPdfDownload: Boolean(parsed.allowStudentPdfDownload),
-      days: sanitizeWorkoutDaysForStorage(parsed.days).map((day) => ({
+      days: sanitizeWorkoutDaysForStorage(parsed.days || []).map((day) => ({
         ...day,
         exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => enrichExercise(exercise, library)),
       })),
@@ -7600,7 +7512,7 @@ function persistWorkoutDraft(studentId, draft) {
   try {
     window.localStorage.setItem(getWorkoutDraftStorageKey(studentId), JSON.stringify({
       ...draft,
-      days: sanitizeWorkoutDaysForStorage(draft.days),
+      days: sanitizeWorkoutDaysForStorage(draft.days || []),
       updatedAt: new Date().toISOString(),
     }))
   } catch {
@@ -7624,7 +7536,7 @@ function getWorkoutExerciseKey(name = '') {
 function normalizeWorkoutExerciseInput(exercise = {}) {
   if (!exercise || typeof exercise !== 'object') {
     const fallbackName = String(exercise || '').trim()
-    return { name: fallbackName || 'Exercício', secondaryMuscles: [] }
+    return { name: fallbackName || 'Exercício' }
   }
 
   const name = String(
@@ -7640,34 +7552,25 @@ function normalizeWorkoutExerciseInput(exercise = {}) {
   return {
     ...exercise,
     name: name || 'Exercício',
-    secondaryMuscles: normalizeStringArray(exercise.secondaryMuscles || exercise.secondary_muscles),
   }
 }
 
 function getWorkoutExercisesArray(value) {
-  if (Array.isArray(value)) return value
+  if (Array.isArray(value)) return value.filter(Boolean)
   if (!value) return []
   if (typeof value === 'string') {
     return value
-      .split(/[\n,;]+/)
-      .map((name) => normalizeWorkoutExerciseInput(name))
-      .filter((exercise) => normalizeText(exercise.name) !== normalizeText('Exercício'))
+      .split(/[,\n;]/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({ name }))
   }
-  if (typeof value === 'object') return [normalizeWorkoutExerciseInput(value)]
+  if (typeof value === 'object') return [value]
   return []
 }
 
-function formatWorkoutFilterLabel(value) {
-  const labels = {
-    todos: 'Todos',
-    hipertrofia: 'Hipertrofia',
-    emagrecimento: 'Emagrecimento',
-    força: 'Força',
-    publicado: 'Publicado',
-    'com-treino': 'Com treino',
-    'sem-treino': 'Sem treino',
-  }
-  return labels[value] || formatUiText(value)
+function getRecordArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : []
 }
 
 function getWorkoutDayExerciseCount(day) {
@@ -7685,11 +7588,7 @@ function getSupportedWorkoutSelectValue(value, options) {
   return options.find((item) => normalizeText(item) === normalized) || ''
 }
 
-function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
-  students = ensureRecordArray(students)
-  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
-  studentWorkouts = ensureRecordArray(studentWorkouts).map(normalizeWorkoutRecord).filter(Boolean)
-  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
+function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
     try {
@@ -8449,7 +8348,7 @@ function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], s
       <div className="mobile-workout-filters">
         {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
           <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
-            {formatWorkoutFilterLabel(item)}
+            {formatUiText(item)}
           </button>
         ))}
         {filter !== 'todos' || search ? (
@@ -8853,7 +8752,7 @@ function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], s
         </div>
       ) : null}
 
-      {exercisePickerDayIndex !== null && typeof document !== 'undefined' ? createPortal((
+      {exercisePickerDayIndex !== null ? (
         <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={closeExercisePicker}>
           <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Adicionar exercício" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
@@ -8920,8 +8819,8 @@ function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], s
                 const exerciseAddKey = `${currentDay?.id || exercisePickerDayIndex}:${getWorkoutExerciseKey(exercise.name)}`
                 const isAddingExercise = addingExerciseKey === exerciseAddKey
                 return (
-              <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={`mobile-workout-picker-card ${selected ? 'is-selected' : ''}`}>
-                    <span className="mobile-workout-avatar workout-exercise-cover-mini"><MuscleMapMini exercise={exercise} /></span>
+                  <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={selected ? 'is-selected' : ''}>
+                    <span className="mobile-workout-avatar"><NavIcon name="dumbbell" className="h-4 w-4" /></span>
                     <span>
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
@@ -8971,9 +8870,9 @@ function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], s
             </button>
           </section>
         </div>
-      ), document.body) : null}
+      ) : null}
 
-      {exercisePickerPreview && typeof document !== 'undefined' ? createPortal((
+      {exercisePickerPreview ? (
         <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setExercisePickerPreview(null)}>
           <section className="mobile-workout-sheet is-preview" role="dialog" aria-modal="true" aria-label="Prévia do exercício" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
@@ -9005,7 +8904,7 @@ function MobileWorkoutManager({ selectedStudent, students = [], workouts = [], s
             </button>
           </section>
         </div>
-      ), document.body) : null}
+      ) : null}
 
       <datalist id="mobile-exercise-library">
         {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
@@ -9254,9 +9153,8 @@ function createDefaultWorkoutDays(library = exerciseLibrary) {
 
 function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
   if (!workout) return []
-  const workoutDays = getWorkoutDaysArray(workout.days)
-  if (workoutDays.length) {
-    return workoutDays.map((day, index) => ({
+  if (Array.isArray(workout.days) && workout.days.length) {
+    return workout.days.filter(Boolean).map((day, index) => ({
       id: day.id || `${day.day || 'dia'}-${index}`,
       day: day.day || `Dia ${index + 1}`,
       focus: day.focus || day.title || workout.focus || 'Treino',
@@ -9455,25 +9353,24 @@ function getInitials(value = '') {
 }
 
 function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [], onApprove, onIgnore, onUndo }) {
-  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
-  logs = ensureRecordArray(logs)
-  decisions = ensureRecordArray(decisions)
-  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
+  const safeWorkouts = getRecordArray(workouts)
+  const safeLogs = getRecordArray(logs)
+  const safeDecisions = getRecordArray(decisions)
   const [loading, setLoading] = useState(true)
   const [busyKey, setBusyKey] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const recommendations = useMemo(
-    () => buildWorkoutProgressionRecommendations({ student, workouts, logs, decisions, exerciseLibraryItems }),
-    [student, workouts, logs, decisions, exerciseLibraryItems],
+    () => buildWorkoutProgressionRecommendations({ student, workouts: safeWorkouts, logs: safeLogs, decisions: safeDecisions, exerciseLibraryItems }),
+    [student, safeWorkouts, safeLogs, safeDecisions, exerciseLibraryItems],
   )
-  const recentDecisions = decisions.slice(0, 4)
+  const recentDecisions = safeDecisions.slice(0, 4)
 
   useEffect(() => {
     setLoading(true)
     const timer = window.setTimeout(() => setLoading(false), 180)
     return () => window.clearTimeout(timer)
-  }, [student?.id, workouts.length, logs.length, decisions.length])
+  }, [student?.id, safeWorkouts.length, safeLogs.length, safeDecisions.length])
 
   async function handleApprove(recommendation, editedTarget = null) {
     setBusyKey(recommendation.key)
@@ -9608,20 +9505,19 @@ function WorkoutProgressionRecommendations({ student, workouts = [], logs = [], 
 }
 
 function buildWorkoutProgressionRecommendations({ student, workouts = [], logs = [], decisions = [], exerciseLibraryItems = [] }) {
-  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
-  logs = ensureRecordArray(logs)
-  decisions = ensureRecordArray(decisions)
-  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
-  if (!student || !workouts.length) return []
-  const latestWorkout = workouts.slice().sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
-  const latestWorkoutExercises = getWorkoutExercisesArray(latestWorkout?.exercises)
+  const safeWorkouts = getRecordArray(workouts)
+  const safeLogs = getRecordArray(logs)
+  const safeDecisions = getRecordArray(decisions)
+  if (!student || !safeWorkouts.length) return []
+  const latestWorkout = safeWorkouts.slice().sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0]
+  const latestWorkoutExercises = getWorkoutExercisesArray(latestWorkout?.exercises).map(normalizeWorkoutExerciseInput)
   if (!latestWorkoutExercises.length) return []
-  const recentLogs = logs
+  const recentLogs = safeLogs
     .slice()
     .sort((a, b) => new Date(b.completedAt || 0) - new Date(a.completedAt || 0))
     .slice(0, 6)
-  const recentDecisions = new Set(decisions.slice(0, 12).filter((decision) => ['approved', 'ignored'].includes(decision.status)).map((decision) => `${normalizeText(decision.exerciseName)}-${decision.status}`))
-  const frequency14 = countSince(logs, 14, (log) => log.completedAt)
+  const recentDecisions = new Set(safeDecisions.slice(0, 12).filter((decision) => ['approved', 'ignored'].includes(decision.status)).map((decision) => `${normalizeText(decision.exerciseName)}-${decision.status}`))
+  const frequency14 = countSince(safeLogs, 14, (log) => log.completedAt)
 
   return latestWorkoutExercises
     .map((rawExercise, index) => {
@@ -9780,7 +9676,7 @@ function summarizeExerciseSessions(sessions = []) {
 
 function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
   const targetName = normalizeText(recommendation.exercise.name)
-  const exercises = getWorkoutExercisesArray(workout?.exercises).map((rawExercise) => {
+  const exercises = getWorkoutExercisesArray(workout.exercises).map((rawExercise) => {
     const exercise = normalizeWorkoutExerciseInput(rawExercise)
     if (normalizeText(exercise.name) !== targetName) return exercise
     const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
@@ -9871,7 +9767,7 @@ function LoadNotesPanel({ student, logs, onSaveStudent }) {
   const [notes, setNotes] = useState(student?.loadNotes || '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
-  const latestLogs = logs.slice(0, 4)
+  const latestLogs = getRecordArray(logs).slice(0, 4)
   const latestEffort = latestLogs[0]?.effort || ''
   const suggestion = latestEffort.includes('Leve')
     ? 'Próximo treino: considere subir 2% a 5% na carga principal.'
@@ -10500,7 +10396,6 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
 }
 
 function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
-  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [archivingId, setArchivingId] = useState('')
 
@@ -10593,7 +10488,7 @@ function getExerciseLibrary(remoteItems = []) {
   const records = new Map()
   const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
 
-  ensureRecordArray(remoteItems).forEach((exercise) => {
+  ;(remoteItems || []).forEach((exercise) => {
     if (!exercise?.name) return
     const key = normalizeText(exercise.name)
     const local = localByName.get(key) || {}
@@ -10603,7 +10498,7 @@ function getExerciseLibrary(remoteItems = []) {
       name: local.name || exercise.name,
       group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
       primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
-      secondaryMuscles: normalizeStringArray(exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles),
+      secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
       equipment: exercise.equipment || local.equipment || '',
       movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
       movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
@@ -10797,7 +10692,11 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     ...safeExercise,
     muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
     primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
-    secondaryMuscles: normalizeStringArray(safeExercise.secondaryMuscles || safeExercise.secondary_muscles || profile?.secondaryMuscles || muscleProfile.secondaryMuscles),
+    secondaryMuscles: Array.isArray(safeExercise.secondaryMuscles)
+      ? safeExercise.secondaryMuscles
+      : Array.isArray(safeExercise.secondary_muscles)
+        ? safeExercise.secondary_muscles
+        : profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
     equipment: safeExercise.equipment || profile?.equipment || '',
     movementType: safeExercise.movementType || safeExercise.movement_type || profile?.movementType || profile?.movement || '',
     objective: safeExercise.objective || safeExercise.goal || profile?.objective || profile?.category || '',
@@ -11063,7 +10962,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
   const hoveredConfig = hovered ? muscleConfig[hovered] : null
 
   return (
-    <div className={`muscle-map-card workout-muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
+    <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Músculo alvo</p>
@@ -11107,9 +11006,9 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
 }
 
 function BodySilhouette({ view }) {
-  const neutral = '#d7e8e4'
-  const neutralSoft = '#b8cfca'
-  const outline = '#f8fafc'
+  const neutral = '#86a0ad'
+  const neutralSoft = '#607986'
+  const outline = '#dbe7ec'
   return (
     <g opacity="0.98">
       <circle cx="50" cy="11" r="7.2" fill="#f8fafc" stroke={outline} strokeWidth="0.9" />
@@ -11136,9 +11035,9 @@ function BodySilhouette({ view }) {
 }
 
 function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
-  const primary = '#dc2626'
-  const secondary = 'rgba(248, 113, 113, 0.76)'
-  const idle = 'rgba(15, 23, 42, 0.08)'
+  const primary = '#ef4444'
+  const secondary = 'rgba(239, 68, 68, 0.72)'
+  const idle = 'rgba(255,255,255,0.10)'
 
   function regionProps(key) {
     const state = activeMuscles.get(key)
@@ -11152,7 +11051,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       onFocus: () => onHover(key),
       onBlur: () => onHover(''),
       fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
-      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fee2e2' : 'rgba(15,23,42,0.12)',
+      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.22)',
       strokeWidth: state === 'primary' ? 1.35 : 0.75,
       opacity: active ? 1 : 0.42,
       filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,
@@ -11369,15 +11268,20 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
   const target = exercise.muscleGroup || 'Músculo alvo'
   const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
   return (
-    <div className={`exercise-cover-card rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
+    <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="exercise-cover-visual relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
+        <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
           {imageUrl ? (
             <img src={imageUrl} alt={`Execução de ${exercise.name}`} className="h-full w-full object-cover" />
           ) : (
-            <div className="exercise-cover-anatomy">
-              <MuscleMap exercise={exercise} compact className="exercise-cover-map" />
-            </div>
+            <>
+              <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
+              <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
+              <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
+              <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
+              <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
+              <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
+            </>
           )}
           <span className="absolute bottom-2 left-2 rounded-full border border-emerald-300/25 bg-zinc-950/80 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">
             {target}
@@ -11406,13 +11310,14 @@ function ExerciseTechniqueCard({ exercise, compact = false }) {
 }
 
 function WorkoutLogList({ logs }) {
-  if (!logs.length) {
+  const safeLogs = getRecordArray(logs)
+  if (!safeLogs.length) {
     return <Empty text="Nenhum treino concluído ainda." />
   }
 
   return (
     <div className="space-y-3">
-      {logs.slice(0, 6).map((log) => (
+      {safeLogs.slice(0, 6).map((log) => (
         <div key={log.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -11479,15 +11384,14 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
 
 function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const safeWorkout = useMemo(() => normalizeWorkoutRecord(workout), [workout])
-  const exercises = getWorkoutExercisesArray(safeWorkout?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
+  const exercises = (workout?.exercises || []).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const [loads, setLoads] = useState({})
   const [effort, setEffort] = useState('Moderado')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  if (!safeWorkout) return <Empty text="Nenhum treino ativo para este aluno." />
+  if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
 
   function updateLoad(index, value) {
     setLoads((current) => ({ ...current, [index]: value }))
@@ -11506,10 +11410,10 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
     setError('')
     try {
       await onCompleteWorkout({
-        coachId: safeWorkout.coachId,
+        coachId: workout.coachId,
         studentId: student.id,
-        workoutId: safeWorkout.id,
-        title: safeWorkout.title,
+        workoutId: workout.id,
+        title: workout.title,
         effort,
         notes: loadNotes.length
           ? `Cargas registradas pelo aluno:\n${loadNotes.join('\n')}`
@@ -11529,14 +11433,14 @@ function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exer
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase text-emerald-200">{preview ? 'Prévia do aluno' : 'Execução do treino'}</p>
-            <h4 className="mt-1 text-xl font-black text-white">{safeWorkout.title}</h4>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{safeWorkout.focus || student.goal || 'Plano do dia'}</p>
+            <h4 className="mt-1 text-xl font-black text-white">{workout.title}</h4>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{workout.focus || student.goal || 'Plano do dia'}</p>
           </div>
           <div className="rounded-xl border border-emerald-300/20 bg-zinc-950/55 px-3 py-2 text-sm font-black text-emerald-100">
             +80 XP ao concluir
           </div>
         </div>
-        {safeWorkout.notes ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-6 text-zinc-300">{safeWorkout.notes}</p> : null}
+        {workout.notes ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.045] p-3 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
       </div>
 
       {exercises.length ? (
@@ -13660,36 +13564,34 @@ function StudentPortalPreview({
   onRemoteError,
   canGenerateInvite = true,
 }) {
-  students = ensureRecordArray(students)
-  checkins = ensureRecordArray(checkins)
-  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
-  nutritionPlans = ensureRecordArray(nutritionPlans)
-  workoutLogs = ensureRecordArray(workoutLogs)
-  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
-  messages = ensureRecordArray(messages)
-  appointments = ensureRecordArray(appointments)
-  invoices = ensureRecordArray(invoices)
-  assessments = ensureRecordArray(assessments)
+  const safeCheckins = getRecordArray(checkins)
+  const safeWorkouts = getRecordArray(workouts)
+  const safeNutritionPlans = getRecordArray(nutritionPlans)
+  const safeWorkoutLogs = getRecordArray(workoutLogs)
+  const safeMessages = getRecordArray(messages)
+  const safeAppointments = getRecordArray(appointments)
+  const safeInvoices = getRecordArray(invoices)
+  const safeAssessments = getRecordArray(assessments)
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
-  const studentWorkouts = workouts.filter((workout) => (
+  const studentCheckins = safeCheckins.filter((item) => String(item.studentId) === String(student?.id))
+  const studentWorkouts = safeWorkouts.filter((workout) => (
     String(workout.studentId) === String(student?.id) && workout.active !== false
   ))
-  const studentNutritionPlans = nutritionPlans.filter((plan) => (
+  const studentNutritionPlans = safeNutritionPlans.filter((plan) => (
     String(plan.studentId) === String(student?.id) && plan.active !== false
   ))
-  const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
-  const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
-  const studentAppointments = appointments
+  const studentWorkoutLogs = safeWorkoutLogs.filter((log) => String(log.studentId) === String(student?.id))
+  const studentMessages = safeMessages.filter((message) => String(message.studentId) === String(student?.id))
+  const studentAppointments = safeAppointments
     .filter((appointment) => String(appointment.studentId) === String(student?.id))
     .filter((appointment) => !['Concluido', 'Cancelado'].includes(appointment.status))
     .slice()
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
-  const studentInvoices = invoices
+  const studentInvoices = safeInvoices
     .filter((invoice) => String(invoice.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
-  const studentAssessments = assessments
+  const studentAssessments = safeAssessments
     .filter((assessment) => String(assessment.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
@@ -14527,7 +14429,7 @@ function sendLocalNotification(title, body) {
 
 function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const student = access.student
-  const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
+  const freshCheckins = getRecordArray(checkins).filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
   const inviteCode = access.invite.code
 
@@ -14572,17 +14474,14 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
   )
 }
 function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
-  checkins = ensureRecordArray(checkins)
-  workouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean)
-  nutritionPlans = ensureRecordArray(nutritionPlans)
-  nutritionQuestionnaires = ensureRecordArray(nutritionQuestionnaires)
-  questionnaireAssignments = ensureRecordArray(questionnaireAssignments)
-  workoutLogs = ensureRecordArray(workoutLogs)
-  exerciseLibraryItems = ensureRecordArray(exerciseLibraryItems)
-  messages = ensureRecordArray(messages)
-  appointments = ensureRecordArray(appointments)
-  invoices = ensureRecordArray(invoices)
-  assessments = ensureRecordArray(assessments)
+  const safeWorkouts = getRecordArray(workouts)
+  const safeNutritionPlans = getRecordArray(nutritionPlans)
+  const safeQuestionnaireAssignments = getRecordArray(questionnaireAssignments)
+  const safeWorkoutLogs = getRecordArray(workoutLogs)
+  const safeMessages = getRecordArray(messages)
+  const safeAppointments = getRecordArray(appointments)
+  const safeInvoices = getRecordArray(invoices)
+  const safeAssessments = getRecordArray(assessments)
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -14593,26 +14492,26 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
   const [appInstalled, setAppInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
   const [workoutStartNotified, setWorkoutStartNotified] = useState(false)
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
-  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
-  const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
-  const studentQuestionnaireAssignments = questionnaireAssignments.filter((assignment) => String(assignment.studentId) === String(student?.id))
+  const studentWorkouts = safeWorkouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
+  const studentNutritionPlans = safeNutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
+  const studentQuestionnaireAssignments = safeQuestionnaireAssignments.filter((assignment) => String(assignment.studentId) === String(student?.id))
   const pendingQuestionnaireAssignments = studentQuestionnaireAssignments.filter((assignment) => assignment.status !== 'Respondido')
   const dismissedQuestionnaireStorageKey = `coachfitpro-dismissed-questionnaire-priority-${student?.id || 'student'}`
   const [dismissedQuestionnairePriorityIds, setDismissedQuestionnairePriorityIds] = useState(() => {
     try { return JSON.parse(window.localStorage.getItem(dismissedQuestionnaireStorageKey) || '[]') } catch { return [] }
   })
-  const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
-  const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
-  const studentAppointments = appointments
+  const studentWorkoutLogs = safeWorkoutLogs.filter((log) => String(log.studentId) === String(student?.id))
+  const studentMessages = safeMessages.filter((message) => String(message.studentId) === String(student?.id))
+  const studentAppointments = safeAppointments
     .filter((appointment) => String(appointment.studentId) === String(student?.id))
     .filter((appointment) => !['Concluido', 'Cancelado'].includes(appointment.status))
     .slice()
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
-  const studentAssessments = assessments
+  const studentAssessments = safeAssessments
     .filter((assessment) => String(assessment.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
-  const studentInvoices = invoices
+  const studentInvoices = safeInvoices
     .filter((invoice) => String(invoice.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
@@ -19089,12 +18988,12 @@ function buildPriorityDashboard({ students = [], checkins = [], workouts = [], w
 
 function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }) {
   const studentId = String(student.id)
-  const studentWorkouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord).filter(Boolean).filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
-  const studentLogs = workoutLogs.filter((log) => String(log.studentId) === studentId)
-  const studentCheckins = checkins.filter((checkin) => String(checkin.studentId) === studentId)
-  const studentMessages = messages.filter((message) => String(message.studentId) === studentId)
-  const studentInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) })).filter((invoice) => String(invoice.studentId) === studentId)
-  const studentAssessments = assessments.filter((assessment) => String(assessment.studentId) === studentId)
+  const studentWorkouts = getRecordArray(workouts).filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
+  const studentLogs = getRecordArray(workoutLogs).filter((log) => String(log.studentId) === studentId)
+  const studentCheckins = getRecordArray(checkins).filter((checkin) => String(checkin.studentId) === studentId)
+  const studentMessages = getRecordArray(messages).filter((message) => String(message.studentId) === studentId)
+  const studentInvoices = getRecordArray(invoices).map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) })).filter((invoice) => String(invoice.studentId) === studentId)
+  const studentAssessments = getRecordArray(assessments).filter((assessment) => String(assessment.studentId) === studentId)
 
   const latestWorkout = latestByDate(studentLogs, (item) => item.completedAt || item.createdAt || item.date)
   const latestCheckin = latestByDate(studentCheckins, (item) => item.createdAt || item.due)

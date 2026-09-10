@@ -650,7 +650,8 @@ export async function saveRemoteWorkout(workout, coachId) {
       })
     }
 
-    const exercises = await Promise.all(workout.exercises.map(async (exercise, index) => {
+    const workoutExercises = toRemoteWorkoutExerciseInputs(workout.exercises)
+    const exercises = await Promise.all(workoutExercises.map(async (exercise, index) => {
       let uploadedVideoUrl = ''
       if (exercise.videoFile) {
         try {
@@ -1291,7 +1292,7 @@ async function hydrateMessageRow(row) {
 
 async function hydrateWorkoutRow(row) {
   const workout = fromWorkoutRow(row)
-  const exercises = await Promise.all(workout.exercises.map(async (exercise) => {
+  const exercises = await Promise.all(toRemoteWorkoutExerciseInputs(workout.exercises).map(async (exercise) => {
     const path = extractStoragePath(exercise.videoUrl, WORKOUT_VIDEO_BUCKET)
     if (!path || /^https?:\/\//i.test(path)) return exercise
 
@@ -1424,8 +1425,95 @@ function fromAnamnesisRow(row) {
   }
 }
 
+function toRemoteRelationArray(value) {
+  if (Array.isArray(value)) return value.filter((item) => item && typeof item === 'object')
+  if (!value) return []
+  if (typeof value === 'object') return [value]
+  return []
+}
+
+function toRemoteStringArray(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean)
+  if (typeof value === 'string') {
+    return value
+      .split(/[,\n;]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  return []
+}
+
+function getRemoteWorkoutExerciseRows(row = {}) {
+  const relationRows = toRemoteRelationArray(row.workout_exercises)
+  if (relationRows.length) return relationRows
+
+  if (Array.isArray(row.exercises)) return row.exercises.filter(Boolean)
+  if (row.exercises && typeof row.exercises === 'object') return [row.exercises]
+  if (typeof row.exercises === 'string') {
+    return row.exercises
+      .split(/[,\n;]/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name, index) => ({ name, order_index: index }))
+  }
+
+  return []
+}
+
+function toRemoteWorkoutExerciseInputs(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(normalizeRemoteWorkoutExerciseInput)
+  if (!value) return []
+  if (typeof value === 'string') {
+    return value
+      .split(/[,\n;]/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .map((name) => ({ name }))
+  }
+  if (typeof value === 'object') return [normalizeRemoteWorkoutExerciseInput(value)]
+  return []
+}
+
+function normalizeRemoteWorkoutExerciseInput(exercise = {}) {
+  const source = exercise && typeof exercise === 'object' ? exercise : {}
+  const name = source.name ?? source.exerciseName ?? source.exercise_name ?? source.title ?? source.label ?? ''
+  return {
+    ...source,
+    name: String(name || 'Exercício').trim() || 'Exercício',
+    muscleGroup: source.muscleGroup ?? source.muscle_group ?? '',
+    videoUrl: source.videoUrl ?? source.video_url ?? '',
+    imageUrl: source.imageUrl ?? source.image_url ?? '',
+    thumbnailUrl: source.thumbnailUrl ?? source.thumbnail_url ?? source.imageUrl ?? source.image_url ?? '',
+    ascendapiId: source.ascendapiId ?? source.external_id ?? source.exerciseId ?? source.exercise_id ?? '',
+  }
+}
+
+function fromWorkoutExerciseRow(exercise = {}) {
+  const source = exercise && typeof exercise === 'object' ? exercise : {}
+  const nestedExercise = source.exercise && typeof source.exercise === 'object' ? source.exercise : {}
+
+  return {
+    id: source.id ?? source.exercise_id ?? nestedExercise.id ?? '',
+    name: source.name ?? source.exercise_name ?? source.title ?? source.label ?? nestedExercise.name ?? '',
+    sets: source.sets ?? source.series ?? source.set_count ?? '',
+    reps: source.reps ?? source.repetitions ?? source.rep_count ?? '',
+    load: source.load ?? source.weight ?? source.carga ?? '',
+    rest: source.rest ?? source.pause ?? source.interval ?? '',
+    muscleGroup: source.muscle_group ?? source.muscleGroup ?? nestedExercise.muscle_group ?? nestedExercise.group ?? '',
+    primaryMuscle: source.primary_muscle ?? source.primaryMuscle ?? nestedExercise.primary_muscle ?? nestedExercise.primaryMuscle ?? '',
+    secondaryMuscles: toRemoteStringArray(source.secondary_muscles ?? source.secondaryMuscles ?? nestedExercise.secondary_muscles ?? nestedExercise.secondaryMuscles),
+    equipment: source.equipment ?? nestedExercise.equipment ?? '',
+    instructions: source.instructions ?? source.notes ?? nestedExercise.instructions ?? '',
+    videoUrl: source.video_url ?? source.videoUrl ?? nestedExercise.video_url ?? nestedExercise.videoUrl ?? '',
+    imageUrl: source.image_url ?? source.imageUrl ?? source.thumbnail_url ?? nestedExercise.image_url ?? nestedExercise.imageUrl ?? '',
+    thumbnailUrl: source.thumbnail_url ?? source.image_url ?? source.thumbnailUrl ?? source.imageUrl ?? nestedExercise.thumbnail_url ?? nestedExercise.image_url ?? nestedExercise.thumbnailUrl ?? nestedExercise.imageUrl ?? '',
+    ascendapiId: source.external_id ?? source.ascendapiId ?? nestedExercise.external_id ?? nestedExercise.ascendapiId ?? '',
+  }
+}
+
 function fromWorkoutRow(row) {
   const workoutMetadata = parseWorkoutMetadata(row.notes)
+  const workoutExercises = getRemoteWorkoutExerciseRows(row)
   return {
     id: row.id,
     coachId: row.coach_id,
@@ -1443,26 +1531,10 @@ function fromWorkoutRow(row) {
     active: row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? row.created_at ?? '',
-    exercises: (row.workout_exercises ?? [])
+    exercises: workoutExercises
       .slice()
       .sort((a, b) => Number(a.order_index ?? 0) - Number(b.order_index ?? 0))
-      .map((exercise) => ({
-        id: exercise.id,
-        name: exercise.name ?? '',
-        sets: exercise.sets ?? '',
-        reps: exercise.reps ?? '',
-        load: exercise.load ?? '',
-        rest: exercise.rest ?? '',
-        muscleGroup: exercise.muscle_group ?? '',
-        primaryMuscle: exercise.primary_muscle ?? '',
-        secondaryMuscles: Array.isArray(exercise.secondary_muscles) ? exercise.secondary_muscles : [],
-        equipment: exercise.equipment ?? '',
-        instructions: exercise.instructions ?? '',
-        videoUrl: exercise.video_url ?? '',
-        imageUrl: exercise.image_url ?? '',
-        thumbnailUrl: exercise.image_url ?? '',
-        ascendapiId: exercise.external_id ?? '',
-      })),
+      .map(fromWorkoutExerciseRow),
   }
 }
 

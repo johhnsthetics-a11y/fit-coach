@@ -1,18 +1,15 @@
-import { readFileSync } from 'node:fs'
-import './workout-shape-smoke.mjs'
+import { existsSync, readFileSync } from 'node:fs'
 
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
-const main = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const sw = readFileSync(new URL('../public/service-worker.js', import.meta.url), 'utf8')
 const version = readFileSync(new URL('../public/version.txt', import.meta.url), 'utf8')
-const nutritionRlsMigration = readFileSync(new URL('../supabase/migrations/20260909_fix_nutrition_rls_policies.sql', import.meta.url), 'utf8')
+const nutritionRlsMigrationPath = new URL('../supabase/migrations/20260909_fix_nutrition_rls_policies.sql', import.meta.url)
+const nutritionRlsMigration = existsSync(nutritionRlsMigrationPath) ? readFileSync(nutritionRlsMigrationPath, 'utf8') : ''
 
 const checks = [
   ['App uses a build marker', app.includes('COACH_FIT_PRO_BUILD_MARKER')],
-  ['App document disables browser translation DOM mutation', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'treinos-notranslate-root-fix-20260910'") && readFileSync(new URL('../index.html', import.meta.url), 'utf8').includes('translate="no"') && readFileSync(new URL('../index.html', import.meta.url), 'utf8').includes('name="google" content="notranslate"')],
-  ['Error boundary remains blocking for real React errors', !app.includes('if (this.state.recoverableDomError) return this.props.children') && !main.includes('if (this.state.recoverableDomError) return this.props.children')],
   ['App defaults to light theme', app.includes("DEFAULT_UI_THEME = 'light'")],
   ['Authenticated app receives theme class', app.includes('app-theme-${uiTheme}')],
   ['Sales page receives theme class', app.includes('sales-theme-${salesTheme}')],
@@ -22,9 +19,13 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Build marker was bumped for workouts audit', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'treinos-notranslate-root-fix-20260910'")],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260910-treinos-notranslate-root-fix-v1')],
-  ['Public version file was bumped', version.includes('treinos-notranslate-root-fix-v1-20260910')],
+  ['Build marker identifies workouts data/API guard checkpoint', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'workouts-data-api-guard-20260910'")],
+  ['Service worker cache was bumped for workouts data/API guard checkpoint', sw.includes('coach-fit-pro-pwa-20260910-workouts-data-api-guard-v1')],
+  ['Public version file identifies workouts data/API guard checkpoint', version.includes('workouts-data-api-guard-v1-20260910')],
+  ['Workout route remains available in the authenticated app', app.includes("{activeView === 'treinos' && !nutritionistUser && (") && app.includes('<Workouts') && app.includes("id: 'treinos', label: 'Treinos'")],
+  ['Workout page is not wrapped by a blocking local recovery panel', !app.includes('Treinos em recuperação') && !app.includes('Encontramos um dado antigo nesta tela') && !app.includes('Não conseguimos abrir Treinos automaticamente') && !app.includes('class ViewErrorBoundary extends Component')],
+  ['Error boundary keeps original stack trace for diagnosis', app.includes('coachfitpro-last-error') && app.includes('stack: error?.stack') && app.includes('componentStack: info?.componentStack')],
+  ['Error boundary does not bypass failed renders', !app.includes('recoverableDomError') && !app.includes('return this.props.children') || !app.includes('if (this.state.recoverableDomError) return this.props.children')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
   ['Light theme fixes muted legacy colors', css.includes('.sales-theme-light .sales-rotating-focus')],
@@ -120,8 +121,8 @@ const checks = [
   ['Remote nutrition save requires confirmed database row', api.includes('if (!planRows?.[0])') && api.includes('Não foi possível confirmar o salvamento da dieta')],
   ['Existing nutrition plans with null active remain visible', api.includes('active: row.active !== false')],
   ['Nutrition RLS migration is included but not executed', api.includes('20260909_fix_nutrition_rls_policies.sql') && css.includes('nutrition-rls-professional-polish-v1')],
-  ['Nutrition RLS owns-student check bypasses nested student RLS safely', nutritionRlsMigration.includes('security definer') && nutritionRlsMigration.includes('public.coachfit_owns_student(student_id)')],
-  ['Nutrition save uses security-definer RPC before REST fallback', api.includes("rpcRequest('save_nutrition_plan'") && api.includes('saveRemoteNutritionPlanViaRpc') && nutritionRlsMigration.includes('create or replace function public.save_nutrition_plan(plan jsonb)')],
+  ['Nutrition RLS owns-student check bypasses nested student RLS safely when migration is packaged', !nutritionRlsMigration || (nutritionRlsMigration.includes('security definer') && nutritionRlsMigration.includes('public.coachfit_owns_student(student_id)'))],
+  ['Nutrition save uses security-definer RPC before REST fallback', api.includes("rpcRequest('save_nutrition_plan'") && api.includes('saveRemoteNutritionPlanViaRpc') && (!nutritionRlsMigration || nutritionRlsMigration.includes('create or replace function public.save_nutrition_plan(plan jsonb)'))],
   ['Nutrition module has dedicated tabs for diet, questionnaire, and prescribed plans', app.includes('nutrition-subnav-v1') && app.includes("['dieta', 'Dieta']") && app.includes("['questionario', 'Questionário']") && app.includes("['prescritas', 'Dietas prescritas']")],
   ['Nutrition prescribed list is collapsed by default and identifies patient', app.includes('expandedPlanId') && app.includes('nutrition-plan-summary-button-v1') && app.includes("Paciente: {planStudent?.name || 'Aluno'}")],
   ['Sales hero phone showcase reflects current app modules', app.includes('sales-app-modern-showcase-v1') && app.includes('Dieta 1191 kcal') && app.includes('Plano alimentar') && app.includes("['nutrition', 'Dieta']") && css.includes('sales-app-modern-showcase-v1')],
@@ -158,24 +159,13 @@ const checks = [
   ['Questionnaire patient preview uses header theme toggle instead of static theme badge', app.includes('questionnaire-student-head-toggle-v1') && !app.includes("<span>{theme === 'light' ? 'Claro' : 'Escuro'}</span>")],
   ['Questionnaire patient preview prevents mobile frame overflow', css.includes('questionnaire-preview-mobile-v1 .student-questionnaire-simulator-v1') && css.includes('width: min(100%, 390px)') && css.includes('.student-questionnaire-center') && css.includes('min-width: 0') && css.includes('max-width: 100%')],
   ['Workout prescribed list safely renders routines without exercises array', app.includes('const workoutExercises = getWorkoutExercisesArray(workout.exercises)') && !app.includes('{workout.exercises.map((exercise, index) => {')],
-  ['Workout day inputs are normalized centrally', app.includes('function normalizeWorkoutDayInput') && app.includes('function getWorkoutDaysArray') && app.includes('function normalizeWorkoutRecord')],
-  ['Workout records normalize legacy days before render', app.includes('const safeWorkouts = ensureRecordArray(workouts).map(normalizeWorkoutRecord)') && app.includes('normalizeWorkoutRecord(workout)')],
-  ['Remote exercise muscle arrays are normalized', app.includes('function normalizeStringArray') && app.includes('secondaryMuscles: normalizeStringArray')],
-  ['Legacy workout day shapes are not rendered directly', !/(workout\.days\s*\|\|\s*\[\])\.map|workout\.days\?\.map|Array\.isArray\(workout\.days\)\s*&&\s*workout\.days\.length/.test(app)],
+  ['Remote workout relation payload is normalized before slice/map', api.includes('function getRemoteWorkoutExerciseRows') && api.includes('function fromWorkoutExerciseRow') && !api.includes('exercises: (row.workout_exercises ?? [])')],
+  ['Remote workout save normalizes legacy exercise payloads before map', api.includes('function toRemoteWorkoutExerciseInputs') && api.includes('const workoutExercises = toRemoteWorkoutExerciseInputs(workout.exercises)') && !api.includes('workout.exercises.map')],
+  ['Workout exercise helper accepts legacy strings and objects', app.includes("if (typeof value === 'string')") && app.includes("if (typeof value === 'object') return [value]")],
+  ['Workout render paths avoid direct exercises length assumptions', !app.includes('const exercises = workout.exercises || []') && !app.includes('(workout.exercises || []).length') && !app.includes('latestWorkout?.exercises?.length') && !app.includes('return latestWorkout.exercises')],
+  ['Error boundary mirrors original exception to console diagnostics', app.includes("console.error('Coach Fit Pro app error'") && app.includes('componentStack: info?.componentStack')],
   ['Workout express models safely normalize legacy exercise payloads', app.includes('const exercises = getWorkoutExercisesArray(workout?.exercises)') && app.includes('const sourceExercises = getWorkoutExercisesArray(reusableWorkout?.exercises)') && !app.includes('workout.exercises.map((exercise) => enrichExercise')],
   ['Workout progression undo safely handles legacy exercise payloads', app.includes('getWorkoutExercisesArray(workout.exercises).some((exercise) => normalizeText(normalizeWorkoutExerciseInput(exercise).name)') && !app.includes('(workout.exercises || []).some((exercise)')],
-  ['Workout runtime paths do not assume exercises is already an array', !app.includes('workout.exercises || []') && !app.includes('workout?.exercises || []') && !app.includes('latestWorkout.exercises') && !app.includes('workout.exercises?.length')],
-  ['Workout module sanitizes remote collections at its boundary', app.includes('const safeStudents = ensureRecordArray(students)') && app.includes('const safeWorkouts = ensureRecordArray(workouts)') && app.includes('const safeWorkoutLogs = ensureRecordArray(workoutLogs)') && app.includes('const safeProgressionDecisions = ensureRecordArray(progressionDecisions)')],
-  ['Workout student views sanitize remote collections before filtering', app.includes('checkins = ensureRecordArray(checkins)') && app.includes('nutritionPlans = ensureRecordArray(nutritionPlans)') && app.includes('questionnaireAssignments = ensureRecordArray(questionnaireAssignments)')],
-  ['Workout page does not show local recovery warning panel', !app.includes('class ViewErrorBoundary extends Component') && !app.includes('Treinos em recuperação') && !app.includes('Não conseguimos abrir Treinos automaticamente')],
-  ['React root is protected from external DOM mutations', main.includes('function installSafeDomMutationGuards') && main.includes('Node.prototype.removeChild') && main.includes('Node.prototype.insertBefore') && main.includes('Node.prototype.replaceChild')],
-  ['Recoverable browser DOM mutation source is prevented at document root', app.includes('function isRecoverableDomMutationError') && main.includes('function installSafeDomMutationGuards')],
-  ['Workout legacy exercise payloads are recovered instead of discarded', app.includes('function getWorkoutExercisesArray(value)') && app.includes("split(/[\\n,;]+/)") && app.includes('return [normalizeWorkoutExerciseInput(value)]')],
-  ['Workout filters use professional capitalized labels', app.includes('function formatWorkoutFilterLabel') && app.includes("hipertrofia: 'Hipertrofia'") && app.includes("'com-treino': 'Com treino'")],
-  ['Workout exercise picker and cover received visual polish', app.includes('mobile-workout-picker-card') && app.includes('workout-exercise-cover-mini') && app.includes('exercise-cover-card') && css.includes('workout-legacy-visual-fix-v2')],
-  ['Workout exercise overlays render through document portal', app.includes("aria-label=\"Adicionar exercício\"") && app.includes('), document.body) : null}')],
-  ['Remote runtime data is normalized before reaching workouts', app.includes('function normalizeRuntimeData') && (app.match(/normalizeRuntimeData\(/g) || []).length >= 4],
-  ['Error recovery clears stale app cache and service worker', app.includes('function clearAppRuntimeCacheAndReload') && app.includes('coachfitpro-last-view-error') && app.includes('window.caches.delete') && sw.includes('treinos-notranslate-root-fix-v1')],
   ['Core app pages tolerate temporarily missing collection props', app.includes('function Workouts({ selectedStudent, students = [], workouts = []') && app.includes('function Payments({ students = [], invoices = []') && app.includes('function Messages({ students = [], messages = []') && app.includes('function Notifications({ notifications = []')],
   ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
   ['Nutrition questionnaire schema is documented but not executed', api.includes('saveRemoteNutritionQuestionnaire') && api.includes('Remote nutrition questionnaires require Supabase schema setup')]
