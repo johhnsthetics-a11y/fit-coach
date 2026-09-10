@@ -1,1 +1,1 @@
-treinos-dom-stability-fix-v1-20260909
+treinos-open-no-warning-fix-v1-20260909

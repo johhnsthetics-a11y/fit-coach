@@ -9,6 +9,7 @@ function installSafeDomMutationGuards() {
 
   const nativeRemoveChild = Node.prototype.removeChild
   const nativeInsertBefore = Node.prototype.insertBefore
+  const nativeReplaceChild = Node.prototype.replaceChild
 
   Object.defineProperty(Node.prototype, '__coachFitProSafeDomGuards', {
     configurable: false,
@@ -27,6 +28,13 @@ function installSafeDomMutationGuards() {
     }
     return nativeInsertBefore.call(this, newNode, referenceNode)
   }
+
+  Node.prototype.replaceChild = function replaceChildSafely(newChild, oldChild) {
+    if (oldChild && oldChild.parentNode !== this) {
+      return this.appendChild(newChild)
+    }
+    return nativeReplaceChild.call(this, newChild, oldChild)
+  }
 }
 
 installSafeDomMutationGuards()
@@ -42,6 +50,7 @@ async function clearAppRuntimeCacheAndReload() {
       await Promise.all(registrations.map((registration) => registration.unregister()))
     }
     window.localStorage.removeItem('coachfitpro-last-error')
+    window.localStorage.removeItem('coachfitpro-last-view-error')
   } catch {
     // Recarrega mesmo se o navegador bloquear alguma API de cache.
   } finally {

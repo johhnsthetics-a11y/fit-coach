@@ -64,7 +64,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'treinos-dom-stability-fix-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'treinos-open-no-warning-fix-20260909'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1331,6 +1331,7 @@ async function clearAppRuntimeCacheAndReload() {
       await Promise.all(registrations.map((registration) => registration.unregister()))
     }
     window.localStorage.removeItem('coachfitpro-last-error')
+    window.localStorage.removeItem('coachfitpro-last-view-error')
   } catch {
     // Mesmo se o navegador bloquear a limpeza, o reload comum ainda pode recuperar a tela.
   } finally {
@@ -1644,71 +1645,6 @@ class AppErrorBoundary extends Component {
           </button>
         </section>
       </main>
-    )
-  }
-}
-
-class ViewErrorBoundary extends Component {
-  constructor(props) {
-    super(props)
-    this.state = { error: null }
-  }
-
-  static getDerivedStateFromError(error) {
-    return { error }
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
-      this.setState({ error: null })
-    }
-  }
-
-  componentDidCatch(error, info) {
-    try {
-      window.localStorage.setItem('coachfitpro-last-view-error', JSON.stringify({
-        scope: this.props.scope || 'view',
-        message: error?.message || 'Erro inesperado',
-        stack: error?.stack || '',
-        componentStack: info?.componentStack || '',
-        build: COACH_FIT_PRO_BUILD_MARKER,
-        createdAt: new Date().toISOString(),
-      }))
-    } catch {
-      // O fallback visual continua funcionando mesmo se o storage estiver bloqueado.
-    }
-  }
-
-  render() {
-    if (!this.state.error) return this.props.children
-
-    return (
-      <section className="rounded-3xl border border-emerald-300/25 bg-zinc-950/80 p-6 text-zinc-100 shadow-2xl shadow-black/30">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-200">Treinos em recuperação</p>
-        <h2 className="mt-2 text-2xl font-black text-white">Encontramos um dado antigo nesta tela.</h2>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300">
-          Seus dados seguem seguros. Limpe o cache da aplicação para buscar a versão mais nova ou volte para a visão geral enquanto o app se recupera.
-        </p>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={clearAppRuntimeCacheAndReload}
-            className="min-h-11 rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950"
-          >
-            Limpar cache e tentar novamente
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              this.setState({ error: null })
-              this.props.onReset?.()
-            }}
-            className="min-h-11 rounded-xl border border-white/10 px-5 py-3 text-sm font-black text-zinc-100"
-          >
-            Voltar para visão geral
-          </button>
-        </div>
-      </section>
     )
   }
 }
@@ -3677,29 +3613,23 @@ function AppContent() {
               />
             )}
             {activeView === 'treinos' && !nutritionistUser && (
-              <ViewErrorBoundary
-                scope="treinos"
-                resetKey={`treinos-${selectedStudent?.id || selectedStudentId}-${uiTheme}`}
-                onReset={() => setActiveViewSafely('visao')}
-              >
-                <Workouts
-                  selectedStudent={selectedStudent}
-                  students={data.students}
-                  workouts={data.workouts ?? []}
-                  nutritionPlans={data.nutritionPlans ?? []}
-                  workoutLogs={data.workoutLogs ?? []}
-                  progressionDecisions={data.workoutProgressionDecisions ?? []}
-                  exerciseLibraryItems={data.exerciseLibrary ?? []}
-                  onSaveWorkout={saveWorkout}
-                  onSaveNutritionPlan={saveNutritionPlan}
-                  onArchiveWorkout={archiveWorkout}
-                  onApproveProgression={approveWorkoutProgression}
-                  onIgnoreProgression={ignoreWorkoutProgression}
-                  onUndoProgression={undoWorkoutProgression}
-                  onSaveStudent={saveStudent}
-                  uiTheme={uiTheme}
-                />
-              </ViewErrorBoundary>
+              <Workouts
+                selectedStudent={selectedStudent}
+                students={data.students}
+                workouts={data.workouts ?? []}
+                nutritionPlans={data.nutritionPlans ?? []}
+                workoutLogs={data.workoutLogs ?? []}
+                progressionDecisions={data.workoutProgressionDecisions ?? []}
+                exerciseLibraryItems={data.exerciseLibrary ?? []}
+                onSaveWorkout={saveWorkout}
+                onSaveNutritionPlan={saveNutritionPlan}
+                onArchiveWorkout={archiveWorkout}
+                onApproveProgression={approveWorkoutProgression}
+                onIgnoreProgression={ignoreWorkoutProgression}
+                onUndoProgression={undoWorkoutProgression}
+                onSaveStudent={saveStudent}
+                uiTheme={uiTheme}
+              />
             )}
             {activeView === 'nutricao' && (
               <Nutrition
