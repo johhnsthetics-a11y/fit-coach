@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-pwa-20260910-workouts-data-api-guard-v1'
+const CACHE_NAME = 'coach-fit-pro-pwa-20260909-sales-app-modern-showcase-v1'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {

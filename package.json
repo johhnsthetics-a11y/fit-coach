@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "pnpm run build && pnpm dlx wrangler@4 dev",
     "deploy": "pnpm run build && pnpm dlx wrangler@4 deploy",
-    "test": "node scripts/theme-smoke.mjs",
+    "test": "node scripts/theme-smoke.mjs && node --test scripts/workouts-regression.test.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "node scripts/theme-smoke.mjs"
   },
