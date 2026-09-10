@@ -13,6 +13,7 @@ const workout = {
 }
 let server
 let App
+let getExercisePickerResults
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -22,7 +23,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExercisePickerResults } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -56,3 +57,37 @@ for (const scenario of [
     if (scenario.workouts.length) assert.match(html, /Rotina Regressão/)
   })
 }
+
+test('Treinos mostra filtros com capitalização profissional sem alterar os valores internos', () => {
+  const storage = new Map([['fitcoach-ai-pro-v2', JSON.stringify({
+    user: { id: 'coach-labels', name: 'Treinador de rótulos' },
+    students: [student],
+    workouts: [workout],
+  })]])
+  globalThis.window = {
+    localStorage: { getItem: (key) => storage.get(key) ?? null },
+    location: new URL('http://localhost/?area=treinos'),
+  }
+  const html = renderToString(React.createElement(App))
+  for (const label of ['Todos', 'Hipertrofia', 'Emagrecimento', 'Força', 'Publicado']) {
+    assert.match(html, new RegExp(`>${label}<`))
+  }
+})
+
+test('biblioteca de exercícios mantém todos os resultados e o filtro de favoritos', () => {
+  const library = Array.from({ length: 65 }, (_, index) => ({
+    name: `Exercício ${index + 1}`,
+    group: index % 2 ? 'Peito' : 'Costas',
+    equipment: 'Halteres',
+  }))
+
+  const allResults = getExercisePickerResults({ library })
+  const favoriteResults = getExercisePickerResults({
+    library,
+    tab: 'favorites',
+    favorites: ['Exercício 2', 'Exercício 64'],
+  })
+
+  assert.equal(allResults.length, 65)
+  assert.deepEqual(favoriteResults.map((exercise) => exercise.name), ['Exercício 2', 'Exercício 64'])
+})

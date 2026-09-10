@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+const nutritionPlanAccess = readFileSync(new URL('../src/nutritionPlanAccess.js', import.meta.url), 'utf8')
 const sw = readFileSync(new URL('../public/service-worker.js', import.meta.url), 'utf8')
 const version = readFileSync(new URL('../public/version.txt', import.meta.url), 'utf8')
 const nutritionRlsMigrationPath = new URL('../supabase/migrations/20260909_fix_nutrition_rls_policies.sql', import.meta.url)
@@ -141,7 +142,8 @@ const checks = [
   ['Workout audit polish keeps critical actions and picker scroll accessible', css.includes('workout-audit-responsive-polish-v2') && css.includes('max-height: min(88dvh, 760px)') && css.includes('position: sticky')],
   ['Nutrition supports household measures per food', app.includes('NUTRITION_HOUSEHOLD_MEASURES') && app.includes('getFoodMeasureOptions') && app.includes('calculateFoodServingGrams') && app.includes('customMeasureGrams')],
   ['Nutrition student servings show household measure and grams', app.includes('formatStudentFoodServing') && app.includes('nutrition-serving-controls-v1') && css.includes('nutrition-serving-controls-v1')],
-  ['Nutrition metadata persists structured servings without SQL', app.includes('NUTRITION_PLAN_METADATA_PREFIX') && api.includes('NUTRITION_PLAN_METADATA_PREFIX') && api.includes('parseNutritionPlanMetadata')],
+  ['Nutrition metadata persists structured servings without SQL', nutritionPlanAccess.includes('NUTRITION_PLAN_METADATA_PREFIX') && nutritionPlanAccess.includes('buildNutritionPlanNotesWithMetadata') && api.includes('parseNutritionPlanMetadata')],
+  ['Nutrition PDF permission survives remote plan normalization', api.includes('allowPatientPdfDownload: metadata.allowPatientPdfDownload === true')],
   ['Nutrition shows student TMB context while prescribing', app.includes('calculateBasalMetabolicRateDetails') && app.includes('NutritionBmrStrip') && app.includes('Taxa de metabolismo basal')],
   ['Student portal preserves active tab across refresh', app.includes('STUDENT_ACTIVE_TAB_STORAGE_KEY') && app.includes('getInitialStudentTab') && app.includes('persistStudentTab')],
   ['Nutrition subtab persists across refresh', app.includes('coachfitpro-nutrition-active-tab-20260909') && app.includes('nutricaoTab')],

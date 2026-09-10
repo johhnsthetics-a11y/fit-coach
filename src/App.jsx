@@ -2,6 +2,11 @@ import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, use
 import { createPortal } from 'react-dom'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
+  buildNutritionPlanNotesWithMetadata,
+  canPatientDownloadNutritionPdf,
+  stripNutritionPlanMetadata,
+} from './nutritionPlanAccess'
+import {
   acceptRemoteStudentConsent,
   archiveRemoteNutritionPlan,
   archiveRemoteWorkout,
@@ -58,7 +63,6 @@ const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
 const STUDENT_ACTIVE_TAB_STORAGE_KEY = 'coachfitpro-student-active-tab-20260909'
 const WORKOUT_DRAFT_STORAGE_KEY = 'coachfitpro-workout-quick-draft-20260908'
 const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
-const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
 const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaires'
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
@@ -7711,18 +7715,15 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     return ['todos', ...values.slice(0, 22)]
   }, [availableExerciseLibrary])
   const exercisePickerResults = useMemo(() => {
-    const muscleFilter = exercisePickerMuscleFilter === 'todos' ? 'todos' : exercisePickerMuscleFilter
-    const favoriteSet = new Set(favoriteExerciseNames.map(normalizeText))
-    return buildExerciseSuggestions(availableExerciseLibrary, exercisePickerSearch, muscleFilter, favoriteExerciseNames, recentExerciseNames)
-      .filter((exercise) => {
-        const categoryText = normalizeText(`${exercise.category || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
-        const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
-        const matchesCategory = exercisePickerObjectiveFilter === 'todos' || categoryText.includes(normalizeText(exercisePickerObjectiveFilter))
-        const matchesFavorites = exercisePickerTab !== 'favorites' || favoriteSet.has(normalizeText(exercise.name))
-        const matchesMine = exercisePickerTab !== 'mine' || isCustomExercise
-        return matchesCategory && matchesFavorites && matchesMine
-      })
-      .slice(0, 36)
+    return getExercisePickerResults({
+      library: availableExerciseLibrary,
+      search: exercisePickerSearch,
+      muscleFilter: exercisePickerMuscleFilter,
+      categoryFilter: exercisePickerObjectiveFilter,
+      tab: exercisePickerTab,
+      favorites: favoriteExerciseNames,
+      recent: recentExerciseNames,
+    })
   }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
 
   function resetDraftFromWorkout(workout = null, { mode = 'copy' } = {}) {
@@ -9842,16 +9843,15 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     return ['todos', ...values]
   }, [availableExerciseLibrary])
   const exerciseSuggestions = useMemo(() => {
-    const favoriteSet = new Set(favoriteExercises.map(normalizeText))
-    return buildExerciseSuggestions(availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, favoriteExercises, recentExercises)
-      .filter((exercise) => {
-        const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
-        const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''}`)
-        const matchesCategory = exerciseCategoryFilter === 'todos' || categoryText.includes(normalizeText(exerciseCategoryFilter))
-        const matchesFavorite = exerciseSourceFilter !== 'favoritos' || favoriteSet.has(normalizeText(exercise.name))
-        const matchesMine = exerciseSourceFilter !== 'seus' || isCustomExercise
-        return matchesCategory && matchesFavorite && matchesMine
-      })
+    return getExercisePickerResults({
+      library: availableExerciseLibrary,
+      search: exerciseSearch,
+      muscleFilter: exerciseMuscleFilter,
+      categoryFilter: exerciseCategoryFilter,
+      tab: exerciseSourceFilter,
+      favorites: favoriteExercises,
+      recent: recentExercises,
+    })
   }, [availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter, favoriteExercises, recentExercises])
 
   useEffect(() => {
@@ -10145,8 +10145,8 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
           </button>
         </div>
 
-        <div className="mt-4 grid gap-2">
-          {exerciseSuggestions.slice(0, 8).map((exercise, suggestionIndex) => (
+        <div className="workout-exercise-library-results mt-4 grid gap-2" aria-label="Resultados da biblioteca de exercícios">
+          {exerciseSuggestions.map((exercise, suggestionIndex) => (
             <div
               key={exercise.name}
               onMouseEnter={() => setSelectedSuggestionIndex(suggestionIndex)}
@@ -10595,7 +10595,30 @@ function buildExerciseSuggestions(library, query, filter, favorites = [], recent
     })
     .filter((exercise) => exercise.suggestionScore > 0)
     .sort((a, b) => b.suggestionScore - a.suggestionScore || String(a.name).localeCompare(String(b.name)))
-    .slice(0, 60)
+}
+
+export function getExercisePickerResults({
+  library = [],
+  search = '',
+  muscleFilter = 'todos',
+  categoryFilter = 'todos',
+  tab = 'coachfit',
+  favorites = [],
+  recent = [],
+} = {}) {
+  const favoriteSet = new Set(favorites.map(normalizeText))
+  const showFavoritesOnly = tab === 'favorites' || tab === 'favoritos'
+  const showCustomOnly = tab === 'mine' || tab === 'seus'
+
+  return buildExerciseSuggestions(library, search, muscleFilter, favorites, recent)
+    .filter((exercise) => {
+      const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
+      const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
+      const matchesCategory = categoryFilter === 'todos' || categoryText.includes(normalizeText(categoryFilter))
+      const matchesFavorites = !showFavoritesOnly || favoriteSet.has(normalizeText(exercise.name))
+      const matchesMine = !showCustomOnly || isCustomExercise
+      return matchesCategory && matchesFavorites && matchesMine
+    })
 }
 
 function HighlightedMatch({ text, query }) {
@@ -10771,7 +10794,10 @@ function ExerciseThumbnail({ exercise = {}, compact = false }) {
   const videoUrl = safeExternalUrl(exercise.videoUrl)
   const imageUrl = safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl)
   const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
-  const target = exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Exercício'
+  const profile = getExerciseMuscleProfile(exercise)
+  const target = profile.primaryLabel !== 'Músculo alvo não identificado'
+    ? profile.primaryLabel
+    : exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Exercício'
 
   return (
     <span className={`exercise-thumb ${compact ? 'is-compact' : ''}`}>
@@ -10793,7 +10819,12 @@ function ExerciseThumbnail({ exercise = {}, compact = false }) {
         />
       ) : (
         <span className="exercise-thumb-placeholder" aria-hidden="true">
-          <NavIcon name="dumbbell" className="h-5 w-5" />
+          <span className="exercise-thumb-cover-backdrop" />
+          <span className="exercise-thumb-muscle-mark">
+            <MuscleMapMini exercise={exercise} />
+          </span>
+          <span className="exercise-thumb-grid-lines" />
+          <span className="exercise-thumb-scanline" />
         </span>
       )}
       <small>{target}</small>
@@ -10918,7 +10949,7 @@ function MuscleMapMini({ exercise }) {
       <circle cx="12" cy="5.1" r="2.1" fill="currentColor" opacity="0.44" />
       <path
         d={profile.view === 'back' ? 'M8.7 8.6h6.6l1.2 4.6-2.7 3.2H10l-2.5-3.2Z' : 'M8.5 8.6h7l-1.1 4.8H9.6Z'}
-        fill="#34f5a5"
+        fill="#ff5c5c"
       />
     </svg>
   )
@@ -10981,13 +11012,13 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
 }
 
 function BodySilhouette({ view }) {
-  const neutral = '#86a0ad'
-  const neutralSoft = '#607986'
+  const neutral = '#7892a0'
+  const neutralSoft = '#516a77'
   const outline = '#dbe7ec'
   return (
-    <g opacity="0.98">
-      <circle cx="50" cy="11" r="7.2" fill="#f8fafc" stroke={outline} strokeWidth="0.9" />
-      <path d="M46 18h8l2 6H44Z" fill="#f8fafc" stroke={outline} strokeWidth="0.65" />
+    <g className="muscle-map-silhouette" opacity="0.98">
+      <circle cx="50" cy="11" r="7.2" fill="#eef5f7" stroke={outline} strokeWidth="0.9" />
+      <path d="M46 18h8l2 6H44Z" fill="#dce8ec" stroke={outline} strokeWidth="0.65" />
       <path d="M39 24h22l7 28-6 29H38l-6-29 7-28Z" fill={neutralSoft} stroke={outline} strokeWidth="0.8" />
       <path d="M41 27h8v51H39l-5-26Z" fill={neutral} opacity="0.92" />
       <path d="M51 27h8l7 25-5 26H51Z" fill={neutral} opacity="0.92" />
@@ -11001,9 +11032,10 @@ function BodySilhouette({ view }) {
       <path d="M51 80h12l7 17-4 23H54Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
       <path d="M37 84h7l-2 31h-7l-3-18Z" fill={neutral} opacity="0.9" />
       <path d="M56 84h7l5 13-3 18h-7Z" fill={neutral} opacity="0.9" />
-      <path d="M43 120h-12l-1 6h15Z" fill="#f8fafc" stroke={outline} strokeWidth="0.55" />
-      <path d="M57 120h12l1 6H55Z" fill="#f8fafc" stroke={outline} strokeWidth="0.55" />
-      <path d="M49 28h2v50h-2Z" fill="#e2edf1" opacity="0.42" />
+      <path d="M43 120h-12l-1 6h15Z" fill="#eef5f7" stroke={outline} strokeWidth="0.55" />
+      <path d="M57 120h12l1 6H55Z" fill="#eef5f7" stroke={outline} strokeWidth="0.55" />
+      <path className="muscle-map-midline" d="M49 28h2v50h-2Z" fill="#dbe7ec" opacity="0.34" />
+      <path className="muscle-map-guide" d="M41 39h18M42 56h16M40 74h20M38 94h24" fill="none" stroke="#dbe7ec" strokeWidth="0.7" opacity="0.18" />
       {view === 'back' ? <path d="M41 25h18l-9 10Z" fill="#475e69" opacity="0.75" /> : <path d="M43 25h14l-7 7Z" fill="#edf5f7" opacity="0.78" />}
     </g>
   )
@@ -11018,6 +11050,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
     const state = activeMuscles.get(key)
     const active = Boolean(state)
     return {
+      className: `muscle-map-region ${active ? 'is-active' : 'is-idle'} ${state ? `is-${state}` : ''}`,
       role: 'img',
       tabIndex: 0,
       'aria-label': `${muscleConfig[key]?.label || key}${state === 'primary' ? ', músculo principal' : state === 'secondary' ? ', músculo auxiliar' : ''}`,
@@ -11553,37 +11586,6 @@ function parseNutritionFoodItems(foodText = '') {
     })
 }
 
-function stripNutritionPlanMetadata(notes = '') {
-  return String(notes || '').replace(new RegExp(`\\n?${escapeRegExp(NUTRITION_PLAN_METADATA_PREFIX)}[\\s\\S]*$`), '').trim()
-}
-
-function buildNutritionPlanNotesWithMetadata(notes = '', meals = []) {
-  const cleanNotes = stripNutritionPlanMetadata(notes)
-  const metadata = {
-    version: 1,
-    meals: meals.map((meal) => ({
-      id: meal.id,
-      items: (meal.items || []).map((item) => ({
-        id: item.id,
-        category: item.category,
-        foodName: item.foodName,
-        grams: calculateFoodServingGrams(item),
-        quantity: item.quantity,
-        measureUnit: item.measureUnit,
-        customMeasureName: item.customMeasureName,
-        customMeasureGrams: item.customMeasureGrams,
-        mode: item.mode,
-        customMacros: item.customMacros,
-      })),
-    })),
-  }
-  return `${cleanNotes}${cleanNotes ? '\n\n' : ''}${NUTRITION_PLAN_METADATA_PREFIX}${JSON.stringify(metadata)}`
-}
-
-function escapeRegExp(value = '') {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 function createNutritionMeal(meal = {}) {
   const parsedItems = Array.isArray(meal.items) && meal.items.length
     ? meal.items.map(createNutritionMealItem)
@@ -11805,6 +11807,7 @@ function NutritionForm({ students = [], selectedStudent, selectedAnamnesis = nul
   const [error, setError] = useState('')
   const [titleDraft, setTitleDraft] = useState(editingPlan?.title || 'Plano base')
   const [notesDraft, setNotesDraft] = useState(stripNutritionPlanMetadata(editingPlan?.notes) || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+  const [allowPatientPdfDownload, setAllowPatientPdfDownload] = useState(() => canPatientDownloadNutritionPdf(editingPlan))
   const [previewOpen, setPreviewOpen] = useState(false)
   const savingRef = useRef(false)
   const clientRequestIdRef = useRef(createNutritionDraftId('nutrition-save'))
@@ -11818,6 +11821,7 @@ function NutritionForm({ students = [], selectedStudent, selectedAnamnesis = nul
     setMeals(editingPlan?.meals?.length ? editingPlan.meals.map(normalizeNutritionMealDraft) : createNutritionDefaultMeals())
     setTitleDraft(editingPlan?.title || 'Plano base')
     setNotesDraft(stripNutritionPlanMetadata(editingPlan?.notes) || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
+    setAllowPatientPdfDownload(canPatientDownloadNutritionPdf(editingPlan))
     setMessage('')
     setError('')
     savingRef.current = false
@@ -11836,6 +11840,7 @@ function NutritionForm({ students = [], selectedStudent, selectedAnamnesis = nul
     title: titleDraft || 'Plano alimentar',
     calories: `${Math.round(planTotals.calories)} kcal`,
     protein: `${roundMacro(planTotals.protein)} g`,
+    allowPatientPdfDownload,
     notes: stripNutritionPlanMetadata(notesDraft),
     meals: meals
       .filter((meal) => meal.name.trim())
@@ -11985,7 +11990,10 @@ function NutritionForm({ students = [], selectedStudent, selectedAnamnesis = nul
         title: form.get('title')?.toString() || 'Plano alimentar',
         calories: `${Math.round(planTotals.calories)} kcal`,
         protein: `${roundMacro(planTotals.protein)} g`,
-        notes: buildNutritionPlanNotesWithMetadata(form.get('notes')?.toString() || '', filledMeals),
+        notes: buildNutritionPlanNotesWithMetadata(form.get('notes')?.toString() || '', filledMeals, {
+          allowPatientPdfDownload,
+          getServingGrams: calculateFoodServingGrams,
+        }),
         meals: filledMeals,
       })
       onSaved?.(savedPlan)
@@ -12084,6 +12092,21 @@ function NutritionForm({ students = [], selectedStudent, selectedAnamnesis = nul
 
       <MacroSummaryGrid totals={planTotals} />
       <TextArea label="Observações para o aluno" name="notes" defaultValue={notesDraft} onChange={(event) => { setNotesDraft(event.target.value); markNutritionDraftDirty() }} />
+      <label className="nutrition-pdf-permission-control flex cursor-pointer items-start gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
+        <input
+          type="checkbox"
+          checked={allowPatientPdfDownload}
+          onChange={(event) => {
+            setAllowPatientPdfDownload(event.target.checked)
+            markNutritionDraftDirty()
+          }}
+          className="mt-1 h-5 w-5 shrink-0 accent-emerald-400"
+        />
+        <span className="min-w-0">
+          <strong className="block text-sm font-black text-emerald-100">Permitir paciente fazer o download do PDF da dieta</strong>
+          <span className="mt-1 block text-sm leading-6 text-zinc-300">Quando ativado, o paciente poderá baixar esta dieta em PDF.</span>
+        </span>
+      </label>
 
       <div className="space-y-4">
         {meals.map((meal, mealIndex) => {
@@ -12258,6 +12281,7 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
 
 function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, onClose }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
+  const canDownloadPdf = canPatientDownloadNutritionPdf(plan)
 
   return createPortal((
     <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
@@ -12273,10 +12297,12 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
           </button>
         </div>
 
-        <button type="button" onClick={() => openNutritionPlanPdf(plan, student, professional)} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
-          <NavIcon name="download" className="h-4 w-4" />
-          Baixar PDF da dieta
-        </button>
+        {canDownloadPdf ? (
+          <button type="button" onClick={() => openNutritionPlanPdf(plan, student, professional)} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
+            <NavIcon name="download" className="h-4 w-4" />
+            Baixar PDF da dieta
+          </button>
+        ) : null}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <NutritionQuickStat icon="chart" label="Calorias" value={plan?.calories || '-'} detail="por dia" />
@@ -12546,6 +12572,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
     const meals = Array.isArray(plan.meals) ? plan.meals : []
     const isExpanded = sameId(expandedPlanId, plan.id)
     const planStudent = students.find((student) => String(student.id) === String(plan.studentId)) || selectedStudent
+    const canDownloadPdf = Boolean(onArchive) || canPatientDownloadNutritionPdf(plan)
 
     return (
       <article key={plan.id} className={`nutrition-plan-card-v6 ${archived ? 'is-archived' : ''} overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20`}>
@@ -12590,9 +12617,9 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                     {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar dieta'}
                   </button>
                 ) : null}
-                {onArchive ? (
+                {canDownloadPdf ? (
                   <button type="button" onClick={() => openNutritionPlanPdf(plan, planStudent, professional)} className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100 transition hover:bg-emerald-300/15">
-                    Baixar PDF
+                    {onArchive ? 'Baixar PDF' : 'Baixar PDF da dieta'}
                   </button>
                 ) : null}
                 {onArchive ? (
@@ -20430,6 +20457,12 @@ function formatUiText(value) {
     Inicio: 'Início',
     Previa: 'Prévia',
     Configuracoes: 'Gerenciamento',
+    todos: 'Todos',
+    hipertrofia: 'Hipertrofia',
+    emagrecimento: 'Emagrecimento',
+    força: 'Força',
+    forca: 'Força',
+    publicado: 'Publicado',
   }
   return labels[value] ?? value
 }

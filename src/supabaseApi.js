@@ -1515,6 +1515,7 @@ function fromNutritionPlanRow(row) {
     calories: row.calories ?? '',
     protein: row.protein ?? '',
     notes: stripNutritionPlanMetadata(row.notes ?? ''),
+    allowPatientPdfDownload: metadata.allowPatientPdfDownload === true,
     active: row.active !== false,
     meals: (row.nutrition_meals ?? [])
       .slice()

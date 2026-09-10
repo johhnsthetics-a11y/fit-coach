@@ -11608,3 +11608,191 @@ html[data-theme="dark"] body { background: #05070d; }
     padding-inline: 0.55rem !important;
   }
 }
+
+/* workout-exercise-picker-responsive-v5 */
+.workout-exercise-picker,
+.mobile-workout-picker-filters,
+.mobile-workout-picker-results,
+.mobile-workout-picker-results > button,
+.mobile-workout-picker-actions {
+  min-width: 0;
+}
+
+.workout-exercise-picker {
+  overflow: clip;
+}
+
+.workout-exercise-library-results {
+  max-height: min(38rem, 62vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+  scrollbar-gutter: stable;
+}
+
+.workout-exercise-library-results::-webkit-scrollbar,
+.mobile-workout-picker-results::-webkit-scrollbar {
+  width: 0.45rem;
+}
+
+.workout-exercise-library-results::-webkit-scrollbar-thumb,
+.mobile-workout-picker-results::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(0, 210, 178, 0.36);
+}
+
+.mobile-workout-picker-filters {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.mobile-workout-picker-filters button {
+  grid-column: auto;
+}
+
+.mobile-workout-picker-results > button {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  overflow: hidden;
+}
+
+.mobile-workout-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.mobile-workout-add-state {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .mobile-workout-picker-results > button {
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .mobile-workout-picker-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .mobile-workout-add-state {
+    padding-inline: 0.6rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* muscle-map-professional-anatomy-v2 */
+.muscle-map-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 92, 92, 0.14), transparent 36%),
+    radial-gradient(circle at 50% 100%, rgba(0, 210, 178, 0.12), transparent 48%),
+    rgba(4, 10, 12, 0.88) !important;
+}
+
+.muscle-map-card svg {
+  isolation: isolate;
+}
+
+.muscle-map-silhouette {
+  filter: drop-shadow(0 9px 11px rgba(0, 0, 0, 0.34));
+}
+
+.muscle-map-region {
+  vector-effect: non-scaling-stroke;
+}
+
+.muscle-map-region.is-primary {
+  filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.8));
+}
+
+.muscle-map-region:focus-visible {
+  outline: none;
+  stroke: #ffffff !important;
+  stroke-width: 1.8 !important;
+}
+
+.exercise-thumb-placeholder {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(150deg, rgba(11, 29, 32, 0.98), rgba(3, 12, 15, 0.98));
+}
+
+.exercise-thumb-cover-backdrop {
+  position: absolute;
+  inset: -35% -22%;
+  z-index: -1;
+  border: 1px solid rgba(255, 108, 108, 0.25);
+  border-radius: 42% 58% 52% 48%;
+  background: radial-gradient(ellipse at 50% 50%, rgba(239, 68, 68, 0.24), rgba(239, 68, 68, 0) 68%);
+  transform: rotate(-18deg);
+}
+
+.exercise-thumb-muscle-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 116, 116, 0.46);
+  border-radius: 12px;
+  color: #ff7272;
+  background: rgba(127, 29, 29, 0.24);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.exercise-thumb-muscle-mark svg {
+  width: 21px;
+  height: 21px;
+}
+
+.exercise-thumb-grid-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.24;
+  background-image: linear-gradient(rgba(255, 190, 190, 0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 190, 190, 0.16) 1px, transparent 1px);
+  background-size: 12px 12px;
+  mask-image: linear-gradient(to bottom, #000, transparent 90%);
+}
+
+.exercise-thumb-scanline {
+  position: absolute;
+  inset: 52% 0 auto;
+  z-index: 0;
+  height: 1px;
+  background: rgba(255, 132, 132, 0.55);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.75);
+}
+
+.muscle-map-silhouette path,
+.muscle-map-silhouette circle {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nutrition-pdf-permission-control {
+  min-width: 0;
+}
+
+.app-theme-light .muscle-map-card {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(239, 68, 68, 0.1), transparent 40%),
+    linear-gradient(180deg, #ffffff, #f2fbf9) !important;
+}
+
+.app-theme-light .nutrition-pdf-permission-control {
+  background: #f2fffb !important;
+  border-color: rgba(0, 156, 134, 0.2) !important;
+}
+
+.app-theme-light .nutrition-pdf-permission-control strong {
+  color: #07594f !important;
+}
