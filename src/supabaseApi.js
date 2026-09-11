@@ -4,6 +4,7 @@ const PHOTO_BUCKET = 'checkin-photos'
 const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
 const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
+const WORKOUT_COMPLETION_TOKEN_PATTERN = /\n?\[coachfitpro-completion:[^\]]+\]\s*/g
 export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies.sql'
 
 let sessionToken = ''
@@ -627,71 +628,66 @@ export async function submitRemoteStudentAnamnesis(code, answers) {
 }
 
 export async function saveRemoteWorkout(workout, coachId) {
-  const isUpdatingWorkout = isUuid(workout.id)
-  const workoutPath = isUpdatingWorkout ? `workouts?id=eq.${encodeURIComponent(workout.id)}` : 'workouts'
-  const workoutRows = await request(workoutPath, {
-    method: isUpdatingWorkout ? 'PATCH' : 'POST',
-    body: JSON.stringify({
-      coach_id: coachId,
-      student_id: workout.studentId,
-      title: workout.title,
-      focus: workout.focus,
-      notes: workout.notes,
-      active: true,
-    }),
+  requireCoachId(coachId)
+  const sourceExercises = Array.isArray(workout.exercises) ? workout.exercises : []
+  const uploadWarnings = []
+
+  const buildPayload = (exercises, workoutId = workout.id) => ({
+    ...(isUuid(workoutId) ? { id: workoutId } : {}),
+    request_id: workout.clientRequestId || null,
+    student_id: workout.studentId,
+    title: workout.title,
+    focus: workout.focus,
+    notes: workout.notes,
+    exercises: exercises.map((exercise, index) => ({
+      name: exercise.name,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      load: exercise.load,
+      rest: exercise.rest,
+      muscle_group: exercise.muscleGroup || null,
+      equipment: exercise.equipment || null,
+      instructions: exercise.instructions || null,
+      video_url: exercise.videoUrl || null,
+      image_url: exercise.imageUrl || exercise.thumbnailUrl || null,
+      external_id: exercise.ascendapiId || exercise.exerciseId || null,
+      order_index: index,
+    })),
   })
 
-  let exerciseRows = []
-  const uploadWarnings = []
-  try {
-    if (isUpdatingWorkout) {
-      await request(`workout_exercises?workout_id=eq.${encodeURIComponent(workoutRows[0].id)}`, {
-        method: 'DELETE',
-      })
-    }
+  let savedRow = await rpcRequest('save_coach_workout', {
+    workout_payload: buildPayload(sourceExercises),
+  })
+  savedRow = Array.isArray(savedRow) ? savedRow[0] : savedRow
 
-    const exercises = await Promise.all(workout.exercises.map(async (exercise, index) => {
+  if (!savedRow?.id) {
+    throw new Error('O banco não confirmou a publicação do treino.')
+  }
+
+  let hasUploadedVideo = false
+  const exercisesWithUploads = await Promise.all(sourceExercises.map(async (exercise, index) => {
       let uploadedVideoUrl = ''
       if (exercise.videoFile) {
         try {
-          uploadedVideoUrl = await uploadWorkoutVideo(exercise.videoFile, workoutRows[0].id, index)
+          uploadedVideoUrl = await uploadWorkoutVideo(exercise.videoFile, savedRow.id, index)
+          hasUploadedVideo = true
         } catch (error) {
           uploadWarnings.push(`${exercise.name || `Exercício ${index + 1}`}: ${error?.message || 'vídeo não enviado'}`)
         }
       }
 
-      return {
-        workout_id: workoutRows[0].id,
-        name: exercise.name,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        load: exercise.load,
-        rest: exercise.rest,
-        muscle_group: exercise.muscleGroup || null,
-        equipment: exercise.equipment || null,
-        instructions: exercise.instructions || null,
-        video_url: uploadedVideoUrl || exercise.videoUrl || null,
-        image_url: exercise.imageUrl || exercise.thumbnailUrl || null,
-        external_id: exercise.ascendapiId || exercise.exerciseId || null,
-        order_index: index,
-      }
+      return uploadedVideoUrl ? { ...exercise, videoUrl: uploadedVideoUrl } : exercise
     }))
 
-    if (exercises.length) {
-      exerciseRows = await request('workout_exercises', {
-        method: 'POST',
-        body: JSON.stringify(exercises),
-      })
-    }
-  } catch (error) {
-    if (!isUpdatingWorkout) {
-      await request(`workouts?id=eq.${workoutRows[0].id}`, { method: 'DELETE' }).catch(() => null)
-    }
-    throw error
+  if (hasUploadedVideo) {
+    savedRow = await rpcRequest('save_coach_workout', {
+      workout_payload: buildPayload(exercisesWithUploads, savedRow.id),
+    })
+    savedRow = Array.isArray(savedRow) ? savedRow[0] : savedRow
   }
 
   return {
-    ...fromWorkoutRow({ ...workoutRows[0], workout_exercises: exerciseRows }),
+    ...fromWorkoutRow(savedRow),
     uploadWarning: uploadWarnings.length
       ? `O treino foi salvo, mas alguns vídeos não foram enviados: ${uploadWarnings.join('; ')}`
       : '',
@@ -699,6 +695,7 @@ export async function saveRemoteWorkout(workout, coachId) {
 }
 
 const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
+const WORKOUT_PUBLISH_PREFIX = '[coachfitpro-publish:'
 
 function parseWorkoutMetadata(notes = '') {
   const line = String(notes || '').split('\n').find((item) => item.trim().startsWith(WORKOUT_METADATA_PREFIX))
@@ -714,7 +711,10 @@ function parseWorkoutMetadata(notes = '') {
 function stripWorkoutMetadata(notes = '') {
   return String(notes || '')
     .split('\n')
-    .filter((line) => !line.trim().startsWith(WORKOUT_METADATA_PREFIX))
+    .filter((line) => {
+      const value = line.trim()
+      return !value.startsWith(WORKOUT_METADATA_PREFIX) && !value.startsWith(WORKOUT_PUBLISH_PREFIX)
+    })
     .join('\n')
     .trim()
 }
@@ -888,12 +888,14 @@ export async function archiveRemoteNutritionPlan(planId, coachId, active = false
 
 export async function saveRemoteWorkoutLog(log) {
   if (log.inviteCode) {
-    const result = await rpcRequest('submit_student_workout_log', {
+    if (!log.completionToken) throw new Error('Não foi possível identificar esta sessão de treino. Inicie o treino novamente.')
+    const result = await rpcRequest('submit_student_workout_log_once', {
       invite_code: log.inviteCode,
       selected_workout_id: isUuid(log.workoutId) ? log.workoutId : null,
       workout_title: log.title,
       effort_value: log.effort,
       notes_value: log.notes,
+      completion_token: log.completionToken,
     })
     return fromWorkoutLogRow(Array.isArray(result) ? result[0] : result)
   }
@@ -1554,7 +1556,7 @@ function fromWorkoutLogRow(row) {
     workoutId: row.workout_id,
     title: row.title ?? '',
     effort: row.effort ?? '',
-    notes: row.notes ?? '',
+    notes: String(row.notes ?? '').replace(WORKOUT_COMPLETION_TOKEN_PATTERN, '').trim(),
     completedAt: row.completed_at ?? row.created_at,
   }
 }

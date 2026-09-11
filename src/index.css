@@ -329,6 +329,76 @@
 .mobile-workout-student-experience-v2.is-compact .mobile-workout-student-series-v2 > div:not(.mobile-workout-student-series-head-v2) > strong,
 .mobile-workout-student-experience-v2.is-compact .mobile-workout-student-series-v2 > div:not(.mobile-workout-student-series-head-v2) > button { grid-column: 1 / -1; }
 
+/* workout-live-preview-responsive-v3 */
+.mobile-workout-live-preview,
+.mobile-workout-live-preview .mobile-workout-student-experience-v2.is-compact,
+.mobile-workout-live-preview .mobile-workout-student-experience-v2.is-compact > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mobile-workout-live-preview .mobile-workout-student-experience-v2.is-compact {
+  overflow: hidden;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-experience-head-v2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-experience-head-v2 > div {
+  min-width: 0;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-experience-head-v2 h3 {
+  max-width: 100%;
+  font-size: 1.4rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-experience-head-v2 > strong {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-day-tabs-v2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-day-tabs-v2 button {
+  width: 100%;
+  min-width: 0;
+  padding: 0.6rem;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-day-tabs-v2 strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-progress-v2 > div,
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-series-head-v2 {
+  flex-wrap: wrap;
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-navigation-v2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.mobile-workout-student-experience-v2.is-compact .mobile-workout-student-navigation-v2 button {
+  min-width: 0;
+  padding-inline: 0.5rem;
+  white-space: normal;
+}
+
 .mobile-workout-picker-results .mobile-workout-picker-card-v2 {
   display: grid;
   min-width: 0;
@@ -12800,5 +12870,46 @@ html[data-theme="dark"] body { background: #05070d; }
   .mobile-workout-picker-results > button .exercise-thumb {
     width: 52px;
     height: 52px;
+  }
+}
+
+/* workout-student-end-to-end-stability-v1 */
+.mobile-workout-student-field {
+  grid-column: 1 / -1;
+}
+
+.student-mobile-shell {
+  min-height: 100dvh;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.student-mobile-shell main,
+.student-mobile-shell .student-app-section,
+.student-mobile-shell .mobile-workout-student-experience-v2,
+.student-mobile-shell .mobile-workout-student-current-exercise-v2 {
+  contain: none;
+  overflow: visible;
+}
+
+.student-mobile-shell .student-app-section {
+  height: auto;
+  min-height: 0;
+}
+
+.student-mobile-shell .student-bottom-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-workout-student-new-session-v2 {
+  min-height: 46px;
+  border: 1px solid rgba(0, 210, 178, 0.32) !important;
+  background: transparent !important;
+  color: #8bffed !important;
+}
+
+@media (max-width: 1023px) {
+  .student-mobile-shell > div.mx-auto {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
   }
 }

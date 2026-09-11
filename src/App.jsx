@@ -62,13 +62,14 @@ const THEME_STORAGE_KEY = 'coachfitpro-ui-theme-20260831'
 const COACH_ACTIVE_VIEW_STORAGE_KEY = 'coachfitpro-active-view-20260901'
 const STUDENT_ACTIVE_TAB_STORAGE_KEY = 'coachfitpro-student-active-tab-20260909'
 const WORKOUT_DRAFT_STORAGE_KEY = 'coachfitpro-workout-quick-draft-20260908'
+const STUDENT_WORKOUT_EXECUTION_STORAGE_KEY = 'coachfitpro-workout-execution-v1'
 const WORKOUT_METADATA_PREFIX = '[coachfitpro-workout-meta]'
 const NUTRITION_QUESTIONNAIRE_STORAGE_KEY = 'coachfitpro-nutrition-questionnaires'
 const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'workouts-library-restored-20260911'
+const COACH_FIT_PRO_BUILD_MARKER = 'workouts-end-to-end-20260911'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -2768,24 +2769,14 @@ function AppContent() {
         setRemoteStatus('Treino concluído')
         setRemoteError('')
       } catch (error) {
-        const offlineLike = !navigator.onLine || /network|fetch|internet|failed to fetch|conectar/i.test(error?.message || '')
-        if (!offlineLike) {
-          handleRemoteError(error, 'Erro ao concluir treino')
-          throw error
-        }
-        savedLog = {
-          ...savedLog,
-          offline: true,
-          syncStatus: 'pending',
-        }
-        setRemoteStatus('Treino salvo offline')
-        setRemoteError('Quando a internet voltar, confira a conexão antes de registrar o próximo treino.')
+        handleRemoteError(error, 'Erro ao concluir treino')
+        throw error
       }
     }
 
     setData((current) => ({
       ...current,
-      workoutLogs: [savedLog, ...(current.workoutLogs ?? [])],
+      workoutLogs: [savedLog, ...(current.workoutLogs ?? []).filter((item) => !sameId(item.id, savedLog.id))],
     }))
 
     return savedLog
@@ -7649,9 +7640,19 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     }
   }, [recentExerciseNames])
 
+  const availableStudentIdsKey = students.map((student) => String(student.id)).join('|')
+
   useEffect(() => {
-    setSelectedStudentId(selectedStudent?.id || students[0]?.id || '')
-  }, [selectedStudent?.id, students])
+    if (selectedStudent?.id) setSelectedStudentId(String(selectedStudent.id))
+  }, [selectedStudent?.id])
+
+  useEffect(() => {
+    setSelectedStudentId((current) => (
+      students.some((student) => String(student.id) === String(current))
+        ? current
+        : String(selectedStudent?.id || students[0]?.id || '')
+    ))
+  }, [availableStudentIdsKey, selectedStudent?.id])
 
   const firstStudentWorkoutId = studentWorkouts[0]?.id || ''
 
@@ -7728,15 +7729,19 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const exercisePickerSummaryExercises = getWorkoutExercisesArray(exercisePickerCurrentDay?.exercises)
     .map((exercise) => normalizeWorkoutExerciseInput(exercise).name)
 
-  function resetDraftFromWorkout(workout = null, { mode = 'copy' } = {}) {
+  function resetDraftFromWorkout(workout = null, { mode = 'copy', studentId = '' } = {}) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
-    const storedDraft = !workout ? recoverStoredWorkoutDraft(selectedStudentId || selectedStudent?.id || '', availableExerciseLibrary) : null
     const isEditingExistingWorkout = mode === 'edit' && workout?.id
+    const targetStudentId = String(studentId || (isEditingExistingWorkout ? workout?.studentId : '') || selectedStudentId || selectedStudent?.id || '')
+    const targetStudent = students.find((student) => String(student.id) === targetStudentId) || selectedStudent
+    const storedDraft = !workout ? recoverStoredWorkoutDraft(targetStudentId, availableExerciseLibrary) : null
+    if (targetStudentId) setSelectedStudentId(targetStudentId)
     setDraft({
       ...(storedDraft || {}),
+      clientRequestId: storedDraft?.clientRequestId || createWorkoutCompletionToken(),
       title: storedDraft?.title || (workout?.title ? (isEditingExistingWorkout ? workout.title : `${workout.title} - cópia`) : 'Novo treino'),
-      focus: storedDraft?.focus || workout?.focus || selectedStudent?.goal || 'Hipertrofia',
-      level: storedDraft?.level || workout?.level || selectedStudent?.level || 'Intermediário',
+      focus: storedDraft?.focus || workout?.focus || targetStudent?.goal || 'Hipertrofia',
+      level: storedDraft?.level || workout?.level || targetStudent?.level || 'Intermediário',
       frequency: storedDraft?.frequency || inferWorkoutFrequency(workout),
       organization: storedDraft?.organization || workout?.organization || 'Dias da semana',
       displayMode: storedDraft?.displayMode || workout?.displayMode || 'Sempre visível para o aluno',
@@ -8117,6 +8122,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 
   function continueCreatorFlow() {
     if (creatorStep === 'info') {
+      if (!selectedStudentId) {
+        setError('Selecione o aluno que receberá este treino.')
+        return
+      }
       if (!draft.title?.trim() || !draft.focus?.trim() || !draft.level?.trim()) {
         setError('Preencha nome, objetivo e nível de treinamento para continuar.')
         return
@@ -8191,7 +8200,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   }
 
   async function saveDraft(status = 'Publicado') {
-    const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
+    const studentId = selectedStudentId
     const filledExercises = draft.days.flatMap((day) => (
       getWorkoutExercisesArray(day.exercises)
         .map((exercise) => normalizeWorkoutExerciseInput(exercise))
@@ -8228,6 +8237,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         status,
         organization: draft.organization,
         displayMode: draft.displayMode,
+        clientRequestId: draft.clientRequestId,
         guidance: draft.guidance,
         allowStudentPdfDownload: Boolean(draft.allowStudentPdfDownload),
         notes: buildWorkoutNotesWithMetadata(draft),
@@ -8249,7 +8259,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 
   async function duplicateForSelectedStudent(workout) {
     if (!workout) return
-    const studentId = selectedStudentId || selectedStudent?.id || students[0]?.id || ''
+    const studentId = selectedStudentId
     if (!studentId) {
       setError('Selecione um aluno para atribuir este treino.')
       return
@@ -8391,7 +8401,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <small>{formatCount(assigned.length, 'treino')} · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
                 </span>
               </button>
-              <button type="button" onClick={() => { setSelectedStudentId(student.id); latest ? editSelectedWorkoutAtExercises(latest) : resetDraftFromWorkout(null) }} className="mobile-workout-mini-action">
+              <button type="button" onClick={() => { latest ? editSelectedWorkoutAtExercises(latest) : resetDraftFromWorkout(null, { studentId: student.id }) }} className="mobile-workout-mini-action">
                 {latest ? 'Personalizar' : 'Criar'}
               </button>
             </article>
@@ -8528,6 +8538,13 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           {creatorStep === 'info' ? (
             <div className="mobile-workout-step-panel">
               <div className="mobile-workout-form-grid">
+                <label className="mobile-workout-student-field">
+                  Aluno
+                  <select name="studentId" value={selectedStudentId} onChange={(event) => { setSelectedStudentId(event.target.value); setError('') }} required>
+                    <option value="">Selecione o aluno</option>
+                    {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
+                  </select>
+                </label>
                 <label>Nome da rotina<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Ex.: Semanal 5x" /></label>
                 <label>
                   Objetivo
@@ -9121,6 +9138,7 @@ function MobileWorkoutEditableDay({
 
 function createMobileWorkoutDraft(student, library = exerciseLibrary) {
   return {
+    clientRequestId: createWorkoutCompletionToken(),
     title: student?.workout || 'Novo treino',
     focus: student?.goal || 'Hipertrofia',
     level: student?.level || 'Intermediário',
@@ -11009,7 +11027,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
         </div>
         <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-black uppercase text-zinc-300">{view === 'back' ? 'traseira' : 'frontal'}</span>
       </div>
-      <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-36' : 'h-56'} w-full max-w-56`}>
+      <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-52' : 'h-64'} w-full max-w-64`}>
         <defs>
           <filter id="muscleGlow" x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="2.1" result="blur" />
@@ -11018,6 +11036,15 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <linearGradient id="muscleBodySkin" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#f6faf9" />
+            <stop offset="0.42" stopColor="#9fb5b9" />
+            <stop offset="1" stopColor="#526a73" />
+          </linearGradient>
+          <linearGradient id="muscleBodyShade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#718a91" />
+            <stop offset="1" stopColor="#304a53" />
+          </linearGradient>
         </defs>
         <BodySilhouette view={view} />
         <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} />
@@ -11045,31 +11072,26 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
 }
 
 function BodySilhouette({ view }) {
-  const neutral = '#7892a0'
-  const neutralSoft = '#516a77'
-  const outline = '#dbe7ec'
+  // muscle-map-human-anatomy-v3
+  const outline = '#d7e5e7'
   return (
     <g className="muscle-map-silhouette" opacity="0.98">
-      <circle cx="50" cy="11" r="7.2" fill="#eef5f7" stroke={outline} strokeWidth="0.9" />
-      <path d="M46 18h8l2 6H44Z" fill="#dce8ec" stroke={outline} strokeWidth="0.65" />
-      <path d="M39 24h22l7 28-6 29H38l-6-29 7-28Z" fill={neutralSoft} stroke={outline} strokeWidth="0.8" />
-      <path d="M41 27h8v51H39l-5-26Z" fill={neutral} opacity="0.92" />
-      <path d="M51 27h8l7 25-5 26H51Z" fill={neutral} opacity="0.92" />
-      <path d="M33 27 20 42l-7 34 8 2 8-28 8-14Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M67 27 80 42l7 34-8 2-8-28-8-14Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M23 47h8l-4 21h-8Z" fill={neutral} opacity="0.9" />
-      <path d="M69 47h8l4 21h-8Z" fill={neutral} opacity="0.9" />
-      <path d="M18 69h10l-3 17h-9Z" fill={neutralSoft} stroke={outline} strokeWidth="0.6" />
-      <path d="M72 69h10l2 17h-9Z" fill={neutralSoft} stroke={outline} strokeWidth="0.6" />
-      <path d="M37 80h12l-3 40H34l-4-23Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M51 80h12l7 17-4 23H54Z" fill={neutralSoft} stroke={outline} strokeWidth="0.7" />
-      <path d="M37 84h7l-2 31h-7l-3-18Z" fill={neutral} opacity="0.9" />
-      <path d="M56 84h7l5 13-3 18h-7Z" fill={neutral} opacity="0.9" />
-      <path d="M43 120h-12l-1 6h15Z" fill="#eef5f7" stroke={outline} strokeWidth="0.55" />
-      <path d="M57 120h12l1 6H55Z" fill="#eef5f7" stroke={outline} strokeWidth="0.55" />
-      <path className="muscle-map-midline" d="M49 28h2v50h-2Z" fill="#dbe7ec" opacity="0.34" />
-      <path className="muscle-map-guide" d="M41 39h18M42 56h16M40 74h20M38 94h24" fill="none" stroke="#dbe7ec" strokeWidth="0.7" opacity="0.18" />
-      {view === 'back' ? <path d="M41 25h18l-9 10Z" fill="#475e69" opacity="0.75" /> : <path d="M43 25h14l-7 7Z" fill="#edf5f7" opacity="0.78" />}
+      <ellipse className="muscle-map-body-skin" cx="50" cy="10.5" rx="6.1" ry="7.3" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.75" />
+      <path className="muscle-map-body-contour" d="M46.2 17c.1 2.7-1.1 4.8-3.5 6.4l7.3 4.4 7.3-4.4c-2.4-1.6-3.6-3.7-3.5-6.4Z" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.65" />
+      <path className="muscle-map-body-skin" d="M42.7 22.8c-5.6.8-10.1 3.1-12.3 7.5-2.1 4.2-.8 10.3.8 16.7l4.5 25.3c.9 5 4.4 8.8 9.1 10.3l5.2 1.7 5.2-1.7c4.7-1.5 8.2-5.3 9.1-10.3L68.8 47c1.6-6.4 2.9-12.5.8-16.7-2.2-4.4-6.7-6.7-12.3-7.5-2.2 3-4.6 4.8-7.3 5-2.7-.2-5.1-2-7.3-5Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.85" />
+      <path className="muscle-map-body-contour" d="M31.8 29.2c-4.4 1.7-7.8 5.2-9.6 10.1l-5.6 21.4c-.8 3.2-2.4 8.9-3.1 12.1-.7 3.4.4 5.7 2.8 6.3 2.5.6 4.5-.8 5.4-4l6.2-20.3c1.2-3.8 2.7-7.3 5.4-10.4l3.4-4.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.75" />
+      <path className="muscle-map-body-contour" d="M68.2 29.2c4.4 1.7 7.8 5.2 9.6 10.1l5.6 21.4c.8 3.2 2.4 8.9 3.1 12.1.7 3.4-.4 5.7-2.8 6.3-2.5.6-4.5-.8-5.4-4l-6.2-20.3c-1.2-3.8-2.7-7.3-5.4-10.4l-3.4-4.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.75" />
+      <ellipse className="muscle-map-body-skin" cx="15.7" cy="81.8" rx="3.1" ry="4.4" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
+      <ellipse className="muscle-map-body-skin" cx="84.3" cy="81.8" rx="3.1" ry="4.4" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
+      <path className="muscle-map-body-skin" d="M38.2 78.2c-2.8 5.8-4.9 12.2-5.4 19.2l-.4 21.7c-.1 3.9 1.7 6.1 4.4 6.2 2.7.1 4.7-1.8 5.1-5.7l2.7-20.4L50 84.3l-5.2-3.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.78" />
+      <path className="muscle-map-body-skin" d="M61.8 78.2c2.8 5.8 4.9 12.2 5.4 19.2l.4 21.7c.1 3.9-1.7 6.1-4.4 6.2-2.7.1-4.7-1.8-5.1-5.7l-2.7-20.4L50 84.3l5.2-3.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.78" />
+      <path className="muscle-map-body-skin" d="M32.4 119.2c-1.6 3.5-2.4 6.2-.9 7.5 1.1 1 8.9 1 11.2.3 1.7-.5 1.2-2.5-.9-7.3Z" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
+      <path className="muscle-map-body-skin" d="M67.6 119.2c1.6 3.5 2.4 6.2.9 7.5-1.1 1-8.9 1-11.2.3-1.7-.5-1.2-2.5.9-7.3Z" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
+      <path className="muscle-map-midline" d="M50 29c-.8 12-.8 36 0 52" fill="none" stroke="#e7f0f1" strokeWidth="0.7" opacity="0.3" />
+      <path className="muscle-map-guide" d="M38 42c7 2.3 17 2.3 24 0M39 58c7 1.8 15 1.8 22 0M40 72c6 1.2 14 1.2 20 0M35 96c4 1.8 7 2.3 10 2.1M65 96c-4 1.8-7 2.3-10 2.1" fill="none" stroke="#e7f0f1" strokeWidth="0.62" opacity="0.2" />
+      {view === 'back'
+        ? <path d="M40.8 25.2c3.3 4.8 6.4 7 9.2 7s5.9-2.2 9.2-7c-2.8-1.7-5.9-2.5-9.2-2.5s-6.4.8-9.2 2.5Z" fill="#3e575f" opacity="0.7" />
+        : <path d="M42.3 24.3c2.6 3.4 5.2 5.1 7.7 5.1s5.1-1.7 7.7-5.1c-2.4-1.1-5-1.7-7.7-1.7s-5.3.6-7.7 1.7Z" fill="#f2f7f7" opacity="0.58" />}
     </g>
   )
 }
@@ -11431,6 +11453,58 @@ export function getStudentWorkoutExercises(workout, library = exerciseLibrary) {
   ))
 }
 
+export function getStudentWorkoutExecutionStorageKey(studentId, workoutId) {
+  return `${STUDENT_WORKOUT_EXECUTION_STORAGE_KEY}:${String(studentId || 'student')}:${String(workoutId || 'workout')}`
+}
+
+function createWorkoutCompletionToken() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return `completion-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+}
+
+function loadStudentWorkoutExecution(studentId, workoutId) {
+  if (typeof window === 'undefined' || !studentId || !workoutId) return null
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(getStudentWorkoutExecutionStorageKey(studentId, workoutId)) || 'null')
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : null
+  } catch {
+    return null
+  }
+}
+
+function persistStudentWorkoutExecution(studentId, workoutId, execution) {
+  if (typeof window === 'undefined' || !studentId || !workoutId) return
+  try {
+    window.localStorage.setItem(getStudentWorkoutExecutionStorageKey(studentId, workoutId), JSON.stringify(execution))
+  } catch {
+    // A execução segue disponível na sessão atual quando o navegador bloqueia o armazenamento.
+  }
+}
+
+export function buildWorkoutExecutionSummary(workout, setLogs = {}, library = exerciseLibrary) {
+  const days = buildMobileWorkoutDays(workout || {}, library)
+  let totalSets = 0
+  let completedSets = 0
+
+  days.forEach((day, currentDayIndex) => {
+    getWorkoutExercisesArray(day.exercises).forEach((exercise, currentExerciseIndex) => {
+      const setCount = Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
+      totalSets += setCount
+      for (let setIndex = 1; setIndex <= setCount; setIndex += 1) {
+        if (setLogs[`${currentDayIndex}-${currentExerciseIndex}-${setIndex}`]?.completed) completedSets += 1
+      }
+    })
+  })
+
+  return {
+    days,
+    totalSets,
+    completedSets,
+    progress: totalSets ? Math.round((completedSets / totalSets) * 100) : 0,
+    canFinish: totalSets > 0 && completedSets === totalSets,
+  }
+}
+
 export function buildWorkoutCompletionPayload({ student, workout, effort = 'Moderado', durationSeconds = 0, exerciseEntries = [], notes = '' }) {
   const exerciseLines = exerciseEntries.flatMap(({ exercise = {}, sets = [] }) => {
     const completedSets = sets.filter((setItem) => setItem.completed)
@@ -11461,23 +11535,56 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
 export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false, dayIndex = 0, durationSeconds = 0, compact = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
-  const [activeDayIndex, setActiveDayIndex] = useState(Math.max(0, Number(dayIndex) || 0))
-  const [activeExerciseIndex, setActiveExerciseIndex] = useState(0)
-  const [setLogs, setSetLogs] = useState({})
-  const [effort, setEffort] = useState('Moderado')
-  const [sessionNotes, setSessionNotes] = useState('')
+  const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
+  const initialExecution = preview ? null : loadStudentWorkoutExecution(student?.id, workout?.id)
+  const [activeDayIndex, setActiveDayIndex] = useState(initialExecution?.activeDayIndex ?? Math.max(0, Number(dayIndex) || 0))
+  const [activeExerciseIndex, setActiveExerciseIndex] = useState(initialExecution?.activeExerciseIndex ?? 0)
+  const [setLogs, setSetLogs] = useState(initialExecution?.setLogs || {})
+  const [effort, setEffort] = useState(initialExecution?.effort || 'Moderado')
+  const [sessionNotes, setSessionNotes] = useState(initialExecution?.sessionNotes || '')
+  const [completionToken, setCompletionToken] = useState(initialExecution?.completionToken || createWorkoutCompletionToken)
+  const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(initialExecution?.completedLog ? 'Treino já concluído. O XP foi registrado uma única vez.' : '')
   const [error, setError] = useState('')
+  const previousExecutionKeyRef = useRef(executionStorageKey)
+  const skipNextPersistRef = useRef(false)
+  const submissionLockRef = useRef(false)
 
   useEffect(() => {
-    setActiveDayIndex(Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)))
-    setActiveExerciseIndex(0)
-    setSetLogs({})
-    setMessage('')
+    if (previousExecutionKeyRef.current === executionStorageKey) return
+    const saved = preview ? null : loadStudentWorkoutExecution(student?.id, workout?.id)
+    previousExecutionKeyRef.current = executionStorageKey
+    skipNextPersistRef.current = true
+    setActiveDayIndex(saved?.activeDayIndex ?? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)))
+    setActiveExerciseIndex(saved?.activeExerciseIndex ?? 0)
+    setSetLogs(saved?.setLogs || {})
+    setEffort(saved?.effort || 'Moderado')
+    setSessionNotes(saved?.sessionNotes || '')
+    setCompletionToken(saved?.completionToken || createWorkoutCompletionToken())
+    setCompletedLog(saved?.completedLog || null)
+    setMessage(saved?.completedLog ? 'Treino já concluído. O XP foi registrado uma única vez.' : '')
     setError('')
-  }, [dayIndex, workout?.id, workout?.title])
+  }, [dayIndex, days.length, executionStorageKey, preview, student?.id, workout?.id])
+
+  useEffect(() => {
+    if (preview || !student?.id || !workout?.id) return
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false
+      return
+    }
+    persistStudentWorkoutExecution(student.id, workout.id, {
+      activeDayIndex,
+      activeExerciseIndex,
+      setLogs,
+      effort,
+      sessionNotes,
+      completionToken,
+      completedLog,
+      updatedAt: new Date().toISOString(),
+    })
+  }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, preview, sessionNotes, setLogs, student?.id, workout?.id])
 
   useEffect(() => {
     if (!restRemaining) return undefined
@@ -11492,11 +11599,14 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   const exercises = getWorkoutExercisesArray(activeDay?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const safeExerciseIndex = Math.min(Math.max(activeExerciseIndex, 0), Math.max(exercises.length - 1, 0))
   const exercise = exercises[safeExerciseIndex]
-  const totalSets = exercises.reduce((total, item) => total + Math.max(1, Number.parseInt(item.sets, 10) || 1), 0)
-  const completedSets = Object.entries(setLogs)
-    .filter(([key, setItem]) => key.startsWith(`${safeDayIndex}-`) && setItem.completed)
-    .length
-  const progress = totalSets ? Math.round((completedSets / totalSets) * 100) : 0
+  const exercisePositions = days.flatMap((day, currentDayIndex) => (
+    getWorkoutExercisesArray(day.exercises).map((_, currentExerciseIndex) => ({ dayIndex: currentDayIndex, exerciseIndex: currentExerciseIndex }))
+  ))
+  const currentPositionIndex = exercisePositions.findIndex((position) => position.dayIndex === safeDayIndex && position.exerciseIndex === safeExerciseIndex)
+  const hasPreviousExercise = currentPositionIndex > 0
+  const hasNextExercise = currentPositionIndex >= 0 && currentPositionIndex < exercisePositions.length - 1
+  const executionSummary = buildWorkoutExecutionSummary(workout, setLogs, availableExerciseLibrary)
+  const { totalSets, completedSets, progress, canFinish } = executionSummary
   const exerciseSetCount = Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
   const currentSets = Array.from({ length: exerciseSetCount }, (_, index) => {
     const number = index + 1
@@ -11535,43 +11645,67 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   }
 
   function moveExercise(direction) {
-    const nextIndex = safeExerciseIndex + direction
-    if (nextIndex >= 0 && nextIndex < exercises.length) {
-      setActiveExerciseIndex(nextIndex)
-      setRestRemaining(0)
-    }
+    const nextPosition = exercisePositions[currentPositionIndex + direction]
+    if (!nextPosition) return
+    setActiveDayIndex(nextPosition.dayIndex)
+    setActiveExerciseIndex(nextPosition.exerciseIndex)
+    setRestRemaining(0)
   }
 
   async function finishWorkout() {
-    if (totalSets && completedSets < totalSets) {
-      setError('Conclua todas as séries deste dia antes de finalizar.')
+    if (submissionLockRef.current || saving || completedLog) return
+    if (!canFinish) {
+      setError(`Conclua as ${Math.max(0, totalSets - completedSets)} séries restantes do treino antes de finalizar.`)
       return
     }
 
-    const exerciseEntries = exercises.map((currentExercise, currentExerciseIndex) => ({
-        exercise: currentExercise,
+    const exerciseEntries = days.flatMap((day, currentDayIndex) => (
+      getWorkoutExercisesArray(day.exercises).map((currentExercise, currentExerciseIndex) => ({
+        exercise: { ...currentExercise, day: day.day },
         sets: Array.from({ length: Math.max(1, Number.parseInt(currentExercise.sets, 10) || 1) }, (_, setIndex) => {
           const number = setIndex + 1
-          const key = `${safeDayIndex}-${currentExerciseIndex}-${number}`
+          const key = `${currentDayIndex}-${currentExerciseIndex}-${number}`
           return { number, ...(setLogs[key] || {}), completed: Boolean(setLogs[key]?.completed) }
         }),
       }))
-    const payload = buildWorkoutCompletionPayload({ student, workout, effort, durationSeconds, exerciseEntries, notes: sessionNotes })
+    ))
+    const payload = {
+      ...buildWorkoutCompletionPayload({ student, workout, effort, durationSeconds, exerciseEntries, notes: sessionNotes }),
+      completionToken,
+    }
 
+    submissionLockRef.current = true
     setSaving(true)
     setMessage('')
     setError('')
     try {
       if (!preview) {
         if (!onCompleteWorkout) throw new Error('Não foi possível acessar o histórico do treino.')
-        await onCompleteWorkout(payload)
+        const savedLog = await onCompleteWorkout(payload)
+        setCompletedLog(savedLog || { id: completionToken, completedAt: new Date().toISOString() })
+      } else {
+        setCompletedLog({ id: completionToken, completedAt: new Date().toISOString() })
       }
       setMessage(preview ? 'Simulação concluída. Na conta do aluno, este treino adicionará +80 XP.' : 'Treino finalizado! +80 XP adicionados ao ranking e ao histórico.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
     } finally {
+      submissionLockRef.current = false
       setSaving(false)
     }
+  }
+
+  function startNewWorkoutSession() {
+    setActiveDayIndex(0)
+    setActiveExerciseIndex(0)
+    setSetLogs({})
+    setEffort('Moderado')
+    setSessionNotes('')
+    setCompletionToken(createWorkoutCompletionToken())
+    setCompletedLog(null)
+    setRestRemaining(0)
+    setMessage('Nova sessão iniciada. Registre novamente todas as séries.')
+    setError('')
   }
 
   return (
@@ -11597,7 +11731,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       ) : null}
 
       <div className="mobile-workout-student-progress-v2">
-          <div><span>Progresso do dia</span><strong>{completedSets}/{totalSets} séries</strong></div>
+          <div><span>Progresso do treino</span><strong>{completedSets}/{totalSets} séries</strong></div>
         <progress value={completedSets} max={Math.max(totalSets, 1)} />
         <small>{progress}% concluído</small>
       </div>
@@ -11643,9 +11777,9 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
           </div>
 
           <div className="mobile-workout-student-navigation-v2">
-            <button type="button" onClick={() => moveExercise(-1)} disabled={safeExerciseIndex === 0}>Anterior</button>
-            <div><span>Exercício atual</span><strong>{safeExerciseIndex + 1}/{exercises.length}</strong></div>
-            <button type="button" onClick={() => moveExercise(1)} disabled={safeExerciseIndex >= exercises.length - 1}>Próximo exercício</button>
+            <button type="button" onClick={() => moveExercise(-1)} disabled={!hasPreviousExercise}>Anterior</button>
+            <div><span>Exercício atual</span><strong>{Math.max(currentPositionIndex + 1, 0)}/{exercisePositions.length}</strong></div>
+            <button type="button" onClick={() => moveExercise(1)} disabled={!hasNextExercise}>Próximo exercício</button>
           </div>
         </article>
       ) : <Empty text="Este dia ainda não possui exercícios cadastrados." />}
@@ -11653,9 +11787,10 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       <footer className="mobile-workout-student-finish-v2">
         <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
         <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
-        <button type="button" disabled={saving || !totalSets} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
-        {totalSets && completedSets < totalSets ? <small>Conclua as {totalSets - completedSets} séries restantes para finalizar.</small> : null}
+        <button type="button" disabled={saving || !totalSets || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : completedLog ? 'Treino já concluído' : 'Finalizar treino'}</button>
+        {totalSets && !canFinish && !completedLog ? <small>Conclua as {totalSets - completedSets} séries restantes para finalizar.</small> : null}
         {message ? <div className="mobile-workout-student-success-v2"><strong>Treino concluído</strong><span>{message}</span></div> : null}
+        {completedLog && !preview ? <button type="button" className="mobile-workout-student-new-session-v2" onClick={startNewWorkoutSession}>Iniciar nova sessão</button> : null}
         {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
       </footer>
     </section>
@@ -14749,7 +14884,8 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
 
   async function completeWorkoutFromStudent(log) {
     const savedLog = await onCompleteWorkout(log)
-    const completedCount = studentWorkoutLogs.length + 1
+    const alreadyRegistered = studentWorkoutLogs.some((item) => sameId(item.id, savedLog?.id))
+    const completedCount = studentWorkoutLogs.length + (alreadyRegistered ? 0 : 1)
     sendLocalNotification('Treino finalizado', `${student.name} concluiu o treino.`)
     await onSendMessage?.({
       studentId: student.id,
@@ -15465,7 +15601,7 @@ function toLocalDateKey(value) {
 
 function StudentAppSection({ id, title, action, children }) {
   return (
-    <section id={`student-${id}`} className="scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
+    <section id={`student-${id}`} className="student-app-section scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="text-lg font-black">{title}</h2>
         <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold text-zinc-300">{formatUiText(action)}</span>

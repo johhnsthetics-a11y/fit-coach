@@ -22,6 +22,8 @@ let WorkoutStudentLivePreview
 let StudentWorkoutExecution
 let getExerciseFallbackImage
 let buildWorkoutCompletionPayload
+let buildWorkoutExecutionSummary
+let getStudentWorkoutExecutionStorageKey
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -31,7 +33,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, getExerciseFallbackImage, buildWorkoutCompletionPayload } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -251,6 +253,47 @@ test('conclusão preserva séries, cargas e repetições no histórico do aluno'
   assert.match(payload.notes, /S2: 42 kg × 8/)
 })
 
+test('progresso da execução considera todos os dias antes de liberar a conclusão', () => {
+  const multiDayWorkout = {
+    title: 'Treino completo',
+    days: [
+      { day: 'Dia 1', exercises: [{ name: 'Supino reto', sets: '2' }] },
+      { day: 'Dia 2', exercises: [{ name: 'Remada baixa', sets: '3' }] },
+    ],
+  }
+  const summary = buildWorkoutExecutionSummary(multiDayWorkout, {
+    '0-0-1': { completed: true },
+    '0-0-2': { completed: true },
+  }, [])
+
+  assert.equal(summary.totalSets, 5)
+  assert.equal(summary.completedSets, 2)
+  assert.equal(summary.canFinish, false)
+})
+
+test('rascunho de execução fica isolado por aluno e treino', () => {
+  assert.equal(
+    getStudentWorkoutExecutionStorageKey('student-a', 'workout-a'),
+    'coachfitpro-workout-execution-v1:student-a:workout-a',
+  )
+  assert.notEqual(
+    getStudentWorkoutExecutionStorageKey('student-a', 'workout-a'),
+    getStudentWorkoutExecutionStorageKey('student-b', 'workout-a'),
+  )
+})
+
+test('publicação exige seleção explícita e edição preserva o aluno associado', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const managerSource = appSource.match(/function MobileWorkoutManager[\s\S]*?\r?\n}\r?\n\r?\nfunction createExerciseDraft/)?.[0] || ''
+
+  assert.match(managerSource, /name="studentId"/)
+  assert.match(managerSource, /Selecione o aluno/)
+  assert.match(managerSource, /isEditingExistingWorkout \? workout\?\.studentId/)
+  assert.match(managerSource, /if \(targetStudentId\) setSelectedStudentId\(targetStudentId\)/)
+  assert.match(managerSource, /resetDraftFromWorkout\(null,\s*\{\s*studentId:\s*student\.id\s*\}\)/)
+  assert.doesNotMatch(managerSource, /const studentId = selectedStudentId \|\| selectedStudent\?\.id \|\| students\[0\]\?\.id/)
+})
+
 test('prévia local não é controlada pelo cache do service worker de produção', async () => {
   const mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
   const workerSource = await readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8')
@@ -258,4 +301,71 @@ test('prévia local não é controlada pelo cache do service worker de produçã
   assert.match(mainSource, /import\.meta\.env\.PROD/)
   assert.match(mainSource, /getRegistrations\(\)/)
   assert.match(workerSource, /url\.pathname\.startsWith\('\/src\/'\)/)
+})
+
+test('publicação de treino usa RPC transacional protegida por ownership', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260911_secure_workout_publish.sql', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /rpcRequest\('save_coach_workout'/)
+  assert.match(apiSource, /request_id:\s*workout\.clientRequestId/)
+  assert.match(migrationSource, /create or replace function public\.save_coach_workout/i)
+  assert.match(migrationSource, /auth\.uid\(\)/i)
+  assert.match(migrationSource, /jsonb_populate_record\(\s*null::public\.workout_exercises/i)
+  assert.match(migrationSource, /from public\.students[\s\S]*coach_id = v_coach_id/i)
+  assert.match(migrationSource, /delete from public\.workout_exercises[\s\S]*insert into public\.workout_exercises/i)
+  assert.match(migrationSource, /pg_advisory_xact_lock[\s\S]*coachfitpro-publish/i)
+  assert.match(migrationSource, /grant execute on function public\.save_coach_workout\(jsonb\) to authenticated/i)
+  assert.doesNotMatch(migrationSource, /grant (all|insert|update|delete)[^;]* to anon/i)
+})
+
+test('conclusão do aluno usa token idempotente e RPC validada pelo vínculo do convite', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260911_secure_workout_publish.sql', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /rpcRequest\('submit_student_workout_log_once'/)
+  assert.match(apiSource, /completion_token: log\.completionToken/)
+  assert.match(migrationSource, /create or replace function public\.submit_student_workout_log_once/i)
+  assert.match(migrationSource, /from public\.student_invites/i)
+  assert.match(migrationSource, /from public\.students[\s\S]*students\.coach_id = v_coach_id/i)
+  assert.match(migrationSource, /student_id = v_student_id[\s\S]*coach_id = v_coach_id/i)
+  assert.match(migrationSource, /pg_advisory_xact_lock/i)
+  assert.match(migrationSource, /grant execute on function public\.submit_student_workout_log_once/i)
+})
+
+test('falha de rede mantém a execução pendente para retry sem conceder XP local', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const completeWorkoutSource = appSource.match(/async function completeWorkout\(log\)[\s\S]*?\r?\n  }\r?\n\r?\n  async function saveAppointment/)?.[0] || ''
+
+  assert.doesNotMatch(completeWorkoutSource, /syncStatus:\s*'pending'/)
+  assert.match(completeWorkoutSource, /throw error/)
+})
+
+test('políticas de alunos restringem todas as operações ao treinador autenticado', async () => {
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260911_secure_workout_publish.sql', import.meta.url), 'utf8')
+
+  assert.match(migrationSource, /alter table public\.students enable row level security/i)
+  assert.match(migrationSource, /on public\.students as restrictive[\s\S]*for select[\s\S]*coach_id = auth\.uid\(\)/i)
+  assert.match(migrationSource, /on public\.students for insert[\s\S]*with check \(coach_id = auth\.uid\(\)\)/i)
+  assert.match(migrationSource, /on public\.students for update[\s\S]*using \(coach_id = auth\.uid\(\)\)[\s\S]*with check \(coach_id = auth\.uid\(\)\)/i)
+  assert.match(migrationSource, /on public\.students for delete[\s\S]*using \(coach_id = auth\.uid\(\)\)/i)
+})
+
+test('prévia compacta organiza dias sem rolagem horizontal', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /workout-live-preview-responsive-v3/)
+  assert.match(cssSource, /\.is-compact \.mobile-workout-student-day-tabs-v2\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[\s\S]*overflow:\s*visible/)
+  assert.match(cssSource, /\.is-compact \.mobile-workout-student-day-tabs-v2 button\s*\{[\s\S]*min-width:\s*0/)
+})
+
+test('mapa muscular usa silhueta humana orgânica e mantém regiões interativas', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(appSource, /muscle-map-human-anatomy-v3/)
+  assert.match(appSource, /className="muscle-map-body-skin"/)
+  assert.match(appSource, /className="muscle-map-body-contour"/)
+  assert.match(appSource, /className:\s*`muscle-map-region/)
+  assert.match(appSource, /compact \? 'h-52' : 'h-64'/)
+  assert.doesNotMatch(appSource, /M39 24h22l7 28-6 29H38l-6-29 7-28Z/)
 })
