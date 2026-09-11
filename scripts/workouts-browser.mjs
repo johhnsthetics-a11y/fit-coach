@@ -72,7 +72,32 @@ try {
           if (scenario.workouts.length) assert.ok(await page.getByText('Rotina Regressão', { exact: true }).count())
           results.push(`${viewport.width} / ${scenario.name} / ${action}: PASS`)
         }
-        if (scenario.name === 'com-treinos') await page.screenshot({ path: resolve(output, `after-${viewport.width}.png`) })
+        if (scenario.name === 'com-treinos') {
+          await page.screenshot({ path: resolve(output, `after-${viewport.width}.png`) })
+          await page.getByRole('button', { name: 'Criar treino', exact: true }).click()
+          await page.getByText('Criar novo treino', { exact: true }).waitFor()
+          for (const step of ['Aluno', 'Dias', 'Exercícios', 'Revisar']) {
+            assert.ok(await page.getByRole('button', { name: new RegExp(step) }).count(), `Etapa ${step} deve estar visível`)
+          }
+          await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+          await page.getByRole('button', { name: 'Adicionar primeiro dia', exact: true }).first().click()
+          await page.getByRole('dialog', { name: 'Editar dia do treino', exact: true }).getByRole('button', { name: 'Salvar dia', exact: true }).click()
+          await page.getByRole('button', { name: 'Continuar para exercícios', exact: true }).click()
+          await page.locator('.mobile-workout-live-preview').waitFor({ state: 'visible' })
+          assert.ok(await page.getByText('Prévia ao vivo', { exact: true }).count())
+          assert.ok(await page.getByRole('button', { name: 'Concluir série', exact: true }).count())
+          assert.ok(await page.getByLabel('Carga (kg)', { exact: true }).count())
+          assert.ok(await page.getByLabel('Repetições', { exact: true }).count())
+          await page.screenshot({ path: resolve(output, `builder-${viewport.width}.png`), fullPage: true })
+          await page.getByRole('button', { name: /Adicionar (primeiro )?exercício/ }).first().click()
+          const picker = page.getByRole('dialog', { name: 'Adicionar exercício', exact: true })
+          await picker.waitFor({ state: 'visible' })
+          assert.ok(await picker.locator('.mobile-workout-picker-results > button').count() >= 300)
+          assert.ok(await picker.locator('.exercise-thumb').count() >= 300)
+          assert.ok(await picker.getByText(/exercícios? selecionados?/).count())
+          await page.screenshot({ path: resolve(output, `picker-${viewport.width}.png`), fullPage: true })
+          await picker.getByRole('button', { name: 'Fechar', exact: true }).click()
+        }
         if (viewport.width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
         await page.locator('.coach-nav-item').filter({ hasText: /^Visão geral$/ }).click()
         await page.locator('.coach-dashboard-metrics').waitFor({ state: 'visible' })

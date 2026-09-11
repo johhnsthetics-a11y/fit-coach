@@ -17,6 +17,8 @@ let App
 let getExerciseLibrary
 let getExercisePickerResults
 let getStudentWorkoutExercises
+let buildWorkoutStudentPreviewState
+let WorkoutStudentLivePreview
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -26,7 +28,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -140,6 +142,52 @@ test('visão do aluno exibe exercícios de todos os dias da rotina', () => {
 
   assert.deepEqual(exercises.map((exercise) => exercise.name), ['Supino reto', 'Remada baixa'])
   assert.deepEqual(exercises.map((exercise) => exercise.day), ['Segunda-feira', 'Quarta-feira'])
+})
+
+test('prévia fiel do aluno inicia no exercício ativo com séries registráveis', () => {
+  const preview = buildWorkoutStudentPreviewState({
+    title: 'Treino A',
+    days: [{
+      day: 'Segunda-feira',
+      focus: 'Peito e tríceps',
+      exercises: [{ name: 'Supino reto', sets: '4', reps: '8-12', load: '60 kg', rest: '90s' }],
+    }],
+  }, 0, 0)
+
+  assert.equal(preview.title, 'Treino A')
+  assert.equal(preview.dayLabel, 'Segunda-feira')
+  assert.equal(preview.focus, 'Peito e tríceps')
+  assert.equal(preview.exercise.name, 'Supino reto')
+  assert.equal(preview.exercisePosition, 1)
+  assert.equal(preview.totalExercises, 1)
+  assert.deepEqual(preview.sets, [
+    { number: 1, completed: false },
+    { number: 2, completed: false },
+    { number: 3, completed: false },
+    { number: 4, completed: false },
+  ])
+})
+
+test('prévia ao vivo renderiza a experiência interativa do aluno', () => {
+  const html = renderToString(React.createElement(WorkoutStudentLivePreview, {
+    student,
+    workout: {
+      title: 'Treino A',
+      days: [{
+        day: 'Segunda-feira',
+        focus: 'Peito e tríceps',
+        exercises: [{ name: 'Supino reto', sets: '4', reps: '8-12', load: '60 kg', rest: '90s' }],
+      }],
+    },
+    dayIndex: 0,
+  }))
+
+  assert.match(html, /Visão do aluno/)
+  assert.match(html, /Prévia ao vivo/)
+  assert.match(html, /Supino reto/)
+  assert.match(html, /Concluir série/)
+  assert.match(html, /Carga \(kg\)/)
+  assert.match(html, /Repetições/)
 })
 
 test('prévia local não é controlada pelo cache do service worker de produção', async () => {

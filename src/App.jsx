@@ -7725,6 +7725,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       recent: recentExerciseNames,
     })
   }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
+  const exercisePickerCurrentDay = exercisePickerDayIndex === null ? null : draft.days[exercisePickerDayIndex]
+  const exercisePickerSummaryExercises = [
+    ...getWorkoutExercisesArray(exercisePickerCurrentDay?.exercises).map((exercise) => normalizeWorkoutExerciseInput(exercise).name),
+    ...exercisePickerSelections.filter((name) => !isExerciseAlreadyInDraftDay(exercisePickerCurrentDay, name)),
+  ]
 
   function resetDraftFromWorkout(workout = null, { mode = 'copy' } = {}) {
     const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
@@ -8298,10 +8303,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   }
 
   const creatorSteps = [
-    ['info', 'Informações'],
+    ['info', 'Aluno'],
     ['days', 'Dias'],
     ['exercises', 'Exercícios'],
-    ['review', 'Revisão'],
+    ['review', 'Revisar'],
   ]
   const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
 
@@ -8516,8 +8521,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         <div className="mobile-workout-creator mobile-workout-creator-full">
           <div className="mobile-workout-creator-head">
             <div>
-              <p>Fluxo rápido</p>
-              <h4>{creatorStep === 'review' ? 'Revisar treino' : creatorStep === 'exercises' ? 'Exercícios' : creatorStep === 'days' ? 'Dias do treino' : 'Criar rotina'}</h4>
+              <p>Montagem guiada</p>
+              <h4>{creatorStep === 'review' ? 'Revisar treino' : creatorStep === 'exercises' ? 'Escolha os exercícios' : creatorStep === 'days' ? 'Organize os dias' : 'Criar novo treino'}</h4>
             </div>
             <button type="button" onClick={() => setShowCreator(false)}>Fechar</button>
           </div>
@@ -8529,6 +8534,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               </button>
             ))}
           </div>
+
+          <div className={`mobile-workout-creator-workspace ${creatorStep === 'exercises' || creatorStep === 'review' ? 'has-student-preview' : ''}`}>
+          <div className="mobile-workout-creator-main">
 
           {creatorStep === 'info' ? (
             <div className="mobile-workout-step-panel">
@@ -8700,6 +8708,17 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>Salvar rascunho</button>
             <button type="button" disabled={saving} onClick={continueCreatorFlow}>{getCreatorPrimaryLabel()}</button>
           </div>
+          </div>
+          {(creatorStep === 'exercises' || creatorStep === 'review') && draft.days.length ? (
+            <WorkoutStudentLivePreview
+              key={`${draft.days[activeDayIndex ?? 0]?.id || 'preview'}-${creatorStep}`}
+              student={students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || students[0]}
+              workout={draft}
+              dayIndex={activeDayIndex ?? 0}
+              library={availableExerciseLibrary}
+            />
+          ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -8736,8 +8755,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         </div>
       ) : null}
 
-      {exercisePickerDayIndex !== null ? (
-        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={closeExercisePicker}>
+      {exercisePickerDayIndex !== null ? createPortal((
+        <div className={`mobile-workout-sheet-backdrop app-theme-${uiTheme}`} role="presentation" onClick={closeExercisePicker}>
           <section className="mobile-workout-sheet is-exercise-picker" role="dialog" aria-modal="true" aria-label="Adicionar exercício" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
             <div className="mobile-workout-creator-head">
@@ -8793,6 +8812,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 <button type="button" className="mobile-workout-primary" onClick={addCustomExerciseToDay}>Salvar e adicionar ao dia</button>
               </div>
             </details>
+            <div className="mobile-workout-picker-layout">
+            <div className="mobile-workout-picker-catalog">
             <div className="mobile-workout-picker-results">
               {exercisePickerResults.map((exercise) => {
                 const selected = exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(exercise.name))
@@ -8804,7 +8825,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 const isAddingExercise = addingExerciseKey === exerciseAddKey
                 return (
                   <button key={exercise.name} type="button" onClick={() => toggleExercisePickerSelection(exercise.name)} className={selected ? 'is-selected' : ''}>
-                    <span className="mobile-workout-avatar"><NavIcon name="dumbbell" className="h-4 w-4" /></span>
+                    <ExerciseThumbnail exercise={exercise} compact />
                     <span>
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
@@ -8852,12 +8873,32 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 </div>
               ) : null}
             </div>
-            <button type="button" onClick={confirmExercisePicker} className="mobile-workout-primary" disabled={Boolean(addingExerciseKey)}>
-              {addingExerciseKey ? 'Adicionando...' : exercisePickerSelections.length ? `Adicionar ${exercisePickerSelections.length}` : 'Adicionar primeiro resultado'}
-            </button>
+            </div>
+            <aside className="mobile-workout-picker-selection" aria-label="Exercícios selecionados">
+              <div>
+                <p>{exercisePickerCurrentDay?.day || 'Dia do treino'}</p>
+                <h5>{formatCount(exercisePickerSummaryExercises.length, 'exercício')} selecionado{exercisePickerSummaryExercises.length === 1 ? '' : 's'}</h5>
+                <span>{exercisePickerCurrentDay?.focus || 'Escolha exercícios para este dia'}</span>
+              </div>
+              <div className="mobile-workout-picker-selection-list">
+                {exercisePickerSummaryExercises.length ? exercisePickerSummaryExercises.map((name, index) => (
+                  <span key={`${name}-${index}`}>
+                    <i>{String(index + 1).padStart(2, '0')}</i>
+                    <strong>{name}</strong>
+                    {exercisePickerSelections.some((item) => normalizeText(item) === normalizeText(name)) ? <em>Novo</em> : <em>Adicionado</em>}
+                  </span>
+                )) : (
+                  <small>Use “Adicionar” ou selecione vários exercícios na biblioteca.</small>
+                )}
+              </div>
+              <button type="button" onClick={confirmExercisePicker} className="mobile-workout-primary" disabled={Boolean(addingExerciseKey)}>
+                {addingExerciseKey ? 'Adicionando...' : exercisePickerSelections.length ? `Adicionar ${exercisePickerSelections.length}` : 'Adicionar primeiro resultado'}
+              </button>
+            </aside>
+            </div>
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
 
       {exercisePickerPreview ? (
         <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setExercisePickerPreview(null)}>
@@ -8900,6 +8941,87 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       {message ? <p className="mobile-workout-feedback success">{message}</p> : null}
       {error ? <p className="mobile-workout-feedback error">{error}</p> : null}
     </section>
+  )
+}
+
+export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, library = exerciseLibrary }) {
+  const days = buildMobileWorkoutDays(workout, library)
+  const activeDay = days[Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0))]
+  const exercises = getWorkoutExercisesArray(activeDay?.exercises)
+  const [exerciseIndex, setExerciseIndex] = useState(0)
+  const [completedSets, setCompletedSets] = useState([])
+  const [load, setLoad] = useState('')
+  const [repetitions, setRepetitions] = useState('')
+  const preview = buildWorkoutStudentPreviewState(workout, dayIndex, exerciseIndex, library)
+
+  function selectExercise(nextIndex) {
+    setExerciseIndex(Math.min(Math.max(nextIndex, 0), Math.max(exercises.length - 1, 0)))
+    setCompletedSets([])
+    setLoad('')
+    setRepetitions('')
+  }
+
+  function toggleSet(number) {
+    setCompletedSets((current) => current.includes(number) ? current.filter((item) => item !== number) : [...current, number])
+  }
+
+  function concludeNextSet() {
+    const nextSet = preview.sets.find((setItem) => !completedSets.includes(setItem.number))
+    if (nextSet) toggleSet(nextSet.number)
+  }
+
+  return (
+    <aside className="mobile-workout-live-preview" aria-label="Visão do aluno">
+      <div className="mobile-workout-live-preview-heading">
+        <div>
+          <p>Visão do aluno</p>
+          <h5>{student?.name || 'Aluno selecionado'}</h5>
+        </div>
+        <span><i aria-hidden="true" />Prévia ao vivo</span>
+      </div>
+      <div className="mobile-workout-phone-preview">
+        <div className="mobile-workout-phone-topbar">
+          <span>9:41</span>
+          <strong>{preview.title}</strong>
+          <span>{preview.exercisePosition || 0} de {preview.totalExercises || 0}</span>
+        </div>
+        <div className="mobile-workout-phone-day">
+          <small>{preview.dayLabel}</small>
+          <strong>{preview.focus}</strong>
+        </div>
+        <div className="mobile-workout-phone-media">
+          <ExerciseThumbnail exercise={preview.exercise} />
+        </div>
+        <div className="mobile-workout-phone-content">
+          <div className="mobile-workout-phone-exercise-title">
+            <div>
+              <small>Exercício {preview.exercisePosition || 0}</small>
+              <h5>{preview.exercise.name}</h5>
+            </div>
+            <span>{preview.exercise.rest || 'Descanso livre'}</span>
+          </div>
+          <div className="mobile-workout-phone-fields">
+            <label>Carga (kg)<input inputMode="decimal" value={load} onChange={(event) => setLoad(event.target.value)} placeholder={preview.exercise.load || '0'} /></label>
+            <label>Repetições<input inputMode="numeric" value={repetitions} onChange={(event) => setRepetitions(event.target.value)} placeholder={preview.exercise.reps || '0'} /></label>
+          </div>
+          <div className="mobile-workout-phone-sets">
+            <span>Séries</span>
+            <div>
+              {preview.sets.map((setItem) => (
+                <button key={setItem.number} type="button" aria-pressed={completedSets.includes(setItem.number)} className={completedSets.includes(setItem.number) ? 'is-complete' : ''} onClick={() => toggleSet(setItem.number)}>
+                  {completedSets.includes(setItem.number) ? '✓' : setItem.number}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button type="button" className="mobile-workout-phone-complete" onClick={concludeNextSet}>Concluir série</button>
+          <div className="mobile-workout-phone-navigation">
+            <button type="button" onClick={() => selectExercise(exerciseIndex - 1)} disabled={exerciseIndex === 0}>Anterior</button>
+            <button type="button" onClick={() => selectExercise(exerciseIndex + 1)} disabled={exerciseIndex >= exercises.length - 1}>Próximo</button>
+          </div>
+        </div>
+      </div>
+    </aside>
   )
 }
 
@@ -9182,6 +9304,27 @@ function buildMobileWorkoutDays(workout, library = exerciseLibrary) {
     focus: workout.focus || summarizeWorkoutFocus(exercises),
     exercises,
   }]
+}
+
+export function buildWorkoutStudentPreviewState(workout, dayIndex = 0, exerciseIndex = 0, library = exerciseLibrary) {
+  const days = buildMobileWorkoutDays(workout, library)
+  const safeDayIndex = Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0))
+  const day = days[safeDayIndex] || { day: 'Treino', focus: 'Treino personalizado', exercises: [] }
+  const exercises = getWorkoutExercisesArray(day.exercises).map((exercise) => enrichExercise(exercise, library))
+  const safeExerciseIndex = Math.min(Math.max(Number(exerciseIndex) || 0, 0), Math.max(exercises.length - 1, 0))
+  const exercise = exercises[safeExerciseIndex] || createExerciseDraft('Adicione um exercício', {}, library)
+  const parsedSetCount = Number.parseInt(String(exercise.sets || '1'), 10)
+  const setCount = Math.min(Math.max(Number.isFinite(parsedSetCount) ? parsedSetCount : 1, 1), 12)
+
+  return {
+    title: workout?.title || 'Novo treino',
+    dayLabel: day.day || `Dia ${safeDayIndex + 1}`,
+    focus: day.focus || workout?.focus || 'Treino personalizado',
+    exercise,
+    exercisePosition: exercises.length ? safeExerciseIndex + 1 : 0,
+    totalExercises: exercises.length,
+    sets: Array.from({ length: setCount }, (_, index) => ({ number: index + 1, completed: false })),
+  }
 }
 
 function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
