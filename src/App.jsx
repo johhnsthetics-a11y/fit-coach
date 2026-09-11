@@ -10609,15 +10609,21 @@ export function getExercisePickerResults({
   const favoriteSet = new Set(favorites.map(normalizeText))
   const showFavoritesOnly = tab === 'favorites' || tab === 'favoritos'
   const showCustomOnly = tab === 'mine' || tab === 'seus'
+  const normalizedMuscleFilter = normalizeText(muscleFilter)
+  const canonicalMuscleFilter = normalizeMuscleName(muscleFilter)
 
-  return buildExerciseSuggestions(library, search, muscleFilter, favorites, recent)
+  return buildExerciseSuggestions(library, search, 'todos', favorites, recent)
     .filter((exercise) => {
       const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
       const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
+      const muscleProfile = getExerciseMuscleProfile(exercise)
+      const matchesMuscle = normalizedMuscleFilter === 'todos'
+        || (canonicalMuscleFilter && [muscleProfile.primaryMuscle, ...muscleProfile.secondaryMuscles].includes(canonicalMuscleFilter))
+        || getExerciseSearchText(exercise).includes(normalizedMuscleFilter)
       const matchesCategory = categoryFilter === 'todos' || categoryText.includes(normalizeText(categoryFilter))
       const matchesFavorites = !showFavoritesOnly || favoriteSet.has(normalizeText(exercise.name))
       const matchesMine = !showCustomOnly || isCustomExercise
-      return matchesCategory && matchesFavorites && matchesMine
+      return matchesMuscle && matchesCategory && matchesFavorites && matchesMine
     })
 }
 
@@ -11389,9 +11395,21 @@ function CompleteWorkoutForm({ student, workout, onCompleteWorkout }) {
   )
 }
 
+export function getStudentWorkoutExercises(workout, library = exerciseLibrary) {
+  return buildMobileWorkoutDays(workout, library).flatMap((day) => (
+    getWorkoutExercisesArray(day.exercises).map((exercise) => ({
+      ...exercise,
+      day: exercise.day || day.day,
+    }))
+  ))
+}
+
 function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const exercises = (workout?.exercises || []).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
+  const exercises = useMemo(
+    () => getStudentWorkoutExercises(workout, availableExerciseLibrary),
+    [availableExerciseLibrary, workout],
+  )
   const [loads, setLoads] = useState({})
   const [effort, setEffort] = useState('Moderado')
   const [saving, setSaving] = useState(false)

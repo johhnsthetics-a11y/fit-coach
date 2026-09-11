@@ -45,8 +45,17 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+if ('serviceWorker' in navigator && import.meta.env.PROD && window.location.protocol !== 'file:') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {})
+  })
+} else if ('serviceWorker' in navigator && import.meta.env.DEV) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations().catch(() => [])
+    await Promise.all(registrations.map((registration) => registration.unregister()))
+    if ('caches' in window) {
+      const cacheNames = await window.caches.keys().catch(() => [])
+      await Promise.all(cacheNames.filter((name) => name.startsWith('coach-fit-pro-')).map((name) => window.caches.delete(name)))
+    }
   })
 }

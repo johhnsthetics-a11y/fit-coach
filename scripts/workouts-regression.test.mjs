@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
+import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { createServer } from 'vite'
@@ -14,6 +15,7 @@ const workout = {
 let server
 let App
 let getExercisePickerResults
+let getStudentWorkoutExercises
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -23,7 +25,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExercisePickerResults } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExercisePickerResults, getStudentWorkoutExercises } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -90,4 +92,38 @@ test('biblioteca de exercícios mantém todos os resultados e o filtro de favori
 
   assert.equal(allResults.length, 65)
   assert.deepEqual(favoriteResults.map((exercise) => exercise.name), ['Exercício 2', 'Exercício 64'])
+})
+
+test('filtro Peitoral encontra exercícios cadastrados como Peito', () => {
+  const results = getExercisePickerResults({
+    library: [
+      { name: 'Supino reto com barra', group: 'Peito', equipment: 'Barra' },
+      { name: 'Remada baixa', group: 'Costas', equipment: 'Cabos' },
+    ],
+    muscleFilter: 'Peitoral',
+  })
+
+  assert.deepEqual(results.map((exercise) => exercise.name), ['Supino reto com barra'])
+})
+
+test('visão do aluno exibe exercícios de todos os dias da rotina', () => {
+  const exercises = getStudentWorkoutExercises({
+    title: 'Treino ABC',
+    days: [
+      { day: 'Segunda-feira', exercises: [{ name: 'Supino reto', sets: '4', reps: '10' }] },
+      { day: 'Quarta-feira', exercises: [{ name: 'Remada baixa', sets: '3', reps: '12' }] },
+    ],
+  }, [])
+
+  assert.deepEqual(exercises.map((exercise) => exercise.name), ['Supino reto', 'Remada baixa'])
+  assert.deepEqual(exercises.map((exercise) => exercise.day), ['Segunda-feira', 'Quarta-feira'])
+})
+
+test('prévia local não é controlada pelo cache do service worker de produção', async () => {
+  const mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+  const workerSource = await readFile(new URL('../public/service-worker.js', import.meta.url), 'utf8')
+
+  assert.match(mainSource, /import\.meta\.env\.PROD/)
+  assert.match(mainSource, /getRegistrations\(\)/)
+  assert.match(workerSource, /url\.pathname\.startsWith\('\/src\/'\)/)
 })

@@ -23,7 +23,7 @@ const checks = [
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
   ['Build marker was bumped for workouts audit', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'sales-app-modern-showcase-20260909'")],
-  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260909-sales-app-modern-showcase-v1')],
+  ['Service worker cache was bumped', sw.includes('coach-fit-pro-pwa-20260910-workouts-library-v2')],
   ['Public version file was bumped', version.includes('sales-app-modern-showcase-v1-20260909')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],

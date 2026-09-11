@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-pwa-20260909-sales-app-modern-showcase-v1'
+const CACHE_NAME = 'coach-fit-pro-pwa-20260910-workouts-library-v2'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
@@ -23,6 +23,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
+
+  // Vite development modules must always come from the local server.
+  if (url.pathname.startsWith('/src/') || url.pathname.startsWith('/@vite/') || url.pathname.startsWith('/node_modules/')) return
 
   if (request.mode === 'navigate') {
     event.respondWith(
