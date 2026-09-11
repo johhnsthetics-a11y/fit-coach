@@ -92,8 +92,15 @@ try {
           await page.getByRole('button', { name: /Adicionar (primeiro )?exercício/ }).first().click()
           const picker = page.getByRole('dialog', { name: 'Adicionar exercício', exact: true })
           await picker.waitFor({ state: 'visible' })
-          assert.ok(await picker.locator('.mobile-workout-picker-results > button').count() >= 300)
+          const exerciseCards = picker.locator('.mobile-workout-picker-card-v2')
+          assert.ok(await exerciseCards.count() >= 300)
           assert.ok(await picker.locator('.exercise-thumb').count() >= 300)
+          assert.equal(await picker.locator('.mobile-workout-picker-check').count(), 0, 'Não deve existir um segundo botão de adicionar')
+          assert.equal(
+            await picker.getByRole('button', { name: /^(Adicionar|✓ Adicionado)$/ }).count(),
+            await exerciseCards.count(),
+            'Cada exercício deve ter exatamente um botão verde de adicionar',
+          )
           assert.ok(await picker.getByText(/exercícios? selecionados?/).count())
           await page.screenshot({ path: resolve(output, `picker-${viewport.width}.png`), fullPage: true })
           await picker.getByRole('button', { name: 'Fechar', exact: true }).click()

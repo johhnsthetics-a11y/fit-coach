@@ -19,6 +19,9 @@ let getExercisePickerResults
 let getStudentWorkoutExercises
 let buildWorkoutStudentPreviewState
 let WorkoutStudentLivePreview
+let StudentWorkoutExecution
+let getExerciseFallbackImage
+let buildWorkoutCompletionPayload
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -28,7 +31,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, getExerciseFallbackImage, buildWorkoutCompletionPayload } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -188,6 +191,64 @@ test('prévia ao vivo renderiza a experiência interativa do aluno', () => {
   assert.match(html, /Concluir série/)
   assert.match(html, /Carga \(kg\)/)
   assert.match(html, /Repetições/)
+})
+
+test('treinador e aluno compartilham a experiência completa de execução', () => {
+  const html = renderToString(React.createElement(StudentWorkoutExecution, {
+    student,
+    preview: true,
+    dayIndex: 0,
+    workout: {
+      title: 'Treino A',
+      days: [{
+        day: 'Segunda-feira',
+        focus: 'Peito e tríceps',
+        exercises: [{ name: 'Supino reto com barra', sets: '3', reps: '10', rest: '60s' }],
+      }],
+    },
+  }))
+
+  assert.match(html, /mobile-workout-student-experience-v2/)
+  assert.match(html, /Concluir série/)
+  assert.match(html, /Finalizar treino/)
+  assert.match(html, /\+80 XP/)
+  assert.match(html, /\/assets\/exercises\/coachfit-upper-push\.png/)
+})
+
+test('visão do aluno do treino publicado reutiliza o executor interativo fiel', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const componentSource = appSource.match(/function MobileWorkoutStudentPreview[\s\S]*?\r?\n}\r?\n\r?\nfunction summarizeWorkoutFocus/)?.[0] || ''
+
+  assert.match(componentSource, /<StudentWorkoutExecution student=\{student\} workout=\{workout\} preview/)
+  assert.doesNotMatch(componentSource, /mobile-workout-student-preview-days/)
+})
+
+test('biblioteca usa imagens profissionais coerentes por padrão de movimento', () => {
+  assert.equal(getExerciseFallbackImage({ name: 'Agachamento livre', group: 'Quadríceps e glúteos' }), '/assets/exercises/coachfit-lower-body.png')
+  assert.equal(getExerciseFallbackImage({ name: 'Supino reto com barra', group: 'Peitoral' }), '/assets/exercises/coachfit-upper-push.png')
+  assert.equal(getExerciseFallbackImage({ name: 'Remada baixa', group: 'Costas' }), '/assets/exercises/coachfit-upper-pull.png')
+  assert.equal(getExerciseFallbackImage({ name: 'Prancha abdominal', group: 'Core' }), '/assets/exercises/coachfit-core.png')
+})
+
+test('conclusão preserva séries, cargas e repetições no histórico do aluno', () => {
+  const payload = buildWorkoutCompletionPayload({
+    student,
+    workout: { id: 'workout-a', coachId: 'coach-a', title: 'Treino A' },
+    effort: 'Forte',
+    durationSeconds: 1540,
+    exerciseEntries: [{
+      exercise: { name: 'Supino reto com barra' },
+      sets: [{ number: 1, completed: true, load: '40', reps: '10' }, { number: 2, completed: true, load: '42', reps: '8' }],
+    }],
+  })
+
+  assert.equal(payload.studentId, student.id)
+  assert.equal(payload.workoutId, 'workout-a')
+  assert.equal(payload.effort, 'Forte')
+  assert.equal(payload.durationSeconds, 1540)
+  assert.match(payload.notes, /Supino reto com barra/)
+  assert.match(payload.notes, /S1: 40 kg × 10/)
+  assert.match(payload.notes, /S2: 42 kg × 8/)
 })
 
 test('prévia local não é controlada pelo cache do service worker de produção', async () => {
