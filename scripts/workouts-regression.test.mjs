@@ -14,6 +14,7 @@ const workout = {
 }
 let server
 let App
+let getExerciseLibrary
 let getExercisePickerResults
 let getStudentWorkoutExercises
 const originalWindow = globalThis.window
@@ -25,7 +26,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExercisePickerResults, getStudentWorkoutExercises } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -94,6 +95,15 @@ test('biblioteca de exercícios mantém todos os resultados e o filtro de favori
   assert.deepEqual(favoriteResults.map((exercise) => exercise.name), ['Exercício 2', 'Exercício 64'])
 })
 
+test('biblioteca real continua disponível quando a API retorna uma lista vazia', () => {
+  const library = getExerciseLibrary([])
+  const results = getExercisePickerResults({ library })
+
+  assert.ok(library.length >= 300)
+  assert.equal(results.length, library.length)
+  assert.ok(results.some((exercise) => exercise.name === 'Supino reto com barra'))
+})
+
 test('filtro Peitoral encontra exercícios cadastrados como Peito', () => {
   const results = getExercisePickerResults({
     library: [
@@ -104,6 +114,19 @@ test('filtro Peitoral encontra exercícios cadastrados como Peito', () => {
   })
 
   assert.deepEqual(results.map((exercise) => exercise.name), ['Supino reto com barra'])
+})
+
+test('filtro Treino em Casa encontra exercícios compatíveis da biblioteca', () => {
+  const results = getExercisePickerResults({
+    library: [
+      { name: 'Flexão de braços', group: 'Peitoral', equipment: 'Peso corporal' },
+      { name: 'Remada com elástico', group: 'Costas', equipment: 'Elástico' },
+      { name: 'Leg press 45°', group: 'Quadríceps', equipment: 'Máquina' },
+    ],
+    categoryFilter: 'Treino em Casa',
+  })
+
+  assert.deepEqual(results.map((exercise) => exercise.name), ['Flexão de braços', 'Remada com elástico'])
 })
 
 test('visão do aluno exibe exercícios de todos os dias da rotina', () => {

@@ -11655,11 +11655,25 @@ html[data-theme="dark"] body { background: #05070d; }
   overflow: hidden;
 }
 
-.mobile-workout-picker-actions {
+.app-shell:not(.sales-page) .mobile-workout-picker-results > button {
+  height: auto;
+  min-height: 72px;
+}
+
+.mobile-workout-picker-results > button .mobile-workout-picker-actions {
   display: flex;
+  position: static;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.35rem;
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+.mobile-workout-sheet.is-exercise-picker .mobile-workout-primary:last-child {
+  position: static;
 }
 
 .mobile-workout-add-state {
@@ -11668,9 +11682,10 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 @media (max-width: 420px) {
-  .mobile-workout-picker-results > button {
+  .app-shell:not(.sales-page) .mobile-workout-picker-results > button {
     grid-template-columns: 36px minmax(0, 1fr);
     align-items: start;
+    min-height: 116px;
   }
 
   .mobile-workout-picker-actions {

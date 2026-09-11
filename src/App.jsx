@@ -68,7 +68,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'sales-app-modern-showcase-20260909'
+const COACH_FIT_PRO_BUILD_MARKER = 'workouts-library-restored-20260911'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -8738,7 +8738,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
 
       {exercisePickerDayIndex !== null ? (
         <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={closeExercisePicker}>
-          <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Adicionar exercício" onClick={(event) => event.stopPropagation()}>
+          <section className="mobile-workout-sheet is-exercise-picker" role="dialog" aria-modal="true" aria-label="Adicionar exercício" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
             <div className="mobile-workout-creator-head">
               <div>
@@ -8846,6 +8846,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 <div className="mobile-workout-empty">
                   <strong>Nenhum exercício encontrado.</strong>
                   <span>Limpe os filtros ou crie um exercício personalizado no próprio dia do treino.</span>
+                  <button type="button" className="mobile-workout-primary" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerSearch('') }}>
+                    Mostrar todos os exercícios
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -10459,7 +10462,7 @@ function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exer
   )
 }
 
-function getExerciseLibrary(remoteItems = []) {
+export function getExerciseLibrary(remoteItems = []) {
   const records = new Map()
   const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
 
@@ -10611,6 +10614,10 @@ export function getExercisePickerResults({
   const showCustomOnly = tab === 'mine' || tab === 'seus'
   const normalizedMuscleFilter = normalizeText(muscleFilter)
   const canonicalMuscleFilter = normalizeMuscleName(muscleFilter)
+  const normalizedCategoryFilter = normalizeText(categoryFilter)
+  const categoryAliases = normalizedCategoryFilter === 'treino em casa'
+    ? ['peso corporal', 'elastico', 'halteres', 'kettlebell', 'trx']
+    : []
 
   return buildExerciseSuggestions(library, search, 'todos', favorites, recent)
     .filter((exercise) => {
@@ -10620,7 +10627,9 @@ export function getExercisePickerResults({
       const matchesMuscle = normalizedMuscleFilter === 'todos'
         || (canonicalMuscleFilter && [muscleProfile.primaryMuscle, ...muscleProfile.secondaryMuscles].includes(canonicalMuscleFilter))
         || getExerciseSearchText(exercise).includes(normalizedMuscleFilter)
-      const matchesCategory = categoryFilter === 'todos' || categoryText.includes(normalizeText(categoryFilter))
+      const matchesCategory = normalizedCategoryFilter === 'todos'
+        || categoryText.includes(normalizedCategoryFilter)
+        || categoryAliases.some((alias) => categoryText.includes(alias))
       const matchesFavorites = !showFavoritesOnly || favoriteSet.has(normalizeText(exercise.name))
       const matchesMine = !showCustomOnly || isCustomExercise
       return matchesMuscle && matchesCategory && matchesFavorites && matchesMine
