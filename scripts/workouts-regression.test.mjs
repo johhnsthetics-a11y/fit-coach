@@ -20,6 +20,7 @@ let getStudentWorkoutExercises
 let buildWorkoutStudentPreviewState
 let WorkoutStudentLivePreview
 let StudentWorkoutExecution
+let StudentMobileApp
 let getExerciseFallbackImage
 let buildWorkoutCompletionPayload
 let buildWorkoutExecutionSummary
@@ -33,7 +34,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -82,6 +83,37 @@ test('Treinos mostra filtros com capitalização profissional sem alterar os val
   for (const label of ['Todos', 'Hipertrofia', 'Emagrecimento', 'Força', 'Publicado']) {
     assert.match(html, new RegExp(`>${label}<`))
   }
+})
+
+test('aluno escolhe entre vários treinos publicados na tela real', () => {
+  const storage = new Map()
+  globalThis.window = {
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+    location: new URL('http://localhost/?alunoTab=treino'),
+    navigator: {},
+    matchMedia: () => ({ matches: false }),
+  }
+  const studentWithAccess = { ...student, accessOverrideUntil: '2099-01-01T00:00:00.000Z' }
+  const secondWorkout = { ...workout, id: 'workout-second', title: 'Treino de costas' }
+  const html = renderToString(React.createElement(StudentMobileApp, {
+    student: studentWithAccess,
+    checkins: [],
+    workouts: [workout, secondWorkout],
+    nutritionPlans: [],
+    workoutLogs: [],
+    messages: [],
+    appointments: [],
+    invoices: [],
+    assessments: [],
+  }))
+
+  assert.match(html, /student-workout-selector/)
+  assert.match(html, /Rotina Regressão/)
+  assert.match(html, /Treino de costas/)
 })
 
 test('biblioteca de exercícios mantém todos os resultados e o filtro de favoritos', () => {
@@ -319,18 +351,43 @@ test('publicação de treino usa RPC transacional protegida por ownership', asyn
   assert.doesNotMatch(migrationSource, /grant (all|insert|update|delete)[^;]* to anon/i)
 })
 
-test('conclusão do aluno usa token idempotente e RPC validada pelo vínculo do convite', async () => {
+test('rascunho permanece privado e publicação fica disponível ao aluno', async () => {
   const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
-  const migrationSource = await readFile(new URL('../supabase/migrations/20260911_secure_workout_publish.sql', import.meta.url), 'utf8')
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8').catch(() => '')
 
-  assert.match(apiSource, /rpcRequest\('submit_student_workout_log_once'/)
+  assert.match(apiSource, /publication_status:\s*workout\.status === 'Rascunho' \? 'draft' : 'published'/)
+  assert.match(migrationSource, /workout_payload ->> 'publication_status'/i)
+  assert.match(migrationSource, /active\s*=\s*v_is_published/i)
+  assert.match(migrationSource, /workouts\.active is true/i)
+})
+
+test('portal de treinos valida convite e retorna somente treinos do aluno vinculado', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8').catch(() => '')
+
+  assert.match(apiSource, /rpcRequest\('get_student_workouts',\s*\{ invite_code: code \}\)/)
+  assert.match(migrationSource, /create or replace function public\.get_student_workouts\(invite_code text\)/i)
+  assert.match(migrationSource, /student_invites\.status = 'active'/i)
+  assert.match(migrationSource, /student_invites\.expires_at is null or student_invites\.expires_at > now\(\)/i)
+  assert.match(migrationSource, /students\.coach_id = v_coach_id/i)
+  assert.match(migrationSource, /workouts\.student_id = v_student_id/i)
+  assert.match(migrationSource, /workouts\.coach_id = v_coach_id/i)
+  assert.match(migrationSource, /workouts\.active is true/i)
+})
+
+test('conclusão do aluno fecha a sessão com token idempotente e vínculo validado', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /rpcRequest\('complete_student_workout_session'/)
   assert.match(apiSource, /completion_token: log\.completionToken/)
-  assert.match(migrationSource, /create or replace function public\.submit_student_workout_log_once/i)
+  assert.match(migrationSource, /create or replace function public\.complete_student_workout_session/i)
   assert.match(migrationSource, /from public\.student_invites/i)
   assert.match(migrationSource, /from public\.students[\s\S]*students\.coach_id = v_coach_id/i)
   assert.match(migrationSource, /student_id = v_student_id[\s\S]*coach_id = v_coach_id/i)
   assert.match(migrationSource, /pg_advisory_xact_lock/i)
-  assert.match(migrationSource, /grant execute on function public\.submit_student_workout_log_once/i)
+  assert.match(migrationSource, /update[\s\S]*workout_sessions|insert into public\.workout_sessions/i)
+  assert.match(migrationSource, /grant execute on function public\.complete_student_workout_session/i)
 })
 
 test('falha de rede mantém a execução pendente para retry sem conceder XP local', async () => {

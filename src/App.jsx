@@ -19,6 +19,7 @@ import {
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
   loadRemoteStudentByInvite,
+  loadRemoteWorkoutSession,
   markRemoteStudentMessagesRead,
   markRemoteNotificationsRead,
   requestCoachPasswordReset,
@@ -37,6 +38,7 @@ import {
   saveRemoteWorkout,
   saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
+  saveRemoteWorkoutSession,
   setSupabaseSession,
   signInCoach,
   signOutCoach,
@@ -49,6 +51,7 @@ import {
   updateRecoveredPassword,
   upsertRemoteUser,
 } from './supabaseApi'
+import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 
 const AssessmentChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.AssessmentChart })))
 const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.RevenueChart })))
@@ -2461,7 +2464,7 @@ function AppContent() {
   }
 
   async function saveWorkout(workout) {
-    let savedWorkout = { ...workout, id: workout.id || Date.now(), notes: stripWorkoutMetadata(workout.notes), active: true }
+    let savedWorkout = { ...workout, id: workout.id || Date.now(), notes: stripWorkoutMetadata(workout.notes), active: workout.status !== 'Rascunho' }
     const isFirstWorkout = !(data.workouts ?? []).length
 
     if (supabaseEnabled) {
@@ -11532,7 +11535,7 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, preview = false, dayIndex = 0, durationSeconds = 0, compact = false }) {
+export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -11546,6 +11549,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
+  const [syncState, setSyncState] = useState(preview ? 'preview' : 'local')
   const [message, setMessage] = useState(initialExecution?.completedLog ? 'Treino já concluído. O XP foi registrado uma única vez.' : '')
   const [error, setError] = useState('')
   const previousExecutionKeyRef = useRef(executionStorageKey)
@@ -11553,8 +11558,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   const submissionLockRef = useRef(false)
 
   useEffect(() => {
-    if (previousExecutionKeyRef.current === executionStorageKey) return
-    const saved = preview ? null : loadStudentWorkoutExecution(student?.id, workout?.id)
+    const executionChanged = previousExecutionKeyRef.current !== executionStorageKey
+    const saved = preview ? null : normalizeWorkoutSession(loadStudentWorkoutExecution(student?.id, workout?.id))
     previousExecutionKeyRef.current = executionStorageKey
     skipNextPersistRef.current = true
     setActiveDayIndex(saved?.activeDayIndex ?? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)))
@@ -11566,7 +11571,42 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     setCompletedLog(saved?.completedLog || null)
     setMessage(saved?.completedLog ? 'Treino já concluído. O XP foi registrado uma única vez.' : '')
     setError('')
-  }, [dayIndex, days.length, executionStorageKey, preview, student?.id, workout?.id])
+    if (preview || !onLoadWorkoutSession || !workout?.id) {
+      setRemoteHydrated(true)
+      return undefined
+    }
+
+    let active = true
+    setRemoteHydrated(false)
+    setSyncState('loading')
+    Promise.resolve(onLoadWorkoutSession(workout.id))
+      .then((remoteValue) => {
+        if (!active) return
+        const merged = mergeWorkoutSession(saved, remoteValue)
+        if (merged) {
+          skipNextPersistRef.current = true
+          setActiveDayIndex(merged.activeDayIndex)
+          setActiveExerciseIndex(merged.activeExerciseIndex)
+          setSetLogs(merged.setLogs)
+          setEffort(merged.effort)
+          setSessionNotes(merged.sessionNotes)
+          setCompletionToken(merged.completionToken)
+          setCompletedLog(merged.completedLog)
+          onSessionHydrated?.(merged)
+        } else if (executionChanged) {
+          onSessionHydrated?.({ durationSeconds: 0, timerStartedAt: '' })
+        }
+        setRemoteHydrated(true)
+        setSyncState('saved')
+      })
+      .catch((loadError) => {
+        if (!active) return
+        setRemoteHydrated(true)
+        setSyncState('error')
+        setError(loadError?.message || 'Não foi possível recuperar o progresso salvo na nuvem.')
+      })
+    return () => { active = false }
+  }, [dayIndex, days.length, executionStorageKey, onLoadWorkoutSession, preview, student?.id, workout?.id])
 
   useEffect(() => {
     if (preview || !student?.id || !workout?.id) return
@@ -11574,7 +11614,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       skipNextPersistRef.current = false
       return
     }
-    persistStudentWorkoutExecution(student.id, workout.id, {
+    const execution = {
       activeDayIndex,
       activeExerciseIndex,
       setLogs,
@@ -11582,9 +11622,24 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       sessionNotes,
       completionToken,
       completedLog,
+      durationSeconds: Math.max(0, Number(sessionDurationSeconds) || 0),
+      timerStartedAt,
       updatedAt: new Date().toISOString(),
-    })
-  }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, preview, sessionNotes, setLogs, student?.id, workout?.id])
+    }
+    persistStudentWorkoutExecution(student.id, workout.id, execution)
+    if (!remoteHydrated || completedLog || !onSaveWorkoutSession) return undefined
+
+    setSyncState('syncing')
+    const syncTimer = window.setTimeout(() => {
+      Promise.resolve(onSaveWorkoutSession(workout.id, execution))
+        .then(() => setSyncState('saved'))
+        .catch((saveError) => {
+          setSyncState('error')
+          setError(saveError?.message || 'Seu progresso está neste aparelho e será sincronizado quando a conexão voltar.')
+        })
+    }, 450)
+    return () => window.clearTimeout(syncTimer)
+  }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
 
   useEffect(() => {
     if (!restRemaining) return undefined
@@ -11672,6 +11727,17 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     const payload = {
       ...buildWorkoutCompletionPayload({ student, workout, effort, durationSeconds, exerciseEntries, notes: sessionNotes }),
       completionToken,
+      execution: serializeWorkoutSession({
+        completionToken,
+        activeDayIndex: safeDayIndex,
+        activeExerciseIndex: safeExerciseIndex,
+        setLogs,
+        effort,
+        sessionNotes,
+        durationSeconds,
+        timerStartedAt,
+        updatedAt: new Date().toISOString(),
+      }),
     }
 
     submissionLockRef.current = true
@@ -11731,9 +11797,9 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       ) : null}
 
       <div className="mobile-workout-student-progress-v2">
-          <div><span>Progresso do treino</span><strong>{completedSets}/{totalSets} séries</strong></div>
+        <div><span>Progresso do treino</span><strong>{completedSets}/{totalSets} séries</strong></div>
         <progress value={completedSets} max={Math.max(totalSets, 1)} />
-        <small>{progress}% concluído</small>
+        <small>{progress}% concluído{!preview ? ` · ${syncState === 'loading' ? 'Recuperando progresso' : syncState === 'syncing' ? 'Sincronizando' : syncState === 'error' ? 'Salvo neste aparelho' : 'Progresso salvo'}` : ''}</small>
       </div>
 
       {exercise ? (
@@ -14699,6 +14765,19 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     return onCompleteWorkout({ ...log, inviteCode })
   }
 
+  const loadStudentWorkoutSession = useCallback((workoutId) => (
+    supabaseEnabled ? loadRemoteWorkoutSession(inviteCode, workoutId) : Promise.resolve(null)
+  ), [inviteCode])
+
+  const saveStudentWorkoutSession = useCallback((workoutId, session) => (
+    supabaseEnabled ? saveRemoteWorkoutSession(
+      inviteCode,
+      workoutId,
+      session.completionToken,
+      serializeWorkoutSession(session),
+    ) : Promise.resolve(session)
+  ), [inviteCode])
+
   function sendStudentMessage(message) {
     return onSendMessage({ ...message, inviteCode })
   }
@@ -14723,6 +14802,8 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       theme={uiTheme}
       toggleUiTheme={toggleUiTheme}
       onCompleteWorkout={completeStudentWorkout}
+      onLoadWorkoutSession={loadStudentWorkoutSession}
+      onSaveWorkoutSession={saveStudentWorkoutSession}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
       onSubmitQuestionnaire={onSubmitQuestionnaire}
@@ -14731,7 +14812,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     />
   )
 }
-function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -14743,6 +14824,11 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
   const [workoutStartNotified, setWorkoutStartNotified] = useState(false)
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
+  const workoutSelectionStorageKey = `coachfitpro-selected-workout-${student?.id || 'student'}`
+  const [selectedStudentWorkoutId, setSelectedStudentWorkoutId] = useState(() => {
+    try { return window.localStorage.getItem(workoutSelectionStorageKey) || '' } catch { return '' }
+  })
+  const selectedStudentWorkout = studentWorkouts.find((workout) => String(workout.id) === String(selectedStudentWorkoutId)) || studentWorkouts[0]
   const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === String(student?.id) && plan.active !== false)
   const studentQuestionnaireAssignments = questionnaireAssignments.filter((assignment) => String(assignment.studentId) === String(student?.id))
   const pendingQuestionnaireAssignments = studentQuestionnaireAssignments.filter((assignment) => assignment.status !== 'Respondido')
@@ -14765,7 +14851,7 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
     .filter((invoice) => String(invoice.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
-  const nextWorkout = studentWorkouts[0]
+  const nextWorkout = selectedStudentWorkout
   const nextAppointment = studentAppointments[0]
   const temporaryAccessOpen = Boolean(student?.accessOverrideUntil && new Date(student.accessOverrideUntil).getTime() > Date.now())
   const financialAccessOpen = temporaryAccessOpen || hasStudentAccess(student)
@@ -14812,6 +14898,23 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
   useEffect(() => {
     persistStudentTab(student?.id, activeTab)
   }, [activeTab, student?.id])
+
+  useEffect(() => {
+    const nextId = selectedStudentWorkout?.id ? String(selectedStudentWorkout.id) : ''
+    if (nextId !== String(selectedStudentWorkoutId || '')) {
+      setWorkoutStartedAt(null)
+      setWorkoutElapsedSeconds(0)
+      setWorkoutStartNotified(false)
+      setSelectedStudentWorkoutId(nextId)
+    }
+  }, [selectedStudentWorkout?.id, selectedStudentWorkoutId])
+
+  useEffect(() => {
+    try {
+      if (selectedStudentWorkoutId) window.localStorage.setItem(workoutSelectionStorageKey, String(selectedStudentWorkoutId))
+      else window.localStorage.removeItem(workoutSelectionStorageKey)
+    } catch {}
+  }, [selectedStudentWorkoutId, workoutSelectionStorageKey])
 
   useEffect(() => {
     try { setDismissedQuestionnairePriorityIds(JSON.parse(window.localStorage.getItem(dismissedQuestionnaireStorageKey) || '[]')) } catch { setDismissedQuestionnairePriorityIds([]) }
@@ -14948,6 +15051,19 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
     if (activeTab === 'treino') {
       return (
         <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
+          {studentWorkouts.length > 1 ? (
+            <label className="student-workout-selector">
+              <span>Treino disponível</span>
+              <select value={selectedStudentWorkout?.id || ''} onChange={(event) => {
+                setWorkoutStartedAt(null)
+                setWorkoutElapsedSeconds(0)
+                setWorkoutStartNotified(false)
+                setSelectedStudentWorkoutId(event.target.value)
+              }}>
+                {studentWorkouts.map((workout) => <option key={workout.id} value={workout.id}>{workout.title || 'Treino sem título'}</option>)}
+              </select>
+            </label>
+          ) : null}
           <StudentReminderCard
             title="Lembrete de treino"
             body={`Hora de treinar, ${student.name}. Abra o Coach Fit Pro e siga o plano de hoje.`}
@@ -14967,10 +15083,20 @@ function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutriti
             <>
               <StudentWorkoutExecution
                 student={student}
-                workout={studentWorkouts[0]}
+                workout={selectedStudentWorkout}
                 exerciseLibraryItems={availableExerciseLibrary}
                 durationSeconds={workoutSeconds}
+                sessionDurationSeconds={workoutElapsedSeconds}
+                timerStartedAt={workoutStartedAt ? new Date(workoutStartedAt).toISOString() : ''}
                 onCompleteWorkout={completeWorkoutFromStudent}
+                onLoadWorkoutSession={onLoadWorkoutSession}
+                onSaveWorkoutSession={onSaveWorkoutSession}
+                onSessionHydrated={(session) => {
+                  const restoredStartedAt = Date.parse(session?.timerStartedAt || '')
+                  setWorkoutElapsedSeconds(Math.max(0, Number(session?.durationSeconds) || 0))
+                  setWorkoutStartedAt(Number.isFinite(restoredStartedAt) ? restoredStartedAt : null)
+                  setWorkoutClock(Date.now())
+                }}
               />
               {feedbackPrompt ? (
                 <WorkoutFeedbackPrompt

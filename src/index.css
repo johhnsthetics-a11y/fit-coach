@@ -12908,8 +12908,74 @@ html[data-theme="dark"] body { background: #05070d; }
   color: #8bffed !important;
 }
 
+.student-workout-selector {
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(52, 211, 153, 0.24);
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.student-workout-selector span {
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #6ee7b7;
+}
+
+.student-workout-selector select {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0.65rem 2.4rem 0.65rem 0.75rem;
+  border: 1px solid rgba(52, 211, 153, 0.32);
+  border-radius: 6px;
+  background-color: #071c18;
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+.student-mobile-shell.app-theme-light .student-workout-selector {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.student-mobile-shell.app-theme-light .student-workout-selector span {
+  color: #047857;
+}
+
+.student-mobile-shell.app-theme-light .student-workout-selector select {
+  background-color: #ffffff;
+  border-color: #a7f3d0;
+  color: #17201f;
+}
+
 @media (max-width: 1023px) {
   .student-mobile-shell > div.mx-auto {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-workout-filters {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible !important;
+  }
+
+  .mobile-workout-filters button {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.45rem;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-workout-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

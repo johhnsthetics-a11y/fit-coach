@@ -32,7 +32,7 @@ try {
     { name: 'sem-alunos', students: [], workouts: [] },
     { name: 'exercicios-nulos', students: [student], workouts: [{ ...workout, exercises: null }] },
   ]
-  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 430, height: 932 }, { width: 390, height: 844 }, { width: 320, height: 740 }]) {
     for (const scenario of expectFailure ? scenarios.slice(0, 1) : scenarios) {
       const context = await browser.newContext({ viewport })
       const page = await context.newPage()
@@ -68,12 +68,29 @@ try {
           await page.locator('.mobile-workout-manager').waitFor({ state: 'visible' })
           assert.equal(new URL(page.url()).searchParams.get('area'), 'treinos')
           assert.equal(await page.evaluate(() => localStorage.getItem('coachfitpro-last-error')), null)
+          const viewportMetrics = await page.evaluate(() => ({
+            clientWidth: document.documentElement.clientWidth,
+            scrollWidth: document.documentElement.scrollWidth,
+          }))
+          assert.ok(viewportMetrics.scrollWidth <= viewportMetrics.clientWidth + 1, `Treinos não deve criar overflow horizontal em ${viewport.width}px`)
+          const clippedFilters = await page.locator('.mobile-workout-filters button').evaluateAll((buttons) => buttons.filter((button) => {
+            const buttonRect = button.getBoundingClientRect()
+            const containerRect = button.parentElement.getBoundingClientRect()
+            return buttonRect.left < containerRect.left - 1 || buttonRect.right > containerRect.right + 1
+          }).length)
+          assert.equal(clippedFilters, 0, `Todos os filtros devem ficar visíveis em ${viewport.width}px`)
           if (scenario.students.length) assert.equal(await page.locator('select[name="studentId"]').last().inputValue(), student.id)
           if (scenario.workouts.length) assert.ok(await page.getByText('Rotina Regressão', { exact: true }).count())
           results.push(`${viewport.width} / ${scenario.name} / ${action}: PASS`)
         }
         if (scenario.name === 'com-treinos') {
           await page.screenshot({ path: resolve(output, `after-${viewport.width}.png`) })
+          const darkModeButton = page.getByRole('button', { name: 'Ativar modo escuro', exact: true }).first()
+          assert.ok(await darkModeButton.count(), 'O alternador de tema deve permanecer disponível em Treinos')
+          await darkModeButton.click()
+          await page.locator('.app-theme-dark').first().waitFor({ state: 'visible' })
+          await page.screenshot({ path: resolve(output, `after-dark-${viewport.width}.png`) })
+          await page.getByRole('button', { name: 'Ativar modo claro', exact: true }).first().click()
           await page.getByRole('button', { name: 'Criar treino', exact: true }).click()
           await page.getByText('Criar novo treino', { exact: true }).waitFor()
           for (const step of ['Aluno', 'Dias', 'Exercícios', 'Revisar']) {
@@ -83,12 +100,6 @@ try {
           await page.getByRole('button', { name: 'Adicionar primeiro dia', exact: true }).first().click()
           await page.getByRole('dialog', { name: 'Editar dia do treino', exact: true }).getByRole('button', { name: 'Salvar dia', exact: true }).click()
           await page.getByRole('button', { name: 'Continuar para exercícios', exact: true }).click()
-          await page.locator('.mobile-workout-live-preview').waitFor({ state: 'visible' })
-          assert.ok(await page.getByText('Prévia ao vivo', { exact: true }).count())
-          assert.ok(await page.getByRole('button', { name: 'Concluir série', exact: true }).count())
-          assert.ok(await page.getByLabel('Carga (kg)', { exact: true }).count())
-          assert.ok(await page.getByLabel('Repetições', { exact: true }).count())
-          await page.screenshot({ path: resolve(output, `builder-${viewport.width}.png`), fullPage: true })
           await page.getByRole('button', { name: /Adicionar (primeiro )?exercício/ }).first().click()
           const picker = page.getByRole('dialog', { name: 'Adicionar exercício', exact: true })
           await picker.waitFor({ state: 'visible' })
@@ -103,7 +114,14 @@ try {
           )
           assert.ok(await picker.getByText(/exercícios? selecionados?/).count())
           await page.screenshot({ path: resolve(output, `picker-${viewport.width}.png`), fullPage: true })
+          await picker.getByRole('button', { name: 'Adicionar', exact: true }).first().click()
           await picker.getByRole('button', { name: 'Fechar', exact: true }).click()
+          await page.locator('.mobile-workout-live-preview').waitFor({ state: 'visible' })
+          assert.ok(await page.getByText('Prévia ao vivo', { exact: true }).count())
+          assert.ok(await page.getByRole('button', { name: 'Concluir série', exact: true }).count())
+          assert.ok(await page.getByLabel('Carga (kg)', { exact: true }).count())
+          assert.ok(await page.getByLabel('Repetições', { exact: true }).count())
+          await page.screenshot({ path: resolve(output, `builder-${viewport.width}.png`), fullPage: true })
         }
         if (viewport.width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
         await page.locator('.coach-nav-item').filter({ hasText: /^Visão geral$/ }).click()

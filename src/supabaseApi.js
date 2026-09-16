@@ -575,6 +575,7 @@ export async function createRemoteStudentInvite(studentId, coachId) {
 
 export async function loadRemoteStudentByInvite(code) {
   const payload = await rpcRequest('get_student_portal', { invite_code: code })
+  const studentWorkoutsPayload = await rpcRequest('get_student_workouts', { invite_code: code })
   const invite = payload?.invite
 
   if (!invite || !payload?.student) {
@@ -582,7 +583,8 @@ export async function loadRemoteStudentByInvite(code) {
   }
 
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
-  const hydratedWorkouts = await Promise.all((payload.workouts ?? []).map(hydrateWorkoutRow))
+  const studentWorkoutRows = Array.isArray(studentWorkoutsPayload) ? studentWorkoutsPayload : []
+  const hydratedWorkouts = await Promise.all(studentWorkoutRows.map(hydrateWorkoutRow))
   const hydratedMessages = await Promise.all((payload.messages ?? []).map(hydrateMessageRow))
 
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
@@ -638,6 +640,7 @@ export async function saveRemoteWorkout(workout, coachId) {
     student_id: workout.studentId,
     title: workout.title,
     focus: workout.focus,
+    publication_status: workout.status === 'Rascunho' ? 'draft' : 'published',
     notes: workout.notes,
     exercises: exercises.map((exercise, index) => ({
       name: exercise.name,
@@ -889,15 +892,18 @@ export async function archiveRemoteNutritionPlan(planId, coachId, active = false
 export async function saveRemoteWorkoutLog(log) {
   if (log.inviteCode) {
     if (!log.completionToken) throw new Error('Não foi possível identificar esta sessão de treino. Inicie o treino novamente.')
-    const result = await rpcRequest('submit_student_workout_log_once', {
+    const result = await rpcRequest('complete_student_workout_session', {
       invite_code: log.inviteCode,
       selected_workout_id: isUuid(log.workoutId) ? log.workoutId : null,
       workout_title: log.title,
       effort_value: log.effort,
       notes_value: log.notes,
       completion_token: log.completionToken,
+      duration_seconds_value: Math.max(0, Number(log.durationSeconds) || 0),
+      execution_value: log.execution && typeof log.execution === 'object' ? log.execution : {},
     })
-    return fromWorkoutLogRow(Array.isArray(result) ? result[0] : result)
+    const payload = Array.isArray(result) ? result[0] : result
+    return fromWorkoutLogRow(payload?.workout_log || payload)
   }
 
   const rows = await request('workout_logs', {
@@ -913,6 +919,41 @@ export async function saveRemoteWorkoutLog(log) {
   })
 
   return fromWorkoutLogRow(rows[0])
+}
+
+function fromWorkoutSessionRow(row) {
+  if (!row || typeof row !== 'object') return null
+  const execution = row.execution && typeof row.execution === 'object' && !Array.isArray(row.execution) ? row.execution : {}
+  return {
+    ...execution,
+    id: row.id || '',
+    coachId: row.coach_id || '',
+    studentId: row.student_id || '',
+    workoutId: row.workout_id || '',
+    completionToken: row.completion_token || '',
+    status: row.status || 'in_progress',
+    updatedAt: row.updated_at || execution.updatedAt || '',
+  }
+}
+
+export async function loadRemoteWorkoutSession(inviteCode, workoutId) {
+  if (!inviteCode || !isUuid(workoutId)) return null
+  const result = await rpcRequest('get_student_workout_session', {
+    invite_code: inviteCode,
+    selected_workout_id: workoutId,
+  })
+  return fromWorkoutSessionRow(Array.isArray(result) ? result[0] : result)
+}
+
+export async function saveRemoteWorkoutSession(inviteCode, workoutId, completionToken, execution) {
+  if (!inviteCode || !isUuid(workoutId)) return null
+  const result = await rpcRequest('save_student_workout_session', {
+    invite_code: inviteCode,
+    selected_workout_id: workoutId,
+    completion_token: completionToken,
+    execution_value: execution && typeof execution === 'object' ? execution : {},
+  })
+  return fromWorkoutSessionRow(Array.isArray(result) ? result[0] : result)
 }
 
 export async function saveRemoteMessage(message) {
