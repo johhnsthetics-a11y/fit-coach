@@ -12950,6 +12950,138 @@ html[data-theme="dark"] body { background: #05070d; }
   font-weight: 800;
 }
 
+/* Nutrition uses container width: previews can be narrow on a desktop viewport. */
+.nutrition-prescribed-list,
+.nutrition-student-preview-panel,
+.student-questionnaire-simulator-v1 {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.nutrition-prescribed-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.nutrition-prescribed-search label {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.nutrition-prescribed-search input {
+  min-height: 44px;
+  font: inherit;
+}
+
+.nutrition-prescribed-list :is(h4, h5, p, span, button),
+.nutrition-student-preview-panel :is(h3, h4, p, span) {
+  overflow-wrap: anywhere;
+}
+
+.nutrition-plan-card-v6 button:not(.nutrition-plan-summary-button-v1) {
+  min-height: 44px;
+  white-space: normal;
+}
+
+.questionnaire-preview-portal-v1 {
+  display: grid;
+  place-items: center;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+.questionnaire-preview-portal-v1 .questionnaire-preview-panel-v1 {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100%, 1040px);
+  max-width: 100%;
+  height: min(94dvh, 880px);
+  max-height: 100%;
+  border-radius: 16px;
+}
+
+.questionnaire-preview-panel-v1 .questionnaire-preview-stage-v1 {
+  min-height: 0;
+  max-height: none;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+
+.questionnaire-preview-toolbar-v1 > div {
+  min-width: 0;
+}
+
+.questionnaire-preview-toolbar-v1 h3 {
+  font-size: 1.2rem;
+}
+
+.questionnaire-preview-actions-v1 button {
+  min-height: 44px;
+}
+
+.app-theme-light .student-questionnaire-field-head span {
+  color: #006b5e !important;
+  -webkit-text-fill-color: #006b5e !important;
+}
+
+.questionnaire-preview-panel-v1 :is(h3, p, strong, label, button) {
+  overflow-wrap: anywhere;
+  letter-spacing: 0;
+}
+
+.student-questionnaire-simulator-v1 .student-questionnaire-preview-card-v1 {
+  padding: 20px;
+}
+
+.student-questionnaire-simulator-v1 .student-questionnaire-app-head-v1 {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 16px;
+}
+
+@container (max-width: 560px) {
+  .nutrition-plan-card-v6 .sm\:flex-row,
+  .nutrition-student-preview-panel article > .flex,
+  .student-questionnaire-title-row-v1,
+  .student-questionnaire-field-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .nutrition-plan-card-v6 .sm\:grid-cols-3,
+  .nutrition-student-preview-panel > .sm\:grid-cols-3 {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+  .nutrition-plan-meal-card-v6 span,
+  .nutrition-student-preview-panel article span {
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
+  }
+  .questionnaire-preview-desktop-v1 .student-questionnaire-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .student-questionnaire-simulator-v1 .student-questionnaire-preview-card-v1 {
+    padding: 16px;
+  }
+  .student-questionnaire-status-v1 {
+    align-self: flex-start;
+  }
+  .student-questionnaire-field-head span {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 430px) {
+  .questionnaire-preview-panel-v1 .questionnaire-preview-stage-v1 {
+    padding: 8px;
+  }
+  .student-questionnaire-simulator-v1 {
+    border-radius: 12px;
+  }
+}
+
 .student-mobile-shell.app-theme-light .student-workout-selector {
   background: #f0fdfa;
   border-color: #99f6e4;

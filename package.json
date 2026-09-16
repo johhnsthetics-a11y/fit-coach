@@ -12,6 +12,7 @@
     "test": "node scripts/theme-smoke.mjs && node --test scripts/workout-flow-contract.test.mjs scripts/workout-session.test.mjs scripts/workouts-regression.test.mjs scripts/nutrition-plan-access.test.mjs scripts/product-safety.test.mjs",
     "test:database": "node scripts/product-database.test.mjs",
     "test:browser": "node scripts/product-browser.mjs",
+    "test:nutrition-browser": "node scripts/nutrition-browser.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "node scripts/theme-smoke.mjs"
   },

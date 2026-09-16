@@ -75,7 +75,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'product-audit-20260916'
+const COACH_FIT_PRO_BUILD_MARKER = 'nutrition-multiple-plans-20260916'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -11983,14 +11983,25 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
   const archivedNutritionPlans = nutritionPlans.filter((plan) => plan.active === false)
   const activePlan = studentPlans[0]
   const [editingPlanId, setEditingPlanId] = useState('')
+  const [newPlanStudentId, setNewPlanStudentId] = useState('')
   const editingPlan = editingPlanId === 'new'
     ? null
-    : studentPlans.find((plan) => sameId(plan.id, editingPlanId)) || activePlan || null
+    : editingPlanId
+      ? activeNutritionPlans.find((plan) => sameId(plan.id, editingPlanId)) || null
+      : activePlan || null
+  const editorStudent = students.find((student) => sameId(student.id, editingPlan?.studentId || newPlanStudentId)) || selectedStudent
   const activeMeals = editingPlan?.meals?.length || activePlan?.meals?.length || 0
 
   useEffect(() => {
     setEditingPlanId('')
+    setNewPlanStudentId('')
   }, [selectedStudent?.id])
+
+  function startNewPlan(student = editorStudent) {
+    setNewPlanStudentId(String(student?.id || ''))
+    setEditingPlanId('new')
+    setNutritionTab('dieta')
+  }
 
   useEffect(() => {
     if (!NUTRITION_TAB_IDS.includes(nutritionTab)) return
@@ -12047,9 +12058,9 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
 
       {nutritionTab === 'dieta' ? (
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
-          <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${selectedStudent?.name ?? 'Aluno'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
+          <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${editorStudent?.name ?? 'Paciente'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${selectedStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={selectedStudent} selectedAnamnesis={studentAnamnesis} anamneses={anamneses} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => setEditingPlanId('new')} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
+              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} selectedAnamnesis={sameId(editorStudent?.id, selectedStudent?.id) ? studentAnamnesis : null} anamneses={anamneses} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -12060,6 +12071,9 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
       {nutritionTab === 'prescritas' ? (
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title="Dietas prescritas" action={`${activeNutritionPlans.length} ativas`}>
+            <button type="button" onClick={() => startNewPlan(selectedStudent)} disabled={!selectedStudent} className="nutrition-new-plan-action mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-50">
+              <NavIcon name="plus" className="h-4 w-4" /> Nova dieta
+            </button>
             <NutritionPlanList plans={activeNutritionPlans} archivedPlans={archivedNutritionPlans} selectedStudent={selectedStudent} students={students} professional={professional} editingPlanId={editingPlan?.id} onEdit={(plan) => { setEditingPlanId(String(plan.id)); setNutritionTab('dieta') }} onArchive={onArchiveNutritionPlan} />
           </Panel>
         </div>
@@ -12877,22 +12891,43 @@ function NutritionFormLegacy({ students = [], selectedStudent, onSaveNutritionPl
 function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive }) {
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
+  const [search, setSearch] = useState('')
+  const [visibilityMessage, setVisibilityMessage] = useState('')
+  const [visibilityError, setVisibilityError] = useState('')
+  const visibilityPending = useRef(false)
 
   async function handleArchive(plan, active = false) {
-    if (!onArchive) return
+    if (!onArchive || visibilityPending.current) return
     const confirmText = active
-      ? `Restaurar a dieta "${plan.title}" para a lista ativa?`
-      : `Arquivar a dieta "${plan.title}"? Ela deixará de aparecer para o aluno.`
+      ? `Mostrar a dieta "${plan.title}" ao paciente novamente?`
+      : `Ocultar a dieta "${plan.title}" do paciente? Ela continuará salva e as outras dietas não serão alteradas.`
     if (!window.confirm(confirmText)) return
+    visibilityPending.current = true
     setArchivingId(String(plan.id))
+    setVisibilityMessage('')
+    setVisibilityError('')
     try {
-      await onArchive(plan.id, active)
+      const saved = await onArchive(plan.id, active)
+      if (saved === false) throw new Error('visibility-not-saved')
+      setVisibilityMessage(active ? 'Dieta disponível para o paciente.' : 'Dieta oculta do paciente. As outras dietas continuam disponíveis.')
+    } catch {
+      setVisibilityError('Não foi possível alterar a visibilidade. Tente novamente.')
     } finally {
+      visibilityPending.current = false
       setArchivingId('')
     }
   }
 
   const allPlans = [...plans, ...archivedPlans]
+  const terms = normalizeText(search).trim().split(/\s+/).filter(Boolean)
+  const matchesSearch = (plan) => {
+    const patient = students.find((student) => sameId(student.id, plan.studentId))
+      || (sameId(selectedStudent?.id, plan.studentId) ? selectedStudent : null)
+    const text = normalizeText([patient?.name, patient?.email, patient?.phone, plan.title, stripNutritionPlanMetadata(plan.notes)].filter(Boolean).join(' '))
+    return terms.every((term) => text.includes(term))
+  }
+  const visiblePlans = plans.filter(matchesSearch)
+  const hiddenPlans = archivedPlans.filter(matchesSearch)
 
   if (!allPlans.length) {
     return (
@@ -12909,7 +12944,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   function renderPlan(plan, archived = false) {
     const meals = Array.isArray(plan.meals) ? plan.meals : []
     const isExpanded = sameId(expandedPlanId, plan.id)
-    const planStudent = students.find((student) => String(student.id) === String(plan.studentId)) || selectedStudent
+    const planStudent = students.find((student) => sameId(student.id, plan.studentId)) || (sameId(selectedStudent?.id, plan.studentId) ? selectedStudent : null)
     const canDownloadPdf = Boolean(onArchive) || canPatientDownloadNutritionPdf(plan)
 
     return (
@@ -12934,7 +12969,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
-                    {archived ? 'Arquivada' : 'Ativa'}
+                    {archived ? 'Oculta do paciente' : 'Disponível'}
                   </span>
                   <span className="nutrition-plan-expand-indicator-v1 grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-zinc-300">
                     <NavIcon name={isExpanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
@@ -12950,7 +12985,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                 <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
                   Paciente: {planStudent?.name || 'Aluno'}
                 </span>
-                {onEdit ? (
+                {onEdit && !archived ? (
                   <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
                     {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar dieta'}
                   </button>
@@ -12961,8 +12996,8 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                   </button>
                 ) : null}
                 {onArchive ? (
-                  <button disabled={archivingId === String(plan.id)} type="button" onClick={() => handleArchive(plan, archived)} className={`rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition disabled:opacity-50 ${archived ? 'hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-100' : 'hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100'}`}>
-                    {archivingId === String(plan.id) ? (archived ? 'Restaurando...' : 'Arquivando...') : archived ? 'Restaurar' : 'Arquivar'}
+                  <button disabled={Boolean(archivingId)} type="button" onClick={() => handleArchive(plan, archived)} className={`rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition disabled:opacity-50 ${archived ? 'hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-100' : 'hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100'}`}>
+                    {archivingId === String(plan.id) ? 'Salvando...' : archived ? 'Mostrar ao paciente' : 'Ocultar do paciente'}
                   </button>
                 ) : null}
               </div>
@@ -13007,26 +13042,38 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   }
 
   return (
-    <div className="space-y-5">
+    <div className="nutrition-prescribed-list space-y-5">
+      {onArchive || onEdit ? (
+        <div className="nutrition-prescribed-search">
+          <label className="grid gap-2 text-sm font-bold">
+            Buscar dietas prescritas
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome, e-mail, telefone, dieta ou orientação" className="field-input w-full rounded-lg border border-emerald-300/25 bg-transparent px-3 py-3" />
+          </label>
+          {search ? <button type="button" onClick={() => setSearch('')} className="min-h-11 rounded-lg border border-emerald-300/25 px-3 py-2 text-sm font-bold">Limpar busca</button> : null}
+        </div>
+      ) : null}
+      {visibilityMessage ? <p role="status" className="text-sm text-emerald-500">{visibilityMessage}</p> : null}
+      {visibilityError ? <p role="alert" className="text-sm text-rose-500">{visibilityError}</p> : null}
+      {terms.length && !visiblePlans.length && !hiddenPlans.length ? <p role="status">Nenhuma dieta encontrada para esta busca.</p> : null}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-emerald-200">Dietas ativas</h4>
-          <span className="rounded-full border border-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-100">{plans.length}</span>
+          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-emerald-200">Dietas disponíveis</h4>
+          <span className="rounded-full border border-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-100">{visiblePlans.length}</span>
         </div>
-        {plans.length ? plans.map((plan) => renderPlan(plan, false)) : <Empty text="Nenhuma dieta ativa no momento." />}
+        {visiblePlans.length ? visiblePlans.map((plan) => renderPlan(plan, false)) : <Empty text={terms.length ? 'Nenhuma dieta disponível corresponde à busca.' : 'Nenhuma dieta disponível no momento.'} />}
       </div>
 
-      <div className="nutrition-archived-plans-v1 space-y-3">
+      {onArchive ? <div className="nutrition-archived-plans-v1 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Dietas arquivadas</h4>
-          <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-zinc-400">{archivedPlans.length}</span>
+          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Ocultas do paciente</h4>
+          <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-zinc-400">{hiddenPlans.length}</span>
         </div>
-        {archivedPlans.length ? archivedPlans.map((plan) => renderPlan(plan, true)) : (
+        {hiddenPlans.length ? hiddenPlans.map((plan) => renderPlan(plan, true)) : (
           <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm font-bold text-zinc-400">
-            Nenhuma dieta arquivada.
+            {terms.length ? 'Nenhuma dieta oculta corresponde à busca.' : 'Nenhuma dieta oculta.'}
           </p>
         )}
-      </div>
+      </div> : null}
     </div>
   )
 }
@@ -14120,7 +14167,7 @@ function StudentPortalPreview({
 
       <Panel title="Dieta de hoje" action={student.calories}>
         {studentNutritionPlans.length ? (
-          <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} />
+                <NutritionPlanList plans={studentNutritionPlans} selectedStudent={student} />
         ) : (
           <div className="space-y-3">
             {mealPlan.slice(0, 4).map((item) => (
@@ -15160,40 +15207,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'dieta') {
-      const todayPlan = studentNutritionPlans[0]
       return (
-        <StudentAppSection title="Dieta de hoje" action={todayPlan?.calories || student.calories || 'Macros'}>
+        <StudentAppSection title="Planos alimentares" action={`${studentNutritionPlans.length} disponíveis`}>
           {questionnaireError ? <p role="alert" className="mb-4 rounded-md border border-amber-400/40 p-3 text-sm">{questionnaireError}</p> : null}
-          {todayPlan ? (
-            <div className="student-nutrition-current-plan-v1 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 shadow-xl shadow-emerald-950/10">
-              <div className="flex items-start gap-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-100">
-                  <NavIcon name="nutrition" className="h-5 w-5" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-200">Plano alimentar liberado</p>
-                  <h3 className="mt-1 break-words text-xl font-black text-white">{todayPlan.title}</h3>
-                  <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    Siga uma refeição por vez. As substituições ficam dentro de cada alimento para manter os macros alinhados.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="student-nutrition-metric-v1 rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Kcal</p>
-                  <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.calories || '-'}</p>
-                </div>
-                <div className="student-nutrition-metric-v1 rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Proteína</p>
-                  <p className="mt-1 break-words text-sm font-black text-white">{todayPlan.protein || '-'}</p>
-                </div>
-                <div className="student-nutrition-metric-v1 rounded-xl border border-white/10 bg-zinc-950/45 p-3">
-                  <p className="text-xs font-bold text-zinc-500">Refeições</p>
-                  <p className="mt-1 text-sm font-black text-white">{todayPlan.meals?.length || 0}</p>
-                </div>
-              </div>
-            </div>
-          ) : null}
           <StudentReminderCard
             title="Lembrete de refeição"
             body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
@@ -15205,7 +15221,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             assignments={studentQuestionnaireAssignments}
             onSubmitQuestionnaire={onSubmitQuestionnaire}
           />
-          {studentNutritionPlans.length ? <NutritionPlanList plans={studentNutritionPlans.slice(0, 1)} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
+          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
         </StudentAppSection>
       )
     }
