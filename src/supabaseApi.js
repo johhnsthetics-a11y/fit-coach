@@ -8,12 +8,18 @@ const WORKOUT_COMPLETION_TOKEN_PATTERN = /\n?\[coachfitpro-completion:[^\]]+\]\s
 export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies.sql'
 
 let sessionToken = ''
+let sessionRevision = 0
 const REQUEST_TIMEOUT_MS = 25000
 
 export const supabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY)
 
 export function setSupabaseSession(token) {
+  if (sessionToken !== (token || '')) sessionRevision += 1
   sessionToken = token || ''
+}
+
+function assertCurrentSession(revision) {
+  if (revision !== sessionRevision) throw new Error('A sessão mudou. Reabra a tela para continuar.')
 }
 
 async function fetchWithTimeout(url, options = {}) {
@@ -89,6 +95,7 @@ function authHeaders(extra = {}) {
 }
 
 async function request(path, options = {}) {
+  const revision = sessionRevision
   if (!supabaseEnabled) {
     throw new Error('Supabase não configurado')
   }
@@ -102,13 +109,16 @@ async function request(path, options = {}) {
     },
   })
 
+  assertCurrentSession(revision)
   if (!response.ok) {
     const message = await response.text()
     throw serviceError(response.status, message)
   }
 
   if (response.status === 204) return null
-  return response.json()
+  const payload = await response.json()
+  assertCurrentSession(revision)
+  return payload
 }
 
 async function optionalTableRequest(path) {
@@ -123,6 +133,7 @@ async function optionalTableRequest(path) {
 }
 
 async function authRequest(path, body) {
+  const revision = sessionRevision
   if (!supabaseEnabled) {
     throw new Error('Supabase não configurado')
   }
@@ -134,6 +145,7 @@ async function authRequest(path, body) {
   })
 
   const payload = await response.json().catch(() => ({}))
+  assertCurrentSession(revision)
 
   if (!response.ok) {
     throw serviceError(response.status, JSON.stringify(payload))
@@ -270,6 +282,7 @@ export async function refreshCoachSession(refreshToken) {
 }
 
 export async function loadRemoteData() {
+  const revision = sessionRevision
   const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
@@ -291,11 +304,14 @@ export async function loadRemoteData() {
     loadRemoteAppAdminSettings().catch(() => null),
   ])
 
+  const questionnaires = await loadRemoteQuestionnaires()
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
   const hydratedMessages = await Promise.all(messages.map(hydrateMessageRow))
   const hydratedWorkouts = await Promise.all(workouts.map(hydrateWorkoutRow))
+  assertCurrentSession(revision)
 
   return {
+    ...questionnaires,
     user: users[0] ? fromUserRow(users[0]) : null,
     students: students.map(fromStudentRow),
     checkins: hydratedCheckins,
@@ -590,9 +606,19 @@ export async function loadRemoteStudentByInvite(code) {
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
   const exerciseLibrary = await optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc')
+  let assignments = []
+  let questionnaireError = ''
+  try {
+    assignments = await rpcRequest('student_nutrition_questionnaires', { invite_code: code })
+  } catch (error) {
+    if (!/PGRST202/.test(error.message)) throw error
+    questionnaireError = 'Questionários indisponíveis neste momento. Solicite ao profissional a atualização do serviço.'
+  }
 
   return {
     invite: fromInviteRow(invite),
+    studentQuestionnaireAssignments: assignments.map(fromQuestionnaireAssignmentRow),
+    questionnaireError,
     student: fromStudentRow(payload.student),
     consentAccepted: Boolean(payload.consent_accepted),
     checkins: hydratedCheckins,
@@ -871,9 +897,51 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
   }
 }
 
-export async function saveRemoteNutritionQuestionnaire() {
-  // Remote nutrition questionnaires require Supabase schema setup before server persistence.
-  throw new Error('Questionários de nutrição ainda precisam da atualização de schema no Supabase para sincronização remota.')
+function fromQuestionnaireRow(row) {
+  return { ...row, coachId: row.coach_id, createdAt: row.created_at, updatedAt: row.updated_at }
+}
+
+function fromQuestionnaireAssignmentRow(row) {
+  return {
+    id: row.id, coachId: row.coach_id, studentId: row.student_id,
+    questionnaireId: row.questionnaire_id, questionSnapshot: row.question_snapshot,
+    answers: row.answers || {}, status: row.status, sentAt: row.sent_at,
+    completedAt: row.completed_at, updatedAt: row.updated_at,
+    xpAwarded: row.status === 'Respondido',
+  }
+}
+
+export async function loadRemoteQuestionnaires() {
+  const [models, assignments] = await Promise.all([
+    optionalTableRequest('nutrition_questionnaires?select=*&order=updated_at.desc'),
+    optionalTableRequest('nutrition_questionnaire_assignments?select=*&order=sent_at.desc'),
+  ])
+  return { nutritionQuestionnaires: models.map(fromQuestionnaireRow), studentQuestionnaireAssignments: assignments.map(fromQuestionnaireAssignmentRow) }
+}
+
+export async function saveRemoteNutritionQuestionnaire(questionnaire, coachId) {
+  const rows = await request('nutrition_questionnaires?on_conflict=id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({
+      id: questionnaire.id, coach_id: requireCoachId(coachId), title: questionnaire.title,
+      description: questionnaire.description || '', questions: questionnaire.questions,
+      status: questionnaire.status || 'Rascunho', updated_at: new Date().toISOString(),
+    }),
+  })
+  return fromQuestionnaireRow(rows[0])
+}
+
+export async function assignRemoteNutritionQuestionnaire(questionnaireId, studentId) {
+  return fromQuestionnaireAssignmentRow(await rpcRequest('assign_nutrition_questionnaire', {
+    selected_questionnaire_id: questionnaireId, selected_student_id: studentId,
+  }))
+}
+
+export async function submitRemoteNutritionQuestionnaire(inviteCode, assignmentId, answers) {
+  return fromQuestionnaireAssignmentRow(await rpcRequest('submit_nutrition_questionnaire', {
+    invite_code: inviteCode, selected_assignment_id: assignmentId, answers_value: answers,
+  }))
 }
 
 export async function archiveRemoteNutritionPlan(planId, coachId, active = false) {

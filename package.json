@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "pnpm run build && pnpm dlx wrangler@4 dev",
     "deploy": "pnpm run build && pnpm dlx wrangler@4 deploy",
-    "test": "node scripts/theme-smoke.mjs && node --test scripts/workout-flow-contract.test.mjs scripts/workout-session.test.mjs scripts/workouts-regression.test.mjs scripts/nutrition-plan-access.test.mjs",
+    "test": "node scripts/theme-smoke.mjs && node --test scripts/workout-flow-contract.test.mjs scripts/workout-session.test.mjs scripts/workouts-regression.test.mjs scripts/nutrition-plan-access.test.mjs scripts/product-safety.test.mjs",
+    "test:database": "node scripts/product-database.test.mjs",
+    "test:browser": "node scripts/product-browser.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "node scripts/theme-smoke.mjs"
   },
@@ -19,6 +21,7 @@
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",

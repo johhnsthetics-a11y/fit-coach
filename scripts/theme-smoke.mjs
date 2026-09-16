@@ -22,9 +22,9 @@ const checks = [
   ['App light theme CSS exists', css.includes('.app-theme-light')],
   ['Sales light theme CSS exists', css.includes('.sales-theme-light')],
   ['Theme toggle CSS exists', css.includes('.theme-toggle')],
-  ['Build marker identifies the restored workouts library release', app.includes("COACH_FIT_PRO_BUILD_MARKER = 'workouts-library-restored-20260911'")],
-  ['Service worker cache was bumped for the restored workouts library', sw.includes('coach-fit-pro-pwa-20260911-workouts-library-v3')],
-  ['Public version identifies the restored workouts library release', version.includes('workouts-library-restored-20260911')],
+  ['Build marker matches public version', app.includes(`COACH_FIT_PRO_BUILD_MARKER = '${version.trim()}'`)],
+  ['Service worker cache is versioned for the product audit', sw.includes('coach-fit-pro-pwa-20260916-product-audit-v1')],
+  ['Public version identifies the product audit', version.includes('product-audit-20260916')],
   ['Exercise cards keep their content and actions visible on mobile', css.includes('.app-shell:not(.sales-page) .mobile-workout-picker-results > button') && css.includes('min-height: 116px') && css.includes('.mobile-workout-sheet.is-exercise-picker .mobile-workout-primary:last-child')],
   ['Official brand logo constant exists', app.includes('OFFICIAL_BRAND_LOGO = fitCoachLogo')],
   ['BrandLockup does not read stored logoUrl', !/function BrandLockup[\s\S]*?loadLocalAdminSettings\(\)\.logoUrl/.test(app)],
@@ -137,7 +137,7 @@ const checks = [
   ['Workout student PDF export respects routine setting', app.includes('canStudentDownloadPdf') && app.includes('Baixar treino em PDF')],
   ['Workout quick flow light panels have solid theme polish', css.includes('workout-quick-flow-light-panels-v1') && css.includes('.app-theme-light .mobile-workout-sheet') && css.includes('.app-theme-light .mobile-workout-day-screen')],
   ['Workout edits update the existing routine instead of duplicating it', app.includes('editingWorkoutId') && app.includes('function upsertWorkouts') && app.includes('upsertWorkouts(current.workouts ?? [], savedWorkout)')],
-  ['Remote workout save patches existing routines and refreshes exercises', api.includes('const isUpdatingWorkout = isUuid(workout.id)') && api.includes("method: isUpdatingWorkout ? 'PATCH' : 'POST'") && api.includes('workout_exercises?workout_id=eq.')],
+  ['Remote workout save is atomic and ownership-protected', api.includes("rpcRequest('save_coach_workout'") && api.includes('workout_payload: buildPayload') && !api.includes('workout_exercises?workout_id=eq.')],
   ['Workout student preview opens as a theme-aware portal', app.includes('workout-student-preview-portal-v1') && app.includes('mobile-workout-student-preview-panel') && css.includes('workout-student-preview-portal-v1') && css.includes('.mobile-workout-student-preview-portal.app-theme-light')],
   ['Workout day preview opens in a focused overlay, not buried inline', app.includes('workout-day-preview-portal-v1') && app.includes('mobile-workout-day-preview-panel') && css.includes('workout-day-preview-portal-v1')],
   ['Workout audit polish keeps critical actions and picker scroll accessible', css.includes('workout-audit-responsive-polish-v2') && css.includes('max-height: min(88dvh, 760px)') && css.includes('position: sticky')],
@@ -164,7 +164,7 @@ const checks = [
   ['Workout progression undo safely handles legacy exercise payloads', app.includes('getWorkoutExercisesArray(workout.exercises).some((exercise) => normalizeText(normalizeWorkoutExerciseInput(exercise).name)') && !app.includes('(workout.exercises || []).some((exercise)')],
   ['Core app pages tolerate temporarily missing collection props', app.includes('function Workouts({ selectedStudent, students = [], workouts = []') && app.includes('function Payments({ students = [], invoices = []') && app.includes('function Messages({ students = [], messages = []') && app.includes('function Notifications({ notifications = []')],
   ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
-  ['Nutrition questionnaire schema is documented but not executed', api.includes('saveRemoteNutritionQuestionnaire') && api.includes('Remote nutrition questionnaires require Supabase schema setup')]
+  ['Nutrition questionnaires persist through protected assignments and submission RPCs', api.includes("rpcRequest('assign_nutrition_questionnaire'") && api.includes("rpcRequest('submit_nutrition_questionnaire'")]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)

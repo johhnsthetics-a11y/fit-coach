@@ -19,6 +19,19 @@ const base = {
   updatedAt: '2026-09-15T12:00:00.000Z',
 }
 
+test('conclusão confirmada não é substituída por progresso atrasado', () => {
+  const completed = { ...base, completedLog: { id: 'log-1' } }
+  const late = { ...base, updatedAt: '2099-01-01T00:00:00Z' }
+  assert.equal(mergeWorkoutSession(completed, late).status, 'completed')
+  assert.equal(mergeWorkoutSession(late, completed).status, 'completed')
+})
+
+test('sessões de outro aluno ou treino nunca se misturam', () => {
+  const local = { ...base, studentId: 'student-a' }
+  assert.equal(mergeWorkoutSession(local, { ...base, studentId: 'student-b', updatedAt: '2099-01-01' }).studentId, 'student-a')
+  assert.equal(mergeWorkoutSession(local, { ...base, workoutId: 'workout-b', updatedAt: '2099-01-01' }).workoutId, 'workout-a')
+})
+
 test('normaliza sessão válida sem compartilhar referências mutáveis', () => {
   const normalized = normalizeWorkoutSession(base)
   assert.equal(normalized.completionToken, base.completionToken)

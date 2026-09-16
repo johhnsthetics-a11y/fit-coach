@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-pwa-20260911-workouts-end-to-end-v1'
+const CACHE_NAME = 'coach-fit-pro-pwa-20260916-product-audit-v1'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
@@ -12,7 +12,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('coach-fit-pro-') && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   )
 })
@@ -31,21 +31,25 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
         .then((response) => {
+          if (!response.ok || !response.headers.get('Content-Type')?.includes('text/html')) return response
           const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy))
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)))
           return response
         })
-        .catch(() => caches.match('/index.html')),
+        .catch(async () => (await caches.match('/index.html')) || new Response('Sem conexão. Reconecte para abrir o aplicativo.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
     )
     return
   }
 
+  // Cache only public build assets, never API responses, invitations or user data.
+  if (request.headers.has('Authorization') || url.search || !(/\.(?:js|css|png|jpg|jpeg|webp|svg|woff2?)$/.test(url.pathname))) return
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached
       return fetch(request).then((response) => {
+        if (!response.ok || response.type === 'opaque') return response
         const copy = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)))
         return response
       })
     }),

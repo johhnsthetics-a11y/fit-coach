@@ -32,7 +32,7 @@ export function normalizeWorkoutSession(value) {
     studentId: value.studentId || value.student_id || '',
     workoutId: value.workoutId || value.workout_id || '',
     completionToken,
-    status: value.status === 'completed' ? 'completed' : 'in_progress',
+    status: value.status === 'completed' || value.completedLog ? 'completed' : 'in_progress',
     activeDayIndex: safeIndex(value.activeDayIndex),
     activeExerciseIndex: safeIndex(value.activeExerciseIndex),
     setLogs: safeObject(value.setLogs),
@@ -50,6 +50,11 @@ export function mergeWorkoutSession(localValue, remoteValue) {
   const remote = normalizeWorkoutSession(remoteValue)
   if (!local) return remote
   if (!remote) return local
+  if (local.studentId && remote.studentId && local.studentId !== remote.studentId) return local
+  if (local.workoutId && remote.workoutId && local.workoutId !== remote.workoutId) return local
+  if (local.completionToken === remote.completionToken && local.status !== remote.status) {
+    return local.status === 'completed' ? local : remote
+  }
 
   if (local.completionToken !== remote.completionToken) {
     if (local.status === 'in_progress' && remote.status === 'completed') return local

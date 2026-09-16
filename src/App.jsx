@@ -33,6 +33,9 @@ import {
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
   saveRemoteNutritionQuestionnaire,
+  assignRemoteNutritionQuestionnaire,
+  submitRemoteNutritionQuestionnaire,
+  loadRemoteQuestionnaires,
   saveRemoteStudent,
   saveRemoteMessage,
   saveRemoteWorkout,
@@ -72,7 +75,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'workouts-end-to-end-20260911'
+const COACH_FIT_PRO_BUILD_MARKER = 'product-audit-20260916'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1314,7 +1317,7 @@ function normalizeStoredData(value) {
 
 function mergeRecords(current = [], loaded = []) {
   const records = new Map()
-  const combined = [...loaded, ...current]
+  const combined = [...current, ...loaded]
   combined.forEach((item, index) => {
     const key = item?.id ? String(item.id) : `item-${index}-${item?.createdAt || item?.completedAt || ''}`
     records.set(key, item)
@@ -1372,8 +1375,6 @@ function prepareDataForStorage(data) {
       user: data.user ?? null,
       session: data.session ?? null,
       coachSettings: data.coachSettings ?? null,
-      nutritionQuestionnaires: data.nutritionQuestionnaires ?? [],
-      studentQuestionnaireAssignments: data.studentQuestionnaireAssignments ?? [],
       appAdminSettings: data.appAdminSettings ?? loadLocalAdminSettings(),
     }
   }
@@ -1523,7 +1524,7 @@ function useStoredData() {
               .catch(() => {
                 if (!active) return
                 setSupabaseSession('')
-                setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
+                setData(createInitialData())
                 setRemoteStatus('Sessão expirada')
                 setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
               })
@@ -1531,7 +1532,7 @@ function useStoredData() {
           }
 
           setSupabaseSession('')
-          setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
+                setData(createInitialData())
           setRemoteStatus('Sessão expirada')
           setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
           return
@@ -1667,6 +1668,7 @@ function AppContent() {
     })
   }, [])
   const subscriptionCheckRef = useRef(0)
+  const portalRequestRef = useRef(0)
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
@@ -1726,12 +1728,13 @@ function AppContent() {
 
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
+    if (activeView === 'nutricao' && resolvedView !== activeView && nutritionDraftDirty && !window.confirm('Existem alterações não salvas. Deseja sair e descartá-las?')) return
     if (nutritionistUser && !nutritionistViewIds.has(resolvedView) && resolvedView !== 'admin-master') {
       setActiveView('nutricao')
       return
     }
     setActiveView(resolvedView)
-  }, [activeView, nutritionistUser])
+  }, [activeView, nutritionistUser, nutritionDraftDirty])
 
   const setSelectedStudentIdSafely = useCallback((nextStudentId) => {
     if (
@@ -1763,7 +1766,7 @@ function AppContent() {
   }, [activeView])
 
   useEffect(() => {
-    if (shouldLockCoachTools && activeView !== 'assinatura' && activeView !== 'admin-master') {
+    if (shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(activeView)) {
       setActiveView('assinatura')
     }
   }, [shouldLockCoachTools, activeView])
@@ -1957,6 +1960,27 @@ function AppContent() {
     if (!supabaseEnabled || !data.session?.access_token || studentAccess) return undefined
 
     let active = true
+    let pending = false
+    const sync = async () => {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
+      try {
+        const questionnaires = await loadRemoteQuestionnaires()
+        if (active) setData((current) => ({ ...current, ...questionnaires }))
+      } catch (error) {
+        if (active) setRemoteError(error.message || 'Não foi possível atualizar os questionários.')
+      } finally { pending = false }
+    }
+    sync()
+    const timer = window.setInterval(sync, 15000)
+    window.addEventListener('focus', sync)
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', sync) }
+  }, [data.session?.access_token, studentAccess?.invite?.code])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess) return undefined
+
+    let active = true
 
     async function syncCoachMessages() {
       try {
@@ -2053,7 +2077,7 @@ function AppContent() {
           if (!current?.invite?.code || current.invite.code !== latestAccess.invite?.code) return current
           return {
             ...latestAccess,
-            messages: mergeRecords(latestAccess.messages, current.messages),
+            messages: mergeRecords(current.messages, latestAccess.messages),
           }
         })
       } catch {
@@ -2112,7 +2136,8 @@ function AppContent() {
           ? await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || role })
           : remoteData.user || await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || undefined })
         setData((current) => ({
-          ...current,
+          ...createInitialData(),
+          ...remoteData,
           session,
           user: savedUser,
           students: remoteData.students,
@@ -2159,6 +2184,7 @@ function AppContent() {
   }
 
   function logout() {
+    portalRequestRef.current += 1
     const accessToken = data.session?.access_token
     if (accessToken) {
       signOutCoach(accessToken).catch(() => {})
@@ -2166,25 +2192,8 @@ function AppContent() {
     setSupabaseSession('')
     setStudentAccess(null)
     setSelectedStudentId(null)
-    setData((current) => ({
-      ...current,
-      user: null,
-      session: null,
-      students: [],
-      checkins: [],
-      notifications: [],
-      workouts: [],
-      nutritionPlans: [],
-      workoutLogs: [],
-      messages: [],
-      appointments: [],
-      invoices: [],
-      assessments: [],
-      invites: [],
-      anamneses: [],
-      coachSettings: null,
-      coachSubscription: null,
-    }))
+    window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+    setData(createInitialData())
   }
 
   async function requestAccountDeletion(confirmation) {
@@ -2237,7 +2246,7 @@ function AppContent() {
             setSupabaseSession('')
             setRemoteStatus('Sessão expirada')
             setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
-            setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
+                setData(createInitialData())
           })
         return
       }
@@ -2245,7 +2254,7 @@ function AppContent() {
       setSupabaseSession('')
       setRemoteStatus('Sessão expirada')
       setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
-      setData((current) => ({ ...current, user: null, session: null, students: [], checkins: [], notifications: [], workouts: [], nutritionPlans: [], workoutLogs: [], messages: [], appointments: [], invoices: [], assessments: [], invites: [], anamneses: [], coachSettings: null, coachSubscription: null }))
+                setData(createInitialData())
       return
     }
 
@@ -2650,7 +2659,7 @@ function AppContent() {
 
   async function saveNutritionQuestionnaire(questionnaire) {
     const now = new Date().toISOString()
-    const savedQuestionnaire = {
+    let savedQuestionnaire = {
       ...questionnaire,
       id: questionnaire.id || createNutritionDraftId('nutrition-questionnaire'),
       coachId: data.user?.id || '',
@@ -2659,51 +2668,37 @@ function AppContent() {
       createdAt: questionnaire.createdAt || now,
     }
     if (supabaseEnabled) {
-      await saveRemoteNutritionQuestionnaire(savedQuestionnaire, data.user?.id).catch(() => {
-        setRemoteStatus('Questionário salvo localmente')
-        setRemoteError('')
-      })
+      savedQuestionnaire = await saveRemoteNutritionQuestionnaire(savedQuestionnaire, activeCoachId)
     }
     setData((current) => ({
       ...current,
       nutritionQuestionnaires: upsertById(current.nutritionQuestionnaires ?? [], savedQuestionnaire),
     }))
-    try { window.localStorage.setItem(NUTRITION_QUESTIONNAIRE_STORAGE_KEY, JSON.stringify(savedQuestionnaire)) } catch {}
     return savedQuestionnaire
   }
 
   async function assignNutritionQuestionnaire(questionnaire, studentId) {
     const savedQuestionnaire = await saveNutritionQuestionnaire({ ...questionnaire, status: 'Enviado' })
+    if (supabaseEnabled) {
+      const assignment = await assignRemoteNutritionQuestionnaire(savedQuestionnaire.id, studentId)
+      setData((current) => ({ ...current, studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments, assignment) }))
+      return assignment
+    }
     const now = new Date().toISOString()
     const notificationKey = `questionnaire-${savedQuestionnaire.id}-${studentId}`
-    let assignment = null
+    const existingPending = (data.studentQuestionnaireAssignments || []).find((item) => sameId(item.studentId, studentId) && sameId(item.questionnaireId, savedQuestionnaire.id) && item.status !== 'Respondido')
+    const assignment = {
+      ...(existingPending || {}),
+      id: existingPending?.id || createNutritionDraftId('student-questionnaire'),
+      questionnaireId: savedQuestionnaire.id, studentId, coachId: data.user?.id || '',
+      status: 'Pendente', questionSnapshot: savedQuestionnaire,
+      answers: existingPending?.answers || {}, xpAwarded: false,
+      sentAt: existingPending?.sentAt || now, updatedAt: now,
+    }
     setData((current) => ({
       ...current,
       nutritionQuestionnaires: upsertById(current.nutritionQuestionnaires ?? [], savedQuestionnaire),
-      studentQuestionnaireAssignments: (() => {
-        const currentAssignments = current.studentQuestionnaireAssignments ?? []
-        const existingPending = currentAssignments.find((item) => (
-          sameId(item.studentId, studentId)
-          && sameId(item.questionnaireId, savedQuestionnaire.id)
-          && item.status !== 'Respondido'
-        ))
-        assignment = {
-          ...(existingPending || {}),
-          id: existingPending?.id || createNutritionDraftId('student-questionnaire'),
-          questionnaireId: savedQuestionnaire.id,
-          studentId,
-          coachId: data.user?.id || '',
-          status: 'Pendente',
-          questionSnapshot: savedQuestionnaire,
-          answers: existingPending?.answers || {},
-          xpAwarded: false,
-          sentAt: existingPending?.sentAt || now,
-          updatedAt: now,
-        }
-        return existingPending
-          ? currentAssignments.map((item) => sameId(item.id, assignment.id) ? assignment : item)
-          : [assignment, ...currentAssignments]
-      })(),
+      studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments || [], assignment),
       notifications: [
         { id: notificationKey, title: 'Questionário enviado', body: `Questionário nutricional liberado para ${current.students.find((student) => String(student.id) === String(studentId))?.name || 'o aluno'}.`, read: false },
         ...current.notifications.filter((notification) => notification.id !== notificationKey),
@@ -2713,21 +2708,20 @@ function AppContent() {
   }
 
   async function submitStudentQuestionnaire(assignmentId, answers = {}) {
+    if (supabaseEnabled) {
+      if (!studentAccess?.invite?.code) throw new Error('Abra o questionário pelo acesso do aluno para responder.')
+      const assignment = await submitRemoteNutritionQuestionnaire(studentAccess.invite.code, assignmentId, answers)
+      setStudentAccess((current) => current?.student?.id === assignment.studentId
+        ? { ...current, studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments || [], assignment) } : current)
+      return assignment
+    }
     const now = new Date().toISOString()
-    let completedAssignment = null
+    const assignment = (data.studentQuestionnaireAssignments || []).find((item) => sameId(item.id, assignmentId))
+    if (!assignment) throw new Error('Questionário não encontrado.')
+    if (assignment.status === 'Respondido') return assignment
+    const completedAssignment = { ...assignment, answers, status: 'Respondido', completedAt: now, updatedAt: now, xpAwarded: true }
     setData((current) => {
-      const assignments = (current.studentQuestionnaireAssignments ?? []).map((assignment) => {
-        if (!sameId(assignment.id, assignmentId)) return assignment
-        completedAssignment = {
-          ...assignment,
-          answers,
-          status: 'Respondido',
-          completedAt: now,
-          updatedAt: now,
-          xpAwarded: assignment.xpAwarded || true,
-        }
-        return completedAssignment
-      })
+      const assignments = upsertById(current.studentQuestionnaireAssignments || [], completedAssignment)
       const student = current.students.find((item) => sameId(item.id, completedAssignment?.studentId))
       return {
         ...current,
@@ -2966,6 +2960,8 @@ function AppContent() {
       workoutLogs: data.workoutLogs,
       workoutProgressionDecisions: data.workoutProgressionDecisions,
       nutritionPlans: data.nutritionPlans,
+      nutritionQuestionnaires: data.nutritionQuestionnaires,
+      studentQuestionnaireAssignments: data.studentQuestionnaireAssignments,
       appointments: data.appointments,
       invoices: data.invoices,
       assessments: data.assessments,
@@ -3119,8 +3115,10 @@ function AppContent() {
 
   async function refreshStudentConversation() {
     if (!supabaseEnabled || !studentAccess?.invite?.code) return []
+    const requestId = portalRequestRef.current
     try {
       const latestMessages = await loadRemoteStudentMessagesByInvite(studentAccess.invite.code)
+      if (requestId !== portalRequestRef.current) return []
       setStudentAccess((current) => (
         current ? { ...current, messages: mergeRecords(current.messages, latestMessages) } : current
       ))
@@ -3137,15 +3135,18 @@ function AppContent() {
   async function enterStudentByInvite(code, options = {}) {
     const cleanCode = code.trim()
     if (!cleanCode) return false
+    const requestId = ++portalRequestRef.current
 
     try {
       const access = await loadRemoteStudentByInvite(cleanCode)
+      if (requestId !== portalRequestRef.current) return false
       setStudentAccess(access)
       window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || cleanCode)
       setRemoteStatus('Convite carregado')
       setRemoteError('')
       return true
     } catch (error) {
+      if (requestId !== portalRequestRef.current) return false
       window.localStorage.removeItem(STUDENT_ACCESS_KEY)
       if (options.silent) return false
       handleRemoteError(error, 'Erro no convite')
@@ -3155,9 +3156,11 @@ function AppContent() {
 
   async function acceptStudentConsent() {
     if (!studentAccess?.invite?.code) return
+    const requestId = portalRequestRef.current
 
     try {
       const access = await acceptRemoteStudentConsent(studentAccess.invite.code)
+      if (requestId !== portalRequestRef.current) return
       setStudentAccess(access)
       window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
       setRemoteStatus('Consentimento registrado')
@@ -3169,9 +3172,11 @@ function AppContent() {
 
   async function submitStudentAnamnesis(answers) {
     if (!studentAccess?.invite?.code) return
+    const requestId = portalRequestRef.current
 
     try {
       const access = await submitRemoteStudentAnamnesis(studentAccess.invite.code, answers)
+      if (requestId !== portalRequestRef.current) return
       setStudentAccess(access)
       window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
       setRemoteStatus('Anamnese enviada ao coach')
@@ -3183,6 +3188,7 @@ function AppContent() {
   }
 
   function exitStudentAccess() {
+    portalRequestRef.current += 1
     setStudentAccess(null)
     window.localStorage.removeItem(STUDENT_ACCESS_KEY)
   }
@@ -3248,12 +3254,13 @@ function AppContent() {
 
     return (
       <StudentAccessApp
+        key={studentAccess.student.id}
         access={studentAccess}
         checkins={data.checkins}
         workouts={studentAccess.workouts ?? []}
         nutritionPlans={studentAccess.nutritionPlans ?? []}
         nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
-        questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
+        questionnaireAssignments={studentAccess.studentQuestionnaireAssignments ?? []}
         workoutLogs={mergeRecords(data.workoutLogs, studentAccess.workoutLogs)}
         exerciseLibraryItems={studentAccess.exerciseLibrary ?? data.exerciseLibrary ?? []}
         messages={mergeRecords(data.messages, studentAccess.messages)}
@@ -3384,7 +3391,7 @@ function AppContent() {
             {visibleNavItems.map((item) => {
               const tone = getNavToneClasses(item.tone)
               const isActive = activeView === item.id
-              const isLocked = shouldLockCoachTools && item.id !== 'assinatura' && item.id !== 'admin-master'
+              const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(item.id)
 
               return (
                 <button
@@ -3486,7 +3493,7 @@ function AppContent() {
           {activeView === 'visao' ? (
           <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label="Ações rápidas do treinador">
             {coachMobileQuickActions.map((action) => {
-              const isLocked = shouldLockCoachTools && action.id !== 'assinatura' && action.id !== 'admin-master'
+              const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(action.id)
               return (
                 <button
                   key={action.id}
@@ -3702,7 +3709,7 @@ function AppContent() {
       <nav className="coach-mobile-bottom-nav lg:hidden" aria-label="Navegação rápida do treinador">
         {coachMobileBottomItems.map((item) => {
           const isActive = activeView === item.id
-          const isLocked = shouldLockCoachTools && item.id !== 'assinatura' && item.id !== 'admin-master'
+          const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(item.id)
           return (
             <button
               key={item.id}
@@ -4892,7 +4899,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         <section className="sales-section mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
           <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
             <div data-reveal>
-              <p className="text-sm font-black uppercase text-emerald-200">Prova social que aumenta confiança</p>
+              <p className="text-sm font-black uppercase text-emerald-200">Rotina profissional</p>
               <h2 className="mt-3 text-3xl font-black leading-tight text-white sm:text-5xl">
                 Treinadores percebem valor quando a entrega fica clara, organizada e fácil de acompanhar.
               </h2>
@@ -4902,16 +4909,12 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {[
-                ['★★★★★', 'O painel reúne treino, dieta, cobrança e comunicação com o aluno em um único lugar. A rotina fica muito mais organizada.', 'Camila Andrade', 'Personal trainer'],
-                ['★★★★★', 'Consigo acompanhar melhor meus alunos pelo celular e visualizar o que está pendente sem depender de planilhas e mensagens espalhadas.', 'Bruno Martins', 'Treinador on-line'],
-                ['★★★★★', 'Ficou muito mais fácil acompanhar cargas, check-ins, pagamentos e evolução sem precisar procurar informações em vários lugares.', 'Renata Oliveira', 'Treinadora presencial'],
-              ].map(([stars, quote, name, role]) => (
+                ['Treinos e orientações organizados por aluno.', 'Planejamento', 'Treinos e nutrição'],
+                ['Mensagens e pendências reunidas no painel.', 'Acompanhamento', 'Comunicação com o aluno'],
+                ['Cargas, check-ins e avaliações no histórico.', 'Evolução', 'Registro de resultados'],
+              ].map(([quote, name, role]) => (
                 <div key={name} data-reveal className="sales-feature-card rounded-3xl border border-emerald-300/16 bg-white/[0.045] p-5 shadow-xl shadow-black/20">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-black text-emerald-300 drop-shadow-[0_0_12px_rgba(52,211,153,0.55)]">{stars}</p>
-                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">5 estrelas</span>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-zinc-200">“{quote}”</p>
+                  <p className="text-sm leading-6 text-zinc-200">{quote}</p>
                   <div className="mt-5 border-t border-white/10 pt-4">
                     <p className="text-sm font-black text-white">{name}</p>
                     <p className="mt-1 text-xs text-zinc-500">{role}</p>
@@ -11582,7 +11585,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     Promise.resolve(onLoadWorkoutSession(workout.id))
       .then((remoteValue) => {
         if (!active) return
-        const merged = mergeWorkoutSession(saved, remoteValue)
+        const merged = mergeWorkoutSession(loadStudentWorkoutExecution(student?.id, workout?.id), remoteValue)
         if (merged) {
           skipNextPersistRef.current = true
           setActiveDayIndex(merged.activeDayIndex)
@@ -11601,7 +11604,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       })
       .catch((loadError) => {
         if (!active) return
-        setRemoteHydrated(true)
+        setRemoteHydrated(false)
         setSyncState('error')
         setError(loadError?.message || 'Não foi possível recuperar o progresso salvo na nuvem.')
       })
@@ -11629,16 +11632,18 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     persistStudentWorkoutExecution(student.id, workout.id, execution)
     if (!remoteHydrated || completedLog || !onSaveWorkoutSession) return undefined
 
+    let active = true
     setSyncState('syncing')
     const syncTimer = window.setTimeout(() => {
       Promise.resolve(onSaveWorkoutSession(workout.id, execution))
-        .then(() => setSyncState('saved'))
+        .then(() => { if (active) setSyncState('saved') })
         .catch((saveError) => {
+          if (!active) return
           setSyncState('error')
           setError(saveError?.message || 'Seu progresso está neste aparelho e será sincronizado quando a conexão voltar.')
         })
     }, 450)
-    return () => window.clearTimeout(syncTimer)
+    return () => { active = false; window.clearTimeout(syncTimer) }
   }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
 
   useEffect(() => {
@@ -11800,6 +11805,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
         <div><span>Progresso do treino</span><strong>{completedSets}/{totalSets} séries</strong></div>
         <progress value={completedSets} max={Math.max(totalSets, 1)} />
         <small>{progress}% concluído{!preview ? ` · ${syncState === 'loading' ? 'Recuperando progresso' : syncState === 'syncing' ? 'Sincronizando' : syncState === 'error' ? 'Salvo neste aparelho' : 'Progresso salvo'}` : ''}</small>
+        {!preview && syncState === 'error' ? <button type="button" onClick={() => window.location.reload()}>Reconectar e recuperar progresso</button> : null}
       </div>
 
       {exercise ? (
@@ -12601,10 +12607,11 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
   <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script>
 </body>
 </html>`
-  const pdfWindow = window.open('', '_blank', 'noopener,noreferrer,width=980,height=760')
+  const pdfWindow = window.open('', '_blank', 'width=980,height=760')
   if (!pdfWindow) {
     throw new Error('Permita pop-ups para gerar o PDF da dieta.')
   }
+  pdfWindow.opener = null
   pdfWindow.document.open()
   pdfWindow.document.write(documentHtml)
   pdfWindow.document.close()
@@ -13035,6 +13042,7 @@ function createNutritionQuestionnaireDraft(base = {}) {
       { id: createNutritionDraftId('question'), type: 'multiple', label: 'Quais refeições costuma fazer no dia?', required: true, options: ['Café da manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'] },
       { id: createNutritionDraftId('question'), type: 'single', label: 'Você possui alguma restrição alimentar?', required: true, options: ['Não', 'Lactose', 'Glúten', 'Vegetariano', 'Outra'] },
     ]).map((question, index) => ({
+      ...question,
       id: question.id || createNutritionDraftId('question'),
       type: question.type || 'text',
       label: question.label || `Pergunta ${index + 1}`,
@@ -13048,6 +13056,29 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
   const [draft, setDraft] = useState(() => createNutritionQuestionnaireDraft())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+
+  async function persistQuestionnaire(send) {
+    if (savingRef.current) return
+    if (!draft.title.trim() || !draft.questions.length || draft.questions.some((q) => !q.label.trim() || (['single', 'multiple'].includes(q.type) && !q.options?.length))) {
+      setMessage('Informe o título, as perguntas e as opções de seleção.'); return
+    }
+    savingRef.current = true
+    setSaving(true)
+    try {
+      if (send) {
+        const assignment = await onAssignQuestionnaire({ ...draft, status: 'Enviado' }, selectedStudent.id)
+        if (assignment?.questionSnapshot) setDraft(createNutritionQuestionnaireDraft(assignment.questionSnapshot))
+        setMessage(`Questionário enviado para ${selectedStudent.name}.`)
+      } else {
+        const saved = await onSaveQuestionnaire({ ...draft, status: 'Rascunho' })
+        if (saved) setDraft(createNutritionQuestionnaireDraft(saved))
+        setMessage('Rascunho salvo.')
+      }
+    } catch (error) { setMessage(error.message || 'Não foi possível salvar. Tente novamente.') }
+    finally { savingRef.current = false; setSaving(false) }
+  }
 
   function updateQuestion(questionId, field, value) {
     setDraft((current) => ({
@@ -13075,15 +13106,12 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
   }
 
   async function handleSave(status = 'Rascunho') {
-    const saved = await onSaveQuestionnaire?.({ ...draft, status })
-    if (saved) setDraft(createNutritionQuestionnaireDraft(saved))
-    setMessage(status === 'Rascunho' ? 'Rascunho salvo.' : 'Questionário salvo.')
+    return persistQuestionnaire(false)
   }
 
   async function handleSend() {
     if (!selectedStudent?.id) return
-    await onAssignQuestionnaire?.({ ...draft, status: 'Enviado' }, selectedStudent.id)
-    setMessage(`Questionário enviado para ${selectedStudent.name}.`)
+    return persistQuestionnaire(true)
   }
 
   return (
@@ -13096,8 +13124,8 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setPreviewOpen(true)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Pré-visualizar</button>
-            <button type="button" onClick={() => handleSave('Rascunho')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Salvar rascunho</button>
-            <button type="button" onClick={handleSend} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950">Enviar ao aluno</button>
+            <button type="button" disabled={saving} onClick={() => handleSave('Rascunho')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar rascunho'}</button>
+            <button type="button" disabled={saving || !selectedStudent?.id} onClick={handleSend} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">Enviar ao aluno</button>
           </div>
         </div>
       </div>
@@ -13221,9 +13249,12 @@ function getQuestionnaireAnsweredCount(questions = [], answers = {}) {
 }
 
 function getMissingRequiredQuestion(questions = [], answers = {}) {
-  return questions.find((question) => (
-    question.required && !(Array.isArray(getQuestionnaireAnswerValue(answers[question.id])) ? getQuestionnaireAnswerValue(answers[question.id]).length : String(getQuestionnaireAnswerValue(answers[question.id]) || '').trim())
-  )) || null
+  return questions.find((question) => {
+    const value = getQuestionnaireAnswerValue(answers[question.id])
+    const selected = Array.isArray(value) ? value : [value]
+    const missingOther = selected.some((option) => optionRequiresOtherText(option)) && !String(getQuestionnaireAnswerMeta(answers[question.id]).otherText || '').trim()
+    return missingOther || (question.required && !(Array.isArray(value) ? value.length : String(value ?? '').trim()))
+  }) || null
 }
 
 function getQuestionnaireInputKind(type = 'text') {
@@ -13300,13 +13331,16 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
         return (
           <div key={question.id} className={`student-questionnaire-field ${hasError ? 'has-error' : ''}`}>
             <div className="student-questionnaire-field-head">
-              <p>{question.label}{question.required ? ' *' : ''}</p>
+              <p id={`question-label-${question.id}`}>{question.label}{question.required ? ' *' : ''}</p>
               {question.required ? <span>Obrigatória</span> : <span>Opcional</span>}
             </div>
 
             {kind === 'text' ? (
               <textarea
-                value={value || ''}
+                aria-labelledby={`question-label-${question.id}`}
+                aria-required={Boolean(question.required)}
+                aria-invalid={Boolean(hasError)}
+                value={value ?? ''}
                 onChange={(event) => onAnswer?.(question, event.target.value)}
                 rows={3}
                 disabled={readOnly}
@@ -13317,7 +13351,10 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
             {kind === 'number' || kind === 'date' ? (
               <input
                 type={kind === 'date' ? 'date' : 'number'}
-                value={value || ''}
+                aria-labelledby={`question-label-${question.id}`}
+                aria-required={Boolean(question.required)}
+                aria-invalid={Boolean(hasError)}
+                value={value ?? ''}
                 onChange={(event) => onAnswer?.(question, event.target.value)}
                 disabled={readOnly}
                 placeholder={kind === 'number' ? 'Informe o valor' : undefined}
@@ -13329,7 +13366,7 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
                 {[1, 2, 3, 4, 5].map((option) => {
                   const selected = String(value || '') === String(option)
                   return (
-                    <button key={option} type="button" disabled={readOnly} onClick={() => onAnswer?.(question, updateQuestionnaireAnswerValue(rawAnswer, option))} className={selected ? 'is-selected' : ''}>
+                    <button key={option} type="button" aria-pressed={selected} disabled={readOnly} onClick={() => onAnswer?.(question, updateQuestionnaireAnswerValue(rawAnswer, option))} className={selected ? 'is-selected' : ''}>
                       {option}
                     </button>
                   )
@@ -13340,12 +13377,13 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
             {kind === 'single' || kind === 'multiple' ? (
               <div className="student-questionnaire-options">
                 {options.map((option) => {
-                  const current = value
+                  const current = kind === 'multiple' ? (Array.isArray(value) ? value : []) : value
                   const selected = kind === 'multiple' ? (current || []).includes(option) : current === option
                   return (
                     <button
                       key={option}
                       type="button"
+                      aria-pressed={selected}
                       disabled={readOnly}
                       onClick={() => {
                         if (kind === 'multiple') {
@@ -13379,8 +13417,9 @@ function StudentQuestionnaireRenderer({ questions = [], answers = {}, onAnswer, 
 
             {selectable ? (
               <label className="student-questionnaire-observation-v1">
-                <span>Observação opcional</span>
+                <span id={`question-observation-${question.id}`}>Observação opcional</span>
                 <textarea
+                  aria-labelledby={`question-observation-${question.id}`}
                   value={answerMeta.observation || ''}
                   onChange={(event) => onAnswer?.(question, updateQuestionnaireAnswerMeta(rawAnswer, 'observation', event.target.value))}
                   rows={2}
@@ -14737,17 +14776,16 @@ function hasStudentAccess(student) {
   return Number.isFinite(overrideUntil) && overrideUntil > Date.now()
 }
 
-function sendLocalNotification(title, body) {
-  if (!('Notification' in window)) return
-  const show = () => new Notification(title, { body, icon: '/fit-coach-icon.svg' })
-  if (Notification.permission === 'granted') {
-    show()
-    return
-  }
-  if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') show()
-    })
+async function sendLocalNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false
+  try {
+    const registration = await navigator.serviceWorker?.getRegistration()
+    if (registration) await registration.showNotification(title, { body, icon: '/logoabre.png' })
+    else new Notification(title, { body, icon: '/logoabre.png' })
+    return true
+  } catch {
+    // Notification support varies by browser; workout persistence must not depend on it.
+    return false
   }
 }
 
@@ -14798,6 +14836,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       assessments={assessments}
       coachSettings={coachSettings}
       coachId={access.invite.coachId}
+      questionnaireError={access.questionnaireError || ''}
       appAdminSettings={appAdminSettings}
       theme={uiTheme}
       toggleUiTheme={toggleUiTheme}
@@ -14812,7 +14851,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -14837,10 +14876,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     try { return JSON.parse(window.localStorage.getItem(dismissedQuestionnaireStorageKey) || '[]') } catch { return [] }
   })
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
+  const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
   const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
   const studentAppointments = appointments
     .filter((appointment) => String(appointment.studentId) === String(student?.id))
     .filter((appointment) => !['Concluido', 'Cancelado'].includes(appointment.status))
+    .filter((appointment) => new Date(appointment.startsAt).getTime() >= Date.now())
     .slice()
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
   const studentAssessments = assessments
@@ -15038,7 +15079,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           nextAppointment={nextAppointment}
           waterMl={waterMl}
           waterGoalMl={waterGoalMl}
-          questionnaireAssignments={pendingQuestionnaireAssignments}
+          questionnaireAssignments={studentQuestionnaireAssignments}
           dismissedQuestionnairePriorityIds={dismissedQuestionnairePriorityIds}
           onAddWater={addWater}
           onResetWater={resetWater}
@@ -15122,6 +15163,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       const todayPlan = studentNutritionPlans[0]
       return (
         <StudentAppSection title="Dieta de hoje" action={todayPlan?.calories || student.calories || 'Macros'}>
+          {questionnaireError ? <p role="alert" className="mb-4 rounded-md border border-amber-400/40 p-3 text-sm">{questionnaireError}</p> : null}
           {todayPlan ? (
             <div className="student-nutrition-current-plan-v1 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 shadow-xl shadow-emerald-950/10">
               <div className="flex items-start gap-3">
@@ -15190,19 +15232,19 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     if (activeTab === 'agenda') {
       return (
         <StudentAppSection title="Agenda" action={`${studentAppointments.length} próximos`}>
-          {nextAppointment ? <div className="rounded-md border border-white/10 bg-white/[0.035] p-4"><h4 className="font-black">{nextAppointment.title}</h4><p className="mt-1 text-sm text-zinc-400">{nextAppointment.type} - {nextAppointment.durationMinutes} min</p><p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(nextAppointment.startsAt)}</p><p className="mt-1 text-sm text-zinc-400">{nextAppointment.location || 'Local a confirmar'}</p></div> : <Empty text="Nenhum compromisso futuro agendado." />}
+          {studentAppointments.length ? studentAppointments.map((appointment) => <div key={appointment.id} className="mb-3 rounded-md border border-white/10 bg-white/[0.035] p-4"><h4 className="font-black">{appointment.title}</h4><p className="mt-1 text-sm text-zinc-400">{appointment.type} - {appointment.durationMinutes} min</p><p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(appointment.startsAt)}</p><p className="mt-1 text-sm text-zinc-400">{appointment.location || 'Local a confirmar'}</p></div>) : <Empty text="Nenhum compromisso futuro agendado." />}
         </StudentAppSection>
       )
     }
 
     if (activeTab === 'progresso') {
-      return <StudentAppSection title="Progresso" action={`${checkins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} checkins={checkins.filter((item) => String(item.studentId) === String(student?.id))} /></StudentAppSection>
+      return <StudentAppSection title="Progresso" action={`${studentCheckins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} checkins={studentCheckins} /></StudentAppSection>
     }
 
     return (
       <StudentAppSection title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
         <WorkoutLogList logs={studentWorkoutLogs} />
-        {checkins.length ? <div className="mt-4 space-y-3">{checkins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
+        {studentCheckins.length ? <div className="mt-4 space-y-3">{studentCheckins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
       </StudentAppSection>
     )
   }
@@ -15272,7 +15314,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       ) : null}
 
       <div className="mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
-        <aside className="hidden lg:sticky lg:top-5 lg:block lg:self-start">
+        <aside className="student-desktop-sidebar lg:sticky lg:top-5 lg:self-start">
           <div className="rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
             <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
             <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
@@ -15371,7 +15413,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
   const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments })
-  const priorityQuestionnaire = questionnaireAssignments.find((assignment) => !dismissedQuestionnairePriorityIds.includes(assignment.id))
+  const priorityQuestionnaire = questionnaireAssignments.find((assignment) => assignment.status !== 'Respondido' && !dismissedQuestionnairePriorityIds.includes(assignment.id))
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextAppointment
@@ -15506,6 +15548,8 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
 }
 
 function StudentQuestionnaireCenter({ student, questionnaires = [], assignments = [], onSubmitQuestionnaire }) {
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const activeAssignments = assignments
     .filter((assignment) => assignment.status !== 'Respondido')
     .concat(assignments.filter((assignment) => assignment.status === 'Respondido').slice(0, 2))
@@ -15513,6 +15557,7 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   const currentAssignment = activeAssignments.find((assignment) => sameId(assignment.id, openAssignmentId)) || activeAssignments[0]
   const questionnaire = currentAssignment?.questionSnapshot || questionnaires.find((item) => sameId(item.id, currentAssignment?.questionnaireId))
   const draftKey = `coachfitpro-student-questionnaire-draft-${student?.id || 'student'}-${currentAssignment?.id || 'none'}`
+  const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey)
   const [answers, setAnswers] = useState(() => {
     try { return JSON.parse(window.localStorage.getItem(draftKey) || '{}') } catch { return {} }
   })
@@ -15520,6 +15565,7 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   const [missingQuestionId, setMissingQuestionId] = useState('')
 
   useEffect(() => {
+    setLoadedDraftKey(draftKey)
     if (currentAssignment?.status === 'Respondido') {
       setAnswers(currentAssignment.answers || {})
       setMessage('')
@@ -15532,9 +15578,9 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   }, [draftKey, currentAssignment?.status, currentAssignment?.id])
 
   useEffect(() => {
-    if (currentAssignment?.status === 'Respondido') return
+    if (currentAssignment?.status === 'Respondido' || loadedDraftKey !== draftKey) return
     try { window.localStorage.setItem(draftKey, JSON.stringify(answers)) } catch {}
-  }, [answers, draftKey, currentAssignment?.status])
+  }, [answers, draftKey, loadedDraftKey, currentAssignment?.status])
 
   if (!activeAssignments.length || !questionnaire) return null
 
@@ -15548,15 +15594,22 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   }
 
   async function submitAnswers() {
+    if (submittingRef.current) return
     const missing = getMissingRequiredQuestion(questions, answers)
     if (missing) {
       setMissingQuestionId(missing.id)
       setMessage(`Responda: ${missing.label}`)
       return
     }
-    await onSubmitQuestionnaire?.(currentAssignment.id, answers)
-    try { window.localStorage.removeItem(draftKey) } catch {}
-    setMessage(`Questionário concluído! Você ganhou ${QUESTIONNAIRE_XP_REWARD} XP.`)
+    submittingRef.current = true
+    setSubmitting(true)
+    try {
+      if (!onSubmitQuestionnaire) throw new Error('O envio não está disponível neste acesso.')
+      await onSubmitQuestionnaire(currentAssignment.id, answers)
+      try { window.localStorage.removeItem(draftKey) } catch {}
+      setMessage(`Questionário concluído! Você ganhou ${QUESTIONNAIRE_XP_REWARD} XP.`)
+    } catch (error) { setMessage(error.message || 'Não foi possível enviar. Suas respostas foram mantidas.') }
+    finally { submittingRef.current = false; setSubmitting(false) }
   }
 
   return (
@@ -15583,8 +15636,8 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
         <p>{answeredCount} de {questions.length} respostas salvas parcialmente.</p>
       </div>
       <StudentQuestionnaireRenderer questions={questions} answers={answers} onAnswer={updateAnswer} missingQuestionId={missingQuestionId} readOnly={currentAssignment.status === 'Respondido'} />
-      <button type="button" onClick={submitAnswers} disabled={currentAssignment.status === 'Respondido'} className="student-questionnaire-submit-v1">
-        {currentAssignment.status === 'Respondido' ? 'Questionário respondido' : 'Concluir questionário'}
+      <button type="button" onClick={submitAnswers} disabled={submitting || currentAssignment.status === 'Respondido'} className="student-questionnaire-submit-v1">
+        {submitting ? 'Enviando...' : currentAssignment.status === 'Respondido' ? 'Questionário respondido' : 'Concluir questionário'}
       </button>
       {message ? <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
     </div>
@@ -15824,6 +15877,7 @@ function StudentPaymentLock({ coachSettings, onOpenPayments, onOpenChat }) {
 function StudentPaymentStatement({ student, invoices = [], coachSettings, onSendMessage }) {
   const [noticeSending, setNoticeSending] = useState(false)
   const [noticeSent, setNoticeSent] = useState(false)
+  const [noticeError, setNoticeError] = useState('')
   const visibleInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
   const paidTotal = visibleInvoices.filter((invoice) => invoice.status === 'Pago').reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
   const pendingInvoices = visibleInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
@@ -15831,18 +15885,23 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, onSend
   const nextPendingInvoice = pendingInvoices[0]
 
   async function notifyPayment() {
+    if (noticeSending) return
     setNoticeSending(true)
     setNoticeSent(false)
+    setNoticeError('')
     const invoiceSummary = nextPendingInvoice
       ? `${nextPendingInvoice.description || nextPendingInvoice.planName || 'Mensalidade'} - ${formatCurrency(nextPendingInvoice.amount)} - vencimento ${formatDate(nextPendingInvoice.dueDate)}`
       : `Total informado no app: ${formatCurrency(pendingTotal)}`
-    await onSendMessage?.({
+    try {
+    if (!onSendMessage) throw new Error('Abra o chat para informar o pagamento ao treinador.')
+    await onSendMessage({
       studentId: student.id,
       sender: 'student',
       body: `Solicitação de validação de pagamento: ${student.name} informou que pagou. Cobrança: ${invoiceSummary}. Coach, confirme em Recebimentos para liberar o acesso.`,
-    }).catch(() => {})
-    setNoticeSending(false)
+    })
     setNoticeSent(true)
+    } catch (error) { setNoticeError(error.message || 'Não foi possível enviar. Tente novamente.') }
+    finally { setNoticeSending(false) }
   }
 
   return (
@@ -15871,6 +15930,7 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, onSend
             : 'Nenhuma cobrança em aberto no momento. Quando houver uma nova fatura, ela aparecerá somente nesta área.'}
         </p>
         {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">Solicitação enviada ao treinador.</p> : null}
+        {noticeError ? <p role="alert" className="mt-2 text-sm font-bold text-rose-400">{noticeError}</p> : null}
       </div>
 
       <div className="mt-5 grid gap-3">
@@ -15926,17 +15986,25 @@ function WorkoutFeedbackPrompt({ prompt, student, onSend, onClose }) {
   )
 }
 
-function StudentReminderCard({ title, body, action }) {
+function StudentReminderCard({ title, body }) {
   const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
+  const [notice, setNotice] = useState('')
 
   async function handleReminder() {
-    if (!('Notification' in window)) return
-    if (Notification.permission !== 'granted') {
-      const nextPermission = await Notification.requestPermission()
-      setPermission(nextPermission)
-      if (nextPermission !== 'granted') return
+    try {
+      if (!('Notification' in window)) return
+      if (Notification.permission !== 'granted') {
+        const nextPermission = await Notification.requestPermission()
+        setPermission(nextPermission)
+        if (nextPermission !== 'granted') {
+          setNotice('Notificações não autorizadas nas configurações do navegador.')
+          return
+        }
+      }
+      setNotice(await sendLocalNotification(title, body) ? 'Aviso enviado agora.' : 'Este navegador não permite enviar o aviso.')
+    } catch {
+      setNotice('Não foi possível ativar as notificações neste navegador.')
     }
-    sendLocalNotification(title, body)
   }
 
   return (
@@ -15944,10 +16012,11 @@ function StudentReminderCard({ title, body, action }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase text-blue-300">{title}</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-400">Receba um aviso no celular antes do compromisso.</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">Envie um aviso agora. Este recurso não agenda lembretes.</p>
+          {notice ? <p role="status" className="mt-1 text-xs">{notice}</p> : null}
         </div>
-        <button type="button" onClick={handleReminder} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
-          {permission === 'granted' ? 'Testar aviso' : action}
+        <button type="button" disabled={permission === 'unsupported'} onClick={handleReminder} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100 disabled:opacity-50">
+          {permission === 'unsupported' ? 'Indisponível' : permission === 'granted' ? 'Enviar aviso agora' : 'Ativar notificações'}
         </button>
       </div>
     </div>
@@ -18341,6 +18410,13 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
     .sort((a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0))
   const latestMessageId = studentMessages.at(-1)?.id
   const suggestion = buildMessageSuggestion(selectedStudent)
+
+  useEffect(() => {
+    setDraft('')
+    setAttachmentFile(null)
+    setAttachmentPreview('')
+    setError('')
+  }, [selectedStudent?.id])
 
   useEffect(() => {
     if (selectedStudentFromDashboard?.id) {

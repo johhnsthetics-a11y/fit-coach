@@ -12884,6 +12884,18 @@ html[data-theme="dark"] body { background: #05070d; }
   overflow-y: visible;
 }
 
+.student-desktop-sidebar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .student-desktop-sidebar {
+    display: block;
+    max-height: calc(100dvh - 2.5rem);
+    overflow-y: auto;
+  }
+}
+
 .student-mobile-shell main,
 .student-mobile-shell .student-app-section,
 .student-mobile-shell .mobile-workout-student-experience-v2,
