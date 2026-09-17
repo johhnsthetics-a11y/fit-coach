@@ -7,6 +7,8 @@ import * as chatAudio from '../chatAudioEnhancements.js'
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const audioCss = readFileSync(new URL('../chat-audio.css', import.meta.url), 'utf8')
 const audioSource = readFileSync(new URL('../chatAudioEnhancements.js', import.meta.url), 'utf8')
+const appSource = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8')
+const apiSource = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 
 const {
   CHAT_AUDIO_PLAYBACK_RATES,
@@ -92,4 +94,29 @@ test('camada de áudio trata troca de conversa, pagehide, Safari e teclado virtu
   assert.match(audioSource, /Object\.defineProperty/)
   assert.match(audioSource, /pointercancel/)
   assert.match(audioCss, /--chat-pro-visual-height/)
+})
+
+
+test('gravador React é a única fonte de gravação e exibe tempo/ondas no mobile', () => {
+  assert.match(appSource, /data-chat-native-audio-recorder/)
+  assert.match(appSource, /chat-native-recording-time/)
+  assert.match(appSource, /chat-native-recording-wave/)
+  assert.match(appSource, /recordingElapsedMs/)
+  assert.match(audioSource, /data-chat-native-audio-recorder/)
+  assert.doesNotMatch(audioCss, /@media \(max-width: 390px\)[\s\S]*?\.chat-pro-recording-wave\s*\{\s*display:\s*none/)
+})
+
+test('preview nativo de áudio permanece dentro do composer sem salto de layout', () => {
+  assert.match(appSource, /chat-native-audio-preview/)
+  assert.match(appSource, /chat-native-audio-composer/)
+  assert.doesNotMatch(appSource, /requestSubmit\(submitButton/)
+})
+
+test('chat expõe ações persistentes de editar e apagar mensagem', () => {
+  assert.match(apiSource, /export async function updateRemoteMessage/)
+  assert.match(apiSource, /export async function deleteRemoteMessage/)
+  assert.match(apiSource, /export async function updateRemoteStudentMessage/)
+  assert.match(apiSource, /export async function deleteRemoteStudentMessage/)
+  assert.match(appSource, /Editar/)
+  assert.match(appSource, /Apagar/)
 })
