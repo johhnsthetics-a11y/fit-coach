@@ -31,6 +31,11 @@ test('chat possui estados visuais para gravação, preview e player mobile', () 
   assert.match(audioCss, /100dvh/)
 })
 
+test('player de áudio cabe na bolha em telas mobile estreitas', () => {
+  assert.doesNotMatch(audioCss, /min-width:\s*min\(17\.4rem,\s*76vw\)/)
+  assert.match(audioCss, /\.chat-pro-audio-player\s*\{[\s\S]*?max-width:\s*100%/)
+})
+
 test('gestos de gravação distinguem cancelar, travar e manter pressionado', () => {
   assert.equal(classifyChatAudioGesture({ dx: -96, dy: -20 }), 'cancel')
   assert.equal(classifyChatAudioGesture({ dx: -10, dy: -90 }), 'lock')
