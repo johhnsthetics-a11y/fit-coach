@@ -392,10 +392,6 @@ html[data-theme="dark"] .chat-pro-recording-cancel-ready .chat-pro-recording-pan
 }
 
 @media (max-width: 390px) {
-  .chat-pro-recording-wave {
-    display: none;
-  }
-
   .chat-pro-recording-hint {
     max-width: 8.4rem;
   }
@@ -414,4 +410,46 @@ html[data-theme="dark"] .chat-pro-recording-cancel-ready .chat-pro-recording-pan
   .chat-pro-recording-wave i {
     animation: none !important;
   }
+}
+
+
+.chat-native-audio-composer { min-width: 0; max-width: 100%; }
+.chat-native-audio-preview { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; contain: layout; }
+.chat-native-audio-preview audio { width: 100%; min-width: 0; max-width: 100%; }
+.chat-native-audio-recorder { width: 100%; min-width: 0; }
+.chat-native-audio-button {
+  display: flex; min-width: 0; align-items: center; justify-content: center; gap: .42rem;
+  touch-action: none; -webkit-user-select: none; user-select: none; overflow: hidden;
+}
+.chat-native-recording-dot {
+  width: .55rem; height: .55rem; flex: 0 0 auto; border-radius: 999px; background: #ef4444;
+  animation: chat-pro-recording-pulse 1s ease-in-out infinite;
+}
+.chat-native-recording-time { flex: 0 0 auto; min-width: 2.65rem; font-variant-numeric: tabular-nums; }
+.chat-native-recording-wave {
+  display: inline-flex; min-width: 2.8rem; height: 1.4rem; flex: 1 1 4.8rem;
+  align-items: center; justify-content: center; gap: 2px; overflow: hidden;
+}
+.chat-native-recording-wave i {
+  width: 2px; height: calc(6px + (var(--chat-native-wave-index) % 5) * 3px); flex: 0 0 2px;
+  border-radius: 999px; background: currentColor; opacity: .7;
+  animation: chat-pro-recording-wave 680ms ease-in-out infinite;
+  animation-delay: calc(var(--chat-native-wave-index) * -55ms);
+}
+.chat-native-recording-hint {
+  min-width: 0; max-width: 8.5rem; overflow: hidden; flex: 1 1 auto;
+  font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; opacity: .82;
+}
+@media (max-width: 760px) {
+  .chat-native-audio-composer { position: relative; width: 100%; max-width: 100%; overflow: visible; }
+  .chat-native-audio-preview { position: static; width: 100%; max-width: 100%; padding: .55rem !important; }
+  .chat-native-audio-preview > div { min-width: 0; align-items: center; gap: .5rem; }
+  .chat-native-audio-preview audio { min-width: 0; max-width: min(13rem, 58vw); }
+  .chat-native-audio-button { min-height: 2.8rem; padding-inline: .6rem !important; }
+  .chat-native-recording-hint { max-width: 6.5rem; }
+  .chat-native-recording-wave { display: inline-flex !important; min-width: 2.4rem; max-width: 4.4rem; }
+}
+@media (max-width: 390px) {
+  .chat-native-recording-wave { min-width: 2rem; max-width: 3.4rem; }
+  .chat-native-recording-hint { max-width: 4.6rem; font-size: .6rem; }
 }
