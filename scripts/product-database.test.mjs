@@ -13,15 +13,24 @@ create table workouts(id uuid primary key default gen_random_uuid(),coach_id uui
 create table workout_exercises(id uuid primary key default gen_random_uuid(),workout_id uuid references workouts(id),name text,sets text,reps text,load text,rest text,muscle_group text,equipment text,instructions text,video_url text,image_url text,external_id text,order_index integer);
 create table workout_logs(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid,workout_id uuid,title text,effort text,notes text,completed_at timestamptz default now());
 create table student_invites(id uuid default gen_random_uuid(),coach_id uuid,student_id uuid,code text,status text,expires_at timestamptz,created_at timestamptz default now());
+create table nutrition_plans(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid references students(id),title text,calories text,protein text,notes text,active boolean default true,created_at timestamptz default now());
+create table nutrition_meals(id uuid primary key default gen_random_uuid(),nutrition_plan_id uuid references nutrition_plans(id) on delete cascade,name text,foods text,macros text,time_label text,order_index integer default 0);
 insert into auth.users values('${coach}'),('${other}');
 insert into students values('${student}','${coach}'),('${studentB}','${other}');
 insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');`)
-for (const file of ['20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql','20260916_questionnaire_sync.sql']) {
+for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql','20260916_questionnaire_sync.sql']) {
   await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))
 }
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
 await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${coach}',false);`)
+const nutritionPayload={student_id:student,title:'Dieta QA',calories:'2200',protein:'160',notes:'QA',meals:[{name:'Almoco',foods:'Arroz e frango',macros:'P 45 C 70 G 12',time:'12:00',order_index:0}]}
+const savedNutrition=(await db.query('select save_nutrition_plan($1::jsonb) as value',[JSON.stringify(nutritionPayload)])).rows[0].value
+assert.equal(savedNutrition.student_id,student)
+assert.equal(savedNutrition.coach_id,coach)
+assert.equal(savedNutrition.nutrition_meals.length,1)
+await assert.rejects(db.query('select save_nutrition_plan($1::jsonb)',[JSON.stringify({...nutritionPayload,student_id:studentB})]),/nao pertence|não pertence/i)
+console.log('Nutrition: authenticated coach can save own student plan and cannot save another coach student PASS')
 const payload={student_id:student,title:'Treino QA',publication_status:'published',request_id:'qa-publish-123456',exercises:[{name:'Supino',sets:'2',reps:'10'}]}
 const result=await db.query('select save_coach_workout($1::jsonb) as value',[JSON.stringify(payload)])
 const workout=result.rows[0].value.id
