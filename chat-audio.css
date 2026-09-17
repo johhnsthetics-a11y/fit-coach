@@ -211,8 +211,9 @@
 
 .chat-pro-audio-player {
   display: grid;
-  grid-template-columns: 2.25rem minmax(7rem, 1fr) auto auto;
-  min-width: min(19rem, 68vw);
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto auto;
+  width: min(19rem, 100%);
+  min-width: 0;
   max-width: 100%;
   align-items: center;
   gap: 0.42rem;
@@ -358,8 +359,10 @@ html[data-theme="dark"] .chat-pro-recording-cancel-ready .chat-pro-recording-pan
   }
 
   .chat-pro-audio-player {
-    grid-template-columns: 2.45rem minmax(5.6rem, 1fr) auto;
-    min-width: min(17.4rem, 76vw);
+    grid-template-columns: 2.45rem minmax(0, 1fr) auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     gap: 0.32rem;
   }
 
