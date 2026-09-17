@@ -1,0 +1,11 @@
+html[data-theme="dark"] .chat-pro-wallpaper-modal,
+.app-theme-dark .chat-pro-wallpaper-modal {
+  --chat-pro-surface: #111816;
+  --chat-pro-panel-soft: #16201d;
+  --chat-pro-border: #26332f;
+  --chat-pro-text: #eef7f4;
+  --chat-pro-muted: #9fb0aa;
+  --chat-pro-accent: #00d2b2;
+  --chat-pro-accent-strong: #78ead8;
+  --chat-pro-accent-soft: #113a32;
+}
