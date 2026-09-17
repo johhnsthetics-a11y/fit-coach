@@ -14,6 +14,8 @@ const {
   CHAT_WALLPAPER_PRESETS,
   CHAT_WALLPAPER_STORAGE_KEY,
   isSafeWallpaperDataUrl,
+  getWallpaperTargetDimensions,
+  estimateWallpaperDataUrlBytes,
   loadChatWallpaperPreference,
   saveChatWallpaperPreference,
 } = chatWallpaper
@@ -23,6 +25,7 @@ const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url),
 const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
 const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
 const wallpaperThemeCss = readFileSync(new URL('../chat-wallpaper-theme.css', import.meta.url), 'utf8')
+const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
 
 test('chat identifica os composers reais do coach e do aluno', () => {
   assert.equal(CHAT_COMPOSER_SELECTORS.length, 2)
@@ -75,8 +78,9 @@ test('messenger exporta contrato semantico estavel para o layout profissional', 
 test('wallpaper oferece presets profissionais e chave de persistencia dedicada ao chat', () => {
   assert.equal(CHAT_WALLPAPER_STORAGE_KEY, 'coachfit.chat.wallpaper.v1')
   assert.ok(Array.isArray(CHAT_WALLPAPER_PRESETS))
-  assert.ok(CHAT_WALLPAPER_PRESETS.length >= 4)
+  assert.ok(CHAT_WALLPAPER_PRESETS.length >= 5)
   assert.deepEqual(CHAT_WALLPAPER_PRESETS.map((preset) => preset.id).slice(0, 4), ['aurora', 'sage', 'horizon', 'texture'])
+  assert.ok(CHAT_WALLPAPER_PRESETS.some((preset) => preset.id === 'solid'), 'deve oferecer opção sólida além dos gradientes')
 })
 
 test('preferencia de wallpaper persiste e normaliza preset, overlay e imagem customizada', () => {
@@ -120,6 +124,7 @@ test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile',
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-button/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-modal/)
   assert.match(wallpaperCss, /data-chat-wallpaper="custom"/)
+  assert.match(wallpaperThemeCss, /data-chat-wallpaper="solid"/)
   assert.match(wallpaperCss, /@media \(max-width: 760px\)/)
 })
 
@@ -127,4 +132,45 @@ test('modal de wallpaper preserva contraste no tema escuro fora do workspace', (
   assert.match(wallpaperThemeCss, /html\[data-theme="dark"\] \.chat-pro-wallpaper-modal/)
   assert.match(wallpaperThemeCss, /--chat-pro-text:\s*#eef7f4/)
   assert.match(wallpaperThemeCss, /--chat-pro-surface:\s*#111816/)
+})
+
+
+test('wallpaper preserva a imagem personalizada ao experimentar presets e permite voltar sem reupload', () => {
+  const state = new Map()
+  const storage = {
+    getItem(key) { return state.get(key) ?? null },
+    setItem(key, value) { state.set(key, String(value)) },
+  }
+  const customDataUrl = 'data:image/jpeg;base64,AAAA'
+  const preset = saveChatWallpaperPreference(storage, {
+    presetId: 'horizon',
+    overlay: 0.4,
+    customDataUrl,
+  })
+
+  assert.equal(preset.presetId, 'horizon')
+  assert.equal(preset.customDataUrl, customDataUrl)
+
+  const restoredCustom = saveChatWallpaperPreference(storage, {
+    ...preset,
+    presetId: 'custom',
+  })
+  assert.equal(restoredCustom.presetId, 'custom')
+  assert.equal(restoredCustom.customDataUrl, customDataUrl)
+})
+
+test('otimizacao de wallpaper calcula dimensoes proporcionais e tamanho real aproximado do data URL', () => {
+  assert.deepEqual(getWallpaperTargetDimensions(4032, 3024, 1800), { width: 1800, height: 1350 })
+  assert.deepEqual(getWallpaperTargetDimensions(900, 1200, 1800), { width: 900, height: 1200 })
+  assert.ok(estimateWallpaperDataUrlBytes('data:image/jpeg;base64,AAAA') > 0)
+})
+
+test('modal de wallpaper oferece trocar, remover, reaproveitar imagem e compressao automatica', () => {
+  assert.match(wallpaperSource, /Trocar imagem/)
+  assert.match(wallpaperSource, /Remover imagem/)
+  assert.match(wallpaperSource, /prepareWallpaperImage/)
+  assert.match(wallpaperSource, /createImageBitmap|Image\(/)
+  assert.match(wallpaperSource, /uploadInput\.value = ''/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-remove-image/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-custom-preview:focus-visible/)
 })

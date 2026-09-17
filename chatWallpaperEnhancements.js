@@ -6,6 +6,7 @@ export const CHAT_WALLPAPER_PRESETS = Object.freeze([
   { id: 'sage', label: 'Sálvia', description: 'Natural e discreto' },
   { id: 'horizon', label: 'Horizonte', description: 'Azul com profundidade' },
   { id: 'texture', label: 'Textura', description: 'Padrão minimalista' },
+  { id: 'solid', label: 'Sólido', description: 'Limpo, uniforme e discreto' },
 ])
 
 const DEFAULT_CHAT_WALLPAPER = Object.freeze({
@@ -13,12 +14,143 @@ const DEFAULT_CHAT_WALLPAPER = Object.freeze({
   overlay: 0.36,
   customDataUrl: '',
 })
-const MAX_CUSTOM_WALLPAPER_BYTES = 1_800_000
+const MAX_SOURCE_WALLPAPER_BYTES = 12 * 1024 * 1024
+const MAX_STORED_WALLPAPER_BYTES = 1_250_000
+const MAX_WALLPAPER_EDGE = 1800
 const enhancedWallpaperViewports = new WeakSet()
 const modalByDocument = new WeakMap()
 
 export function isSafeWallpaperDataUrl(value) {
   return /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,[a-z0-9+/=\s]+$/i.test(String(value || ''))
+}
+
+
+export function estimateWallpaperDataUrlBytes(value = '') {
+  const text = String(value || '')
+  const commaIndex = text.indexOf(',')
+  if (commaIndex < 0) return 0
+  const base64 = text.slice(commaIndex + 1).replace(/\s/g, '')
+  if (!base64) return 0
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding)
+}
+
+export function getWallpaperTargetDimensions(width, height, maxEdge = MAX_WALLPAPER_EDGE) {
+  const safeWidth = Math.max(1, Number(width) || 1)
+  const safeHeight = Math.max(1, Number(height) || 1)
+  const safeMaxEdge = Math.max(1, Number(maxEdge) || MAX_WALLPAPER_EDGE)
+  const scale = Math.min(1, safeMaxEdge / Math.max(safeWidth, safeHeight))
+  return {
+    width: Math.max(1, Math.round(safeWidth * scale)),
+    height: Math.max(1, Math.round(safeHeight * scale)),
+  }
+}
+
+function fileLooksLikeImage(file) {
+  const type = String(file?.type || '').toLowerCase()
+  const name = String(file?.name || '').toLowerCase()
+  return type.startsWith('image/')
+    || /\.(?:png|jpe?g|webp|gif|avif|heic|heif)$/i.test(name)
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (typeof FileReader === 'undefined') {
+      reject(new Error('Este dispositivo não suporta a leitura da imagem.'))
+      return
+    }
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Não foi possível ler esta imagem.'))
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function decodeWallpaperImage(file, documentRoot) {
+  const view = documentRoot?.defaultView || globalThis
+  const bitmapFactory = view?.createImageBitmap || globalThis.createImageBitmap
+  if (typeof bitmapFactory === 'function') {
+    try {
+      const bitmap = await bitmapFactory(file)
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        cleanup: () => {
+          try { bitmap.close?.() } catch {}
+        },
+      }
+    } catch {
+      // Safari/older browsers may fail createImageBitmap for formats they can
+      // still decode through an <img>.
+    }
+  }
+
+  const ImageCtor = view?.Image || globalThis.Image
+  if (typeof ImageCtor !== 'function') throw new Error('Este navegador não conseguiu abrir esta imagem.')
+
+  const sourceUrl = await readFileAsDataUrl(file)
+  return new Promise((resolve, reject) => {
+    const image = new ImageCtor()
+    image.onload = () => resolve({
+      source: image,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+      cleanup: () => {},
+    })
+    image.onerror = () => reject(new Error('Formato de imagem não suportado neste dispositivo.'))
+    image.src = sourceUrl
+  })
+}
+
+export async function prepareWallpaperImage(file, documentRoot = globalThis.document) {
+  if (!file || !fileLooksLikeImage(file)) throw new Error('Escolha uma imagem válida.')
+  if (Number(file.size || 0) > MAX_SOURCE_WALLPAPER_BYTES) {
+    throw new Error('A imagem original deve ter no máximo 12 MB.')
+  }
+
+  const fallbackToOriginal = async () => {
+    const raw = await readFileAsDataUrl(file)
+    if (!isSafeWallpaperDataUrl(raw)) throw new Error('Formato de imagem não suportado neste dispositivo.')
+    if (estimateWallpaperDataUrlBytes(raw) > MAX_STORED_WALLPAPER_BYTES) {
+      throw new Error('Não foi possível otimizar esta imagem. Escolha outra foto.')
+    }
+    return raw
+  }
+
+  if (!documentRoot?.createElement) return fallbackToOriginal()
+
+  let decoded
+  try {
+    decoded = await decodeWallpaperImage(file, documentRoot)
+  } catch (error) {
+    if (Number(file.size || 0) <= MAX_STORED_WALLPAPER_BYTES) return fallbackToOriginal()
+    throw error
+  }
+
+  try {
+    const dimensions = getWallpaperTargetDimensions(decoded.width, decoded.height)
+    const canvas = documentRoot.createElement('canvas')
+    const context = canvas?.getContext?.('2d', { alpha: false })
+    if (!context || typeof canvas.toDataURL !== 'function') return fallbackToOriginal()
+
+    canvas.width = dimensions.width
+    canvas.height = dimensions.height
+    context.fillStyle = '#eef3f1'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height)
+
+    for (const quality of [0.82, 0.72, 0.62, 0.52]) {
+      const dataUrl = canvas.toDataURL('image/jpeg', quality)
+      if (isSafeWallpaperDataUrl(dataUrl) && estimateWallpaperDataUrlBytes(dataUrl) <= MAX_STORED_WALLPAPER_BYTES) {
+        return dataUrl
+      }
+    }
+
+    throw new Error('Não foi possível reduzir esta imagem o suficiente. Escolha outra foto.')
+  } finally {
+    decoded?.cleanup?.()
+  }
 }
 
 function clampOverlay(value) {
@@ -40,7 +172,9 @@ export function normalizeChatWallpaperPreference(preference = {}) {
   return {
     presetId,
     overlay: Number(clampOverlay(preference.overlay).toFixed(2)),
-    customDataUrl: presetId === 'custom' ? customDataUrl : '',
+    // Preserve the last custom image even while previewing/saving a preset so the
+    // user can switch back without selecting the file again.
+    customDataUrl,
   }
 }
 
@@ -97,35 +231,6 @@ function applyWallpaperToDocument(documentRoot, preference) {
   collectChatViewports(documentRoot).forEach((viewport) => applyWallpaperToViewport(viewport, preference))
 }
 
-function readWallpaperFile(file) {
-  return new Promise((resolve, reject) => {
-    if (!file || !String(file.type || '').startsWith('image/')) {
-      reject(new Error('Escolha uma imagem válida.'))
-      return
-    }
-    if (file.size > MAX_CUSTOM_WALLPAPER_BYTES) {
-      reject(new Error('Use uma imagem de até 1,8 MB para manter o app leve.'))
-      return
-    }
-    if (typeof FileReader === 'undefined') {
-      reject(new Error('Este dispositivo não suporta a leitura da imagem.'))
-      return
-    }
-
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('Não foi possível ler esta imagem.'))
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '')
-      if (!isSafeWallpaperDataUrl(dataUrl)) {
-        reject(new Error('Formato de imagem não suportado.'))
-        return
-      }
-      resolve(dataUrl)
-    }
-    reader.readAsDataURL(file)
-  })
-}
-
 function createWallpaperModal(documentRoot, storage) {
   const existing = modalByDocument.get(documentRoot)
   if (existing) return existing
@@ -153,7 +258,7 @@ function createWallpaperModal(documentRoot, storage) {
 
   const helper = documentRoot.createElement('p')
   helper.className = 'chat-pro-wallpaper-helper'
-  helper.textContent = 'Escolha um estilo ou envie uma imagem. A alteração fica salva somente neste dispositivo.'
+  helper.textContent = 'Escolha um estilo ou use uma foto sua. Você pode trocar, remover e voltar para a última imagem sem precisar selecionar o arquivo novamente.'
 
   const presetGrid = documentRoot.createElement('div')
   presetGrid.className = 'chat-pro-wallpaper-presets'
@@ -172,19 +277,32 @@ function createWallpaperModal(documentRoot, storage) {
   const uploadSection = documentRoot.createElement('div')
   uploadSection.className = 'chat-pro-wallpaper-upload-section'
 
-  const customPreview = documentRoot.createElement('div')
+  const customPreview = documentRoot.createElement('button')
+  customPreview.type = 'button'
   customPreview.className = 'chat-pro-wallpaper-custom-preview'
+  customPreview.setAttribute('aria-label', 'Usar imagem personalizada')
   customPreview.innerHTML = '<span>Imagem própria</span>'
+
+  const uploadControls = documentRoot.createElement('div')
+  uploadControls.className = 'chat-pro-wallpaper-upload-controls'
 
   const uploadLabel = documentRoot.createElement('label')
   uploadLabel.className = 'chat-pro-wallpaper-upload'
-  uploadLabel.innerHTML = '<span aria-hidden="true">＋</span><span><strong>Enviar imagem</strong><small>PNG, JPG, WebP ou AVIF · até 1,8 MB</small></span>'
+  uploadLabel.innerHTML = '<span aria-hidden="true">＋</span><span><strong class="chat-pro-wallpaper-upload-title">Enviar imagem</strong><small>Foto do celular ou arquivo · até 12 MB · otimização automática</small></span>'
+  const uploadTitle = uploadLabel.querySelector('.chat-pro-wallpaper-upload-title')
   const uploadInput = documentRoot.createElement('input')
   uploadInput.type = 'file'
-  uploadInput.accept = 'image/png,image/jpeg,image/webp,image/gif,image/avif'
+  uploadInput.accept = 'image/*,.heic,.heif'
   uploadInput.className = 'chat-pro-wallpaper-file-input'
   uploadLabel.appendChild(uploadInput)
-  uploadSection.append(customPreview, uploadLabel)
+
+  const removeImageButton = documentRoot.createElement('button')
+  removeImageButton.type = 'button'
+  removeImageButton.className = 'chat-pro-wallpaper-remove-image'
+  removeImageButton.textContent = 'Remover imagem'
+
+  uploadControls.append(uploadLabel, removeImageButton)
+  uploadSection.append(customPreview, uploadControls)
 
   const overlayRow = documentRoot.createElement('label')
   overlayRow.className = 'chat-pro-wallpaper-overlay-control'
@@ -223,15 +341,26 @@ function createWallpaperModal(documentRoot, storage) {
 
   let saved = loadChatWallpaperPreference(storage)
   let draft = { ...saved }
+  let processingImage = false
+  let previousFocus = null
+  let previousBodyOverflow = ''
 
   function renderDraft() {
     applyWallpaperToDocument(documentRoot, draft)
     overlayInput.value = String(draft.overlay)
     presetButtons.forEach((button, id) => button.classList.toggle('chat-pro-wallpaper-selected', draft.presetId === id))
+    const hasCustomImage = Boolean(draft.customDataUrl)
     customPreview.classList.toggle('chat-pro-wallpaper-selected', draft.presetId === 'custom')
-    if (draft.customDataUrl) {
+    customPreview.setAttribute('aria-pressed', draft.presetId === 'custom' ? 'true' : 'false')
+    customPreview.disabled = processingImage
+    removeImageButton.hidden = !hasCustomImage
+    removeImageButton.disabled = processingImage
+    uploadInput.disabled = processingImage
+    applyButton.disabled = processingImage
+    uploadTitle.textContent = hasCustomImage ? 'Trocar imagem' : 'Enviar imagem'
+    if (hasCustomImage) {
       customPreview.style.backgroundImage = `linear-gradient(rgba(10,20,18,.22), rgba(10,20,18,.22)), url("${draft.customDataUrl}")`
-      customPreview.innerHTML = '<span>Imagem própria selecionada</span>'
+      customPreview.innerHTML = `<span>${draft.presetId === 'custom' ? 'Imagem própria em uso' : 'Usar imagem própria'}</span>`
     } else {
       customPreview.style.removeProperty('background-image')
       customPreview.innerHTML = '<span>Nenhuma imagem enviada</span>'
@@ -239,16 +368,23 @@ function createWallpaperModal(documentRoot, storage) {
   }
 
   function close({ restore = false } = {}) {
+    if (processingImage) return
     if (restore) applyWallpaperToDocument(documentRoot, saved)
     modal.classList.remove('chat-pro-wallpaper-open')
     modal.setAttribute('aria-hidden', 'true')
     status.textContent = ''
     uploadInput.value = ''
+    documentRoot.body.style.overflow = previousBodyOverflow
+    previousFocus?.focus?.()
+    previousFocus = null
   }
 
   function open() {
     saved = loadChatWallpaperPreference(storage)
     draft = { ...saved }
+    previousFocus = documentRoot.activeElement
+    previousBodyOverflow = documentRoot.body.style.overflow || ''
+    documentRoot.body.style.overflow = 'hidden'
     renderDraft()
     modal.classList.add('chat-pro-wallpaper-open')
     modal.setAttribute('aria-hidden', 'false')
@@ -257,23 +393,62 @@ function createWallpaperModal(documentRoot, storage) {
 
   presetButtons.forEach((button, presetId) => {
     button.addEventListener('click', () => {
-      draft = normalizeChatWallpaperPreference({ ...draft, presetId, customDataUrl: '' })
+      draft = normalizeChatWallpaperPreference({ ...draft, presetId })
       status.textContent = 'Prévia aplicada. Toque em Aplicar para salvar.'
       renderDraft()
     })
   })
 
-  uploadInput.addEventListener('change', async () => {
-    status.textContent = 'Preparando imagem…'
+  async function useWallpaperFile(file) {
+    if (!file) return
+    processingImage = true
+    modal.setAttribute('aria-busy', 'true')
+    status.textContent = 'Otimizando imagem…'
+    renderDraft()
     try {
-      const customDataUrl = await readWallpaperFile(uploadInput.files?.[0])
+      const customDataUrl = await prepareWallpaperImage(file, documentRoot)
       draft = normalizeChatWallpaperPreference({ ...draft, presetId: 'custom', customDataUrl })
-      status.textContent = 'Prévia aplicada. Toque em Aplicar para salvar.'
-      renderDraft()
+      status.textContent = 'Imagem pronta. Toque em Aplicar para salvar.'
     } catch (error) {
       status.textContent = error?.message || 'Não foi possível usar esta imagem.'
+    } finally {
+      processingImage = false
+      modal.setAttribute('aria-busy', 'false')
       uploadInput.value = ''
+      renderDraft()
     }
+  }
+
+  uploadInput.addEventListener('change', () => useWallpaperFile(uploadInput.files?.[0]))
+
+  customPreview.addEventListener('click', () => {
+    if (processingImage) return
+    if (draft.customDataUrl) {
+      draft = normalizeChatWallpaperPreference({ ...draft, presetId: 'custom' })
+      status.textContent = 'Imagem própria selecionada. Toque em Aplicar para salvar.'
+      renderDraft()
+      return
+    }
+    uploadInput.click()
+  })
+
+  removeImageButton.addEventListener('click', () => {
+    if (processingImage) return
+    const nextPresetId = draft.presetId === 'custom' ? DEFAULT_CHAT_WALLPAPER.presetId : draft.presetId
+    draft = normalizeChatWallpaperPreference({ ...draft, presetId: nextPresetId, customDataUrl: '' })
+    status.textContent = 'Imagem removida da prévia. Toque em Aplicar para salvar.'
+    renderDraft()
+  })
+
+  uploadLabel.addEventListener('dragover', (event) => {
+    event.preventDefault()
+    uploadLabel.classList.add('chat-pro-wallpaper-dragging')
+  })
+  uploadLabel.addEventListener('dragleave', () => uploadLabel.classList.remove('chat-pro-wallpaper-dragging'))
+  uploadLabel.addEventListener('drop', (event) => {
+    event.preventDefault()
+    uploadLabel.classList.remove('chat-pro-wallpaper-dragging')
+    useWallpaperFile(event.dataTransfer?.files?.[0])
   })
 
   overlayInput.addEventListener('input', () => {
@@ -292,6 +467,11 @@ function createWallpaperModal(documentRoot, storage) {
   closeButton.addEventListener('click', () => close({ restore: true }))
   modal.addEventListener('click', (event) => {
     if (event.target === modal) close({ restore: true })
+  })
+  documentRoot.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal.classList.contains('chat-pro-wallpaper-open')) {
+      close({ restore: true })
+    }
   })
 
   applyButton.addEventListener('click', () => {

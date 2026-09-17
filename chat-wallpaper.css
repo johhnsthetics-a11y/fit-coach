@@ -305,6 +305,11 @@ html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="custom"],
 
 .chat-pro-wallpaper-custom-preview {
   display: grid;
+  width: 100%;
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
   min-height: 5rem;
   place-items: end start;
   overflow: hidden;
@@ -319,6 +324,18 @@ html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="custom"],
   font-weight: 800;
 }
 
+.chat-pro-wallpaper-custom-preview:hover,
+.chat-pro-wallpaper-custom-preview:focus-visible {
+  border-color: rgba(0, 169, 143, 0.42);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 169, 143, 0.09);
+}
+
+.chat-pro-wallpaper-custom-preview:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .chat-pro-wallpaper-custom-preview.chat-pro-wallpaper-selected {
   border-style: solid;
   border-color: rgba(0, 169, 143, 0.42);
@@ -331,6 +348,12 @@ html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="custom"],
   background: color-mix(in srgb, var(--chat-pro-surface, #fff) 88%, transparent);
   padding: 0.28rem 0.46rem;
   backdrop-filter: blur(8px);
+}
+
+.chat-pro-wallpaper-upload-controls {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
 }
 
 .chat-pro-wallpaper-upload {
@@ -376,6 +399,47 @@ html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="custom"],
   color: var(--chat-pro-muted, #687774);
   font-size: 0.62rem;
   line-height: 1.35;
+}
+
+
+.chat-pro-wallpaper-upload:hover,
+.chat-pro-wallpaper-upload:focus-within,
+.chat-pro-wallpaper-upload.chat-pro-wallpaper-dragging {
+  border-color: rgba(0, 169, 143, 0.42);
+  background: color-mix(in srgb, var(--chat-pro-panel-soft, #f6f9f8) 80%, var(--chat-pro-accent-soft, #d9f8ef) 20%);
+}
+
+.chat-pro-wallpaper-upload:has(input:disabled) {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.chat-pro-wallpaper-remove-image {
+  min-height: 2.25rem;
+  border: 1px solid color-mix(in srgb, #ef4444 24%, var(--chat-pro-border, #dfe8e5));
+  border-radius: 0.72rem;
+  background: color-mix(in srgb, #fee2e2 38%, var(--chat-pro-panel-soft, #f6f9f8));
+  padding: 0.48rem 0.7rem;
+  color: #b42318;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-align: center;
+  cursor: pointer;
+}
+
+.chat-pro-wallpaper-remove-image:hover,
+.chat-pro-wallpaper-remove-image:focus-visible {
+  border-color: color-mix(in srgb, #ef4444 42%, var(--chat-pro-border, #dfe8e5));
+  outline: none;
+}
+
+.chat-pro-wallpaper-remove-image:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.chat-pro-wallpaper-remove-image[hidden] {
+  display: none !important;
 }
 
 .chat-pro-wallpaper-file-input {
@@ -571,4 +635,10 @@ html[data-theme="dark"] .chat-pro-wallpaper-cancel,
   .chat-pro-wallpaper-preset {
     transition: none;
   }
+}
+
+
+.chat-pro-wallpaper-actions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }

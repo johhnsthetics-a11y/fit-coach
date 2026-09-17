@@ -1024,6 +1024,47 @@ export async function saveRemoteWorkoutSession(inviteCode, workoutId, completion
   return fromWorkoutSessionRow(Array.isArray(result) ? result[0] : result)
 }
 
+export async function updateRemoteMessage(messageId, body) {
+  if (!isUuid(messageId)) throw new Error('Mensagem inválida.')
+  const safeBody = String(body || '').trim()
+  if (!safeBody) throw new Error('A mensagem não pode ficar vazia.')
+  const rows = await request(`messages?id=eq.${encodeURIComponent(messageId)}&sender=eq.coach`, {
+    method: 'PATCH',
+    body: JSON.stringify({ body: safeBody }),
+  })
+  if (!rows?.[0]) throw new Error('Mensagem não encontrada ou sem permissão para editar.')
+  return hydrateMessageRow(rows[0])
+}
+
+export async function deleteRemoteMessage(messageId) {
+  if (!isUuid(messageId)) throw new Error('Mensagem inválida.')
+  const rows = await request(`messages?id=eq.${encodeURIComponent(messageId)}&sender=eq.coach`, { method: 'DELETE' })
+  if (!rows?.[0]) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
+  return true
+}
+
+export async function updateRemoteStudentMessage(inviteCode, messageId, body) {
+  if (!inviteCode || !isUuid(messageId)) throw new Error('Mensagem inválida.')
+  const safeBody = String(body || '').trim()
+  if (!safeBody) throw new Error('A mensagem não pode ficar vazia.')
+  const result = await rpcRequest('update_student_message', {
+    invite_code: inviteCode,
+    selected_message_id: messageId,
+    message_body: safeBody,
+  })
+  return hydrateMessageRow(Array.isArray(result) ? result[0] : result)
+}
+
+export async function deleteRemoteStudentMessage(inviteCode, messageId) {
+  if (!inviteCode || !isUuid(messageId)) throw new Error('Mensagem inválida.')
+  const result = await rpcRequest('delete_student_message', {
+    invite_code: inviteCode,
+    selected_message_id: messageId,
+  })
+  if (result !== true) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
+  return true
+}
+
 export async function saveRemoteMessage(message) {
   const attachmentUrl = message.attachmentFile
     ? await uploadMessageAttachment(message.attachmentFile, message.studentId, message.inviteCode)

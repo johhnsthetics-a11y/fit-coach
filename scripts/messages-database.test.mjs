@@ -23,6 +23,15 @@ create table public.students(
   id uuid primary key,
   coach_id uuid references auth.users(id)
 );
+create table public.student_invites(
+  id uuid primary key default gen_random_uuid(),
+  coach_id uuid references auth.users(id),
+  student_id uuid references public.students(id),
+  code text not null unique,
+  status text default 'active',
+  expires_at timestamptz default (now() + interval '14 days'),
+  created_at timestamptz default now()
+);
 create table public.messages(
   id uuid primary key default gen_random_uuid(),
   coach_id uuid references auth.users(id),
@@ -53,9 +62,12 @@ with check (coach_id = auth.uid());
 
 insert into auth.users values ('${coach}'), ('${other}');
 insert into public.students values ('${student}', '${coach}'), ('${studentB}', '${other}');
+insert into public.student_invites (coach_id, student_id, code, status, expires_at)
+values ('${coach}', '${student}', 'INVITE-QA', 'active', now() + interval '1 day');
 `)
 
 await db.exec(await readFile(new URL('../supabase/migrations/20260917_repair_message_rls_42501.sql', import.meta.url), 'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20260917_secure_message_edit_delete.sql', import.meta.url), 'utf8'))
 await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${coach}',false);`)
 
 const normalized = await db.query(`
@@ -76,5 +88,26 @@ await assert.rejects(
   /nao pertence|row-level security|42501/i,
 )
 
-console.log('Messages: coach id is derived from auth session and cross-coach student insert is blocked PASS')
+const studentMessage = await db.query(`
+  insert into public.messages (coach_id, student_id, sender, body, read)
+  values ($1, $2, 'student', 'Original do aluno', false)
+  returning id
+`, [coach, student])
+
+await db.exec('reset role;')
+await db.exec(`select set_config('request.jwt.claim.sub','',false);`)
+
+const studentEdit = await db.query(
+  `select public.update_student_message($1::text, $2::uuid, $3::text) as message`,
+  ['INVITE-QA', studentMessage.rows[0].id, 'Editada pelo aluno'],
+)
+assert.ok(studentEdit.rows[0].message)
+
+const studentDelete = await db.query(
+  `select public.delete_student_message($1::text, $2::uuid) as deleted`,
+  ['INVITE-QA', studentMessage.rows[0].id],
+)
+assert.equal(studentDelete.rows[0].deleted, true)
+
+console.log('Messages: ownership, edit and delete contracts PASS')
 await db.close()
