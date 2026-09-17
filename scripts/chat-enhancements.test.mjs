@@ -75,8 +75,9 @@ test('messenger exporta contrato semantico estavel para o layout profissional', 
 test('wallpaper oferece presets profissionais e chave de persistencia dedicada ao chat', () => {
   assert.equal(CHAT_WALLPAPER_STORAGE_KEY, 'coachfit.chat.wallpaper.v1')
   assert.ok(Array.isArray(CHAT_WALLPAPER_PRESETS))
-  assert.ok(CHAT_WALLPAPER_PRESETS.length >= 4)
+  assert.ok(CHAT_WALLPAPER_PRESETS.length >= 5)
   assert.deepEqual(CHAT_WALLPAPER_PRESETS.map((preset) => preset.id).slice(0, 4), ['aurora', 'sage', 'horizon', 'texture'])
+  assert.ok(CHAT_WALLPAPER_PRESETS.some((preset) => preset.id === 'solid'), 'deve oferecer opção sólida além dos gradientes')
 })
 
 test('preferencia de wallpaper persiste e normaliza preset, overlay e imagem customizada', () => {
@@ -120,6 +121,7 @@ test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile',
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-button/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-modal/)
   assert.match(wallpaperCss, /data-chat-wallpaper="custom"/)
+  assert.match(wallpaperCss, /data-chat-wallpaper="solid"/)
   assert.match(wallpaperCss, /@media \(max-width: 760px\)/)
 })
 
