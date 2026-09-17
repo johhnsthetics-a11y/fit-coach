@@ -74,6 +74,7 @@ function createRecordedFile(blob, mimeType) {
 }
 
 function findAudioButton(form) {
+  if (form?.querySelector?.('[data-chat-native-audio-recorder]')) return null
   return [...form.querySelectorAll('button')].find((button) => (
     /gravar áudio|parar gravação|gravar audio|parar gravacao|áudio|audio/i.test(button.textContent || '')
     || button.classList.contains('chat-pro-audio-button')
