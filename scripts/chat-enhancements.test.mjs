@@ -121,7 +121,7 @@ test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile',
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-button/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-modal/)
   assert.match(wallpaperCss, /data-chat-wallpaper="custom"/)
-  assert.match(wallpaperCss, /data-chat-wallpaper="solid"/)
+  assert.match(wallpaperThemeCss, /data-chat-wallpaper="solid"/)
   assert.match(wallpaperCss, /@media \(max-width: 760px\)/)
 })
 
