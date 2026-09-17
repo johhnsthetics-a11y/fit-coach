@@ -22,6 +22,7 @@ const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8'
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
 const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
+const wallpaperThemeCss = readFileSync(new URL('../chat-wallpaper-theme.css', import.meta.url), 'utf8')
 
 test('chat identifica os composers reais do coach e do aluno', () => {
   assert.equal(CHAT_COMPOSER_SELECTORS.length, 2)
@@ -35,6 +36,7 @@ test('produção carrega os entrypoints de messenger e wallpaper do chat', () =>
   assert.match(productionMain, /installChatWallpaperEnhancements/)
   assert.match(productionMain, /chat-enhancements\.css/)
   assert.match(productionMain, /chat-wallpaper\.css/)
+  assert.match(productionMain, /chat-wallpaper-theme\.css/)
 })
 
 test('scroll inteligente considera o usuario perto do fim sem exigir pixel exato', () => {
@@ -119,4 +121,10 @@ test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile',
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-modal/)
   assert.match(wallpaperCss, /data-chat-wallpaper="custom"/)
   assert.match(wallpaperCss, /@media \(max-width: 760px\)/)
+})
+
+test('modal de wallpaper preserva contraste no tema escuro fora do workspace', () => {
+  assert.match(wallpaperThemeCss, /html\[data-theme="dark"\] \.chat-pro-wallpaper-modal/)
+  assert.match(wallpaperThemeCss, /--chat-pro-text:\s*#eef7f4/)
+  assert.match(wallpaperThemeCss, /--chat-pro-surface:\s*#111816/)
 })
