@@ -6,7 +6,12 @@ import * as chatEnhancements from '../chatEnhancements.js'
 
 const {
   CHAT_COMPOSER_SELECTORS,
+  CHAT_WALLPAPER_PRESETS,
+  CHAT_WALLPAPER_STORAGE_KEY,
   isNearChatBottom,
+  isSafeWallpaperDataUrl,
+  loadChatWallpaperPreference,
+  saveChatWallpaperPreference,
   shouldSubmitChatOnKeydown,
 } = chatEnhancements
 
@@ -59,11 +64,52 @@ test('messenger exporta contrato semantico estavel para o layout profissional', 
   assert.equal(classes.conversationPanel, 'chat-pro-conversation-panel')
 })
 
-test('CSS do messenger cobre workspace, sugestao, composer e mobile', () => {
+test('wallpaper oferece presets profissionais e chave de persistencia dedicada ao chat', () => {
+  assert.equal(CHAT_WALLPAPER_STORAGE_KEY, 'coachfit.chat.wallpaper.v1')
+  assert.ok(Array.isArray(CHAT_WALLPAPER_PRESETS))
+  assert.ok(CHAT_WALLPAPER_PRESETS.length >= 4)
+  assert.deepEqual(CHAT_WALLPAPER_PRESETS.map((preset) => preset.id).slice(0, 4), ['aurora', 'sage', 'horizon', 'texture'])
+})
+
+test('preferencia de wallpaper persiste e normaliza preset, overlay e imagem customizada', () => {
+  const state = new Map()
+  const storage = {
+    getItem(key) { return state.get(key) ?? null },
+    setItem(key, value) { state.set(key, String(value)) },
+  }
+
+  const saved = saveChatWallpaperPreference(storage, {
+    presetId: 'horizon',
+    overlay: 0.42,
+    customDataUrl: '',
+  })
+  assert.deepEqual(saved, { presetId: 'horizon', overlay: 0.42, customDataUrl: '' })
+  assert.deepEqual(loadChatWallpaperPreference(storage), saved)
+
+  const custom = saveChatWallpaperPreference(storage, {
+    presetId: 'custom',
+    overlay: 0.33,
+    customDataUrl: 'data:image/png;base64,AAAA',
+  })
+  assert.equal(loadChatWallpaperPreference(storage).presetId, 'custom')
+  assert.equal(custom.customDataUrl, 'data:image/png;base64,AAAA')
+})
+
+test('wallpaper customizado aceita somente data URL de imagem', () => {
+  assert.equal(isSafeWallpaperDataUrl('data:image/png;base64,AAAA'), true)
+  assert.equal(isSafeWallpaperDataUrl('data:image/jpeg;base64,AAAA'), true)
+  assert.equal(isSafeWallpaperDataUrl('data:text/html;base64,AAAA'), false)
+  assert.equal(isSafeWallpaperDataUrl('https://example.com/background.jpg'), false)
+})
+
+test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile', () => {
   assert.match(chatCss, /\.chat-pro-workspace\s*\{/)
   assert.match(chatCss, /\.chat-pro-conversations-pane\s*\{/)
   assert.match(chatCss, /\.chat-pro-conversation-panel\s*\{/)
   assert.match(chatCss, /\.chat-pro-suggestion\s*\{/)
   assert.match(chatCss, /\.chat-pro-audio-button/)
+  assert.match(chatCss, /\.chat-pro-wallpaper-button/)
+  assert.match(chatCss, /\.chat-pro-wallpaper-modal/)
+  assert.match(chatCss, /data-chat-wallpaper="custom"/)
   assert.match(chatCss, /@media \(max-width: 760px\)/)
 })
