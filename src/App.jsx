@@ -38,6 +38,10 @@ import {
   loadRemoteQuestionnaires,
   saveRemoteStudent,
   saveRemoteMessage,
+  updateRemoteMessage,
+  deleteRemoteMessage,
+  updateRemoteStudentMessage,
+  deleteRemoteStudentMessage,
   saveRemoteWorkout,
   saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
@@ -3071,6 +3075,64 @@ function AppContent() {
     return savedMessage
   }
 
+  async function editMessage(message, nextBody) {
+    const body = String(nextBody || '').trim()
+    if (!message?.id || !body) throw new Error('Digite uma mensagem válida.')
+
+    let savedMessage = { ...message, body }
+    if (supabaseEnabled) {
+      try {
+        savedMessage = message.sender === 'student'
+          ? await updateRemoteStudentMessage(studentAccess?.invite?.code || '', message.id, body)
+          : await updateRemoteMessage(message.id, body)
+        setRemoteStatus('Mensagem editada')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao editar mensagem')
+        throw error
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      messages: (current.messages ?? []).map((item) => String(item.id) === String(message.id) ? savedMessage : item),
+    }))
+    setStudentAccess((current) => current ? {
+      ...current,
+      messages: (current.messages ?? []).map((item) => String(item.id) === String(message.id) ? savedMessage : item),
+    } : current)
+    return savedMessage
+  }
+
+  async function deleteMessage(message) {
+    if (!message?.id) throw new Error('Mensagem inválida.')
+
+    if (supabaseEnabled) {
+      try {
+        if (message.sender === 'student') {
+          await deleteRemoteStudentMessage(studentAccess?.invite?.code || '', message.id)
+        } else {
+          await deleteRemoteMessage(message.id)
+        }
+        setRemoteStatus('Mensagem apagada')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao apagar mensagem')
+        throw error
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      messages: (current.messages ?? []).filter((item) => String(item.id) !== String(message.id)),
+    }))
+    setStudentAccess((current) => current ? {
+      ...current,
+      messages: (current.messages ?? []).filter((item) => String(item.id) !== String(message.id)),
+    } : current)
+    return true
+  }
+
   async function markStudentMessagesRead(studentId) {
     if (supabaseEnabled) {
       try {
@@ -3271,6 +3333,8 @@ function AppContent() {
         onCompleteWorkout={completeWorkout}
         onAddCheckin={addCheckin}
         onSendMessage={sendMessage}
+        onEditMessage={editMessage}
+        onDeleteMessage={deleteMessage}
         onSubmitQuestionnaire={submitStudentQuestionnaire}
         onRefreshMessages={refreshStudentConversation}
         appAdminSettings={appAdminSettings}
@@ -3666,6 +3730,8 @@ function AppContent() {
                 messages={data.messages ?? []}
                 selectedStudent={selectedStudent}
                 onSendMessage={sendMessage}
+                onEditMessage={editMessage}
+                onDeleteMessage={deleteMessage}
                 onMarkRead={markStudentMessagesRead}
                 onRefreshMessages={refreshCoachConversation}
               />
@@ -14205,7 +14271,69 @@ function StudentPortalPreview({
   )
 }
 
-function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, fullScreen = false }) {
+function MessageActions({ message, canManage = false, onEdit, onDelete }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(message?.body || '')
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  useEffect(() => {
+    setValue(message?.body || '')
+    setEditing(false)
+    setActionError('')
+  }, [message?.id, message?.body])
+
+  if (!canManage || !message?.id) return null
+
+  async function saveEdit() {
+    const nextBody = value.trim()
+    if (!nextBody || !onEdit) return
+    setBusy(true)
+    setActionError('')
+    try {
+      await onEdit(message, nextBody)
+      setEditing(false)
+    } catch (error) {
+      setActionError(error?.message || 'Não foi possível editar a mensagem.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeMessage() {
+    if (!onDelete || !window.confirm('Apagar esta mensagem?')) return
+    setBusy(true)
+    setActionError('')
+    try {
+      await onDelete(message)
+    } catch (error) {
+      setActionError(error?.message || 'Não foi possível apagar a mensagem.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 border-t border-white/10 pt-2">
+      {editing ? (
+        <div className="grid gap-2">
+          <textarea value={value} onChange={(event) => setValue(event.target.value)} rows={2} aria-label="Editar mensagem" className="min-w-0 rounded-md border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-blue-400" />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy || !value.trim()} onClick={saveEdit} className="rounded-md bg-blue-500 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">Salvar</button>
+            <button type="button" disabled={busy} onClick={() => { setEditing(false); setValue(message.body || ''); setActionError('') }} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300">Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 text-xs">
+          <button type="button" disabled={busy} onClick={() => setEditing(true)} className="font-black text-blue-200 disabled:opacity-50">Editar</button>
+          <button type="button" disabled={busy} onClick={removeMessage} className="font-black text-rose-200 disabled:opacity-50">Apagar</button>
+        </div>
+      )}
+      {actionError ? <p className="mt-2 text-xs font-bold text-rose-200">{actionError}</p> : null}
+    </div>
+  )
+}
+
+function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, onEditMessage, onDeleteMessage, fullScreen = false }) {
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState('')
@@ -14295,6 +14423,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, f
               {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
               <MessageAttachment message={message} />
               <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
+              <MessageActions message={message} canManage={message.sender === 'student'} onEdit={onEditMessage} onDelete={onDeleteMessage} />
             </div>
           ))
         ) : (
@@ -14303,7 +14432,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, f
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className={`${fullScreen ? 'sticky bottom-0 mt-3 border-t border-white/10 bg-zinc-950/95 pt-3' : 'mt-4'} grid gap-3`}>
+      <form onSubmit={handleSubmit} className={`chat-native-audio-composer ${fullScreen ? 'sticky bottom-0 mt-3 border-t border-white/10 bg-zinc-950/95 pt-3' : 'mt-4'} grid min-w-0 gap-3`}>
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -14312,7 +14441,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, f
           className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
         />
         {attachmentPreview ? (
-          <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+          <div className="chat-native-audio-preview min-w-0 rounded-md border border-white/10 bg-white/[0.03] p-3">
             <div className="flex items-start gap-3">
               {attachmentFile?.type?.startsWith('audio/') ? (
                 <audio controls src={attachmentPreview} className="w-full max-w-xs" />
@@ -14384,56 +14513,202 @@ function MessageAttachment({ message }) {
   )
 }
 
+function formatNativeAudioElapsed(milliseconds = 0) {
+  const seconds = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000))
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
 function AudioRecorderButton({ onAudio, onError }) {
   const [recording, setRecording] = useState(false)
+  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0)
+  const [gestureState, setGestureState] = useState('hold')
+  const [locked, setLocked] = useState(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const chunksRef = useRef([])
+  const timerRef = useRef(0)
+  const startedAtRef = useRef(0)
+  const pointerRef = useRef(null)
+  const canceledRef = useRef(false)
+  const pendingRef = useRef(false)
+  const ignoreNextClickRef = useRef(false)
+
+  function stopTracks() {
+    streamRef.current?.getTracks?.().forEach((track) => {
+      try { track.stop() } catch {}
+    })
+    streamRef.current = null
+  }
+
+  function clearRecordingTimer() {
+    if (timerRef.current) window.clearInterval(timerRef.current)
+    timerRef.current = 0
+  }
+
+  function resetRecordingUi() {
+    clearRecordingTimer()
+    setRecording(false)
+    setRecordingElapsedMs(0)
+    setGestureState('hold')
+    setLocked(false)
+    pointerRef.current = null
+  }
 
   useEffect(() => () => {
-    recorderRef.current?.stop?.()
-    streamRef.current?.getTracks().forEach((track) => track.stop())
+    canceledRef.current = true
+    clearRecordingTimer()
+    try {
+      if (recorderRef.current?.state && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
+    } catch {}
+    stopTracks()
   }, [])
 
   async function startRecording() {
+    if (recording || pendingRef.current) return
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      onError?.('Seu navegador não liberou gravação de áudio. Anexe um arquivo de áudio pelo botão Foto/áudio.')
+      onError?.('Seu navegador não liberou gravação de áudio. Use o botão Foto/áudio para anexar um arquivo.')
       return
     }
+    pendingRef.current = true
+    canceledRef.current = false
+    onError?.('')
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      })
+      if (canceledRef.current) {
+        stream.getTracks?.().forEach((track) => track.stop())
+        pendingRef.current = false
+        return
+      }
+
+      const supportedTypes = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus']
+      const mimeType = supportedTypes.find((type) => {
+        try { return window.MediaRecorder.isTypeSupported?.(type) } catch { return false }
+      }) || ''
+
+      let recorder
+      try {
+        recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 96000 } : undefined)
+      } catch {
+        recorder = new MediaRecorder(stream)
+      }
+
       chunksRef.current = []
       recorder.ondataavailable = (event) => {
         if (event.data?.size) chunksRef.current.push(event.data)
       }
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
-        const file = new File([blob], `audio-fitcoach-${Date.now()}.webm`, { type: blob.type || 'audio/webm' })
-        onAudio?.(file)
-        streamRef.current?.getTracks().forEach((track) => track.stop())
-        streamRef.current = null
+        const effectiveType = recorder.mimeType || mimeType || chunksRef.current[0]?.type || 'audio/webm'
+        const blob = new Blob(chunksRef.current, { type: effectiveType })
+        const wasCanceled = canceledRef.current
+        const extension = /mp4|m4a/i.test(effectiveType) ? 'm4a' : /ogg/i.test(effectiveType) ? 'ogg' : 'webm'
+        recorderRef.current = null
+        pendingRef.current = false
+        stopTracks()
+        resetRecordingUi()
+        if (!wasCanceled && blob.size > 0) {
+          const file = new File([blob], `audio-fitcoach-${Date.now()}.${extension}`, { type: effectiveType })
+          onError?.('')
+          onAudio?.(file)
+        }
       }
+
       recorderRef.current = recorder
       streamRef.current = stream
-      recorder.start()
+      pendingRef.current = false
+      startedAtRef.current = Date.now()
+      setRecordingElapsedMs(0)
       setRecording(true)
-      onError?.('')
-    } catch {
-      onError?.('Não foi possível acessar o microfone. Confira a permissão do navegador.')
+      recorder.start(200)
+      timerRef.current = window.setInterval(() => setRecordingElapsedMs(Date.now() - startedAtRef.current), 120)
+    } catch (error) {
+      pendingRef.current = false
+      stopTracks()
+      resetRecordingUi()
+      const blocked = /NotAllowedError|SecurityError/i.test(String(error?.name || ''))
+      onError?.(blocked ? 'O microfone está bloqueado. Libere a permissão do microfone no navegador e tente novamente.' : 'Não foi possível acessar o microfone. Confira a permissão do navegador.')
     }
   }
 
-  function stopRecording() {
-    recorderRef.current?.stop()
-    recorderRef.current = null
-    setRecording(false)
+  function stopRecording(cancel = false) {
+    canceledRef.current = Boolean(cancel)
+    clearRecordingTimer()
+    if (pendingRef.current) return
+    try {
+      if (recorderRef.current?.state && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
+      else { stopTracks(); resetRecordingUi() }
+    } catch {
+      stopTracks()
+      resetRecordingUi()
+    }
+  }
+
+  function handlePointerDown(event) {
+    if (!['touch', 'pen'].includes(event.pointerType)) return
+    if (recording && locked) return
+    event.preventDefault()
+    ignoreNextClickRef.current = true
+    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    startRecording()
+  }
+
+  function handlePointerMove(event) {
+    const start = pointerRef.current
+    if (!start || start.id !== event.pointerId || locked) return
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+    if (dx <= -84 && Math.abs(dx) >= Math.abs(dy)) setGestureState('cancel')
+    else if (dy <= -72) { setGestureState('lock'); setLocked(true); pointerRef.current = null }
+    else setGestureState('hold')
+  }
+
+  function handlePointerUp(event) {
+    const start = pointerRef.current
+    if (!start || start.id !== event.pointerId) {
+      window.setTimeout(() => { ignoreNextClickRef.current = false }, 0)
+      return
+    }
+    event.preventDefault()
+    const dx = event.clientX - start.x
+    const dy = event.clientY - start.y
+    const cancel = dx <= -84 && Math.abs(dx) >= Math.abs(dy)
+    const shouldLock = dy <= -72
+    pointerRef.current = null
+    if (!shouldLock) stopRecording(cancel)
+    window.setTimeout(() => { ignoreNextClickRef.current = false }, 0)
+  }
+
+  function handlePointerCancel() {
+    pointerRef.current = null
+    canceledRef.current = true
+    stopRecording(true)
+    window.setTimeout(() => { ignoreNextClickRef.current = false }, 0)
+  }
+
+  function handleClick(event) {
+    if (ignoreNextClickRef.current) { event.preventDefault(); return }
+    if (recording) stopRecording(false)
+    else startRecording()
   }
 
   return (
-    <button type="button" onClick={recording ? stopRecording : startRecording} className={`min-h-11 rounded-md border px-4 py-3 text-sm font-black ${recording ? 'border-rose-300/40 bg-rose-300/10 text-rose-100' : 'border-white/10 text-zinc-200'}`}>
-      {recording ? 'Parar áudio' : 'Gravar áudio'}
-    </button>
+    <div className="chat-native-audio-recorder min-w-0" data-chat-native-audio-recorder="true">
+      <button type="button" onClick={handleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} aria-pressed={recording} aria-label={recording ? (locked ? 'Parar gravação de áudio' : 'Gravando áudio') : 'Gravar áudio'} className={`chat-native-audio-button min-h-11 w-full min-w-0 rounded-md border px-3 py-3 text-sm font-black ${recording ? 'border-rose-300/40 bg-rose-300/10 text-rose-100' : 'border-white/10 text-zinc-200'}`}>
+        {recording ? (
+          <>
+            <span className="chat-native-recording-dot" aria-hidden="true" />
+            <strong className="chat-native-recording-time">{formatNativeAudioElapsed(recordingElapsedMs)}</strong>
+            <span className="chat-native-recording-wave" aria-hidden="true">
+              {Array.from({ length: 12 }, (_, index) => <i key={index} style={{ '--chat-native-wave-index': index }} />)}
+            </span>
+            <span className="chat-native-recording-hint">{locked ? 'Toque para parar' : gestureState === 'cancel' ? 'Solte para cancelar' : gestureState === 'lock' ? 'Solte para travar' : '← cancelar · ↑ travar'}</span>
+          </>
+        ) : 'Gravar áudio'}
+      </button>
+    </div>
   )
 }
 
@@ -14836,7 +15111,7 @@ async function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -14892,13 +15167,15 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       onSaveWorkoutSession={saveStudentWorkoutSession}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
+      onEditMessage={onEditMessage}
+      onDeleteMessage={onDeleteMessage}
       onSubmitQuestionnaire={onSubmitQuestionnaire}
       onRefreshMessages={onRefreshMessages}
       onExit={onExit}
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -15231,7 +15508,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'mensagens') {
-      return <StudentChatScreen student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} onRefreshMessages={onRefreshMessages} />
+      return <StudentChatScreen student={student} coachId={coachId} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} />
     }
 
     if (activeTab === 'pagamentos') {
@@ -16097,7 +16374,7 @@ function escapeStatementHtml(value) {
     .replace(/'/g, '&#039;')
 }
 
-function StudentChatScreen({ student, coachId, messages = [], onSendMessage, onRefreshMessages }) {
+function StudentChatScreen({ student, coachId, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages }) {
   useEffect(() => {
     if (!onRefreshMessages) return undefined
     let active = true
@@ -16121,7 +16398,7 @@ function StudentChatScreen({ student, coachId, messages = [], onSendMessage, onR
           <p className="mt-1 text-xs text-zinc-400">Envie dúvidas, retornos rápidos e observações do dia.</p>
         </div>
         <div className="min-h-0 flex-1 overflow-hidden p-3">
-          <StudentMessagePanel student={student} coachId={coachId} messages={messages} onSendMessage={onSendMessage} fullScreen />
+          <StudentMessagePanel student={student} coachId={coachId} messages={messages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} fullScreen />
         </div>
       </div>
     </section>
@@ -18411,7 +18688,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
   )
 }
 
-function Messages({ students = [], messages = [], selectedStudent: selectedStudentFromDashboard, onSendMessage, onMarkRead, onRefreshMessages }) {
+function Messages({ students = [], messages = [], selectedStudent: selectedStudentFromDashboard, onSendMessage, onEditMessage, onDeleteMessage, onMarkRead, onRefreshMessages }) {
   const [selectedStudentId, setSelectedStudentId] = useState(selectedStudentFromDashboard?.id ?? students[0]?.id ?? '')
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
@@ -18575,6 +18852,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
                 {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
                 <MessageAttachment message={message} />
                 <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
+                <MessageActions message={message} canManage={message.sender === 'coach'} onEdit={onEditMessage} onDelete={onDeleteMessage} />
               </div>
             ))
           ) : (
@@ -18583,7 +18861,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
+        <form onSubmit={handleSubmit} className="chat-native-audio-composer mt-4 grid min-w-0 gap-3">
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -18592,7 +18870,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
             className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
           {attachmentPreview ? (
-            <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+            <div className="chat-native-audio-preview min-w-0 rounded-md border border-white/10 bg-white/[0.03] p-3">
               <div className="flex items-start gap-3">
                 {attachmentFile?.type?.startsWith('audio/') ? (
                   <audio controls src={attachmentPreview} className="w-full max-w-xs" />
