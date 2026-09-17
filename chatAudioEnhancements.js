@@ -7,6 +7,7 @@ const LOCK_DISTANCE = 72
 const enhancedForms = new WeakSet()
 const enhancedPlayers = new WeakSet()
 const controllers = new WeakMap()
+const activeControllers = new Set()
 
 export function classifyChatAudioGesture({ dx = 0, dy = 0 } = {}) {
   if (Number(dx) <= -CANCEL_DISTANCE && Math.abs(Number(dx)) >= Math.abs(Number(dy))) return 'cancel'
@@ -47,6 +48,12 @@ export function selectChatAudioMimeType(isTypeSupported = globalThis.MediaRecord
   }) || ''
 }
 
+export function stopChatAudioStream(stream) {
+  stream?.getTracks?.().forEach((track) => {
+    try { track.stop() } catch {}
+  })
+}
+
 function requestFrame(callback) {
   if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
     return window.requestAnimationFrame(callback)
@@ -83,14 +90,33 @@ function findSubmitButton(form) {
   )) || null
 }
 
+function dispatchFileEvents(input) {
+  const EventCtor = input?.ownerDocument?.defaultView?.Event || globalThis.Event
+  if (typeof EventCtor !== 'function') return
+  input.dispatchEvent(new EventCtor('input', { bubbles: true }))
+  input.dispatchEvent(new EventCtor('change', { bubbles: true }))
+}
+
 function setInputFile(input, file) {
-  if (!input || !file || typeof DataTransfer === 'undefined') return false
+  if (!input || !file) return false
+  const DataTransferCtor = input.ownerDocument?.defaultView?.DataTransfer || globalThis.DataTransfer
+
+  if (typeof DataTransferCtor === 'function') {
+    try {
+      const transfer = new DataTransferCtor()
+      transfer.items.add(file)
+      input.files = transfer.files
+      dispatchFileEvents(input)
+      return true
+    } catch {}
+  }
+
   try {
-    const transfer = new DataTransfer()
-    transfer.items.add(file)
-    input.files = transfer.files
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    input.dispatchEvent(new Event('change', { bubbles: true }))
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: [file],
+    })
+    dispatchFileEvents(input)
     return true
   } catch {
     return false
@@ -117,6 +143,7 @@ function updateWaveProgress(wave, ratio) {
 
 function decorateAudioElement(audio) {
   if (!(audio instanceof HTMLAudioElement) || enhancedPlayers.has(audio)) return
+  if (audio.closest('.chat-pro-audio-preview')) return
   enhancedPlayers.add(audio)
 
   const documentRoot = audio.ownerDocument
@@ -313,6 +340,8 @@ function createController(form) {
     startY: 0,
     locked: false,
     recording: false,
+    pending: false,
+    abortPending: false,
     canceled: false,
     previewUrl: '',
     recordedFile: null,
@@ -326,13 +355,6 @@ function createController(form) {
     recorderUi.hint.textContent = locked
       ? 'Gravação travada · revise antes de enviar'
       : 'Deslize ← para cancelar · ↑ para travar'
-  }
-
-  function stopTracks() {
-    state.stream?.getTracks?.().forEach((track) => {
-      try { track.stop() } catch {}
-    })
-    state.stream = null
   }
 
   function clearTimer() {
@@ -355,12 +377,17 @@ function createController(form) {
 
   function cleanupRecording() {
     clearTimer()
-    stopTracks()
+    stopChatAudioStream(state.stream)
+    state.stream = null
     state.mediaRecorder = null
     state.chunks = []
     state.recording = false
+    state.pending = false
     state.locked = false
     state.pointerId = null
+    form.classList.remove('chat-pro-recording-cancel-ready', 'chat-pro-recording-lock-ready')
+    audioButton.removeAttribute('aria-pressed')
+    audioButton.setAttribute('aria-label', 'Gravar áudio')
     setRecordingUi(false)
   }
 
@@ -374,7 +401,7 @@ function createController(form) {
   }
 
   async function startRecording(pointerEvent) {
-    if (state.recording || form.classList.contains('chat-pro-audio-previewing')) return
+    if (state.recording || state.pending || form.classList.contains('chat-pro-audio-previewing')) return
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setRecordingUi(true, { error: 'Este navegador não oferece gravação de áudio compatível.' })
       setTimeout(() => setRecordingUi(false), 2600)
@@ -383,6 +410,8 @@ function createController(form) {
 
     state.canceled = false
     state.locked = false
+    state.abortPending = false
+    state.pending = true
     state.pointerId = pointerEvent?.pointerId ?? null
     state.startX = Number(pointerEvent?.clientX || 0)
     state.startY = Number(pointerEvent?.clientY || 0)
@@ -391,8 +420,12 @@ function createController(form) {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
-      if (!form.isConnected) {
-        stream.getTracks().forEach((track) => track.stop())
+
+      if (!form.isConnected || state.abortPending) {
+        stopChatAudioStream(stream)
+        state.pending = false
+        state.abortPending = false
+        state.pointerId = null
         return
       }
 
@@ -405,6 +438,7 @@ function createController(form) {
         recorder = new MediaRecorder(stream)
       }
 
+      state.pending = false
       state.stream = stream
       state.mediaRecorder = recorder
       state.chunks = []
@@ -422,7 +456,6 @@ function createController(form) {
         const blob = new Blob(state.chunks, { type: effectiveMime })
         const shouldPreview = !state.canceled && blob.size > 0
         cleanupRecording()
-        audioButton.removeAttribute('aria-pressed')
         if (shouldPreview) showPreview(blob, effectiveMime)
       }, { once: true })
 
@@ -435,6 +468,8 @@ function createController(form) {
         updateWaveProgress(recorderUi.wave, phase)
       }, 180)
     } catch (error) {
+      state.pending = false
+      state.abortPending = false
       cleanupRecording()
       setRecordingUi(true, { error: permissionMessage(error) })
       setTimeout(() => setRecordingUi(false), 3200)
@@ -442,6 +477,11 @@ function createController(form) {
   }
 
   function finishRecording({ cancel = false } = {}) {
+    if (state.pending) {
+      state.abortPending = true
+      state.canceled = cancel
+      return
+    }
     if (!state.recording) return
     state.canceled = cancel
     clearTimer()
@@ -472,18 +512,20 @@ function createController(form) {
   }
 
   function handlePointerMove(event) {
-    if (!state.recording || state.locked || state.pointerId !== event.pointerId) return
+    if ((!state.recording && !state.pending) || state.locked || state.pointerId !== event.pointerId) return
     const gesture = classifyChatAudioGesture({
       dx: event.clientX - state.startX,
       dy: event.clientY - state.startY,
     })
     form.classList.toggle('chat-pro-recording-cancel-ready', gesture === 'cancel')
     form.classList.toggle('chat-pro-recording-lock-ready', gesture === 'lock')
-    if (gesture === 'lock') lockRecording()
+    if (state.recording && gesture === 'lock') lockRecording()
+    if (state.pending && gesture === 'cancel') state.abortPending = true
   }
 
   function handlePointerUp(event) {
-    if (!state.recording || state.locked || state.pointerId !== event.pointerId) return
+    if (state.pointerId !== event.pointerId || state.locked) return
+    if (!state.recording && !state.pending) return
     event.preventDefault()
     event.stopImmediatePropagation()
     const gesture = classifyChatAudioGesture({
@@ -491,7 +533,13 @@ function createController(form) {
       dy: event.clientY - state.startY,
     })
     form.classList.remove('chat-pro-recording-cancel-ready', 'chat-pro-recording-lock-ready')
-    finishRecording({ cancel: gesture === 'cancel' })
+    finishRecording({ cancel: gesture === 'cancel' || state.pending })
+  }
+
+  function handlePointerCancel(event) {
+    if (state.pointerId != null && event?.pointerId != null && state.pointerId !== event.pointerId) return
+    state.abortPending = true
+    finishRecording({ cancel: true })
   }
 
   function handleClick(event) {
@@ -501,14 +549,14 @@ function createController(form) {
       state.lastTouchRecording = false
       return
     }
-    if (state.recording) finishRecording()
+    if (state.recording || state.pending) finishRecording()
     else startRecording(event)
   }
 
   audioButton.addEventListener('pointerdown', handlePointerDown, true)
   audioButton.addEventListener('pointermove', handlePointerMove, true)
   audioButton.addEventListener('pointerup', handlePointerUp, true)
-  audioButton.addEventListener('pointercancel', () => finishRecording({ cancel: true }), true)
+  audioButton.addEventListener('pointercancel', handlePointerCancel, true)
   audioButton.addEventListener('click', handleClick, true)
   recorderUi.cancel.addEventListener('click', () => finishRecording({ cancel: true }))
   recorderUi.stop.addEventListener('click', () => finishRecording())
@@ -542,22 +590,35 @@ function createController(form) {
     }
     previewUi.send.disabled = true
     previewUi.send.textContent = 'Enviando…'
-    setTimeout(() => {
+    requestFrame(() => requestFrame(() => {
       if (!form.isConnected) return
-      try { form.requestSubmit(findSubmitButton(form) || undefined) } catch { form.requestSubmit() }
+      const submitButton = findSubmitButton(form)
+      try {
+        form.requestSubmit(submitButton && !submitButton.disabled ? submitButton : undefined)
+      } catch {
+        form.requestSubmit()
+      }
       previewUi.send.disabled = false
       previewUi.send.textContent = 'Enviar'
-    }, 0)
+    }))
   })
 
   function cleanup() {
-    if (state.recording) finishRecording({ cancel: true })
-    else cleanupRecording()
+    if (state.pending) {
+      state.abortPending = true
+      clearTimer()
+      setRecordingUi(false)
+    } else if (state.recording) {
+      finishRecording({ cancel: true })
+    } else {
+      cleanupRecording()
+    }
     cleanupPreview()
   }
 
-  const api = { cleanup, state }
+  const api = { cleanup, form, state }
   controllers.set(form, api)
+  activeControllers.add(api)
   return api
 }
 
@@ -577,9 +638,38 @@ function enhanceCurrentChats(documentRoot) {
   decorateAudioPlayers(documentRoot)
 }
 
+function cleanupDisconnectedControllers() {
+  ;[...activeControllers].forEach((controller) => {
+    if (controller.form?.isConnected) return
+    controller.cleanup()
+    activeControllers.delete(controller)
+  })
+}
+
+function cleanupAllControllers() {
+  ;[...activeControllers].forEach((controller) => controller.cleanup())
+}
+
 export function installChatAudioEnhancements(documentRoot = globalThis.document) {
   if (!documentRoot?.body || typeof MutationObserver === 'undefined') return () => {}
   enhanceCurrentChats(documentRoot)
+
+  const view = documentRoot.defaultView
+  const visualViewport = view?.visualViewport
+  const updateVisualViewport = () => {
+    const height = Number(visualViewport?.height || view?.innerHeight || 0)
+    if (height > 0) documentRoot.documentElement?.style.setProperty('--chat-pro-visual-height', `${Math.round(height)}px`)
+  }
+  updateVisualViewport()
+  visualViewport?.addEventListener?.('resize', updateVisualViewport, { passive: true })
+  visualViewport?.addEventListener?.('scroll', updateVisualViewport, { passive: true })
+
+  const handleConversationSelection = (event) => {
+    const button = event.target?.closest?.('button')
+    if (!button?.querySelector?.('.line-clamp-2')) return
+    cleanupAllControllers()
+  }
+  documentRoot.addEventListener('click', handleConversationSelection, true)
 
   let queued = false
   const observer = new MutationObserver(() => {
@@ -587,24 +677,23 @@ export function installChatAudioEnhancements(documentRoot = globalThis.document)
     queued = true
     requestFrame(() => {
       queued = false
+      cleanupDisconnectedControllers()
       enhanceCurrentChats(documentRoot)
-      controllers.forEach?.(() => {})
     })
   })
   observer.observe(documentRoot.body, { childList: true, subtree: true })
 
-  const cleanupDisconnected = () => {
-    documentRoot.querySelectorAll?.('form.chat-pro-composer').forEach((form) => {
-      if (!form.isConnected) controllers.get(form)?.cleanup?.()
-    })
-  }
-  documentRoot.defaultView?.addEventListener?.('pagehide', cleanupDisconnected)
+  const handlePageHide = () => cleanupAllControllers()
+  view?.addEventListener?.('pagehide', handlePageHide)
 
   return () => {
     observer.disconnect()
-    documentRoot.defaultView?.removeEventListener?.('pagehide', cleanupDisconnected)
-    CHAT_COMPOSER_SELECTORS.forEach((selector) => {
-      documentRoot.querySelectorAll(selector).forEach((textarea) => controllers.get(textarea.closest('form'))?.cleanup?.())
-    })
+    cleanupAllControllers()
+    activeControllers.clear()
+    documentRoot.removeEventListener('click', handleConversationSelection, true)
+    view?.removeEventListener?.('pagehide', handlePageHide)
+    visualViewport?.removeEventListener?.('resize', updateVisualViewport)
+    visualViewport?.removeEventListener?.('scroll', updateVisualViewport)
+    documentRoot.documentElement?.style.removeProperty('--chat-pro-visual-height')
   }
 }
