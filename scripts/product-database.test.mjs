@@ -18,7 +18,7 @@ create table nutrition_meals(id uuid primary key default gen_random_uuid(),nutri
 insert into auth.users values('${coach}'),('${other}');
 insert into students values('${student}','${coach}'),('${studentB}','${other}');
 insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');`)
-for (const file of ['20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql','20260916_questionnaire_sync.sql']) {
+for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql','20260916_questionnaire_sync.sql']) {
   await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))
 }
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
