@@ -1,0 +1,414 @@
+@keyframes chat-pro-recording-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.72); opacity: 0.55; }
+}
+
+@keyframes chat-pro-recording-wave {
+  0%, 100% { transform: scaleY(0.45); }
+  50% { transform: scaleY(1); }
+}
+
+.chat-pro-recording-panel,
+.chat-pro-audio-preview {
+  display: none;
+}
+
+.chat-pro-recording.chat-pro-composer,
+.chat-pro-audio-previewing.chat-pro-composer {
+  min-height: 4rem;
+  overflow: visible;
+}
+
+.chat-pro-recording .chat-pro-composer-input,
+.chat-pro-recording .chat-pro-composer-actions,
+.chat-pro-audio-previewing .chat-pro-composer-input,
+.chat-pro-audio-previewing .chat-pro-composer-actions {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.chat-pro-recording .chat-pro-recording-panel,
+.chat-pro-audio-previewing .chat-pro-audio-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--chat-pro-surface, #fff) 96%, var(--chat-pro-accent-soft, #d9f8ef));
+  padding: 0.5rem 0.6rem;
+  color: var(--chat-pro-text, #17211f);
+}
+
+.chat-pro-recording-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.1);
+  animation: chat-pro-recording-pulse 1.1s ease-in-out infinite;
+}
+
+.chat-pro-recording-time {
+  min-width: 2.7rem;
+  color: var(--chat-pro-text, #17211f);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-pro-audio-wave {
+  display: inline-flex;
+  min-width: 0;
+  height: 1.55rem;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.chat-pro-audio-wave i {
+  display: block;
+  width: 2px;
+  height: calc(var(--chat-audio-bar, 10) * 1px);
+  flex: 0 0 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chat-pro-muted, #687774) 42%, transparent);
+  transition: background-color 90ms ease, opacity 90ms ease;
+}
+
+.chat-pro-recording-wave i {
+  background: color-mix(in srgb, var(--chat-pro-accent, #00a98f) 58%, var(--chat-pro-muted, #687774));
+  animation: chat-pro-recording-wave 760ms ease-in-out infinite;
+}
+
+.chat-pro-recording-wave i:nth-child(2n) { animation-delay: -180ms; }
+.chat-pro-recording-wave i:nth-child(3n) { animation-delay: -330ms; }
+
+.chat-pro-audio-wave i.chat-pro-audio-wave-active {
+  background: var(--chat-pro-accent, #00a98f);
+}
+
+.chat-pro-recording-hint {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--chat-pro-muted, #687774);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-pro-recording-cancel,
+.chat-pro-recording-stop,
+.chat-pro-recording-lock,
+.chat-pro-audio-preview-play,
+.chat-pro-audio-preview-remove,
+.chat-pro-audio-preview-send,
+.chat-pro-audio-play,
+.chat-pro-audio-speed {
+  display: inline-flex;
+  min-width: 2.55rem;
+  min-height: 2.55rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--chat-pro-border, #dfe8e5);
+  border-radius: 999px;
+  background: var(--chat-pro-panel-soft, #f6f9f8);
+  color: var(--chat-pro-text, #17211f);
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.chat-pro-recording-cancel,
+.chat-pro-audio-preview-remove {
+  min-width: auto;
+  padding-inline: 0.72rem;
+  color: #b42318;
+}
+
+.chat-pro-recording-stop,
+.chat-pro-audio-preview-send {
+  border-color: var(--chat-pro-accent, #00a98f);
+  background: var(--chat-pro-accent, #00a98f);
+  color: #fff;
+}
+
+.chat-pro-recording-lock {
+  display: none;
+}
+
+.chat-pro-recording-locked .chat-pro-recording-lock,
+.chat-pro-recording-locked .chat-pro-recording-cancel,
+.chat-pro-recording-locked .chat-pro-recording-stop {
+  display: inline-flex;
+}
+
+.chat-pro-recording:not(.chat-pro-recording-locked) .chat-pro-recording-cancel,
+.chat-pro-recording:not(.chat-pro-recording-locked) .chat-pro-recording-stop {
+  display: none;
+}
+
+.chat-pro-recording-cancel-ready .chat-pro-recording-panel {
+  background: color-mix(in srgb, #fee2e2 72%, var(--chat-pro-surface, #fff));
+}
+
+.chat-pro-recording-cancel-ready .chat-pro-recording-hint {
+  color: #b42318;
+}
+
+.chat-pro-recording-lock-ready .chat-pro-recording-panel {
+  background: color-mix(in srgb, var(--chat-pro-accent-soft, #d9f8ef) 58%, var(--chat-pro-surface, #fff));
+}
+
+.chat-pro-recording-error {
+  min-width: 0;
+  max-width: 18rem;
+  color: #b42318;
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.chat-pro-audio-preview audio,
+.chat-pro-native-audio {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.chat-pro-audio-preview-play {
+  flex: 0 0 auto;
+  border-color: color-mix(in srgb, var(--chat-pro-accent, #00a98f) 30%, var(--chat-pro-border, #dfe8e5));
+  color: var(--chat-pro-accent-strong, #008b76);
+}
+
+.chat-pro-audio-preview-time {
+  min-width: 4.9rem;
+  color: var(--chat-pro-muted, #687774);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.chat-pro-audio-preview-send {
+  min-width: auto;
+  padding-inline: 0.85rem;
+}
+
+.chat-pro-audio-preview-send:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.chat-pro-audio-player {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(7rem, 1fr) auto auto;
+  min-width: min(19rem, 68vw);
+  max-width: 100%;
+  align-items: center;
+  gap: 0.42rem;
+  margin-top: 0.1rem;
+  color: inherit;
+}
+
+.chat-pro-audio-play {
+  min-width: 2.25rem;
+  width: 2.25rem;
+  min-height: 2.25rem;
+  height: 2.25rem;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  color: inherit;
+}
+
+.chat-pro-audio-progress-wrap {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  align-items: center;
+}
+
+.chat-pro-audio-progress-wrap .chat-pro-audio-wave,
+.chat-pro-audio-progress {
+  grid-area: 1 / 1;
+}
+
+.chat-pro-audio-progress {
+  width: 100%;
+  height: 2rem;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.001;
+}
+
+.chat-pro-audio-time {
+  min-width: 5.8rem;
+  color: currentColor;
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.68;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chat-pro-audio-speed {
+  min-width: 2.45rem;
+  min-height: 2rem;
+  height: 2rem;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  color: inherit;
+  font-size: 0.64rem;
+}
+
+.chat-pro-audio-button {
+  touch-action: none !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html[data-theme="dark"] .chat-pro-recording .chat-pro-recording-panel,
+html[data-theme="dark"] .chat-pro-audio-previewing .chat-pro-audio-preview,
+.app-theme-dark .chat-pro-recording .chat-pro-recording-panel,
+.app-theme-dark .chat-pro-audio-previewing .chat-pro-audio-preview {
+  background: color-mix(in srgb, var(--chat-pro-surface, #111816) 92%, var(--chat-pro-accent-soft, #113a32));
+}
+
+html[data-theme="dark"] .chat-pro-recording-cancel-ready .chat-pro-recording-panel,
+.app-theme-dark .chat-pro-recording-cancel-ready .chat-pro-recording-panel {
+  background: color-mix(in srgb, #5b1b1b 34%, var(--chat-pro-surface, #111816));
+}
+
+@media (max-width: 760px) {
+  .chat-pro-workspace {
+    min-height: calc(100dvh - 6.25rem) !important;
+  }
+
+  .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-conversation-panel {
+    min-height: calc(100dvh - 5.75rem) !important;
+    max-height: calc(100dvh - 5.75rem) !important;
+  }
+
+  .chat-pro-viewport {
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+  }
+
+  .chat-pro-composer {
+    bottom: env(safe-area-inset-bottom, 0px) !important;
+    margin-bottom: max(0.45rem, env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: max(0.42rem, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .chat-pro-recording.chat-pro-composer,
+  .chat-pro-audio-previewing.chat-pro-composer {
+    min-height: 4.35rem;
+  }
+
+  .chat-pro-recording .chat-pro-recording-panel,
+  .chat-pro-audio-previewing .chat-pro-audio-preview {
+    gap: 0.42rem;
+    padding: 0.46rem;
+  }
+
+  .chat-pro-recording-hint {
+    font-size: 0.67rem;
+  }
+
+  .chat-pro-recording-time {
+    min-width: 2.45rem;
+    font-size: 0.76rem;
+  }
+
+  .chat-pro-recording-wave {
+    max-width: 5.4rem;
+  }
+
+  .chat-pro-recording-error {
+    position: absolute;
+    inset-inline: 0.55rem;
+    bottom: calc(100% + 0.38rem);
+    max-width: none;
+    border: 1px solid color-mix(in srgb, #ef4444 24%, var(--chat-pro-border, #dfe8e5));
+    border-radius: 0.72rem;
+    background: var(--chat-pro-surface, #fff);
+    padding: 0.48rem 0.58rem;
+    box-shadow: 0 10px 26px -18px rgba(0,0,0,.45);
+  }
+
+  .chat-pro-audio-preview-time {
+    min-width: 3.9rem;
+  }
+
+  .chat-pro-audio-preview-remove,
+  .chat-pro-audio-preview-send {
+    min-height: 2.7rem;
+    padding-inline: 0.66rem;
+  }
+
+  .chat-pro-audio-player {
+    grid-template-columns: 2.45rem minmax(5.6rem, 1fr) auto;
+    min-width: min(17.4rem, 76vw);
+    gap: 0.32rem;
+  }
+
+  .chat-pro-audio-time {
+    min-width: 4.7rem;
+    font-size: 0.6rem;
+  }
+
+  .chat-pro-audio-speed {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+    min-width: 2.35rem;
+    min-height: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .chat-pro-audio-progress-wrap {
+    grid-column: 2 / 4;
+  }
+
+  .chat-pro-audio-play {
+    grid-row: 1 / 3;
+    width: 2.45rem;
+    height: 2.45rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .chat-pro-recording-wave {
+    display: none;
+  }
+
+  .chat-pro-recording-hint {
+    max-width: 8.4rem;
+  }
+
+  .chat-pro-audio-preview .chat-pro-audio-wave {
+    max-width: 5rem;
+  }
+
+  .chat-pro-audio-preview-time {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-pro-recording-dot,
+  .chat-pro-recording-wave i {
+    animation: none !important;
+  }
+}
