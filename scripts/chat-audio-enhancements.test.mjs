@@ -7,7 +7,7 @@ import * as chatAudio from '../chatAudioEnhancements.js'
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const audioCss = readFileSync(new URL('../chat-audio.css', import.meta.url), 'utf8')
 const audioSource = readFileSync(new URL('../chatAudioEnhancements.js', import.meta.url), 'utf8')
-const appSource = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8')
+const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const apiSource = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 
 const {
