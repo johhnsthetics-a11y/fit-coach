@@ -292,12 +292,12 @@ html[data-theme="dark"] .chat-pro-recording-cancel-ready .chat-pro-recording-pan
 
 @media (max-width: 760px) {
   .chat-pro-workspace {
-    min-height: calc(100dvh - 6.25rem) !important;
+    min-height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 6.25rem) !important;
   }
 
   .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-conversation-panel {
-    min-height: calc(100dvh - 5.75rem) !important;
-    max-height: calc(100dvh - 5.75rem) !important;
+    min-height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 5.75rem) !important;
+    max-height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 5.75rem) !important;
   }
 
   .chat-pro-viewport {
