@@ -3,21 +3,25 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 import * as chatEnhancements from '../chatEnhancements.js'
+import * as chatWallpaper from '../chatWallpaperEnhancements.js'
 
 const {
   CHAT_COMPOSER_SELECTORS,
+  isNearChatBottom,
+  shouldSubmitChatOnKeydown,
+} = chatEnhancements
+const {
   CHAT_WALLPAPER_PRESETS,
   CHAT_WALLPAPER_STORAGE_KEY,
-  isNearChatBottom,
   isSafeWallpaperDataUrl,
   loadChatWallpaperPreference,
   saveChatWallpaperPreference,
-  shouldSubmitChatOnKeydown,
-} = chatEnhancements
+} = chatWallpaper
 
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
+const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
 
 test('chat identifica os composers reais do coach e do aluno', () => {
   assert.equal(CHAT_COMPOSER_SELECTORS.length, 2)
@@ -25,10 +29,12 @@ test('chat identifica os composers reais do coach e do aluno', () => {
   assert.ok(CHAT_COMPOSER_SELECTORS.includes('textarea[placeholder="Responder ao coach..."]'))
 })
 
-test('produção carrega o entrypoint que instala as melhorias do chat', () => {
+test('produção carrega os entrypoints de messenger e wallpaper do chat', () => {
   assert.match(indexHtml, /src\/main\.jsx/)
   assert.match(productionMain, /installChatEnhancements/)
+  assert.match(productionMain, /installChatWallpaperEnhancements/)
   assert.match(productionMain, /chat-enhancements\.css/)
+  assert.match(productionMain, /chat-wallpaper\.css/)
 })
 
 test('scroll inteligente considera o usuario perto do fim sem exigir pixel exato', () => {
@@ -108,8 +114,9 @@ test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile',
   assert.match(chatCss, /\.chat-pro-conversation-panel\s*\{/)
   assert.match(chatCss, /\.chat-pro-suggestion\s*\{/)
   assert.match(chatCss, /\.chat-pro-audio-button/)
-  assert.match(chatCss, /\.chat-pro-wallpaper-button/)
-  assert.match(chatCss, /\.chat-pro-wallpaper-modal/)
-  assert.match(chatCss, /data-chat-wallpaper="custom"/)
   assert.match(chatCss, /@media \(max-width: 760px\)/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-button/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-modal/)
+  assert.match(wallpaperCss, /data-chat-wallpaper="custom"/)
+  assert.match(wallpaperCss, /@media \(max-width: 760px\)/)
 })
