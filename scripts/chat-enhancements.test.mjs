@@ -2,14 +2,17 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import {
+import * as chatEnhancements from '../chatEnhancements.js'
+
+const {
   CHAT_COMPOSER_SELECTORS,
   isNearChatBottom,
   shouldSubmitChatOnKeydown,
-} from '../chatEnhancements.js'
+} = chatEnhancements
 
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
+const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
 
 test('chat identifica os composers reais do coach e do aluno', () => {
   assert.equal(CHAT_COMPOSER_SELECTORS.length, 2)
@@ -33,4 +36,34 @@ test('Enter envia e Shift+Enter preserva quebra de linha', () => {
   assert.equal(shouldSubmitChatOnKeydown({ key: 'Enter', shiftKey: true, isComposing: false }), false)
   assert.equal(shouldSubmitChatOnKeydown({ key: 'Enter', shiftKey: false, isComposing: true }), false)
   assert.equal(shouldSubmitChatOnKeydown({ key: 'a', shiftKey: false, isComposing: false }), false)
+})
+
+test('messenger exporta contrato semantico estavel para o layout profissional', () => {
+  const classes = chatEnhancements.CHAT_MESSENGER_CLASSES
+  assert.ok(classes, 'CHAT_MESSENGER_CLASSES deve existir')
+  assert.deepEqual(Object.keys(classes).sort(), [
+    'attachmentButton',
+    'audioButton',
+    'composer',
+    'conversationPane',
+    'conversationPanel',
+    'header',
+    'sendButton',
+    'suggestion',
+    'thread',
+    'viewport',
+    'workspace',
+  ])
+  assert.equal(classes.workspace, 'chat-pro-workspace')
+  assert.equal(classes.conversationPane, 'chat-pro-conversations-pane')
+  assert.equal(classes.conversationPanel, 'chat-pro-conversation-panel')
+})
+
+test('CSS do messenger cobre workspace, sugestao, composer e mobile', () => {
+  assert.match(chatCss, /\.chat-pro-workspace\s*\{/)
+  assert.match(chatCss, /\.chat-pro-conversations-pane\s*\{/)
+  assert.match(chatCss, /\.chat-pro-conversation-panel\s*\{/)
+  assert.match(chatCss, /\.chat-pro-suggestion\s*\{/)
+  assert.match(chatCss, /\.chat-pro-audio-button/)
+  assert.match(chatCss, /@media \(max-width: 760px\)/)
 })
