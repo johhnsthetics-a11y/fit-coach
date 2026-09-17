@@ -6,6 +6,7 @@ import * as chatAudio from '../chatAudioEnhancements.js'
 
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const audioCss = readFileSync(new URL('../chat-audio.css', import.meta.url), 'utf8')
+const audioSource = readFileSync(new URL('../chatAudioEnhancements.js', import.meta.url), 'utf8')
 
 const {
   CHAT_AUDIO_PLAYBACK_RATES,
@@ -14,6 +15,7 @@ const {
   nextChatAudioPlaybackRate,
   selectChatAudioMimeType,
   shouldUsePressToRecord,
+  stopChatAudioStream,
 } = chatAudio
 
 test('produção instala a camada de áudio do chat', () => {
@@ -62,4 +64,27 @@ test('mime do recorder prioriza opus e possui fallback para Safari', () => {
   assert.equal(selectChatAudioMimeType(supportsOpus), 'audio/webm;codecs=opus')
 
   assert.equal(selectChatAudioMimeType(() => false), '')
+})
+
+test('cleanup do microfone encerra todas as tracks mesmo se uma falhar', () => {
+  const stopped = []
+  stopChatAudioStream({
+    getTracks() {
+      return [
+        { stop() { stopped.push('a') } },
+        { stop() { stopped.push('b'); throw new Error('track já encerrada') } },
+        { stop() { stopped.push('c') } },
+      ]
+    },
+  })
+  assert.deepEqual(stopped, ['a', 'b', 'c'])
+})
+
+test('camada de áudio trata troca de conversa, pagehide, Safari e teclado virtual', () => {
+  assert.match(audioSource, /line-clamp-2/)
+  assert.match(audioSource, /pagehide/)
+  assert.match(audioSource, /visualViewport/)
+  assert.match(audioSource, /Object\.defineProperty/)
+  assert.match(audioSource, /pointercancel/)
+  assert.match(audioCss, /--chat-pro-visual-height/)
 })
