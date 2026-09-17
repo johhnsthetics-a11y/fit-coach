@@ -6,6 +6,7 @@ export const CHAT_WALLPAPER_PRESETS = Object.freeze([
   { id: 'sage', label: 'Sálvia', description: 'Natural e discreto' },
   { id: 'horizon', label: 'Horizonte', description: 'Azul com profundidade' },
   { id: 'texture', label: 'Textura', description: 'Padrão minimalista' },
+  { id: 'solid', label: 'Sólido', description: 'Limpo, uniforme e discreto' },
 ])
 
 const DEFAULT_CHAT_WALLPAPER = Object.freeze({
