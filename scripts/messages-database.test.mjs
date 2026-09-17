@@ -23,6 +23,15 @@ create table public.students(
   id uuid primary key,
   coach_id uuid references auth.users(id)
 );
+create table public.student_invites(
+  id uuid primary key default gen_random_uuid(),
+  coach_id uuid references auth.users(id),
+  student_id uuid references public.students(id),
+  code text not null unique,
+  status text default 'active',
+  expires_at timestamptz default (now() + interval '14 days'),
+  created_at timestamptz default now()
+);
 create table public.messages(
   id uuid primary key default gen_random_uuid(),
   coach_id uuid references auth.users(id),
@@ -53,6 +62,8 @@ with check (coach_id = auth.uid());
 
 insert into auth.users values ('${coach}'), ('${other}');
 insert into public.students values ('${student}', '${coach}'), ('${studentB}', '${other}');
+insert into public.student_invites (coach_id, student_id, code, status, expires_at)
+values ('${coach}', '${student}', 'INVITE-QA', 'active', now() + interval '1 day');
 `)
 
 await db.exec(await readFile(new URL('../supabase/migrations/20260917_repair_message_rls_42501.sql', import.meta.url), 'utf8'))
