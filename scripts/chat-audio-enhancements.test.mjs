@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import * as chatAudio from '../chatAudioEnhancements.js'
 
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
-const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
+const audioCss = readFileSync(new URL('../chat-audio.css', import.meta.url), 'utf8')
 
 const {
   CHAT_AUDIO_PLAYBACK_RATES,
@@ -22,11 +22,11 @@ test('produção instala a camada de áudio do chat', () => {
 })
 
 test('chat possui estados visuais para gravação, preview e player mobile', () => {
-  assert.match(chatCss, /chat-pro-recording/)
-  assert.match(chatCss, /chat-pro-audio-preview/)
-  assert.match(chatCss, /chat-pro-audio-player/)
-  assert.match(chatCss, /env\(safe-area-inset-bottom\)/)
-  assert.match(chatCss, /100dvh/)
+  assert.match(audioCss, /chat-pro-recording/)
+  assert.match(audioCss, /chat-pro-audio-preview/)
+  assert.match(audioCss, /chat-pro-audio-player/)
+  assert.match(audioCss, /env\(safe-area-inset-bottom\)/)
+  assert.match(audioCss, /100dvh/)
 })
 
 test('gestos de gravação distinguem cancelar, travar e manter pressionado', () => {
