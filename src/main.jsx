@@ -6,6 +6,7 @@ import { installChatWallpaperEnhancements } from '../chatWallpaperEnhancements'
 import './index.css'
 import '../chat-enhancements.css'
 import '../chat-wallpaper.css'
+import '../chat-wallpaper-theme.css'
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
