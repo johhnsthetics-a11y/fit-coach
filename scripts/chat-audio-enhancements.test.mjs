@@ -25,7 +25,7 @@ test('chat possui estados visuais para gravação, preview e player mobile', () 
   assert.match(audioCss, /chat-pro-recording/)
   assert.match(audioCss, /chat-pro-audio-preview/)
   assert.match(audioCss, /chat-pro-audio-player/)
-  assert.match(audioCss, /env\(safe-area-inset-bottom\)/)
+  assert.match(audioCss, /env\(safe-area-inset-bottom(?:,\s*0px)?\)/)
   assert.match(audioCss, /100dvh/)
 })
 
