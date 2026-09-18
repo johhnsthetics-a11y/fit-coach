@@ -146,3 +146,20 @@ test('nome técnico de gravação não pode estourar o layout mobile', () => {
   assert.match(audioCss, /\.chat-message-attachment-name[\s\S]*?text-overflow:\s*ellipsis/)
   assert.match(audioCss, /\.chat-message-audio-attachment[\s\S]*?overflow:\s*hidden/)
 })
+
+
+test('envio de mensagem é otimista para áudio aparecer imediatamente após tocar em enviar', () => {
+  assert.match(appSource, /deliveryState:\s*'sending'/)
+  assert.match(appSource, /messages:\s*\[localMessage,\s*\.\.\.\(current\.messages/)
+  assert.match(appSource, /String\(item\.id\) === String\(localMessage\.id\) \? savedMessage : item/)
+  assert.match(appSource, /setDraft\(''\)[\s\S]*?clearAttachment\(\)[\s\S]*?await onSendMessage/)
+})
+
+test('botão verde envia áudio pelo submit normal sem requestAnimationFrame ou confirmação extra', () => {
+  const studentSection = appSource.slice(appSource.indexOf('function StudentMessagePanel('), appSource.indexOf('function formatChatAttachmentLabel'))
+  const coachSection = appSource.slice(appSource.indexOf('function Messages({'), appSource.indexOf('function createBlankStudent'))
+  assert.doesNotMatch(studentSection, /requestAnimationFrame/)
+  assert.doesNotMatch(coachSection, /requestAnimationFrame/)
+  assert.match(studentSection, /type="submit"/)
+  assert.match(coachSection, /type="submit"/)
+})
