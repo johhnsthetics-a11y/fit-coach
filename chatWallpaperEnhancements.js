@@ -343,7 +343,6 @@ function createWallpaperModal(documentRoot, storage) {
   let draft = { ...saved }
   let processingImage = false
   let previousFocus = null
-  let previousBodyOverflow = ''
 
   function renderDraft() {
     applyWallpaperToDocument(documentRoot, draft)
@@ -374,7 +373,6 @@ function createWallpaperModal(documentRoot, storage) {
     modal.setAttribute('aria-hidden', 'true')
     status.textContent = ''
     uploadInput.value = ''
-    documentRoot.body.style.overflow = previousBodyOverflow
     previousFocus?.focus?.()
     previousFocus = null
   }
@@ -383,8 +381,6 @@ function createWallpaperModal(documentRoot, storage) {
     saved = loadChatWallpaperPreference(storage)
     draft = { ...saved }
     previousFocus = documentRoot.activeElement
-    previousBodyOverflow = documentRoot.body.style.overflow || ''
-    documentRoot.body.style.overflow = 'hidden'
     renderDraft()
     modal.classList.add('chat-pro-wallpaper-open')
     modal.setAttribute('aria-hidden', 'false')
@@ -494,10 +490,10 @@ function createWallpaperToolbar(viewport, storage) {
   const root = viewport.parentElement
   if (!root) return
 
-  let toolbar = root.querySelector(':scope > .chat-pro-wallpaper-toolbar')
-  if (toolbar) return
+  const shell = viewport.closest('.chat-pro-conversation-panel, .chat-pro-student-shell, section') || root
+  if (shell.querySelector('.chat-pro-wallpaper-toolbar')) return
 
-  toolbar = viewport.ownerDocument.createElement('div')
+  const toolbar = viewport.ownerDocument.createElement('div')
   toolbar.className = 'chat-pro-wallpaper-toolbar'
 
   const button = viewport.ownerDocument.createElement('button')
@@ -508,6 +504,14 @@ function createWallpaperToolbar(viewport, storage) {
   button.addEventListener('click', () => createWallpaperModal(viewport.ownerDocument, storage).open())
 
   toolbar.appendChild(button)
+
+  const header = shell.querySelector('.chat-pro-header')
+  if (header) {
+    toolbar.classList.add('chat-pro-wallpaper-toolbar-in-header')
+    header.appendChild(toolbar)
+    return
+  }
+
   root.insertBefore(toolbar, viewport)
 }
 
