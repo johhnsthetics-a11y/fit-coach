@@ -684,3 +684,96 @@ html[data-theme="dark"] .chat-pro-wallpaper-cancel,
     overscroll-behavior: contain;
   }
 }
+
+
+/* Photo wallpapers keep content surfaces solid, similar to mature messaging apps. */
+.chat-pro-viewport[data-chat-wallpaper="custom"] .chat-pro-bubble-own {
+  border-color: rgba(17, 27, 33, 0.08) !important;
+  background: #d9fdd3 !important;
+  color: #1f2c34 !important;
+  box-shadow: 0 1px 1px rgba(11, 20, 26, 0.08), 0 6px 18px -16px rgba(11, 20, 26, 0.38) !important;
+}
+
+.chat-pro-viewport[data-chat-wallpaper="custom"] .chat-pro-bubble-other {
+  border-color: rgba(17, 27, 33, 0.08) !important;
+  background: #ffffff !important;
+  color: #1f2c34 !important;
+  box-shadow: 0 1px 1px rgba(11, 20, 26, 0.08), 0 6px 18px -16px rgba(11, 20, 26, 0.32) !important;
+}
+
+[data-chat-wallpaper-active="custom"] .chat-pro-header {
+  border-bottom-color: rgba(17, 27, 33, 0.12) !important;
+  background: #f0f2f5 !important;
+  backdrop-filter: none !important;
+}
+
+[data-chat-wallpaper-active="custom"] .chat-pro-composer {
+  border-color: rgba(17, 27, 33, 0.1) !important;
+  background: #f0f2f5 !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 -1px 0 rgba(17, 27, 33, 0.04) !important;
+}
+
+[data-chat-wallpaper-active="custom"] .chat-pro-composer-input {
+  border-color: rgba(17, 27, 33, 0.06) !important;
+  background: #ffffff !important;
+  color: #1f2c34 !important;
+}
+
+[data-chat-wallpaper-active="custom"] .chat-pro-suggestion {
+  border-color: rgba(17, 27, 33, 0.1) !important;
+  background: #f8faf9 !important;
+  box-shadow: 0 1px 2px rgba(17, 27, 33, 0.05) !important;
+}
+
+[data-chat-wallpaper-active="custom"] .chat-pro-wallpaper-button {
+  border-color: rgba(17, 27, 33, 0.1) !important;
+  background: #ffffff !important;
+}
+
+html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="custom"] .chat-pro-bubble-own,
+.app-theme-dark .chat-pro-viewport[data-chat-wallpaper="custom"] .chat-pro-bubble-own {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: #005c4b !important;
+  color: #e9edef !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.24), 0 8px 20px -16px rgba(0, 0, 0, 0.72) !important;
+}
+
+html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="custom"] .chat-pro-bubble-other,
+.app-theme-dark .chat-pro-viewport[data-chat-wallpaper="custom"] .chat-pro-bubble-other {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  background: #202c33 !important;
+  color: #e9edef !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.24), 0 8px 20px -16px rgba(0, 0, 0, 0.72) !important;
+}
+
+html[data-theme="dark"] [data-chat-wallpaper-active="custom"] .chat-pro-header,
+.app-theme-dark [data-chat-wallpaper-active="custom"] .chat-pro-header,
+html[data-theme="dark"] [data-chat-wallpaper-active="custom"] .chat-pro-composer,
+.app-theme-dark [data-chat-wallpaper-active="custom"] .chat-pro-composer {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: #202c33 !important;
+  color: #e9edef !important;
+  backdrop-filter: none !important;
+}
+
+html[data-theme="dark"] [data-chat-wallpaper-active="custom"] .chat-pro-composer-input,
+.app-theme-dark [data-chat-wallpaper-active="custom"] .chat-pro-composer-input {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: #2a3942 !important;
+  color: #e9edef !important;
+}
+
+html[data-theme="dark"] [data-chat-wallpaper-active="custom"] .chat-pro-suggestion,
+.app-theme-dark [data-chat-wallpaper-active="custom"] .chat-pro-suggestion {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: #182229 !important;
+  color: #e9edef !important;
+}
+
+html[data-theme="dark"] [data-chat-wallpaper-active="custom"] .chat-pro-wallpaper-button,
+.app-theme-dark [data-chat-wallpaper-active="custom"] .chat-pro-wallpaper-button {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: #2a3942 !important;
+  color: #d8e1e5 !important;
+}
