@@ -218,3 +218,26 @@ test('foto de fundo preserva composer e sugestoes legiveis sem transparência ex
   assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-composer/)
   assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-suggestion/)
 })
+
+
+test('foto personalizada entra sem branqueamento por padrão mas mantém controle ajustável', () => {
+  assert.match(wallpaperSource, /CUSTOM_WALLPAPER_DEFAULT_OVERLAY\s*=\s*0/)
+  assert.match(wallpaperSource, /overlayInput\.min\s*=\s*'0'/)
+  assert.match(wallpaperSource, /overlayTouched/)
+  assert.match(wallpaperSource, /presetId:\s*'custom'[\s\S]*?overlay:/)
+})
+
+test('chat mobile aberto ocupa praticamente toda a viewport como mensageiro nativo', () => {
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?position:\s*fixed/)
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?inset:\s*0/)
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
+  assert.match(chatCss, /\.chat-pro-student-shell[\s\S]*?position:\s*fixed/)
+  assert.match(chatCss, /padding-top:\s*env\(safe-area-inset-top/)
+})
+
+test('personalização do chat ganha CTA destacado no header', () => {
+  assert.match(wallpaperSource, /Personalização/)
+  assert.match(wallpaperSource, /chat-pro-wallpaper-button-emphasis/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-button-emphasis/)
+  assert.match(wallpaperCss, /box-shadow:/)
+})
