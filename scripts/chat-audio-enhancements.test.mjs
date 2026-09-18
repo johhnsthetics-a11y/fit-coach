@@ -121,3 +121,11 @@ test('chat expõe ações persistentes de editar e apagar mensagem', () => {
   assert.match(appSource, /Editar/)
   assert.match(appSource, /Apagar/)
 })
+
+
+test('exclusao de mensagem do coach confirma remocao mesmo quando DELETE retorna 204 sem corpo', () => {
+  assert.match(apiSource, /const deletedRows = await request\(/)
+  assert.match(apiSource, /const remainingRows = await request\([^\n]*select=id/)
+  assert.match(apiSource, /if \(!remainingRows\?\.length\) return true/)
+  assert.doesNotMatch(apiSource, /if \(!rows\?\.\[0\]\) throw new Error\('Mensagem não encontrada ou sem permissão para apagar\.'\)/)
+})

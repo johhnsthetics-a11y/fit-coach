@@ -1038,9 +1038,17 @@ export async function updateRemoteMessage(messageId, body) {
 
 export async function deleteRemoteMessage(messageId) {
   if (!isUuid(messageId)) throw new Error('Mensagem inválida.')
-  const rows = await request(`messages?id=eq.${encodeURIComponent(messageId)}&sender=eq.coach`, { method: 'DELETE' })
-  if (!rows?.[0]) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
-  return true
+  const encodedId = encodeURIComponent(messageId)
+  const existingRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach&select=id`)
+  if (!existingRows?.length) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
+
+  const deletedRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach`, { method: 'DELETE' })
+  if (deletedRows?.[0]) return true
+
+  const remainingRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach&select=id`)
+  if (!remainingRows?.length) return true
+
+  throw new Error('Não foi possível confirmar a exclusão da mensagem.')
 }
 
 export async function updateRemoteStudentMessage(inviteCode, messageId, body) {
