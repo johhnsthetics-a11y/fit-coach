@@ -3031,26 +3031,46 @@ function AppContent() {
   }
 
   async function sendMessage(message) {
-    const localAttachmentUrl = message.attachmentPreview || message.attachmentUrl || ''
+    const hasLocalFile = Boolean(message.attachmentFile)
+      && typeof URL !== 'undefined'
+      && typeof URL.createObjectURL === 'function'
+    const localAttachmentUrl = hasLocalFile
+      ? URL.createObjectURL(message.attachmentFile)
+      : (message.attachmentPreview || message.attachmentUrl || '')
     const localMessage = {
       ...message,
-      id: Date.now(),
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       coachId: message.coachId ?? data.user?.id,
       body: message.body?.trim() || (localAttachmentUrl ? (message.attachmentFile?.type?.startsWith('audio/') || message.attachmentType?.startsWith('audio/') ? 'Áudio enviado' : 'Foto enviada') : ''),
       read: message.sender === 'coach',
       attachmentUrl: localAttachmentUrl,
       attachmentType: message.attachmentFile?.type || message.attachmentType || '',
       attachmentName: message.attachmentFile?.name || message.attachmentName || '',
+      deliveryState: 'sending',
       createdAt: new Date().toISOString(),
     }
-    let savedMessage = localMessage
+
+    setData((current) => ({
+      ...current,
+      messages: [localMessage, ...(current.messages ?? [])],
+    }))
+
+    let savedMessage = { ...localMessage, deliveryState: 'sent' }
 
     if (supabaseEnabled) {
       try {
-        savedMessage = await saveRemoteMessage(localMessage)
+        const remoteMessage = await saveRemoteMessage(localMessage)
+        savedMessage = { ...remoteMessage, deliveryState: 'sent' }
         setRemoteStatus('Mensagem enviada')
         setRemoteError('')
       } catch (error) {
+        setData((current) => ({
+          ...current,
+          messages: (current.messages ?? []).filter((item) => String(item.id) !== String(localMessage.id)),
+        }))
+        if (localAttachmentUrl?.startsWith?.('blob:')) {
+          try { URL.revokeObjectURL(localAttachmentUrl) } catch {}
+        }
         handleRemoteError(error, 'Erro ao salvar mensagem')
         throw error
       }
@@ -3058,7 +3078,9 @@ function AppContent() {
 
     setData((current) => ({
       ...current,
-      messages: [savedMessage, ...(current.messages ?? [])],
+      messages: (current.messages ?? []).map((item) => (
+        String(item.id) === String(localMessage.id) ? savedMessage : item
+      )),
       students: current.students.map((student) => (
         String(student.id) === String(savedMessage.studentId)
           ? { ...student, lastMessage: savedMessage.body }
@@ -3071,6 +3093,14 @@ function AppContent() {
         ]
         : current.notifications,
     }))
+
+    if (
+      supabaseEnabled
+      && localAttachmentUrl?.startsWith?.('blob:')
+      && localAttachmentUrl !== savedMessage.attachmentUrl
+    ) {
+      try { URL.revokeObjectURL(localAttachmentUrl) } catch {}
+    }
 
     return savedMessage
   }
@@ -14394,23 +14424,33 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const body = draft.trim()
-    if ((!body && !attachmentFile) || !onSendMessage) return
+    const queuedDraft = draft
+    const body = queuedDraft.trim()
+    const queuedFile = attachmentFile
+    const queuedPreview = attachmentPreview
+    if ((!body && !queuedFile) || !onSendMessage) return
+
+    const payload = {
+      coachId,
+      studentId: student.id,
+      sender: 'student',
+      body,
+      attachmentFile: queuedFile,
+      attachmentPreview: queuedPreview,
+    }
 
     setSending(true)
     setError('')
+    setDraft('')
+    clearAttachment()
     try {
-      await onSendMessage({
-        coachId,
-        studentId: student.id,
-        sender: 'student',
-        body,
-        attachmentFile,
-        attachmentPreview,
-      })
-      setDraft('')
-      clearAttachment()
+      await onSendMessage(payload)
     } catch (sendError) {
+      setDraft(queuedDraft)
+      if (queuedFile) {
+        setAttachmentFile(queuedFile)
+        setAttachmentPreview(URL.createObjectURL(queuedFile))
+      }
       setError(sendError?.message || 'Não foi possível enviar a mensagem.')
     } finally {
       setSending(false)
@@ -14484,7 +14524,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
             }}
             onError={setError}
           />
-          <button disabled={sending || (!draft.trim() && !attachmentFile)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" disabled={sending || (!draft.trim() && !attachmentFile)} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
             {sending ? 'Enviando...' : 'Enviar resposta'}
           </button>
         </div>
@@ -18801,22 +18841,32 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
 
   async function handleSubmit(event) {
     event.preventDefault()
-    const body = draft.trim()
-    if ((!body && !attachmentFile) || !selectedStudent) return
+    const queuedDraft = draft
+    const body = queuedDraft.trim()
+    const queuedFile = attachmentFile
+    const queuedPreview = attachmentPreview
+    if ((!body && !queuedFile) || !selectedStudent) return
+
+    const payload = {
+      studentId: selectedStudent.id,
+      sender: 'coach',
+      body,
+      attachmentFile: queuedFile,
+      attachmentPreview: queuedPreview,
+    }
 
     setSending(true)
     setError('')
+    setDraft('')
+    clearAttachment()
     try {
-      await onSendMessage({
-        studentId: selectedStudent.id,
-        sender: 'coach',
-        body,
-        attachmentFile,
-        attachmentPreview,
-      })
-      setDraft('')
-      clearAttachment()
+      await onSendMessage(payload)
     } catch (sendError) {
+      setDraft(queuedDraft)
+      if (queuedFile) {
+        setAttachmentFile(queuedFile)
+        setAttachmentPreview(URL.createObjectURL(queuedFile))
+      }
       setError(sendError?.message || 'Não foi possível enviar a mensagem.')
     } finally {
       setSending(false)
@@ -18927,7 +18977,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
               }}
               onError={setError}
             />
-            <button disabled={sending || (!draft.trim() && !attachmentFile) || !selectedStudent} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={sending || (!draft.trim() && !attachmentFile) || !selectedStudent} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60">
               {sending ? 'Enviando...' : 'Enviar mensagem'}
             </button>
           </div>
