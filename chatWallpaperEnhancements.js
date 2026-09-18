@@ -14,6 +14,7 @@ const DEFAULT_CHAT_WALLPAPER = Object.freeze({
   overlay: 0.36,
   customDataUrl: '',
 })
+const CUSTOM_WALLPAPER_DEFAULT_OVERLAY = 0
 const MAX_SOURCE_WALLPAPER_BYTES = 12 * 1024 * 1024
 const MAX_STORED_WALLPAPER_BYTES = 1_250_000
 const MAX_WALLPAPER_EDGE = 1800
@@ -156,7 +157,7 @@ export async function prepareWallpaperImage(file, documentRoot = globalThis.docu
 function clampOverlay(value) {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return DEFAULT_CHAT_WALLPAPER.overlay
-  return Math.min(Math.max(parsed, 0.15), 0.75)
+  return Math.min(Math.max(parsed, 0), 0.75)
 }
 
 export function normalizeChatWallpaperPreference(preference = {}) {
@@ -182,7 +183,16 @@ export function loadChatWallpaperPreference(storage = globalThis.localStorage) {
   if (!storage?.getItem) return { ...DEFAULT_CHAT_WALLPAPER }
   try {
     const raw = storage.getItem(CHAT_WALLPAPER_STORAGE_KEY)
-    return raw ? normalizeChatWallpaperPreference(JSON.parse(raw)) : { ...DEFAULT_CHAT_WALLPAPER }
+    if (!raw) return { ...DEFAULT_CHAT_WALLPAPER }
+
+    const parsed = JSON.parse(raw)
+    const normalized = normalizeChatWallpaperPreference(parsed)
+    const isLegacyCustomDefault = normalized.presetId === 'custom'
+      && Number(parsed?.overlay) === DEFAULT_CHAT_WALLPAPER.overlay
+
+    return isLegacyCustomDefault
+      ? { ...normalized, overlay: CUSTOM_WALLPAPER_DEFAULT_OVERLAY }
+      : normalized
   } catch {
     return { ...DEFAULT_CHAT_WALLPAPER }
   }
@@ -312,10 +322,10 @@ function createWallpaperModal(documentRoot, storage) {
 
   const overlayRow = documentRoot.createElement('label')
   overlayRow.className = 'chat-pro-wallpaper-overlay-control'
-  overlayRow.innerHTML = '<span><strong>Legibilidade</strong><small>Ajuste a proteção sobre o fundo</small></span>'
+  overlayRow.innerHTML = '<span><strong>Legibilidade</strong><small>0% mantém a foto original; aumente somente se quiser mais proteção</small></span>'
   const overlayInput = documentRoot.createElement('input')
   overlayInput.type = 'range'
-  overlayInput.min = '0.15'
+  overlayInput.min = '0'
   overlayInput.max = '0.75'
   overlayInput.step = '0.05'
   overlayInput.setAttribute('aria-label', 'Opacidade da proteção do plano de fundo')
@@ -349,6 +359,7 @@ function createWallpaperModal(documentRoot, storage) {
   let draft = { ...saved }
   let processingImage = false
   let previousFocus = null
+  let overlayTouched = false
 
   function renderDraft() {
     applyWallpaperToDocument(documentRoot, draft)
@@ -386,6 +397,7 @@ function createWallpaperModal(documentRoot, storage) {
   function open() {
     saved = loadChatWallpaperPreference(storage)
     draft = { ...saved }
+    overlayTouched = false
     previousFocus = documentRoot.activeElement
     renderDraft()
     modal.classList.add('chat-pro-wallpaper-open')
@@ -409,8 +421,18 @@ function createWallpaperModal(documentRoot, storage) {
     renderDraft()
     try {
       const customDataUrl = await prepareWallpaperImage(file, documentRoot)
-      draft = normalizeChatWallpaperPreference({ ...draft, presetId: 'custom', customDataUrl })
-      status.textContent = 'Imagem pronta. Toque em Aplicar para salvar.'
+      const nextOverlay = draft.presetId === 'custom' || overlayTouched
+        ? draft.overlay
+        : CUSTOM_WALLPAPER_DEFAULT_OVERLAY
+      draft = normalizeChatWallpaperPreference({
+        ...draft,
+        presetId: 'custom',
+        customDataUrl,
+        overlay: nextOverlay,
+      })
+      status.textContent = nextOverlay === 0
+        ? 'Imagem pronta, sem branqueamento. Ajuste a legibilidade se quiser e toque em Aplicar.'
+        : 'Imagem pronta. Toque em Aplicar para salvar.'
     } catch (error) {
       status.textContent = error?.message || 'Não foi possível usar esta imagem.'
     } finally {
@@ -426,8 +448,13 @@ function createWallpaperModal(documentRoot, storage) {
   customPreview.addEventListener('click', () => {
     if (processingImage) return
     if (draft.customDataUrl) {
-      draft = normalizeChatWallpaperPreference({ ...draft, presetId: 'custom' })
-      status.textContent = 'Imagem própria selecionada. Toque em Aplicar para salvar.'
+      const nextOverlay = draft.presetId === 'custom' || overlayTouched
+        ? draft.overlay
+        : CUSTOM_WALLPAPER_DEFAULT_OVERLAY
+      draft = normalizeChatWallpaperPreference({ ...draft, presetId: 'custom', overlay: nextOverlay })
+      status.textContent = nextOverlay === 0
+        ? 'Imagem própria selecionada sem branqueamento. Toque em Aplicar para salvar.'
+        : 'Imagem própria selecionada. Toque em Aplicar para salvar.'
       renderDraft()
       return
     }
@@ -454,6 +481,7 @@ function createWallpaperModal(documentRoot, storage) {
   })
 
   overlayInput.addEventListener('input', () => {
+    overlayTouched = true
     draft = normalizeChatWallpaperPreference({ ...draft, overlay: overlayInput.value })
     status.textContent = 'Prévia aplicada. Toque em Aplicar para salvar.'
     renderDraft()
@@ -504,9 +532,9 @@ function createWallpaperToolbar(viewport, storage) {
 
   const button = viewport.ownerDocument.createElement('button')
   button.type = 'button'
-  button.className = 'chat-pro-wallpaper-button'
-  button.setAttribute('aria-label', 'Alterar plano de fundo da conversa')
-  button.innerHTML = '<span aria-hidden="true">◫</span><span>Plano de fundo</span>'
+  button.className = 'chat-pro-wallpaper-button chat-pro-wallpaper-button-emphasis'
+  button.setAttribute('aria-label', 'Abrir personalização do chat')
+  button.innerHTML = '<span aria-hidden="true">✦</span><span>Personalização</span>'
   button.addEventListener('click', () => createWallpaperModal(viewport.ownerDocument, storage).open())
 
   toolbar.appendChild(button)

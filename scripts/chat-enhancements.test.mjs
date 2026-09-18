@@ -218,3 +218,42 @@ test('foto de fundo preserva composer e sugestoes legiveis sem transparência ex
   assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-composer/)
   assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-suggestion/)
 })
+
+
+test('preferência customizada legada com overlay padrão antigo migra para foto natural', () => {
+  const storage = {
+    getItem() {
+      return JSON.stringify({
+        presetId: 'custom',
+        overlay: 0.36,
+        customDataUrl: 'data:image/jpeg;base64,AAAA',
+      })
+    },
+    setItem() {},
+  }
+  const migrated = loadChatWallpaperPreference(storage)
+  assert.equal(migrated.presetId, 'custom')
+  assert.equal(migrated.overlay, 0)
+})
+
+test('foto personalizada entra sem branqueamento por padrão mas mantém controle ajustável', () => {
+  assert.match(wallpaperSource, /CUSTOM_WALLPAPER_DEFAULT_OVERLAY\s*=\s*0/)
+  assert.match(wallpaperSource, /overlayInput\.min\s*=\s*'0'/)
+  assert.match(wallpaperSource, /overlayTouched/)
+  assert.match(wallpaperSource, /presetId:\s*'custom'[\s\S]*?overlay:/)
+})
+
+test('chat mobile aberto ocupa praticamente toda a viewport como mensageiro nativo', () => {
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?position:\s*fixed/)
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?inset:\s*0/)
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
+  assert.match(chatCss, /\.chat-pro-student-shell[\s\S]*?height:\s*calc\([\s\S]*?-\s*5\.25rem/)
+  assert.match(chatCss, /padding-top:\s*env\(safe-area-inset-top/)
+})
+
+test('personalização do chat ganha CTA destacado no header', () => {
+  assert.match(wallpaperSource, /Personalização/)
+  assert.match(wallpaperSource, /chat-pro-wallpaper-button-emphasis/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-button-emphasis/)
+  assert.match(wallpaperCss, /box-shadow:/)
+})

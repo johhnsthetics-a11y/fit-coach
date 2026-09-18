@@ -709,3 +709,68 @@ html[data-theme="dark"] .chat-pro-bubble-other,
     transition: none !important;
   }
 }
+
+
+/* Mobile conversation mode: behave like a dedicated messaging screen. */
+@media (max-width: 760px) {
+  .chat-pro-workspace.chat-pro-mobile-conversation-open {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 90 !important;
+    width: 100vw !important;
+    height: var(--chat-pro-visual-height, 100dvh) !important;
+    max-height: var(--chat-pro-visual-height, 100dvh) !important;
+    min-height: 0 !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    background: var(--chat-pro-surface) !important;
+  }
+
+  .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-conversation-panel {
+    height: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-suggestion {
+    display: none !important;
+  }
+
+  .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-header {
+    border-radius: 0 !important;
+    padding-top: max(0.65rem, env(safe-area-inset-top, 0px)) !important;
+  }
+
+  .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-viewport {
+    margin: 0 !important;
+    border-right: 0 !important;
+    border-left: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .chat-pro-workspace.chat-pro-mobile-conversation-open .chat-pro-composer {
+    margin: 0 !important;
+    padding: 0.5rem 0.55rem max(0.5rem, env(safe-area-inset-bottom, 0px)) !important;
+    border-right: 0 !important;
+    border-bottom: 0 !important;
+    border-left: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .chat-pro-student-shell {
+    height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 5.25rem) !important;
+    max-height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 5.25rem) !important;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .chat-pro-student-shell .chat-pro-student-conversation {
+    border-radius: 0.85rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .chat-pro-student-shell {
+    height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 5.25rem) !important;
+    max-height: calc(min(var(--chat-pro-visual-height, 100dvh), 100dvh) - 5.25rem) !important;
+  }
+}
