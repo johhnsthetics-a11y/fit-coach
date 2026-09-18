@@ -231,7 +231,7 @@ test('chat mobile aberto ocupa praticamente toda a viewport como mensageiro nati
   assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?position:\s*fixed/)
   assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?inset:\s*0/)
   assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
-  assert.match(chatCss, /\.chat-pro-student-shell[\s\S]*?position:\s*fixed/)
+  assert.match(chatCss, /\.chat-pro-student-shell[\s\S]*?height:\s*calc\([\s\S]*?-\s*5\.25rem/)
   assert.match(chatCss, /padding-top:\s*env\(safe-area-inset-top/)
 })
 
