@@ -220,6 +220,22 @@ test('foto de fundo preserva composer e sugestoes legiveis sem transparência ex
 })
 
 
+test('preferência customizada legada com overlay padrão antigo migra para foto natural', () => {
+  const storage = {
+    getItem() {
+      return JSON.stringify({
+        presetId: 'custom',
+        overlay: 0.36,
+        customDataUrl: 'data:image/jpeg;base64,AAAA',
+      })
+    },
+    setItem() {},
+  }
+  const migrated = loadChatWallpaperPreference(storage)
+  assert.equal(migrated.presetId, 'custom')
+  assert.equal(migrated.overlay, 0)
+})
+
 test('foto personalizada entra sem branqueamento por padrão mas mantém controle ajustável', () => {
   assert.match(wallpaperSource, /CUSTOM_WALLPAPER_DEFAULT_OVERLAY\s*=\s*0/)
   assert.match(wallpaperSource, /overlayInput\.min\s*=\s*'0'/)
