@@ -202,3 +202,19 @@ test('wallpaper customizado não usa background-attachment local no mobile', () 
   assert.doesNotMatch(wallpaperCss, /background-attachment:\s*local/)
   assert.match(wallpaperCss, /data-chat-wallpaper="custom"[\s\S]*?background-size:\s*100% 100%, cover/)
 })
+
+
+test('foto de fundo ativa modo de contraste profissional no shell da conversa', () => {
+  assert.match(wallpaperSource, /chatWallpaperActive/)
+  assert.match(wallpaperSource, /chat-pro-conversation-panel|chat-pro-student-shell/)
+  assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-header/)
+  assert.match(wallpaperCss, /data-chat-wallpaper="custom"[\s\S]*?\.chat-pro-bubble-own/)
+  assert.match(wallpaperCss, /data-chat-wallpaper="custom"[\s\S]*?\.chat-pro-bubble-other/)
+  assert.match(wallpaperCss, /#d9fdd3/i)
+  assert.match(wallpaperCss, /#005c4b/i)
+})
+
+test('foto de fundo preserva composer e sugestoes legiveis sem transparência excessiva', () => {
+  assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-composer/)
+  assert.match(wallpaperCss, /data-chat-wallpaper-active="custom"[\s\S]*?\.chat-pro-suggestion/)
+})
