@@ -123,9 +123,13 @@ test('chat expõe ações persistentes de editar e apagar mensagem', () => {
 })
 
 
-test('exclusao de mensagem do coach confirma remocao mesmo quando DELETE retorna 204 sem corpo', () => {
-  assert.match(apiSource, /const deletedRows = await request\(/)
-  assert.match(apiSource, /const remainingRows = await request\([^\n]*select=id/)
-  assert.match(apiSource, /if \(!remainingRows\?\.length\) return true/)
-  assert.doesNotMatch(apiSource, /if \(!rows\?\.\[0\]\) throw new Error\('Mensagem não encontrada ou sem permissão para apagar\.'\)/)
+test('apagar mensagem usa soft delete visível para os dois lados', () => {
+  assert.match(apiSource, /body:\s*'Mensagem apagada'/)
+  assert.match(apiSource, /deleted_at:/)
+  assert.match(apiSource, /attachment_url:\s*null/)
+  assert.match(apiSource, /method:\s*'PATCH'/)
+  assert.doesNotMatch(apiSource, /export async function deleteRemoteMessage[\s\S]*?method:\s*'DELETE'/)
+  assert.match(appSource, /message\.deletedAt/)
+  assert.match(appSource, /Mensagem apagada/)
+  assert.match(appSource, /if \(!canManage \|\| !message\?\.id \|\| message\.deletedAt\) return null/)
 })

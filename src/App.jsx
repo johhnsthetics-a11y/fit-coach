@@ -3107,14 +3107,21 @@ function AppContent() {
   async function deleteMessage(message) {
     if (!message?.id) throw new Error('Mensagem inválida.')
 
+    let deletedMessage = {
+      ...message,
+      body: 'Mensagem apagada',
+      attachmentUrl: '',
+      attachmentType: '',
+      attachmentName: '',
+      deletedAt: new Date().toISOString(),
+    }
+
     if (supabaseEnabled) {
       try {
-        if (message.sender === 'student') {
-          await deleteRemoteStudentMessage(studentAccess?.invite?.code || '', message.id)
-        } else {
-          await deleteRemoteMessage(message.id)
-        }
-        setRemoteStatus('Mensagem apagada')
+        deletedMessage = message.sender === 'student'
+          ? await deleteRemoteStudentMessage(studentAccess?.invite?.code || '', message.id)
+          : await deleteRemoteMessage(message.id)
+        setRemoteStatus('')
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao apagar mensagem')
@@ -3124,13 +3131,17 @@ function AppContent() {
 
     setData((current) => ({
       ...current,
-      messages: (current.messages ?? []).filter((item) => String(item.id) !== String(message.id)),
+      messages: (current.messages ?? []).map((item) => (
+        String(item.id) === String(message.id) ? deletedMessage : item
+      )),
     }))
     setStudentAccess((current) => current ? {
       ...current,
-      messages: (current.messages ?? []).filter((item) => String(item.id) !== String(message.id)),
+      messages: (current.messages ?? []).map((item) => (
+        String(item.id) === String(message.id) ? deletedMessage : item
+      )),
     } : current)
-    return true
+    return deletedMessage
   }
 
   async function markStudentMessagesRead(studentId) {
@@ -14283,7 +14294,7 @@ function MessageActions({ message, canManage = false, onEdit, onDelete }) {
     setActionError('')
   }, [message?.id, message?.body])
 
-  if (!canManage || !message?.id) return null
+  if (!canManage || !message?.id || message.deletedAt) return null
 
   async function saveEdit() {
     const nextBody = value.trim()
@@ -14420,7 +14431,9 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
               }`}
             >
               <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{message.sender === 'student' ? 'Você' : 'Coach'}</p>
-              {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
+              {message.deletedAt
+                ? <p className="mt-2 text-sm italic leading-6 text-zinc-400">Mensagem apagada</p>
+                : message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
               <MessageAttachment message={message} />
               <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
               <MessageActions message={message} canManage={message.sender === 'student'} onEdit={onEditMessage} onDelete={onDeleteMessage} />
@@ -14482,7 +14495,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
 }
 
 function MessageAttachment({ message }) {
-  if (!message?.attachmentUrl) return null
+  if (!message?.attachmentUrl || message?.deletedAt) return null
 
   const isImage = (message.attachmentType || '').startsWith('image/')
     || /\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(message.attachmentUrl)
@@ -18849,7 +18862,9 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
                 }`}
               >
                 <p className="text-xs font-black uppercase tracking-normal text-zinc-500">{message.sender === 'coach' ? 'Coach' : 'Aluno'}</p>
-                {message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
+                {message.deletedAt
+                  ? <p className="mt-2 text-sm italic leading-6 text-zinc-400">Mensagem apagada</p>
+                  : message.body ? <p className="mt-2 text-sm leading-6 text-zinc-200">{message.body}</p> : null}
                 <MessageAttachment message={message} />
                 <p className="mt-2 text-xs text-zinc-500">{formatDateTime(message.createdAt)}</p>
                 <MessageActions message={message} canManage={message.sender === 'coach'} onEdit={onEditMessage} onDelete={onDeleteMessage} />

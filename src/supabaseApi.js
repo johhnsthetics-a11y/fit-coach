@@ -1028,27 +1028,33 @@ export async function updateRemoteMessage(messageId, body) {
   if (!isUuid(messageId)) throw new Error('Mensagem inválida.')
   const safeBody = String(body || '').trim()
   if (!safeBody) throw new Error('A mensagem não pode ficar vazia.')
-  const rows = await request(`messages?id=eq.${encodeURIComponent(messageId)}&sender=eq.coach`, {
+  const rows = await request(`messages?id=eq.${encodeURIComponent(messageId)}&sender=eq.coach&deleted_at=is.null`, {
     method: 'PATCH',
     body: JSON.stringify({ body: safeBody }),
   })
-  if (!rows?.[0]) throw new Error('Mensagem não encontrada ou sem permissão para editar.')
+  if (!rows?.[0]) throw new Error('Mensagem não encontrada, apagada ou sem permissão para editar.')
   return hydrateMessageRow(rows[0])
 }
 
 export async function deleteRemoteMessage(messageId) {
   if (!isUuid(messageId)) throw new Error('Mensagem inválida.')
   const encodedId = encodeURIComponent(messageId)
-  const existingRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach&select=id`)
-  if (!existingRows?.length) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
+  const deletedAt = new Date().toISOString()
+  const rows = await request(`messages?id=eq.${encodedId}&sender=eq.coach&deleted_at=is.null`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      body: 'Mensagem apagada',
+      attachment_url: null,
+      attachment_type: null,
+      attachment_name: null,
+      deleted_at: deletedAt,
+    }),
+  })
+  if (rows?.[0]) return hydrateMessageRow(rows[0])
 
-  const deletedRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach`, { method: 'DELETE' })
-  if (deletedRows?.[0]) return true
-
-  const remainingRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach&select=id`)
-  if (!remainingRows?.length) return true
-
-  throw new Error('Não foi possível confirmar a exclusão da mensagem.')
+  const existingRows = await request(`messages?id=eq.${encodedId}&sender=eq.coach&select=*`)
+  if (existingRows?.[0]?.deleted_at) return hydrateMessageRow(existingRows[0])
+  throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
 }
 
 export async function updateRemoteStudentMessage(inviteCode, messageId, body) {
@@ -1069,8 +1075,9 @@ export async function deleteRemoteStudentMessage(inviteCode, messageId) {
     invite_code: inviteCode,
     selected_message_id: messageId,
   })
-  if (result !== true) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
-  return true
+  const saved = Array.isArray(result) ? result[0] : result
+  if (!saved?.id) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
+  return hydrateMessageRow(saved)
 }
 
 export async function saveRemoteMessage(message) {
@@ -1720,16 +1727,18 @@ function fromWorkoutLogRow(row) {
 }
 
 function fromMessageRow(row) {
+  const deletedAt = row.deleted_at ?? ''
   return {
     id: row.id,
     coachId: row.coach_id,
     studentId: row.student_id,
     sender: row.sender ?? 'coach',
-    body: row.body ?? '',
+    body: deletedAt ? 'Mensagem apagada' : (row.body ?? ''),
     read: Boolean(row.read),
-    attachmentUrl: row.attachment_url ?? '',
-    attachmentType: row.attachment_type ?? '',
-    attachmentName: row.attachment_name ?? '',
+    attachmentUrl: deletedAt ? '' : (row.attachment_url ?? ''),
+    attachmentType: deletedAt ? '' : (row.attachment_type ?? ''),
+    attachmentName: deletedAt ? '' : (row.attachment_name ?? ''),
+    deletedAt,
     createdAt: row.created_at,
   }
 }
