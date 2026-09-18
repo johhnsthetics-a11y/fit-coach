@@ -14462,7 +14462,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
                 <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Anexo selecionado'}</p>
+                <p className="chat-message-attachment-name text-sm font-bold text-zinc-200" title={attachmentFile?.name || ''}>{formatChatAttachmentLabel(attachmentFile?.name, attachmentFile?.type)}</p>
                 <button type="button" onClick={clearAttachment} className="mt-2 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
                   Remover anexo
                 </button>
@@ -14494,6 +14494,14 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
   )
 }
 
+function formatChatAttachmentLabel(name = '', type = '') {
+  const safeName = String(name || '').trim()
+  const isAudio = String(type || '').toLowerCase().startsWith('audio/')
+  if (isAudio && /^audio-fitcoach-/i.test(safeName)) return 'Áudio gravado'
+  if (isAudio && !safeName) return 'Áudio gravado'
+  return safeName || 'Anexo selecionado'
+}
+
 function MessageAttachment({ message }) {
   if (!message?.attachmentUrl || message?.deletedAt) return null
 
@@ -14504,9 +14512,13 @@ function MessageAttachment({ message }) {
 
   if (isAudio) {
     return (
-      <div className="mt-3 rounded-md border border-white/10 bg-zinc-950/60 p-3">
-        <audio controls src={message.attachmentUrl} className="w-full" />
-        {message.attachmentName ? <p className="mt-2 break-words text-xs text-zinc-500">{message.attachmentName}</p> : null}
+      <div className="chat-message-audio-attachment mt-3 min-w-0 max-w-full overflow-hidden rounded-md border border-white/10 bg-zinc-950/60 p-3">
+        <audio controls src={message.attachmentUrl} className="w-full max-w-full" />
+        {message.attachmentName ? (
+          <p className="chat-message-attachment-name mt-2 text-xs text-zinc-500" title={message.attachmentName}>
+            {formatChatAttachmentLabel(message.attachmentName, message.attachmentType)}
+          </p>
+        ) : null}
       </div>
     )
   }
@@ -18893,7 +18905,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
                   <img src={attachmentPreview} alt="Prévia da foto" className="h-20 w-20 rounded-md object-cover" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm font-bold text-zinc-200">{attachmentFile?.name || 'Anexo selecionado'}</p>
+                  <p className="chat-message-attachment-name text-sm font-bold text-zinc-200" title={attachmentFile?.name || ''}>{formatChatAttachmentLabel(attachmentFile?.name, attachmentFile?.type)}</p>
                   <button type="button" onClick={clearAttachment} className="mt-2 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">
                     Remover anexo
                   </button>

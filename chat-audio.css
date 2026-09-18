@@ -433,3 +433,50 @@ html[data-theme="dark"] .chat-pro-recording-cancel-ready .chat-pro-recording-pan
   .chat-native-recording-wave { min-width: 2rem; max-width: 3.4rem; }
   .chat-native-recording-hint { max-width: 4.6rem; font-size: .6rem; }
 }
+
+
+/* Prevent recorded-audio metadata from ever widening the chat. */
+.chat-message-audio-attachment {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.chat-message-audio-attachment > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.chat-message-attachment-name {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-native-audio-preview,
+.chat-native-audio-preview > div {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .chat-native-audio-preview > div {
+    width: 100%;
+  }
+
+  .chat-native-audio-preview .chat-message-attachment-name {
+    max-width: 100%;
+  }
+
+  .chat-message-audio-attachment .chat-pro-audio-player {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}

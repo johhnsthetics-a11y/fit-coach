@@ -144,7 +144,7 @@ function updateWaveProgress(wave, ratio) {
 
 function decorateAudioElement(audio) {
   if (!(audio instanceof HTMLAudioElement) || enhancedPlayers.has(audio)) return
-  if (audio.closest('.chat-pro-audio-preview')) return
+  if (audio.closest('.chat-pro-audio-preview, .chat-native-audio-preview')) return
   enhancedPlayers.add(audio)
 
   const documentRoot = audio.ownerDocument

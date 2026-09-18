@@ -220,6 +220,12 @@ function applyWallpaperToViewport(viewport, preference) {
   const normalized = normalizeChatWallpaperPreference(preference)
   viewport.dataset.chatWallpaper = normalized.presetId
   viewport.style.setProperty('--chat-pro-wallpaper-overlay', String(normalized.overlay))
+
+  const shell = viewport.closest('.chat-pro-conversation-panel, .chat-pro-student-shell')
+  if (shell instanceof HTMLElement) {
+    shell.dataset.chatWallpaperActive = normalized.presetId
+  }
+
   if (normalized.presetId === 'custom') {
     viewport.style.setProperty('--chat-pro-wallpaper-custom', `url("${normalized.customDataUrl}")`)
   } else {

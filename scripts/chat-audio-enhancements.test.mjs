@@ -133,3 +133,16 @@ test('apagar mensagem usa soft delete visível para os dois lados', () => {
   assert.match(appSource, /Mensagem apagada/)
   assert.match(appSource, /if \(!canManage \|\| !message\?\.id \|\| message\.deletedAt\) return null/)
 })
+
+test('preview React de audio não recebe segundo player decorado', () => {
+  assert.match(audioSource, /chat-native-audio-preview/)
+  assert.match(audioSource, /audio\.closest\('\.chat-pro-audio-preview, \.chat-native-audio-preview'\)/)
+})
+
+test('nome técnico de gravação não pode estourar o layout mobile', () => {
+  assert.match(appSource, /formatChatAttachmentLabel/)
+  assert.match(appSource, /Áudio gravado/)
+  assert.match(appSource, /chat-message-attachment-name/)
+  assert.match(audioCss, /\.chat-message-attachment-name[\s\S]*?text-overflow:\s*ellipsis/)
+  assert.match(audioCss, /\.chat-message-audio-attachment[\s\S]*?overflow:\s*hidden/)
+})
