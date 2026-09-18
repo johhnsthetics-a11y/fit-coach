@@ -23,6 +23,8 @@ const {
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
+const chatSource = readFileSync(new URL('../chatEnhancements.js', import.meta.url), 'utf8')
+const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
 const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
 const wallpaperThemeCss = readFileSync(new URL('../chat-wallpaper-theme.css', import.meta.url), 'utf8')
 const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
@@ -173,4 +175,31 @@ test('modal de wallpaper oferece trocar, remover, reaproveitar imagem e compress
   assert.match(wallpaperSource, /uploadInput\.value = ''/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-remove-image/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-custom-preview:focus-visible/)
+})
+
+
+test('layout mobile do chat usa uma única coluna flexível estável com visualViewport', () => {
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open \.chat-pro-conversation-panel[\s\S]*?height:\s*calc\(/)
+  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open \.chat-pro-conversation-panel[\s\S]*?min-height:\s*0/)
+  assert.match(chatCss, /\.chat-pro-viewport[\s\S]*?flex:\s*1 1 0/)
+  assert.match(chatCss, /\.chat-pro-viewport[\s\S]*?min-height:\s*0/)
+  assert.match(chatCss, /\.chat-pro-composer[\s\S]*?flex:\s*0 0 auto/)
+})
+
+test('chat do aluno recebe shell dedicado para a mesma responsividade do coach', () => {
+  assert.match(chatSource, /chat-pro-student-shell/)
+  assert.match(chatSource, /chat-pro-student-conversation/)
+  assert.match(chatCss, /\.chat-pro-student-shell/)
+  assert.match(chatCss, /\.chat-pro-student-conversation/)
+})
+
+test('controle de wallpaper não ocupa espaço do histórico de mensagens', () => {
+  assert.match(wallpaperSource, /chat-pro-header/)
+  assert.match(wallpaperSource, /chat-pro-wallpaper-toolbar-in-header/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-toolbar-in-header/)
+})
+
+test('wallpaper customizado não usa background-attachment local no mobile', () => {
+  assert.doesNotMatch(wallpaperCss, /background-attachment:\s*local/)
+  assert.match(wallpaperCss, /data-chat-wallpaper="custom"[\s\S]*?background-size:\s*100% 100%, cover/)
 })
