@@ -27,7 +27,6 @@ const chatSource = readFileSync(new URL('../chatEnhancements.js', import.meta.ur
 const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
 const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
 const wallpaperThemeCss = readFileSync(new URL('../chat-wallpaper-theme.css', import.meta.url), 'utf8')
-const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
 
 test('chat identifica os composers reais do coach e do aluno', () => {
   assert.equal(CHAT_COMPOSER_SELECTORS.length, 2)
