@@ -6,6 +6,7 @@ import * as chatAudio from '../chatAudioEnhancements.js'
 
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const audioCss = readFileSync(new URL('../chat-audio.css', import.meta.url), 'utf8')
+const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
 const audioSource = readFileSync(new URL('../chatAudioEnhancements.js', import.meta.url), 'utf8')
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const apiSource = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
@@ -29,8 +30,8 @@ test('chat possui estados visuais para gravação, preview e player mobile', () 
   assert.match(audioCss, /chat-pro-recording/)
   assert.match(audioCss, /chat-pro-audio-preview/)
   assert.match(audioCss, /chat-pro-audio-player/)
-  assert.match(audioCss, /env\(safe-area-inset-bottom(?:,\s*0px)?\)/)
-  assert.match(audioCss, /100dvh/)
+  assert.match(chatCss, /env\(safe-area-inset-bottom(?:,\s*0px)?\)/)
+  assert.match(chatCss, /100dvh/)
 })
 
 test('player de áudio cabe na bolha em telas mobile estreitas', () => {
@@ -93,7 +94,7 @@ test('camada de áudio trata troca de conversa, pagehide, Safari e teclado virtu
   assert.match(audioSource, /visualViewport/)
   assert.match(audioSource, /Object\.defineProperty/)
   assert.match(audioSource, /pointercancel/)
-  assert.match(audioCss, /--chat-pro-visual-height/)
+  assert.match(chatCss, /--chat-pro-visual-height/)
 })
 
 
