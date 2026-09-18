@@ -91,7 +91,6 @@
   background-size: 100% 100%, cover !important;
   background-position: center, center !important;
   background-repeat: no-repeat !important;
-  background-attachment: local !important;
 }
 
 html[data-theme="dark"] .chat-pro-viewport[data-chat-wallpaper="aurora"],
@@ -641,4 +640,47 @@ html[data-theme="dark"] .chat-pro-wallpaper-cancel,
 .chat-pro-wallpaper-actions button:disabled {
   cursor: wait;
   opacity: 0.6;
+}
+
+
+.chat-pro-wallpaper-toolbar-in-header {
+  position: static;
+  z-index: auto;
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+  pointer-events: auto;
+}
+
+.chat-pro-wallpaper-toolbar-in-header .chat-pro-wallpaper-button {
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .chat-pro-wallpaper-toolbar-in-header {
+    margin: 0 0 0 auto;
+  }
+
+  .chat-pro-wallpaper-toolbar:not(.chat-pro-wallpaper-toolbar-in-header) {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 6;
+    margin: 0;
+  }
+
+  .chat-pro-viewport[data-chat-wallpaper="custom"] {
+    background-size: 100% 100%, cover !important;
+    background-position: center, center !important;
+    background-repeat: no-repeat !important;
+  }
+
+  .chat-pro-wallpaper-modal {
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  .chat-pro-wallpaper-card {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 }
