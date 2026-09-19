@@ -79,7 +79,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'nutrition-multiple-plans-20260916'
+const COACH_FIT_PRO_BUILD_MARKER = 'webapp-readiness-20260919'
 const DEFAULT_UI_THEME = 'light'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1327,6 +1327,11 @@ function mergeRecords(current = [], loaded = []) {
     records.set(key, item)
   })
   return [...records.values()]
+}
+
+export function reconcileMessageDelivery(current, localId, savedMessage) {
+  const remaining = (current ?? []).filter((item) => String(item.id) !== String(localId) && (!savedMessage || String(item.id) !== String(savedMessage.id)))
+  return savedMessage ? [savedMessage, ...remaining] : remaining
 }
 
 function getInitialStudentTab(studentId = '') {
@@ -3033,6 +3038,7 @@ function AppContent() {
   }
 
   async function sendMessage(message) {
+    const requestId = portalRequestRef.current
     const hasLocalFile = Boolean(message.attachmentFile)
       && typeof URL !== 'undefined'
       && typeof URL.createObjectURL === 'function'
@@ -3062,10 +3068,16 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         const remoteMessage = await saveRemoteMessage(localMessage)
+        if (requestId !== portalRequestRef.current) throw new Error('Sua sessão mudou. Entre novamente antes de enviar mensagens.')
         savedMessage = { ...remoteMessage, deliveryState: 'sent' }
         setRemoteStatus('Mensagem enviada')
         setRemoteError('')
       } catch (error) {
+        if (requestId !== portalRequestRef.current) {
+          setData((current) => ({ ...current, messages: reconcileMessageDelivery(current.messages, localMessage.id, null) }))
+          if (localAttachmentUrl?.startsWith?.('blob:')) URL.revokeObjectURL(localAttachmentUrl)
+          throw error
+        }
         setData((current) => ({
           ...current,
           messages: (current.messages ?? []).filter((item) => String(item.id) !== String(localMessage.id)),
@@ -3080,9 +3092,7 @@ function AppContent() {
 
     setData((current) => ({
       ...current,
-      messages: (current.messages ?? []).map((item) => (
-        String(item.id) === String(localMessage.id) ? savedMessage : item
-      )),
+      messages: reconcileMessageDelivery(current.messages, localMessage.id, savedMessage),
       students: current.students.map((student) => (
         String(student.id) === String(savedMessage.studentId)
           ? { ...student, lastMessage: savedMessage.body }
@@ -3670,6 +3680,7 @@ function AppContent() {
             {activeView === 'alunos' && (
               <Students
                 nutritionist={nutritionistUser}
+                questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 students={data.students}
                 workoutLogs={data.workoutLogs ?? []}
                 invites={data.invites ?? []}
@@ -6242,7 +6253,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -6256,7 +6267,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], invit
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
-  const ranking = buildCoachStudentRanking(students, workoutLogs)
+  const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
   useEffect(() => {
@@ -6298,7 +6309,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], invit
 
   return (
     <div className="grid gap-4 lg:gap-6">
-      {!nutritionist && <StudentRankingPanel ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />}
+      <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
       <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${students.length} perfis`}>
@@ -6454,9 +6465,9 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], invit
   )
 }
 
-function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
+function StudentRankingPanel({ nutritionist = false, ranking, onSelectStudent, selectedStudentId }) {
   return (
-    <Panel title="Ranking dos alunos" action={`${ranking.length} no placar`}>
+    <Panel title={nutritionist ? 'Ranking dos pacientes' : 'Ranking dos alunos'} action={`${ranking.length} no placar`}>
       {ranking.length ? (
         <div className="student-ranking-panel grid gap-4 xl:grid-cols-[1.05fr_1fr]">
           <div className="student-ranking-podium rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-300/12 via-white/[0.035] to-blue-400/10 p-4">
@@ -6506,38 +6517,36 @@ function StudentRankingPanel({ ranking, onSelectStudent, selectedStudentId }) {
                     <p className="truncate text-sm font-black text-white">{item.student.name}</p>
                     <p className="shrink-0 text-sm font-black text-emerald-100">{item.xp} XP</p>
                   </div>
-                  <p className="mt-1 truncate text-xs text-zinc-500">{item.levelName} · {item.completedCount} treinos concluídos</p>
+                  <p className="mt-1 truncate text-xs text-zinc-500">{item.levelName} · {nutritionist ? `${item.questionnaireCount} questionários respondidos` : `${item.completedCount} treinos concluídos`}</p>
                 </div>
               </button>
             ))}
           </div>
         </div>
       ) : (
-        <Empty text="Cadastre alunos e registre treinos concluídos para montar o ranking." />
+        <Empty text={nutritionist ? 'Cadastre pacientes e acompanhe os questionários respondidos para montar o ranking.' : 'Cadastre alunos e registre treinos concluídos para montar o ranking.'} />
       )}
     </Panel>
   )
 }
 
-function buildCoachStudentRanking(students = [], workoutLogs = []) {
+export function buildCoachStudentRanking(students = [], workoutLogs = [], questionnaireAssignments = []) {
   const safeStudents = Array.isArray(students) ? students.filter(Boolean) : []
   const safeLogs = Array.isArray(workoutLogs) ? workoutLogs.filter(Boolean) : []
 
   return safeStudents
     .map((student) => {
       const logs = safeLogs.filter((log) => String(log.studentId ?? log.student_id ?? '') === String(student.id))
-      const completedCount = logs.length
       const reward = buildStudentRewardStats({
-        completedThisWeek: countWorkoutLogsThisWeek(logs),
-        completedThisMonth: countWorkoutLogsThisMonth(logs),
-        waterPercent: clampPercent(student.waterProgress || student.hydration || 0),
+        studentId: student.id,
+        workoutLogs: logs,
+        questionnaireAssignments,
       })
-      const adherenceBonus = Math.round(clampPercent(student.adherence) * 2)
-      const xp = reward.xp + adherenceBonus
       return {
         student,
-        completedCount,
-        xp,
+        completedCount: reward.history.filter((event) => event.kind === 'workout').length,
+        questionnaireCount: reward.history.filter((event) => event.kind === 'questionnaire').length,
+        xp: reward.xp,
         levelName: reward.levelName,
         progress: reward.progress,
         levelIcon: reward.levelIcon,
@@ -9068,7 +9077,9 @@ export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, libr
         </div>
         <span><i aria-hidden="true" />Prévia ao vivo</span>
       </div>
-      <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} compact />
+      <div className="mobile-workout-live-preview-body" role="region" aria-label="Simulação interativa do treino" tabIndex={0}>
+        <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} compact />
+      </div>
     </aside>
   )
 }
@@ -14380,6 +14391,8 @@ function MessageActions({ message, canManage = false, onEdit, onDelete }) {
 }
 
 function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, onEditMessage, onDeleteMessage, fullScreen = false }) {
+  const recipientRef = useRef(student?.id)
+  recipientRef.current = student?.id
   const [draft, setDraft] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [attachmentPreview, setAttachmentPreview] = useState('')
@@ -14433,7 +14446,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
     const body = queuedDraft.trim()
     const queuedFile = attachmentFile
     const queuedPreview = attachmentPreview
-    if ((!body && !queuedFile) || !onSendMessage) return
+    if (sending || (!body && !queuedFile) || !onSendMessage) return
 
     const payload = {
       coachId,
@@ -14451,6 +14464,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
     try {
       await onSendMessage(payload)
     } catch (sendError) {
+      if (recipientRef.current !== payload.studentId) return
       setDraft(queuedDraft)
       if (queuedFile) {
         setAttachmentFile(queuedFile)
@@ -14463,7 +14477,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
   }
 
   return (
-    <div className={fullScreen ? 'flex h-full min-h-[calc(100vh-250px)] flex-col' : ''}>
+    <div className={fullScreen ? 'flex h-full min-h-0 flex-col' : ''}>
       <div className={`${fullScreen ? 'min-h-0 flex-1' : 'max-h-72'} space-y-3 overflow-y-auto pr-1`}>
         {orderedMessages.length ? (
           orderedMessages.map((message) => (
@@ -14496,6 +14510,7 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
           onChange={(event) => setDraft(event.target.value)}
           rows={fullScreen ? 2 : 3}
           placeholder="Responder ao coach..."
+          disabled={sending}
           className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
         />
         {attachmentPreview ? (
@@ -14518,9 +14533,10 @@ function StudentMessagePanel({ student, coachId, messages = [], onSendMessage, o
         <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
           <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
             Foto/áudio
-            <input type="file" accept="image/*,audio/*" onChange={handleAttachment} className="hidden" />
+            <input type="file" accept="image/*,audio/*" onChange={handleAttachment} disabled={sending} className="hidden" />
           </label>
           <AudioRecorderButton
+            disabled={sending}
             onAudio={(file) => {
               if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
               setAttachmentFile(file)
@@ -14588,7 +14604,7 @@ function formatNativeAudioElapsed(milliseconds = 0) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
-function AudioRecorderButton({ onAudio, onError }) {
+function AudioRecorderButton({ onAudio, onError, disabled = false }) {
   const [recording, setRecording] = useState(false)
   const [recordingElapsedMs, setRecordingElapsedMs] = useState(0)
   const [gestureState, setGestureState] = useState('hold')
@@ -14766,7 +14782,7 @@ function AudioRecorderButton({ onAudio, onError }) {
 
   return (
     <div className="chat-native-audio-recorder min-w-0" data-chat-native-audio-recorder="true">
-      <button type="button" onClick={handleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} aria-pressed={recording} aria-label={recording ? (locked ? 'Parar gravação de áudio' : 'Gravando áudio') : 'Gravar áudio'} className={`chat-native-audio-button min-h-11 w-full min-w-0 rounded-md border px-3 py-3 text-sm font-black ${recording ? 'border-rose-300/40 bg-rose-300/10 text-rose-100' : 'border-white/10 text-zinc-200'}`}>
+      <button type="button" disabled={disabled} onClick={handleClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} aria-pressed={recording} aria-label={recording ? (locked ? 'Parar gravação de áudio' : 'Gravando áudio') : 'Gravar áudio'} className={`chat-native-audio-button min-h-11 w-full min-w-0 rounded-md border px-3 py-3 text-sm font-black ${recording ? 'border-rose-300/40 bg-rose-300/10 text-rose-100' : 'border-white/10 text-zinc-200'}`}>
         {recording ? (
           <>
             <span className="chat-native-recording-dot" aria-hidden="true" />
@@ -15271,6 +15287,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   })
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
+  const studentReward = buildStudentRewardStats({ studentId: student?.id, workoutLogs: studentWorkoutLogs, questionnaireAssignments: studentQuestionnaireAssignments })
+  const rewardTotal = studentReward.xp
+  const previousRewardRef = useRef({ studentId: student?.id, xp: rewardTotal })
+  const [xpGain, setXpGain] = useState(0)
+  useEffect(() => {
+    const previous = previousRewardRef.current
+    setXpGain(previous.studentId === student?.id ? Math.max(0, rewardTotal - previous.xp) : 0)
+    previousRewardRef.current = { studentId: student?.id, xp: rewardTotal }
+  }, [rewardTotal, student?.id])
+  useEffect(() => {
+    if (!xpGain) return undefined
+    const timer = window.setTimeout(() => setXpGain(0), 4500)
+    return () => window.clearTimeout(timer)
+  }, [xpGain])
   const studentMessages = messages.filter((message) => String(message.studentId) === String(student?.id))
   const studentAppointments = appointments
     .filter((appointment) => String(appointment.studentId) === String(student?.id))
@@ -15315,10 +15345,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   ].filter(Boolean)
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
   const weekProgress = useMemo(() => buildStudentWeekProgress(studentWorkoutLogs), [studentWorkoutLogs])
-  const completedThisWeek = weekProgress.filter((day) => day.completed).length
-  const completedThisMonth = useMemo(() => countWorkoutLogsThisMonth(studentWorkoutLogs), [studentWorkoutLogs])
-  const weeklyChallengeTarget = Math.max(3, Math.min(5, studentWorkouts.length || 4))
-  const monthlyChallengeTarget = Math.max(12, weeklyChallengeTarget * 4)
+  const completedThisWeek = studentReward.completedThisWeek
+  const completedThisMonth = studentReward.completedThisMonth
+  const weeklyChallengeTarget = 3
+  const monthlyChallengeTarget = 12
 
   useEffect(() => {
     if (!workoutStartedAt) return undefined
@@ -15464,12 +15494,14 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       return (
         <StudentHomeDashboard
           student={student}
+          workoutLogs={studentWorkoutLogs}
           weekProgress={weekProgress}
           completedThisWeek={completedThisWeek}
           weeklyTarget={weeklyChallengeTarget}
           completedThisMonth={completedThisMonth}
           monthlyTarget={monthlyChallengeTarget}
           nextWorkout={nextWorkout}
+          nextNutritionPlan={studentNutritionPlans[0]}
           nextAppointment={nextAppointment}
           waterMl={waterMl}
           waterGoalMl={waterGoalMl}
@@ -15613,7 +15645,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }
 
   return (
-    <div className={`app-shell student-mobile-shell student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
+    <div className={`app-shell student-mobile-shell ${activeTab === 'mensagens' ? 'student-chat-active' : ''} student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
+      {xpGain > 0 && <div className="student-xp-gain" role="status" aria-live="polite"><strong>+{xpGain} XP</strong><span>Progresso registrado</span></div>}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <BrandLockup compact subtitle="Coach Fit Pro" />
@@ -15676,7 +15709,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         </div>
       ) : null}
 
-      <div className="mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
+      <div className="student-app-layout mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
         <aside className="student-desktop-sidebar lg:sticky lg:top-5 lg:self-start">
           <div className="rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
             <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
@@ -15718,7 +15751,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         </aside>
 
         <main className="min-w-0">
-          <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
+          {activeTab !== 'mensagens' && <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
             <div className="p-4 sm:p-5">
               <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
               <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
@@ -15739,7 +15772,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 </div>
               ) : null}
             </div>
-          </section>
+          </section>}
           {renderActiveContent()}
         </main>
       </div>
@@ -15770,18 +15803,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   )
 }
 
-function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
+function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
   const firstName = String(student?.name || 'aluno').split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
-  const reward = buildStudentRewardStats({ completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments })
+  const reward = buildStudentRewardStats({ studentId: student?.id, workoutLogs, completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments })
   const priorityQuestionnaire = questionnaireAssignments.find((assignment) => assignment.status !== 'Respondido' && !dismissedQuestionnairePriorityIds.includes(assignment.id))
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
+    : nextNutritionPlan
+      ? { title: 'Consultar plano alimentar', body: nextNutritionPlan.title || 'Confira suas refeições e orientações.', tab: 'dieta', icon: 'nutrition' }
     : nextAppointment
       ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
-      : { title: 'Abrir chat com o coach', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
+      : { title: 'Falar com seu profissional', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
 
   return (
     <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
@@ -15825,7 +15860,7 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
                 <RankMedal icon={reward.levelIcon} label={reward.levelName} />
               </div>
               <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Cada treino concluído soma pontos e aproxima você do próximo selo.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Treinos concluídos e questionários respondidos aproximam você do próximo selo.</p>
             </div>
             <div className="student-reward-next-card rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
               <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
@@ -15853,6 +15888,15 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
               </div>
             ))}
           </div>
+          <details className="mt-4 min-w-0 border-t border-white/10 pt-3">
+            <summary className="cursor-pointer py-2 text-sm font-bold">Histórico de XP</summary>
+            {reward.history.length ? <ul className="max-h-64 space-y-2 overflow-y-auto py-2">
+              {reward.history.map((event) => <li key={event.id} className="flex min-w-0 items-start justify-between gap-3 text-sm">
+                <span className="min-w-0 break-words">{event.label}<small className="block text-zinc-500">{formatFullDateTime(event.at)}</small></span>
+                <strong className="shrink-0">+{event.xp} XP</strong>
+              </li>)}
+            </ul> : <p className="py-2 text-sm text-zinc-500">Nenhuma conclusão registrada ainda.</p>}
+          </details>
         </div>
 
         <StudentWaterTracker
@@ -15892,17 +15936,17 @@ function StudentHomeDashboard({ student, weekProgress, completedThisWeek, weekly
         <div className="grid gap-3 sm:grid-cols-3">
           <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta e ganhe bônus de XP.'} tone="emerald" />
           <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" />
-          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? '+40 XP de rotina liberado hoje.' : 'Meta de água definida pelo coach.'} tone="cyan" />
+          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? 'Meta de hoje alcançada neste dispositivo.' : 'Meta de água definida pelo profissional.'} tone="cyan" />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => onOpenTab('treino')} className="rounded-lg border border-lime-300/25 bg-lime-300/10 p-4 text-left">
-            <NavIcon name="dumbbell" className="h-5 w-5 text-lime-200" />
-            <span className="mt-3 block text-sm font-black text-white">Treinar agora</span>
+          <button type="button" onClick={() => onOpenTab(nextWorkout ? 'treino' : 'dieta')} className="rounded-lg border border-lime-300/25 bg-lime-300/10 p-4 text-left">
+            <NavIcon name={nextWorkout ? 'dumbbell' : 'nutrition'} className="h-5 w-5 text-lime-200" />
+            <span className="mt-3 block text-sm font-black text-white">{nextWorkout ? 'Treinar agora' : 'Planos alimentares'}</span>
           </button>
           <button type="button" onClick={() => onOpenTab('mensagens')} className="rounded-lg border border-blue-300/25 bg-blue-300/10 p-4 text-left">
             <NavIcon name="message" className="h-5 w-5 text-blue-200" />
-            <span className="mt-3 block text-sm font-black text-white">Falar com coach</span>
+            <span className="mt-3 block text-sm font-black text-white">Falar com profissional</span>
           </button>
         </div>
       </div>
@@ -16007,13 +16051,59 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   )
 }
 
-function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0, waterPercent = 0, questionnaireAssignments = [] }) {
-  const workoutXp = completedThisMonth * 80
-  const weeklyBonusXp = completedThisWeek >= 3 ? 120 : 0
-  const monthlyBonusXp = completedThisMonth >= 12 ? 300 : 0
-  const hydrationXp = waterPercent >= 100 ? 40 : waterPercent >= 80 ? 25 : 0
-  const questionnaireXp = questionnaireAssignments.filter((assignment) => assignment.status === 'Respondido' && assignment.xpAwarded).length * QUESTIONNAIRE_XP_REWARD
-  const xp = Math.max(0, workoutXp + weeklyBonusXp + monthlyBonusXp + hydrationXp + questionnaireXp)
+export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPercent = 0, questionnaireAssignments = [], now = new Date() }) {
+  // Rebuild the ledger from persisted completions, never from local progress or calendar totals.
+  const history = []
+  const seen = new Set()
+  const weeks = new Map()
+  const months = new Map()
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
+  const periods = (date) => {
+    const dayKey = formatter.format(date)
+    const day = new Date(`${dayKey}T12:00:00Z`)
+    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7))
+    return { week: day.toISOString().slice(0, 10), month: dayKey.slice(0, 7) }
+  }
+  const belongsToStudent = (record) => record && studentId != null && String(record.studentId ?? record.student_id) === String(studentId)
+  const logs = (Array.isArray(workoutLogs) ? workoutLogs : []).filter(belongsToStudent)
+    .slice().sort((a, b) => new Date(a.completedAt ?? a.completed_at) - new Date(b.completedAt ?? b.completed_at))
+  for (const log of logs) {
+    const at = log.completedAt ?? log.completed_at
+    const date = new Date(at)
+    if (!at || !Number.isFinite(date.getTime()) || !log.id) continue
+    const token = log.completionToken || String(log.notes || '').match(/\[coachfitpro-completion:([^\]]+)\]/)?.[1]
+    const id = `workout:${studentId}:${token || log.id}`
+    if (seen.has(id)) continue
+    seen.add(id)
+    history.push({ id, kind: 'workout', label: log.title || 'Treino concluído', at, xp: 80 })
+    // Use one product timezone so the professional and patient agree on period bonuses.
+    const period = periods(date)
+    for (const [kind, key, groups, target, amount] of [
+      ['weekly', period.week, weeks, 3, 120],
+      ['monthly', period.month, months, 12, 300],
+    ]) {
+      const count = (groups.get(key) || 0) + 1
+      groups.set(key, count)
+      if (count === target) history.push({ id: `${kind}:${studentId}:${key}`, kind, label: kind === 'weekly' ? 'Meta semanal concluída' : 'Meta mensal concluída', at, xp: amount })
+    }
+  }
+  for (const assignment of (Array.isArray(questionnaireAssignments) ? questionnaireAssignments : []).filter(belongsToStudent)) {
+    const at = assignment.completedAt ?? assignment.completed_at
+    const id = `questionnaire:${studentId}:${assignment.id}`
+    if (!assignment.id || assignment.status !== 'Respondido' || !at || !Number.isFinite(new Date(at).getTime()) || seen.has(id)) continue
+    seen.add(id)
+    history.push({ id, kind: 'questionnaire', label: assignment.questionSnapshot?.title || 'Questionário respondido', at, xp: QUESTIONNAIRE_XP_REWARD })
+  }
+  history.sort((a, b) => new Date(b.at) - new Date(a.at))
+  const sum = (kind) => history.filter((event) => event.kind === kind).reduce((total, event) => total + event.xp, 0)
+  const workoutXp = sum('workout')
+  const weeklyBonusXp = sum('weekly')
+  const monthlyBonusXp = sum('monthly')
+  const questionnaireXp = sum('questionnaire')
+  const xp = workoutXp + weeklyBonusXp + monthlyBonusXp + questionnaireXp
+  const currentPeriod = periods(now)
+  const completedThisWeek = weeks.get(currentPeriod.week) || 0
+  const completedThisMonth = months.get(currentPeriod.month) || 0
   const levels = [
     { name: 'Selo Bronze', min: 0, icon: 'bronze', tone: 'from-amber-700 to-orange-300' },
     { name: 'Selo Prata', min: 450, icon: 'prata', tone: 'from-slate-500 to-zinc-100' },
@@ -16028,7 +16118,10 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
   const remainingXp = next ? Math.max(0, next.min - xp) : 0
 
   return {
+    history,
     xp,
+    completedThisWeek,
+    completedThisMonth,
     levelName: current.name,
     levelIcon: current.icon,
     levelTone: current.tone,
@@ -16037,7 +16130,7 @@ function buildStudentRewardStats({ completedThisWeek = 0, completedThisMonth = 0
     progress: Math.min(100, Math.max(0, progress)),
     badges: [
       { label: 'Treino', done: completedThisWeek >= 3, detail: completedThisWeek >= 3 ? '+120 XP de bônus semanal' : 'complete 3 treinos na semana' },
-      { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? '+25 XP de hidratação' : 'bata 80% da meta de água' },
+      { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? 'meta local de hidratação alcançada' : 'bata 80% da meta de água' },
       { label: 'Consistência', done: completedThisMonth >= 8, detail: completedThisMonth >= 8 ? 'ritmo forte no mês' : 'alcance 8 treinos no mês' },
       { label: 'Evolução', done: completedThisMonth >= 12, detail: completedThisMonth >= 12 ? '+300 XP de bônus mensal' : 'busque 12 treinos no mês' },
     ],
@@ -16460,14 +16553,14 @@ function StudentChatScreen({ student, coachId, messages = [], onSendMessage, onE
   }, [onRefreshMessages])
 
   return (
-    <section className="min-h-[calc(100vh-168px)] overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/25">
+    <section className="student-chat-screen min-h-[calc(100vh-168px)] overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-2xl shadow-black/25">
       <div className="flex min-h-[calc(100vh-168px)] flex-col">
-        <div className="border-b border-white/10 bg-emerald-400/10 p-4">
+        <div data-student-chat-header className="border-b border-white/10 bg-emerald-400/10 p-4">
           <p className="text-xs font-black uppercase text-emerald-200">Conversa com o coach</p>
           <h2 className="mt-1 text-lg font-black">{student.name}</h2>
           <p className="mt-1 text-xs text-zinc-400">Envie dúvidas, retornos rápidos e observações do dia.</p>
         </div>
-        <div className="min-h-0 flex-1 overflow-hidden p-3">
+        <div data-student-chat-body className="min-h-0 flex-1 overflow-hidden p-3">
           <StudentMessagePanel student={student} coachId={coachId} messages={messages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} fullScreen />
         </div>
       </div>
@@ -18767,6 +18860,8 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
   const [error, setError] = useState('')
   const bottomRef = useRef(null)
   const selectedStudent = students.find((student) => String(student.id) === String(selectedStudentId)) ?? students[0]
+  const recipientRef = useRef(selectedStudent?.id)
+  recipientRef.current = selectedStudent?.id
   const studentMessages = messages
     .filter((message) => String(message.studentId) === String(selectedStudent?.id))
     .slice()
@@ -18850,7 +18945,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
     const body = queuedDraft.trim()
     const queuedFile = attachmentFile
     const queuedPreview = attachmentPreview
-    if ((!body && !queuedFile) || !selectedStudent) return
+    if (sending || (!body && !queuedFile) || !selectedStudent) return
 
     const payload = {
       studentId: selectedStudent.id,
@@ -18867,6 +18962,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
     try {
       await onSendMessage(payload)
     } catch (sendError) {
+      if (recipientRef.current !== payload.studentId) return
       setDraft(queuedDraft)
       if (queuedFile) {
         setAttachmentFile(queuedFile)
@@ -18912,7 +19008,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
         <div className="mb-4 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
           <p className="text-xs font-black uppercase tracking-normal text-blue-200">Resposta sugerida</p>
           <p className="mt-2 text-sm leading-6 text-zinc-200">{suggestion}</p>
-          <button onClick={() => setDraft(suggestion)} className="mt-3 rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
+          <button disabled={sending} onClick={() => setDraft(suggestion)} className="mt-3 rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100">
             Usar sugestão
           </button>
         </div>
@@ -18949,6 +19045,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
             onChange={(event) => setDraft(event.target.value)}
             rows={4}
             placeholder="Escreva a mensagem para o aluno..."
+            disabled={sending}
             className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-blue-500 sm:text-sm"
           />
           {attachmentPreview ? (
@@ -18971,9 +19068,10 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
             <div className="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
             <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
               Foto/áudio
-              <input type="file" accept="image/*,audio/*" onChange={handleAttachment} className="hidden" />
+              <input type="file" accept="image/*,audio/*" onChange={handleAttachment} disabled={sending} className="hidden" />
             </label>
             <AudioRecorderButton
+              disabled={sending}
               onAudio={(file) => {
                 if (attachmentPreview?.startsWith('blob:')) URL.revokeObjectURL(attachmentPreview)
                 setAttachmentFile(file)

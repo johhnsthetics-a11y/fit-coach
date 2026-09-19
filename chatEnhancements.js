@@ -267,7 +267,7 @@ function decorateStudentHeader(form) {
   const conversation = form.parentElement
   if (conversation instanceof HTMLElement) conversation.classList.add('chat-pro-student-conversation')
 
-  const header = root.firstElementChild
+  const header = root.querySelector('[data-student-chat-header]')
   if (!(header instanceof HTMLElement)) return
   header.classList.add(CHAT_MESSENGER_CLASSES.header)
 

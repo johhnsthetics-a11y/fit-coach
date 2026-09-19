@@ -32,8 +32,8 @@ try {
     { name: 'sem-alunos', students: [], workouts: [] },
     { name: 'exercicios-nulos', students: [student], workouts: [{ ...workout, exercises: null }] },
   ]
-  for (const viewport of [{ width: 1440, height: 1000 }, { width: 430, height: 932 }, { width: 390, height: 844 }, { width: 320, height: 740 }]) {
-    for (const scenario of expectFailure ? scenarios.slice(0, 1) : scenarios) {
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 768, height: 900 }, { width: 430, height: 932 }, { width: 390, height: 844 }, { width: 360, height: 740 }, { width: 320, height: 740 }].filter(item => !process.env.QA_WIDTHS || process.env.QA_WIDTHS.split(',').includes(String(item.width)))) {
+    for (const scenario of (expectFailure ? scenarios.slice(0, 1) : scenarios).filter(item => !process.env.QA_SCENARIO || process.env.QA_SCENARIO === item.name)) {
       const context = await browser.newContext({ viewport })
       const page = await context.newPage()
       const errors = []
@@ -93,6 +93,7 @@ try {
           await page.getByRole('button', { name: 'Ativar modo claro', exact: true }).first().click()
           await page.getByRole('button', { name: 'Criar treino', exact: true }).click()
           await page.getByText('Criar novo treino', { exact: true }).waitFor()
+          await page.getByLabel('Nome da rotina', { exact: true }).fill(`Rotina QA ${viewport.width}`)
           for (const step of ['Aluno', 'Dias', 'Exercícios', 'Revisar']) {
             assert.ok(await page.getByRole('button', { name: new RegExp(step) }).count(), `Etapa ${step} deve estar visível`)
           }
@@ -132,13 +133,44 @@ try {
           assert.ok(await exerciseCards.count() >= 300)
           await page.screenshot({ path: resolve(output, `picker-${viewport.width}.png`), fullPage: true })
           await picker.getByRole('button', { name: 'Adicionar', exact: true }).first().click()
+          await picker.getByRole('button', { name: 'Adicionar', exact: true }).first().click()
+          await picker.getByRole('button', { name: 'Adicionar', exact: true }).first().click()
           await picker.getByRole('button', { name: 'Fechar', exact: true }).click()
           await page.locator('.mobile-workout-live-preview').waitFor({ state: 'visible' })
           assert.ok(await page.getByText('Prévia ao vivo', { exact: true }).count())
           assert.ok(await page.getByRole('button', { name: 'Concluir série', exact: true }).count())
           assert.ok(await page.getByLabel('Carga (kg)', { exact: true }).count())
           assert.ok(await page.getByLabel('Repetições', { exact: true }).count())
+          const preview = page.locator('.mobile-workout-live-preview')
+          const clipping = await preview.evaluate(root => [root, ...root.querySelectorAll('*')].filter(el => /^(hidden|clip)$/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2).map(el => el.className))
+          assert.deepEqual(clipping, [], 'A prévia não pode esconder séries ou conclusão')
+          await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
+          await preview.locator('.mobile-workout-student-error-v2').getByText(/Conclua as .* séries restantes/).waitFor()
+          for (let exerciseIndex = 0; exerciseIndex < 3; exerciseIndex++) {
+            const sets = preview.getByRole('button', { name: 'Concluir série', exact: true })
+            while (await sets.count()) await sets.first().click()
+            if (exerciseIndex < 2) await preview.getByRole('button', { name: 'Próximo exercício', exact: true }).click()
+          }
+          await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
+          await preview.getByText(/Simulação concluída/).waitFor()
+          assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fitcoach-ai-pro-v2')).workoutLogs.length), 0, 'Simulação não grava XP')
           await page.screenshot({ path: resolve(output, `builder-${viewport.width}.png`), fullPage: true })
+          await page.getByRole('button', { name: 'Revisar treino', exact: true }).click()
+          page.once('dialog', dialog => dialog.accept())
+          await page.getByRole('button', { name: 'Publicar treino', exact: true }).click()
+          await page.getByText('Treino publicado e atribuído ao aluno.', { exact: true }).waitFor()
+          await page.reload()
+          const saved = await page.evaluate(title => JSON.parse(localStorage.getItem('fitcoach-ai-pro-v2')).workouts.find(item => item.title === title), `Rotina QA ${viewport.width}`)
+          assert.equal(saved.studentId, student.id)
+          assert.equal(saved.exercises.length, 3)
+          await page.getByRole('button', { name: 'Visão do aluno', exact: true }).click()
+          const modal = page.getByRole('dialog', { name: 'Visão do aluno', exact: true })
+          await modal.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
+          await modal.locator('.mobile-workout-student-error-v2').scrollIntoViewIfNeeded()
+          await modal.locator('.mobile-workout-student-error-v2').waitFor({ state: 'visible' })
+          assert.equal(await modal.evaluate(el => el.scrollWidth > el.clientWidth + 1), false, 'Modal deve caber sem corte horizontal')
+          await page.screenshot({ path: resolve(output, `expanded-${viewport.width}.png`) })
+          await modal.getByRole('button', { name: /Voltar para edição/ }).click()
         }
         if (viewport.width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
         await page.locator('.coach-nav-item').filter({ hasText: /^Visão geral$/ }).click()

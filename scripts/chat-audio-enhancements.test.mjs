@@ -151,7 +151,7 @@ test('nome técnico de gravação não pode estourar o layout mobile', () => {
 test('envio de mensagem é otimista para áudio aparecer imediatamente após tocar em enviar', () => {
   assert.match(appSource, /deliveryState:\s*'sending'/)
   assert.match(appSource, /messages:\s*\[localMessage,\s*\.\.\.\(current\.messages/)
-  assert.match(appSource, /String\(item\.id\) === String\(localMessage\.id\) \? savedMessage : item/)
+  assert.match(appSource, /reconcileMessageDelivery\(current\.messages, localMessage\.id, savedMessage\)/)
   assert.match(appSource, /setDraft\(''\)[\s\S]*?clearAttachment\(\)[\s\S]*?await onSendMessage/)
 })
 

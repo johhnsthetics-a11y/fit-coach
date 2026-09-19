@@ -25,6 +25,9 @@ let getExerciseFallbackImage
 let buildWorkoutCompletionPayload
 let buildWorkoutExecutionSummary
 let getStudentWorkoutExecutionStorageKey
+let buildStudentRewardStats
+let buildCoachStudentRanking
+let reconcileMessageDelivery
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -34,7 +37,55 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+})
+
+test('XP acumulado preserva meses anteriores e ignora duplicatas e outros pacientes', () => {
+  const log = { id: 'log-a', studentId: student.id, completedAt: '2025-01-07T12:00:00Z' }
+  const stats = buildStudentRewardStats({ studentId: student.id, workoutLogs: [log, log, { ...log, id: 'private', studentId: 'other' }] })
+  assert.equal(stats.xp, 80)
+  assert.equal(stats.history.length, 1)
+})
+
+test('XP de questionario usa conclusao persistida, nao o progresso de agua local', () => {
+  const form = { id: 'form-a', studentId: student.id, status: 'Respondido', completedAt: '2025-02-01T12:00:00Z', xpAwarded: true }
+  const stats = buildStudentRewardStats({ studentId: student.id, waterPercent: 100, questionnaireAssignments: [form, form, { ...form, id: 'private', studentId: 'other' }] })
+  assert.equal(stats.xp, 60)
+  assert.equal(stats.history.length, 1)
+})
+
+test('ranking e aluno exibem mesmo total e nivel sem bonus artificial de adesao', () => {
+  const logs = Array.from({ length: 12 }, (_, i) => ({ id: `log-${i}`, studentId: student.id, completedAt: `2025-01-${String(i + 1).padStart(2, '0')}T12:00:00Z` }))
+  const forms = [{ id: 'q', studentId: student.id, status: 'Respondido', completedAt: '2025-02-01T12:00:00Z', xpAwarded: true }]
+  const stats = buildStudentRewardStats({ studentId: student.id, workoutLogs: logs, questionnaireAssignments: forms })
+  const rank = buildCoachStudentRanking([{ ...student, adherence: 100 }], logs, forms)[0]
+  assert.equal(rank.xp, stats.xp)
+  assert.equal(rank.levelName, stats.levelName)
+  assert.equal(stats.xp, 12 * 80 + 2 * 120 + 300 + 60)
+  assert.equal(stats.history.filter(event => event.kind === 'monthly').length, 1)
+})
+
+test('replay de sessao nao concede XP novamente mesmo com outro id de log', () => {
+  const log = { id: 'original', studentId: student.id, workoutId: 'workout', completionToken: 'session-unique-12345', completedAt: '2025-01-01T12:00:00Z' }
+  assert.equal(buildStudentRewardStats({ studentId: student.id, workoutLogs: [log, { ...log, id: 'duplicate' }] }).xp, 80)
+  assert.equal(buildStudentRewardStats({ studentId: student.id, workoutLogs: null, questionnaireAssignments: null }).xp, 0)
+})
+
+test('resposta de envio e polling concorrentes nao duplicam a mensagem otimista', () => {
+  const saved = { id: 'server-id', body: 'Confirmada' }
+  const current = [{ id: 'local-id', body: 'Enviando' }, { id: 'server-id', body: 'Chegou via polling' }, { id: 'other', body: 'Outra mensagem' }]
+  assert.deepEqual(reconcileMessageDelivery(current, 'local-id', saved), [saved, current[2]])
+  assert.deepEqual(reconcileMessageDelivery([saved], 'local-id', saved), [saved])
+  assert.deepEqual(reconcileMessageDelivery(current, 'local-id', null), current.slice(1), 'Sessao encerrada remove somente o envio local pendente')
+})
+
+test('desafios usam os mesmos periodos e sessoes unicas do historico de XP', () => {
+  const logs = ['2026-09-21T01:00:00Z', '2026-09-22T12:00:00Z', '2026-09-23T12:00:00Z'].map((completedAt, i) => ({ id: `tz-${i}`, completionToken: `session-${i}`, studentId: student.id, completedAt }))
+  const stats = buildStudentRewardStats({ studentId: student.id, workoutLogs: [...logs, { ...logs[2], id: 'replay' }], now: new Date('2026-09-23T20:00:00Z') })
+  assert.equal(stats.completedThisWeek, 2)
+  assert.equal(stats.completedThisMonth, 3)
+  assert.equal(stats.xp, 240)
+  assert.equal(stats.badges.find(badge => badge.label === 'Treino').done, false)
 })
 
 after(async () => {
