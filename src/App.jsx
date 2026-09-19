@@ -1718,13 +1718,15 @@ function AppContent() {
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
-  const nutritionistUser = isNutritionistUser(data.user)
+  const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
   const activeCoachId = data.session?.user?.id || data.user?.id
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
   const visibleNavItems = useMemo(() => {
-    const scopedItems = nutritionistUser ? navItems.filter((item) => nutritionistViewIds.has(item.id)) : navItems
+    const scopedItems = nutritionistUser ? navItems
+      .filter((item) => nutritionistViewIds.has(item.id))
+      .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : navItems
     return masterAdmin
       ? [...scopedItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
       : scopedItems
@@ -3412,14 +3414,14 @@ function AppContent() {
     .filter(Boolean)
   const coachMobileNavLabels = {
     visao: 'Início',
-    alunos: 'Alunos',
+    alunos: nutritionistUser ? 'Pacientes' : 'Alunos',
     treinos: 'Treino',
     nutricao: 'Dieta',
   }
   const coachMobileQuickActions = [
     { id: 'treinos', label: 'Criar treino', icon: 'dumbbell', hint: 'prescrição' },
     { id: 'nutricao', label: 'Criar dieta', icon: 'nutrition', hint: 'macros' },
-    { id: 'alunos', label: 'Novo aluno', icon: 'users', hint: 'cadastro' },
+    { id: 'alunos', label: nutritionistUser ? 'Novo paciente' : 'Novo aluno', icon: 'users', hint: 'cadastro' },
     { id: 'agenda', label: 'Agenda', icon: 'calendar', hint: 'rotina' },
   ].map((action) => {
     const navItem = visibleNavItems.find((item) => item.id === action.id)
@@ -3547,7 +3549,7 @@ function AppContent() {
                 <span className={`coach-current-view-icon grid h-10 w-10 shrink-0 place-items-center rounded-md border ${activeNavTone.iconActive}`}>
                   <NavIcon name={activeNavItem?.icon} className="h-5 w-5" />
                 </span>
-                <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro / {nutritionistUser ? 'Central do nutricionista' : 'Central do coach'}</p>
+                <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro / {masterAdmin ? 'Central master' : nutritionistUser ? 'Central do nutricionista' : 'Central do treinador'}</p>
               </div>
               <h2 className="mt-1 text-3xl font-black sm:text-4xl">{viewTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
@@ -3596,7 +3598,7 @@ function AppContent() {
           </header>
 
           {activeView === 'visao' ? (
-          <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label="Ações rápidas do treinador">
+          <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label={nutritionistUser ? 'Ações rápidas do nutricionista' : 'Ações rápidas do treinador'}>
             {coachMobileQuickActions.map((action) => {
               const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(action.id)
               return (
@@ -3637,7 +3639,7 @@ function AppContent() {
 
           {activeView === 'visao' ? (
             <section className="coach-dashboard-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric label="Alunos ativos" value={data.students.length} detail={`${paidStudents} com plano pago`} />
+              <Metric label={nutritionistUser ? 'Pacientes ativos' : 'Alunos ativos'} value={data.students.length} detail={`${paidStudents} com plano pago`} />
               <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
               <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
               <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
@@ -3647,6 +3649,7 @@ function AppContent() {
           <div className="mt-5 xl:mt-6">
             {activeView === 'visao' && (
               <Overview
+                nutritionist={nutritionistUser}
                 selectedStudent={selectedStudent}
                 smartAlerts={smartAlerts}
                 priorityDashboard={priorityDashboard}
@@ -3666,6 +3669,7 @@ function AppContent() {
             )}
             {activeView === 'alunos' && (
               <Students
+                nutritionist={nutritionistUser}
                 students={data.students}
                 workoutLogs={data.workoutLogs ?? []}
                 invites={data.invites ?? []}
@@ -5839,7 +5843,7 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
   )
 }
 
-function Overview({ selectedStudent, smartAlerts = [], priorityDashboard = {}, assessments = [], invoices = [], setSelectedStudentId, setActiveView }) {
+function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], priorityDashboard = {}, assessments = [], invoices = [], setSelectedStudentId, setActiveView }) {
   if (!selectedStudent) {
     return (
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -5849,7 +5853,7 @@ function Overview({ selectedStudent, smartAlerts = [], priorityDashboard = {}, a
               <div>
                 <p className="text-xs font-black uppercase text-emerald-200">Ativação guiada</p>
                 <p className="mt-1 text-sm leading-6 text-zinc-200">
-                  Comece pelo essencial: marca, primeiro aluno, entrega inicial e convite. Em poucos minutos o painel já fica pronto para operar.
+                  {nutritionist ? 'Configure seu perfil profissional, cadastre o primeiro paciente, prepare o acompanhamento nutricional e envie o convite.' : 'Comece pelo essencial: marca, primeiro aluno, entrega inicial e convite. Em poucos minutos o painel já fica pronto para operar.'}
                 </p>
               </div>
               <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/60 px-3 py-1 text-xs font-black text-emerald-100">4 etapas</span>
@@ -5868,10 +5872,10 @@ function Overview({ selectedStudent, smartAlerts = [], priorityDashboard = {}, a
 
           <div className="grid gap-3">
             {[
-              ['1', 'Configure sua identidade', 'Preencha marca, nome profissional, CREF e WhatsApp.', 'configuracoes'],
-              ['2', 'Cadastre o primeiro aluno', 'Registre objetivo, plano, contato e dados iniciais.', 'alunos'],
-              ['3', 'Monte o acompanhamento', 'Crie treino, dieta, avaliação, agenda e cobrança.', 'treinos'],
-              ['4', 'Envie o convite', 'Teste o portal do aluno e o consentimento de dados.', 'aluno-app'],
+              ['1', 'Configure sua identidade', nutritionist ? 'Preencha sua marca, nome profissional e contato.' : 'Preencha marca, nome profissional, CREF e WhatsApp.', 'configuracoes'],
+              ['2', nutritionist ? 'Cadastre o primeiro paciente' : 'Cadastre o primeiro aluno', 'Registre objetivo, plano, contato e dados iniciais.', 'alunos'],
+              ['3', 'Monte o acompanhamento', nutritionist ? 'Prepare questionários, avaliações e planos alimentares.' : 'Crie treino, dieta, avaliação, agenda e cobrança.', nutritionist ? 'nutricao' : 'treinos'],
+              ['4', 'Envie o convite', nutritionist ? 'Confira o portal do paciente e o consentimento de dados.' : 'Teste o portal do aluno e o consentimento de dados.', 'aluno-app'],
             ].map(([number, title, description, view]) => (
               <button
                 key={number}
@@ -6238,7 +6242,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ students = [], workoutLogs = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -6294,12 +6298,12 @@ function Students({ students = [], workoutLogs = [], invites = [], anamneses = [
 
   return (
     <div className="grid gap-4 lg:gap-6">
-      <StudentRankingPanel ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
+      {!nutritionist && <StudentRankingPanel ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />}
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
-      <Panel title="Carteira de alunos" action={`${students.length} perfis`}>
+      <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${students.length} perfis`}>
         <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-          Novo aluno
+          {nutritionist ? 'Novo paciente' : 'Novo aluno'}
         </button>
         <div className="space-y-3">
           {students.map((student) => (
@@ -6328,6 +6332,7 @@ function Students({ students = [], workoutLogs = [], invites = [], anamneses = [
       <Panel title="Ficha e edição" action={selectedStudent?.phase ?? 'Novo'}>
         {editing ? (
           <StudentForm
+            nutritionist={nutritionist}
             student={editing}
             coachPlans={coachPlans}
             onSaveCoachPlan={onSaveCoachPlan}
@@ -6353,7 +6358,7 @@ function Students({ students = [], workoutLogs = [], invites = [], anamneses = [
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
             </div>
             <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">Acesso do aluno</p>
+              <p className="text-xs font-black uppercase text-amber-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
                 Se o aluno estiver pendente, o portal bloqueia treino, dieta e progresso. Você pode liberar temporariamente em casos de exceção.
               </p>
@@ -6378,7 +6383,7 @@ function Students({ students = [], workoutLogs = [], invites = [], anamneses = [
               {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
             </div>
             <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">Código de acesso do aluno</p>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">{nutritionist ? 'Código de acesso do paciente' : 'Código de acesso do aluno'}</p>
               {selectedInvite ? (
                 <>
                   <p className="mt-2 select-all text-2xl font-black text-white">{selectedInvite.code}</p>
@@ -6415,7 +6420,7 @@ function Students({ students = [], workoutLogs = [], invites = [], anamneses = [
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-                Editar aluno
+                {nutritionist ? 'Editar paciente' : 'Editar aluno'}
               </button>
               <button
                 type="button"
@@ -6436,12 +6441,12 @@ function Students({ students = [], workoutLogs = [], invites = [], anamneses = [
                 }}
                 className="w-full rounded-md border border-rose-300/30 px-4 py-3 text-sm font-black text-rose-200 disabled:opacity-50"
               >
-                {deleting ? 'Excluindo...' : 'Excluir aluno'}
+                {deleting ? 'Excluindo...' : nutritionist ? 'Excluir paciente' : 'Excluir aluno'}
               </button>
             </div>
           </>
         ) : (
-          <Empty text="Nenhum aluno selecionado." />
+          <Empty text={nutritionist ? 'Nenhum paciente selecionado.' : 'Nenhum aluno selecionado.'} />
         )}
       </Panel>
       </div>
@@ -6542,7 +6547,7 @@ function buildCoachStudentRanking(students = [], workoutLogs = []) {
     .map((item, index) => ({ ...item, position: index + 1 }))
 }
 
-function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onCancel }) {
+function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave, onSaveCoachPlan, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [continuingStudent, setContinuingStudent] = useState(student.requireAnamnesis === false)
@@ -6627,19 +6632,19 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
           className="mt-1 h-5 w-5 shrink-0 accent-emerald-500"
         />
         <span className="min-w-0">
-          <span className="block font-black text-zinc-100">Aluno já acompanhado</span>
+          <span className="block font-black text-zinc-100">{nutritionist ? 'Paciente já acompanhado' : 'Aluno já acompanhado'}</span>
           <span className="mt-1 block text-sm leading-6 text-zinc-400">
-            Use para transferir um aluno atual para o Coach Fit Pro. Ele aceitará o consentimento e entrará direto no portal, sem preencher uma nova anamnese.
+            {nutritionist ? 'Use para cadastrar um paciente que já está em acompanhamento. Após aceitar o consentimento, ele acessará o portal sem preencher uma nova anamnese.' : 'Use para transferir um aluno atual para o Coach Fit Pro. Ele aceitará o consentimento e entrará direto no portal, sem preencher uma nova anamnese.'}
           </span>
         </span>
       </label>
       {continuingStudent ? (
         <div className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4 text-sm leading-6 text-emerald-50">
-          Depois do cadastro, registre treino, alimentação, avaliações e próximos acompanhamentos nas áreas correspondentes.
+          {nutritionist ? 'Depois do cadastro, registre planos alimentares, avaliações e próximos acompanhamentos nas áreas correspondentes.' : 'Depois do cadastro, registre treino, alimentação, avaliações e próximos acompanhamentos nas áreas correspondentes.'}
         </div>
       ) : (
         <div className="rounded-md border border-blue-300/25 bg-blue-300/10 p-4 text-sm leading-6 text-blue-50">
-          Como este é um aluno novo, a anamnese será solicitada no primeiro acesso após o consentimento.
+          {nutritionist ? 'A anamnese do novo paciente será solicitada no primeiro acesso após o consentimento.' : 'Como este é um aluno novo, a anamnese será solicitada no primeiro acesso após o consentimento.'}
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -6653,8 +6658,8 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-emerald-200">Plano comercial do aluno</p>
-            <h4 className="mt-1 text-lg font-black text-white">Escolha o plano que este aluno fechou com o treinador.</h4>
+            <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Plano comercial do paciente' : 'Plano comercial do aluno'}</p>
+            <h4 className="mt-1 text-lg font-black text-white">{nutritionist ? 'Escolha o plano de acompanhamento nutricional deste paciente.' : 'Escolha o plano que este aluno fechou com o treinador.'}</h4>
             <p className="mt-1 text-sm leading-6 text-zinc-400">
               O valor e o ciclo selecionados puxam automaticamente a cobrança, o dashboard financeiro e os recebimentos.
             </p>
@@ -6731,7 +6736,7 @@ function StudentForm({ student, coachPlans = plans, onSave, onSaveCoachPlan, onC
       {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
-          {saving ? 'Salvando...' : 'Salvar aluno'}
+          {saving ? 'Salvando...' : nutritionist ? 'Salvar paciente' : 'Salvar aluno'}
         </button>
         <button type="button" onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Cancelar
