@@ -14,6 +14,8 @@
     "test:browser": "node scripts/product-browser.mjs",
     "test:nutrition-browser": "node scripts/nutrition-browser.mjs",
     "test:profiles-browser": "node scripts/professional-profile-browser.mjs",
+    "test:chat-browser": "node scripts/chat-browser.mjs",
+    "test:workouts-browser": "node scripts/workouts-browser.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "node scripts/theme-smoke.mjs"
   },

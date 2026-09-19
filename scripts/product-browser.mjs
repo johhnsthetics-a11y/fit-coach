@@ -19,7 +19,7 @@ function Harness(){
  return <StudentMobileApp student={student} checkins={[{id:'other',studentId:'qa-student-b',note:'PRIVATE_OTHER_STUDENT'}]} workouts={[${JSON.stringify(workout)}]} nutritionPlans={[]} workoutLogs={logs} messages={[]} appointments={[]} invoices={[]} assessments={[]} questionnaireAssignments={forms} coachId="qa-coach" theme={theme} toggleUiTheme={()=>setTheme(v=>v==='light'?'dark':'light')} onExit={()=>location.assign('/login?mode=signin')}
  onSubmitQuestionnaire={async(id,answers)=>{
   if(window.qaFailSubmit) throw new Error('Falha de conexão de teste');
-  const saved={...forms.find(f=>f.id===id),answers,status:'Respondido',xpAwarded:true};
+  const saved={...forms.find(f=>f.id===id),answers,status:'Respondido',completedAt:new Date().toISOString(),xpAwarded:true};
   const next=forms.map(f=>f.id===id?saved:f);localStorage.setItem('qa-forms',JSON.stringify(next));setForms(next);return saved;
  }}
  onCompleteWorkout={async log=>{const saved={...log,id:log.completionToken,completedAt:new Date().toISOString()}; setLogs(prev=>{const next=[saved,...prev.filter(i=>i.id!==saved.id)];localStorage.setItem('qa-logs',JSON.stringify(next));return next});return saved}}/>
@@ -96,6 +96,7 @@ try {
       const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('qa-forms'))[0])
       assert.equal(saved.answers.q1.otherText,'Alergia QA')
       assert.equal(saved.answers.q1.observation,'Observação preservada')
+      await page.locator('.student-xp-gain').getByText('+60 XP', { exact: true }).waitFor()
       await page.goto(base+'qa-student?alunoTab=treino')
       await page.getByRole('button',{name:'Iniciar treino',exact:true}).click()
       await page.getByRole('button',{name:'Finalizar treino',exact:true}).click()
@@ -109,9 +110,16 @@ try {
       await page.getByRole('button',{name:'Concluir série',exact:true}).click()
       await page.getByRole('button',{name:'Finalizar treino',exact:true}).click()
       await page.getByRole('button',{name:'Treino já concluído',exact:true}).waitFor()
+      await page.locator('.student-xp-gain').getByText('+80 XP', { exact: true }).waitFor()
       await page.reload()
       await page.getByRole('button',{name:'Treino já concluído',exact:true}).waitFor()
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('qa-logs')).length),1)
+      await page.goto(base+'qa-student?alunoTab=inicio')
+      await page.getByText(/140 XP acumulados/).waitFor()
+      assert.equal(await page.locator('.student-xp-gain').count(), 0, 'Refresh não deve anunciar nova recompensa')
+      await page.getByText('Histórico de XP', { exact: true }).click()
+      await page.locator('.student-reward-ranking-card details').getByText(/Questionário QA 1/).first().waitFor()
+      await page.goto(base+'qa-student?alunoTab=treino')
       await page.getByRole('button',{name:'Ativar modo escuro',exact:true}).click()
       assert.equal(await page.locator('.student-mobile-shell').getAttribute('data-theme'),'dark')
       await page.screenshot({path:resolve(output,'student-completed-dark-'+width+'.png'),fullPage:true})

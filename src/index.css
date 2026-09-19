@@ -338,7 +338,8 @@
 }
 
 .mobile-workout-live-preview .mobile-workout-student-experience-v2.is-compact {
-  overflow: hidden;
+  overflow: visible;
+  grid-auto-rows: max-content;
 }
 
 .mobile-workout-student-experience-v2.is-compact .mobile-workout-student-experience-head-v2 {
@@ -4668,15 +4669,15 @@ textarea {
     --coach-sidebar-width: 292px;
   }
 
-  .coach-auth-shell aside {
+  .coach-auth-shell > aside {
     max-height: 100dvh;
   }
 
-  .coach-auth-shell aside nav {
+  .coach-auth-shell > aside nav {
     padding-bottom: 0.25rem;
   }
 
-  .coach-auth-shell aside nav button {
+  .coach-auth-shell > aside nav button {
     min-height: 38px;
   }
 
@@ -4785,15 +4786,15 @@ textarea {
 }
 
 @media (max-height: 720px) and (min-width: 1024px) {
-  .coach-auth-shell aside {
+  .coach-auth-shell > aside {
     padding-block: 0.65rem;
   }
 
-  .coach-auth-shell aside nav {
+  .coach-auth-shell > aside nav {
     gap: 0.3rem;
   }
 
-  .coach-auth-shell aside nav button {
+  .coach-auth-shell > aside nav button {
     min-height: 34px;
     padding-block: 0.3rem;
   }
@@ -9705,6 +9706,34 @@ button.coach-notification-popover-item:hover {
 
 .mobile-workout-student-preview-panel {
   padding: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mobile-workout-student-preview-panel .mobile-workout-student-preview-head {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mobile-workout-student-preview-head > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mobile-workout-student-preview-panel .mobile-workout-student-preview-head span,
+.mobile-workout-student-preview-panel .mobile-workout-student-preview-head h4 {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.workout-student-preview-portal-v1.app-theme-light .mobile-workout-student-preview-head > button,
+.app-theme-light .mobile-workout-student-series-v2 input,
+.app-theme-light .mobile-workout-student-navigation-v2 button,
+.app-theme-light .mobile-workout-student-finish-v2 select,
+.app-theme-light .mobile-workout-student-finish-v2 textarea {
+  color: #13201d !important;
+  -webkit-text-fill-color: #13201d !important;
+  background: #ffffff !important;
+  border-color: #a6cfc6 !important;
 }
 
 .mobile-workout-student-preview-panel .mobile-workout-student-preview-head,
@@ -12302,6 +12331,121 @@ html[data-theme="dark"] body { background: #05070d; }
   gap: 0.75rem;
 }
 
+.mobile-workout-live-preview-heading > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mobile-workout-live-preview-body {
+  min-width: 0;
+  min-height: 0;
+  overflow-wrap: anywhere;
+}
+
+.student-xp-gain {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  padding: 0.8rem 1.2rem;
+  border: 1px solid #38dec0;
+  border-radius: 8px;
+  background: #063b32;
+  color: #ffffff;
+  pointer-events: none;
+  animation: student-xp-enter 240ms ease-out;
+}
+
+.student-chat-active {
+  display: flex;
+  flex-direction: column;
+  height: var(--chat-pro-visual-height, 100dvh);
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.student-chat-active > header,
+.student-chat-active > .student-bottom-nav {
+  flex: 0 0 auto;
+}
+
+.student-chat-active > .student-bottom-nav {
+  position: static;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.student-mobile-shell.student-chat-active > div.student-app-layout {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  padding-block: 0.5rem;
+}
+
+.student-mobile-shell.student-chat-active main {
+  padding-inline: 0;
+}
+
+.student-chat-active main,
+.student-chat-active .student-chat-screen,
+.student-chat-active .student-chat-screen > div {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+.student-chat-active [data-student-chat-header] {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 0.5rem;
+  flex: 0 0 auto;
+}
+
+.student-chat-active [data-student-chat-header] > p,
+.student-chat-active [data-student-chat-header] > h2 {
+  grid-column: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.student-chat-active [data-student-chat-header] > .chat-pro-wallpaper-toolbar {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+
+.student-chat-active [data-student-chat-body] {
+  min-height: 0;
+}
+
+.student-chat-active .student-desktop-sidebar {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.student-xp-gain strong, .student-xp-gain span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+@keyframes student-xp-enter {
+  from { opacity: 0; translate: 0 12px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-xp-gain { animation: none; }
+}
+
+.mobile-workout-live-preview-body:focus-visible {
+  outline: 2px solid #00a98f;
+  outline-offset: 2px;
+}
+
 .mobile-workout-live-preview-heading p,
 .mobile-workout-live-preview-heading h5 {
   margin: 0;
@@ -12802,6 +12946,15 @@ html[data-theme="dark"] body { background: #05070d; }
   .mobile-workout-live-preview {
     position: sticky;
     top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .mobile-workout-live-preview-body {
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+    padding: 2px 4px 1rem 2px;
   }
 
   .mobile-workout-picker-layout {
