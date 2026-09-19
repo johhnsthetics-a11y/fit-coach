@@ -13,6 +13,7 @@
     "test:database": "node scripts/product-database.test.mjs && node scripts/messages-database.test.mjs",
     "test:browser": "node scripts/product-browser.mjs",
     "test:nutrition-browser": "node scripts/nutrition-browser.mjs",
+    "test:profiles-browser": "node scripts/professional-profile-browser.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "node scripts/theme-smoke.mjs"
   },
