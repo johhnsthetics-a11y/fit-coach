@@ -29,14 +29,15 @@ Deno.serve(async (request) => {
 
   const eventType = findString(payload, ['event', 'event_type', 'type', 'order_type', 'status', 'payment_status']) || 'cartpanda_postback'
   const buyerEmail = normalizeEmail(findString(payload, ['email', 'buyer_email', 'customer_email', 'client_email', 'payer_email']))
-  const orderId = findString(payload, ['order_id', 'id', 'purchase_id', 'transaction_id', 'payment_id', 'sale_id', 'cid'])
+  const correlationId = findString(payload, ['cid', 'click_id', 'campaignkey'])
+  const orderId = findString(payload, ['order_id', 'id', 'purchase_id', 'transaction_id', 'payment_id', 'sale_id'])
   const productId = findString(payload, ['product_id', 'offer_id', 'plan_id'])
   const productName = findString(payload, ['product_name', 'offer_name', 'plan_name', 'name'])
   const subscriptionId = findString(payload, ['subscription_id', 'plan_subscription_id', 'recurrence_id']) || productId
   const amountCents = parseMoneyToCents(findValue(payload, ['total_price', 'amount', 'amount_net', 'price', 'value']))
   const status = mapSubscriptionStatus(eventType, payload)
   const eventId = findString(payload, ['event_id', 'webhook_id'])
-    || ['cartpanda', orderId, subscriptionId, buyerEmail, eventType].filter(Boolean).join(':')
+    || ['cartpanda', orderId, subscriptionId, correlationId, buyerEmail, eventType].filter(Boolean).join(':')
     || `cartpanda:${Date.now()}`
 
   await saveWebhookEvent({
@@ -52,6 +53,26 @@ Deno.serve(async (request) => {
     payload,
     processed: false,
   })
+
+  if (correlationId) {
+    const checkoutSession = await findStudentCheckoutSession(correlationId)
+    if (!checkoutSession?.student_id) {
+      await markWebhookError(eventId, 'Student checkout token not found or expired')
+      return jsonResponse({ ok: true, processed: false, reason: 'student_checkout_not_found' }, 202)
+    }
+
+    const safeStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
+    await updateStudentCheckoutSession({
+      session: checkoutSession,
+      status: safeStatus,
+      buyerEmail,
+      orderId,
+      subscriptionId,
+      amountCents,
+    })
+    await markWebhookProcessed(eventId)
+    return jsonResponse({ ok: true, processed: true, studentId: checkoutSession.student_id, status: safeStatus }, 200)
+  }
 
   if (!buyerEmail) {
     await markWebhookError(eventId, 'Buyer email not found in Cartpanda payload')
@@ -175,6 +196,50 @@ async function findUserByEmail(email: string) {
   return Array.isArray(rows) ? rows[0] : null
 }
 
+async function findStudentCheckoutSession(checkoutToken: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutToken)) return null
+  const now = encodeURIComponent(new Date().toISOString())
+  const rows = await supabaseFetch(
+    `/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(checkoutToken)}&expires_at=gt.${now}&select=id,checkout_token,coach_id,student_id,status&limit=1`,
+  )
+  return Array.isArray(rows) ? rows[0] : null
+}
+
+async function updateStudentCheckoutSession(input: {
+  session: { checkout_token: string; coach_id: string; student_id: string }
+  status: string
+  buyerEmail: string
+  orderId: string
+  subscriptionId: string
+  amountCents: number | null
+}) {
+  const now = new Date().toISOString()
+  await supabaseFetch(`/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(input.session.checkout_token)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      status: input.status,
+      buyer_email: input.buyerEmail || null,
+      provider_order_id: input.orderId || null,
+      provider_subscription_id: input.subscriptionId || null,
+      amount_cents: input.amountCents,
+      paid_at: input.status === 'active' ? now : null,
+      updated_at: now,
+    }),
+  })
+
+  if (input.status !== 'pending') {
+    await supabaseFetch(`/rest/v1/students?id=eq.${encodeURIComponent(input.session.student_id)}&coach_id=eq.${encodeURIComponent(input.session.coach_id)}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        payment: input.status === 'active' ? 'Pago' : 'Pendente',
+        updated_at: now,
+      }),
+    })
+  }
+}
+
 async function updateCoachSubscription(input: {
   coachId: string
   status: string
@@ -267,6 +332,14 @@ function addMonths(value: Date, months: number) {
   const result = new Date(value)
   result.setMonth(result.getMonth() + months)
   return result
+}
+
+function isConfirmedPayment(eventType: string, payload: Record<string, unknown>) {
+  const haystack = [
+    eventType,
+    findString(payload, ['payment_status', 'transaction_status', 'financial_status', 'subscription_status', 'status']),
+  ].join(' ').toLowerCase()
+  return /(paid|approved|aprov|complete|completed|active|confirm|captured|initial_sale)/.test(haystack)
 }
 
 function parseMoneyToCents(value: unknown): number | null {

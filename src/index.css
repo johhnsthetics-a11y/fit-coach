@@ -151,13 +151,24 @@
   gap: 1rem;
 }
 
-.mobile-workout-student-photo-v2 {
+.mobile-workout-student-photo-v2,
+.mobile-workout-student-video-v2 {
   position: relative;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
+  min-width: 0;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   background: #0c1816;
+}
+
+.mobile-workout-student-photo-v2 {
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+.mobile-workout-student-video-v2 {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
 }
 
 .mobile-workout-student-photo-v2 img {
@@ -170,6 +181,14 @@
   position: absolute;
   left: 0.75rem;
   bottom: 0.75rem;
+}
+
+.mobile-workout-student-video-v2 > span {
+  width: fit-content;
+}
+
+.mobile-workout-student-photo-v2 > span,
+.mobile-workout-student-video-v2 > span {
   border: 1px solid rgba(0, 210, 178, 0.35);
   border-radius: 999px;
   background: rgba(3, 13, 11, 0.88);

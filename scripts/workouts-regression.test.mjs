@@ -297,7 +297,8 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
   assert.match(html, /Concluir série/)
   assert.match(html, /Finalizar treino/)
   assert.match(html, /\+80 XP/)
-  assert.match(html, /\/assets\/exercises\/coachfit-upper-push\.png/)
+  assert.match(html, /YouTube/)
+  assert.doesNotMatch(html, /<img[^>]+Execução de Supino reto com barra/)
 })
 
 test('visão do aluno do treino publicado reutiliza o executor interativo fiel', async () => {
@@ -308,11 +309,19 @@ test('visão do aluno do treino publicado reutiliza o executor interativo fiel',
   assert.doesNotMatch(componentSource, /mobile-workout-student-preview-days/)
 })
 
-test('biblioteca usa imagens profissionais coerentes por padrão de movimento', () => {
+test('dados de imagens permanecem disponíveis para uma atualização futura', () => {
   assert.equal(getExerciseFallbackImage({ name: 'Agachamento livre', group: 'Quadríceps e glúteos' }), '/assets/exercises/coachfit-lower-body.png')
   assert.equal(getExerciseFallbackImage({ name: 'Supino reto com barra', group: 'Peitoral' }), '/assets/exercises/coachfit-upper-push.png')
   assert.equal(getExerciseFallbackImage({ name: 'Remada baixa', group: 'Costas' }), '/assets/exercises/coachfit-upper-pull.png')
   assert.equal(getExerciseFallbackImage({ name: 'Prancha abdominal', group: 'Core' }), '/assets/exercises/coachfit-core.png')
+})
+
+test('interface de treino prioriza vídeo e não renderiza capas genéricas', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(appSource, /<img\s+src=\{getExerciseImageUrl\(exercise\)\}/)
+  assert.match(appSource, /Ver execução no YouTube/)
+  assert.match(appSource, /Buscar execução no YouTube/)
 })
 
 test('conclusão preserva séries, cargas e repetições no histórico do aluno', () => {

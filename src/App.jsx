@@ -11,6 +11,7 @@ import {
   archiveRemoteNutritionPlan,
   archiveRemoteWorkout,
   createRemoteStudentInvite,
+  createRemoteStudentCheckoutSession,
   deleteRemoteStudent,
   fetchRemoteExerciseMedia,
   loadRemoteData,
@@ -59,6 +60,7 @@ import {
   upsertRemoteUser,
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
+import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from './studentPayment'
 import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
@@ -2451,6 +2453,19 @@ function AppContent() {
     return true
   }
 
+  async function createStudentCheckout(studentId) {
+    if (!supabaseEnabled) throw new Error('Conecte o Supabase para gerar um link de pagamento seguro.')
+    try {
+      const session = await createRemoteStudentCheckoutSession(studentId)
+      setRemoteStatus('Link de pagamento protegido criado')
+      setRemoteError('')
+      return session
+    } catch (error) {
+      handleRemoteError(error, 'Erro ao gerar link de pagamento')
+      throw error
+    }
+  }
+
   async function markNotificationsRead() {
     if (supabaseEnabled) {
       try {
@@ -3690,6 +3705,7 @@ function AppContent() {
                 onSave={saveStudent}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateInvite={generateStudentInvite}
+                onCreateStudentCheckout={createStudentCheckout}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
               />
@@ -6254,7 +6270,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onDelete, coachPlans = plans }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onCreateStudentCheckout, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -6264,6 +6280,14 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const [accessSaving, setAccessSaving] = useState(false)
   const [accessMessage, setAccessMessage] = useState('')
   const [accessError, setAccessError] = useState('')
+  const [checkoutLink, setCheckoutLink] = useState('')
+  const [checkoutSaving, setCheckoutSaving] = useState(false)
+  const [checkoutMessage, setCheckoutMessage] = useState('')
+  const studentCheckoutBaseUrl = resolveAudienceCheckoutUrl({
+    nutritionist,
+    studentUrl: import.meta.env.VITE_FITCOACH_STUDENT_CHECKOUT_URL,
+    patientUrl: import.meta.env.VITE_FITCOACH_PATIENT_CHECKOUT_URL,
+  })
   const selectedInvite = savedInvite?.studentId === selectedStudent?.id
     ? savedInvite
     : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
@@ -6274,7 +6298,42 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   useEffect(() => {
     setAccessMessage('')
     setAccessError('')
+    setCheckoutLink('')
+    setCheckoutMessage('')
   }, [selectedStudent?.id])
+
+  async function generateStudentPaymentLink() {
+    if (!selectedStudent) return
+    if (!studentCheckoutBaseUrl) {
+      setAccessError('O checkout do aluno ainda não foi configurado. Envie o link oficial da Cartpanda para concluir esta ativação.')
+      return
+    }
+
+    setCheckoutSaving(true)
+    setAccessError('')
+    setCheckoutMessage('')
+    try {
+      const session = await onCreateStudentCheckout(selectedStudent.id)
+      const link = buildStudentCheckoutUrl(studentCheckoutBaseUrl, session?.checkoutToken)
+      if (!link) throw new Error('O link-base da Cartpanda não é válido ou seguro.')
+      setCheckoutLink(link)
+      setCheckoutMessage(`Link individual criado para ${selectedStudent.name}.`)
+    } catch (error) {
+      setAccessError(error?.message || 'Não foi possível gerar o link de pagamento.')
+    } finally {
+      setCheckoutSaving(false)
+    }
+  }
+
+  async function copyStudentPaymentLink() {
+    if (!checkoutLink) return
+    try {
+      await navigator.clipboard.writeText(checkoutLink)
+      setCheckoutMessage('Link copiado. Envie somente para este aluno/paciente.')
+    } catch {
+      setCheckoutMessage('Selecione e copie o link exibido abaixo.')
+    }
+  }
 
   async function releaseTemporaryAccess(days = 3) {
     if (!selectedStudent) return
@@ -6390,6 +6449,21 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                   {accessSaving ? 'Salvando...' : 'Liberar acesso'}
                 </button>
                 <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberação</button>
+              </div>
+              <div className="mt-4 border-t border-amber-200/15 pt-4">
+                <p className="text-xs font-black uppercase text-amber-100">Pagamento automático pela Cartpanda</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Gere um link exclusivo. Quando a Cartpanda confirmar o pagamento, o acesso deste {nutritionist ? 'paciente' : 'aluno'} será liberado automaticamente.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <button type="button" disabled={checkoutSaving || !studentCheckoutBaseUrl} onClick={generateStudentPaymentLink} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50">
+                    {checkoutSaving ? 'Gerando...' : 'Gerar link de pagamento'}
+                  </button>
+                  {checkoutLink ? <button type="button" onClick={copyStudentPaymentLink} className="min-h-11 rounded-md border border-emerald-200/30 px-4 py-2 text-xs font-black text-emerald-100">Copiar link</button> : null}
+                </div>
+                {!studentCheckoutBaseUrl ? <p className="mt-2 text-xs leading-5 text-amber-100">Aguardando o link oficial do checkout do aluno para ativar esta ação.</p> : null}
+                {checkoutLink ? <a href={checkoutLink} target="_blank" rel="noreferrer" className="mt-3 block break-all rounded-md border border-white/10 bg-black/25 p-3 text-xs font-bold text-emerald-100">{checkoutLink}</a> : null}
+                {checkoutMessage ? <p className="mt-2 text-xs font-bold text-emerald-100">{checkoutMessage}</p> : null}
               </div>
               {accessMessage ? <p className="mt-3 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{accessMessage}</p> : null}
               {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
@@ -10973,7 +11047,6 @@ function ExerciseMetric({ label, value }) {
 function ExerciseThumbnail({ exercise = {}, compact = false }) {
   const videoPreviewUrl = exercise.videoPreviewUrl || ''
   const videoUrl = safeExternalUrl(exercise.videoUrl)
-  const imageUrl = getExerciseImageUrl(exercise)
   const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
   const profile = getExerciseMuscleProfile(exercise)
   const target = profile.primaryLabel !== 'Músculo alvo não identificado'
@@ -10989,13 +11062,6 @@ function ExerciseThumbnail({ exercise = {}, compact = false }) {
           loop
           playsInline
           preload="metadata"
-          className="exercise-thumb-media"
-        />
-      ) : imageUrl ? (
-        <img
-          src={imageUrl}
-          alt={`Prévia de ${exercise.name || 'exercício'}`}
-          loading="lazy"
           className="exercise-thumb-media"
         />
       ) : (
@@ -11459,29 +11525,12 @@ function ExerciseMedia({ exercise, compact = false }) {
 
 function ExerciseTechniqueCard({ exercise, compact = false }) {
   const target = exercise.muscleGroup || 'Músculo alvo'
-  const imageUrl = getExerciseImageUrl(exercise)
   return (
     <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative h-28 w-full overflow-hidden rounded-md border border-white/10 bg-[radial-gradient(circle_at_50%_20%,rgba(16,185,129,0.24),transparent_34%),linear-gradient(145deg,rgba(6,78,59,0.45),rgba(9,9,11,0.92))] sm:w-36">
-          {imageUrl ? (
-            <img src={imageUrl} alt={`Execução de ${exercise.name}`} className="h-full w-full object-cover" />
-          ) : (
-            <>
-              <div className="absolute left-1/2 top-4 h-5 w-5 -translate-x-1/2 rounded-full border border-emerald-200/60 bg-emerald-300/20" />
-              <div className="absolute left-1/2 top-10 h-12 w-10 -translate-x-1/2 rounded-2xl border border-emerald-200/40 bg-emerald-300/10" />
-              <div className="absolute left-[26%] top-12 h-11 w-3 rotate-[22deg] rounded-full bg-emerald-300/35" />
-              <div className="absolute right-[26%] top-12 h-11 w-3 rotate-[-22deg] rounded-full bg-emerald-300/35" />
-              <div className="absolute left-[39%] bottom-2 h-12 w-3 rotate-[8deg] rounded-full bg-emerald-300/25" />
-              <div className="absolute right-[39%] bottom-2 h-12 w-3 rotate-[-8deg] rounded-full bg-emerald-300/25" />
-            </>
-          )}
-          <span className="absolute bottom-2 left-2 rounded-full border border-emerald-300/25 bg-zinc-950/80 px-2 py-1 text-[10px] font-black uppercase text-emerald-100">
-            {target}
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-black uppercase text-emerald-200">Vídeo ainda não cadastrado na biblioteca</p>
+          <p className="mt-1 text-xs font-bold uppercase text-zinc-500">{target}</p>
           <p className="mt-1 text-sm leading-6 text-zinc-300">
             {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
           </p>
@@ -11934,8 +11983,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
 
       {exercise ? (
         <article className="mobile-workout-student-current-exercise-v2">
-          <div className="mobile-workout-student-photo-v2">
-            <img src={getExerciseImageUrl(exercise)} alt={`Execução de ${exercise.name}`} />
+          <div className="mobile-workout-student-video-v2">
+            <ExerciseMedia exercise={exercise} compact />
             <span>Exercício {safeExerciseIndex + 1} de {exercises.length}</span>
           </div>
           <div className="mobile-workout-student-current-copy-v2">

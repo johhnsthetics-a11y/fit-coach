@@ -557,6 +557,19 @@ export async function updateRemotePayment(studentId, payment) {
   return rows[0] ? fromStudentRow(rows[0]) : null
 }
 
+export async function createRemoteStudentCheckoutSession(studentId) {
+  if (!isUuid(studentId)) throw new Error('Selecione um aluno válido para gerar o link.')
+  const result = await rpcRequest('create_student_checkout_session', { target_student_id: studentId })
+  const row = Array.isArray(result) ? result[0] : result
+  if (!row?.checkout_token) throw new Error('O banco não retornou o identificador seguro do checkout.')
+  return {
+    checkoutToken: row.checkout_token,
+    studentId: row.student_id,
+    status: row.status,
+    expiresAt: row.expires_at,
+  }
+}
+
 export async function markRemoteNotificationsRead() {
   await request('notifications?read=eq.false', {
     method: 'PATCH',

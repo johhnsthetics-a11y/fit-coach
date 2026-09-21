@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.ascendapi-exercises]
 verify_jwt = true
+
+[functions.delete-coach-account]
+verify_jwt = true
