@@ -32,8 +32,19 @@ test('webhook usa cid persistido antes do fallback de assinatura do coach', asyn
 
   assert.match(webhook, /findString\(payload, \['cid', 'click_id'/)
   assert.match(webhook, /student_checkout_sessions/)
-  assert.match(webhook, /payment:\s*input\.status === 'active' \? 'Pago' : 'Pendente'/)
+  assert.match(webhook, /app_payment_status:\s*input\.status/)
   assert.match(webhook, /reason: 'student_checkout_not_found'/)
+})
+
+test('pagamento Cartpanda nao sobrescreve a mensalidade do profissional', async () => {
+  const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+
+  assert.doesNotMatch(webhook, /\/rest\/v1\/students\?[^`]*[\s\S]*?payment:/)
+  assert.match(api, /appPaymentStatus:\s*row\.app_payment_status/)
+  assert.match(app, /student\.payment\s*===\s*'Pago'/)
+  assert.match(app, /student\.appPaymentStatus\s*===\s*'active'/)
 })
 
 test('banco vincula cada token ao aluno pertencente ao profissional autenticado', async () => {
@@ -42,6 +53,32 @@ test('banco vincula cada token ao aluno pertencente ao profissional autenticado'
   assert.match(sql, /create table if not exists public\.student_checkout_sessions/i)
   assert.match(sql, /create or replace function public\.create_student_checkout_session/i)
   assert.match(sql, /students\.coach_id = auth\.uid\(\)/i)
+  assert.match(sql, /checkout_sessions\.status = 'pending'/i)
+  assert.doesNotMatch(sql, /\band status = 'pending'/i)
   assert.match(sql, /grant execute on function public\.create_student_checkout_session\(uuid\) to authenticated/i)
   assert.doesNotMatch(sql, /grant (all|insert|update|delete)[^;]* to anon/i)
+})
+
+test('area do aluno prioriza cabecalho e navegacao essencial', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /student-header-nav/)
+  assert.match(app, /const primaryStudentNavItems = \[/)
+  assert.match(app, /id: 'inicio'/)
+  assert.match(app, /id: 'treino'/)
+  assert.match(app, /id: 'dieta'/)
+  assert.match(app, /id: 'progresso'/)
+  assert.match(app, /Abrir menu do aluno/)
+})
+
+test('backend bloqueia conteudo e execucao quando um dos pagamentos esta pendente', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/20260921_student_payment_backend_enforcement.sql', import.meta.url), 'utf8')
+
+  assert.match(sql, /students\.payment = 'Pago'/i)
+  assert.match(sql, /students\.app_payment_status = 'active'/i)
+  assert.match(sql, /create or replace function public\.get_student_portal\(invite_code text\)/i)
+  assert.match(sql, /create or replace function public\.get_student_workouts\(invite_code text\)/i)
+  assert.match(sql, /create or replace function public\.save_student_workout_session/i)
+  assert.match(sql, /create or replace function public\.complete_student_workout_session/i)
+  assert.match(sql, /revoke all on function public\.get_student_portal_unchecked\(text\) from public, anon, authenticated/i)
 })

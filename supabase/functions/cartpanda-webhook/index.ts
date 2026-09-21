@@ -228,16 +228,14 @@ async function updateStudentCheckoutSession(input: {
     }),
   })
 
-  if (input.status !== 'pending') {
-    await supabaseFetch(`/rest/v1/students?id=eq.${encodeURIComponent(input.session.student_id)}&coach_id=eq.${encodeURIComponent(input.session.coach_id)}`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        payment: input.status === 'active' ? 'Pago' : 'Pendente',
-        updated_at: now,
-      }),
-    })
-  }
+  await supabaseFetch(`/rest/v1/students?id=eq.${encodeURIComponent(input.session.student_id)}&coach_id=eq.${encodeURIComponent(input.session.coach_id)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      app_payment_status: input.status,
+      updated_at: now,
+    }),
+  })
 }
 
 async function updateCoachSubscription(input: {

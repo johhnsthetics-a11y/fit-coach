@@ -1,33 +1,34 @@
-create table if not exists public.student_checkout_sessions (
-  id uuid primary key default gen_random_uuid(),
-  checkout_token uuid not null unique default gen_random_uuid(),
-  coach_id uuid not null references public.users(id) on delete cascade,
-  student_id uuid not null references public.students(id) on delete cascade,
-  provider text not null default 'cartpanda',
-  status text not null default 'pending' check (status in ('pending', 'active', 'past_due', 'canceled', 'refunded', 'chargeback')),
-  buyer_email text,
-  provider_order_id text,
-  provider_subscription_id text,
-  amount_cents integer,
-  paid_at timestamptz,
-  expires_at timestamptz not null default (now() + interval '7 days'),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+alter table public.students
+  add column if not exists app_payment_status text not null default 'pending';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'students_app_payment_status_check'
+      and conrelid = 'public.students'::regclass
+  ) then
+    alter table public.students
+      add constraint students_app_payment_status_check
+      check (app_payment_status in ('pending', 'active', 'past_due', 'canceled', 'refunded', 'chargeback'));
+  end if;
+end;
+$$;
+
+comment on column public.students.app_payment_status is
+  'Status da assinatura Cartpanda do aluno/paciente, separado da mensalidade cobrada pelo profissional.';
+
+update public.students as students
+set app_payment_status = 'active',
+    updated_at = now()
+where exists (
+  select 1
+  from public.student_checkout_sessions as checkout_sessions
+  where checkout_sessions.student_id = students.id
+    and checkout_sessions.coach_id = students.coach_id
+    and checkout_sessions.status = 'active'
 );
-
-create index if not exists student_checkout_sessions_coach_idx
-  on public.student_checkout_sessions (coach_id, created_at desc);
-create index if not exists student_checkout_sessions_student_idx
-  on public.student_checkout_sessions (student_id, created_at desc);
-
-alter table public.student_checkout_sessions enable row level security;
-
-drop policy if exists "student checkout sessions coach select" on public.student_checkout_sessions;
-create policy "student checkout sessions coach select"
-on public.student_checkout_sessions
-for select
-to authenticated
-using (coach_id = auth.uid());
 
 create or replace function public.create_student_checkout_session(target_student_id uuid)
 returns table (checkout_token uuid, student_id uuid, status text, expires_at timestamptz)

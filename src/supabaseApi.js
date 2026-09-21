@@ -1383,6 +1383,7 @@ function fromStudentRow(row) {
     status: row.status ?? 'Em dia',
     plan: row.plan ?? 'Acompanhamento mensal',
     payment: row.payment ?? 'Pendente',
+    appPaymentStatus: row.app_payment_status ?? 'pending',
     adherence: Number(row.adherence ?? 0),
     risk: row.risk ?? 'Baixo',
     nextCheckin: row.next_checkin ?? '',

@@ -844,6 +844,14 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+.student-header-nav {
+  padding-top: max(0.625rem, env(safe-area-inset-top));
+}
+
+.student-bottom-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
 .student-mobile-shell button:active,
 .student-mobile-shell a:active,
 .student-mobile-shell summary:active {

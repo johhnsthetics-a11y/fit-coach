@@ -6423,7 +6423,8 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <Info label="Telefone" value={selectedStudent.phone} />
               <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'Não informado'} />
               <Info label="Plano" value={selectedStudent.plan} />
-              <Info label="Pagamento" value={selectedStudent.payment} />
+              <Info label="Mensalidade do profissional" value={selectedStudent.payment} />
+              <Info label="Assinatura Coach Fit Pro" value={formatAppPaymentStatus(selectedStudent.appPaymentStatus)} />
               <Info label="Meta de água" value={selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'} />
               <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
@@ -6431,7 +6432,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
             <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
               <p className="text-xs font-black uppercase text-amber-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
-                Se o aluno estiver pendente, o portal bloqueia treino, dieta e progresso. Você pode liberar temporariamente em casos de exceção.
+                O portal libera treino, dieta e progresso quando a assinatura Cartpanda e a mensalidade do profissional estão em dia. Você pode liberar temporariamente em casos de exceção.
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
@@ -6453,7 +6454,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <div className="mt-4 border-t border-amber-200/15 pt-4">
                 <p className="text-xs font-black uppercase text-amber-100">Pagamento automático pela Cartpanda</p>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Gere um link exclusivo. Quando a Cartpanda confirmar o pagamento, o acesso deste {nutritionist ? 'paciente' : 'aluno'} será liberado automaticamente.
+                  Gere um link exclusivo para a assinatura do Coach Fit Pro. A Cartpanda confirma esta etapa automaticamente; a mensalidade do profissional continua sendo controlada separadamente em Recebimentos.
                 </p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <button type="button" disabled={checkoutSaving || !studentCheckoutBaseUrl} onClick={generateStudentPaymentLink} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50">
@@ -14866,10 +14867,22 @@ function StudentAnamnesisSummary({ anamnesis, student }) {
 
 function hasStudentAccess(student) {
   if (!student) return false
-  if (student.payment === 'Pago') return true
+  if (student.payment === 'Pago' && student.appPaymentStatus === 'active') return true
   if (!student.accessOverrideUntil) return false
   const overrideUntil = new Date(student.accessOverrideUntil).getTime()
   return Number.isFinite(overrideUntil) && overrideUntil > Date.now()
+}
+
+function formatAppPaymentStatus(status) {
+  const labels = {
+    active: 'Cartpanda em dia',
+    pending: 'Aguardando pagamento',
+    past_due: 'Pagamento vencido',
+    canceled: 'Assinatura cancelada',
+    refunded: 'Pagamento reembolsado',
+    chargeback: 'Pagamento contestado',
+  }
+  return labels[status] || 'Aguardando pagamento'
 }
 
 async function sendLocalNotification(title, body) {
@@ -15027,12 +15040,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
     { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
   ]
-  const bottomNavItems = [
+  const primaryStudentNavItems = [
     navItems.find((item) => item.id === 'inicio'),
+    navItems.find((item) => item.id === 'treino'),
+    navItems.find((item) => item.id === 'dieta'),
+    navItems.find((item) => item.id === 'progresso'),
+  ].filter(Boolean)
+  const secondaryStudentNavItems = [
+    navItems.find((item) => item.id === 'mensagens'),
+    navItems.find((item) => item.id === 'checkin'),
     navItems.find((item) => item.id === 'agenda'),
     navItems.find((item) => item.id === 'pagamentos'),
-    navItems.find((item) => item.id === 'mensagens'),
+    navItems.find((item) => item.id === 'historico'),
   ].filter(Boolean)
+  const bottomNavItems = primaryStudentNavItems
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
   const weekProgress = useMemo(() => buildStudentWeekProgress(studentWorkoutLogs), [studentWorkoutLogs])
   const completedThisWeek = studentReward.completedThisWeek
@@ -15179,6 +15200,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     if (!financialAccessOpen && restrictedTabs.includes(activeTab)) {
       return (
         <StudentPaymentLock
+          student={student}
           coachSettings={coachSettings}
           onOpenPayments={() => openTab('pagamentos')}
           onOpenChat={() => openTab('mensagens')}
@@ -15343,18 +15365,18 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   return (
     <div className={`app-shell student-mobile-shell ${activeTab === 'mensagens' ? 'student-chat-active' : ''} student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
       {xpGain > 0 && <div className="student-xp-gain" role="status" aria-live="polite"><strong>+{xpGain} XP</strong><span>Progresso registrado</span></div>}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-3 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <BrandLockup compact subtitle="Coach Fit Pro" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-black uppercase text-emerald-300">{activeTitle}</p>
-            <p className="truncate text-sm font-black">{student.name}</p>
+      <header className="student-header-nav sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-2.5 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
+          <button type="button" aria-label="Abrir menu do aluno" onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
+            <NavIcon name="menu" className="h-5 w-5 text-emerald-300" />
+          </button>
+          <div className="min-w-0 flex-1 px-1">
+            <p className="truncate text-[11px] font-black uppercase text-emerald-300">{activeTitle}</p>
+            <p className="truncate text-sm font-black text-white">{student.name}</p>
           </div>
-          {!appInstalled && installPrompt ? (
-            <button type="button" onClick={installStudentApp} className="rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">Instalar</button>
-          ) : null}
-          <ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0" />
-          <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Sair</button>
+          <button type="button" aria-label="Abrir conversa com o profissional" onClick={() => openTab('mensagens')} className={`grid h-11 w-11 shrink-0 place-items-center rounded-md border ${activeTab === 'mensagens' ? 'border-blue-300/45 bg-blue-400/15 text-blue-100' : 'border-white/10 text-zinc-100'}`}>
+            <NavIcon name="message" className="h-5 w-5" />
+          </button>
         </div>
       </header>
 
@@ -15373,8 +15395,26 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="mt-1 text-lg font-black">{student.name}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
             </div>
-            <div className="mt-4 grid gap-2">
-              {navItems.map((item) => {
+            <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
+            <div className="mt-2 grid gap-2">
+              {primaryStudentNavItems.map((item) => {
+                const tone = getNavToneClasses(item.tone)
+                const active = activeTab === item.id
+
+                return (
+                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                      <NavIcon name={item.icon} className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="text-zinc-500">›</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Acompanhamento</p>
+            <div className="mt-2 grid gap-2">
+              {secondaryStudentNavItems.map((item) => {
                 const tone = getNavToneClasses(item.tone)
                 const active = activeTab === item.id
 
@@ -15400,7 +15440,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 )}
               </div>
             ) : null}
-
+            <div className="mt-4 flex gap-2 border-t border-white/10 pt-4">
+              <ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0" />
+              <button type="button" onClick={onExit} className="min-h-11 flex-1 rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
+            </div>
           </nav>
         </div>
       ) : null}
@@ -15413,8 +15456,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
-            <div className="mt-4 grid gap-2">
-              {navItems.map((item) => {
+            <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
+            <div className="mt-2 grid gap-2">
+              {primaryStudentNavItems.map((item) => {
                 const tone = getNavToneClasses(item.tone)
                 const active = activeTab === item.id
 
@@ -15428,6 +15472,24 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 )
               })}
             </div>
+            <details className="mt-4 rounded-md border border-white/10 bg-white/[0.025] p-2" open={secondaryStudentNavItems.some((item) => item.id === activeTab)}>
+              <summary className="cursor-pointer px-2 py-2 text-xs font-black uppercase text-zinc-400">Mais opções</summary>
+              <div className="mt-1 grid gap-2">
+                {secondaryStudentNavItems.map((item) => {
+                  const tone = getNavToneClasses(item.tone)
+                  const active = activeTab === item.id
+
+                  return (
+                    <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-10 items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : tone.idle}`}>
+                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                        <NavIcon name={item.icon} className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </details>
             <div className="mt-4 flex gap-2">
               <ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0" />
               <button type="button" onClick={onExit} className="min-h-11 flex-1 rounded-md border border-white/10 px-3 py-2.5 text-sm font-black text-zinc-200">Sair</button>
@@ -15452,21 +15514,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
               <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
               <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
-              {!appInstalled ? (
-                <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs font-black uppercase text-blue-200">Acesso salvo no celular</p>
-                      <p className="mt-1 text-xs leading-5 text-zinc-300">Entre uma vez, adicione na tela inicial e abra como aplicativo.</p>
-                    </div>
-                    {installPrompt ? (
-                      <button type="button" onClick={installStudentApp} className="rounded-md bg-emerald-400 px-4 py-2.5 text-xs font-black text-zinc-950">Adicionar</button>
-                    ) : (
-                      <p className="max-w-xs text-xs leading-5 text-zinc-400">No iPhone: compartilhar &gt; Adicionar à Tela de Início.</p>
-                    )}
-                  </div>
-                </div>
-              ) : null}
             </div>
           </section>}
           {renderActiveContent()}
@@ -15996,8 +16043,10 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
   )
 }
 
-function StudentPaymentLock({ coachSettings, onOpenPayments, onOpenChat }) {
+function StudentPaymentLock({ student, coachSettings, onOpenPayments, onOpenChat }) {
   const billingBrand = getBillingBrand(coachSettings)
+  const professionalPaymentCurrent = student?.payment === 'Pago'
+  const appPaymentCurrent = student?.appPaymentStatus === 'active'
 
   return (
     <StudentAppSection title="Acesso pausado" action="Fatura">
@@ -16008,10 +16057,20 @@ function StudentPaymentLock({ coachSettings, onOpenPayments, onOpenChat }) {
             <img src={billingBrand.logoUrl} alt={coachSettings?.brandName || 'Logo do coach'} className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
           ) : null}
         </div>
-        <h3 className="mt-2 text-2xl font-black text-white">Resolva sua fatura para liberar esta área.</h3>
+        <h3 className="mt-2 text-2xl font-black text-white">Regularize os pagamentos para liberar esta área.</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
-          Os detalhes de assinatura, Pix, extrato e comprovante ficam concentrados na aba Fatura para não misturar cobrança com treino, dieta ou progresso.
+          O acesso requer a assinatura do Coach Fit Pro e a mensalidade do seu profissional em dia. Os detalhes ficam concentrados na aba Fatura.
         </p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className={`rounded-md border p-3 ${appPaymentCurrent ? 'border-emerald-300/30 bg-emerald-300/10' : 'border-amber-300/30 bg-amber-300/10'}`}>
+            <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro</p>
+            <p className="mt-1 text-sm font-black text-white">{formatAppPaymentStatus(student?.appPaymentStatus)}</p>
+          </div>
+          <div className={`rounded-md border p-3 ${professionalPaymentCurrent ? 'border-emerald-300/30 bg-emerald-300/10' : 'border-amber-300/30 bg-amber-300/10'}`}>
+            <p className="text-xs font-black uppercase text-zinc-400">Profissional</p>
+            <p className="mt-1 text-sm font-black text-white">{professionalPaymentCurrent ? 'Mensalidade em dia' : 'Mensalidade pendente'}</p>
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -16058,6 +16117,10 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, onSend
 
   return (
     <StudentAppSection title="Fatura" action={`${visibleInvoices.length} registros`}>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <StudentStatusCard label="Coach Fit Pro" value={formatAppPaymentStatus(student?.appPaymentStatus)} detail="Assinatura processada pela Cartpanda" />
+        <StudentStatusCard label="Profissional" value={student?.payment === 'Pago' ? 'Em dia' : 'Pendente'} detail="Mensalidade do acompanhamento" />
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <StudentStatusCard label="Já pago" value={formatCurrency(paidTotal)} detail="Histórico confirmado" />
         <StudentStatusCard label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
