@@ -12,6 +12,7 @@ import {
   archiveRemoteWorkout,
   createRemoteStudentInvite,
   createRemoteStudentCheckoutSession,
+  createRemoteStudentCheckoutSessionByInvite,
   deleteRemoteStudent,
   fetchRemoteExerciseMedia,
   loadRemoteData,
@@ -61,6 +62,7 @@ import {
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from './studentPayment'
+import { addBillingCycle, buildStudentAccessUrl, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
 import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
@@ -2431,9 +2433,10 @@ function AppContent() {
   }
 
   async function updatePayment(studentId, payment) {
+    let remoteStudent = null
     if (supabaseEnabled) {
       try {
-        await updateRemotePayment(studentId, payment)
+        remoteStudent = await updateRemotePayment(studentId, payment)
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
       } catch (error) {
@@ -2444,7 +2447,7 @@ function AppContent() {
 
     setData((current) => ({
       ...current,
-      students: current.students.map((student) => (student.id === studentId ? { ...student, payment } : student)),
+      students: current.students.map((student) => (student.id === studentId ? { ...student, ...(remoteStudent || {}), payment } : student)),
       notifications: [
         { id: Date.now(), title: 'Pagamento atualizado', body: payment === 'Pago' ? 'Mensalidade marcada como paga.' : 'Pagamento pendente registrado.', read: false },
         ...current.notifications,
@@ -6288,9 +6291,15 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     studentUrl: import.meta.env.VITE_FITCOACH_STUDENT_CHECKOUT_URL,
     patientUrl: import.meta.env.VITE_FITCOACH_PATIENT_CHECKOUT_URL,
   })
-  const selectedInvite = savedInvite?.studentId === selectedStudent?.id
+  const inviteIsUsable = (invite) => invite
+    && invite.status === 'active'
+    && (!invite.expiresAt || Date.parse(invite.expiresAt) > Date.now())
+  const selectedInvite = savedInvite?.studentId === selectedStudent?.id && inviteIsUsable(savedInvite)
     ? savedInvite
-    : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && invite.status === 'active')
+    : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && inviteIsUsable(invite))
+  const selectedAccessLink = selectedInvite && typeof window !== 'undefined'
+    ? buildStudentAccessUrl(`${window.location.origin}${window.location.pathname}`, selectedInvite.code)
+    : ''
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
   const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
@@ -6332,6 +6341,16 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       setCheckoutMessage('Link copiado. Envie somente para este aluno/paciente.')
     } catch {
       setCheckoutMessage('Selecione e copie o link exibido abaixo.')
+    }
+  }
+
+  async function copyStudentAccessLink() {
+    if (!selectedAccessLink) return
+    try {
+      await navigator.clipboard.writeText(selectedAccessLink)
+      setCheckoutMessage(`Link de acesso de ${selectedStudent?.name || 'aluno'} copiado.`)
+    } catch {
+      setCheckoutMessage('Selecione e copie o link de acesso exibido abaixo.')
     }
   }
 
@@ -6425,6 +6444,8 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <Info label="Plano" value={selectedStudent.plan} />
               <Info label="Mensalidade do profissional" value={selectedStudent.payment} />
               <Info label="Assinatura Coach Fit Pro" value={formatAppPaymentStatus(selectedStudent.appPaymentStatus)} />
+              <Info label="Periodicidade" value={getPlanCycleLabel({ cycle: selectedStudent.billingCycle })} />
+              <Info label="Próximo vencimento" value={formatDate(selectedStudent.nextDueDate || selectedStudent.firstDueDate)} />
               <Info label="Meta de água" value={selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'} />
               <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
@@ -6470,11 +6491,16 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
             </div>
             <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">{nutritionist ? 'Código de acesso do paciente' : 'Código de acesso do aluno'}</p>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
               {selectedInvite ? (
                 <>
-                  <p className="mt-2 select-all text-2xl font-black text-white">{selectedInvite.code}</p>
-                  <p className="mt-2 text-sm text-zinc-300">O aluno usa este código na opção “Aluno” da tela de entrada.</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">Envie o link individual abaixo. Ele reconhece automaticamente o cadastro e o profissional responsável, sem pedir código manual.</p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button type="button" onClick={copyStudentAccessLink} className="min-h-11 rounded-md bg-blue-400 px-4 py-2 text-sm font-black text-zinc-950">Copiar link de acesso</button>
+                    <a href={selectedAccessLink} target="_blank" rel="noreferrer" className="grid min-h-11 place-items-center rounded-md border border-blue-200/30 px-4 py-2 text-sm font-black text-blue-100">Abrir link</a>
+                  </div>
+                  <p className="mt-3 break-all rounded-md border border-white/10 bg-black/25 p-3 text-xs font-bold text-blue-100">{selectedAccessLink}</p>
+                  <p className="mt-2 text-xs text-zinc-500">Código de recuperação: <span className="select-all font-bold text-zinc-300">{selectedInvite.code}</span></p>
                 </>
               ) : (
                 <>
@@ -6643,6 +6669,8 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
   const [newPlanPrice, setNewPlanPrice] = useState('')
   const [newPlanCycle, setNewPlanCycle] = useState('mensal')
   const [newPlanFeatures, setNewPlanFeatures] = useState('Acompanhamento personalizado')
+  const [billingCycle, setBillingCycle] = useState(student.billingCycle || 'mensal')
+  const [firstDueDate, setFirstDueDate] = useState(student.firstDueDate || getDefaultDueDate())
   const existingPlanPreview = coachPlans.find((plan) => plan.name === selectedPlan) || coachPlans[0]
   const newPlanPreview = normalizeCoachPlan({
     name: newPlanName || 'Novo plano do treinador',
@@ -6655,6 +6683,8 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
   useEffect(() => {
     setSelectedPlan(selectedPlanName || coachPlans[0]?.name || '')
     setPlanMode('existing')
+    setBillingCycle(student.billingCycle || normalizePlanCycle(coachPlans.find((plan) => plan.name === selectedPlanName) || coachPlans[0]))
+    setFirstDueDate(student.firstDueDate || getDefaultDueDate())
   }, [student.id, selectedPlanName, coachPlans])
 
   async function handleSubmit(event) {
@@ -6693,6 +6723,9 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
         cpf: cpf.replace(/\D/g, ''),
         plan: planName,
         payment: form.get('payment').toString(),
+        billingCycle,
+        firstDueDate,
+        nextDueDate: firstDueDate !== student.firstDueDate ? firstDueDate : (student.nextDueDate || firstDueDate),
         waterGoalMl: form.get('waterGoalMl')?.toString() || '2500',
         requireAnamnesis: !continuingStudent,
       })
@@ -6780,7 +6813,11 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
               label="Plano cadastrado"
               name="existingPlan"
               value={selectedPlan}
-              onChange={(event) => setSelectedPlan(event.target.value)}
+              onChange={(event) => {
+                const nextPlan = coachPlans.find((plan) => plan.name === event.target.value)
+                setSelectedPlan(event.target.value)
+                setBillingCycle(normalizePlanCycle(nextPlan?.cycle || nextPlan?.duration))
+              }}
               options={coachPlans.map((plan) => ({
                 label: `${plan.name} - ${formatCurrency(getPlanBillingAmount(plan.name, coachPlans))} - ${getPlanCycleLabel(plan)}`,
                 value: plan.name,
@@ -6801,7 +6838,10 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
               label="Ciclo de cobrança"
               name="newPlanCycle"
               value={newPlanCycle}
-              onChange={(event) => setNewPlanCycle(event.target.value)}
+              onChange={(event) => {
+                setNewPlanCycle(event.target.value)
+                setBillingCycle(event.target.value)
+              }}
               options={[
                 { label: 'Semanal', value: 'semanal' },
                 { label: 'Mensal', value: 'mensal' },
@@ -6815,6 +6855,25 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
             </label>
           </div>
         )}
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Select
+            label="Periodicidade da cobrança"
+            name="billingCycle"
+            value={billingCycle}
+            onChange={(event) => setBillingCycle(event.target.value)}
+            options={[
+              { label: 'Semanal', value: 'semanal' },
+              { label: 'Mensal', value: 'mensal' },
+              { label: 'Semestral', value: 'semestral' },
+              { label: 'Anual', value: 'anual' },
+            ]}
+          />
+          <label className="grid gap-2 text-sm font-bold text-zinc-300">
+            Primeiro vencimento
+            <input type="date" required value={firstDueDate} onChange={(event) => setFirstDueDate(event.target.value)} className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm" />
+          </label>
+        </div>
 
         <StudentPlanPreview plan={activePlanPreview} availablePlans={planMode === 'new' ? [activePlanPreview] : coachPlans} />
       </div>
@@ -10103,885 +10162,9 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       event.returnValue = ''
     }
 
-    window.addEventListener('beforeunload', warnBeforeLeave)
-    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
-  }, [hasUnsavedChanges])
-
-  function markWorkoutDirty() {
-    setHasUnsavedChanges(true)
-    setMessage('')
-  }
-
-  function updateExercise(index, field, value) {
-    markWorkoutDirty()
-    setExercises((current) => current.map((exercise, itemIndex) => (
-      itemIndex === index ? { ...exercise, [field]: value } : exercise
-    )))
-  }
-
-  function updateExerciseName(index, value) {
-    markWorkoutDirty()
-    const profile = findExerciseProfile(value, availableExerciseLibrary)
-    setExercises((current) => current.map((exercise, itemIndex) => {
-      if (itemIndex !== index) return exercise
-      return {
-        ...exercise,
-        name: value,
-        muscleGroup: profile?.group ?? exercise.muscleGroup,
-        primaryMuscle: profile?.primaryMuscle ?? exercise.primaryMuscle,
-        secondaryMuscles: profile?.secondaryMuscles ?? exercise.secondaryMuscles,
-        equipment: profile?.equipment ?? exercise.equipment,
-        instructions: profile?.cues ?? exercise.instructions,
-        videoUrl: profile?.videoUrl || exercise.videoUrl || '',
-        thumbnailUrl: profile?.thumbnailUrl || exercise.thumbnailUrl || '',
-      }
-    }))
-  }
-
-  function addExercise(name = '') {
-    markWorkoutDirty()
-    setExercises((current) => [...current, createExerciseDraft(name, {}, availableExerciseLibrary)])
-    if (name) {
-      setRecentExercises((current) => [name, ...current.filter((item) => normalizeText(item) !== normalizeText(name))].slice(0, 20))
-      setMessage(`Exercício "${name}" adicionado ao treino.`)
-    }
-  }
-
-  function addSuggestionExercise(exercise) {
-    if (!exercise?.name) return
-    addExercise(exercise.name)
-    setExerciseSearch('')
-  }
-
-  function toggleFavoriteExercise(name) {
-    setFavoriteExercises((current) => {
-      const exists = current.some((item) => normalizeText(item) === normalizeText(name))
-      return exists
-        ? current.filter((item) => normalizeText(item) !== normalizeText(name))
-        : [name, ...current].slice(0, 80)
-    })
-    setMessage('Favoritos atualizados.')
-  }
-
-  function handleExerciseSearchKeyDown(event) {
-    if (!exerciseSuggestions.length) return
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setSelectedSuggestionIndex((current) => Math.min(current + 1, exerciseSuggestions.length - 1))
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setSelectedSuggestionIndex((current) => Math.max(current - 1, 0))
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      addSuggestionExercise(exerciseSuggestions[selectedSuggestionIndex])
-    }
-  }
-
-  function duplicateExercise(index) {
-    markWorkoutDirty()
-    setExercises((current) => {
-      const source = current[index]
-      if (!source) return current
-      const copy = { ...source, name: `${source.name} - variação`, notes: source.notes || 'Ajuste a variação antes de salvar.' }
-      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
-    })
-    setMessage('Exercício duplicado para edição rápida.')
-  }
-
-  function moveExercise(index, direction) {
-    markWorkoutDirty()
-    setExercises((current) => {
-      const nextIndex = index + direction
-      if (nextIndex < 0 || nextIndex >= current.length) return current
-      const next = [...current]
-      const [item] = next.splice(index, 1)
-      next.splice(nextIndex, 0, item)
-      return next
-    })
-  }
-
-  function updateExerciseVideoFile(index, file) {
-    markWorkoutDirty()
-    setExercises((current) => current.map((exercise, itemIndex) => (
-      itemIndex === index ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '' } : exercise
-    )))
-  }
-
-  async function resolveExerciseFromApi(index) {
-    const exercise = exercises[index]
-    if (!exercise?.name?.trim()) {
-      setError('Digite o nome do exercício antes de buscar na AscendAPI.')
-      return
-    }
-    if (!supabaseEnabled) {
-      setError('Conecte o Supabase para buscar exercícios pela AscendAPI.')
-      return
-    }
-
-    setResolvingExerciseIndex(index)
-    setError('')
-    setMessage('')
-    try {
-      const apiExercise = await fetchRemoteExerciseMedia(exercise.name)
-      setExercises((current) => current.map((item, itemIndex) => (
-        itemIndex === index
-          ? {
-            ...item,
-            name: apiExercise.name || item.name,
-            muscleGroup: apiExercise.group || item.muscleGroup,
-            primaryMuscle: apiExercise.primaryMuscle || item.primaryMuscle,
-            secondaryMuscles: apiExercise.secondaryMuscles || item.secondaryMuscles,
-            equipment: apiExercise.equipment || item.equipment,
-            instructions: apiExercise.cues || item.instructions,
-            videoUrl: apiExercise.videoUrl || item.videoUrl,
-            thumbnailUrl: apiExercise.thumbnailUrl || item.thumbnailUrl,
-            imageUrl: apiExercise.imageUrl || apiExercise.thumbnailUrl || item.imageUrl,
-            ascendapiId: apiExercise.externalId || apiExercise.exerciseId || item.ascendapiId,
-          }
-          : item
-      )))
-      setMessage(apiExercise.videoUrl ? 'Exercício encontrado com mídia da AscendAPI.' : 'Exercício encontrado. A API não enviou vídeo para este item, então o app usará a ficha técnica.')
-    } catch (apiError) {
-      setError(apiError?.message || 'Não foi possível buscar este exercício na AscendAPI.')
-    } finally {
-      setResolvingExerciseIndex(null)
-    }
-  }
-
-  function removeExercise(index) {
-    markWorkoutDirty()
-    setExercises((current) => current.filter((_, itemIndex) => itemIndex !== index))
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const filledExercises = exercises.filter((exercise) => exercise.name.trim())
-    const studentId = form.get('studentId')?.toString() || ''
-
-    if (!studentId) {
-      setError('Selecione um aluno antes de salvar o treino.')
-      return
-    }
-    if (!filledExercises.length) {
-      setError('Adicione pelo menos um exercício ao treino.')
-      return
-    }
-
-    setSaving(true)
-    setMessage('')
-    setError('')
-    try {
-      await onSaveWorkout({
-        studentId,
-        title: form.get('title')?.toString() || 'Treino',
-        focus: form.get('focus')?.toString() || '',
-        notes: form.get('notes')?.toString() || '',
-        exercises: filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
-      })
-      setMessage('Treino salvo e liberado para o aluno.')
-      setHasUnsavedChanges(false)
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível salvar o treino.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
-      <Select
-        label="Aluno"
-        name="studentId"
-        defaultValue={selectedStudent?.id}
-        options={students.map((student) => ({ label: student.name, value: student.id }))}
-      />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Nome do treino" name="title" defaultValue="Upper A" onChange={markWorkoutDirty} />
-        <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" onChange={markWorkoutDirty} />
-      </div>
-      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." onChange={markWorkoutDirty} />
-
-      <div className="workout-exercise-picker rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.08] p-4 sm:p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-black text-emerald-100">Biblioteca inteligente de exercícios</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-300">Busque por nome, músculo, equipamento ou variação. O exercício só entra no treino quando você confirmar.</p>
-          </div>
-          <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/45 px-3 py-1 text-xs font-bold text-emerald-100">{availableExerciseLibrary.length} exercícios</span>
-        </div>
-
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-emerald-100">
-            Buscar exercício
-            <input
-              value={exerciseSearch}
-              onChange={(event) => setExerciseSearch(event.target.value)}
-              onKeyDown={handleExerciseSearchKeyDown}
-              placeholder="Ex.: supino, dorsal, halter, quadríceps..."
-              className="min-h-12 min-w-0 rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-3 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-300 sm:text-sm"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => {
-              setExerciseSearch('')
-              setExerciseSourceFilter('todos')
-              setExerciseMuscleFilter('todos')
-              setExerciseCategoryFilter('todos')
-            }}
-            className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35"
-          >
-            Limpar filtros
-          </button>
-        </div>
-
-        <div className="mt-3 grid gap-2 md:grid-cols-[auto_minmax(150px,1fr)_minmax(150px,1fr)_auto]">
-          <button
-            type="button"
-            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'favoritos' ? 'todos' : 'favoritos')}
-            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'favoritos' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
-          >
-            Favoritos
-          </button>
-          <select value={exerciseMuscleFilter} onChange={(event) => setExerciseMuscleFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
-            <option value="todos">Grupo muscular</option>
-            {workoutExerciseMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-          </select>
-          <select value={exerciseCategoryFilter} onChange={(event) => setExerciseCategoryFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
-            <option value="todos">Categorias</option>
-            {workoutExerciseCategoryOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
-          </select>
-          <button
-            type="button"
-            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'seus' ? 'todos' : 'seus')}
-            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'seus' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
-          >
-            Seus exercícios
-          </button>
-        </div>
-
-        <div className="workout-exercise-library-results mt-4 grid gap-2" aria-label="Resultados da biblioteca de exercícios">
-          {exerciseSuggestions.map((exercise, suggestionIndex) => (
-            <div
-              key={exercise.name}
-              onMouseEnter={() => setSelectedSuggestionIndex(suggestionIndex)}
-              className={`group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border px-3 py-2 text-left text-xs font-bold transition duration-200 hover:-translate-y-0.5 active:scale-[0.98] ${
-                selectedSuggestionIndex === suggestionIndex
-                  ? 'border-emerald-300/45 bg-emerald-300/12 shadow-lg shadow-emerald-950/20'
-                  : 'border-white/10 bg-zinc-950/70 text-zinc-200 hover:border-emerald-300/35 hover:bg-emerald-300/10'
-              }`}
-            >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/20 bg-emerald-300/10 text-emerald-100">
-                <MuscleMapMini exercise={exercise} />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm text-zinc-100"><HighlightedMatch text={exercise.name} query={exerciseSearch} /></span>
-                <span className="mt-0.5 block truncate text-[11px] font-bold text-zinc-400">
-                  {exercise.group || exercise.muscleGroup || 'Músculo alvo'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
-                </span>
-                <span className="mt-1 flex flex-wrap gap-1">
-                  {exercise.isFavorite ? <span className="rounded-full bg-amber-300/12 px-2 py-0.5 text-[10px] font-black text-amber-100">favorito</span> : null}
-                  {exercise.isRecent ? <span className="rounded-full bg-emerald-300/12 px-2 py-0.5 text-[10px] font-black text-emerald-100">recente</span> : null}
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  aria-label={`Favoritar ${exercise.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    toggleFavoriteExercise(exercise.name)
-                  }}
-                  className={`grid h-10 w-10 place-items-center rounded-xl border transition ${
-                    exercise.isFavorite
-                      ? 'border-amber-300/40 bg-amber-300/12 text-amber-100'
-                      : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:text-amber-100'
-                  }`}
-                >
-                  <NavIcon name="star" className="h-4 w-4" />
-                </button>
-                <button type="button" onClick={() => addSuggestionExercise(exercise)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 transition hover:bg-emerald-200">
-                  Adicionar
-                </button>
-              </span>
-            </div>
-          ))}
-          {!exerciseSuggestions.length ? (
-            <div className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 text-sm leading-6 text-zinc-300">
-              Nenhum exercício encontrado com esses termos. Você ainda pode adicionar um exercício personalizado e preencher manualmente.
-            </div>
-          ) : null}
-        </div>
-
-        {(favoriteExercises.length || recentExercises.length) ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {favoriteExercises.length ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-xs font-black uppercase text-amber-100">Favoritos</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {favoriteExercises.slice(0, 6).map((name) => (
-                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-bold text-amber-50">
-                      + {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {recentExercises.length ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
-                <p className="text-xs font-black uppercase text-emerald-100">Usados recentemente</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {recentExercises.slice(0, 6).map((name) => (
-                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-50">
-                      + {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      <datalist id="exercise-library-options">
-        {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
-      </datalist>
-
-      <div className="space-y-3">
-        {exercises.map((exercise, index) => (
-          <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="workout-exercise-card-summary min-w-0">
-                <ExerciseThumbnail exercise={exercise} compact />
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
-                  <h4 className="mt-1 truncate text-lg font-black text-white">{exercise.name || 'Novo exercício'}</h4>
-                  <p className="mt-1 text-xs text-zinc-400">{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 sm:justify-end">
-                <button type="button" onClick={() => moveExercise(index, -1)} disabled={index === 0} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
-                  Subir
-                </button>
-                <button type="button" onClick={() => moveExercise(index, 1)} disabled={index === exercises.length - 1} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
-                  Descer
-                </button>
-                <button type="button" onClick={() => duplicateExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100">
-                  Duplicar
-                </button>
-                <button type="button" onClick={() => removeExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/30 hover:text-rose-100">
-                  Remover
-                </button>
-              </div>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)]">
-              <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                Nome do exercício
-                <input
-                  list="exercise-library-options"
-                  value={exercise.name}
-                  onChange={(event) => updateExerciseName(index, event.target.value)}
-                  placeholder="Digite ou escolha um exercício"
-                  className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
-                />
-              </label>
-              <InlineInput label="Grupo muscular" value={exercise.muscleGroup ?? ''} onChange={(value) => updateExercise(index, 'muscleGroup', value)} />
-            </div>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
-              <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
-              <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
-              <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
-              <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
-            </div>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
-              <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
-              <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
-              <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
-            </div>
-
-            <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
-              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
-              <div className="grid gap-3 border-t border-white/10 p-3">
-                <div className="flex flex-col gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black text-emerald-100">Buscar mídia profissional</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-400">
-                      Puxa vídeo, imagem, músculo-alvo e instruções pela AscendAPI. Use quando quiser completar o exercício automaticamente.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={resolvingExerciseIndex === index}
-                    onClick={() => resolveExerciseFromApi(index)}
-                    className="rounded-md bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-                  >
-                    {resolvingExerciseIndex === index ? 'Buscando...' : 'Buscar na AscendAPI'}
-                  </button>
-                </div>
-                <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                  Orientações técnicas
-                  <textarea
-                    value={exercise.instructions ?? ''}
-                    onChange={(event) => updateExercise(index, 'instructions', event.target.value)}
-                    rows={3}
-                    className="min-w-0 resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case leading-6 tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
-                  />
-                </label>
-                <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
-                  <InlineInput label="Link de vídeo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
-                  <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
-                    Upload do vídeo do coach
-                    <input
-                      type="file"
-                      accept="video/mp4,video/webm,video/quicktime,video/*"
-                      onChange={(event) => updateExerciseVideoFile(index, event.target.files?.[0] || null)}
-                      className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950"
-                    />
-                    <span className="text-[11px] normal-case leading-4 tracking-normal text-zinc-500">
-                      {exercise.videoFileName || 'Opcional. Se não enviar, o app usa o vídeo da biblioteca ou uma ficha técnica do movimento.'}
-                    </span>
-                  </label>
-                </div>
-                <ExerciseMuscleSummary exercise={exercise} compact />
-                <ExerciseMedia exercise={exercise} compact />
-                <div className="mt-2">
-                  <ExerciseYouTubeLink exercise={exercise} compact />
-                </div>
-              </div>
-            </details>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35">
-          Adicionar exercício personalizado
-        </button>
-        <button disabled={saving} className="rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-          {saving ? 'Salvando...' : 'Salvar treino'}
-        </button>
-        {hasUnsavedChanges ? (
-          <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
-            Alterações pendentes. Salve antes de sair.
-          </span>
-        ) : null}
-      </div>
-      {message ? (
-        <p className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
-          {message}
-        </p>
-      ) : null}
-      {error ? (
-        <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">
-          {error}
-        </p>
-      ) : null}
-    </form>
-  )
-}
-
-function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
-  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
-  const [archivingId, setArchivingId] = useState('')
-
-  async function handleArchive(workout) {
-    if (!window.confirm(`Arquivar o treino “${workout.title}”? Ele deixará de aparecer para o aluno.`)) return
-    setArchivingId(String(workout.id))
-    try {
-      await onArchive(workout.id)
-    } finally {
-      setArchivingId('')
-    }
-  }
-
-  if (!workouts.length) {
-    return (
-      <div className="space-y-3">
-        <Empty text="Nenhum treino prescrito ainda. Salve o primeiro treino para este aluno." />
-        {fallbackTitle ? <Row title={fallbackTitle} meta="Treino antigo cadastrado na ficha do aluno" badge="Ficha" /> : null}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      {workouts.map((workout) => {
-        const workoutExercises = getWorkoutExercisesArray(workout.exercises)
-        return (
-          <div key={workout.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h4 className="text-lg font-black">{workout.title}</h4>
-                <p className="mt-1 text-sm text-zinc-400">{workout.focus}</p>
-                {workout.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
-                  Ativo
-                </span>
-                {onArchive ? (
-                  <button disabled={archivingId === String(workout.id)} type="button" onClick={() => handleArchive(workout)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 disabled:opacity-50">
-                    {archivingId === String(workout.id) ? 'Arquivando...' : 'Arquivar'}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {workoutExercises.length ? workoutExercises.map((exercise, index) => {
-                const enriched = enrichExercise(exercise, availableExerciseLibrary)
-                return (
-                  <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
-                        <h5 className="mt-1 text-base font-black text-white">{enriched.name}</h5>
-                        <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                        <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
-                        <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
-                        <ExerciseMetric label="Carga" value={enriched.load || '-'} />
-                        <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <ExerciseMuscleSummary exercise={enriched} />
-                    </div>
-                    {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
-                    <div className="mt-3">
-                      <ExerciseMedia exercise={enriched} />
-                      <div className="mt-2">
-                        <ExerciseYouTubeLink exercise={enriched} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              }) : (
-                <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-4 text-sm font-bold text-zinc-400">
-                  Este treino ainda não possui exercícios cadastrados.
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-export function getExerciseLibrary(remoteItems = []) {
-  const records = new Map()
-  const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
-
-  ;(remoteItems || []).forEach((exercise) => {
-    if (!exercise?.name) return
-    const key = normalizeText(exercise.name)
-    const local = localByName.get(key) || {}
-    records.set(key, {
-      ...local,
-      ...exercise,
-      name: local.name || exercise.name,
-      group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
-      primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
-      secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
-      equipment: exercise.equipment || local.equipment || '',
-      movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
-      movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
-      objective: exercise.objective || exercise.goal || local.objective || local.goal || '',
-      level: exercise.level || local.level || '',
-      mechanic: exercise.mechanic || exercise.mechanics || local.mechanic || local.mechanics || '',
-      mechanics: exercise.mechanics || exercise.mechanic || local.mechanics || local.mechanic || '',
-      laterality: exercise.laterality || local.laterality || '',
-      composition: exercise.composition || local.composition || '',
-      difficulty: exercise.difficulty || local.difficulty || '',
-      cues: exercise.cues || exercise.instructions || local.cues || '',
-      tips: exercise.tips || local.tips || '',
-      commonMistakes: exercise.commonMistakes || exercise.common_mistakes || local.commonMistakes || '',
-      videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
-      thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
-      imageUrl: exercise.imageUrl || exercise.image_url || exercise.thumbnailUrl || local.imageUrl || local.thumbnailUrl || '',
-      aliases: [...new Set([...(local.aliases || []), ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])])],
-    })
-  })
-
-  exerciseLibrary.forEach((exercise) => {
-    const key = normalizeText(exercise.name)
-    if (!records.has(key)) records.set(key, exercise)
-  })
-
-  return [...records.values()]
-}
-
-function findExerciseProfile(value, library = exerciseLibrary) {
-  const normalized = normalizeText(value)
-  if (!normalized) return null
-
-  const exact = library.find((exercise) => (
-    [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalized)
-  ))
-  if (exact) return exact
-
-  if (normalized.length < 4) return null
-  return library.find((exercise) => (
-    [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => {
-      const normalizedCandidate = normalizeText(candidate)
-      return normalizedCandidate.includes(normalized) || normalized.includes(normalizedCandidate)
-    })
-  )) ?? null
-}
-
-function getExerciseSearchText(exercise = {}) {
-  return [
-    exercise.name,
-    exercise.group,
-    exercise.muscleGroup,
-    exercise.primaryMuscle,
-    exercise.equipment,
-    exercise.category,
-    exercise.objective,
-    exercise.goal,
-    exercise.movementType,
-    exercise.movement,
-    exercise.level,
-    exercise.mechanic,
-    exercise.mechanics,
-    exercise.laterality,
-    exercise.composition,
-    exercise.difficulty,
-    exercise.tips,
-    exercise.commonMistakes,
-    exercise.source,
-    ...(exercise.aliases || []),
-    ...(Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : []),
-  ].filter(Boolean).map(normalizeText).join(' ')
-}
-
-function getExerciseSuggestionScore(exercise, query, filter = 'todos') {
-  const normalizedQuery = normalizeText(query)
-  const searchText = getExerciseSearchText(exercise)
-  const normalizedName = normalizeText(exercise.name)
-  const normalizedGroup = normalizeText(exercise.group || exercise.muscleGroup)
-  const normalizedEquipment = normalizeText(exercise.equipment)
-  const normalizedMovement = normalizeText(exercise.movementType || exercise.movement)
-  const normalizedObjective = normalizeText(exercise.objective || exercise.category)
-  const filterText = normalizeText(filter)
-
-  if (filterText && filterText !== 'todos' && !searchText.includes(filterText)) return 0
-  if (!normalizedQuery) return filterText === 'todos' ? 1 : 12
-
-  let score = 0
-  if (normalizedName === normalizedQuery) score += 120
-  if (normalizedName.startsWith(normalizedQuery)) score += 85
-  if (normalizedName.includes(normalizedQuery)) score += 60
-  if (normalizedGroup.includes(normalizedQuery)) score += 42
-  if (normalizedEquipment.includes(normalizedQuery)) score += 26
-  if (normalizedMovement.includes(normalizedQuery)) score += 24
-  if (normalizedObjective.includes(normalizedQuery)) score += 20
-  if ((exercise.aliases || []).some((alias) => normalizeText(alias).includes(normalizedQuery))) score += 35
-  if (searchText.includes(normalizedQuery)) score += 18
-
-  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean)
-  const matchedTokens = queryTokens.filter((token) => searchText.includes(token)).length
-  if (queryTokens.length && matchedTokens === queryTokens.length) score += 22
-  if (matchedTokens) score += matchedTokens * 6
-
-  return score
-}
-
-function buildExerciseSuggestions(library, query, filter, favorites = [], recent = []) {
-  const favoriteSet = new Set(favorites.map(normalizeText))
-  const recentSet = new Set(recent.map(normalizeText))
-
-  return (library || [])
-    .map((exercise) => {
-      const score = getExerciseSuggestionScore(exercise, query, filter)
-      const key = normalizeText(exercise.name)
-      return {
-        ...exercise,
-        suggestionScore: score + (favoriteSet.has(key) ? 8 : 0) + (recentSet.has(key) ? 5 : 0),
-        isFavorite: favoriteSet.has(key),
-        isRecent: recentSet.has(key),
-      }
-    })
-    .filter((exercise) => exercise.suggestionScore > 0)
-    .sort((a, b) => b.suggestionScore - a.suggestionScore || String(a.name).localeCompare(String(b.name)))
-}
-
-export function getExercisePickerResults({
-  library = [],
-  search = '',
-  muscleFilter = 'todos',
-  categoryFilter = 'todos',
-  tab = 'coachfit',
-  favorites = [],
-  recent = [],
-} = {}) {
-  const favoriteSet = new Set(favorites.map(normalizeText))
-  const showFavoritesOnly = tab === 'favorites' || tab === 'favoritos'
-  const showCustomOnly = tab === 'mine' || tab === 'seus'
-  const normalizedMuscleFilter = normalizeText(muscleFilter)
-  const canonicalMuscleFilter = normalizeMuscleName(muscleFilter)
-  const normalizedCategoryFilter = normalizeText(categoryFilter)
-  const categoryAliases = normalizedCategoryFilter === 'treino em casa'
-    ? ['peso corporal', 'elastico', 'halteres', 'kettlebell', 'trx']
-    : []
-
-  return buildExerciseSuggestions(library, search, 'todos', favorites, recent)
-    .filter((exercise) => {
-      const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
-      const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
-      const muscleProfile = getExerciseMuscleProfile(exercise)
-      const matchesMuscle = normalizedMuscleFilter === 'todos'
-        || (canonicalMuscleFilter && [muscleProfile.primaryMuscle, ...muscleProfile.secondaryMuscles].includes(canonicalMuscleFilter))
-        || getExerciseSearchText(exercise).includes(normalizedMuscleFilter)
-      const matchesCategory = normalizedCategoryFilter === 'todos'
-        || categoryText.includes(normalizedCategoryFilter)
-        || categoryAliases.some((alias) => categoryText.includes(alias))
-      const matchesFavorites = !showFavoritesOnly || favoriteSet.has(normalizeText(exercise.name))
-      const matchesMine = !showCustomOnly || isCustomExercise
-      return matchesMuscle && matchesCategory && matchesFavorites && matchesMine
-    })
-}
-
-function HighlightedMatch({ text, query }) {
-  const value = String(text || '')
-  const normalizedQuery = normalizeText(query)
-  if (!value || !normalizedQuery) return value
-
-  const normalizedValue = normalizeText(value)
-  const index = normalizedValue.indexOf(normalizedQuery)
-  if (index < 0) return value
-
-  const before = value.slice(0, index)
-  const match = value.slice(index, index + normalizedQuery.length)
-  const after = value.slice(index + normalizedQuery.length)
-
-  return (
-    <>
-      {before}
-      <mark className="rounded bg-emerald-300/20 px-0.5 text-emerald-50">{match}</mark>
-      {after}
-    </>
-  )
-}
-
-function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrary) {
-  const profile = findExerciseProfile(name, library)
-  return {
-    name,
-    sets: '3',
-    reps: '10',
-    load: '',
-    rest: '60s',
-    muscleGroup: profile?.group ?? '',
-    primaryMuscle: profile?.primaryMuscle ?? '',
-    secondaryMuscles: profile?.secondaryMuscles ?? [],
-    equipment: profile?.equipment ?? '',
-    movementType: profile?.movementType ?? profile?.movement ?? '',
-    objective: profile?.objective ?? profile?.category ?? '',
-    level: profile?.level ?? '',
-    mechanic: profile?.mechanic ?? profile?.mechanics ?? '',
-    laterality: profile?.laterality ?? '',
-    composition: profile?.composition ?? '',
-    difficulty: profile?.difficulty ?? '',
-    instructions: profile?.cues ?? '',
-    tips: profile?.tips ?? '',
-    commonMistakes: profile?.commonMistakes ?? '',
-    videoUrl: profile?.videoUrl ?? '',
-    thumbnailUrl: profile?.thumbnailUrl ?? '',
-    imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
-    videoFile: null,
-    videoFileName: '',
-    cadence: '',
-    rir: '',
-    rpe: '',
-    notes: '',
-    ...overrides,
-  }
-}
-
-function enrichExercise(exercise, library = exerciseLibrary) {
-  const safeExercise = normalizeWorkoutExerciseInput(exercise)
-  const profile = findExerciseProfile(safeExercise.name, library)
-  const muscleProfile = getExerciseMuscleProfile({
-    ...profile,
-    ...safeExercise,
-    muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
-  })
-  return {
-    ...safeExercise,
-    muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
-    primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
-    secondaryMuscles: Array.isArray(safeExercise.secondaryMuscles)
-      ? safeExercise.secondaryMuscles
-      : Array.isArray(safeExercise.secondary_muscles)
-        ? safeExercise.secondary_muscles
-        : profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
-    equipment: safeExercise.equipment || profile?.equipment || '',
-    movementType: safeExercise.movementType || safeExercise.movement_type || profile?.movementType || profile?.movement || '',
-    objective: safeExercise.objective || safeExercise.goal || profile?.objective || profile?.category || '',
-    level: safeExercise.level || profile?.level || '',
-    mechanic: safeExercise.mechanic || safeExercise.mechanics || profile?.mechanic || profile?.mechanics || '',
-    laterality: safeExercise.laterality || profile?.laterality || '',
-    composition: safeExercise.composition || profile?.composition || '',
-    difficulty: safeExercise.difficulty || profile?.difficulty || '',
-    instructions: safeExercise.instructions || safeExercise.cues || profile?.cues || '',
-    tips: safeExercise.tips || profile?.tips || '',
-    commonMistakes: safeExercise.commonMistakes || safeExercise.common_mistakes || profile?.commonMistakes || '',
-    videoUrl: safeExercise.videoUrl || safeExercise.video_url || profile?.videoUrl || '',
-    thumbnailUrl: safeExercise.thumbnailUrl || safeExercise.thumbnail_url || profile?.thumbnailUrl || '',
-    imageUrl: safeExercise.imageUrl || safeExercise.image_url || profile?.imageUrl || profile?.thumbnailUrl || '',
-    videoFile: safeExercise.videoFile || null,
-    videoFileName: safeExercise.videoFileName || '',
-    cadence: safeExercise.cadence || '',
-    rir: safeExercise.rir || '',
-    rpe: safeExercise.rpe || '',
-    notes: safeExercise.notes || '',
-  }
-}
-
-function safeExternalUrl(value) {
-  if (!value?.trim()) return ''
-  try {
-    const url = new URL(value.trim())
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
-  } catch {
-    return ''
-  }
-}
-
-export function getExerciseFallbackImage(exercise = {}) {
-  const searchText = normalizeText([
-    exercise.name,
-    exercise.group,
-    exercise.muscleGroup,
-    exercise.primaryMuscle,
-    exercise.movementType,
-    exercise.equipment,
-  ].filter(Boolean).join(' '))
-
-  if (/agach|perna|quadr|glute|posterior|panturr|afundo|passada|stiff|terra|leg press|extensora|flexora/.test(searchText)) {
-    return '/assets/exercises/coachfit-lower-body.png'
-  }
-  if (/core|abd|prancha|crunch|estabil|cardio|mobilidade/.test(searchText)) {
-    return '/assets/exercises/coachfit-core.png'
-  }
-  if (/costas|dorsal|remada|puxada|barra fixa|biceps|rosca|pull|trapez/.test(searchText)) {
-    return '/assets/exercises/coachfit-upper-pull.png'
-  }
-  return '/assets/exercises/coachfit-upper-push.png'
-}
-
-function getExerciseImageUrl(exercise = {}) {
-  return safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl) || getExerciseFallbackImage(exercise)
+    window.addE
+... 45286 bytes omitted ...
+cise.thumbnailUrl || exercise.imageUrl) || getExerciseFallbackImage(exercise)
 }
 
 function getVideoEmbedUrl(value) {
@@ -13247,6 +12430,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
             {terms.length ? 'Nenhuma dieta oculta corresponde à busca.' : 'Nenhuma dieta oculta.'}
           </p>
         )}
+
       </div> : null}
     </div>
   )
@@ -14929,6 +14113,18 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     return onSendMessage({ ...message, inviteCode })
   }
 
+  async function createStudentActivationCheckout() {
+    const session = await createRemoteStudentCheckoutSessionByInvite(inviteCode)
+    const checkoutBaseUrl = resolveAudienceCheckoutUrl({
+      nutritionist: access.professionalType === 'nutritionist',
+      studentUrl: import.meta.env.VITE_FITCOACH_STUDENT_CHECKOUT_URL,
+      patientUrl: import.meta.env.VITE_FITCOACH_PATIENT_CHECKOUT_URL,
+    })
+    const checkoutUrl = buildStudentCheckoutUrl(checkoutBaseUrl, session.checkoutToken)
+    if (!checkoutUrl) throw new Error('O checkout da Cartpanda ainda não foi configurado para este perfil.')
+    return checkoutUrl
+  }
+
   return (
     <StudentMobileApp
       student={student}
@@ -14945,6 +14141,8 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       assessments={assessments}
       coachSettings={coachSettings}
       coachId={access.invite.coachId}
+      financialAccessOpen={access.financialAccessOpen}
+      professionalType={access.professionalType}
       questionnaireError={access.questionnaireError || ''}
       appAdminSettings={appAdminSettings}
       theme={uiTheme}
@@ -14958,12 +14156,13 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       onDeleteMessage={onDeleteMessage}
       onSubmitQuestionnaire={onSubmitQuestionnaire}
       onRefreshMessages={onRefreshMessages}
+      onActivateAccess={createStudentActivationCheckout}
       chatSyncError={chatSyncError}
       onExit={onExit}
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onActivateAccess, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -15022,7 +14221,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const nextWorkout = selectedStudentWorkout
   const nextAppointment = studentAppointments[0]
   const temporaryAccessOpen = Boolean(student?.accessOverrideUntil && new Date(student.accessOverrideUntil).getTime() > Date.now())
-  const financialAccessOpen = temporaryAccessOpen || hasStudentAccess(student)
+  const financialAccessOpen = typeof serverFinancialAccessOpen === 'boolean'
+    ? serverFinancialAccessOpen
+    : temporaryAccessOpen || hasStudentAccess(student)
   const restrictedTabs = ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
@@ -15197,11 +14398,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }
 
   function renderActiveContent() {
-    if (!financialAccessOpen && restrictedTabs.includes(activeTab)) {
+    if (!financialAccessOpen && (activeTab === 'inicio' || restrictedTabs.includes(activeTab))) {
       return (
         <StudentPaymentLock
           student={student}
           coachSettings={coachSettings}
+          professionalType={professionalType}
+          onActivateAccess={onActivateAccess}
           onOpenPayments={() => openTab('pagamentos')}
           onOpenChat={() => openTab('mensagens')}
         />
@@ -16043,10 +15246,26 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
   )
 }
 
-function StudentPaymentLock({ student, coachSettings, onOpenPayments, onOpenChat }) {
+function StudentPaymentLock({ student, coachSettings, professionalType = 'trainer', onActivateAccess, onOpenPayments, onOpenChat }) {
   const billingBrand = getBillingBrand(coachSettings)
   const professionalPaymentCurrent = student?.payment === 'Pago'
   const appPaymentCurrent = student?.appPaymentStatus === 'active'
+  const [activating, setActivating] = useState(false)
+  const [activationError, setActivationError] = useState('')
+  const professionalLabel = professionalType === 'nutritionist' ? 'nutricionista' : 'treinador'
+
+  async function activateAccess() {
+    if (!onActivateAccess || activating) return
+    setActivating(true)
+    setActivationError('')
+    try {
+      const checkoutUrl = await onActivateAccess()
+      window.location.assign(checkoutUrl)
+    } catch (error) {
+      setActivationError(error?.message || 'Não foi possível abrir o checkout. Tente novamente.')
+      setActivating(false)
+    }
+  }
 
   return (
     <StudentAppSection title="Acesso pausado" action="Fatura">
@@ -16057,9 +15276,9 @@ function StudentPaymentLock({ student, coachSettings, onOpenPayments, onOpenChat
             <img src={billingBrand.logoUrl} alt={coachSettings?.brandName || 'Logo do coach'} className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
           ) : null}
         </div>
-        <h3 className="mt-2 text-2xl font-black text-white">Regularize os pagamentos para liberar esta área.</h3>
+        <h3 className="mt-2 text-2xl font-black text-white">Seu acompanhamento já está preparado.</h3>
         <p className="mt-2 text-sm leading-6 text-zinc-300">
-          O acesso requer a assinatura do Coach Fit Pro e a mensalidade do seu profissional em dia. Os detalhes ficam concentrados na aba Fatura.
+          Falta apenas ativar o Coach Fit Pro e manter o plano com seu {professionalLabel} em dia para acessar treinos, dieta, progresso e acompanhamento.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <div className={`rounded-md border p-3 ${appPaymentCurrent ? 'border-emerald-300/30 bg-emerald-300/10' : 'border-amber-300/30 bg-amber-300/10'}`}>
@@ -16074,13 +15293,20 @@ function StudentPaymentLock({ student, coachSettings, onOpenPayments, onOpenChat
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        {!appPaymentCurrent ? (
+          <button type="button" disabled={activating || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+            {activating ? 'Abrindo checkout...' : 'Ativar meu acesso'}
+          </button>
+        ) : null}
         <button type="button" onClick={onOpenPayments} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
           Ir para Fatura
         </button>
         <button type="button" onClick={onOpenChat} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-          Falar com coach
+          Falar com {professionalLabel}
         </button>
       </div>
+      {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
+      {!appPaymentCurrent ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pelo webhook da Cartpanda, sem novo login.</p> : null}
     </StudentAppSection>
   )
 }
@@ -18756,6 +17982,10 @@ function createBlankStudent() {
     status: 'Em dia',
     plan: 'Acompanhamento mensal',
     payment: 'Pendente',
+    billingCycle: 'mensal',
+    firstDueDate: getDefaultDueDate(),
+    nextDueDate: getDefaultDueDate(),
+    appPaymentStatus: 'pending',
     adherence: 0,
     risk: 'Baixo',
     nextCheckin: '',
@@ -20515,11 +19745,7 @@ function parseCurrencyNumber(value) {
 }
 
 function normalizePlanCycle(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (normalized.includes('semana')) return 'semanal'
-  if (normalized.includes('semestre') || normalized.includes('semes')) return 'semestral'
-  if (normalized.includes('ano') || normalized.includes('anual')) return 'anual'
-  return 'mensal'
+  return normalizeBillingCycle(value)
 }
 
 function getPlanCycleLabel(plan) {
@@ -20582,13 +19808,13 @@ function getCoachBillingCycle(subscription, userCreatedAt, referenceTime = Date.
 }
 
 function isCoachSubscriptionActive(subscription) {
-  const status = normalizeText(subscription?.status || '')
-  return ['active', 'paid', 'em dia', 'em_dia', 'trialing', 'approved', 'aprovado', 'authorized', 'autorizado', 'completed', 'complete', 'ativo'].includes(status)
+  return isSubscriptionCurrent(subscription)
 }
 
 function getSubscriptionStatusLabel(subscription) {
   const status = normalizeText(subscription?.status || '')
   if (isCoachSubscriptionActive(subscription)) return 'Assinatura ativa'
+  if (subscription?.currentPeriodEndsAt && Date.parse(subscription.currentPeriodEndsAt) <= Date.now()) return 'Assinatura vencida'
   if (['pending', 'pendente', 'waiting_payment', 'aguardando_pagamento', 'trial'].includes(status)) return 'Aguardando pagamento'
   if (['expired', 'cancelled', 'canceled', 'cancelado', 'vencido'].includes(status)) return 'Assinatura pausada'
   return subscription?.status ? `Status: ${subscription.status}` : 'Aguardando ativação'
@@ -20990,25 +20216,13 @@ function toDateInputValue(date) {
 }
 
 function addPlanCycleToDate(value, plan) {
-  const date = parseValidDate(value) ?? new Date()
-  date.setHours(12, 0, 0, 0)
-  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
-
-  if (cycle === 'semanal') {
-    date.setDate(date.getDate() + 7)
-  } else if (cycle === 'semestral') {
-    date.setMonth(date.getMonth() + 6)
-  } else if (cycle === 'anual') {
-    date.setFullYear(date.getFullYear() + 1)
-  } else {
-    date.setMonth(date.getMonth() + 1)
-  }
-
-  return toDateInputValue(date)
+  const anchor = parseValidDate(value) ?? new Date()
+  return addBillingCycle(toDateInputValue(anchor), plan?.cycle || plan?.duration)
 }
 
 function getNextBillingDateForStudent(student, invoices = [], availablePlans = plans) {
   if (!student) return getDefaultDueDate()
+  if (student.nextDueDate) return student.nextDueDate
   const plan = availablePlans.find((item) => item.name === student.plan) || availablePlans[0]
   const studentInvoices = invoices
     .filter((invoice) => String(invoice.studentId) === String(student.id))
@@ -21027,19 +20241,7 @@ function getNextBillingDateForStudent(student, invoices = [], availablePlans = p
 }
 
 function getDueDateForPlan(plan) {
-  const date = new Date()
-  const cycle = normalizePlanCycle(plan?.cycle || plan?.duration)
-  if (cycle === 'semanal') {
-    date.setDate(date.getDate() + 7)
-  } else if (cycle === 'semestral') {
-    date.setMonth(date.getMonth() + 6)
-  } else if (cycle === 'anual') {
-    date.setFullYear(date.getFullYear() + 1)
-  } else {
-    date.setMonth(date.getMonth() + 1)
-  }
-  const offset = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+  return addBillingCycle(toDateInputValue(new Date()), plan?.cycle || plan?.duration)
 }
 
 function formatUiText(value) {

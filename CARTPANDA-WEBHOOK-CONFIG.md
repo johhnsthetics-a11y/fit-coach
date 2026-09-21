@@ -45,7 +45,7 @@ Cole esta URL no campo `Postback URL` da Cartpanda.
 Troque `SEU_TOKEN_AQUI` pelo mesmo valor cadastrado em `CARTPANDA_WEBHOOK_TOKEN`.
 
 ```text
-https://zrlcisuuekudczkbapil.supabase.co/functions/v1/cartpanda-webhook?token=SEU_TOKEN_AQUI&event=cartpanda_postback&email={email}&amount={total_price}&amount_net={amount_net}&product_id={product_id}&product_name={product_name}&order_id={order_id}&order_type={order_type}&phone={phone_number}&created_at={datetime_full}&is_test={is_test}
+https://zrlcisuuekudczkbapil.supabase.co/functions/v1/cartpanda-webhook?token=SEU_TOKEN_AQUI&event=cartpanda_postback&cid={cid}&email={email}&amount={total_price}&amount_net={amount_net}&product_id={product_id}&product_name={product_name}&order_id={order_id}&order_type={order_type}&phone={phone_number}&created_at={datetime_full}&is_test={is_test}
 ```
 
 ## 5. URL de retorno após a compra
@@ -53,7 +53,7 @@ https://zrlcisuuekudczkbapil.supabase.co/functions/v1/cartpanda-webhook?token=SE
 Na Cartpanda, configure a página de obrigado/redirecionamento para:
 
 ```text
-https://app.coachfitpro.com.br/?pagamento=confirmado
+https://app.coachfitpro.com.br/login?pagamento=confirmado
 ```
 
 ## 6. Link do checkout no Cloudflare

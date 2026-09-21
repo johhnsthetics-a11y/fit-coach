@@ -570,6 +570,19 @@ export async function createRemoteStudentCheckoutSession(studentId) {
   }
 }
 
+export async function createRemoteStudentCheckoutSessionByInvite(inviteCode) {
+  const code = String(inviteCode || '').trim()
+  if (!code) throw new Error('O link de acesso não contém um convite válido.')
+  const result = await rpcRequest('create_student_checkout_session_by_invite', { invite_code: code })
+  const row = Array.isArray(result) ? result[0] : result
+  if (!row?.checkout_token) throw new Error('O banco não retornou o identificador seguro do checkout.')
+  return {
+    checkoutToken: row.checkout_token,
+    status: row.status,
+    expiresAt: row.expires_at,
+  }
+}
+
 export async function markRemoteNotificationsRead() {
   await request('notifications?read=eq.false', {
     method: 'PATCH',
@@ -647,6 +660,8 @@ export async function loadRemoteStudentByInvite(code) {
     anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
     anamnesisRequired: payload.student.require_anamnesis !== false,
     anamnesisCompleted: Boolean(anamnesis?.id),
+    financialAccessOpen: payload.financial_access_open === true,
+    professionalType: payload.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
   }
 }
 
@@ -1384,6 +1399,11 @@ function fromStudentRow(row) {
     plan: row.plan ?? 'Acompanhamento mensal',
     payment: row.payment ?? 'Pendente',
     appPaymentStatus: row.app_payment_status ?? 'pending',
+    billingCycle: row.billing_cycle ?? 'mensal',
+    firstDueDate: row.first_due_date ?? '',
+    nextDueDate: row.next_due_date ?? '',
+    appSubscriptionStartedAt: row.app_subscription_started_at ?? '',
+    appSubscriptionExpiresAt: row.app_subscription_expires_at ?? '',
     adherence: Number(row.adherence ?? 0),
     risk: row.risk ?? 'Baixo',
     nextCheckin: row.next_checkin ?? '',
@@ -1412,6 +1432,9 @@ function toStudentRow(student, coachId) {
     status: student.status,
     plan: student.plan,
     payment: student.payment,
+    billing_cycle: student.billingCycle || 'mensal',
+    first_due_date: student.firstDueDate || null,
+    next_due_date: student.nextDueDate || student.firstDueDate || null,
     adherence: Number(student.adherence || 0),
     risk: student.risk,
     next_checkin: student.nextCheckin,
@@ -1839,11 +1862,7 @@ function nullableNumber(value) {
 }
 
 function createInviteCode() {
-  const random = crypto.getRandomValues(new Uint32Array(2))
-  return Array.from(random)
-    .map((value) => value.toString(36).toUpperCase())
-    .join('')
-    .slice(0, 10)
+  return crypto.randomUUID().replaceAll('-', '')
 }
 
 function isUuid(value) {

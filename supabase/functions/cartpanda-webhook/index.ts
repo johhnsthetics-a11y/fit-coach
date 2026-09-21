@@ -33,12 +33,17 @@ Deno.serve(async (request) => {
   const orderId = findString(payload, ['order_id', 'id', 'purchase_id', 'transaction_id', 'payment_id', 'sale_id'])
   const productId = findString(payload, ['product_id', 'offer_id', 'plan_id'])
   const productName = findString(payload, ['product_name', 'offer_name', 'plan_name', 'name'])
-  const subscriptionId = findString(payload, ['subscription_id', 'plan_subscription_id', 'recurrence_id']) || productId
+  const providerSubscriptionId = findString(payload, ['subscription_id', 'plan_subscription_id', 'recurrence_id'])
+  const subscriptionId = providerSubscriptionId || productId
   const amountCents = parseMoneyToCents(findValue(payload, ['total_price', 'amount', 'amount_net', 'price', 'value']))
   const status = mapSubscriptionStatus(eventType, payload)
   const eventId = findString(payload, ['event_id', 'webhook_id'])
     || ['cartpanda', orderId, subscriptionId, correlationId, buyerEmail, eventType].filter(Boolean).join(':')
     || `cartpanda:${Date.now()}`
+
+  if (await findProcessedWebhookEvent(eventId)) {
+    return jsonResponse({ ok: true, processed: true, reason: 'duplicate_event' }, 200)
+  }
 
   await saveWebhookEvent({
     eventId,
@@ -54,8 +59,13 @@ Deno.serve(async (request) => {
     processed: false,
   })
 
-  if (correlationId) {
-    const checkoutSession = await findStudentCheckoutSession(correlationId)
+  const checkoutSession = correlationId
+    ? await findStudentCheckoutSession(correlationId)
+    : providerSubscriptionId
+      ? await findStudentCheckoutSessionByProviderSubscription(providerSubscriptionId)
+      : null
+
+  if (correlationId || checkoutSession) {
     if (!checkoutSession?.student_id) {
       await markWebhookError(eventId, 'Student checkout token not found or expired')
       return jsonResponse({ ok: true, processed: false, reason: 'student_checkout_not_found' }, 202)
@@ -69,6 +79,7 @@ Deno.serve(async (request) => {
       orderId,
       subscriptionId,
       amountCents,
+      payload,
     })
     await markWebhookProcessed(eventId)
     return jsonResponse({ ok: true, processed: true, studentId: checkoutSession.student_id, status: safeStatus }, 200)
@@ -198,9 +209,16 @@ async function findUserByEmail(email: string) {
 
 async function findStudentCheckoutSession(checkoutToken: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutToken)) return null
-  const now = encodeURIComponent(new Date().toISOString())
   const rows = await supabaseFetch(
-    `/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(checkoutToken)}&expires_at=gt.${now}&select=id,checkout_token,coach_id,student_id,status&limit=1`,
+    `/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(checkoutToken)}&select=id,checkout_token,coach_id,student_id,status,paid_at,provider_subscription_id&limit=1`,
+  )
+  return Array.isArray(rows) ? rows[0] : null
+}
+
+async function findStudentCheckoutSessionByProviderSubscription(subscriptionId: string) {
+  if (!subscriptionId) return null
+  const rows = await supabaseFetch(
+    `/rest/v1/student_checkout_sessions?provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id,checkout_token,coach_id,student_id,status,paid_at,provider_subscription_id&order=created_at.desc&limit=1`,
   )
   return Array.isArray(rows) ? rows[0] : null
 }
@@ -212,8 +230,11 @@ async function updateStudentCheckoutSession(input: {
   orderId: string
   subscriptionId: string
   amountCents: number | null
+  payload: Record<string, unknown>
 }) {
   const now = new Date().toISOString()
+  const studentState = await findStudentSubscriptionState(input.session.student_id, input.session.coach_id)
+  const periodEndsAt = input.status === 'active' ? resolveStudentPeriodEnd(input.payload, now) : studentState?.app_subscription_expires_at || null
   await supabaseFetch(`/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(input.session.checkout_token)}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=minimal' },
@@ -233,9 +254,57 @@ async function updateStudentCheckoutSession(input: {
     headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({
       app_payment_status: input.status,
+      app_subscription_started_at: input.status === 'active' ? studentState?.app_subscription_started_at || now : studentState?.app_subscription_started_at || null,
+      app_subscription_expires_at: periodEndsAt,
       updated_at: now,
     }),
   })
+}
+
+async function findStudentSubscriptionState(studentId: string, coachId: string) {
+  const rows = await supabaseFetch(
+    `/rest/v1/students?id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(coachId)}&select=app_subscription_started_at,app_subscription_expires_at&limit=1`,
+  )
+  return Array.isArray(rows) ? rows[0] : null
+}
+
+async function findProcessedWebhookEvent(eventId: string) {
+  if (!eventId) return false
+  const rows = await supabaseFetch(
+    `/rest/v1/payment_webhook_events?event_id=eq.${encodeURIComponent(eventId)}&processed=eq.true&select=event_id&limit=1`,
+  )
+  return Array.isArray(rows) && rows.length > 0
+}
+
+function resolveStudentPeriodEnd(payload: Record<string, unknown>, nowIso: string) {
+  const providerDate = findString(payload, [
+    'current_period_ends_at', 'current_period_end', 'next_billing_at', 'next_charge_at',
+    'subscription_expires_at', 'expires_at',
+  ])
+  const parsedProviderDate = Date.parse(providerDate)
+  if (Number.isFinite(parsedProviderDate) && parsedProviderDate > Date.parse(nowIso)) {
+    return new Date(parsedProviderDate).toISOString()
+  }
+  return addCalendarMonths(new Date(nowIso), 1).toISOString()
+}
+
+function addCalendarMonths(value: Date, months: number) {
+  const year = value.getUTCFullYear()
+  const month = value.getUTCMonth()
+  const day = value.getUTCDate()
+  const targetMonthIndex = month + months
+  const targetYear = year + Math.floor(targetMonthIndex / 12)
+  const targetMonth = ((targetMonthIndex % 12) + 12) % 12
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(
+    targetYear,
+    targetMonth,
+    Math.min(day, lastDay),
+    value.getUTCHours(),
+    value.getUTCMinutes(),
+    value.getUTCSeconds(),
+    value.getUTCMilliseconds(),
+  ))
 }
 
 async function updateCoachSubscription(input: {
@@ -335,7 +404,7 @@ function addMonths(value: Date, months: number) {
 function isConfirmedPayment(eventType: string, payload: Record<string, unknown>) {
   const haystack = [
     eventType,
-    findString(payload, ['payment_status', 'transaction_status', 'financial_status', 'subscription_status', 'status']),
+    findString(payload, ['order_type', 'payment_status', 'transaction_status', 'financial_status', 'subscription_status', 'status']),
   ].join(' ').toLowerCase()
   return /(paid|approved|aprov|complete|completed|active|confirm|captured|initial_sale)/.test(haystack)
 }
