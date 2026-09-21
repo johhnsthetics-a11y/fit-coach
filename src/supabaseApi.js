@@ -9,9 +9,14 @@ export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies
 
 let sessionToken = ''
 let sessionRevision = 0
+const avatarUrlCache = new Map()
 const REQUEST_TIMEOUT_MS = 25000
 
 export const supabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY)
+
+function shouldLoadStudentPremiumData(portalPayload) {
+  return portalPayload?.financial_access_open === true
+}
 
 export function setSupabaseSession(token) {
   if (sessionToken !== (token || '')) sessionRevision += 1
@@ -187,6 +192,52 @@ async function functionRequest(functionName, body) {
   return payload
 }
 
+async function functionFormRequest(functionName, formData) {
+  if (!supabaseEnabled) throw new Error('Supabase não configurado')
+
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  })
+  const text = await response.text()
+  let payload = {}
+  try {
+    payload = text ? JSON.parse(text) : {}
+  } catch {
+    payload = { message: text }
+  }
+  if (!response.ok) throw new Error(payload.error || payload.message || `Erro na função ${functionName}`)
+  return payload
+}
+
+function getCachedAvatarUrl(path) {
+  const cached = avatarUrlCache.get(String(path || ''))
+  return cached && cached.expiresAt > Date.now() ? cached.url : ''
+}
+
+function cacheAvatarUrl(path, url) {
+  if (!path || !url) return url || ''
+  avatarUrlCache.set(String(path), { url, expiresAt: Date.now() + 50 * 60 * 1000 })
+  return url
+}
+
+async function loadStudentAvatarByInvite(inviteCode, avatarPath) {
+  if (!avatarPath) return ''
+  const cached = getCachedAvatarUrl(avatarPath)
+  if (cached) return cached
+  const payload = await functionRequest('student-avatar', { action: 'student-read', inviteCode })
+  return cacheAvatarUrl(payload.avatarPath || avatarPath, payload.avatarUrl || '')
+}
+
+async function loadCoachAvatarUrls() {
+  const payload = await functionRequest('student-avatar', { action: 'coach-read' })
+  return new Map((payload.avatars ?? []).map((avatar) => [
+    String(avatar.studentId),
+    cacheAvatarUrl(avatar.avatarPath, avatar.avatarUrl),
+  ]))
+}
+
 export async function signUpCoach({ name, email, password, role = 'Coach principal' }) {
   const payload = await authRequest('signup', {
     email,
@@ -308,12 +359,15 @@ export async function loadRemoteData() {
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
   const hydratedMessages = await Promise.all(messages.map(hydrateMessageRow))
   const hydratedWorkouts = await Promise.all(workouts.map(hydrateWorkoutRow))
+  const coachAvatarUrls = students.some((student) => student.avatar_path)
+    ? await loadCoachAvatarUrls().catch(() => new Map())
+    : new Map()
   assertCurrentSession(revision)
 
   return {
     ...questionnaires,
     user: users[0] ? fromUserRow(users[0]) : null,
-    students: students.map(fromStudentRow),
+    students: students.map((student) => fromStudentRow(student, coachAvatarUrls.get(String(student.id)) || '')),
     checkins: hydratedCheckins,
     notifications: notifications.map(fromNotificationRow),
     workouts: hydratedWorkouts,
@@ -617,17 +671,24 @@ export async function createRemoteStudentInvite(studentId, coachId) {
 
 export async function loadRemoteStudentByInvite(code) {
   const payload = await rpcRequest('get_student_portal', { invite_code: code })
-  const studentWorkoutsPayload = await rpcRequest('get_student_workouts', { invite_code: code })
   const invite = payload?.invite
 
   if (!invite || !payload?.student) {
     throw new Error('Convite não encontrado ou expirado')
   }
 
+  const premiumAccessOpen = shouldLoadStudentPremiumData(payload)
+  const studentWorkoutsPayload = premiumAccessOpen
+    ? await rpcRequest('get_student_workouts', { invite_code: code })
+    : []
+
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
   const studentWorkoutRows = Array.isArray(studentWorkoutsPayload) ? studentWorkoutsPayload : []
   const hydratedWorkouts = await Promise.all(studentWorkoutRows.map(hydrateWorkoutRow))
   const hydratedMessages = await Promise.all((payload.messages ?? []).map(hydrateMessageRow))
+  const studentAvatarUrl = payload.student.avatar_path
+    ? await loadStudentAvatarByInvite(code, payload.student.avatar_path).catch(() => '')
+    : ''
 
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
@@ -645,7 +706,7 @@ export async function loadRemoteStudentByInvite(code) {
     invite: fromInviteRow(invite),
     studentQuestionnaireAssignments: assignments.map(fromQuestionnaireAssignmentRow),
     questionnaireError,
-    student: fromStudentRow(payload.student),
+    student: fromStudentRow(payload.student, studentAvatarUrl),
     consentAccepted: Boolean(payload.consent_accepted),
     checkins: hydratedCheckins,
     workouts: hydratedWorkouts,
@@ -662,6 +723,27 @@ export async function loadRemoteStudentByInvite(code) {
     anamnesisCompleted: Boolean(anamnesis?.id),
     financialAccessOpen: payload.financial_access_open === true,
     professionalType: payload.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
+    professionalName: payload.professional_name ?? '',
+  }
+}
+
+export async function uploadRemoteStudentAvatar(inviteCode, file) {
+  const code = String(inviteCode || '').trim()
+  if (!code) throw new Error('Abra novamente o link individual antes de alterar a foto.')
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Use uma imagem JPG, PNG ou WebP.')
+  }
+  if (file.size > 3 * 1024 * 1024) throw new Error('A foto precisa ter até 3 MB.')
+
+  const formData = new FormData()
+  formData.append('inviteCode', code)
+  formData.append('file', file)
+  const payload = await functionFormRequest('student-avatar', formData)
+  if (!payload.avatarPath || !payload.avatarUrl) throw new Error('O servidor não retornou a foto atualizada.')
+  cacheAvatarUrl(payload.avatarPath, payload.avatarUrl)
+  return {
+    avatarPath: payload.avatarPath,
+    avatarUrl: payload.avatarUrl,
   }
 }
 
@@ -1386,7 +1468,7 @@ function requireCoachId(coachId) {
   return coachId
 }
 
-function fromStudentRow(row) {
+function fromStudentRow(row, avatarUrl = '') {
   return {
     id: row.id,
     name: row.name ?? '',
@@ -1417,6 +1499,8 @@ function fromStudentRow(row) {
     accessOverrideUntil: row.access_override_until ?? '',
     loadNotes: row.load_notes ?? '',
     waterGoalMl: row.water_goal_ml ?? '',
+    avatarPath: row.avatar_path ?? '',
+    photo: avatarUrl || getCachedAvatarUrl(row.avatar_path),
   }
 }
 
@@ -1565,6 +1649,7 @@ function extractStoragePath(value, bucket = PHOTO_BUCKET) {
 function encodeStoragePath(path) {
   return path.split('/').map(encodeURIComponent).join('/')
 }
+
 
 function toCheckinRow(checkin) {
   return {
@@ -1868,3 +1953,4 @@ function createInviteCode() {
 function isUuid(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
+
