@@ -1,9 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { installChatEnhancements } from './chatEnhancements'
 import './index.css'
-import './chat-enhancements.css'
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -46,8 +44,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AppErrorBoundary>
   </React.StrictMode>,
 )
-
-installChatEnhancements()
 
 if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
   window.addEventListener('load', () => {

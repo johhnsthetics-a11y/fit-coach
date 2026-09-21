@@ -2,13 +2,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-import * as chatAudio from '../chatAudioEnhancements.js'
+import * as chatAudio from '../src/chat/chatAudioModel.js'
 
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
-const audioCss = readFileSync(new URL('../chat-audio.css', import.meta.url), 'utf8')
-const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
+const audioCss = readFileSync(new URL('../src/chat/chat.css', import.meta.url), 'utf8')
+const chatCss = audioCss
 const audioSource = readFileSync(new URL('../chatAudioEnhancements.js', import.meta.url), 'utf8')
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const composerSource = readFileSync(new URL('../src/chat/ChatComposer.jsx', import.meta.url), 'utf8')
+const composerHookSource = readFileSync(new URL('../src/chat/useChatComposer.js', import.meta.url), 'utf8')
+const recorderSource = readFileSync(new URL('../src/chat/AudioRecorder.jsx', import.meta.url), 'utf8')
+const audioMessageSource = readFileSync(new URL('../src/chat/AudioMessage.jsx', import.meta.url), 'utf8')
+const attachmentSource = readFileSync(new URL('../src/chat/AttachmentMessage.jsx', import.meta.url), 'utf8')
+const conversationSource = readFileSync(new URL('../src/chat/ChatConversation.jsx', import.meta.url), 'utf8')
 const apiSource = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 
 const {
@@ -21,22 +27,24 @@ const {
   stopChatAudioStream,
 } = chatAudio
 
-test('produção instala a camada de áudio do chat', () => {
-  assert.match(productionMain, /installChatAudioEnhancements/)
-  assert.match(productionMain, /chat-audio\.css/)
+test('produção usa o áudio React sem decorador global', () => {
+  assert.doesNotMatch(productionMain, /installChatAudioEnhancements/)
+  assert.doesNotMatch(productionMain, /chat-audio\.css/)
+  assert.doesNotMatch(audioSource, /decorateAudio/)
+  assert.doesNotMatch(audioSource, /MutationObserver/)
 })
 
 test('chat possui estados visuais para gravação, preview e player mobile', () => {
-  assert.match(audioCss, /chat-pro-recording/)
-  assert.match(audioCss, /chat-pro-audio-preview/)
-  assert.match(audioCss, /chat-pro-audio-player/)
+  assert.match(audioCss, /chat-recording-state/)
+  assert.match(audioCss, /chat-attachment-preview/)
+  assert.match(audioCss, /chat-audio-message/)
   assert.match(chatCss, /env\(safe-area-inset-bottom(?:,\s*0px)?\)/)
   assert.match(chatCss, /100dvh/)
 })
 
 test('player de áudio cabe na bolha em telas mobile estreitas', () => {
   assert.doesNotMatch(audioCss, /min-width:\s*min\(17\.4rem,\s*76vw\)/)
-  assert.match(audioCss, /\.chat-pro-audio-player\s*\{[\s\S]*?max-width:\s*100%/)
+  assert.match(audioCss, /\.chat-audio-message\s*\{[\s\S]*?max-width:\s*100%/)
 })
 
 test('gestos de gravação distinguem cancelar, travar e manter pressionado', () => {
@@ -88,29 +96,28 @@ test('cleanup do microfone encerra todas as tracks mesmo se uma falhar', () => {
   assert.deepEqual(stopped, ['a', 'b', 'c'])
 })
 
-test('camada de áudio trata troca de conversa, pagehide, Safari e teclado virtual', () => {
-  assert.match(audioSource, /line-clamp-2/)
-  assert.match(audioSource, /pagehide/)
-  assert.match(audioSource, /visualViewport/)
-  assert.match(audioSource, /Object\.defineProperty/)
-  assert.match(audioSource, /pointercancel/)
+test('áudio React limpa o microfone, suporta gesto e acompanha o teclado virtual', () => {
+  assert.match(recorderSource, /stopChatAudioStream/)
+  assert.match(recorderSource, /useEffect\(\(\) => \(\) =>/)
+  assert.match(recorderSource, /onPointerCancel/)
+  assert.match(recorderSource, /selectChatAudioMimeType/)
+  assert.match(conversationSource, /visualViewport/)
   assert.match(chatCss, /--chat-pro-visual-height/)
 })
 
 
 test('gravador React é a única fonte de gravação e exibe tempo/ondas no mobile', () => {
-  assert.match(appSource, /data-chat-native-audio-recorder/)
-  assert.match(appSource, /chat-native-recording-time/)
-  assert.match(appSource, /chat-native-recording-wave/)
-  assert.match(appSource, /recordingElapsedMs/)
-  assert.match(audioSource, /data-chat-native-audio-recorder/)
-  assert.doesNotMatch(audioCss, /@media \(max-width: 390px\)[\s\S]*?\.chat-pro-recording-wave\s*\{\s*display:\s*none/)
+  assert.match(recorderSource, /chat-recording-state/)
+  assert.match(recorderSource, /chat-recording-wave/)
+  assert.match(recorderSource, /elapsedMs/)
+  assert.doesNotMatch(appSource, /function AudioRecorderButton/)
+  assert.doesNotMatch(audioCss, /@media \(max-width: 390px\)[\s\S]*?\.chat-recording-wave\s*\{\s*display:\s*none/)
 })
 
 test('preview nativo de áudio permanece dentro do composer sem salto de layout', () => {
-  assert.match(appSource, /chat-native-audio-preview/)
-  assert.match(appSource, /chat-native-audio-composer/)
-  assert.doesNotMatch(appSource, /requestSubmit\(submitButton/)
+  assert.match(composerSource, /chat-attachment-preview/)
+  assert.match(composerSource, /chat-compose/)
+  assert.doesNotMatch(composerSource, /requestSubmit\(submitButton/)
 })
 
 test('chat expõe ações persistentes de editar e apagar mensagem', () => {
@@ -135,31 +142,33 @@ test('apagar mensagem usa soft delete visível para os dois lados', () => {
 })
 
 test('preview React de audio não recebe segundo player decorado', () => {
-  assert.match(audioSource, /chat-native-audio-preview/)
-  assert.match(audioSource, /audio\.closest\('\.chat-pro-audio-preview, \.chat-native-audio-preview'\)/)
+  assert.match(audioMessageSource, /chat-audio-message/)
+  assert.doesNotMatch(audioSource, /decorateAudio/)
 })
 
 test('nome técnico de gravação não pode estourar o layout mobile', () => {
-  assert.match(appSource, /formatChatAttachmentLabel/)
-  assert.match(appSource, /Áudio gravado/)
-  assert.match(appSource, /chat-message-attachment-name/)
-  assert.match(audioCss, /\.chat-message-attachment-name[\s\S]*?text-overflow:\s*ellipsis/)
-  assert.match(audioCss, /\.chat-message-audio-attachment[\s\S]*?overflow:\s*hidden/)
+  assert.match(attachmentSource, /formatChatAttachmentLabel/)
+  assert.match(attachmentSource, /Áudio gravado/)
+  assert.match(audioCss, /\.chat-audio-label[\s\S]*?text-overflow:\s*ellipsis/)
+  assert.match(audioCss, /\.chat-audio-message[\s\S]*?overflow:\s*hidden/)
 })
 
 
 test('envio de mensagem é otimista para áudio aparecer imediatamente após tocar em enviar', () => {
   assert.match(appSource, /deliveryState:\s*'sending'/)
-  assert.match(appSource, /messages:\s*\[localMessage,\s*\.\.\.\(current\.messages/)
+  assert.match(appSource, /:\s*\[localMessage,\s*\.\.\.\(current\.messages/)
+  assert.match(appSource, /String\(item\.id\) === String\(clientMessageId\)/)
+  assert.match(appSource, /deliveryState:\s*'failed'/)
   assert.match(appSource, /reconcileMessageDelivery\(current\.messages, localMessage\.id, savedMessage\)/)
-  assert.match(appSource, /setDraft\(''\)[\s\S]*?clearAttachment\(\)[\s\S]*?await onSendMessage/)
+  assert.match(composerHookSource, /setDraftState\(''\)[\s\S]*?clearAttachment\(\)[\s\S]*?await onSend\(payload\)/)
 })
 
 test('botão verde envia áudio pelo submit normal sem requestAnimationFrame ou confirmação extra', () => {
-  const studentSection = appSource.slice(appSource.indexOf('function StudentMessagePanel('), appSource.indexOf('function formatChatAttachmentLabel'))
+  const studentSection = appSource.slice(appSource.indexOf('function StudentMessagePanel('), appSource.indexOf('function StudentConsent('))
   const coachSection = appSource.slice(appSource.indexOf('function Messages({'), appSource.indexOf('function createBlankStudent'))
   assert.doesNotMatch(studentSection, /requestAnimationFrame/)
   assert.doesNotMatch(coachSection, /requestAnimationFrame/)
-  assert.match(studentSection, /type="submit"/)
-  assert.match(coachSection, /type="submit"/)
+  assert.match(studentSection, /<ChatConversation/)
+  assert.match(coachSection, /<ChatConversation/)
+  assert.match(composerSource, /type="submit"/)
 })

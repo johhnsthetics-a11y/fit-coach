@@ -1,14 +1,11 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { installChatEnhancements } from '../chatEnhancements'
 import { installChatWallpaperEnhancements } from '../chatWallpaperEnhancements'
-import { installChatAudioEnhancements } from '../chatAudioEnhancements'
 import './index.css'
-import '../chat-enhancements.css'
+import './chat/chat.css'
 import '../chat-wallpaper.css'
 import '../chat-wallpaper-theme.css'
-import '../chat-audio.css'
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -52,9 +49,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-installChatEnhancements()
 installChatWallpaperEnhancements()
-installChatAudioEnhancements()
 
 if ('serviceWorker' in navigator && import.meta.env.PROD && window.location.protocol !== 'file:') {
   window.addEventListener('load', () => {

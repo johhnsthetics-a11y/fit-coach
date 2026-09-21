@@ -831,3 +831,21 @@ html[data-theme="dark"] [data-chat-wallpaper-active="custom"] .chat-pro-wallpape
     font-size: 0.65rem;
   }
 }
+
+@media (max-width: 360px) {
+  .chat-pro-wallpaper-toolbar-in-header .chat-pro-wallpaper-button-emphasis {
+    width: 2.5rem;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .chat-pro-wallpaper-toolbar-in-header .chat-pro-wallpaper-button-emphasis span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

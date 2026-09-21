@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 
 import * as chatEnhancements from '../chatEnhancements.js'
 import * as chatWallpaper from '../chatWallpaperEnhancements.js'
@@ -22,8 +22,10 @@ const {
 
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const productionMain = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
-const chatCss = readFileSync(new URL('../chat-enhancements.css', import.meta.url), 'utf8')
+const legacyMain = readFileSync(new URL('../main.jsx', import.meta.url), 'utf8')
+const chatCss = readFileSync(new URL('../src/chat/chat.css', import.meta.url), 'utf8')
 const chatSource = readFileSync(new URL('../chatEnhancements.js', import.meta.url), 'utf8')
+const conversationSource = readFileSync(new URL('../src/chat/ChatConversation.jsx', import.meta.url), 'utf8')
 const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
 const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
 const wallpaperThemeCss = readFileSync(new URL('../chat-wallpaper-theme.css', import.meta.url), 'utf8')
@@ -36,11 +38,16 @@ test('chat identifica os composers reais do coach e do aluno', () => {
 
 test('produção carrega os entrypoints de messenger e wallpaper do chat', () => {
   assert.match(indexHtml, /src\/main\.jsx/)
-  assert.match(productionMain, /installChatEnhancements/)
+  assert.doesNotMatch(productionMain, /installChatEnhancements/)
   assert.match(productionMain, /installChatWallpaperEnhancements/)
-  assert.match(productionMain, /chat-enhancements\.css/)
+  assert.doesNotMatch(productionMain, /chat-enhancements\.css/)
   assert.match(productionMain, /chat-wallpaper\.css/)
   assert.match(productionMain, /chat-wallpaper-theme\.css/)
+  assert.doesNotMatch(chatSource, /decorateMessageBubbles/)
+  assert.doesNotMatch(chatSource, /MutationObserver/)
+  assert.doesNotMatch(legacyMain, /installChatEnhancements|chat-enhancements\.css/)
+  assert.equal(existsSync(new URL('../chat-enhancements.css', import.meta.url)), false)
+  assert.equal(existsSync(new URL('../chat-audio.css', import.meta.url)), false)
 })
 
 test('scroll inteligente considera o usuario perto do fim sem exigir pixel exato', () => {
@@ -116,11 +123,11 @@ test('wallpaper customizado aceita somente data URL de imagem', () => {
 })
 
 test('CSS do messenger cobre workspace, sugestao, composer, wallpaper e mobile', () => {
-  assert.match(chatCss, /\.chat-pro-workspace\s*\{/)
-  assert.match(chatCss, /\.chat-pro-conversations-pane\s*\{/)
-  assert.match(chatCss, /\.chat-pro-conversation-panel\s*\{/)
-  assert.match(chatCss, /\.chat-pro-suggestion\s*\{/)
-  assert.match(chatCss, /\.chat-pro-audio-button/)
+  assert.match(chatCss, /\.chat-workspace\.chat-pro-workspace\s*\{/)
+  assert.match(chatCss, /\.chat-conversation-list\s*\{/)
+  assert.match(chatCss, /\.chat-conversation\s*\{/)
+  assert.match(chatCss, /\.chat-suggestion\s*\{/)
+  assert.match(chatCss, /\.chat-record-button/)
   assert.match(chatCss, /@media \(max-width: 760px\)/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-button/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-modal/)
@@ -178,18 +185,18 @@ test('modal de wallpaper oferece trocar, remover, reaproveitar imagem e compress
 
 
 test('layout mobile do chat usa uma única coluna flexível estável com visualViewport', () => {
-  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open \.chat-pro-conversation-panel[\s\S]*?height:\s*calc\(/)
-  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open \.chat-pro-conversation-panel[\s\S]*?min-height:\s*0/)
-  assert.match(chatCss, /\.chat-pro-viewport[\s\S]*?flex:\s*1 1 0/)
-  assert.match(chatCss, /\.chat-pro-viewport[\s\S]*?min-height:\s*0/)
-  assert.match(chatCss, /\.chat-pro-composer[\s\S]*?flex:\s*0 0 auto/)
+  assert.match(chatCss, /\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*calc\(/)
+  assert.match(chatCss, /\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?min-height:\s*0/)
+  assert.match(chatCss, /\.chat-message-list[\s\S]*?flex:\s*1 1 0/)
+  assert.match(chatCss, /\.chat-message-list[\s\S]*?min-height:\s*0/)
+  assert.match(chatCss, /\.chat-compose[\s\S]*?flex:\s*0 0 auto/)
+  assert.match(conversationSource, /visualViewport/)
 })
 
 test('chat do aluno recebe shell dedicado para a mesma responsividade do coach', () => {
-  assert.match(chatSource, /chat-pro-student-shell/)
-  assert.match(chatSource, /chat-pro-student-conversation/)
-  assert.match(chatCss, /\.chat-pro-student-shell/)
-  assert.match(chatCss, /\.chat-pro-student-conversation/)
+  assert.match(conversationSource, /chat-pro-student-shell/)
+  assert.match(conversationSource, /chat-conversation-immersive/)
+  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive/)
 })
 
 test('controle de wallpaper não ocupa espaço do histórico de mensagens', () => {
@@ -244,10 +251,10 @@ test('foto personalizada entra sem branqueamento por padrão mas mantém control
 })
 
 test('chat mobile aberto ocupa praticamente toda a viewport como mensageiro nativo', () => {
-  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?position:\s*fixed/)
-  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?inset:\s*0/)
-  assert.match(chatCss, /\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
-  assert.match(chatCss, /\.chat-pro-student-shell[\s\S]*?height:\s*calc\([\s\S]*?-\s*5\.25rem/)
+  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?position:\s*fixed/)
+  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?inset:\s*0/)
+  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
+  assert.match(chatCss, /\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*calc\(/)
   assert.match(chatCss, /padding-top:\s*env\(safe-area-inset-top/)
 })
 

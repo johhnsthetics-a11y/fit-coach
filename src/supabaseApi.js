@@ -1082,7 +1082,7 @@ export async function deleteRemoteStudentMessage(inviteCode, messageId) {
 
 export async function saveRemoteMessage(message) {
   const attachmentUrl = message.attachmentFile
-    ? await uploadMessageAttachment(message.attachmentFile, message.studentId, message.inviteCode)
+    ? await uploadMessageAttachment(message.attachmentFile, message.studentId, message.inviteCode, message.clientMessageId)
     : message.attachmentUrl || ''
   const attachmentType = message.attachmentFile?.type || message.attachmentType || ''
   const attachmentName = message.attachmentFile?.name || message.attachmentName || ''
@@ -1095,13 +1095,16 @@ export async function saveRemoteMessage(message) {
       attachment_url: attachmentUrl || null,
       attachment_type: attachmentType || null,
       attachment_name: attachmentName || null,
+      client_message_id: message.clientMessageId || null,
     })
     return hydrateMessageRow(Array.isArray(result) ? result[0] : result)
   }
 
-  const rows = await request('messages', {
+  const rows = await request('messages?on_conflict=id', {
     method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
     body: JSON.stringify({
+      id: message.clientMessageId || undefined,
       coach_id: message.coachId,
       student_id: message.studentId,
       sender: message.sender,
@@ -1116,10 +1119,11 @@ export async function saveRemoteMessage(message) {
   return hydrateMessageRow(rows[0])
 }
 
-async function uploadMessageAttachment(file, studentId, inviteCode = '') {
+async function uploadMessageAttachment(file, studentId, inviteCode = '', clientMessageId = '') {
   const extension = file.name?.split('.').pop() || 'jpg'
   const owner = inviteCode || studentId || 'chat'
-  const safeName = `${owner}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`.replace(/\s+/g, '-')
+  const stableName = clientMessageId || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  const safeName = `${owner}/${stableName}.${extension}`.replace(/\s+/g, '-')
   const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`, {
     method: 'POST',
     headers: authHeaders({

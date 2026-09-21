@@ -69,6 +69,7 @@ values ('${coach}', '${student}', 'INVITE-QA', 'active', now() + interval '1 day
 await db.exec(await readFile(new URL('../supabase/migrations/20260917_repair_message_rls_42501.sql', import.meta.url), 'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260917_secure_message_edit_delete.sql', import.meta.url), 'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260918_soft_delete_messages.sql', import.meta.url), 'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20260920_idempotent_chat_messages.sql', import.meta.url), 'utf8'))
 await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${coach}',false);`)
 
 const normalized = await db.query(`
@@ -122,6 +123,20 @@ assert.equal(preserved.rows.length, 1)
 assert.equal(preserved.rows[0].body, 'Mensagem apagada')
 assert.ok(preserved.rows[0].deleted_at)
 assert.equal(preserved.rows[0].attachment_url, null)
+
+const clientMessageId = '55555555-5555-4555-8555-555555555555'
+const firstRetry = await db.query(
+  `select (public.submit_student_message($1, $2, null, null, null, $3::uuid)).*`,
+  ['INVITE-QA', 'Mensagem idempotente', clientMessageId],
+)
+const secondRetry = await db.query(
+  `select (public.submit_student_message($1, $2, null, null, null, $3::uuid)).*`,
+  ['INVITE-QA', 'Mensagem idempotente', clientMessageId],
+)
+assert.equal(firstRetry.rows[0].id, clientMessageId)
+assert.equal(secondRetry.rows[0].id, clientMessageId)
+const retryCount = await db.query('select count(*)::int as total from public.messages where id = $1', [clientMessageId])
+assert.equal(retryCount.rows[0].total, 1)
 
 console.log('Messages: ownership, edit and soft delete contracts PASS')
 await db.close()
