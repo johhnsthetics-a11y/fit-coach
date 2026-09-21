@@ -264,6 +264,13 @@ try {
     assert.ok(compactComposer && compactComposer.y >= 0 && compactComposer.y + compactComposer.height <= 561, 'Composer deve continuar acessivel com altura reduzida')
     const compactVisualHeight = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--chat-pro-visual-height')))
     assert.ok(compactVisualHeight > 0 && compactVisualHeight <= 560, `Viewport visual do aluno deve ser atualizada: ${compactVisualHeight}`)
+    if (width < 768) {
+      await page.evaluate(() => document.documentElement.style.setProperty('--chat-pro-visual-offset-top', '32px'))
+      await page.waitForTimeout(60)
+      const shiftedChatBox = await page.locator('[data-chat-role="student"]').boundingBox()
+      assert.ok(shiftedChatBox && Math.abs(shiftedChatBox.y - 32) <= 1, `Chat imersivo deve acompanhar o deslocamento do teclado: ${JSON.stringify(shiftedChatBox)}`)
+      await page.evaluate(() => document.documentElement.style.setProperty('--chat-pro-visual-offset-top', '0px'))
+    }
     const lastMessageBox = await page.getByText('Mensagem preservada para reenvio', { exact: true }).boundingBox()
     const compactListBox = await messageList.boundingBox()
     const compactScroll = await messageList.evaluate(element => ({ scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, clientHeight: element.clientHeight }))

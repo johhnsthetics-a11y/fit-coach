@@ -3,26 +3,42 @@ import { AttachmentMessage } from './AttachmentMessage'
 import { ChatComposer } from './ChatComposer'
 import { ChatHeader } from './ChatHeader'
 import { ChatMessageList } from './ChatTimeline'
+import { getChatViewportMetrics } from './chatViewportModel'
 
 function useChatVisualViewport() {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined
     const root = document.documentElement
     const viewport = window.visualViewport
-    const updateHeight = () => {
-      const height = Math.round(viewport?.height || window.innerHeight || 0)
+    let frameId = 0
+
+    const applyMetrics = () => {
+      frameId = 0
+      const { height, offsetTop } = getChatViewportMetrics({
+        visualViewport: viewport,
+        innerHeight: window.innerHeight,
+      })
+
       if (height > 0) root.style.setProperty('--chat-pro-visual-height', `${height}px`)
+      root.style.setProperty('--chat-pro-visual-offset-top', `${offsetTop}px`)
     }
 
-    updateHeight()
-    viewport?.addEventListener('resize', updateHeight)
-    viewport?.addEventListener('scroll', updateHeight)
-    window.addEventListener('resize', updateHeight)
+    const updateMetrics = () => {
+      if (frameId) window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(applyMetrics)
+    }
+
+    applyMetrics()
+    viewport?.addEventListener('resize', updateMetrics)
+    viewport?.addEventListener('scroll', updateMetrics)
+    window.addEventListener('resize', updateMetrics)
     return () => {
-      viewport?.removeEventListener('resize', updateHeight)
-      viewport?.removeEventListener('scroll', updateHeight)
-      window.removeEventListener('resize', updateHeight)
+      if (frameId) window.cancelAnimationFrame(frameId)
+      viewport?.removeEventListener('resize', updateMetrics)
+      viewport?.removeEventListener('scroll', updateMetrics)
+      window.removeEventListener('resize', updateMetrics)
       root.style.removeProperty('--chat-pro-visual-height')
+      root.style.removeProperty('--chat-pro-visual-offset-top')
     }
   }, [])
 }

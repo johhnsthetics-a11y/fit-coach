@@ -412,7 +412,10 @@ html[data-theme="dark"] .chat-connection-state,
 @media (max-width: 767px) {
   .student-mobile-shell .chat-conversation.chat-conversation-immersive {
     position: fixed !important;
-    inset: 0 !important;
+    top: var(--chat-pro-visual-offset-top, 0px) !important;
+    right: 0 !important;
+    bottom: auto !important;
+    left: 0 !important;
     z-index: 80 !important;
     width: 100% !important;
     height: var(--chat-pro-visual-height, 100dvh) !important;
@@ -774,6 +777,8 @@ html[data-theme="dark"] .chat-connection-state,
   position: relative;
   z-index: 5;
   display: grid;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   flex: 0 0 auto;
   gap: 0.5rem;
@@ -785,6 +790,8 @@ html[data-theme="dark"] .chat-connection-state,
 
 .chat-compose-row {
   display: flex;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   align-items: flex-end;
   gap: 0.45rem;
@@ -1172,8 +1179,21 @@ html[data-theme="dark"] .chat-connection-state,
     padding-inline: max(0.45rem, env(safe-area-inset-left, 0px));
   }
 
+  .chat-compose textarea {
+    max-height: min(7rem, 26dvh);
+  }
+
   .chat-recording-state {
     gap: 0.35rem;
+  }
+
+  .chat-recording-state strong {
+    margin-right: auto;
+  }
+
+  .chat-recording-state button {
+    min-width: 0;
+    padding-inline: 0.55rem;
   }
 
   .chat-recording-hint,
@@ -1189,6 +1209,22 @@ html[data-theme="dark"] .chat-connection-state,
   .chat-audio-play {
     width: 40px;
     height: 40px;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 640px) {
+  .chat-header {
+    min-height: 52px;
+    padding-block: 0.3rem;
+  }
+
+  .chat-compose {
+    gap: 0.35rem;
+    padding-top: 0.45rem;
+  }
+
+  .chat-compose textarea {
+    max-height: min(6rem, 24dvh);
   }
 }
 

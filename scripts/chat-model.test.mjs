@@ -6,6 +6,7 @@ import {
   formatChatDayLabel,
   sortChatMessages,
 } from '../src/chat/chatModel.js'
+import { getChatViewportMetrics } from '../src/chat/chatViewportModel.js'
 
 test('sorts messages oldest first and tolerates invalid dates', () => {
   const sorted = sortChatMessages([
@@ -48,4 +49,24 @@ test('orders conversations by latest activity and counts unread student messages
 
 test('formats absolute dates without throwing on invalid values', () => {
   assert.equal(formatChatDayLabel('invalid', new Date('2026-09-20T12:00:00-03:00')), 'Data não informada')
+})
+
+test('tracks the visible mobile viewport while the virtual keyboard is open', () => {
+  assert.deepEqual(getChatViewportMetrics({
+    visualViewport: { height: 518.4, offsetTop: 126.6 },
+    innerHeight: 844,
+  }), {
+    height: 518,
+    offsetTop: 127,
+  })
+})
+
+test('falls back safely when visual viewport metrics are unavailable', () => {
+  assert.deepEqual(getChatViewportMetrics({
+    visualViewport: { height: Number.NaN, offsetTop: -20 },
+    innerHeight: 640.2,
+  }), {
+    height: 640,
+    offsetTop: 0,
+  })
 })

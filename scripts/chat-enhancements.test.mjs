@@ -252,7 +252,8 @@ test('foto personalizada entra sem branqueamento por padrão mas mantém control
 
 test('chat mobile aberto ocupa praticamente toda a viewport como mensageiro nativo', () => {
   assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?position:\s*fixed/)
-  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?inset:\s*0/)
+  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?top:\s*var\(--chat-pro-visual-offset-top/)
+  assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?bottom:\s*auto/)
   assert.match(chatCss, /\.student-mobile-shell \.chat-conversation\.chat-conversation-immersive[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
   assert.match(chatCss, /\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*calc\(/)
   assert.match(chatCss, /padding-top:\s*env\(safe-area-inset-top/)
