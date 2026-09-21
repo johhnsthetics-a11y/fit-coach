@@ -72,7 +72,7 @@ test('area do aluno prioriza cabecalho e navegacao essencial', async () => {
 })
 
 test('backend bloqueia conteudo e execucao quando um dos pagamentos esta pendente', async () => {
-  const sql = await readFile(new URL('../supabase/migrations/20260921_student_payment_backend_enforcement.sql', import.meta.url), 'utf8')
+  const sql = await readFile(new URL('../SUPABASE/migrations/20260921_student_payment_backend_enforcement.sql', import.meta.url), 'utf8')
 
   assert.match(sql, /students\.payment = 'Pago'/i)
   assert.match(sql, /students\.app_payment_status = 'active'/i)
