@@ -51,3 +51,19 @@ export function isSubscriptionCurrent(subscription, referenceTime = Date.now()) 
   const expiresAt = Date.parse(subscription.currentPeriodEndsAt)
   return Number.isFinite(expiresAt) && expiresAt > referenceTime
 }
+
+export function shouldLoadStudentPremiumData(portalPayload) {
+  return portalPayload?.financial_access_open === true
+}
+
+export function getFirstName(value) {
+  return String(value || '').trim().split(/\s+/).filter(Boolean)[0] || 'Aluno'
+}
+
+export function getLocalGreeting(date = new Date()) {
+  const hour = date.getHours()
+  if (hour < 12) return 'Bom dia'
+  if (hour < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
+
