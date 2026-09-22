@@ -58,11 +58,12 @@ import {
   updateRemoteInvoiceStatus,
   updateRemotePayment,
   updateRecoveredPassword,
+  uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from './studentPayment'
-import { addBillingCycle, buildStudentAccessUrl, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
+import { addBillingCycle, buildStudentAccessUrl, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
 import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
@@ -3286,6 +3287,26 @@ function AppContent() {
     }
   }
 
+  async function updateStudentAvatar(file) {
+    const inviteCode = studentAccess?.invite?.code
+    if (!inviteCode) throw new Error('Abra novamente o link individual antes de alterar a foto.')
+    const avatar = await uploadRemoteStudentAvatar(inviteCode, file)
+    const studentId = studentAccess?.student?.id
+    setStudentAccess((current) => current ? {
+      ...current,
+      student: { ...current.student, avatarPath: avatar.avatarPath, photo: avatar.avatarUrl },
+    } : current)
+    setData((current) => ({
+      ...current,
+      students: (current.students ?? []).map((student) => (
+        String(student.id) === String(studentId)
+          ? { ...student, avatarPath: avatar.avatarPath, photo: avatar.avatarUrl }
+          : student
+      )),
+    }))
+    return avatar
+  }
+
   async function acceptStudentConsent() {
     if (!studentAccess?.invite?.code) return
     const requestId = portalRequestRef.current
@@ -3407,6 +3428,7 @@ function AppContent() {
         onDeleteMessage={deleteMessage}
         onSubmitQuestionnaire={submitStudentQuestionnaire}
         onRefreshMessages={refreshStudentConversation}
+        onUpdateAvatar={updateStudentAvatar}
         chatSyncError={chatSyncError}
         appAdminSettings={appAdminSettings}
         uiTheme={uiTheme}
@@ -6405,9 +6427,12 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-black">{student.name}</h3>
-                  <p className="mt-1 text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <ProfileAvatar name={student.name} src={student.photo} size="md" />
+                  <div className="min-w-0">
+                    <h3 className="truncate font-black">{student.name}</h3>
+                    <p className="mt-1 truncate text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
+                  </div>
                 </div>
                 <Badge tone={student.risk}>{student.risk}</Badge>
               </div>
@@ -8656,7 +8681,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           {filteredStudentRows.map(({ student, latest, assigned }) => (
             <article key={student.id} className="mobile-workout-card">
               <button type="button" onClick={() => { if (latest) { setSelectedWorkoutId(latest.id); setTab('library') } }} className="mobile-workout-card-main">
-                <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
+                {student.photo ? (
+                  <img src={student.photo} alt={`Foto de ${student.name}`} className="mobile-workout-avatar object-cover" />
+                ) : (
+                  <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
+                )}
                 <span>
                   <strong>{student.name}</strong>
                   <small>{latest?.title || 'Sem treino ativo'}</small>
@@ -14958,7 +14987,28 @@ async function sendLocalNotification(title, body) {
   }
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, chatSyncError = '', onExit }) {
+function ProfileAvatar({ name, src = '', size = 'md', className = '' }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  useEffect(() => setImageFailed(false), [src])
+  const sizes = {
+    sm: 'h-9 w-9 text-xs',
+    md: 'h-12 w-12 text-sm',
+    lg: 'h-16 w-16 text-lg',
+  }
+  const sizeClass = sizes[size] || sizes.md
+
+  if (src && !imageFailed) {
+    return <img src={src} alt={`Foto de ${name || 'perfil'}`} onError={() => setImageFailed(true)} className={`${sizeClass} shrink-0 rounded-full border border-white/15 object-cover ${className}`} />
+  }
+
+  return (
+    <span aria-label={`Iniciais de ${name || 'perfil'}`} className={`${sizeClass} grid shrink-0 place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 font-black text-emerald-100 ${className}`}>
+      {getInitials(name || 'Perfil')}
+    </span>
+  )
+}
+
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -15015,7 +15065,10 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       appointments={appointments}
       invoices={invoices}
       assessments={assessments}
-      coachSettings={coachSettings}
+      coachSettings={{
+        ...(coachSettings || {}),
+        publicName: coachSettings?.publicName || access.professionalName || '',
+      }}
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
       professionalType={access.professionalType}
@@ -15032,13 +15085,14 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       onDeleteMessage={onDeleteMessage}
       onSubmitQuestionnaire={onSubmitQuestionnaire}
       onRefreshMessages={onRefreshMessages}
+      onUpdateAvatar={onUpdateAvatar}
       onActivateAccess={createStudentActivationCheckout}
       chatSyncError={chatSyncError}
       onExit={onExit}
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onActivateAccess, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -15050,6 +15104,14 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [appInstalled, setAppInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
   const [workoutStartNotified, setWorkoutStartNotified] = useState(false)
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
+  const avatarInputRef = useRef(null)
+  const greeting = getLocalGreeting()
+  const studentFirstName = getFirstName(student?.name)
+  const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
+  const professionalPhoto = coachSettings?.profilePhotoUrl || ''
+  const professionalRole = professionalType === 'nutritionist' ? 'Nutricionista responsável' : 'Treinador responsável'
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const workoutSelectionStorageKey = `coachfitpro-selected-workout-${student?.id || 'student'}`
   const [selectedStudentWorkoutId, setSelectedStudentWorkoutId] = useState(() => {
@@ -15223,6 +15285,21 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
   function resetWater() {
     setWaterMl(0)
+  }
+
+  async function handleAvatarChange(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !onUpdateAvatar) return
+    setAvatarUploading(true)
+    setAvatarError('')
+    try {
+      await onUpdateAvatar(file)
+    } catch (error) {
+      setAvatarError(error?.message || 'Não foi possível atualizar a foto.')
+    } finally {
+      setAvatarUploading(false)
+    }
   }
 
   function toggleWorkoutTimer() {
@@ -15449,9 +15526,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           <button type="button" aria-label="Abrir menu do aluno" onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
             <NavIcon name="menu" className="h-5 w-5 text-emerald-300" />
           </button>
-          <div className="min-w-0 flex-1 px-1">
-            <p className="truncate text-[11px] font-black uppercase text-emerald-300">{activeTitle}</p>
-            <p className="truncate text-sm font-black text-white">{student.name}</p>
+          <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
+            <ProfileAvatar name={student.name} src={student.photo} size="sm" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-white">{greeting}, {studentFirstName}</p>
+              <p className="truncate text-[10px] font-black uppercase text-emerald-300">{activeTitle}</p>
+            </div>
           </div>
           <button type="button" aria-label="Abrir conversa com o profissional" onClick={() => openTab('mensagens')} className={`grid h-11 w-11 shrink-0 place-items-center rounded-md border ${activeTab === 'mensagens' ? 'border-blue-300/45 bg-blue-400/15 text-blue-100' : 'border-white/10 text-zinc-100'}`}>
             <NavIcon name="message" className="h-5 w-5" />
@@ -15473,6 +15553,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
+            </div>
+            <div className="mt-3 flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.025] p-3">
+              <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-black text-zinc-100">{professionalName}</p>
+                <p className="truncate text-[10px] font-bold uppercase text-zinc-500">{professionalRole}</p>
+              </div>
             </div>
             <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
             <div className="mt-2 grid gap-2">
@@ -15535,6 +15622,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
+            <div className="mt-3 flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.025] p-3">
+              <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-black text-zinc-100">{professionalName}</p>
+                <p className="truncate text-[10px] font-bold uppercase text-zinc-500">{professionalRole}</p>
+              </div>
+            </div>
             <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
             <div className="mt-2 grid gap-2">
               {primaryStudentNavItems.map((item) => {
@@ -15590,9 +15684,30 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         <main className="min-w-0">
           {activeTab !== 'mensagens' && <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
             <div className="p-4 sm:p-5">
-              <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
-              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
+              <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
+                <ProfileAvatar name={student.name} src={student.photo} size="lg" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xl font-black text-white sm:text-2xl">{greeting}, {studentFirstName}</p>
+                  <p className="mt-1 text-sm leading-5 text-zinc-400">Vamos cuidar da sua evolução hoje.</p>
+                </div>
+                <button type="button" disabled={avatarUploading || !onUpdateAvatar} onClick={() => avatarInputRef.current?.click()} className="ml-auto min-h-10 shrink-0 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:border-emerald-300/40 disabled:cursor-wait disabled:opacity-55">
+                  {avatarUploading ? 'Enviando...' : student.photo ? 'Alterar foto' : 'Adicionar foto'}
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
+              </div>
+              <div className="mt-4 flex min-w-0 items-center gap-2 border-t border-white/10 pt-3">
+                <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-zinc-400">Acompanhado por <strong className="text-zinc-100">{professionalName}</strong></p>
+                  <p className="truncate text-[10px] font-black uppercase text-emerald-300">{professionalRole}</p>
+                </div>
+              </div>
+              {avatarError ? <p role="alert" className="mt-3 text-xs font-bold text-rose-200">{avatarError}</p> : null}
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
+                <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{activeTitle}</h1>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
+              </div>
             </div>
           </section>}
           {renderActiveContent()}
@@ -19198,9 +19313,12 @@ function StudentSnapshot({ student }) {
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-2xl font-black">{student.name}</h3>
-                  <p className="mt-1 text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <ProfileAvatar name={student.name} src={student.photo} size="lg" />
+          <div className="min-w-0">
+            <h3 className="truncate text-2xl font-black">{student.name}</h3>
+            <p className="mt-1 truncate text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
+          </div>
         </div>
         <Badge tone={student.risk}>{student.risk}</Badge>
       </div>
