@@ -22,7 +22,7 @@ test('saudacao usa primeiro nome e horario local', () => {
 })
 
 test('migration cria uma unica referencia de avatar e bucket sem escrita publica', async () => {
-  const sql = await readFile(new URL('../SUPABASE/migrations/20260921_student_profile_identity.sql', import.meta.url), 'utf8')
+  const sql = await readFile(new URL('../supabase/migrations/20260921_student_profile_identity.sql', import.meta.url), 'utf8')
   assert.match(sql, /add column if not exists avatar_path text/i)
   assert.match(sql, /profile-avatars/i)
   assert.match(sql, /file_size_limit[^;]*3145728/is)
@@ -53,7 +53,7 @@ test('frontend evita RPC premium no acesso pendente e oferece edicao da foto', a
 })
 
 test('portal entrega somente o nome e tipo do profissional associado', async () => {
-  const sql = await readFile(new URL('../SUPABASE/migrations/20260921_student_professional_identity.sql', import.meta.url), 'utf8')
+  const sql = await readFile(new URL('../supabase/migrations/20260921_student_professional_identity.sql', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   assert.match(sql, /professional_name/i)
   assert.match(sql, /join public\.users as users on users\.id = invites\.coach_id/i)
