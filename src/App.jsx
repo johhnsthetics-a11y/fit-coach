@@ -58,12 +58,11 @@ import {
   updateRemoteInvoiceStatus,
   updateRemotePayment,
   updateRecoveredPassword,
-  uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from './studentPayment'
-import { addBillingCycle, buildStudentAccessUrl, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
+import { addBillingCycle, buildStudentAccessUrl, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
 import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
@@ -3287,26 +3286,6 @@ function AppContent() {
     }
   }
 
-  async function updateStudentAvatar(file) {
-    const inviteCode = studentAccess?.invite?.code
-    if (!inviteCode) throw new Error('Abra novamente o link individual antes de alterar a foto.')
-    const avatar = await uploadRemoteStudentAvatar(inviteCode, file)
-    const studentId = studentAccess?.student?.id
-    setStudentAccess((current) => current ? {
-      ...current,
-      student: { ...current.student, avatarPath: avatar.avatarPath, photo: avatar.avatarUrl },
-    } : current)
-    setData((current) => ({
-      ...current,
-      students: (current.students ?? []).map((student) => (
-        String(student.id) === String(studentId)
-          ? { ...student, avatarPath: avatar.avatarPath, photo: avatar.avatarUrl }
-          : student
-      )),
-    }))
-    return avatar
-  }
-
   async function acceptStudentConsent() {
     if (!studentAccess?.invite?.code) return
     const requestId = portalRequestRef.current
@@ -3428,7 +3407,6 @@ function AppContent() {
         onDeleteMessage={deleteMessage}
         onSubmitQuestionnaire={submitStudentQuestionnaire}
         onRefreshMessages={refreshStudentConversation}
-        onUpdateAvatar={updateStudentAvatar}
         chatSyncError={chatSyncError}
         appAdminSettings={appAdminSettings}
         uiTheme={uiTheme}
@@ -6427,12 +6405,9 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <ProfileAvatar name={student.name} src={student.photo} size="md" />
-                  <div className="min-w-0">
-                    <h3 className="truncate font-black">{student.name}</h3>
-                    <p className="mt-1 truncate text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
-                  </div>
+                <div>
+                  <h3 className="font-black">{student.name}</h3>
+                  <p className="mt-1 text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
                 </div>
                 <Badge tone={student.risk}>{student.risk}</Badge>
               </div>
@@ -8681,11 +8656,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           {filteredStudentRows.map(({ student, latest, assigned }) => (
             <article key={student.id} className="mobile-workout-card">
               <button type="button" onClick={() => { if (latest) { setSelectedWorkoutId(latest.id); setTab('library') } }} className="mobile-workout-card-main">
-                {student.photo ? (
-                  <img src={student.photo} alt={`Foto de ${student.name}`} className="mobile-workout-avatar object-cover" />
-                ) : (
-                  <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
-                )}
+                <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
                 <span>
                   <strong>{student.name}</strong>
                   <small>{latest?.title || 'Sem treino ativo'}</small>
@@ -10155,9 +10126,1030 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       muscleFilter: exerciseMuscleFilter,
       categoryFilter: exerciseCategoryFilter,
       tab: exerciseSourceFilter,
-    
-... 51851 bytes omitted ...
-'front', aliases: ['bíceps', 'biceps', 'bicep'], description: 'Flexão de cotovelo e apoio nas puxadas.' },
+      favorites: favoriteExercises,
+      recent: recentExercises,
+    })
+  }, [availableExerciseLibrary, exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter, favoriteExercises, recentExercises])
+
+  useEffect(() => {
+    setExercises((current) => current.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)))
+  }, [availableExerciseLibrary])
+
+  useEffect(() => {
+    setSelectedSuggestionIndex(0)
+  }, [exerciseSearch, exerciseMuscleFilter, exerciseCategoryFilter, exerciseSourceFilter])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-favorite-exercises', JSON.stringify(favoriteExercises.slice(0, 80)))
+    } catch {
+      // Favoritos continuam funcionando na sessão mesmo se o navegador bloquear storage.
+    }
+  }, [favoriteExercises])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('coachfitpro-recent-exercises', JSON.stringify(recentExercises.slice(0, 20)))
+    } catch {
+      // Recentes continuam funcionando na sessão mesmo se o navegador bloquear storage.
+    }
+  }, [recentExercises])
+
+  useEffect(() => {
+    function warnBeforeLeave(event) {
+      if (!hasUnsavedChanges) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', warnBeforeLeave)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave)
+  }, [hasUnsavedChanges])
+
+  function markWorkoutDirty() {
+    setHasUnsavedChanges(true)
+    setMessage('')
+  }
+
+  function updateExercise(index, field, value) {
+    markWorkoutDirty()
+    setExercises((current) => current.map((exercise, itemIndex) => (
+      itemIndex === index ? { ...exercise, [field]: value } : exercise
+    )))
+  }
+
+  function updateExerciseName(index, value) {
+    markWorkoutDirty()
+    const profile = findExerciseProfile(value, availableExerciseLibrary)
+    setExercises((current) => current.map((exercise, itemIndex) => {
+      if (itemIndex !== index) return exercise
+      return {
+        ...exercise,
+        name: value,
+        muscleGroup: profile?.group ?? exercise.muscleGroup,
+        primaryMuscle: profile?.primaryMuscle ?? exercise.primaryMuscle,
+        secondaryMuscles: profile?.secondaryMuscles ?? exercise.secondaryMuscles,
+        equipment: profile?.equipment ?? exercise.equipment,
+        instructions: profile?.cues ?? exercise.instructions,
+        videoUrl: profile?.videoUrl || exercise.videoUrl || '',
+        thumbnailUrl: profile?.thumbnailUrl || exercise.thumbnailUrl || '',
+      }
+    }))
+  }
+
+  function addExercise(name = '') {
+    markWorkoutDirty()
+    setExercises((current) => [...current, createExerciseDraft(name, {}, availableExerciseLibrary)])
+    if (name) {
+      setRecentExercises((current) => [name, ...current.filter((item) => normalizeText(item) !== normalizeText(name))].slice(0, 20))
+      setMessage(`Exercício "${name}" adicionado ao treino.`)
+    }
+  }
+
+  function addSuggestionExercise(exercise) {
+    if (!exercise?.name) return
+    addExercise(exercise.name)
+    setExerciseSearch('')
+  }
+
+  function toggleFavoriteExercise(name) {
+    setFavoriteExercises((current) => {
+      const exists = current.some((item) => normalizeText(item) === normalizeText(name))
+      return exists
+        ? current.filter((item) => normalizeText(item) !== normalizeText(name))
+        : [name, ...current].slice(0, 80)
+    })
+    setMessage('Favoritos atualizados.')
+  }
+
+  function handleExerciseSearchKeyDown(event) {
+    if (!exerciseSuggestions.length) return
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setSelectedSuggestionIndex((current) => Math.min(current + 1, exerciseSuggestions.length - 1))
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setSelectedSuggestionIndex((current) => Math.max(current - 1, 0))
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      addSuggestionExercise(exerciseSuggestions[selectedSuggestionIndex])
+    }
+  }
+
+  function duplicateExercise(index) {
+    markWorkoutDirty()
+    setExercises((current) => {
+      const source = current[index]
+      if (!source) return current
+      const copy = { ...source, name: `${source.name} - variação`, notes: source.notes || 'Ajuste a variação antes de salvar.' }
+      return [...current.slice(0, index + 1), copy, ...current.slice(index + 1)]
+    })
+    setMessage('Exercício duplicado para edição rápida.')
+  }
+
+  function moveExercise(index, direction) {
+    markWorkoutDirty()
+    setExercises((current) => {
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= current.length) return current
+      const next = [...current]
+      const [item] = next.splice(index, 1)
+      next.splice(nextIndex, 0, item)
+      return next
+    })
+  }
+
+  function updateExerciseVideoFile(index, file) {
+    markWorkoutDirty()
+    setExercises((current) => current.map((exercise, itemIndex) => (
+      itemIndex === index ? { ...exercise, videoFile: file || null, videoFileName: file?.name || '' } : exercise
+    )))
+  }
+
+  async function resolveExerciseFromApi(index) {
+    const exercise = exercises[index]
+    if (!exercise?.name?.trim()) {
+      setError('Digite o nome do exercício antes de buscar na AscendAPI.')
+      return
+    }
+    if (!supabaseEnabled) {
+      setError('Conecte o Supabase para buscar exercícios pela AscendAPI.')
+      return
+    }
+
+    setResolvingExerciseIndex(index)
+    setError('')
+    setMessage('')
+    try {
+      const apiExercise = await fetchRemoteExerciseMedia(exercise.name)
+      setExercises((current) => current.map((item, itemIndex) => (
+        itemIndex === index
+          ? {
+            ...item,
+            name: apiExercise.name || item.name,
+            muscleGroup: apiExercise.group || item.muscleGroup,
+            primaryMuscle: apiExercise.primaryMuscle || item.primaryMuscle,
+            secondaryMuscles: apiExercise.secondaryMuscles || item.secondaryMuscles,
+            equipment: apiExercise.equipment || item.equipment,
+            instructions: apiExercise.cues || item.instructions,
+            videoUrl: apiExercise.videoUrl || item.videoUrl,
+            thumbnailUrl: apiExercise.thumbnailUrl || item.thumbnailUrl,
+            imageUrl: apiExercise.imageUrl || apiExercise.thumbnailUrl || item.imageUrl,
+            ascendapiId: apiExercise.externalId || apiExercise.exerciseId || item.ascendapiId,
+          }
+          : item
+      )))
+      setMessage(apiExercise.videoUrl ? 'Exercício encontrado com mídia da AscendAPI.' : 'Exercício encontrado. A API não enviou vídeo para este item, então o app usará a ficha técnica.')
+    } catch (apiError) {
+      setError(apiError?.message || 'Não foi possível buscar este exercício na AscendAPI.')
+    } finally {
+      setResolvingExerciseIndex(null)
+    }
+  }
+
+  function removeExercise(index) {
+    markWorkoutDirty()
+    setExercises((current) => current.filter((_, itemIndex) => itemIndex !== index))
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const filledExercises = exercises.filter((exercise) => exercise.name.trim())
+    const studentId = form.get('studentId')?.toString() || ''
+
+    if (!studentId) {
+      setError('Selecione um aluno antes de salvar o treino.')
+      return
+    }
+    if (!filledExercises.length) {
+      setError('Adicione pelo menos um exercício ao treino.')
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      await onSaveWorkout({
+        studentId,
+        title: form.get('title')?.toString() || 'Treino',
+        focus: form.get('focus')?.toString() || '',
+        notes: form.get('notes')?.toString() || '',
+        exercises: filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
+      })
+      setMessage('Treino salvo e liberado para o aluno.')
+      setHasUnsavedChanges(false)
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível salvar o treino.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      <Select
+        label="Aluno"
+        name="studentId"
+        defaultValue={selectedStudent?.id}
+        options={students.map((student) => ({ label: student.name, value: student.id }))}
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Nome do treino" name="title" defaultValue="Upper A" onChange={markWorkoutDirty} />
+        <Field label="Foco" name="focus" defaultValue="Peito, costas e ombros" onChange={markWorkoutDirty} />
+      </div>
+      <TextArea label="Observações" name="notes" defaultValue="Aquecimento antes das séries principais. Registrar cargas no fim do treino." onChange={markWorkoutDirty} />
+
+      <div className="workout-exercise-picker rounded-3xl border border-emerald-300/20 bg-emerald-400/[0.08] p-4 sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-black text-emerald-100">Biblioteca inteligente de exercícios</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-300">Busque por nome, músculo, equipamento ou variação. O exercício só entra no treino quando você confirmar.</p>
+          </div>
+          <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/45 px-3 py-1 text-xs font-bold text-emerald-100">{availableExerciseLibrary.length} exercícios</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-emerald-100">
+            Buscar exercício
+            <input
+              value={exerciseSearch}
+              onChange={(event) => setExerciseSearch(event.target.value)}
+              onKeyDown={handleExerciseSearchKeyDown}
+              placeholder="Ex.: supino, dorsal, halter, quadríceps..."
+              className="min-h-12 min-w-0 rounded-2xl border border-white/10 bg-zinc-950/85 px-4 py-3 text-base normal-case tracking-normal text-zinc-100 outline-none transition focus:border-emerald-300 sm:text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setExerciseSearch('')
+              setExerciseSourceFilter('todos')
+              setExerciseMuscleFilter('todos')
+              setExerciseCategoryFilter('todos')
+            }}
+            className="min-h-12 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35"
+          >
+            Limpar filtros
+          </button>
+        </div>
+
+        <div className="mt-3 grid gap-2 md:grid-cols-[auto_minmax(150px,1fr)_minmax(150px,1fr)_auto]">
+          <button
+            type="button"
+            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'favoritos' ? 'todos' : 'favoritos')}
+            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'favoritos' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
+          >
+            Favoritos
+          </button>
+          <select value={exerciseMuscleFilter} onChange={(event) => setExerciseMuscleFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
+            <option value="todos">Grupo muscular</option>
+            {workoutExerciseMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+          </select>
+          <select value={exerciseCategoryFilter} onChange={(event) => setExerciseCategoryFilter(event.target.value)} className="min-h-12 rounded-2xl border border-white/10 bg-zinc-950/85 px-3 text-sm font-black text-zinc-100 outline-none focus:border-emerald-300">
+            <option value="todos">Categorias</option>
+            {workoutExerciseCategoryOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+          </select>
+          <button
+            type="button"
+            onClick={() => setExerciseSourceFilter(exerciseSourceFilter === 'seus' ? 'todos' : 'seus')}
+            className={`rounded-2xl border px-4 py-3 text-xs font-black transition ${exerciseSourceFilter === 'seus' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 bg-zinc-950/55 text-zinc-200 hover:border-emerald-300/35'}`}
+          >
+            Seus exercícios
+          </button>
+        </div>
+
+        <div className="workout-exercise-library-results mt-4 grid gap-2" aria-label="Resultados da biblioteca de exercícios">
+          {exerciseSuggestions.map((exercise, suggestionIndex) => (
+            <div
+              key={exercise.name}
+              onMouseEnter={() => setSelectedSuggestionIndex(suggestionIndex)}
+              className={`group grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border px-3 py-2 text-left text-xs font-bold transition duration-200 hover:-translate-y-0.5 active:scale-[0.98] ${
+                selectedSuggestionIndex === suggestionIndex
+                  ? 'border-emerald-300/45 bg-emerald-300/12 shadow-lg shadow-emerald-950/20'
+                  : 'border-white/10 bg-zinc-950/70 text-zinc-200 hover:border-emerald-300/35 hover:bg-emerald-300/10'
+              }`}
+            >
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/20 bg-emerald-300/10 text-emerald-100">
+                <MuscleMapMini exercise={exercise} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm text-zinc-100"><HighlightedMatch text={exercise.name} query={exerciseSearch} /></span>
+                <span className="mt-0.5 block truncate text-[11px] font-bold text-zinc-400">
+                  {exercise.group || exercise.muscleGroup || 'Músculo alvo'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}
+                </span>
+                <span className="mt-1 flex flex-wrap gap-1">
+                  {exercise.isFavorite ? <span className="rounded-full bg-amber-300/12 px-2 py-0.5 text-[10px] font-black text-amber-100">favorito</span> : null}
+                  {exercise.isRecent ? <span className="rounded-full bg-emerald-300/12 px-2 py-0.5 text-[10px] font-black text-emerald-100">recente</span> : null}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  aria-label={`Favoritar ${exercise.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    toggleFavoriteExercise(exercise.name)
+                  }}
+                  className={`grid h-10 w-10 place-items-center rounded-xl border transition ${
+                    exercise.isFavorite
+                      ? 'border-amber-300/40 bg-amber-300/12 text-amber-100'
+                      : 'border-white/10 bg-white/[0.04] text-zinc-400 hover:text-amber-100'
+                  }`}
+                >
+                  <NavIcon name="star" className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => addSuggestionExercise(exercise)} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 transition hover:bg-emerald-200">
+                  Adicionar
+                </button>
+              </span>
+            </div>
+          ))}
+          {!exerciseSuggestions.length ? (
+            <div className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 text-sm leading-6 text-zinc-300">
+              Nenhum exercício encontrado com esses termos. Você ainda pode adicionar um exercício personalizado e preencher manualmente.
+            </div>
+          ) : null}
+        </div>
+
+        {(favoriteExercises.length || recentExercises.length) ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {favoriteExercises.length ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-xs font-black uppercase text-amber-100">Favoritos</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {favoriteExercises.slice(0, 6).map((name) => (
+                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-xs font-bold text-amber-50">
+                      + {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {recentExercises.length ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                <p className="text-xs font-black uppercase text-emerald-100">Usados recentemente</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {recentExercises.slice(0, 6).map((name) => (
+                    <button key={name} type="button" onClick={() => addExercise(name)} className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-50">
+                      + {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <datalist id="exercise-library-options">
+        {availableExerciseLibrary.map((exercise) => <option key={exercise.name} value={exercise.name}>{exercise.group}</option>)}
+      </datalist>
+
+      <div className="space-y-3">
+        {exercises.map((exercise, index) => (
+          <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="workout-exercise-card-summary min-w-0">
+                <ExerciseThumbnail exercise={exercise} compact />
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                  <h4 className="mt-1 truncate text-lg font-black text-white">{exercise.name || 'Novo exercício'}</h4>
+                  <p className="mt-1 text-xs text-zinc-400">{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <button type="button" onClick={() => moveExercise(index, -1)} disabled={index === 0} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
+                  Subir
+                </button>
+                <button type="button" onClick={() => moveExercise(index, 1)} disabled={index === exercises.length - 1} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40">
+                  Descer
+                </button>
+                <button type="button" onClick={() => duplicateExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-emerald-300/30 hover:text-emerald-100">
+                  Duplicar
+                </button>
+                <button type="button" onClick={() => removeExercise(index)} className="min-h-10 rounded-xl border border-white/10 bg-zinc-950/50 px-3 py-2 text-xs font-black text-zinc-300 transition hover:border-rose-300/30 hover:text-rose-100">
+                  Remover
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(220px,0.85fr)]">
+              <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                Nome do exercício
+                <input
+                  list="exercise-library-options"
+                  value={exercise.name}
+                  onChange={(event) => updateExerciseName(index, event.target.value)}
+                  placeholder="Digite ou escolha um exercício"
+                  className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+                />
+              </label>
+              <InlineInput label="Grupo muscular" value={exercise.muscleGroup ?? ''} onChange={(value) => updateExercise(index, 'muscleGroup', value)} />
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
+              <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
+              <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
+              <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
+              <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
+              <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
+              <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
+              <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
+            </div>
+
+            <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
+              <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
+              <div className="grid gap-3 border-t border-white/10 p-3">
+                <div className="flex flex-col gap-3 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-emerald-100">Buscar mídia profissional</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-400">
+                      Puxa vídeo, imagem, músculo-alvo e instruções pela AscendAPI. Use quando quiser completar o exercício automaticamente.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={resolvingExerciseIndex === index}
+                    onClick={() => resolveExerciseFromApi(index)}
+                    className="rounded-md bg-emerald-400 px-4 py-3 text-xs font-black text-zinc-950 transition active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {resolvingExerciseIndex === index ? 'Buscando...' : 'Buscar na AscendAPI'}
+                  </button>
+                </div>
+                <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                  Orientações técnicas
+                  <textarea
+                    value={exercise.instructions ?? ''}
+                    onChange={(event) => updateExercise(index, 'instructions', event.target.value)}
+                    rows={3}
+                    className="min-w-0 resize-y rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base normal-case leading-6 tracking-normal text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+                  />
+                </label>
+                <div className="grid gap-3 lg:grid-cols-[1fr_0.9fr]">
+                  <InlineInput label="Link de vídeo personalizado (opcional)" value={exercise.videoUrl ?? ''} onChange={(value) => updateExercise(index, 'videoUrl', value)} />
+                  <label className="grid gap-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Upload do vídeo do coach
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime,video/*"
+                      onChange={(event) => updateExerciseVideoFile(index, event.target.files?.[0] || null)}
+                      className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case tracking-normal text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-emerald-500 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-zinc-950"
+                    />
+                    <span className="text-[11px] normal-case leading-4 tracking-normal text-zinc-500">
+                      {exercise.videoFileName || 'Opcional. Se não enviar, o app usa o vídeo da biblioteca ou uma ficha técnica do movimento.'}
+                    </span>
+                  </label>
+                </div>
+                <ExerciseMuscleSummary exercise={exercise} compact />
+                <ExerciseMedia exercise={exercise} compact />
+                <div className="mt-2">
+                  <ExerciseYouTubeLink exercise={exercise} compact />
+                </div>
+              </div>
+            </details>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <button type="button" onClick={() => addExercise()} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/35">
+          Adicionar exercício personalizado
+        </button>
+        <button disabled={saving} className="rounded-md bg-emerald-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+          {saving ? 'Salvando...' : 'Salvar treino'}
+        </button>
+        {hasUnsavedChanges ? (
+          <span className="rounded-md border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-bold text-amber-100">
+            Alterações pendentes. Salve antes de sair.
+          </span>
+        ) : null}
+      </div>
+      {message ? (
+        <p className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">
+          {error}
+        </p>
+      ) : null}
+    </form>
+  )
+}
+
+function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exerciseLibrary, onArchive }) {
+  const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
+  const [archivingId, setArchivingId] = useState('')
+
+  async function handleArchive(workout) {
+    if (!window.confirm(`Arquivar o treino “${workout.title}”? Ele deixará de aparecer para o aluno.`)) return
+    setArchivingId(String(workout.id))
+    try {
+      await onArchive(workout.id)
+    } finally {
+      setArchivingId('')
+    }
+  }
+
+  if (!workouts.length) {
+    return (
+      <div className="space-y-3">
+        <Empty text="Nenhum treino prescrito ainda. Salve o primeiro treino para este aluno." />
+        {fallbackTitle ? <Row title={fallbackTitle} meta="Treino antigo cadastrado na ficha do aluno" badge="Ficha" /> : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {workouts.map((workout) => {
+        const workoutExercises = getWorkoutExercisesArray(workout.exercises)
+        return (
+          <div key={workout.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h4 className="text-lg font-black">{workout.title}</h4>
+                <p className="mt-1 text-sm text-zinc-400">{workout.focus}</p>
+                {workout.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{workout.notes}</p> : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
+                  Ativo
+                </span>
+                {onArchive ? (
+                  <button disabled={archivingId === String(workout.id)} type="button" onClick={() => handleArchive(workout)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 disabled:opacity-50">
+                    {archivingId === String(workout.id) ? 'Arquivando...' : 'Arquivar'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3">
+              {workoutExercises.length ? workoutExercises.map((exercise, index) => {
+                const enriched = enrichExercise(exercise, availableExerciseLibrary)
+                return (
+                  <div key={exercise.id ?? `${exercise.name}-${index}`} className="rounded-2xl border border-white/10 bg-zinc-950/55 p-4 transition duration-200 hover:border-emerald-300/25 hover:bg-white/[0.045] hover:shadow-lg hover:shadow-emerald-950/10">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
+                        <h5 className="mt-1 text-base font-black text-white">{enriched.name}</h5>
+                        <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                        <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
+                        <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
+                        <ExerciseMetric label="Carga" value={enriched.load || '-'} />
+                        <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <ExerciseMuscleSummary exercise={enriched} />
+                    </div>
+                    {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
+                    <div className="mt-3">
+                      <ExerciseMedia exercise={enriched} />
+                      <div className="mt-2">
+                        <ExerciseYouTubeLink exercise={enriched} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              }) : (
+                <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-4 text-sm font-bold text-zinc-400">
+                  Este treino ainda não possui exercícios cadastrados.
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function getExerciseLibrary(remoteItems = []) {
+  const records = new Map()
+  const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
+
+  ;(remoteItems || []).forEach((exercise) => {
+    if (!exercise?.name) return
+    const key = normalizeText(exercise.name)
+    const local = localByName.get(key) || {}
+    records.set(key, {
+      ...local,
+      ...exercise,
+      name: local.name || exercise.name,
+      group: exercise.group || exercise.muscleGroup || exercise.muscle_group || local.group || '',
+      primaryMuscle: exercise.primaryMuscle || exercise.primary_muscle || local.primaryMuscle || '',
+      secondaryMuscles: exercise.secondaryMuscles || exercise.secondary_muscles || local.secondaryMuscles || [],
+      equipment: exercise.equipment || local.equipment || '',
+      movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
+      movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
+      objective: exercise.objective || exercise.goal || local.objective || local.goal || '',
+      level: exercise.level || local.level || '',
+      mechanic: exercise.mechanic || exercise.mechanics || local.mechanic || local.mechanics || '',
+      mechanics: exercise.mechanics || exercise.mechanic || local.mechanics || local.mechanic || '',
+      laterality: exercise.laterality || local.laterality || '',
+      composition: exercise.composition || local.composition || '',
+      difficulty: exercise.difficulty || local.difficulty || '',
+      cues: exercise.cues || exercise.instructions || local.cues || '',
+      tips: exercise.tips || local.tips || '',
+      commonMistakes: exercise.commonMistakes || exercise.common_mistakes || local.commonMistakes || '',
+      videoUrl: exercise.videoUrl || exercise.video_url || local.videoUrl || '',
+      thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
+      imageUrl: exercise.imageUrl || exercise.image_url || exercise.thumbnailUrl || local.imageUrl || local.thumbnailUrl || '',
+      aliases: [...new Set([...(local.aliases || []), ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])])],
+    })
+  })
+
+  exerciseLibrary.forEach((exercise) => {
+    const key = normalizeText(exercise.name)
+    if (!records.has(key)) records.set(key, exercise)
+  })
+
+  return [...records.values()]
+}
+
+function findExerciseProfile(value, library = exerciseLibrary) {
+  const normalized = normalizeText(value)
+  if (!normalized) return null
+
+  const exact = library.find((exercise) => (
+    [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => normalizeText(candidate) === normalized)
+  ))
+  if (exact) return exact
+
+  if (normalized.length < 4) return null
+  return library.find((exercise) => (
+    [exercise.name, ...(exercise.aliases ?? [])].some((candidate) => {
+      const normalizedCandidate = normalizeText(candidate)
+      return normalizedCandidate.includes(normalized) || normalized.includes(normalizedCandidate)
+    })
+  )) ?? null
+}
+
+function getExerciseSearchText(exercise = {}) {
+  return [
+    exercise.name,
+    exercise.group,
+    exercise.muscleGroup,
+    exercise.primaryMuscle,
+    exercise.equipment,
+    exercise.category,
+    exercise.objective,
+    exercise.goal,
+    exercise.movementType,
+    exercise.movement,
+    exercise.level,
+    exercise.mechanic,
+    exercise.mechanics,
+    exercise.laterality,
+    exercise.composition,
+    exercise.difficulty,
+    exercise.tips,
+    exercise.commonMistakes,
+    exercise.source,
+    ...(exercise.aliases || []),
+    ...(Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : []),
+  ].filter(Boolean).map(normalizeText).join(' ')
+}
+
+function getExerciseSuggestionScore(exercise, query, filter = 'todos') {
+  const normalizedQuery = normalizeText(query)
+  const searchText = getExerciseSearchText(exercise)
+  const normalizedName = normalizeText(exercise.name)
+  const normalizedGroup = normalizeText(exercise.group || exercise.muscleGroup)
+  const normalizedEquipment = normalizeText(exercise.equipment)
+  const normalizedMovement = normalizeText(exercise.movementType || exercise.movement)
+  const normalizedObjective = normalizeText(exercise.objective || exercise.category)
+  const filterText = normalizeText(filter)
+
+  if (filterText && filterText !== 'todos' && !searchText.includes(filterText)) return 0
+  if (!normalizedQuery) return filterText === 'todos' ? 1 : 12
+
+  let score = 0
+  if (normalizedName === normalizedQuery) score += 120
+  if (normalizedName.startsWith(normalizedQuery)) score += 85
+  if (normalizedName.includes(normalizedQuery)) score += 60
+  if (normalizedGroup.includes(normalizedQuery)) score += 42
+  if (normalizedEquipment.includes(normalizedQuery)) score += 26
+  if (normalizedMovement.includes(normalizedQuery)) score += 24
+  if (normalizedObjective.includes(normalizedQuery)) score += 20
+  if ((exercise.aliases || []).some((alias) => normalizeText(alias).includes(normalizedQuery))) score += 35
+  if (searchText.includes(normalizedQuery)) score += 18
+
+  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean)
+  const matchedTokens = queryTokens.filter((token) => searchText.includes(token)).length
+  if (queryTokens.length && matchedTokens === queryTokens.length) score += 22
+  if (matchedTokens) score += matchedTokens * 6
+
+  return score
+}
+
+function buildExerciseSuggestions(library, query, filter, favorites = [], recent = []) {
+  const favoriteSet = new Set(favorites.map(normalizeText))
+  const recentSet = new Set(recent.map(normalizeText))
+
+  return (library || [])
+    .map((exercise) => {
+      const score = getExerciseSuggestionScore(exercise, query, filter)
+      const key = normalizeText(exercise.name)
+      return {
+        ...exercise,
+        suggestionScore: score + (favoriteSet.has(key) ? 8 : 0) + (recentSet.has(key) ? 5 : 0),
+        isFavorite: favoriteSet.has(key),
+        isRecent: recentSet.has(key),
+      }
+    })
+    .filter((exercise) => exercise.suggestionScore > 0)
+    .sort((a, b) => b.suggestionScore - a.suggestionScore || String(a.name).localeCompare(String(b.name)))
+}
+
+export function getExercisePickerResults({
+  library = [],
+  search = '',
+  muscleFilter = 'todos',
+  categoryFilter = 'todos',
+  tab = 'coachfit',
+  favorites = [],
+  recent = [],
+} = {}) {
+  const favoriteSet = new Set(favorites.map(normalizeText))
+  const showFavoritesOnly = tab === 'favorites' || tab === 'favoritos'
+  const showCustomOnly = tab === 'mine' || tab === 'seus'
+  const normalizedMuscleFilter = normalizeText(muscleFilter)
+  const canonicalMuscleFilter = normalizeMuscleName(muscleFilter)
+  const normalizedCategoryFilter = normalizeText(categoryFilter)
+  const categoryAliases = normalizedCategoryFilter === 'treino em casa'
+    ? ['peso corporal', 'elastico', 'halteres', 'kettlebell', 'trx']
+    : []
+
+  return buildExerciseSuggestions(library, search, 'todos', favorites, recent)
+    .filter((exercise) => {
+      const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
+      const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
+      const muscleProfile = getExerciseMuscleProfile(exercise)
+      const matchesMuscle = normalizedMuscleFilter === 'todos'
+        || (canonicalMuscleFilter && [muscleProfile.primaryMuscle, ...muscleProfile.secondaryMuscles].includes(canonicalMuscleFilter))
+        || getExerciseSearchText(exercise).includes(normalizedMuscleFilter)
+      const matchesCategory = normalizedCategoryFilter === 'todos'
+        || categoryText.includes(normalizedCategoryFilter)
+        || categoryAliases.some((alias) => categoryText.includes(alias))
+      const matchesFavorites = !showFavoritesOnly || favoriteSet.has(normalizeText(exercise.name))
+      const matchesMine = !showCustomOnly || isCustomExercise
+      return matchesMuscle && matchesCategory && matchesFavorites && matchesMine
+    })
+}
+
+function HighlightedMatch({ text, query }) {
+  const value = String(text || '')
+  const normalizedQuery = normalizeText(query)
+  if (!value || !normalizedQuery) return value
+
+  const normalizedValue = normalizeText(value)
+  const index = normalizedValue.indexOf(normalizedQuery)
+  if (index < 0) return value
+
+  const before = value.slice(0, index)
+  const match = value.slice(index, index + normalizedQuery.length)
+  const after = value.slice(index + normalizedQuery.length)
+
+  return (
+    <>
+      {before}
+      <mark className="rounded bg-emerald-300/20 px-0.5 text-emerald-50">{match}</mark>
+      {after}
+    </>
+  )
+}
+
+function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrary) {
+  const profile = findExerciseProfile(name, library)
+  return {
+    name,
+    sets: '3',
+    reps: '10',
+    load: '',
+    rest: '60s',
+    muscleGroup: profile?.group ?? '',
+    primaryMuscle: profile?.primaryMuscle ?? '',
+    secondaryMuscles: profile?.secondaryMuscles ?? [],
+    equipment: profile?.equipment ?? '',
+    movementType: profile?.movementType ?? profile?.movement ?? '',
+    objective: profile?.objective ?? profile?.category ?? '',
+    level: profile?.level ?? '',
+    mechanic: profile?.mechanic ?? profile?.mechanics ?? '',
+    laterality: profile?.laterality ?? '',
+    composition: profile?.composition ?? '',
+    difficulty: profile?.difficulty ?? '',
+    instructions: profile?.cues ?? '',
+    tips: profile?.tips ?? '',
+    commonMistakes: profile?.commonMistakes ?? '',
+    videoUrl: profile?.videoUrl ?? '',
+    thumbnailUrl: profile?.thumbnailUrl ?? '',
+    imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
+    videoFile: null,
+    videoFileName: '',
+    cadence: '',
+    rir: '',
+    rpe: '',
+    notes: '',
+    ...overrides,
+  }
+}
+
+function enrichExercise(exercise, library = exerciseLibrary) {
+  const safeExercise = normalizeWorkoutExerciseInput(exercise)
+  const profile = findExerciseProfile(safeExercise.name, library)
+  const muscleProfile = getExerciseMuscleProfile({
+    ...profile,
+    ...safeExercise,
+    muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
+  })
+  return {
+    ...safeExercise,
+    muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
+    primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
+    secondaryMuscles: Array.isArray(safeExercise.secondaryMuscles)
+      ? safeExercise.secondaryMuscles
+      : Array.isArray(safeExercise.secondary_muscles)
+        ? safeExercise.secondary_muscles
+        : profile?.secondaryMuscles || muscleProfile.secondaryMuscles || [],
+    equipment: safeExercise.equipment || profile?.equipment || '',
+    movementType: safeExercise.movementType || safeExercise.movement_type || profile?.movementType || profile?.movement || '',
+    objective: safeExercise.objective || safeExercise.goal || profile?.objective || profile?.category || '',
+    level: safeExercise.level || profile?.level || '',
+    mechanic: safeExercise.mechanic || safeExercise.mechanics || profile?.mechanic || profile?.mechanics || '',
+    laterality: safeExercise.laterality || profile?.laterality || '',
+    composition: safeExercise.composition || profile?.composition || '',
+    difficulty: safeExercise.difficulty || profile?.difficulty || '',
+    instructions: safeExercise.instructions || safeExercise.cues || profile?.cues || '',
+    tips: safeExercise.tips || profile?.tips || '',
+    commonMistakes: safeExercise.commonMistakes || safeExercise.common_mistakes || profile?.commonMistakes || '',
+    videoUrl: safeExercise.videoUrl || safeExercise.video_url || profile?.videoUrl || '',
+    thumbnailUrl: safeExercise.thumbnailUrl || safeExercise.thumbnail_url || profile?.thumbnailUrl || '',
+    imageUrl: safeExercise.imageUrl || safeExercise.image_url || profile?.imageUrl || profile?.thumbnailUrl || '',
+    videoFile: safeExercise.videoFile || null,
+    videoFileName: safeExercise.videoFileName || '',
+    cadence: safeExercise.cadence || '',
+    rir: safeExercise.rir || '',
+    rpe: safeExercise.rpe || '',
+    notes: safeExercise.notes || '',
+  }
+}
+
+function safeExternalUrl(value) {
+  if (!value?.trim()) return ''
+  try {
+    const url = new URL(value.trim())
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
+export function getExerciseFallbackImage(exercise = {}) {
+  const searchText = normalizeText([
+    exercise.name,
+    exercise.group,
+    exercise.muscleGroup,
+    exercise.primaryMuscle,
+    exercise.movementType,
+    exercise.equipment,
+  ].filter(Boolean).join(' '))
+
+  if (/agach|perna|quadr|glute|posterior|panturr|afundo|passada|stiff|terra|leg press|extensora|flexora/.test(searchText)) {
+    return '/assets/exercises/coachfit-lower-body.png'
+  }
+  if (/core|abd|prancha|crunch|estabil|cardio|mobilidade/.test(searchText)) {
+    return '/assets/exercises/coachfit-core.png'
+  }
+  if (/costas|dorsal|remada|puxada|barra fixa|biceps|rosca|pull|trapez/.test(searchText)) {
+    return '/assets/exercises/coachfit-upper-pull.png'
+  }
+  return '/assets/exercises/coachfit-upper-push.png'
+}
+
+function getExerciseImageUrl(exercise = {}) {
+  return safeExternalUrl(exercise.thumbnailUrl || exercise.imageUrl) || getExerciseFallbackImage(exercise)
+}
+
+function getVideoEmbedUrl(value) {
+  const safeValue = safeExternalUrl(value)
+  if (!safeValue) return ''
+  try {
+    const url = new URL(safeValue)
+    if (url.hostname.includes('youtu.be')) {
+      const id = url.pathname.split('/').filter(Boolean)[0]
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : ''
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const id = url.searchParams.get('v') || url.pathname.split('/').filter(Boolean).pop()
+      return id && id !== 'results' ? `https://www.youtube-nocookie.com/embed/${id}` : ''
+    }
+    if (url.hostname.includes('vimeo.com')) {
+      const id = url.pathname.split('/').filter(Boolean).pop()
+      return id ? `https://player.vimeo.com/video/${id}` : ''
+    }
+  } catch {
+    return ''
+  }
+  return ''
+}
+
+function getExerciseVideoUrl(exercise) {
+  const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+}
+
+function ExerciseYouTubeLink({ exercise, compact = false }) {
+  return (
+    <a
+      href={getExerciseVideoUrl(exercise)}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-red-300/25 bg-red-400/10 px-3 py-2 text-center text-xs font-black text-red-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
+    >
+      Ver execução no YouTube
+    </a>
+  )
+}
+
+function isDirectVideoUrl(value) {
+  const safeValue = safeExternalUrl(value)
+  if (!safeValue) return false
+  try {
+    const url = new URL(safeValue)
+    return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(url.pathname) || url.pathname.includes('/storage/v1/object/public/workout-videos/')
+  } catch {
+    return false
+  }
+}
+
+function ExerciseMetric({ label, value }) {
+  return (
+    <div className="min-w-[68px] rounded border border-white/10 bg-white/[0.035] p-2">
+      <p className="text-[10px] font-bold uppercase text-zinc-500">{label}</p>
+      <p className="mt-1 break-words font-black text-zinc-200">{value}</p>
+    </div>
+  )
+}
+
+function ExerciseThumbnail({ exercise = {}, compact = false }) {
+  const videoPreviewUrl = exercise.videoPreviewUrl || ''
+  const videoUrl = safeExternalUrl(exercise.videoUrl)
+  const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
+  const profile = getExerciseMuscleProfile(exercise)
+  const target = profile.primaryLabel !== 'Músculo alvo não identificado'
+    ? profile.primaryLabel
+    : exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Exercício'
+
+  return (
+    <span className={`exercise-thumb ${compact ? 'is-compact' : ''}`}>
+      {canUseVideo ? (
+        <video
+          src={videoPreviewUrl || videoUrl}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="exercise-thumb-media"
+        />
+      ) : (
+        <span className="exercise-thumb-placeholder" aria-hidden="true">
+          <span className="exercise-thumb-cover-backdrop" />
+          <span className="exercise-thumb-muscle-mark">
+            <MuscleMapMini exercise={exercise} />
+          </span>
+          <span className="exercise-thumb-grid-lines" />
+          <span className="exercise-thumb-scanline" />
+        </span>
+      )}
+      <small>{target}</small>
+    </span>
+  )
+}
+
+const muscleConfig = {
+  peitoral: { label: 'Peitoral', view: 'front', aliases: ['peito', 'chest', 'pectoral', 'pectorals', 'peitoral maior'], description: 'Região principal dos movimentos de empurrar.' },
+  'peitoral-superior': { label: 'Peitoral superior', view: 'front', aliases: ['peito superior', 'upper chest', 'incline chest', 'upper pectoral'], description: 'Foco na porção clavicular do peitoral.' },
+  costas: { label: 'Costas', view: 'back', aliases: ['back', 'upper back', 'costas altas', 'meio das costas'], description: 'Região ampla de puxadas e remadas.' },
+  dorsal: { label: 'Dorsal', view: 'back', aliases: ['lats', 'latissimus', 'latissimo', 'latíssimo', 'grande dorsal'], description: 'Responsável por puxadas e controle escapular.' },
+  trapezio: { label: 'Trapézio', view: 'back', aliases: ['trapézio', 'traps', 'trap', 'trapezius'], description: 'Estabiliza escápulas e parte superior das costas.' },
+  lombar: { label: 'Lombar', view: 'back', aliases: ['lower back', 'erectors', 'eretores', 'lombares'], description: 'Estabilização da coluna e extensão de quadril.' },
+  'deltoide-anterior': { label: 'Deltoide anterior', view: 'front', aliases: ['ombro anterior', 'front delt', 'anterior deltoid'], description: 'Atua em empurradas e elevação frontal.' },
+  'deltoide-lateral': { label: 'Deltoide lateral', view: 'front', aliases: ['ombro lateral', 'side delt', 'lateral deltoid', 'ombros'], description: 'Dá suporte às elevações laterais e abdução do ombro.' },
+  'deltoide-posterior': { label: 'Deltoide posterior', view: 'back', aliases: ['ombro posterior', 'rear delt', 'posterior deltoid'], description: 'Ajuda em remadas, puxadas e postura escapular.' },
+  biceps: { label: 'Bíceps', view: 'front', aliases: ['bíceps', 'biceps', 'bicep'], description: 'Flexão de cotovelo e apoio nas puxadas.' },
   triceps: { label: 'Tríceps', view: 'back', aliases: ['tríceps', 'triceps', 'tricep'], description: 'Extensão de cotovelo e finalização das empurradas.' },
   antebraco: { label: 'Antebraço', view: 'front', aliases: ['antebraço', 'forearm', 'forearms', 'grip'], description: 'Pegada, punho e estabilidade de carga.' },
   abdomen: { label: 'Abdômen', view: 'front', aliases: ['abdomen', 'abdômen', 'abs', 'core', 'abdominal'], description: 'Controle do tronco e estabilidade.' },
@@ -13966,28 +14958,7 @@ async function sendLocalNotification(title, body) {
   }
 }
 
-function ProfileAvatar({ name, src = '', size = 'md', className = '' }) {
-  const [imageFailed, setImageFailed] = useState(false)
-  useEffect(() => setImageFailed(false), [src])
-  const sizes = {
-    sm: 'h-9 w-9 text-xs',
-    md: 'h-12 w-12 text-sm',
-    lg: 'h-16 w-16 text-lg',
-  }
-  const sizeClass = sizes[size] || sizes.md
-
-  if (src && !imageFailed) {
-    return <img src={src} alt={`Foto de ${name || 'perfil'}`} onError={() => setImageFailed(true)} className={`${sizeClass} shrink-0 rounded-full border border-white/15 object-cover ${className}`} />
-  }
-
-  return (
-    <span aria-label={`Iniciais de ${name || 'perfil'}`} className={`${sizeClass} grid shrink-0 place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 font-black text-emerald-100 ${className}`}>
-      {getInitials(name || 'Perfil')}
-    </span>
-  )
-}
-
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, chatSyncError = '', onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -14044,10 +15015,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       appointments={appointments}
       invoices={invoices}
       assessments={assessments}
-      coachSettings={{
-        ...(coachSettings || {}),
-        publicName: coachSettings?.publicName || access.professionalName || '',
-      }}
+      coachSettings={coachSettings}
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
       professionalType={access.professionalType}
@@ -14064,14 +15032,13 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       onDeleteMessage={onDeleteMessage}
       onSubmitQuestionnaire={onSubmitQuestionnaire}
       onRefreshMessages={onRefreshMessages}
-      onUpdateAvatar={onUpdateAvatar}
       onActivateAccess={createStudentActivationCheckout}
       chatSyncError={chatSyncError}
       onExit={onExit}
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onActivateAccess, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -14083,14 +15050,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [appInstalled, setAppInstalled] = useState(() => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true)
   const [workoutStartNotified, setWorkoutStartNotified] = useState(false)
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
-  const [avatarUploading, setAvatarUploading] = useState(false)
-  const [avatarError, setAvatarError] = useState('')
-  const avatarInputRef = useRef(null)
-  const greeting = getLocalGreeting()
-  const studentFirstName = getFirstName(student?.name)
-  const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
-  const professionalPhoto = coachSettings?.profilePhotoUrl || ''
-  const professionalRole = professionalType === 'nutritionist' ? 'Nutricionista responsável' : 'Treinador responsável'
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const workoutSelectionStorageKey = `coachfitpro-selected-workout-${student?.id || 'student'}`
   const [selectedStudentWorkoutId, setSelectedStudentWorkoutId] = useState(() => {
@@ -14264,21 +15223,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
   function resetWater() {
     setWaterMl(0)
-  }
-
-  async function handleAvatarChange(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || !onUpdateAvatar) return
-    setAvatarUploading(true)
-    setAvatarError('')
-    try {
-      await onUpdateAvatar(file)
-    } catch (error) {
-      setAvatarError(error?.message || 'Não foi possível atualizar a foto.')
-    } finally {
-      setAvatarUploading(false)
-    }
   }
 
   function toggleWorkoutTimer() {
@@ -14505,12 +15449,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           <button type="button" aria-label="Abrir menu do aluno" onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
             <NavIcon name="menu" className="h-5 w-5 text-emerald-300" />
           </button>
-          <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
-            <ProfileAvatar name={student.name} src={student.photo} size="sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-white">{greeting}, {studentFirstName}</p>
-              <p className="truncate text-[10px] font-black uppercase text-emerald-300">{activeTitle}</p>
-            </div>
+          <div className="min-w-0 flex-1 px-1">
+            <p className="truncate text-[11px] font-black uppercase text-emerald-300">{activeTitle}</p>
+            <p className="truncate text-sm font-black text-white">{student.name}</p>
           </div>
           <button type="button" aria-label="Abrir conversa com o profissional" onClick={() => openTab('mensagens')} className={`grid h-11 w-11 shrink-0 place-items-center rounded-md border ${activeTab === 'mensagens' ? 'border-blue-300/45 bg-blue-400/15 text-blue-100' : 'border-white/10 text-zinc-100'}`}>
             <NavIcon name="message" className="h-5 w-5" />
@@ -14532,13 +15473,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
-            </div>
-            <div className="mt-3 flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.025] p-3">
-              <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
-              <div className="min-w-0">
-                <p className="truncate text-xs font-black text-zinc-100">{professionalName}</p>
-                <p className="truncate text-[10px] font-bold uppercase text-zinc-500">{professionalRole}</p>
-              </div>
             </div>
             <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
             <div className="mt-2 grid gap-2">
@@ -14601,13 +15535,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
-            <div className="mt-3 flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.025] p-3">
-              <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
-              <div className="min-w-0">
-                <p className="truncate text-xs font-black text-zinc-100">{professionalName}</p>
-                <p className="truncate text-[10px] font-bold uppercase text-zinc-500">{professionalRole}</p>
-              </div>
-            </div>
             <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
             <div className="mt-2 grid gap-2">
               {primaryStudentNavItems.map((item) => {
@@ -14663,30 +15590,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         <main className="min-w-0">
           {activeTab !== 'mensagens' && <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
             <div className="p-4 sm:p-5">
-              <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
-                <ProfileAvatar name={student.name} src={student.photo} size="lg" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xl font-black text-white sm:text-2xl">{greeting}, {studentFirstName}</p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-400">Vamos cuidar da sua evolução hoje.</p>
-                </div>
-                <button type="button" disabled={avatarUploading || !onUpdateAvatar} onClick={() => avatarInputRef.current?.click()} className="ml-auto min-h-10 shrink-0 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:border-emerald-300/40 disabled:cursor-wait disabled:opacity-55">
-                  {avatarUploading ? 'Enviando...' : student.photo ? 'Alterar foto' : 'Adicionar foto'}
-                </button>
-                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
-              </div>
-              <div className="mt-4 flex min-w-0 items-center gap-2 border-t border-white/10 pt-3">
-                <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-zinc-400">Acompanhado por <strong className="text-zinc-100">{professionalName}</strong></p>
-                  <p className="truncate text-[10px] font-black uppercase text-emerald-300">{professionalRole}</p>
-                </div>
-              </div>
-              {avatarError ? <p role="alert" className="mt-3 text-xs font-bold text-rose-200">{avatarError}</p> : null}
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
-                <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{activeTitle}</h1>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
-              </div>
+              <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
+              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-4xl">{activeTitle}</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
             </div>
           </section>}
           {renderActiveContent()}
@@ -18292,12 +19198,9 @@ function StudentSnapshot({ student }) {
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <ProfileAvatar name={student.name} src={student.photo} size="lg" />
-          <div className="min-w-0">
-            <h3 className="truncate text-2xl font-black">{student.name}</h3>
-            <p className="mt-1 truncate text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
-          </div>
+        <div>
+          <h3 className="text-2xl font-black">{student.name}</h3>
+                  <p className="mt-1 text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
         </div>
         <Badge tone={student.risk}>{student.risk}</Badge>
       </div>
@@ -20253,7 +21156,6 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
-
 
 
 
