@@ -64,6 +64,8 @@ import {
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from './studentPayment'
 import { addBillingCycle, buildStudentAccessUrl, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
+import WelcomeHeader from './WelcomeHeader'
+import { buildProfileContextLine } from './profileGreeting'
 import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
@@ -3593,6 +3595,18 @@ function AppContent() {
 
         <main className="coach-auth-main min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
+          {activeView === 'visao' ? (
+            <WelcomeHeader
+              profile={masterAdmin ? 'master' : nutritionistUser ? 'nutritionist' : 'trainer'}
+              name={data.user?.name || data.session?.user?.name || ''}
+              photo={data.coachSettings?.profilePhotoUrl || data.user?.photo || ''}
+              contextLine={buildProfileContextLine(masterAdmin ? 'master' : nutritionistUser ? 'nutritionist' : 'trainer', {
+                pendingReviews: openCheckins,
+                upcomingAppointments: upcomingAppointments.length,
+                activePeople: data.students.length,
+              })}
+            />
+          ) : null}
           <header className="coach-mobile-page-header mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
               <div className="mb-3 flex items-center gap-3">
@@ -15112,6 +15126,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
   const professionalPhoto = coachSettings?.profilePhotoUrl || ''
   const professionalRole = professionalType === 'nutritionist' ? 'Nutricionista responsável' : 'Treinador responsável'
+  const studentProfileKind = professionalType === 'nutritionist' ? 'patient' : 'student'
+
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const workoutSelectionStorageKey = `coachfitpro-selected-workout-${student?.id || 'student'}`
   const [selectedStudentWorkoutId, setSelectedStudentWorkoutId] = useState(() => {
@@ -15684,17 +15700,24 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         <main className="min-w-0">
           {activeTab !== 'mensagens' && <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
             <div className="p-4 sm:p-5">
-              <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
-                <ProfileAvatar name={student.name} src={student.photo} size="lg" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xl font-black text-white sm:text-2xl">{greeting}, {studentFirstName}</p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-400">Vamos cuidar da sua evolução hoje.</p>
-                </div>
-                <button type="button" disabled={avatarUploading || !onUpdateAvatar} onClick={() => avatarInputRef.current?.click()} className="ml-auto min-h-10 shrink-0 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:border-emerald-300/40 disabled:cursor-wait disabled:opacity-55">
-                  {avatarUploading ? 'Enviando...' : student.photo ? 'Alterar foto' : 'Adicionar foto'}
-                </button>
-                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
-              </div>
+              <WelcomeHeader
+                className="mb-0 border-0 bg-transparent p-0 shadow-none sm:p-0"
+                profile={studentProfileKind}
+                name={student.name}
+                photo={student.photo}
+                contextLine={buildProfileContextLine(studentProfileKind, {
+                  nextAppointmentLabel: studentAppointments[0]?.startsAt ? formatFullDateTime(studentAppointments[0].startsAt) : '',
+                  availablePlans: studentProfileKind === 'patient' ? studentNutritionPlans.length : studentWorkouts.length,
+                })}
+                actions={(
+                  <>
+                    <button type="button" disabled={avatarUploading || !onUpdateAvatar} onClick={() => avatarInputRef.current?.click()} className="min-h-10 shrink-0 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:border-emerald-300/40 disabled:cursor-wait disabled:opacity-55">
+                      {avatarUploading ? 'Enviando...' : student.photo ? 'Alterar foto' : 'Adicionar foto'}
+                    </button>
+                    <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
+                  </>
+                )}
+              />
               <div className="mt-4 flex min-w-0 items-center gap-2 border-t border-white/10 pt-3">
                 <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
                 <div className="min-w-0">
