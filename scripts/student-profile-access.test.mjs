@@ -30,6 +30,30 @@ test('migration cria uma unica referencia de avatar e bucket sem escrita publica
   assert.doesNotMatch(sql, /create policy[\s\S]*profile-avatars[\s\S]*for insert[\s\S]*to anon/i)
 })
 
+test('cabecalho permite trocar a propria foto clicando no avatar', async () => {
+  const header = await readFile(new URL('../src/WelcomeHeader.jsx', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(header, /onAvatarClick/)
+  assert.match(header, /aria-label=\{avatarLabel/)
+  assert.match(header, /type="button"/)
+  assert.match(app, /uploadRemoteProfessionalAvatar/)
+  assert.match(app, /professionalAvatarInputRef/)
+  assert.match(app, /onAvatarClick=\{\(\) => avatarInputRef\.current\?\.click\(\)\}/)
+})
+
+test('foto profissional usa storage privado e fica disponivel ao portal', async () => {
+  const sql = await readFile(new URL('../supabase/migrations/20260923_profile_header_avatar.sql', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../supabase/functions/student-avatar/index.ts', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  assert.match(sql, /coach_settings[\s\S]*profile_avatar_path text/i)
+  assert.match(sql, /coachfit_account_storage_references/i)
+  assert.match(source, /professional-upload/)
+  assert.match(source, /admin\.auth\.getUser\(token\)/)
+  assert.match(source, /professionalAvatarUrl/)
+  assert.match(api, /uploadRemoteProfessionalAvatar/)
+  assert.match(api, /profilePhotoUrl:\s*professionalAvatarUrl/)
+})
+
 test('edge function valida convite e vinculo antes de trocar avatar', async () => {
   const source = await readFile(new URL('../supabase/functions/student-avatar/index.ts', import.meta.url), 'utf8')
   assert.match(source, /student_invites/)
@@ -48,7 +72,7 @@ test('frontend evita RPC premium no acesso pendente e oferece edicao da foto', a
   assert.match(api, /uploadRemoteStudentAvatar/)
   assert.match(api, /student-avatar/)
   assert.match(app, /getLocalGreeting/)
-  assert.match(app, /Alterar foto|Adicionar foto/)
+  assert.match(app, /Selecionar foto de perfil/)
   assert.match(app, /Acompanhado por/)
 })
 

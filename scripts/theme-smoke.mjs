@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 
-const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+const normalizeNewlines = (value) => value.replace(/\r\n/g, '\n')
+const app = normalizeNewlines(readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8'))
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const nutritionPlanAccess = readFileSync(new URL('../src/nutritionPlanAccess.js', import.meta.url), 'utf8')

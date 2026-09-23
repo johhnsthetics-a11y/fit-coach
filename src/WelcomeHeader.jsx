@@ -7,7 +7,7 @@ function getWelcomeInitials(value = '') {
   return initials || '•'
 }
 
-function WelcomeAvatar({ name, photo, size = 'lg' }) {
+function WelcomeAvatar({ name, photo, size = 'lg', onClick, busy = false, label = '' }) {
   const [imageFailed, setImageFailed] = useState(false)
   useEffect(() => setImageFailed(false), [photo])
 
@@ -15,25 +15,41 @@ function WelcomeAvatar({ name, photo, size = 'lg' }) {
     ? 'h-11 w-11 text-[11px]'
     : 'h-14 w-14 text-sm sm:h-16 sm:w-16 sm:text-base'
 
-  if (photo && !imageFailed) {
-    return (
+  const avatar = photo && !imageFailed ? (
       <img
         src={photo}
         alt={`Foto de ${name || 'perfil'}`}
         onError={() => setImageFailed(true)}
         loading="lazy"
-        className={`${sizeClass} shrink-0 rounded-full border border-white/12 object-cover shadow-sm shadow-black/30`}
+        className={`${sizeClass} rounded-full border border-white/12 object-cover shadow-sm shadow-black/30`}
       />
-    )
-  }
-
-  return (
+  ) : (
     <span
       aria-label={`Iniciais de ${name || 'perfil'}`}
-      className={`${sizeClass} grid shrink-0 place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 font-black uppercase tracking-wide text-emerald-100`}
+      className={`${sizeClass} grid place-items-center rounded-full border border-emerald-300/25 bg-emerald-300/10 font-black uppercase tracking-wide text-emerald-100`}
     >
       {getWelcomeInitials(name)}
     </span>
+  )
+
+  if (!onClick) return <span className="shrink-0">{avatar}</span>
+
+  const avatarLabel = label || `Alterar foto de perfil de ${name || 'usuario'}`
+  return (
+    <button
+      type="button"
+      aria-label={avatarLabel}
+      aria-busy={busy}
+      title={avatarLabel}
+      disabled={busy}
+      onClick={onClick}
+      className="group relative shrink-0 rounded-full outline-none transition hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-wait disabled:opacity-70"
+    >
+      {avatar}
+      <span aria-hidden="true" className="absolute bottom-0 right-0 grid h-6 min-w-6 place-items-center rounded-full border-2 border-zinc-950 bg-emerald-400 px-1 text-[10px] font-black text-zinc-950 shadow-lg transition group-hover:bg-emerald-300">
+        {busy ? '...' : '+'}
+      </span>
+    </button>
   )
 }
 
@@ -50,6 +66,9 @@ export default function WelcomeHeader({
   subtitle = '',
   eyebrow = '',
   loading = false,
+  onAvatarClick = null,
+  avatarBusy = false,
+  avatarLabel = '',
   actions = null,
   className = '',
 }) {
@@ -81,9 +100,9 @@ export default function WelcomeHeader({
       aria-label="Resumo personalizado do seu perfil"
       className={`welcome-header mb-4 rounded-2xl border border-white/10 bg-zinc-950/60 p-4 shadow-lg shadow-black/10 sm:p-5 xl:mb-5 ${className}`}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3.5 sm:gap-4">
-          <WelcomeAvatar name={name} photo={photo} />
+      <div className="flex items-center justify-between gap-3 sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3.5 sm:gap-4">
+          <WelcomeAvatar name={name} photo={photo} onClick={onAvatarClick} busy={avatarBusy} label={avatarLabel} />
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-300/90">{resolvedEyebrow}</p>
             <h2 className="mt-1.5 truncate text-[19px] font-black leading-tight tracking-tight text-white sm:text-2xl">
@@ -95,7 +114,7 @@ export default function WelcomeHeader({
           </div>
         </div>
 
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
     </section>
   )

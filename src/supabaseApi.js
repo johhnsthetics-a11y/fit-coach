@@ -222,20 +222,23 @@ function cacheAvatarUrl(path, url) {
   return url
 }
 
-async function loadStudentAvatarByInvite(inviteCode, avatarPath) {
-  if (!avatarPath) return ''
-  const cached = getCachedAvatarUrl(avatarPath)
-  if (cached) return cached
+async function loadStudentAvatarIdentityByInvite(inviteCode) {
   const payload = await functionRequest('student-avatar', { action: 'student-read', inviteCode })
-  return cacheAvatarUrl(payload.avatarPath || avatarPath, payload.avatarUrl || '')
+  return {
+    studentAvatarUrl: cacheAvatarUrl(payload.avatarPath, payload.avatarUrl || ''),
+    professionalAvatarUrl: cacheAvatarUrl(payload.professionalAvatarPath, payload.professionalAvatarUrl || ''),
+  }
 }
 
-async function loadCoachAvatarUrls() {
+async function loadCoachAvatarState() {
   const payload = await functionRequest('student-avatar', { action: 'coach-read' })
-  return new Map((payload.avatars ?? []).map((avatar) => [
-    String(avatar.studentId),
-    cacheAvatarUrl(avatar.avatarPath, avatar.avatarUrl),
-  ]))
+  return {
+    studentUrls: new Map((payload.avatars ?? []).map((avatar) => [
+      String(avatar.studentId),
+      cacheAvatarUrl(avatar.avatarPath, avatar.avatarUrl),
+    ])),
+    professionalAvatarUrl: cacheAvatarUrl(payload.professionalAvatarPath, payload.professionalAvatarUrl || ''),
+  }
 }
 
 export async function signUpCoach({ name, email, password, role = 'Coach principal' }) {
@@ -359,15 +362,15 @@ export async function loadRemoteData() {
   const hydratedCheckins = await Promise.all(checkins.map(hydrateCheckinRow))
   const hydratedMessages = await Promise.all(messages.map(hydrateMessageRow))
   const hydratedWorkouts = await Promise.all(workouts.map(hydrateWorkoutRow))
-  const coachAvatarUrls = students.some((student) => student.avatar_path)
-    ? await loadCoachAvatarUrls().catch(() => new Map())
-    : new Map()
+  const coachAvatarState = students.some((student) => student.avatar_path) || coachSettings[0]?.profile_avatar_path
+    ? await loadCoachAvatarState().catch(() => ({ studentUrls: new Map(), professionalAvatarUrl: '' }))
+    : { studentUrls: new Map(), professionalAvatarUrl: '' }
   assertCurrentSession(revision)
 
   return {
     ...questionnaires,
     user: users[0] ? fromUserRow(users[0]) : null,
-    students: students.map((student) => fromStudentRow(student, coachAvatarUrls.get(String(student.id)) || '')),
+    students: students.map((student) => fromStudentRow(student, coachAvatarState.studentUrls.get(String(student.id)) || '')),
     checkins: hydratedCheckins,
     notifications: notifications.map(fromNotificationRow),
     workouts: hydratedWorkouts,
@@ -377,7 +380,7 @@ export async function loadRemoteData() {
     appointments: appointments.map(fromAppointmentRow),
     invoices: invoices.map(fromInvoiceRow),
     assessments: assessments.map(fromAssessmentRow),
-    coachSettings: coachSettings[0] ? fromCoachSettingsRow(coachSettings[0]) : null,
+    coachSettings: coachSettings[0] ? fromCoachSettingsRow(coachSettings[0], coachAvatarState.professionalAvatarUrl) : null,
     invites: invites.map(fromInviteRow),
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
@@ -686,9 +689,10 @@ export async function loadRemoteStudentByInvite(code) {
   const studentWorkoutRows = Array.isArray(studentWorkoutsPayload) ? studentWorkoutsPayload : []
   const hydratedWorkouts = await Promise.all(studentWorkoutRows.map(hydrateWorkoutRow))
   const hydratedMessages = await Promise.all((payload.messages ?? []).map(hydrateMessageRow))
-  const studentAvatarUrl = payload.student.avatar_path
-    ? await loadStudentAvatarByInvite(code, payload.student.avatar_path).catch(() => '')
-    : ''
+  const avatarIdentity = await loadStudentAvatarIdentityByInvite(code).catch(() => ({
+    studentAvatarUrl: '',
+    professionalAvatarUrl: '',
+  }))
 
   const anamnesisResult = await rpcRequest('get_student_anamnesis', { invite_code: code })
   const anamnesis = Array.isArray(anamnesisResult) ? anamnesisResult[0] : anamnesisResult
@@ -706,7 +710,7 @@ export async function loadRemoteStudentByInvite(code) {
     invite: fromInviteRow(invite),
     studentQuestionnaireAssignments: assignments.map(fromQuestionnaireAssignmentRow),
     questionnaireError,
-    student: fromStudentRow(payload.student, studentAvatarUrl),
+    student: fromStudentRow(payload.student, avatarIdentity.studentAvatarUrl),
     consentAccepted: Boolean(payload.consent_accepted),
     checkins: hydratedCheckins,
     workouts: hydratedWorkouts,
@@ -717,7 +721,7 @@ export async function loadRemoteStudentByInvite(code) {
     invoices: (payload.invoices ?? []).map(fromInvoiceRow),
     assessments: (payload.assessments ?? []).map(fromAssessmentRow),
     exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
-    coachSettings: payload.coach_settings ? fromCoachSettingsRow(payload.coach_settings) : null,
+    coachSettings: payload.coach_settings ? fromCoachSettingsRow(payload.coach_settings, avatarIdentity.professionalAvatarUrl) : null,
     anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
     anamnesisRequired: payload.student.require_anamnesis !== false,
     anamnesisCompleted: Boolean(anamnesis?.id),
@@ -737,6 +741,24 @@ export async function uploadRemoteStudentAvatar(inviteCode, file) {
 
   const formData = new FormData()
   formData.append('inviteCode', code)
+  formData.append('file', file)
+  const payload = await functionFormRequest('student-avatar', formData)
+  if (!payload.avatarPath || !payload.avatarUrl) throw new Error('O servidor não retornou a foto atualizada.')
+  cacheAvatarUrl(payload.avatarPath, payload.avatarUrl)
+  return {
+    avatarPath: payload.avatarPath,
+    avatarUrl: payload.avatarUrl,
+  }
+}
+
+export async function uploadRemoteProfessionalAvatar(file) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Use uma imagem JPG, PNG ou WebP.')
+  }
+  if (file.size > 3 * 1024 * 1024) throw new Error('A foto precisa ter até 3 MB.')
+
+  const formData = new FormData()
+  formData.append('action', 'professional-upload')
   formData.append('file', file)
   const payload = await functionFormRequest('student-avatar', formData)
   if (!payload.avatarPath || !payload.avatarUrl) throw new Error('O servidor não retornou a foto atualizada.')
@@ -1363,6 +1385,7 @@ export async function saveRemoteCoachSettings(settings, coachId) {
       whatsapp: settings.whatsapp,
       support_email: settings.supportEmail,
       pix_key: settings.pixKey,
+      profile_avatar_path: settings.profileAvatarPath || null,
       billing_logo_url: settings.billingLogoUrl,
       billing_primary_color: settings.billingPrimaryColor,
       billing_accent_color: settings.billingAccentColor,
@@ -1921,7 +1944,7 @@ function fromAssessmentRow(row) {
   }
 }
 
-function fromCoachSettingsRow(row) {
+function fromCoachSettingsRow(row, professionalAvatarUrl = '') {
   return {
     coachId: row.coach_id,
     brandName: row.brand_name ?? 'FitCoach',
@@ -1930,6 +1953,8 @@ function fromCoachSettingsRow(row) {
     whatsapp: row.whatsapp ?? '',
     supportEmail: row.support_email ?? '',
     pixKey: row.pix_key ?? '',
+    profileAvatarPath: row.profile_avatar_path ?? '',
+    profilePhotoUrl: professionalAvatarUrl || getCachedAvatarUrl(row.profile_avatar_path),
     billingLogoUrl: row.billing_logo_url ?? '',
     billingPrimaryColor: row.billing_primary_color ?? '#10b981',
     billingAccentColor: row.billing_accent_color ?? '#0f172a',

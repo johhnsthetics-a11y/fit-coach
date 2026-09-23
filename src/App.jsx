@@ -58,6 +58,7 @@ import {
   updateRemoteInvoiceStatus,
   updateRemotePayment,
   updateRecoveredPassword,
+  uploadRemoteProfessionalAvatar,
   uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
@@ -1690,6 +1691,9 @@ function AppContent() {
   }, [])
   const subscriptionCheckRef = useRef(0)
   const portalRequestRef = useRef(0)
+  const professionalAvatarInputRef = useRef(null)
+  const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
+  const [professionalAvatarError, setProfessionalAvatarError] = useState('')
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
@@ -2944,6 +2948,34 @@ function AppContent() {
     return savedSettings
   }
 
+  async function handleProfessionalAvatarChange(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || professionalAvatarUploading) return
+    setProfessionalAvatarUploading(true)
+    setProfessionalAvatarError('')
+    try {
+      const avatar = await uploadRemoteProfessionalAvatar(file)
+      setData((current) => ({
+        ...current,
+        coachSettings: {
+          ...(current.coachSettings || {}),
+          coachId: current.coachSettings?.coachId || current.user?.id,
+          profileAvatarPath: avatar.avatarPath,
+          profilePhotoUrl: avatar.avatarUrl,
+        },
+      }))
+      setRemoteStatus('Foto de perfil atualizada')
+      setRemoteError('')
+    } catch (error) {
+      const message = error?.message || 'Não foi possível atualizar a foto.'
+      setProfessionalAvatarError(message)
+      handleRemoteError(error, 'Erro ao atualizar foto')
+    } finally {
+      setProfessionalAvatarUploading(false)
+    }
+  }
+
   async function saveAppAdminSettings(settings) {
     const normalized = normalizeAdminSettings({ ...settings, publishedAt: new Date().toISOString() })
     saveLocalAdminSettings(normalized)
@@ -3595,17 +3627,32 @@ function AppContent() {
 
         <main className="coach-auth-main min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
           <div className="mx-auto min-w-0 max-w-[1440px]">
-          {activeView === 'visao' ? (
-            <WelcomeHeader
-              profile={masterAdmin ? 'master' : nutritionistUser ? 'nutritionist' : 'trainer'}
-              name={data.user?.name || data.session?.user?.name || ''}
-              photo={data.coachSettings?.profilePhotoUrl || data.user?.photo || ''}
-              contextLine={buildProfileContextLine(masterAdmin ? 'master' : nutritionistUser ? 'nutritionist' : 'trainer', {
-                pendingReviews: openCheckins,
-                upcomingAppointments: upcomingAppointments.length,
-                activePeople: data.students.length,
-              })}
-            />
+          {activeView !== 'mensagens' ? (
+            <div className="sticky top-2 z-30">
+              <WelcomeHeader
+                className="border-emerald-300/15 bg-zinc-950/92 shadow-2xl shadow-black/30 backdrop-blur-xl"
+                profile={masterAdmin ? 'master' : nutritionistUser ? 'nutritionist' : 'trainer'}
+                name={data.user?.name || data.session?.user?.name || ''}
+                photo={data.coachSettings?.profilePhotoUrl || data.user?.photo || ''}
+                contextLine={buildProfileContextLine(masterAdmin ? 'master' : nutritionistUser ? 'nutritionist' : 'trainer', {
+                  pendingReviews: openCheckins,
+                  upcomingAppointments: upcomingAppointments.length,
+                  activePeople: data.students.length,
+                })}
+                onAvatarClick={() => professionalAvatarInputRef.current?.click()}
+                avatarBusy={professionalAvatarUploading}
+                avatarLabel="Alterar minha foto de perfil"
+              />
+              <input
+                ref={professionalAvatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleProfessionalAvatarChange}
+                className="sr-only"
+                aria-label="Selecionar foto de perfil profissional"
+              />
+              {professionalAvatarError ? <p role="alert" className="-mt-3 mb-4 rounded-md border border-rose-300/20 bg-rose-400/10 px-3 py-2 text-xs font-bold text-rose-100">{professionalAvatarError}</p> : null}
+            </div>
           ) : null}
           <header className="coach-mobile-page-header mb-5 rounded-md border border-white/10 bg-zinc-950/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5 xl:mb-6 xl:flex xl:items-end xl:justify-between xl:gap-4">
             <div>
@@ -15698,8 +15745,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         </aside>
 
         <main className="min-w-0">
-          {activeTab !== 'mensagens' && <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/80 shadow-2xl shadow-black/25">
-            <div className="p-4 sm:p-5">
+          {activeTab !== 'mensagens' && <>
+            <section className="sticky top-0 z-30 mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/94 shadow-2xl shadow-black/35 backdrop-blur-xl">
+              <div className="p-3.5 sm:p-4">
               <WelcomeHeader
                 className="mb-0 border-0 bg-transparent p-0 shadow-none sm:p-0"
                 profile={studentProfileKind}
@@ -15709,15 +15757,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                   nextAppointmentLabel: studentAppointments[0]?.startsAt ? formatFullDateTime(studentAppointments[0].startsAt) : '',
                   availablePlans: studentProfileKind === 'patient' ? studentNutritionPlans.length : studentWorkouts.length,
                 })}
-                actions={(
-                  <>
-                    <button type="button" disabled={avatarUploading || !onUpdateAvatar} onClick={() => avatarInputRef.current?.click()} className="min-h-10 shrink-0 rounded-md border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 transition hover:border-emerald-300/40 disabled:cursor-wait disabled:opacity-55">
-                      {avatarUploading ? 'Enviando...' : student.photo ? 'Alterar foto' : 'Adicionar foto'}
-                    </button>
-                    <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
-                  </>
-                )}
+                onAvatarClick={() => avatarInputRef.current?.click()}
+                avatarBusy={avatarUploading}
+                avatarLabel="Alterar minha foto de perfil"
+                actions={<ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0 lg:hidden" />}
               />
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
               <div className="mt-4 flex min-w-0 items-center gap-2 border-t border-white/10 pt-3">
                 <ProfileAvatar name={professionalName} src={professionalPhoto} size="sm" />
                 <div className="min-w-0">
@@ -15726,13 +15771,16 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 </div>
               </div>
               {avatarError ? <p role="alert" className="mt-3 text-xs font-bold text-rose-200">{avatarError}</p> : null}
-              <div className="mt-4 border-t border-white/10 pt-4">
+              </div>
+            </section>
+            <section className="mb-4 overflow-hidden rounded-md border border-white/10 bg-zinc-950/65 shadow-lg shadow-black/15">
+              <div className="p-4 sm:p-5">
                 <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
                 <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{activeTitle}</h1>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
               </div>
-            </div>
-          </section>}
+            </section>
+          </>}
           {renderActiveContent()}
         </main>
       </div>
@@ -18408,6 +18456,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
     whatsapp: settings?.whatsapp || '',
     supportEmail: settings?.supportEmail || user?.email || '',
     pixKey: settings?.pixKey || '',
+    profileAvatarPath: settings?.profileAvatarPath || '',
     billingLogoUrl: settings?.billingLogoUrl || '',
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
@@ -18579,6 +18628,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
         whatsapp: form.get('whatsapp')?.toString().trim() || '',
         supportEmail: form.get('supportEmail')?.toString().trim() || '',
         pixKey: form.get('pixKey')?.toString().trim() || '',
+        profileAvatarPath: current.profileAvatarPath,
         billingLogoUrl: form.get('billingLogoUrlDisplay')?.toString().trim() || billingLogoUrl || '',
         billingPrimaryColor: form.get('billingPrimaryColor')?.toString().trim() || '#10b981',
         billingAccentColor: form.get('billingAccentColor')?.toString().trim() || '#0f172a',
@@ -20690,6 +20740,7 @@ function buildCoachSettingsPayload(settings = {}, user = {}) {
     whatsapp: settings?.whatsapp || '',
     supportEmail: settings?.supportEmail || user?.email || '',
     pixKey: settings?.pixKey || '',
+    profileAvatarPath: settings?.profileAvatarPath || '',
     billingLogoUrl: settings?.billingLogoUrl || '',
     billingPrimaryColor: settings?.billingPrimaryColor || '#10b981',
     billingAccentColor: settings?.billingAccentColor || '#0f172a',
