@@ -14,9 +14,11 @@ import {
   createRemoteStudentCheckoutSession,
   createRemoteStudentCheckoutSessionByInvite,
   deleteRemoteStudent,
+  deleteRemoteAffiliateProfessional,
   fetchRemoteExerciseMedia,
   loadRemoteData,
   loadRemoteAppAdminSettings,
+  loadRemoteAffiliateProfessionals,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -31,6 +33,7 @@ import {
   saveRemoteCheckin,
   saveRemoteCoachSettings,
   saveRemoteAppAdminSettings,
+  saveRemoteAffiliateProfessional,
   saveRemoteLeadEvent,
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
@@ -17749,6 +17752,164 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
   )
 }
 
+function AffiliateProfessionalsPanel() {
+  const [affiliates, setAffiliates] = useState([])
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const refreshAffiliates = useCallback(async () => {
+    setLoading(true)
+    try {
+      const rows = await loadRemoteAffiliateProfessionals()
+      setAffiliates(rows)
+      setError('')
+    } catch (loadError) {
+      setError(loadError?.message || 'Não foi possível carregar os profissionais afiliados.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshAffiliates()
+  }, [refreshAffiliates])
+
+  async function addAffiliate() {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!normalizedEmail) {
+      setError('Informe o e-mail do treinador ou nutricionista.')
+      return
+    }
+
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
+      setEmail('')
+      await refreshAffiliates()
+      setMessage('Profissional vinculado. Alunos e pacientes dele passam a seguir o checkout Cartpanda.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível vincular este profissional.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function toggleAffiliate(affiliate) {
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      await saveRemoteAffiliateProfessional({
+        id: affiliate.id,
+        email: affiliate.email,
+        active: !affiliate.active,
+      })
+      await refreshAffiliates()
+      setMessage(affiliate.active
+        ? 'Cobrança do app desativada para este profissional.'
+        : 'Cobrança do app ativada para este profissional.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível atualizar este profissional.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function removeAffiliate(affiliate) {
+    const confirmed = window.confirm(`Remover ${affiliate.email} da área de afiliados? Os alunos/pacientes dele deixarão de ser cobrados pelo app.`)
+    if (!confirmed) return
+
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      await deleteRemoteAffiliateProfessional(affiliate.id)
+      await refreshAffiliates()
+      setMessage('Profissional removido. Os alunos e pacientes dele agora entram no app sem cobrança do aplicativo.')
+    } catch (deleteError) {
+      setError(deleteError?.message || 'Não foi possível remover este profissional.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
+        <p className="text-sm font-black text-emerald-100">Quem deve cobrar aluno/paciente pelo app?</p>
+        <p className="mt-2 text-xs leading-5 text-zinc-300">
+          Cadastre o e-mail do treinador ou nutricionista. Somente profissionais ativos nesta lista usam o funil de pagamento Cartpanda para seus alunos/pacientes. Quem não estiver cadastrado libera o acesso completo normalmente.
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+        <AdminTextInput
+          type="email"
+          label="E-mail do profissional afiliado"
+          value={email}
+          onChange={setEmail}
+          hint="Use o mesmo e-mail da conta do treinador/nutricionista no Coach Fit Pro."
+        />
+        <button
+          type="button"
+          disabled={saving}
+          onClick={addAffiliate}
+          className="min-h-11 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60"
+        >
+          {saving ? 'Salvando...' : 'Vincular profissional'}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm font-bold text-zinc-400">Carregando afiliados...</p>
+      ) : affiliates.length ? (
+        <div className="grid gap-2">
+          {affiliates.map((affiliate) => (
+            <div key={affiliate.id || affiliate.email} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-white">{affiliate.email}</p>
+                <p className={`mt-1 text-xs font-bold ${affiliate.active ? 'text-emerald-300' : 'text-zinc-500'}`}>
+                  {affiliate.active ? 'Ativo · alunos/pacientes pagam o app' : 'Inativo · acesso sem cobrança do app'}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => toggleAffiliate(affiliate)}
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60"
+                >
+                  {affiliate.active ? 'Desativar cobrança' : 'Ativar cobrança'}
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => removeAffiliate(affiliate)}
+                  className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-60"
+                >
+                  Remover
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm leading-6 text-zinc-400">
+          Nenhum profissional afiliado cadastrado. Nesse estado, alunos e pacientes entram normalmente sem cobrança do aplicativo.
+        </p>
+      )}
+
+      {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
+      {error ? <p role="alert" className="text-sm font-bold text-rose-200">{error}</p> : null}
+    </div>
+  )
+}
+
 function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
   const [saving, setSaving] = useState(false)
@@ -17757,6 +17918,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [openSections, setOpenSections] = useState({
     health: true,
     traffic: true,
+    affiliates: true,
     launch: false,
     sales: true,
     visualEditor: true,
@@ -17919,6 +18081,10 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
         <AdminAccordionSection title="Tráfego e conversões" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
           <AdminTrafficPanel />
+        </AdminAccordionSection>
+
+        <AdminAccordionSection title="Afiliados e cobrança do aluno" action="Filtro por e-mail" open={openSections.affiliates} onToggle={() => toggleSection('affiliates')}>
+          <AffiliateProfessionalsPanel />
         </AdminAccordionSection>
 
         <AdminAccordionSection title="Checklist de lançamento" action="Operação pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
