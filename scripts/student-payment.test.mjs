@@ -51,7 +51,7 @@ test('pagamento Cartpanda nao sobrescreve a mensalidade do profissional', async 
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 
-  assert.doesNotMatch(webhook, /\/rest\/v1\/students\?[^\`]*[\s\S]*?payment:/)
+  assert.doesNotMatch(webhook, /\/rest\/v1\/students\?[^`]*[\s\S]*?payment:/)
   assert.match(api, /appPaymentStatus:\s*row\.app_payment_status/)
   assert.match(app, /student\.payment\s*===\s*'Pago'/)
   assert.match(app, /student\.appPaymentStatus\s*===\s*'active'/)
