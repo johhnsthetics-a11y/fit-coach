@@ -1741,10 +1741,12 @@ function AppContent() {
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
+  const professionalAffiliate = Boolean(data.professionalAffiliate)
+  const professionalAccessActive = coachSubscriptionActive || professionalAffiliate
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
   const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
   const activeCoachId = data.session?.user?.id || data.user?.id
-  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
+  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !professionalAccessActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
   const visibleNavItems = useMemo(() => {
@@ -2172,7 +2174,9 @@ function AppContent() {
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
-        if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
+        if (remoteData.professionalAffiliate) {
+          setActiveViewSafely('visao')
+        } else if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
           setActiveViewSafely('assinatura')
         }
         return true
@@ -3705,8 +3709,8 @@ function AppContent() {
                 onClick={() => setActiveViewSafely('assinatura')}
                 className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
               >
-                <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
-                <span className="mt-0.5 block">{coachBillingCycle.daysRemaining} {coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
+                <span className="block text-[10px] font-black uppercase text-emerald-300">{professionalAffiliate ? 'Afiliado' : 'Próxima cobrança'}</span>
+                <span className="mt-0.5 block">{professionalAffiliate ? 'Acesso profissional liberado' : `${coachBillingCycle.daysRemaining} ${coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}`}</span>
               </button>
             </div>
           </header>
@@ -3867,6 +3871,7 @@ function AppContent() {
                 coachPlans={coachPlans}
                 appAdminSettings={appAdminSettings}
                 onRefreshSubscription={syncCoachWorkspace}
+                professionalAffiliate={professionalAffiliate}
               />
             )}
             {activeView === 'admin-master' && masterAdmin && (
@@ -16729,7 +16734,7 @@ function CheckinForm({ students = [], onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -16758,8 +16763,8 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       checkoutUrl: appendAttributionToCheckoutUrl(resolveCheckoutUrl(envUrl, plan.checkoutUrl), plan.id),
     }
   })
-  const subscriptionActive = isCoachSubscriptionActive(subscription)
-  const subscriptionStatusLabel = getSubscriptionStatusLabel(subscription)
+  const subscriptionActive = professionalAffiliate || isCoachSubscriptionActive(subscription)
+  const subscriptionStatusLabel = professionalAffiliate ? 'Acesso afiliado' : getSubscriptionStatusLabel(subscription)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan, coachPlans), 0)
   const now = new Date()
