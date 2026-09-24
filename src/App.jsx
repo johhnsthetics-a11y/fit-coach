@@ -18164,48 +18164,177 @@ function AffiliateFinancePage() {
   )
 }
 
+
+function AffiliateUiIcon({ name = 'info', className = 'h-4 w-4' }) {
+  const iconProps = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+  }
+
+  if (name === 'link') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...iconProps}>
+        <path d="M10.5 13.5l3-3" />
+        <path d="M7.25 15.75l-1 1a3.5 3.5 0 01-5-5l3-3a3.5 3.5 0 015 0" />
+        <path d="M16.75 8.25l1-1a3.5 3.5 0 015 5l-3 3a3.5 3.5 0 01-5 0" />
+      </svg>
+    )
+  }
+
+  if (name === 'users') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...iconProps}>
+        <path d="M16 21v-1.5a4.5 4.5 0 00-4.5-4.5h-5A4.5 4.5 0 002 19.5V21" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M17 11a4 4 0 010-8" />
+        <path d="M22 21v-1.5a4.5 4.5 0 00-3.3-4.34" />
+      </svg>
+    )
+  }
+
+  if (name === 'check') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...iconProps}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8 12.25l2.5 2.5L16.5 9" />
+      </svg>
+    )
+  }
+
+  if (name === 'alert') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...iconProps}>
+        <path d="M12 3l9 16H3L12 3z" />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+      </svg>
+    )
+  }
+
+  if (name === 'dots') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+        <circle cx="5" cy="12" r="1.4" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+        <circle cx="19" cy="12" r="1.4" fill="currentColor" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} {...iconProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 10.5v6" />
+      <path d="M12 7.5h.01" />
+    </svg>
+  )
+}
+
+function AffiliateInlineNotice({ type = 'info', children }) {
+  const tone = type === 'success'
+    ? 'border-[#BDE6D8] bg-[#F0FBF7] text-[#176B55]'
+    : type === 'error'
+      ? 'border-[#F2C7C7] bg-[#FFF7F7] text-[#A33A3A]'
+      : type === 'warning'
+        ? 'border-[#F0D8A6] bg-[#FFF9ED] text-[#8A5B12]'
+        : 'border-[#CFE7E4] bg-[#F2FAF9] text-[#27665F]'
+
+  return (
+    <div role={type === 'error' ? 'alert' : 'status'} className={'flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-sm leading-5 ' + tone}>
+      <span className="mt-0.5 shrink-0">
+        <AffiliateUiIcon name={type === 'success' ? 'check' : type === 'error' || type === 'warning' ? 'alert' : 'info'} className="h-4 w-4" />
+      </span>
+      <span>{children}</span>
+    </div>
+  )
+}
+
 function AffiliateProfessionalsPanel() {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const monthStart = today.slice(0, 7) + '-01'
   const [affiliates, setAffiliates] = useState([])
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [feedback, setFeedback] = useState(null)
+  const [detailAffiliateId, setDetailAffiliateId] = useState('')
 
   const refreshAffiliates = useCallback(async () => {
     setLoading(true)
     try {
-      const rows = await loadRemoteAffiliateProfessionals()
-      setAffiliates(rows)
-      setError('')
+      const results = await Promise.all([
+        loadRemoteAffiliateProfessionals(),
+        loadRemoteAffiliateFinanceReport(monthStart, today).catch(() => null),
+      ])
+      const rows = results[0]
+      const report = results[1]
+      const reportRows = Array.isArray(report?.affiliates) ? report.affiliates : []
+      const profileByEmail = new Map(reportRows.map((row) => [String(row.email || '').trim().toLowerCase(), row]))
+      const merged = rows.map((row) => {
+        const profile = profileByEmail.get(String(row.email || '').trim().toLowerCase())
+        return {
+          ...row,
+          professionalFound: Boolean(profile?.coachId),
+          professionalName: profile?.coachId ? profile.professionalName : '',
+          professionalType: profile?.coachId ? profile.professionalType : '',
+        }
+      })
+      setAffiliates(merged)
+      return merged
     } catch (loadError) {
-      setError(loadError?.message || 'Não foi possível carregar os profissionais afiliados.')
+      setFeedback({ type: 'error', message: loadError?.message || 'Não foi possível carregar os profissionais afiliados.' })
+      return []
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [monthStart, today])
 
   useEffect(() => {
     refreshAffiliates()
   }, [refreshAffiliates])
 
+  function validateEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+  }
+
   async function addAffiliate() {
     const normalizedEmail = String(email || '').trim().toLowerCase()
-    if (!normalizedEmail) {
-      setError('Informe o e-mail do treinador ou nutricionista.')
+    setFeedback(null)
+
+    if (!normalizedEmail || !validateEmail(normalizedEmail)) {
+      setFeedback({ type: 'error', field: 'email', message: 'Informe um e-mail válido, como nome@exemplo.com.' })
+      return
+    }
+
+    const existing = affiliates.find((affiliate) => String(affiliate.email || '').trim().toLowerCase() === normalizedEmail)
+    if (existing) {
+      setFeedback({
+        type: 'error',
+        field: 'email',
+        message: existing.active
+          ? 'Este profissional já está vinculado como afiliado.'
+          : 'Este e-mail já pertence a um afiliado inativo. Use o menu de ações para reativá-lo.',
+      })
       return
     }
 
     setSaving(true)
-    setMessage('')
-    setError('')
     try {
       await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
       setEmail('')
-      await refreshAffiliates()
-      setMessage('Profissional vinculado. A conta profissional fica liberada sem mensalidade e os alunos/pacientes dele passam a seguir o checkout Cartpanda.')
+      const refreshed = await refreshAffiliates()
+      const linked = refreshed.find((affiliate) => String(affiliate.email || '').trim().toLowerCase() === normalizedEmail)
+      setFeedback(linked?.professionalFound
+        ? { type: 'success', message: 'Vínculo realizado com sucesso. O profissional já foi reconhecido pela conta Coach Fit Pro.' }
+        : {
+            type: 'warning',
+            message: 'Vínculo criado. O profissional ainda não foi encontrado com este e-mail; o cadastro ficará pendente até que ele crie a conta usando exatamente este endereço.',
+          })
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível vincular este profissional.')
+      setFeedback({ type: 'error', message: saveError?.message || 'Ocorreu um erro inesperado ao vincular o profissional. Tente novamente.' })
     } finally {
       setSaving(false)
     }
@@ -18213,8 +18342,7 @@ function AffiliateProfessionalsPanel() {
 
   async function toggleAffiliate(affiliate) {
     setSaving(true)
-    setMessage('')
-    setError('')
+    setFeedback(null)
     try {
       await saveRemoteAffiliateProfessional({
         id: affiliate.id,
@@ -18222,101 +18350,222 @@ function AffiliateProfessionalsPanel() {
         active: !affiliate.active,
       })
       await refreshAffiliates()
-      setMessage(affiliate.active
-        ? 'Afiliado desativado. O profissional volta ao funil normal de assinatura.'
-        : 'Afiliado ativado. O profissional fica liberado e seus alunos/pacientes passam a usar o funil Cartpanda.')
+      setFeedback({
+        type: 'success',
+        message: affiliate.active
+          ? 'Afiliado desativado. O profissional volta ao funil normal de assinatura.'
+          : 'Afiliado reativado com sucesso.',
+      })
     } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível atualizar este profissional.')
+      setFeedback({ type: 'error', message: saveError?.message || 'Não foi possível atualizar este profissional.' })
     } finally {
       setSaving(false)
     }
   }
 
   async function removeAffiliate(affiliate) {
-    const confirmed = window.confirm(`Remover ${affiliate.email} da área de afiliados? O histórico financeiro já confirmado será preservado.`)
+    const confirmed = window.confirm('Desvincular ' + affiliate.email + '? O histórico financeiro já confirmado será preservado.')
     if (!confirmed) return
 
     setSaving(true)
-    setMessage('')
-    setError('')
+    setFeedback(null)
     try {
       await deleteRemoteAffiliateProfessional(affiliate.id)
       await refreshAffiliates()
-      setMessage('Profissional removido da lista ativa. O histórico financeiro já confirmado foi preservado.')
+      setDetailAffiliateId('')
+      setFeedback({ type: 'success', message: 'Profissional desvinculado. O histórico financeiro confirmado foi preservado.' })
     } catch (deleteError) {
-      setError(deleteError?.message || 'Não foi possível remover este profissional.')
+      setFeedback({ type: 'error', message: deleteError?.message || 'Não foi possível desvincular este profissional.' })
     } finally {
       setSaving(false)
     }
   }
 
-  return (
-    <div className="grid gap-4">
-      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-        <p className="text-sm font-black text-emerald-100">Cadastro de Afiliados</p>
-        <p className="mt-2 text-xs leading-5 text-zinc-300">
-          Cadastre o mesmo e-mail usado pelo treinador ou nutricionista na conta do Coach Fit Pro. O afiliado recebe acesso profissional sem mensalidade e os alunos/pacientes vinculados passam a seguir a cobrança Cartpanda.
-        </p>
-      </div>
+  function formatLinkedDate(value) {
+    if (!value) return '—'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString('pt-BR')
+  }
 
-      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-        <label
-          htmlFor="affiliate-professional-email"
-          className="text-sm font-bold text-zinc-300 sm:col-start-1 sm:row-start-1"
-        >
-          E-mail do profissional afiliado
-        </label>
-        <input
-          id="affiliate-professional-email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="nome@exemplo.com"
-          autoComplete="email"
-          className="h-11 min-w-0 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50 focus:ring-2 focus:ring-emerald-300/10 sm:col-start-1 sm:row-start-2"
-        />
-        <span className="text-xs font-medium leading-5 text-zinc-500 sm:col-start-1 sm:row-start-3">
-          Use exatamente o mesmo e-mail da conta profissional.
-        </span>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={addAffiliate}
-          className="h-11 w-full whitespace-nowrap rounded-xl bg-emerald-400 px-5 text-sm font-black text-zinc-950 shadow-sm shadow-emerald-950/10 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 disabled:cursor-wait disabled:opacity-60 sm:col-start-2 sm:row-start-2 sm:min-w-[190px] sm:w-auto"
-        >
-          {saving ? 'Salvando...' : 'Vincular profissional'}
-        </button>
-      </div>
+  function getAffiliateStatus(affiliate) {
+    if (!affiliate.active) return { label: 'Inativo', className: 'bg-[#F1F3F3] text-[#667677]' }
+    if (!affiliate.professionalFound) return { label: 'Pendente', className: 'bg-[#FFF6E4] text-[#8A5B12]' }
+    return { label: 'Ativo', className: 'bg-[#EAF7F3] text-[#176B55]' }
+  }
 
-      {loading ? (
-        <p className="text-sm font-bold text-zinc-400">Carregando afiliados...</p>
-      ) : affiliates.length ? (
-        <div className="grid gap-2">
-          {affiliates.map((affiliate) => (
-            <div key={affiliate.id || affiliate.email} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-white">{affiliate.email}</p>
-                <p className={`mt-1 text-xs font-bold ${affiliate.active ? 'text-emerald-300' : 'text-zinc-500'}`}>
-                  {affiliate.active ? 'Ativo · acesso profissional liberado + cobrança dos alunos/pacientes' : 'Inativo · profissional volta ao plano normal'}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={saving} onClick={() => toggleAffiliate(affiliate)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60">
-                  {affiliate.active ? 'Desativar afiliado' : 'Ativar afiliado'}
-                </button>
-                <button type="button" disabled={saving} onClick={() => removeAffiliate(affiliate)} className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-60">
-                  Remover
-                </button>
-              </div>
-            </div>
-          ))}
+  const detailAffiliate = affiliates.find((affiliate) => affiliate.id === detailAffiliateId)
+
+  function AffiliateActions({ affiliate }) {
+    return (
+      <details className="relative">
+        <summary className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-lg border border-[#E1E7E7] bg-white text-[#526667] transition hover:bg-[#F7F9F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147D70]/25 [&::-webkit-details-marker]:hidden" aria-label={'Ações de ' + affiliate.email}>
+          <AffiliateUiIcon name="dots" className="h-5 w-5" />
+        </summary>
+        <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-[#E1E7E7] bg-white p-1.5 shadow-[0_12px_30px_rgba(26,61,58,0.10)]">
+          <button type="button" onClick={() => setDetailAffiliateId(affiliate.id)} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-[#30494A] hover:bg-[#F6F9F9]">
+            Visualizar detalhes
+          </button>
+          <button type="button" disabled={saving} onClick={() => toggleAffiliate(affiliate)} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-[#30494A] hover:bg-[#F6F9F9] disabled:opacity-50">
+            {affiliate.active ? 'Desativar afiliado' : 'Reativar afiliado'}
+          </button>
+          <button type="button" disabled={saving} onClick={() => removeAffiliate(affiliate)} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-[#A33A3A] hover:bg-[#FFF6F6] disabled:opacity-50">
+            Desvincular
+          </button>
         </div>
-      ) : (
-        <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm leading-6 text-zinc-400">Nenhum profissional afiliado cadastrado.</p>
-      )}
+      </details>
+    )
+  }
 
-      {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
-      {error ? <p role="alert" className="text-sm font-bold text-rose-200">{error}</p> : null}
+  return (
+    <div className="grid gap-8">
+      <div className="flex items-start gap-3 rounded-xl border border-[#DCEBE8] bg-[#F4FAF9] px-4 py-3.5">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-[#147D70] ring-1 ring-[#D7E8E5]">
+          <AffiliateUiIcon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[#234344]">Use exatamente o mesmo e-mail da conta Coach Fit Pro.</p>
+          <p className="mt-1 text-sm leading-5 text-[#607273]">
+            O vínculo é reconhecido pelo e-mail utilizado pelo treinador ou nutricionista. O afiliado recebe acesso profissional sem mensalidade; alunos e pacientes vinculados passam a seguir a cobrança Cartpanda.
+          </p>
+        </div>
+      </div>
+
+      <section className="rounded-[14px] border border-[#E3E8E8] bg-white p-5 sm:p-6">
+        <div className="mb-5">
+          <h2 className="text-[19px] font-semibold text-[#102223]">Vincular novo profissional</h2>
+          <p className="mt-1 text-sm text-[#718182]">Informe o e-mail para criar o vínculo de afiliado.</p>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="grid gap-2">
+            <label htmlFor="affiliate-professional-email" className="text-sm font-medium text-[#30494A]">E-mail do profissional afiliado</label>
+            <input
+              id="affiliate-professional-email"
+              type="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value)
+                if (feedback?.field === 'email') setFeedback(null)
+              }}
+              placeholder="nome@exemplo.com"
+              autoComplete="email"
+              aria-invalid={feedback?.field === 'email' && feedback?.type === 'error' ? 'true' : undefined}
+              aria-describedby="affiliate-email-helper"
+              className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition placeholder:text-[#9AA7A8] focus:ring-2 focus:ring-[#147D70]/10 ' + (feedback?.field === 'email' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
+            />
+            <span id="affiliate-email-helper" className="text-xs leading-5 text-[#7A8A8B]">Use exatamente o mesmo e-mail da conta profissional.</span>
+          </div>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={addAffiliate}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#147D70] px-5 text-sm font-semibold text-white transition hover:bg-[#0F6B60] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147D70]/35 disabled:cursor-wait disabled:opacity-55 lg:w-auto lg:min-w-[190px]"
+          >
+            {saving ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+                Vinculando...
+              </>
+            ) : (
+              <>
+                <AffiliateUiIcon name="link" className="h-4 w-4" />
+                Vincular profissional
+              </>
+            )}
+          </button>
+        </div>
+
+        {feedback ? <div className="mt-4"><AffiliateInlineNotice type={feedback.type}>{feedback.message}</AffiliateInlineNotice></div> : null}
+      </section>
+
+      <section className="rounded-[14px] border border-[#E3E8E8] bg-white">
+        <div className="border-b border-[#EDF1F1] px-5 py-5 sm:px-6">
+          <h2 className="text-[19px] font-semibold text-[#102223]">Profissionais afiliados</h2>
+          <p className="mt-1 text-sm text-[#718182]">Acompanhe os vínculos existentes e o status de cada profissional.</p>
+        </div>
+
+        {loading ? (
+          <div className="p-6 text-sm font-medium text-[#718182]">Carregando profissionais afiliados...</div>
+        ) : affiliates.length ? (
+          <>
+            <div className="hidden overflow-visible md:block">
+              <table className="w-full table-fixed text-left">
+                <thead className="bg-[#F8FAFA] text-xs font-semibold text-[#66797A]">
+                  <tr>
+                    <th className="w-[24%] px-5 py-3.5 sm:px-6">Nome do profissional</th>
+                    <th className="w-[27%] px-5 py-3.5">E-mail</th>
+                    <th className="w-[16%] px-5 py-3.5">Categoria</th>
+                    <th className="w-[14%] px-5 py-3.5">Data do vínculo</th>
+                    <th className="w-[11%] px-5 py-3.5">Status</th>
+                    <th className="w-[8%] px-5 py-3.5 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {affiliates.map((affiliate) => {
+                    const status = getAffiliateStatus(affiliate)
+                    return (
+                      <tr key={affiliate.id || affiliate.email} className="border-t border-[#EDF1F1] align-middle">
+                        <td className="px-5 py-4 sm:px-6"><p className="truncate text-sm font-medium text-[#183334]">{affiliate.professionalFound ? (affiliate.professionalName || 'Profissional') : 'Aguardando cadastro'}</p></td>
+                        <td className="px-5 py-4"><p className="truncate text-sm text-[#526667]">{affiliate.email}</p></td>
+                        <td className="px-5 py-4 text-sm text-[#526667]">{affiliate.professionalFound ? (affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador') : '—'}</td>
+                        <td className="px-5 py-4 text-sm text-[#607273]">{formatLinkedDate(affiliate.createdAt)}</td>
+                        <td className="px-5 py-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + status.className}>{status.label}</span></td>
+                        <td className="px-5 py-4"><div className="flex justify-end"><AffiliateActions affiliate={affiliate} /></div></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-3 p-4 md:hidden">
+              {affiliates.map((affiliate) => {
+                const status = getAffiliateStatus(affiliate)
+                return (
+                  <article key={affiliate.id || affiliate.email} className="rounded-xl border border-[#E3E8E8] bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#183334]">{affiliate.professionalFound ? (affiliate.professionalName || 'Profissional') : 'Aguardando cadastro'}</p>
+                        <p className="mt-1 truncate text-xs text-[#718182]">{affiliate.email}</p>
+                      </div>
+                      <AffiliateActions affiliate={affiliate} />
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                      <div><p className="text-[#8A9899]">Categoria</p><p className="mt-1 font-medium text-[#405859]">{affiliate.professionalFound ? (affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador') : '—'}</p></div>
+                      <div><p className="text-[#8A9899]">Vinculado em</p><p className="mt-1 font-medium text-[#405859]">{formatLinkedDate(affiliate.createdAt)}</p></div>
+                    </div>
+                    <div className="mt-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + status.className}>{status.label}</span></div>
+                  </article>
+                )
+              })}
+            </div>
+
+            {detailAffiliate ? (
+              <div className="border-t border-[#EDF1F1] bg-[#FBFCFC] px-5 py-5 sm:px-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[#183334]">Detalhes do vínculo</p>
+                    <dl className="mt-3 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+                      <div><dt className="text-xs text-[#829192]">E-mail</dt><dd className="mt-1 font-medium text-[#405859]">{detailAffiliate.email}</dd></div>
+                      <div><dt className="text-xs text-[#829192]">Conta profissional</dt><dd className="mt-1 font-medium text-[#405859]">{detailAffiliate.professionalFound ? 'Reconhecida' : 'Ainda não encontrada'}</dd></div>
+                      <div><dt className="text-xs text-[#829192]">Data do vínculo</dt><dd className="mt-1 font-medium text-[#405859]">{formatLinkedDate(detailAffiliate.createdAt)}</dd></div>
+                      <div><dt className="text-xs text-[#829192]">Situação</dt><dd className="mt-1 font-medium text-[#405859]">{getAffiliateStatus(detailAffiliate).label}</dd></div>
+                    </dl>
+                  </div>
+                  <button type="button" onClick={() => setDetailAffiliateId('')} className="min-h-10 rounded-lg border border-[#DDE5E5] bg-white px-3 text-sm font-medium text-[#526667] hover:bg-[#F7F9F9]">Fechar detalhes</button>
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="grid place-items-center px-5 py-12 text-center sm:px-6 sm:py-14">
+            <div className="grid h-12 w-12 place-items-center rounded-full bg-[#F0F7F6] text-[#147D70]"><AffiliateUiIcon name="users" className="h-6 w-6" /></div>
+            <h3 className="mt-4 text-base font-semibold text-[#183334]">Nenhum afiliado vinculado ainda</h3>
+            <p className="mt-1.5 max-w-md text-sm leading-6 text-[#718182]">Informe acima o e-mail utilizado pelo profissional para criar o primeiro vínculo.</p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
