@@ -19,7 +19,7 @@ import {
   loadRemoteData,
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
-  loadRemoteAffiliateCommissionDashboard,
+  loadRemoteAffiliateFinanceReport,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -546,7 +546,8 @@ const navItems = [
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
 
-const coachViewIds = new Set(navItems.map((item) => item.id))
+const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
+const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
 const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
 const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
 
@@ -1758,7 +1759,11 @@ function AppContent() {
       .filter((item) => nutritionistViewIds.has(item.id))
       .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
     return masterAdmin
-      ? [...scopedItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
+      ? [
+          ...scopedItems,
+          { id: 'admin-affiliate-finance', label: 'Financeiro de afiliados', icon: 'wallet', tone: 'blue' },
+          { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' },
+        ]
       : scopedItems
   }, [masterAdmin, nutritionistUser, professionalAffiliate])
 
@@ -1800,6 +1805,12 @@ function AppContent() {
     persistCoachView(activeView)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [activeView])
+
+  useEffect(() => {
+    if (data.user && !masterAdmin && masterAdminViewIds.has(activeView)) {
+      setActiveView('visao')
+    }
+  }, [data.user, masterAdmin, activeView])
 
   useEffect(() => {
     if (professionalAffiliate && activeView === 'assinatura') {
@@ -3882,12 +3893,16 @@ function AppContent() {
                 professionalAffiliate={professionalAffiliate}
               />
             )}
+            {activeView === 'admin-affiliate-finance' && masterAdmin && (
+              <AffiliateFinancePage />
+            )}
             {activeView === 'admin-master' && masterAdmin && (
               <AdminMaster
                 settings={appAdminSettings}
                 onSave={saveAppAdminSettings}
                 remoteStatus={remoteStatus}
                 remoteError={remoteError}
+                onOpenAffiliateFinance={() => setActiveViewSafely('admin-affiliate-finance')}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -17765,17 +17780,398 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
   )
 }
 
-function AffiliateProfessionalsPanel() {
+function AffiliateFinancePage() {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const monthStart = `${today.slice(0, 7)}-01`
+  const [startDate, setStartDate] = useState(monthStart)
+  const [endDate, setEndDate] = useState(today)
+  const [appliedPeriod, setAppliedPeriod] = useState({ startDate: monthStart, endDate: today })
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('commission')
+  const [expandedEmail, setExpandedEmail] = useState('')
+  const [lastUpdatedAt, setLastUpdatedAt] = useState('')
+
+  const loadReport = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const next = await loadRemoteAffiliateFinanceReport(appliedPeriod.startDate, appliedPeriod.endDate)
+      setReport(next)
+      setLastUpdatedAt(new Date().toISOString())
+    } catch (loadError) {
+      setError(loadError?.message || 'Não foi possível carregar o financeiro dos afiliados.')
+    } finally {
+      setLoading(false)
+    }
+  }, [appliedPeriod])
+
+  useEffect(() => {
+    loadReport()
+  }, [loadReport])
+
+  const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
+  const centsToCsv = (value) => (Number(value || 0) / 100).toFixed(2).replace('.', ',')
+  const formatSaleDate = (value) => {
+    if (!value) return ''
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString('pt-BR')
+  }
+  const totals = report?.totals || {}
+  const rows = Array.isArray(report?.affiliates) ? report.affiliates : []
+
+  const filteredRows = useMemo(() => {
+    const needle = normalizeText(search)
+    const filtered = rows.filter((row) => {
+      const matchesSearch = !needle || normalizeText(`${row.professionalName || ''} ${row.email || ''}`).includes(needle)
+      const matchesType = typeFilter === 'all' || row.professionalType === typeFilter
+      const matchesStatus = statusFilter === 'all'
+        || (statusFilter === 'active' ? row.active : !row.active)
+      return matchesSearch && matchesType && matchesStatus
+    })
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'name') return String(a.professionalName || a.email).localeCompare(String(b.professionalName || b.email), 'pt-BR')
+      if (sortBy === 'revenue') return Number(b.revenueCents || 0) - Number(a.revenueCents || 0)
+      if (sortBy === 'sales') return Number(b.paidInstallments || 0) - Number(a.paidInstallments || 0)
+      if (sortBy === 'students') return Number(b.studentsBrought || 0) - Number(a.studentsBrought || 0)
+      return Number(b.commissionCents || 0) - Number(a.commissionCents || 0)
+    })
+  }, [rows, search, typeFilter, statusFilter, sortBy])
+
+  function applyPeriod(nextStart = startDate, nextEnd = endDate) {
+    if (!nextStart || !nextEnd) {
+      setError('Informe a data inicial e a data final.')
+      return
+    }
+    if (nextStart > nextEnd) {
+      setError('A data inicial não pode ser maior que a data final.')
+      return
+    }
+    setError('')
+    setStartDate(nextStart)
+    setEndDate(nextEnd)
+    setAppliedPeriod({ startDate: nextStart, endDate: nextEnd })
+  }
+
+  function setQuickPeriod(kind) {
+    const base = new Date()
+    const asLocalDate = (date) => date.toLocaleDateString('sv-SE')
+    let nextStart = monthStart
+    let nextEnd = today
+
+    if (kind === '30d') {
+      const start = new Date(base)
+      start.setDate(start.getDate() - 29)
+      nextStart = asLocalDate(start)
+    } else if (kind === '90d') {
+      const start = new Date(base)
+      start.setDate(start.getDate() - 89)
+      nextStart = asLocalDate(start)
+    } else if (kind === 'year') {
+      nextStart = `${base.getFullYear()}-01-01`
+    }
+
+    applyPeriod(nextStart, nextEnd)
+  }
+
+  function csvCell(value) {
+    return `"${String(value ?? '').replace(/"/g, '""')}"`
+  }
+
+  function exportSales(affiliateRows, filenameBase) {
+    const sales = affiliateRows.flatMap((affiliate) => (
+      (Array.isArray(affiliate.sales) ? affiliate.sales : []).map((sale) => ({
+        affiliate,
+        sale,
+      }))
+    ))
+
+    if (!sales.length) {
+      setError('Não há vendas pagas para exportar neste período.')
+      return
+    }
+
+    const headers = [
+      'Data do pagamento',
+      'Profissional',
+      'Tipo',
+      'E-mail do afiliado',
+      'Aluno/Paciente',
+      'E-mail do aluno/paciente',
+      'Mensalidade paga (R$)',
+      'Comissão 25% (R$)',
+      'Valor recebido pela Cartpanda (R$)',
+      'Status',
+      'Pedido Cartpanda',
+      'Assinatura Cartpanda',
+    ]
+
+    const lines = sales.map(({ affiliate, sale }) => [
+      formatSaleDate(sale.paidAt),
+      affiliate.professionalName || affiliate.email,
+      affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
+      affiliate.email,
+      sale.studentName || 'Aluno/Paciente',
+      sale.studentEmail || '',
+      centsToCsv(sale.revenueCents),
+      centsToCsv(sale.commissionCents),
+      sale.providerAmountCents == null ? '' : centsToCsv(sale.providerAmountCents),
+      sale.status === 'paid' ? 'Pago' : sale.status,
+      sale.providerOrderId || '',
+      sale.providerSubscriptionId || '',
+    ])
+
+    const csv = '\uFEFF' + [headers, ...lines]
+      .map((line) => line.map(csvCell).join(';'))
+      .join('\r\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const safeBase = String(filenameBase || 'afiliados').replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
+    link.href = url
+    link.download = `${safeBase || 'afiliados'}_${appliedPeriod.startDate}_a_${appliedPeriod.endDate}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  const netAfterCommissionCents = Number(totals.revenueCents || 0) - Number(totals.commissionCents || 0)
+
+  return (
+    <div className="grid gap-5 lg:gap-6">
+      <section className="overflow-hidden rounded-2xl border border-blue-300/20 bg-zinc-950/90 shadow-2xl shadow-black/30">
+        <div className="border-b border-white/10 bg-gradient-to-r from-blue-500/12 via-emerald-400/[0.06] to-transparent p-4 sm:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs font-black uppercase tracking-wide text-blue-300">Admin Master · financeiro de afiliados</p>
+              <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">Receita e comissão, sem misturar valores pendentes.</h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">
+                O relatório usa somente mensalidades confirmadas pela Cartpanda. Cada mensalidade paga gera R$ 25,00 de receita e R$ 6,25 de comissão (25%). Reembolsos e chargebacks deixam de compor os totais.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={loadReport} disabled={loading} className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-xs font-black text-zinc-100 disabled:opacity-50">
+                {loading ? 'Atualizando...' : 'Atualizar dados'}
+              </button>
+              <button type="button" onClick={() => exportSales(filteredRows, 'financeiro-afiliados')} className="rounded-xl bg-blue-400 px-4 py-2.5 text-xs font-black text-zinc-950">
+                Exportar período
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-4 sm:p-6">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
+            <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+              Data inicial
+              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold text-zinc-100 outline-none focus:border-blue-300/50" />
+            </label>
+            <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+              Data final
+              <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold text-zinc-100 outline-none focus:border-blue-300/50" />
+            </label>
+            <button type="button" onClick={() => applyPeriod()} className="min-h-11 rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-black text-zinc-950">
+              Aplicar período
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {[
+              ['month', 'Mês atual'],
+              ['30d', 'Últimos 30 dias'],
+              ['90d', 'Últimos 90 dias'],
+              ['year', 'Ano atual'],
+            ].map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setQuickPeriod(id)} className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-black text-zinc-300 hover:bg-white/[0.07]">
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/8 pt-3 text-xs text-zinc-500">
+            <span>Período aplicado: <strong className="text-zinc-300">{appliedPeriod.startDate}</strong> até <strong className="text-zinc-300">{appliedPeriod.endDate}</strong></span>
+            {lastUpdatedAt ? <span>Atualizado em {new Date(lastUpdatedAt).toLocaleString('pt-BR')}</span> : null}
+          </div>
+        </div>
+      </section>
+
+      {error ? <div role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/10 p-4 text-sm font-bold text-rose-100">{error}</div> : null}
+
+      {loading && !report ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 text-sm font-bold text-zinc-400">Carregando o financeiro dos afiliados...</div>
+      ) : (
+        <>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            {[
+              ['Afiliados no relatório', Number(totals.affiliateCount || 0), 'cadastros/histórico'],
+              ['Alunos/pacientes trazidos', Number(totals.studentsBrought || 0), `+${Number(totals.newStudentsInPeriod || 0)} no período`],
+              ['Pagantes únicos', Number(totals.paidStudents || 0), 'com pagamento confirmado'],
+              ['Mensalidades pagas', Number(totals.paidInstallments || 0), 'eventos aprovados'],
+              ['Receita confirmada', centsToCurrency(totals.revenueCents), 'R$ 25,00 por mensalidade'],
+              ['Comissão total', centsToCurrency(totals.commissionCents), `líquido: ${centsToCurrency(netAfterCommissionCents)}`],
+            ].map(([label, value, detail]) => (
+              <div key={label} className="rounded-2xl border border-white/10 bg-zinc-950/75 p-4">
+                <p className="text-[10px] font-black uppercase text-zinc-500">{label}</p>
+                <p className="mt-2 text-2xl font-black text-white">{value}</p>
+                <p className="mt-1 text-[11px] leading-5 text-zinc-500">{detail}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 sm:p-5">
+            <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_180px_190px]">
+              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+                Buscar afiliado
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome ou e-mail" className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold normal-case text-zinc-100 outline-none focus:border-blue-300/50" />
+              </label>
+              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+                Perfil
+                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100">
+                  <option value="all">Todos</option>
+                  <option value="trainer">Treinadores</option>
+                  <option value="nutritionist">Nutricionistas</option>
+                </select>
+              </label>
+              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+                Situação
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100">
+                  <option value="all">Todos</option>
+                  <option value="active">Afiliados ativos</option>
+                  <option value="historical">Histórico/inativos</option>
+                </select>
+              </label>
+              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+                Ordenar por
+                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100">
+                  <option value="commission">Maior comissão</option>
+                  <option value="revenue">Maior receita</option>
+                  <option value="sales">Mais pagamentos</option>
+                  <option value="students">Mais alunos/pacientes</option>
+                  <option value="name">Nome</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section className="grid gap-3">
+            {filteredRows.length ? filteredRows.map((affiliate) => {
+              const sales = Array.isArray(affiliate.sales) ? affiliate.sales : []
+              const expanded = expandedEmail === affiliate.email
+              const conversion = Number(affiliate.studentsBrought || 0) > 0
+                ? Math.round((Number(affiliate.paidStudents || 0) / Number(affiliate.studentsBrought || 0)) * 100)
+                : 0
+
+              return (
+                <article key={affiliate.email} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/75">
+                  <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(220px,0.85fr)_minmax(0,1.5fr)] xl:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate text-lg font-black text-white">{affiliate.professionalName || affiliate.email}</h3>
+                        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase text-zinc-400">
+                          {affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}
+                        </span>
+                        <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${affiliate.active ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-200' : 'border-zinc-700 bg-zinc-900 text-zinc-500'}`}>
+                          {affiliate.active ? 'Ativo' : 'Histórico'}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">{affiliate.email}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button type="button" onClick={() => setExpandedEmail(expanded ? '' : affiliate.email)} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-200">
+                          {expanded ? 'Ocultar vendas' : `Ver ${sales.length} venda(s)`}
+                        </button>
+                        <button type="button" onClick={() => exportSales([affiliate], `vendas-${affiliate.professionalName || affiliate.email}`)} className="rounded-lg border border-blue-300/25 bg-blue-300/10 px-3 py-2 text-xs font-black text-blue-100">
+                          Exportar vendas
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+                      {[
+                        ['Trazidos', Number(affiliate.studentsBrought || 0)],
+                        ['Novos no período', Number(affiliate.newStudentsInPeriod || 0)],
+                        ['Pagantes', Number(affiliate.paidStudents || 0)],
+                        ['Conversão', `${conversion}%`],
+                        ['Gerado', centsToCurrency(affiliate.revenueCents)],
+                        ['Comissão 25%', centsToCurrency(affiliate.commissionCents)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
+                          <p className="text-[9px] font-black uppercase text-zinc-500">{label}</p>
+                          <p className="mt-1 text-base font-black text-white">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {expanded ? (
+                    <div className="border-t border-white/10 bg-black/20 p-4 sm:p-5">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-black text-white">Vendas confirmadas no período</p>
+                          <p className="mt-1 text-xs text-zinc-500">Somente pagamentos que entram na comissão.</p>
+                        </div>
+                        <p className="text-xs font-black text-blue-200">{sales.length} pagamento(s)</p>
+                      </div>
+                      {sales.length ? (
+                        <div className="overflow-x-auto rounded-xl border border-white/10">
+                          <table className="min-w-[900px] w-full text-left text-xs">
+                            <thead className="bg-white/[0.045] text-[10px] font-black uppercase text-zinc-500">
+                              <tr>
+                                <th className="px-3 py-3">Data</th>
+                                <th className="px-3 py-3">Aluno/Paciente</th>
+                                <th className="px-3 py-3">E-mail</th>
+                                <th className="px-3 py-3">Mensalidade</th>
+                                <th className="px-3 py-3">Comissão</th>
+                                <th className="px-3 py-3">Pedido</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sales.map((sale) => (
+                                <tr key={sale.paymentId || `${sale.studentId}-${sale.paidAt}`} className="border-t border-white/8 text-zinc-300">
+                                  <td className="px-3 py-3 whitespace-nowrap">{formatSaleDate(sale.paidAt)}</td>
+                                  <td className="px-3 py-3 font-bold text-white">{sale.studentName || 'Aluno/Paciente'}</td>
+                                  <td className="px-3 py-3">{sale.studentEmail || '—'}</td>
+                                  <td className="px-3 py-3 font-black text-emerald-200">{centsToCurrency(sale.revenueCents)}</td>
+                                  <td className="px-3 py-3 font-black text-blue-200">{centsToCurrency(sale.commissionCents)}</td>
+                                  <td className="px-3 py-3 font-mono text-[11px] text-zinc-500">{sale.providerOrderId || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm text-zinc-500">Nenhuma mensalidade paga neste período.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </article>
+              )
+            }) : (
+              <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-6 text-center">
+                <p className="text-sm font-black text-zinc-300">Nenhum afiliado encontrado.</p>
+                <p className="mt-2 text-xs text-zinc-500">Ajuste o período ou os filtros.</p>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </div>
+  )
+}
+
+function AffiliateProfessionalsPanel({ onOpenFinance }) {
   const [affiliates, setAffiliates] = useState([])
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [commissionMonth, setCommissionMonth] = useState(() => new Date().toLocaleDateString('sv-SE').slice(0, 7))
-  const [commissionDashboard, setCommissionDashboard] = useState(null)
-  const [commissionLoading, setCommissionLoading] = useState(true)
-  const [commissionError, setCommissionError] = useState('')
 
   const refreshAffiliates = useCallback(async () => {
     setLoading(true)
@@ -17790,30 +18186,9 @@ function AffiliateProfessionalsPanel() {
     }
   }, [])
 
-  const refreshCommissionDashboard = useCallback(async () => {
-    setCommissionLoading(true)
-    try {
-      const dashboard = await loadRemoteAffiliateCommissionDashboard(commissionMonth)
-      setCommissionDashboard(dashboard)
-      setCommissionError('')
-    } catch (loadError) {
-      setCommissionError(loadError?.message || 'Não foi possível carregar as comissões dos afiliados.')
-    } finally {
-      setCommissionLoading(false)
-    }
-  }, [commissionMonth])
-
   useEffect(() => {
     refreshAffiliates()
   }, [refreshAffiliates])
-
-  useEffect(() => {
-    refreshCommissionDashboard()
-  }, [refreshCommissionDashboard])
-
-  async function refreshAffiliateArea() {
-    await Promise.all([refreshAffiliates(), refreshCommissionDashboard()])
-  }
 
   async function addAffiliate() {
     const normalizedEmail = String(email || '').trim().toLowerCase()
@@ -17828,7 +18203,7 @@ function AffiliateProfessionalsPanel() {
     try {
       await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
       setEmail('')
-      await refreshAffiliateArea()
+      await refreshAffiliates()
       setMessage('Profissional vinculado. A conta profissional fica liberada sem mensalidade e os alunos/pacientes dele passam a seguir o checkout Cartpanda.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível vincular este profissional.')
@@ -17847,9 +18222,9 @@ function AffiliateProfessionalsPanel() {
         email: affiliate.email,
         active: !affiliate.active,
       })
-      await refreshAffiliateArea()
+      await refreshAffiliates()
       setMessage(affiliate.active
-        ? 'Afiliado desativado. O profissional volta ao funil normal de assinatura e novos alunos deixam de usar a cobrança de afiliado.'
+        ? 'Afiliado desativado. O profissional volta ao funil normal de assinatura.'
         : 'Afiliado ativado. O profissional fica liberado e seus alunos/pacientes passam a usar o funil Cartpanda.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível atualizar este profissional.')
@@ -17867,8 +18242,8 @@ function AffiliateProfessionalsPanel() {
     setError('')
     try {
       await deleteRemoteAffiliateProfessional(affiliate.id)
-      await refreshAffiliateArea()
-      setMessage('Profissional removido da lista ativa. O histórico de pagamentos e comissões já confirmados foi preservado.')
+      await refreshAffiliates()
+      setMessage('Profissional removido da lista ativa. O histórico financeiro já confirmado foi preservado.')
     } catch (deleteError) {
       setError(deleteError?.message || 'Não foi possível remover este profissional.')
     } finally {
@@ -17876,114 +18251,24 @@ function AffiliateProfessionalsPanel() {
     }
   }
 
-  const totals = commissionDashboard?.totals || {}
-  const commissionRows = Array.isArray(commissionDashboard?.affiliates) ? commissionDashboard.affiliates : []
-  const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
-
   return (
-    <div className="grid gap-5">
-      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-        <p className="text-sm font-black text-emerald-100">Afiliados: acesso profissional + cobrança dos alunos</p>
-        <p className="mt-2 text-xs leading-5 text-zinc-300">
-          Cadastre o e-mail do treinador ou nutricionista afiliado. O profissional mantém o cadastro normal e escolhe sua área, recebe acesso completo ao painel sem mensalidade, e os alunos/pacientes dele seguem o funil Cartpanda. Profissionais fora desta lista continuam pagando a assinatura normal do Coach Fit Pro.
-        </p>
+    <div className="grid gap-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-blue-300/20 bg-blue-300/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-black text-blue-100">Financeiro separado do cadastro</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-400">Receita, comissões, período e exportações ficam em uma página própria para facilitar a conferência.</p>
+        </div>
+        <button type="button" onClick={onOpenFinance} className="shrink-0 rounded-xl bg-blue-400 px-4 py-2.5 text-xs font-black text-zinc-950">
+          Abrir financeiro de afiliados
+        </button>
       </div>
 
-      <section className="rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase text-blue-300">Financeiro dos afiliados</p>
-            <h3 className="mt-1 text-xl font-black text-white">Comissões sobre mensalidades pagas</h3>
-            <p className="mt-2 text-xs leading-5 text-zinc-400">
-              Regra: R$ 25,00 por mensalidade confirmada · 25% para o afiliado · R$ 6,25 de comissão por pagamento. Pendências não entram; estornos e chargebacks são retirados do cálculo.
-            </p>
-          </div>
-          <label className="grid min-w-[170px] gap-2 text-xs font-black uppercase text-zinc-400">
-            Mês de referência
-            <input
-              type="month"
-              value={commissionMonth}
-              onChange={(event) => setCommissionMonth(event.target.value)}
-              className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold text-zinc-100 outline-none focus:border-blue-300/50"
-            />
-          </label>
-        </div>
-
-        {commissionLoading ? (
-          <p className="mt-4 text-sm font-bold text-zinc-400">Calculando pagamentos confirmados...</p>
-        ) : (
-          <>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-4">
-                <p className="text-[11px] font-black uppercase text-zinc-500">Alunos/pacientes trazidos</p>
-                <p className="mt-2 text-2xl font-black text-white">{Number(totals.studentsBrought || 0)}</p>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-4">
-                <p className="text-[11px] font-black uppercase text-zinc-500">Pagantes no mês</p>
-                <p className="mt-2 text-2xl font-black text-white">{Number(totals.paidStudents || 0)}</p>
-              </div>
-              <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
-                <p className="text-[11px] font-black uppercase text-emerald-300">Receita confirmada</p>
-                <p className="mt-2 text-2xl font-black text-white">{centsToCurrency(totals.revenueCents)}</p>
-                <p className="mt-1 text-xs text-zinc-500">{Number(totals.paidInstallments || 0)} mensalidade(s) paga(s)</p>
-              </div>
-              <div className="rounded-xl border border-blue-300/25 bg-blue-300/[0.09] p-4">
-                <p className="text-[11px] font-black uppercase text-blue-300">Comissão total</p>
-                <p className="mt-2 text-2xl font-black text-white">{centsToCurrency(totals.commissionCents)}</p>
-                <p className="mt-1 text-xs text-zinc-500">25% somente sobre valores pagos</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              {commissionRows.length ? commissionRows.map((row) => (
-                <div key={row.email} className="rounded-xl border border-white/10 bg-zinc-950/70 p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-black text-white">{row.professionalName || row.email}</p>
-                        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase text-zinc-400">
-                          {row.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}
-                        </span>
-                        <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${row.active ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-200' : 'border-zinc-700 bg-zinc-900 text-zinc-500'}`}>
-                          {row.active ? 'Afiliado ativo' : 'Histórico'}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs text-zinc-500">{row.email}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:min-w-[650px]">
-                      <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-                        <p className="text-[10px] font-black uppercase text-zinc-500">Trazidos</p>
-                        <p className="mt-1 text-lg font-black text-white">{Number(row.studentsBrought || 0)}</p>
-                      </div>
-                      <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-                        <p className="text-[10px] font-black uppercase text-zinc-500">Pagantes</p>
-                        <p className="mt-1 text-lg font-black text-white">{Number(row.paidStudents || 0)}</p>
-                      </div>
-                      <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-                        <p className="text-[10px] font-black uppercase text-zinc-500">Pagamentos</p>
-                        <p className="mt-1 text-lg font-black text-white">{Number(row.paidInstallments || 0)}</p>
-                      </div>
-                      <div className="rounded-lg border border-emerald-300/15 bg-emerald-300/[0.05] p-3">
-                        <p className="text-[10px] font-black uppercase text-emerald-300">Gerado</p>
-                        <p className="mt-1 text-lg font-black text-white">{centsToCurrency(row.revenueCents)}</p>
-                      </div>
-                      <div className="col-span-2 rounded-lg border border-blue-300/20 bg-blue-300/[0.07] p-3 sm:col-span-1">
-                        <p className="text-[10px] font-black uppercase text-blue-300">Comissão 25%</p>
-                        <p className="mt-1 text-lg font-black text-white">{centsToCurrency(row.commissionCents)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )) : (
-                <p className="rounded-xl border border-white/10 bg-zinc-950/60 p-4 text-sm leading-6 text-zinc-400">
-                  Nenhum afiliado ou pagamento confirmado encontrado para este mês.
-                </p>
-              )}
-            </div>
-          </>
-        )}
-        {commissionError ? <p role="alert" className="mt-3 text-sm font-bold text-rose-200">{commissionError}</p> : null}
-      </section>
+      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
+        <p className="text-sm font-black text-emerald-100">Cadastro dos profissionais afiliados</p>
+        <p className="mt-2 text-xs leading-5 text-zinc-300">
+          Cadastre o mesmo e-mail usado pelo treinador ou nutricionista na conta do Coach Fit Pro. O afiliado recebe acesso profissional sem mensalidade e os alunos/pacientes vinculados passam a seguir a cobrança Cartpanda.
+        </p>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <AdminTextInput
@@ -17991,14 +18276,9 @@ function AffiliateProfessionalsPanel() {
           label="E-mail do profissional afiliado"
           value={email}
           onChange={setEmail}
-          hint="Use o mesmo e-mail da conta do treinador/nutricionista no Coach Fit Pro."
+          hint="Use exatamente o e-mail da conta profissional."
         />
-        <button
-          type="button"
-          disabled={saving}
-          onClick={addAffiliate}
-          className="min-h-11 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60"
-        >
+        <button type="button" disabled={saving} onClick={addAffiliate} className="min-h-11 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
           {saving ? 'Salvando...' : 'Vincular profissional'}
         </button>
       </div>
@@ -18012,24 +18292,14 @@ function AffiliateProfessionalsPanel() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-white">{affiliate.email}</p>
                 <p className={`mt-1 text-xs font-bold ${affiliate.active ? 'text-emerald-300' : 'text-zinc-500'}`}>
-                  {affiliate.active ? 'Ativo · profissional liberado + alunos/pacientes pagam o app' : 'Inativo · profissional volta ao plano normal'}
+                  {affiliate.active ? 'Ativo · acesso profissional liberado + cobrança dos alunos/pacientes' : 'Inativo · profissional volta ao plano normal'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => toggleAffiliate(affiliate)}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60"
-                >
+                <button type="button" disabled={saving} onClick={() => toggleAffiliate(affiliate)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60">
                   {affiliate.active ? 'Desativar afiliado' : 'Ativar afiliado'}
                 </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => removeAffiliate(affiliate)}
-                  className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-60"
-                >
+                <button type="button" disabled={saving} onClick={() => removeAffiliate(affiliate)} className="rounded-lg border border-rose-300/25 bg-rose-300/10 px-3 py-2 text-xs font-black text-rose-100 disabled:opacity-60">
                   Remover
                 </button>
               </div>
@@ -18037,9 +18307,7 @@ function AffiliateProfessionalsPanel() {
           ))}
         </div>
       ) : (
-        <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm leading-6 text-zinc-400">
-          Nenhum profissional afiliado cadastrado. Nesse estado, alunos e pacientes entram normalmente sem cobrança do aplicativo.
-        </p>
+        <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm leading-6 text-zinc-400">Nenhum profissional afiliado cadastrado.</p>
       )}
 
       {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
@@ -18048,7 +18316,7 @@ function AffiliateProfessionalsPanel() {
   )
 }
 
-function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
+function AdminMaster({ settings, onSave, remoteStatus, remoteError, onOpenAffiliateFinance }) {
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -18221,8 +18489,8 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
           <AdminTrafficPanel />
         </AdminAccordionSection>
 
-        <AdminAccordionSection title="Afiliados e cobrança do aluno" action="Filtro por e-mail" open={openSections.affiliates} onToggle={() => toggleSection('affiliates')}>
-          <AffiliateProfessionalsPanel />
+        <AdminAccordionSection title="Afiliados e acesso" action="Cadastro por e-mail" open={openSections.affiliates} onToggle={() => toggleSection('affiliates')}>
+          <AffiliateProfessionalsPanel onOpenFinance={onOpenAffiliateFinance} />
         </AdminAccordionSection>
 
         <AdminAccordionSection title="Checklist de lançamento" action="Operação pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
