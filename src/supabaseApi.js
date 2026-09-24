@@ -413,6 +413,27 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
+export async function loadRemoteAffiliateCommissionDashboard(month = '') {
+  const normalizedMonth = /^\d{4}-\d{2}$/.test(String(month || '').trim())
+    ? `${String(month).trim()}-01`
+    : new Date().toLocaleDateString('sv-SE').slice(0, 7) + '-01'
+  const result = await rpcRequest('get_affiliate_commission_dashboard', { p_month: normalizedMonth })
+  return result && typeof result === 'object' ? result : {
+    month: normalizedMonth.slice(0, 7),
+    monthlyFeeCents: 2500,
+    commissionRate: 0.25,
+    commissionPerPaidInstallmentCents: 625,
+    totals: {
+      studentsBrought: 0,
+      paidStudents: 0,
+      paidInstallments: 0,
+      revenueCents: 0,
+      commissionCents: 0,
+    },
+    affiliates: [],
+  }
+}
+
 export async function loadRemoteAffiliateProfessionals() {
   const rows = await optionalTableRequest('affiliate_professionals?select=*&order=created_at.desc')
   return rows.map((row) => ({

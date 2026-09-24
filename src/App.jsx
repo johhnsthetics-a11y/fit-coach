@@ -19,6 +19,7 @@ import {
   loadRemoteData,
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
+  loadRemoteAffiliateCommissionDashboard,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -17771,6 +17772,10 @@ function AffiliateProfessionalsPanel() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [commissionMonth, setCommissionMonth] = useState(() => new Date().toLocaleDateString('sv-SE').slice(0, 7))
+  const [commissionDashboard, setCommissionDashboard] = useState(null)
+  const [commissionLoading, setCommissionLoading] = useState(true)
+  const [commissionError, setCommissionError] = useState('')
 
   const refreshAffiliates = useCallback(async () => {
     setLoading(true)
@@ -17785,9 +17790,30 @@ function AffiliateProfessionalsPanel() {
     }
   }, [])
 
+  const refreshCommissionDashboard = useCallback(async () => {
+    setCommissionLoading(true)
+    try {
+      const dashboard = await loadRemoteAffiliateCommissionDashboard(commissionMonth)
+      setCommissionDashboard(dashboard)
+      setCommissionError('')
+    } catch (loadError) {
+      setCommissionError(loadError?.message || 'Não foi possível carregar as comissões dos afiliados.')
+    } finally {
+      setCommissionLoading(false)
+    }
+  }, [commissionMonth])
+
   useEffect(() => {
     refreshAffiliates()
   }, [refreshAffiliates])
+
+  useEffect(() => {
+    refreshCommissionDashboard()
+  }, [refreshCommissionDashboard])
+
+  async function refreshAffiliateArea() {
+    await Promise.all([refreshAffiliates(), refreshCommissionDashboard()])
+  }
 
   async function addAffiliate() {
     const normalizedEmail = String(email || '').trim().toLowerCase()
@@ -17802,7 +17828,7 @@ function AffiliateProfessionalsPanel() {
     try {
       await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
       setEmail('')
-      await refreshAffiliates()
+      await refreshAffiliateArea()
       setMessage('Profissional vinculado. A conta profissional fica liberada sem mensalidade e os alunos/pacientes dele passam a seguir o checkout Cartpanda.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível vincular este profissional.')
@@ -17821,10 +17847,10 @@ function AffiliateProfessionalsPanel() {
         email: affiliate.email,
         active: !affiliate.active,
       })
-      await refreshAffiliates()
+      await refreshAffiliateArea()
       setMessage(affiliate.active
-        ? 'Cobrança do app desativada para este profissional.'
-        : 'Cobrança do app ativada para este profissional.')
+        ? 'Afiliado desativado. O profissional volta ao funil normal de assinatura e novos alunos deixam de usar a cobrança de afiliado.'
+        : 'Afiliado ativado. O profissional fica liberado e seus alunos/pacientes passam a usar o funil Cartpanda.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível atualizar este profissional.')
     } finally {
@@ -17833,7 +17859,7 @@ function AffiliateProfessionalsPanel() {
   }
 
   async function removeAffiliate(affiliate) {
-    const confirmed = window.confirm(`Remover ${affiliate.email} da área de afiliados? Os alunos/pacientes dele deixarão de ser cobrados pelo app.`)
+    const confirmed = window.confirm(`Remover ${affiliate.email} da área de afiliados? O histórico financeiro já confirmado será preservado.`)
     if (!confirmed) return
 
     setSaving(true)
@@ -17841,8 +17867,8 @@ function AffiliateProfessionalsPanel() {
     setError('')
     try {
       await deleteRemoteAffiliateProfessional(affiliate.id)
-      await refreshAffiliates()
-      setMessage('Profissional removido. Os alunos e pacientes dele agora entram no app sem cobrança do aplicativo.')
+      await refreshAffiliateArea()
+      setMessage('Profissional removido da lista ativa. O histórico de pagamentos e comissões já confirmados foi preservado.')
     } catch (deleteError) {
       setError(deleteError?.message || 'Não foi possível remover este profissional.')
     } finally {
@@ -17850,14 +17876,114 @@ function AffiliateProfessionalsPanel() {
     }
   }
 
+  const totals = commissionDashboard?.totals || {}
+  const commissionRows = Array.isArray(commissionDashboard?.affiliates) ? commissionDashboard.affiliates : []
+  const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
+
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-5">
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-        <p className="text-sm font-black text-emerald-100">Quem deve cobrar aluno/paciente pelo app?</p>
+        <p className="text-sm font-black text-emerald-100">Afiliados: acesso profissional + cobrança dos alunos</p>
         <p className="mt-2 text-xs leading-5 text-zinc-300">
-          Cadastre o e-mail do treinador ou nutricionista afiliado. O profissional mantém o cadastro normal e escolhe sua área, mas recebe acesso completo ao painel sem mensalidade. Os alunos/pacientes dele seguem o funil Cartpanda. Profissionais fora desta lista continuam pagando a assinatura normal do Coach Fit Pro.
+          Cadastre o e-mail do treinador ou nutricionista afiliado. O profissional mantém o cadastro normal e escolhe sua área, recebe acesso completo ao painel sem mensalidade, e os alunos/pacientes dele seguem o funil Cartpanda. Profissionais fora desta lista continuam pagando a assinatura normal do Coach Fit Pro.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase text-blue-300">Financeiro dos afiliados</p>
+            <h3 className="mt-1 text-xl font-black text-white">Comissões sobre mensalidades pagas</h3>
+            <p className="mt-2 text-xs leading-5 text-zinc-400">
+              Regra: R$ 25,00 por mensalidade confirmada · 25% para o afiliado · R$ 6,25 de comissão por pagamento. Pendências não entram; estornos e chargebacks são retirados do cálculo.
+            </p>
+          </div>
+          <label className="grid min-w-[170px] gap-2 text-xs font-black uppercase text-zinc-400">
+            Mês de referência
+            <input
+              type="month"
+              value={commissionMonth}
+              onChange={(event) => setCommissionMonth(event.target.value)}
+              className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold text-zinc-100 outline-none focus:border-blue-300/50"
+            />
+          </label>
+        </div>
+
+        {commissionLoading ? (
+          <p className="mt-4 text-sm font-bold text-zinc-400">Calculando pagamentos confirmados...</p>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-4">
+                <p className="text-[11px] font-black uppercase text-zinc-500">Alunos/pacientes trazidos</p>
+                <p className="mt-2 text-2xl font-black text-white">{Number(totals.studentsBrought || 0)}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-zinc-950/70 p-4">
+                <p className="text-[11px] font-black uppercase text-zinc-500">Pagantes no mês</p>
+                <p className="mt-2 text-2xl font-black text-white">{Number(totals.paidStudents || 0)}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
+                <p className="text-[11px] font-black uppercase text-emerald-300">Receita confirmada</p>
+                <p className="mt-2 text-2xl font-black text-white">{centsToCurrency(totals.revenueCents)}</p>
+                <p className="mt-1 text-xs text-zinc-500">{Number(totals.paidInstallments || 0)} mensalidade(s) paga(s)</p>
+              </div>
+              <div className="rounded-xl border border-blue-300/25 bg-blue-300/[0.09] p-4">
+                <p className="text-[11px] font-black uppercase text-blue-300">Comissão total</p>
+                <p className="mt-2 text-2xl font-black text-white">{centsToCurrency(totals.commissionCents)}</p>
+                <p className="mt-1 text-xs text-zinc-500">25% somente sobre valores pagos</p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {commissionRows.length ? commissionRows.map((row) => (
+                <div key={row.email} className="rounded-xl border border-white/10 bg-zinc-950/70 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-black text-white">{row.professionalName || row.email}</p>
+                        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase text-zinc-400">
+                          {row.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}
+                        </span>
+                        <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${row.active ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-200' : 'border-zinc-700 bg-zinc-900 text-zinc-500'}`}>
+                          {row.active ? 'Afiliado ativo' : 'Histórico'}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-zinc-500">{row.email}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:min-w-[650px]">
+                      <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-black uppercase text-zinc-500">Trazidos</p>
+                        <p className="mt-1 text-lg font-black text-white">{Number(row.studentsBrought || 0)}</p>
+                      </div>
+                      <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-black uppercase text-zinc-500">Pagantes</p>
+                        <p className="mt-1 text-lg font-black text-white">{Number(row.paidStudents || 0)}</p>
+                      </div>
+                      <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-black uppercase text-zinc-500">Pagamentos</p>
+                        <p className="mt-1 text-lg font-black text-white">{Number(row.paidInstallments || 0)}</p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-300/15 bg-emerald-300/[0.05] p-3">
+                        <p className="text-[10px] font-black uppercase text-emerald-300">Gerado</p>
+                        <p className="mt-1 text-lg font-black text-white">{centsToCurrency(row.revenueCents)}</p>
+                      </div>
+                      <div className="col-span-2 rounded-lg border border-blue-300/20 bg-blue-300/[0.07] p-3 sm:col-span-1">
+                        <p className="text-[10px] font-black uppercase text-blue-300">Comissão 25%</p>
+                        <p className="mt-1 text-lg font-black text-white">{centsToCurrency(row.commissionCents)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <p className="rounded-xl border border-white/10 bg-zinc-950/60 p-4 text-sm leading-6 text-zinc-400">
+                  Nenhum afiliado ou pagamento confirmado encontrado para este mês.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+        {commissionError ? <p role="alert" className="mt-3 text-sm font-bold text-rose-200">{commissionError}</p> : null}
+      </section>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
         <AdminTextInput
@@ -17896,7 +18022,7 @@ function AffiliateProfessionalsPanel() {
                   onClick={() => toggleAffiliate(affiliate)}
                   className="rounded-lg border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-60"
                 >
-                  {affiliate.active ? 'Desativar cobrança' : 'Ativar cobrança'}
+                  {affiliate.active ? 'Desativar afiliado' : 'Ativar afiliado'}
                 </button>
                 <button
                   type="button"
