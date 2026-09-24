@@ -76,3 +76,39 @@ test('profissional afiliado recebe acesso profissional sem mensalidade', async (
   assert.match(app, /item\.id !== 'assinatura'/)
   assert.match(app, /profissional volta ao plano normal/)
 })
+
+
+test('dashboard de comissões usa somente mensalidades confirmadas', async () => {
+  const sql = await readFile(new URL('../SUPABASE/migrations/20260924_affiliate_commission_dashboard.sql', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(sql, /create table if not exists public\.affiliate_student_payments/i)
+  assert.match(sql, /webhook_event_id text not null unique/i)
+  assert.match(sql, /revenue_cents integer not null default 2500/i)
+  assert.match(sql, /commission_rate numeric\(5,4\) not null default 0\.2500/i)
+  assert.match(sql, /commission_cents integer not null default 625/i)
+  assert.match(sql, /payments\.status = 'paid'/i)
+  assert.match(sql, /get_affiliate_commission_dashboard/i)
+  assert.match(sql, /Acesso exclusivo do Admin Master/i)
+  assert.match(api, /loadRemoteAffiliateCommissionDashboard/)
+  assert.match(api, /get_affiliate_commission_dashboard/)
+  assert.match(app, /Comissões sobre mensalidades pagas/)
+  assert.match(app, /R\$ 25,00 por mensalidade confirmada/)
+  assert.match(app, /Comissão total/)
+  assert.match(app, /25% somente sobre valores pagos/)
+})
+
+test('webhook cria lançamento idempotente e remove estorno da comissão', async () => {
+  const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.match(webhook, /findActiveAffiliateForCoach/)
+  assert.match(webhook, /recordAffiliateStudentPayment/)
+  assert.match(webhook, /webhook_event_id: input\.eventId/)
+  assert.match(webhook, /revenue_cents: 2500/)
+  assert.match(webhook, /commission_cents: 625/)
+  assert.match(webhook, /resolution=ignore-duplicates/)
+  assert.match(webhook, /status === 'refunded' \|\| status === 'chargeback'/)
+  assert.match(webhook, /reverseAffiliateStudentPayment/)
+  assert.match(webhook, /reversal_event_id: input\.eventId/)
+})
