@@ -17944,39 +17944,39 @@ function AffiliateFinancePage() {
   const netAfterCommissionCents = Number(totals.revenueCents || 0) - Number(totals.commissionCents || 0)
 
   return (
-    <div className="grid gap-5 lg:gap-6">
-      <section className="overflow-hidden rounded-2xl border border-blue-300/20 bg-zinc-950/90 shadow-2xl shadow-black/30">
-        <div className="border-b border-white/10 bg-gradient-to-r from-blue-500/12 via-emerald-400/[0.06] to-transparent p-4 sm:p-6">
+    <div className="grid gap-6">
+      <section className="overflow-hidden rounded-[14px] border border-[#E3E8E8] bg-white">
+        <div className="border-b border-[#EDF1F1] p-5 sm:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-3xl">
-              <p className="text-xs font-black uppercase tracking-wide text-blue-300">Admin Master · financeiro de afiliados</p>
-              <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">Receita e comissão, sem misturar valores pendentes.</h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#147D70]">Financeiro de afiliados</p>
+              <h2 className="mt-2 text-[19px] font-semibold text-[#102223]">Receita e comissão sem misturar valores pendentes</h2>
+              <p className="mt-2 text-sm leading-6 text-[#607273]">
                 O relatório usa somente mensalidades confirmadas pela Cartpanda. Cada mensalidade paga gera R$ 25,00 de receita e R$ 6,25 de comissão (25%). Reembolsos e chargebacks deixam de compor os totais.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={loadReport} disabled={loading} className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-xs font-black text-zinc-100 disabled:opacity-50">
+              <button type="button" onClick={loadReport} disabled={loading} className="min-h-11 rounded-xl border border-[#DDE5E5] bg-white px-4 text-sm font-semibold text-[#405859] transition hover:bg-[#F7F9F9] disabled:opacity-50">
                 {loading ? 'Atualizando...' : 'Atualizar dados'}
               </button>
-              <button type="button" onClick={() => exportSales(filteredRows, 'financeiro-afiliados')} className="rounded-xl bg-blue-400 px-4 py-2.5 text-xs font-black text-zinc-950">
+              <button type="button" onClick={() => exportSales(filteredRows, 'financeiro-afiliados')} className="min-h-11 rounded-xl bg-[#147D70] px-4 text-sm font-semibold text-white transition hover:bg-[#0F6B60]">
                 Exportar período
               </button>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-4 p-4 sm:p-6">
+        <div className="grid gap-4 p-5 sm:p-6">
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
-            <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+            <label className="grid gap-2 text-sm font-medium text-[#30494A]">
               Data inicial
-              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold text-zinc-100 outline-none focus:border-blue-300/50" />
+              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none transition focus:border-[#147D70] focus:ring-2 focus:ring-[#147D70]/10" />
             </label>
-            <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+            <label className="grid gap-2 text-sm font-medium text-[#30494A]">
               Data final
-              <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold text-zinc-100 outline-none focus:border-blue-300/50" />
+              <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-11 rounded-xl border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none transition focus:border-[#147D70] focus:ring-2 focus:ring-[#147D70]/10" />
             </label>
-            <button type="button" onClick={() => applyPeriod()} className="min-h-11 rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-black text-zinc-950">
+            <button type="button" onClick={() => applyPeriod()} className="h-11 rounded-xl bg-[#147D70] px-5 text-sm font-semibold text-white transition hover:bg-[#0F6B60]">
               Aplicar período
             </button>
           </div>
@@ -17988,23 +17988,23 @@ function AffiliateFinancePage() {
               ['90d', 'Últimos 90 dias'],
               ['year', 'Ano atual'],
             ].map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setQuickPeriod(id)} className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-xs font-black text-zinc-300 hover:bg-white/[0.07]">
+              <button key={id} type="button" onClick={() => setQuickPeriod(id)} className="min-h-9 rounded-lg border border-[#E1E7E7] bg-[#F8FAFA] px-3 text-xs font-semibold text-[#526667] hover:bg-[#F0F5F4]">
                 {label}
               </button>
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/8 pt-3 text-xs text-zinc-500">
-            <span>Período aplicado: <strong className="text-zinc-300">{appliedPeriod.startDate}</strong> até <strong className="text-zinc-300">{appliedPeriod.endDate}</strong></span>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#EDF1F1] pt-3 text-xs text-[#718182]">
+            <span>Período aplicado: <strong className="font-semibold text-[#3F5556]">{appliedPeriod.startDate}</strong> até <strong className="font-semibold text-[#3F5556]">{appliedPeriod.endDate}</strong></span>
             {lastUpdatedAt ? <span>Atualizado em {new Date(lastUpdatedAt).toLocaleString('pt-BR')}</span> : null}
           </div>
         </div>
       </section>
 
-      {error ? <div role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/10 p-4 text-sm font-bold text-rose-100">{error}</div> : null}
+      {error ? <AffiliateInlineNotice type="error">{error}</AffiliateInlineNotice> : null}
 
       {loading && !report ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-6 text-sm font-bold text-zinc-400">Carregando o financeiro dos afiliados...</div>
+        <div className="rounded-[14px] border border-[#E3E8E8] bg-white p-6 text-sm font-medium text-[#718182]">Carregando o financeiro dos afiliados...</div>
       ) : (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -18016,39 +18016,39 @@ function AffiliateFinancePage() {
               ['Receita confirmada', centsToCurrency(totals.revenueCents), 'R$ 25,00 por mensalidade'],
               ['Comissão total', centsToCurrency(totals.commissionCents), `líquido: ${centsToCurrency(netAfterCommissionCents)}`],
             ].map(([label, value, detail]) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-zinc-950/75 p-4">
-                <p className="text-[10px] font-black uppercase text-zinc-500">{label}</p>
-                <p className="mt-2 text-2xl font-black text-white">{value}</p>
-                <p className="mt-1 text-[11px] leading-5 text-zinc-500">{detail}</p>
+              <div key={label} className="rounded-[14px] border border-[#E3E8E8] bg-white p-4">
+                <p className="text-xs font-medium text-[#718182]">{label}</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#102223]">{value}</p>
+                <p className="mt-1 text-xs leading-5 text-[#879596]">{detail}</p>
               </div>
             ))}
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 sm:p-5">
+          <section className="rounded-[14px] border border-[#E3E8E8] bg-white p-4 sm:p-5">
             <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_180px_180px_190px]">
-              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+              <label className="grid gap-2 text-sm font-medium text-[#30494A]">
                 Buscar afiliado
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome ou e-mail" className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm font-bold normal-case text-zinc-100 outline-none focus:border-blue-300/50" />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nome ou e-mail" className="h-11 rounded-xl border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none transition focus:border-[#147D70] focus:ring-2 focus:ring-[#147D70]/10" />
               </label>
-              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+              <label className="grid gap-2 text-sm font-medium text-[#30494A]">
                 Perfil
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100">
+                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-11 rounded-xl border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none focus:border-[#147D70] focus:ring-2 focus:ring-[#147D70]/10">
                   <option value="all">Todos</option>
                   <option value="trainer">Treinadores</option>
                   <option value="nutritionist">Nutricionistas</option>
                 </select>
               </label>
-              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+              <label className="grid gap-2 text-sm font-medium text-[#30494A]">
                 Situação
-                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100">
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-11 rounded-xl border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none focus:border-[#147D70] focus:ring-2 focus:ring-[#147D70]/10">
                   <option value="all">Todos</option>
                   <option value="active">Afiliados ativos</option>
                   <option value="historical">Histórico/inativos</option>
                 </select>
               </label>
-              <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+              <label className="grid gap-2 text-sm font-medium text-[#30494A]">
                 Ordenar por
-                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="min-h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100">
+                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="h-11 rounded-xl border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none focus:border-[#147D70] focus:ring-2 focus:ring-[#147D70]/10">
                   <option value="commission">Maior comissão</option>
                   <option value="revenue">Maior receita</option>
                   <option value="sales">Mais pagamentos</option>
@@ -18068,24 +18068,24 @@ function AffiliateFinancePage() {
                 : 0
 
               return (
-                <article key={affiliate.email} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/75">
+                <article key={affiliate.email} className="overflow-hidden rounded-[14px] border border-[#E3E8E8] bg-white">
                   <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(220px,0.85fr)_minmax(0,1.5fr)] xl:items-center">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-lg font-black text-white">{affiliate.professionalName || affiliate.email}</h3>
-                        <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase text-zinc-400">
+                        <h3 className="truncate text-base font-semibold text-[#102223]">{affiliate.professionalName || affiliate.email}</h3>
+                        <span className="rounded-full bg-[#F1F5F5] px-2.5 py-1 text-[11px] font-medium text-[#607273]">
                           {affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}
                         </span>
-                        <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${affiliate.active ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-200' : 'border-zinc-700 bg-zinc-900 text-zinc-500'}`}>
+                        <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${affiliate.active ? 'border-transparent bg-[#EAF7F3] text-[#176B55]' : 'border-transparent bg-[#F1F3F3] text-[#6F7D7E]'}`}>
                           {affiliate.active ? 'Ativo' : 'Histórico'}
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-xs text-zinc-500">{affiliate.email}</p>
+                      <p className="mt-1 truncate text-xs text-[#7A8A8B]">{affiliate.email}</p>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => setExpandedEmail(expanded ? '' : affiliate.email)} className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-200">
+                        <button type="button" onClick={() => setExpandedEmail(expanded ? '' : affiliate.email)} className="min-h-9 rounded-lg border border-[#DDE5E5] bg-white px-3 text-xs font-semibold text-[#41595A] hover:bg-[#F7F9F9]">
                           {expanded ? 'Ocultar vendas' : `Ver ${sales.length} venda(s)`}
                         </button>
-                        <button type="button" onClick={() => exportSales([affiliate], `vendas-${affiliate.professionalName || affiliate.email}`)} className="rounded-lg border border-blue-300/25 bg-blue-300/10 px-3 py-2 text-xs font-black text-blue-100">
+                        <button type="button" onClick={() => exportSales([affiliate], `vendas-${affiliate.professionalName || affiliate.email}`)} className="min-h-9 rounded-lg border border-[#CFE4E1] bg-[#F2FAF9] px-3 text-xs font-semibold text-[#176B62] hover:bg-[#EAF6F4]">
                           Exportar vendas
                         </button>
                       </div>
@@ -18100,27 +18100,27 @@ function AffiliateFinancePage() {
                         ['Gerado', centsToCurrency(affiliate.revenueCents)],
                         ['Comissão 25%', centsToCurrency(affiliate.commissionCents)],
                       ].map(([label, value]) => (
-                        <div key={label} className="rounded-xl border border-white/8 bg-white/[0.025] p-3">
-                          <p className="text-[9px] font-black uppercase text-zinc-500">{label}</p>
-                          <p className="mt-1 text-base font-black text-white">{value}</p>
+                        <div key={label} className="rounded-xl bg-[#F8FAFA] p-3">
+                          <p className="text-[10px] font-medium text-[#819091]">{label}</p>
+                          <p className="mt-1 text-sm font-semibold text-[#183334]">{value}</p>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {expanded ? (
-                    <div className="border-t border-white/10 bg-black/20 p-4 sm:p-5">
+                    <div className="border-t border-[#E8EEEE] bg-[#FBFCFC] p-4 sm:p-5">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-black text-white">Vendas confirmadas no período</p>
-                          <p className="mt-1 text-xs text-zinc-500">Somente pagamentos que entram na comissão.</p>
+                          <p className="text-sm font-semibold text-[#183334]">Vendas confirmadas no período</p>
+                          <p className="mt-1 text-xs text-[#7A8A8B]">Somente pagamentos que entram na comissão.</p>
                         </div>
-                        <p className="text-xs font-black text-blue-200">{sales.length} pagamento(s)</p>
+                        <p className="text-xs font-semibold text-[#176B62]">{sales.length} pagamento(s)</p>
                       </div>
                       {sales.length ? (
-                        <div className="overflow-x-auto rounded-xl border border-white/10">
+                        <div className="overflow-x-auto rounded-xl border border-[#E3E8E8] bg-white">
                           <table className="min-w-[900px] w-full text-left text-xs">
-                            <thead className="bg-white/[0.045] text-[10px] font-black uppercase text-zinc-500">
+                            <thead className="bg-[#F8FAFA] text-[11px] font-semibold text-[#66797A]">
                               <tr>
                                 <th className="px-3 py-3">Data</th>
                                 <th className="px-3 py-3">Aluno/Paciente</th>
@@ -18132,29 +18132,29 @@ function AffiliateFinancePage() {
                             </thead>
                             <tbody>
                               {sales.map((sale) => (
-                                <tr key={sale.paymentId || `${sale.studentId}-${sale.paidAt}`} className="border-t border-white/8 text-zinc-300">
+                                <tr key={sale.paymentId || `${sale.studentId}-${sale.paidAt}`} className="border-t border-[#EDF1F1] text-[#536869]">
                                   <td className="px-3 py-3 whitespace-nowrap">{formatSaleDate(sale.paidAt)}</td>
-                                  <td className="px-3 py-3 font-bold text-white">{sale.studentName || 'Aluno/Paciente'}</td>
+                                  <td className="px-3 py-3 font-medium text-[#183334]">{sale.studentName || 'Aluno/Paciente'}</td>
                                   <td className="px-3 py-3">{sale.studentEmail || '—'}</td>
-                                  <td className="px-3 py-3 font-black text-emerald-200">{centsToCurrency(sale.revenueCents)}</td>
-                                  <td className="px-3 py-3 font-black text-blue-200">{centsToCurrency(sale.commissionCents)}</td>
-                                  <td className="px-3 py-3 font-mono text-[11px] text-zinc-500">{sale.providerOrderId || '—'}</td>
+                                  <td className="px-3 py-3 font-semibold text-[#176B55]">{centsToCurrency(sale.revenueCents)}</td>
+                                  <td className="px-3 py-3 font-semibold text-[#176B62]">{centsToCurrency(sale.commissionCents)}</td>
+                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{sale.providerOrderId || '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       ) : (
-                        <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm text-zinc-500">Nenhuma mensalidade paga neste período.</p>
+                        <p className="rounded-xl border border-[#E3E8E8] bg-white p-4 text-sm text-[#7A8A8B]">Nenhuma mensalidade paga neste período.</p>
                       )}
                     </div>
                   ) : null}
                 </article>
               )
             }) : (
-              <div className="rounded-2xl border border-white/10 bg-zinc-950/60 p-6 text-center">
-                <p className="text-sm font-black text-zinc-300">Nenhum afiliado encontrado.</p>
-                <p className="mt-2 text-xs text-zinc-500">Ajuste o período ou os filtros.</p>
+              <div className="rounded-[14px] border border-[#E3E8E8] bg-white p-6 text-center">
+                <p className="text-sm font-semibold text-[#30494A]">Nenhum afiliado encontrado.</p>
+                <p className="mt-2 text-xs text-[#7A8A8B]">Ajuste o período ou os filtros.</p>
               </div>
             )}
           </section>
