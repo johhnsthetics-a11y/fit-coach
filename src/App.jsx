@@ -18570,86 +18570,71 @@ function AffiliateProfessionalsPanel() {
   )
 }
 
-function AffiliateAdminPage() {
-  const [activeTab, setActiveTab] = useState('finance')
 
+function AffiliateAdminPage() {
+  const [activeTab, setActiveTab] = useState('registration')
+  const currentSectionLabel = activeTab === 'finance' ? 'Financeiro' : 'Cadastro'
   const tabs = [
-    {
-      id: 'finance',
-      label: 'Financeiro de Afiliados',
-      description: 'Receita, pagamentos confirmados, comissões e exportações.',
-    },
-    {
-      id: 'registration',
-      label: 'Cadastro de Afiliados',
-      description: 'Cadastro, ativação e gerenciamento dos profissionais afiliados.',
-    },
+    { id: 'finance', label: 'Financeiro de Afiliados' },
+    { id: 'registration', label: 'Cadastro de Afiliados' },
   ]
 
   return (
-    <div className="grid gap-5 lg:gap-6">
-      <section className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/25">
-        <div className="border-b border-white/10 bg-gradient-to-r from-blue-500/10 via-emerald-400/[0.05] to-transparent p-4 sm:p-6">
-          <p className="text-xs font-black uppercase tracking-wide text-zinc-500">Admin Master · afiliados</p>
-          <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl">Gestão de Afiliados</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
-            Consulte o financeiro ou gerencie os profissionais afiliados sem misturar as duas operações.
-          </p>
-        </div>
+    <div className="mx-auto w-full max-w-[1200px] rounded-[14px] bg-[#F8FAFA] p-4 text-[#102223] sm:p-6 lg:p-8">
+      <header>
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#7A8A8B]">
+          <span>Admin Master</span>
+          <span aria-hidden="true">/</span>
+          <span>Afiliados</span>
+          <span aria-hidden="true">/</span>
+          <span className="text-[#3E5A5B]">{currentSectionLabel}</span>
+        </nav>
 
-        <div className="p-3 sm:p-4">
-          <div
-            role="tablist"
-            aria-label="Seções de afiliados"
-            className="grid gap-1 rounded-xl bg-black/15 p-1 sm:grid-cols-2"
-          >
-            {tabs.map((tab) => {
-              const selected = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  id={`affiliate-tab-${tab.id}`}
-                  aria-selected={selected}
-                  aria-controls={`affiliate-panel-${tab.id}`}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`min-w-0 rounded-lg px-4 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-950 ${selected
-                    ? tab.id === 'finance'
-                      ? 'bg-blue-300/12 text-white shadow-sm ring-1 ring-inset ring-blue-300/30 focus-visible:ring-blue-300/50'
-                      : 'bg-emerald-300/12 text-white shadow-sm ring-1 ring-inset ring-emerald-300/30 focus-visible:ring-emerald-300/50'
-                    : 'bg-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200 focus-visible:ring-white/20'}`}
-                >
-                  <span className={`block truncate text-sm font-black ${selected
-                    ? tab.id === 'finance' ? 'text-blue-100' : 'text-emerald-100'
-                    : 'text-zinc-300'}`}>
-                    {tab.label}
-                  </span>
-                  <span className="mt-1 block text-xs leading-5 text-zinc-500 sm:min-h-10">{tab.description}</span>
-                </button>
-              )
-            })}
+        <h1 className="mt-3 text-[30px] font-bold leading-tight tracking-[-0.02em] text-[#102223] sm:text-[32px]">Gestão de Afiliados</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#607273] sm:text-[15px]">
+          Consulte o financeiro ou gerencie os profissionais afiliados sem misturar as duas operações.
+        </p>
+
+        <div
+          role="tablist"
+          aria-label="Seções de afiliados"
+          className="mt-6 grid grid-cols-2 gap-1 rounded-xl border border-[#E3E8E8] bg-white p-1"
+        >
+          {tabs.map((tab) => {
+            const selected = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={'affiliate-tab-' + tab.id}
+                aria-selected={selected}
+                aria-controls={'affiliate-panel-' + tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={'min-h-11 rounded-[10px] px-3 text-center text-xs font-semibold transition sm:px-4 sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147D70]/30 ' + (
+                  selected
+                    ? 'bg-[#EAF7F4] text-[#11695F] ring-1 ring-inset ring-[#BFDCD7]'
+                    : 'text-[#66797A] hover:bg-[#F7F9F9] hover:text-[#30494A]'
+                )}
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      </header>
+
+      <div className="mt-8">
+        {activeTab === 'finance' ? (
+          <div id="affiliate-panel-finance" role="tabpanel" aria-labelledby="affiliate-tab-finance">
+            <AffiliateFinancePage />
           </div>
-        </div>
-      </section>
-
-      {activeTab === 'finance' ? (
-        <div
-          id="affiliate-panel-finance"
-          role="tabpanel"
-          aria-labelledby="affiliate-tab-finance"
-        >
-          <AffiliateFinancePage />
-        </div>
-      ) : (
-        <div
-          id="affiliate-panel-registration"
-          role="tabpanel"
-          aria-labelledby="affiliate-tab-registration"
-        >
-          <AffiliateProfessionalsPanel />
-        </div>
-      )}
+        ) : (
+          <div id="affiliate-panel-registration" role="tabpanel" aria-labelledby="affiliate-tab-registration">
+            <AffiliateProfessionalsPanel />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
