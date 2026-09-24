@@ -43,11 +43,12 @@ test('portal informa ao frontend se a cobrança do app é obrigatória', async (
   assert.match(api, /appPaymentRequired:\s*payload\.app_payment_required === true/)
 })
 
-test('Admin Master gerencia afiliados por e-mail sem conceder privilégio administrativo', async () => {
+test('Cadastro de Afiliados gerencia afiliados por e-mail sem conceder privilégio administrativo', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 
-  assert.match(app, /Afiliados e acesso/)
+  assert.match(app, /Cadastro de Afiliados/)
+  assert.doesNotMatch(app, /AdminAccordionSection title="Afiliados e acesso"/)
   assert.match(app, /E-mail do profissional afiliado/)
   assert.match(app, /Vincular profissional/)
   assert.match(app, /loadRemoteAffiliateProfessionals/)
@@ -141,5 +142,29 @@ test('financeiro de afiliados fica em página separada com período livre e expo
   assert.match(app, /Exportar período/)
   assert.match(app, /Exportar vendas/)
   assert.match(app, /text\/csv;charset=utf-8/)
-  assert.match(app, /financeiro separado do cadastro/i)
+  assert.match(app, /Gestão de Afiliados/)
+  assert.match(app, /role="tablist"/)
+  assert.match(app, /Financeiro de Afiliados/)
+  assert.match(app, /Cadastro de Afiliados/)
+  assert.match(app, /aria-selected=\{selected\}/)
+  assert.match(app, /activeTab === 'finance'/)
+  assert.match(app, /<AffiliateProfessionalsPanel \/>/)
+  assert.doesNotMatch(app, /Financeiro separado do cadastro/)
+})
+
+
+test('Financeiro e Cadastro de Afiliados alternam como abas na mesma página', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /function AffiliateAdminPage\(\)/)
+  assert.match(app, /const \[activeTab, setActiveTab\] = useState\('finance'\)/)
+  assert.match(app, /label: 'Financeiro de Afiliados'/)
+  assert.match(app, /label: 'Cadastro de Afiliados'/)
+  assert.match(app, /role="tab"/)
+  assert.match(app, /aria-controls=/)
+  assert.match(app, /id="affiliate-panel-finance"/)
+  assert.match(app, /id="affiliate-panel-registration"/)
+  assert.match(app, /<AffiliateFinancePage \/>/)
+  assert.match(app, /<AffiliateProfessionalsPanel \/>/)
+  assert.doesNotMatch(app, /onOpenAffiliateFinance/)
 })
