@@ -408,6 +408,55 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
+export async function loadRemoteAffiliateProfessionals() {
+  const rows = await optionalTableRequest('affiliate_professionals?select=*&order=created_at.desc')
+  return rows.map((row) => ({
+    id: row.id,
+    email: String(row.email || '').trim().toLowerCase(),
+    active: row.active !== false,
+    createdAt: row.created_at ?? '',
+    updatedAt: row.updated_at ?? '',
+  }))
+}
+
+export async function saveRemoteAffiliateProfessional({ id = '', email = '', active = true } = {}) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error('Informe um e-mail válido do treinador ou nutricionista.')
+  }
+
+  const body = {
+    email: normalizedEmail,
+    active: active !== false,
+    updated_at: new Date().toISOString(),
+  }
+
+  const rows = id
+    ? await request(`affiliate_professionals?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+    : await request('affiliate_professionals?on_conflict=email', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    })
+
+  const row = rows?.[0]
+  return row ? {
+    id: row.id,
+    email: String(row.email || '').trim().toLowerCase(),
+    active: row.active !== false,
+    createdAt: row.created_at ?? '',
+    updatedAt: row.updated_at ?? '',
+  } : null
+}
+
+export async function deleteRemoteAffiliateProfessional(id) {
+  if (!isUuid(id)) throw new Error('Cadastro de afiliado inválido.')
+  await request(`affiliate_professionals?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 export async function loadRemoteLeadEvents(limit = 120) {
   const rows = await optionalTableRequest(`lead_events?select=*&order=created_at.desc&limit=${encodeURIComponent(limit)}`)
   return rows.map(fromLeadEventRow)
@@ -726,6 +775,7 @@ export async function loadRemoteStudentByInvite(code) {
     anamnesisRequired: payload.student.require_anamnesis !== false,
     anamnesisCompleted: Boolean(anamnesis?.id),
     financialAccessOpen: payload.financial_access_open === true,
+    appPaymentRequired: payload.app_payment_required === true,
     professionalType: payload.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     professionalName: payload.professional_name ?? '',
   }
