@@ -81,6 +81,31 @@ Deno.serve(async (request) => {
       amountCents,
       payload,
     })
+
+    if (safeStatus === 'active' && isConfirmedPayment(eventType, payload)) {
+      const affiliate = await findActiveAffiliateForCoach(checkoutSession.coach_id)
+      if (affiliate?.email) {
+        await recordAffiliateStudentPayment({
+          eventId,
+          coachId: checkoutSession.coach_id,
+          studentId: checkoutSession.student_id,
+          affiliateEmail: affiliate.email,
+          orderId,
+          subscriptionId,
+          providerAmountCents: amountCents,
+        })
+      }
+    } else if (status === 'refunded' || status === 'chargeback') {
+      await reverseAffiliateStudentPayment({
+        eventId,
+        coachId: checkoutSession.coach_id,
+        studentId: checkoutSession.student_id,
+        orderId,
+        subscriptionId,
+        status,
+      })
+    }
+
     await markWebhookProcessed(eventId)
     return jsonResponse({ ok: true, processed: true, studentId: checkoutSession.student_id, status: safeStatus }, 200)
   }
@@ -205,6 +230,92 @@ async function saveWebhookEvent(event: {
 async function findUserByEmail(email: string) {
   const rows = await supabaseFetch(`/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id,email&limit=1`)
   return Array.isArray(rows) ? rows[0] : null
+}
+
+async function findActiveAffiliateForCoach(coachId: string) {
+  if (!coachId) return null
+  const users = await supabaseFetch(
+    `/rest/v1/users?id=eq.${encodeURIComponent(coachId)}&select=id,email&limit=1`,
+  )
+  const user = Array.isArray(users) ? users[0] : null
+  const email = normalizeEmail(user?.email || '')
+  if (!email) return null
+
+  const affiliates = await supabaseFetch(
+    `/rest/v1/affiliate_professionals?email=eq.${encodeURIComponent(email)}&active=eq.true&select=id,email&limit=1`,
+  )
+  return Array.isArray(affiliates) ? affiliates[0] : null
+}
+
+async function recordAffiliateStudentPayment(input: {
+  eventId: string
+  coachId: string
+  studentId: string
+  affiliateEmail: string
+  orderId: string
+  subscriptionId: string
+  providerAmountCents: number | null
+}) {
+  const paidAt = new Date()
+  const paymentMonth = `${paidAt.getUTCFullYear()}-${String(paidAt.getUTCMonth() + 1).padStart(2, '0')}-01`
+
+  await supabaseFetch('/rest/v1/affiliate_student_payments?on_conflict=webhook_event_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify({
+      webhook_event_id: input.eventId,
+      coach_id: input.coachId,
+      student_id: input.studentId,
+      affiliate_email: normalizeEmail(input.affiliateEmail),
+      status: 'paid',
+      paid_at: paidAt.toISOString(),
+      payment_month: paymentMonth,
+      revenue_cents: 2500,
+      provider_amount_cents: input.providerAmountCents,
+      commission_rate: 0.25,
+      commission_cents: 625,
+      provider: 'cartpanda',
+      provider_order_id: input.orderId || null,
+      provider_subscription_id: input.subscriptionId || null,
+      updated_at: paidAt.toISOString(),
+    }),
+  })
+}
+
+async function reverseAffiliateStudentPayment(input: {
+  eventId: string
+  coachId: string
+  studentId: string
+  orderId: string
+  subscriptionId: string
+  status: 'refunded' | 'chargeback'
+}) {
+  const baseFilter = `coach_id=eq.${encodeURIComponent(input.coachId)}&student_id=eq.${encodeURIComponent(input.studentId)}&status=eq.paid`
+  const providerFilter = input.orderId
+    ? `provider_order_id=eq.${encodeURIComponent(input.orderId)}`
+    : input.subscriptionId
+      ? `provider_subscription_id=eq.${encodeURIComponent(input.subscriptionId)}`
+      : ''
+
+  if (!providerFilter) return
+
+  const rows = await supabaseFetch(
+    `/rest/v1/affiliate_student_payments?${baseFilter}&${providerFilter}&select=id&order=paid_at.desc&limit=1`,
+  )
+  const payment = Array.isArray(rows) ? rows[0] : null
+  if (!payment?.id) return
+
+  const now = new Date().toISOString()
+  await supabaseFetch(`/rest/v1/affiliate_student_payments?id=eq.${encodeURIComponent(payment.id)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      status: input.status,
+      reversal_event_id: input.eventId,
+      reversed_at: now,
+      updated_at: now,
+    }),
+  })
 }
 
 async function findStudentCheckoutSession(checkoutToken: string) {
