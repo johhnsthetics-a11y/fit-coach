@@ -3894,7 +3894,7 @@ function AppContent() {
               />
             )}
             {activeView === 'admin-affiliate-finance' && masterAdmin && (
-              <AffiliateFinancePage />
+              <AffiliateAdminPage />
             )}
             {activeView === 'admin-master' && masterAdmin && (
               <AdminMaster
@@ -3902,7 +3902,6 @@ function AppContent() {
                 onSave={saveAppAdminSettings}
                 remoteStatus={remoteStatus}
                 remoteError={remoteError}
-                onOpenAffiliateFinance={() => setActiveViewSafely('admin-affiliate-finance')}
               />
             )}
             {activeView === 'notificacoes' && (
@@ -18165,7 +18164,7 @@ function AffiliateFinancePage() {
   )
 }
 
-function AffiliateProfessionalsPanel({ onOpenFinance }) {
+function AffiliateProfessionalsPanel() {
   const [affiliates, setAffiliates] = useState([])
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
@@ -18253,18 +18252,8 @@ function AffiliateProfessionalsPanel({ onOpenFinance }) {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-blue-300/20 bg-blue-300/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-black text-blue-100">Financeiro separado do cadastro</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-400">Receita, comissões, período e exportações ficam em uma página própria para facilitar a conferência.</p>
-        </div>
-        <button type="button" onClick={onOpenFinance} className="shrink-0 rounded-xl bg-blue-400 px-4 py-2.5 text-xs font-black text-zinc-950">
-          Abrir financeiro de afiliados
-        </button>
-      </div>
-
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
-        <p className="text-sm font-black text-emerald-100">Cadastro dos profissionais afiliados</p>
+        <p className="text-sm font-black text-emerald-100">Cadastro de Afiliados</p>
         <p className="mt-2 text-xs leading-5 text-zinc-300">
           Cadastre o mesmo e-mail usado pelo treinador ou nutricionista na conta do Coach Fit Pro. O afiliado recebe acesso profissional sem mensalidade e os alunos/pacientes vinculados passam a seguir a cobrança Cartpanda.
         </p>
@@ -18316,7 +18305,91 @@ function AffiliateProfessionalsPanel({ onOpenFinance }) {
   )
 }
 
-function AdminMaster({ settings, onSave, remoteStatus, remoteError, onOpenAffiliateFinance }) {
+function AffiliateAdminPage() {
+  const [activeTab, setActiveTab] = useState('finance')
+
+  const tabs = [
+    {
+      id: 'finance',
+      label: 'Financeiro de Afiliados',
+      description: 'Receita, pagamentos confirmados, comissões e exportações.',
+    },
+    {
+      id: 'registration',
+      label: 'Cadastro de Afiliados',
+      description: 'Cadastro, ativação e gerenciamento dos profissionais afiliados.',
+    },
+  ]
+
+  return (
+    <div className="grid gap-5 lg:gap-6">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/85 shadow-2xl shadow-black/25">
+        <div className="border-b border-white/10 bg-gradient-to-r from-blue-500/10 via-emerald-400/[0.05] to-transparent p-4 sm:p-6">
+          <p className="text-xs font-black uppercase tracking-wide text-zinc-500">Admin Master · afiliados</p>
+          <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl">Gestão de Afiliados</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
+            Consulte o financeiro ou gerencie os profissionais afiliados sem misturar as duas operações.
+          </p>
+        </div>
+
+        <div className="p-3 sm:p-4">
+          <div
+            role="tablist"
+            aria-label="Seções de afiliados"
+            className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5 sm:grid-cols-2"
+          >
+            {tabs.map((tab) => {
+              const selected = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`affiliate-tab-${tab.id}`}
+                  aria-selected={selected}
+                  aria-controls={`affiliate-panel-${tab.id}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`rounded-xl border px-4 py-3 text-left transition ${selected
+                    ? tab.id === 'finance'
+                      ? 'border-blue-300/35 bg-blue-300/12 text-white shadow-lg shadow-blue-950/20'
+                      : 'border-emerald-300/35 bg-emerald-300/12 text-white shadow-lg shadow-emerald-950/20'
+                    : 'border-transparent bg-transparent text-zinc-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-zinc-200'}`}
+                >
+                  <span className={`block text-sm font-black ${selected
+                    ? tab.id === 'finance' ? 'text-blue-100' : 'text-emerald-100'
+                    : 'text-zinc-300'}`}>
+                    {tab.label}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-zinc-500">{tab.description}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {activeTab === 'finance' ? (
+        <div
+          id="affiliate-panel-finance"
+          role="tabpanel"
+          aria-labelledby="affiliate-tab-finance"
+        >
+          <AffiliateFinancePage />
+        </div>
+      ) : (
+        <div
+          id="affiliate-panel-registration"
+          role="tabpanel"
+          aria-labelledby="affiliate-tab-registration"
+        >
+          <AffiliateProfessionalsPanel />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -18324,7 +18397,6 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError, onOpenAffili
   const [openSections, setOpenSections] = useState({
     health: true,
     traffic: true,
-    affiliates: true,
     launch: false,
     sales: true,
     visualEditor: true,
@@ -18487,10 +18559,6 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError, onOpenAffili
 
         <AdminAccordionSection title="Tráfego e conversões" action="Funil de vendas" open={openSections.traffic} onToggle={() => toggleSection('traffic')}>
           <AdminTrafficPanel />
-        </AdminAccordionSection>
-
-        <AdminAccordionSection title="Afiliados e acesso" action="Cadastro por e-mail" open={openSections.affiliates} onToggle={() => toggleSection('affiliates')}>
-          <AffiliateProfessionalsPanel onOpenFinance={onOpenAffiliateFinance} />
         </AdminAccordionSection>
 
         <AdminAccordionSection title="Checklist de lançamento" action="Operação pronta" open={openSections.launch} onToggle={() => toggleSection('launch')}>
