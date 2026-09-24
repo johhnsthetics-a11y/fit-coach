@@ -75,7 +75,7 @@ test('profissional afiliado recebe acesso profissional sem mensalidade', async (
   assert.match(app, /remoteData\.professionalAffiliate/)
   assert.match(app, /setActiveViewSafely\('visao'\)/)
   assert.match(app, /item\.id !== 'assinatura'/)
-  assert.match(app, /profissional volta ao plano normal/)
+  assert.match(app, /funil normal de assinatura/)
 })
 
 
@@ -95,7 +95,7 @@ test('dashboard de comissões usa somente mensalidades confirmadas', async () =>
   assert.match(api, /loadRemoteAffiliateCommissionDashboard/)
   assert.match(api, /get_affiliate_commission_dashboard/)
   assert.match(app, /Financeiro de afiliados/)
-  assert.match(app, /Receita e comissão, sem misturar valores pendentes/)
+  assert.match(app, /Receita e comissão sem misturar valores pendentes/)
   assert.match(app, /R\$ 25,00 de receita e R\$ 6,25 de comissão/)
   assert.match(app, /Exportar período/)
   assert.match(app, /Exportar vendas/)
