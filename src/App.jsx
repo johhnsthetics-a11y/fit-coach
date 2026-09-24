@@ -18259,15 +18259,31 @@ function AffiliateProfessionalsPanel() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <AdminTextInput
+      <div className="grid gap-x-3 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <label
+          htmlFor="affiliate-professional-email"
+          className="text-sm font-bold text-zinc-300 sm:col-start-1 sm:row-start-1"
+        >
+          E-mail do profissional afiliado
+        </label>
+        <input
+          id="affiliate-professional-email"
           type="email"
-          label="E-mail do profissional afiliado"
           value={email}
-          onChange={setEmail}
-          hint="Use exatamente o e-mail da conta profissional."
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="nome@exemplo.com"
+          autoComplete="email"
+          className="h-11 min-w-0 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm text-zinc-100 outline-none transition focus:border-emerald-300/50 focus:ring-2 focus:ring-emerald-300/10 sm:col-start-1 sm:row-start-2"
         />
-        <button type="button" disabled={saving} onClick={addAffiliate} className="min-h-11 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+        <span className="text-xs font-medium leading-5 text-zinc-500 sm:col-start-1 sm:row-start-3">
+          Use exatamente o mesmo e-mail da conta profissional.
+        </span>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={addAffiliate}
+          className="h-11 w-full whitespace-nowrap rounded-xl bg-emerald-400 px-5 text-sm font-black text-zinc-950 shadow-sm shadow-emerald-950/10 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/40 disabled:cursor-wait disabled:opacity-60 sm:col-start-2 sm:row-start-2 sm:min-w-[190px] sm:w-auto"
+        >
           {saving ? 'Salvando...' : 'Vincular profissional'}
         </button>
       </div>
@@ -18336,7 +18352,7 @@ function AffiliateAdminPage() {
           <div
             role="tablist"
             aria-label="Seções de afiliados"
-            className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-1.5 sm:grid-cols-2"
+            className="grid gap-1 rounded-xl bg-black/15 p-1 sm:grid-cols-2"
           >
             {tabs.map((tab) => {
               const selected = activeTab === tab.id
@@ -18349,18 +18365,18 @@ function AffiliateAdminPage() {
                   aria-selected={selected}
                   aria-controls={`affiliate-panel-${tab.id}`}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-xl border px-4 py-3 text-left transition ${selected
+                  className={`min-w-0 rounded-lg px-4 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-950 ${selected
                     ? tab.id === 'finance'
-                      ? 'border-blue-300/35 bg-blue-300/12 text-white shadow-lg shadow-blue-950/20'
-                      : 'border-emerald-300/35 bg-emerald-300/12 text-white shadow-lg shadow-emerald-950/20'
-                    : 'border-transparent bg-transparent text-zinc-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-zinc-200'}`}
+                      ? 'bg-blue-300/12 text-white shadow-sm ring-1 ring-inset ring-blue-300/30 focus-visible:ring-blue-300/50'
+                      : 'bg-emerald-300/12 text-white shadow-sm ring-1 ring-inset ring-emerald-300/30 focus-visible:ring-emerald-300/50'
+                    : 'bg-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200 focus-visible:ring-white/20'}`}
                 >
-                  <span className={`block text-sm font-black ${selected
+                  <span className={`block truncate text-sm font-black ${selected
                     ? tab.id === 'finance' ? 'text-blue-100' : 'text-emerald-100'
                     : 'text-zinc-300'}`}>
                     {tab.label}
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-zinc-500">{tab.description}</span>
+                  <span className="mt-1 block text-xs leading-5 text-zinc-500 sm:min-h-10">{tab.description}</span>
                 </button>
               )
             })}
