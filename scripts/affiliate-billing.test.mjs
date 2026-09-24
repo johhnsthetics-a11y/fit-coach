@@ -168,3 +168,16 @@ test('Financeiro e Cadastro de Afiliados alternam como abas na mesma página', a
   assert.match(app, /<AffiliateProfessionalsPanel \/>/)
   assert.doesNotMatch(app, /onOpenAffiliateFinance/)
 })
+
+
+test('layout das abas e cadastro de afiliados evita bordas duplicadas e desalinhamento', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /className="grid gap-1 rounded-xl bg-black\/15 p-1 sm:grid-cols-2"/)
+  assert.doesNotMatch(app, /grid gap-2 rounded-2xl border border-white\/10 bg-black\/20 p-1\.5 sm:grid-cols-2/)
+  assert.match(app, /ring-1 ring-inset ring-blue-300\/30/)
+  assert.match(app, /ring-1 ring-inset ring-emerald-300\/30/)
+  assert.match(app, /id="affiliate-professional-email"/)
+  assert.match(app, /sm:col-start-2 sm:row-start-2 sm:min-w-\[190px\]/)
+  assert.match(app, /h-11 w-full whitespace-nowrap rounded-xl bg-emerald-400/)
+})
