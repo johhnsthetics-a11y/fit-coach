@@ -1741,20 +1741,25 @@ function AppContent() {
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
+  const professionalAffiliate = Boolean(data.professionalAffiliate)
+  const professionalAccessActive = coachSubscriptionActive || professionalAffiliate
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
   const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
   const activeCoachId = data.session?.user?.id || data.user?.id
-  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !coachSubscriptionActive && !masterAdmin)
+  const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !professionalAccessActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
   const visibleNavItems = useMemo(() => {
-    const scopedItems = nutritionistUser ? navItems
+    const professionalItems = professionalAffiliate
+      ? navItems.filter((item) => item.id !== 'assinatura')
+      : navItems
+    const scopedItems = nutritionistUser ? professionalItems
       .filter((item) => nutritionistViewIds.has(item.id))
-      .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : navItems
+      .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
     return masterAdmin
       ? [...scopedItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
       : scopedItems
-  }, [masterAdmin, nutritionistUser])
+  }, [masterAdmin, nutritionistUser, professionalAffiliate])
 
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
@@ -1796,10 +1801,14 @@ function AppContent() {
   }, [activeView])
 
   useEffect(() => {
+    if (professionalAffiliate && activeView === 'assinatura') {
+      setActiveView('visao')
+      return
+    }
     if (shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(activeView)) {
       setActiveView('assinatura')
     }
-  }, [shouldLockCoachTools, activeView])
+  }, [professionalAffiliate, shouldLockCoachTools, activeView])
 
   useEffect(() => {
     if (nutritionistUser && !nutritionistViewIds.has(activeView) && activeView !== 'admin-master') {
@@ -2172,7 +2181,9 @@ function AppContent() {
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
-        if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
+        if (remoteData.professionalAffiliate) {
+          setActiveViewSafely('visao')
+        } else if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
           setActiveViewSafely('assinatura')
         }
         return true
@@ -3705,8 +3716,8 @@ function AppContent() {
                 onClick={() => setActiveViewSafely('assinatura')}
                 className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
               >
-                <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
-                <span className="mt-0.5 block">{coachBillingCycle.daysRemaining} {coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
+                <span className="block text-[10px] font-black uppercase text-emerald-300">{professionalAffiliate ? 'Afiliado' : 'Próxima cobrança'}</span>
+                <span className="mt-0.5 block">{professionalAffiliate ? 'Acesso profissional liberado' : `${coachBillingCycle.daysRemaining} ${coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}`}</span>
               </button>
             </div>
           </header>
@@ -3867,6 +3878,7 @@ function AppContent() {
                 coachPlans={coachPlans}
                 appAdminSettings={appAdminSettings}
                 onRefreshSubscription={syncCoachWorkspace}
+                professionalAffiliate={professionalAffiliate}
               />
             )}
             {activeView === 'admin-master' && masterAdmin && (
@@ -16729,7 +16741,7 @@ function CheckinForm({ students = [], onAddCheckin }) {
   )
 }
 
-function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -16758,8 +16770,8 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       checkoutUrl: appendAttributionToCheckoutUrl(resolveCheckoutUrl(envUrl, plan.checkoutUrl), plan.id),
     }
   })
-  const subscriptionActive = isCoachSubscriptionActive(subscription)
-  const subscriptionStatusLabel = getSubscriptionStatusLabel(subscription)
+  const subscriptionActive = professionalAffiliate || isCoachSubscriptionActive(subscription)
+  const subscriptionStatusLabel = professionalAffiliate ? 'Acesso afiliado' : getSubscriptionStatusLabel(subscription)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan, coachPlans), 0)
   const now = new Date()
@@ -17791,7 +17803,7 @@ function AffiliateProfessionalsPanel() {
       await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
       setEmail('')
       await refreshAffiliates()
-      setMessage('Profissional vinculado. Alunos e pacientes dele passam a seguir o checkout Cartpanda.')
+      setMessage('Profissional vinculado. A conta profissional fica liberada sem mensalidade e os alunos/pacientes dele passam a seguir o checkout Cartpanda.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível vincular este profissional.')
     } finally {
@@ -17843,7 +17855,7 @@ function AffiliateProfessionalsPanel() {
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
         <p className="text-sm font-black text-emerald-100">Quem deve cobrar aluno/paciente pelo app?</p>
         <p className="mt-2 text-xs leading-5 text-zinc-300">
-          Cadastre o e-mail do treinador ou nutricionista. Somente profissionais ativos nesta lista usam o funil de pagamento Cartpanda para seus alunos/pacientes. Quem não estiver cadastrado libera o acesso completo normalmente.
+          Cadastre o e-mail do treinador ou nutricionista afiliado. O profissional mantém o cadastro normal e escolhe sua área, mas recebe acesso completo ao painel sem mensalidade. Os alunos/pacientes dele seguem o funil Cartpanda. Profissionais fora desta lista continuam pagando a assinatura normal do Coach Fit Pro.
         </p>
       </div>
 
@@ -17874,7 +17886,7 @@ function AffiliateProfessionalsPanel() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-white">{affiliate.email}</p>
                 <p className={`mt-1 text-xs font-bold ${affiliate.active ? 'text-emerald-300' : 'text-zinc-500'}`}>
-                  {affiliate.active ? 'Ativo · alunos/pacientes pagam o app' : 'Inativo · acesso sem cobrança do app'}
+                  {affiliate.active ? 'Ativo · profissional liberado + alunos/pacientes pagam o app' : 'Inativo · profissional volta ao plano normal'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

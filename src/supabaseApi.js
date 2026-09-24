@@ -337,7 +337,7 @@ export async function refreshCoachSession(refreshToken) {
 
 export async function loadRemoteData() {
   const revision = sessionRevision
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings, professionalAffiliate] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -388,6 +388,11 @@ export async function loadRemoteData() {
     workoutProgressionDecisions: workoutProgressionDecisions.map(fromWorkoutProgressionDecisionRow),
     appAdminSettings,
   }
+}
+
+export async function loadRemoteCurrentProfessionalAffiliate() {
+  const result = await rpcRequest('coachfit_current_professional_is_affiliate', {})
+  return result === true
 }
 
 export async function loadRemoteAppAdminSettings() {

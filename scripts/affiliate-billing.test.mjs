@@ -57,3 +57,22 @@ test('Admin Master gerencia afiliados por e-mail sem conceder privilégio admini
   assert.match(api, /affiliate_professionals\?on_conflict=email/)
   assert.match(api, /affiliate_professionals\?id=eq\./)
 })
+
+
+test('profissional afiliado recebe acesso profissional sem mensalidade', async () => {
+  const sql = await readFile(new URL('../SUPABASE/migrations/20260924_affiliate_professional_access.sql', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(sql, /coachfit_current_professional_is_affiliate/i)
+  assert.match(sql, /auth\.uid\(\) is not null/i)
+  assert.match(sql, /auth\.jwt\(\) ->> 'email'/i)
+  assert.match(sql, /grant execute on function public\.coachfit_current_professional_is_affiliate\(\) to authenticated/i)
+  assert.match(api, /loadRemoteCurrentProfessionalAffiliate/)
+  assert.match(api, /professionalAffiliate/)
+  assert.match(app, /professionalAccessActive = coachSubscriptionActive \|\| professionalAffiliate/)
+  assert.match(app, /remoteData\.professionalAffiliate/)
+  assert.match(app, /setActiveViewSafely\('visao'\)/)
+  assert.match(app, /item\.id !== 'assinatura'/)
+  assert.match(app, /profissional volta ao plano normal/)
+})
