@@ -75,7 +75,7 @@ test('profissional afiliado recebe acesso profissional sem mensalidade', async (
   assert.match(app, /remoteData\.professionalAffiliate/)
   assert.match(app, /setActiveViewSafely\('visao'\)/)
   assert.match(app, /item\.id !== 'assinatura'/)
-  assert.match(app, /profissional volta ao plano normal/)
+  assert.match(app, /funil normal de assinatura/)
 })
 
 
@@ -95,7 +95,7 @@ test('dashboard de comissões usa somente mensalidades confirmadas', async () =>
   assert.match(api, /loadRemoteAffiliateCommissionDashboard/)
   assert.match(api, /get_affiliate_commission_dashboard/)
   assert.match(app, /Financeiro de afiliados/)
-  assert.match(app, /Receita e comissão, sem misturar valores pendentes/)
+  assert.match(app, /Receita e comissão sem misturar valores pendentes/)
   assert.match(app, /R\$ 25,00 de receita e R\$ 6,25 de comissão/)
   assert.match(app, /Exportar período/)
   assert.match(app, /Exportar vendas/)
@@ -157,7 +157,7 @@ test('Financeiro e Cadastro de Afiliados alternam como abas na mesma página', a
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
   assert.match(app, /function AffiliateAdminPage\(\)/)
-  assert.match(app, /const \[activeTab, setActiveTab\] = useState\('finance'\)/)
+  assert.match(app, /const \[activeTab, setActiveTab\] = useState\('registration'\)/)
   assert.match(app, /label: 'Financeiro de Afiliados'/)
   assert.match(app, /label: 'Cadastro de Afiliados'/)
   assert.match(app, /role="tab"/)
@@ -170,14 +170,45 @@ test('Financeiro e Cadastro de Afiliados alternam como abas na mesma página', a
 })
 
 
-test('layout das abas e cadastro de afiliados evita bordas duplicadas e desalinhamento', async () => {
+test('Gestão de Afiliados usa layout SaaS claro, responsivo e acessível', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
-  assert.match(app, /className="grid gap-1 rounded-xl bg-black\/15 p-1 sm:grid-cols-2"/)
-  assert.doesNotMatch(app, /grid gap-2 rounded-2xl border border-white\/10 bg-black\/20 p-1\.5 sm:grid-cols-2/)
-  assert.match(app, /ring-1 ring-inset ring-blue-300\/30/)
-  assert.match(app, /ring-1 ring-inset ring-emerald-300\/30/)
-  assert.match(app, /id="affiliate-professional-email"/)
-  assert.match(app, /sm:col-start-2 sm:row-start-2 sm:min-w-\[190px\]/)
-  assert.match(app, /h-11 w-full whitespace-nowrap rounded-xl bg-emerald-400/)
+  assert.match(app, /max-w-\[1200px\]/)
+  assert.match(app, /bg-\[#F8FAFA\]/)
+  assert.match(app, /Admin Master/)
+  assert.match(app, /Afiliados/)
+  assert.match(app, /Gestão de Afiliados/)
+  assert.match(app, /bg-\[#EAF7F4\]/)
+  assert.match(app, /border-\[#E3E8E8\]/)
+  assert.match(app, /focus-visible:ring-2/)
+  assert.match(app, /min-h-11/)
+})
+
+test('Cadastro de Afiliados mantém validações inline e fluxo pré-cadastro', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /Informe um e-mail válido/)
+  assert.match(app, /já está vinculado como afiliado/)
+  assert.match(app, /ainda não foi encontrado com este e-mail/)
+  assert.match(app, /Vínculo realizado com sucesso/)
+  assert.match(app, /Vinculando\.\.\./)
+  assert.match(app, /aria-invalid=/)
+  assert.match(app, /Nenhum afiliado vinculado ainda/)
+  assert.match(app, /Aguardando cadastro/)
+})
+
+test('Cadastro de Afiliados prepara tabela desktop e cards mobile sem alterar ações existentes', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /Nome do profissional/)
+  assert.match(app, /Categoria/)
+  assert.match(app, /Data do vínculo/)
+  assert.match(app, /Status/)
+  assert.match(app, /Visualizar detalhes/)
+  assert.match(app, /Desativar afiliado/)
+  assert.match(app, /Reativar afiliado/)
+  assert.match(app, /Desvincular/)
+  assert.match(app, /hidden overflow-visible md:block/)
+  assert.match(app, /md:hidden/)
+  assert.match(app, /Pendente/)
 })
