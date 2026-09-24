@@ -775,6 +775,7 @@ export async function loadRemoteStudentByInvite(code) {
     anamnesisRequired: payload.student.require_anamnesis !== false,
     anamnesisCompleted: Boolean(anamnesis?.id),
     financialAccessOpen: payload.financial_access_open === true,
+    appPaymentRequired: payload.app_payment_required === true,
     professionalType: payload.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     professionalName: payload.professional_name ?? '',
   }
