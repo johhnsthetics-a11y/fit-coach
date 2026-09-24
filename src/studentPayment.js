@@ -1,10 +1,15 @@
-export const DEFAULT_STUDENT_CHECKOUT_URL = 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664'
+export const DEFAULT_STUDENT_CHECKOUT_URL = 'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664'
 export const DEFAULT_PATIENT_CHECKOUT_URL = 'https://pagamento.coachfitpro.com.br/checkout/212922722:1?subscription=4665'
+const LEGACY_STUDENT_CHECKOUT_URL = 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664'
 
 export function resolveAudienceCheckoutUrl({ nutritionist = false, studentUrl = '', patientUrl = '' } = {}) {
-  return nutritionist
-    ? String(patientUrl || DEFAULT_PATIENT_CHECKOUT_URL).trim()
-    : String(studentUrl || DEFAULT_STUDENT_CHECKOUT_URL).trim()
+  const configuredUrl = String(nutritionist ? patientUrl : studentUrl).trim()
+
+  if (!nutritionist && configuredUrl === LEGACY_STUDENT_CHECKOUT_URL) {
+    return DEFAULT_STUDENT_CHECKOUT_URL
+  }
+
+  return configuredUrl || (nutritionist ? DEFAULT_PATIENT_CHECKOUT_URL : DEFAULT_STUDENT_CHECKOUT_URL)
 }
 
 export function buildStudentCheckoutUrl(baseUrl, checkoutToken) {

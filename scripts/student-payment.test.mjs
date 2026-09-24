@@ -13,8 +13,18 @@ test('link individual preserva o checkout e adiciona o token cid', () => {
 })
 
 test('treinador usa checkout de aluno e nutricionista usa checkout de paciente', () => {
-  assert.equal(resolveAudienceCheckoutUrl({ nutritionist: false }), 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664')
+  assert.equal(resolveAudienceCheckoutUrl({ nutritionist: false }), 'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664')
   assert.equal(resolveAudienceCheckoutUrl({ nutritionist: true }), 'https://pagamento.coachfitpro.com.br/checkout/212922722:1?subscription=4665')
+})
+
+test('checkout legado incompleto do aluno cai no checkout oficial corrigido', () => {
+  assert.equal(
+    resolveAudienceCheckoutUrl({
+      nutritionist: false,
+      studentUrl: 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664',
+    }),
+    'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664',
+  )
 })
 
 test('frontend cria a sessão no banco antes de montar o link', async () => {
