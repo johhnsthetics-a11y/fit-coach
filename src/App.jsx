@@ -1750,13 +1750,16 @@ function AppContent() {
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
   const visibleNavItems = useMemo(() => {
-    const scopedItems = nutritionistUser ? navItems
+    const professionalItems = professionalAffiliate
+      ? navItems.filter((item) => item.id !== 'assinatura')
+      : navItems
+    const scopedItems = nutritionistUser ? professionalItems
       .filter((item) => nutritionistViewIds.has(item.id))
-      .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : navItems
+      .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
     return masterAdmin
       ? [...scopedItems, { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' }]
       : scopedItems
-  }, [masterAdmin, nutritionistUser])
+  }, [masterAdmin, nutritionistUser, professionalAffiliate])
 
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
@@ -1798,10 +1801,14 @@ function AppContent() {
   }, [activeView])
 
   useEffect(() => {
+    if (professionalAffiliate && activeView === 'assinatura') {
+      setActiveView('visao')
+      return
+    }
     if (shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(activeView)) {
       setActiveView('assinatura')
     }
-  }, [shouldLockCoachTools, activeView])
+  }, [professionalAffiliate, shouldLockCoachTools, activeView])
 
   useEffect(() => {
     if (nutritionistUser && !nutritionistViewIds.has(activeView) && activeView !== 'admin-master') {
@@ -17796,7 +17803,7 @@ function AffiliateProfessionalsPanel() {
       await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
       setEmail('')
       await refreshAffiliates()
-      setMessage('Profissional vinculado. Alunos e pacientes dele passam a seguir o checkout Cartpanda.')
+      setMessage('Profissional vinculado. A conta profissional fica liberada sem mensalidade e os alunos/pacientes dele passam a seguir o checkout Cartpanda.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível vincular este profissional.')
     } finally {
@@ -17848,7 +17855,7 @@ function AffiliateProfessionalsPanel() {
       <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.065] p-4">
         <p className="text-sm font-black text-emerald-100">Quem deve cobrar aluno/paciente pelo app?</p>
         <p className="mt-2 text-xs leading-5 text-zinc-300">
-          Cadastre o e-mail do treinador ou nutricionista. Somente profissionais ativos nesta lista usam o funil de pagamento Cartpanda para seus alunos/pacientes. Quem não estiver cadastrado libera o acesso completo normalmente.
+          Cadastre o e-mail do treinador ou nutricionista afiliado. O profissional mantém o cadastro normal e escolhe sua área, mas recebe acesso completo ao painel sem mensalidade. Os alunos/pacientes dele seguem o funil Cartpanda. Profissionais fora desta lista continuam pagando a assinatura normal do Coach Fit Pro.
         </p>
       </div>
 
@@ -17879,7 +17886,7 @@ function AffiliateProfessionalsPanel() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-white">{affiliate.email}</p>
                 <p className={`mt-1 text-xs font-bold ${affiliate.active ? 'text-emerald-300' : 'text-zinc-500'}`}>
-                  {affiliate.active ? 'Ativo · alunos/pacientes pagam o app' : 'Inativo · acesso sem cobrança do app'}
+                  {affiliate.active ? 'Ativo · profissional liberado + alunos/pacientes pagam o app' : 'Inativo · profissional volta ao plano normal'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
