@@ -225,3 +225,15 @@ test('CTA de vínculo fica alinhado ao input e visualmente destacado', async () 
   assert.match(app, /font-bold text-white/)
   assert.match(app, /lg:min-w-\[205px\]/)
 })
+
+
+test('view legada CartPanda nao expoe eventos do webhook a clientes', async () => {
+  const migration = await readFile(new URL('../SUPABASE/migrations/20260925_cartpanda_webhook_view_security.sql', import.meta.url), 'utf8')
+  const setup = await readFile(new URL('../supabase_cartpanda_assinatura.sql', import.meta.url), 'utf8')
+
+  assert.match(migration, /security_invoker\s*=\s*true/i)
+  assert.match(migration, /revoke all on public\.cartpanda_webhook_events from anon, authenticated/i)
+  assert.match(migration, /revoke all on public\.payment_webhook_events from anon, authenticated/i)
+  assert.match(setup, /security_invoker\s*=\s*true/i)
+  assert.match(setup, /revoke all on public\.cartpanda_webhook_events from anon, authenticated/i)
+})
