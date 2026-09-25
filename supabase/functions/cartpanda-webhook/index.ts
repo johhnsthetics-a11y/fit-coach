@@ -222,6 +222,7 @@ async function saveWebhookEvent(event: {
   productName: string
   amountCents: number | null
   status: string
+  providerEventAt: string
   payload: Record<string, unknown>
   processed: boolean
 }) {
@@ -239,6 +240,7 @@ async function saveWebhookEvent(event: {
       product_name: event.productName,
       amount_cents: event.amountCents,
       subscription_status: event.status,
+      provider_event_at: event.providerEventAt,
       processed: event.processed,
       payload: event.payload,
     }),
@@ -250,90 +252,101 @@ async function findUserByEmail(email: string) {
   return Array.isArray(rows) ? rows[0] : null
 }
 
-async function findActiveAffiliateForCoach(coachId: string) {
-  if (!coachId) return null
-  const users = await supabaseFetch(
-    `/rest/v1/users?id=eq.${encodeURIComponent(coachId)}&select=id,email&limit=1`,
-  )
-  const user = Array.isArray(users) ? users[0] : null
-  const email = normalizeEmail(user?.email || '')
-  if (!email) return null
-
-  const affiliates = await supabaseFetch(
-    `/rest/v1/affiliate_professionals?email=eq.${encodeURIComponent(email)}&active=eq.true&select=id,email&limit=1`,
-  )
-  return Array.isArray(affiliates) ? affiliates[0] : null
-}
-
-async function recordAffiliateStudentPayment(input: {
+async function processStudentPaymentEvent(input: {
   eventId: string
-  coachId: string
-  studentId: string
-  affiliateEmail: string
+  eventType: string
+  correlationId: string
+  buyerEmail: string
   orderId: string
   subscriptionId: string
-  providerAmountCents: number | null
+  productId: string
+  productName: string
+  amountCents: number | null
+  status: string
+  confirmedPayment: boolean
+  providerEventAt: string
+  periodEndsAt: string | null
+  payload: Record<string, unknown>
 }) {
-  const paidAt = new Date()
-  const paymentMonth = `${paidAt.getUTCFullYear()}-${String(paidAt.getUTCMonth() + 1).padStart(2, '0')}-01`
-
-  await supabaseFetch('/rest/v1/affiliate_student_payments?on_conflict=webhook_event_id', {
+  return supabaseFetch('/rest/v1/rpc/process_cartpanda_student_payment_event', {
     method: 'POST',
-    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
     body: JSON.stringify({
-      webhook_event_id: input.eventId,
-      coach_id: input.coachId,
-      student_id: input.studentId,
-      affiliate_email: normalizeEmail(input.affiliateEmail),
-      status: 'paid',
-      paid_at: paidAt.toISOString(),
-      payment_month: paymentMonth,
-      revenue_cents: 2500,
-      provider_amount_cents: input.providerAmountCents,
-      commission_rate: 0.25,
-      commission_cents: 625,
-      provider: 'cartpanda',
-      provider_order_id: input.orderId || null,
-      provider_subscription_id: input.subscriptionId || null,
-      updated_at: paidAt.toISOString(),
+      p_event_id: input.eventId,
+      p_event_type: input.eventType,
+      p_correlation_id: input.correlationId || null,
+      p_buyer_email: input.buyerEmail || null,
+      p_provider_order_id: input.orderId || null,
+      p_provider_subscription_id: input.subscriptionId || null,
+      p_product_id: input.productId || null,
+      p_product_name: input.productName || null,
+      p_amount_cents: input.amountCents,
+      p_status: input.status,
+      p_confirmed_payment: input.confirmedPayment,
+      p_provider_event_at: input.providerEventAt,
+      p_period_ends_at: input.periodEndsAt,
+      p_payload: input.payload,
     }),
   })
 }
 
-async function reverseAffiliateStudentPayment(input: {
-  eventId: string
-  coachId: string
-  studentId: string
-  orderId: string
-  subscriptionId: string
-  status: 'refunded' | 'chargeback'
-}) {
-  const baseFilter = `coach_id=eq.${encodeURIComponent(input.coachId)}&student_id=eq.${encodeURIComponent(input.studentId)}&status=eq.paid`
-  const providerFilter = input.orderId
-    ? `provider_order_id=eq.${encodeURIComponent(input.orderId)}`
-    : input.subscriptionId
-      ? `provider_subscription_id=eq.${encodeURIComponent(input.subscriptionId)}`
-      : ''
+function resolveProviderEventAt(payload: Record<string, unknown>) {
+  const candidate = findString(payload, [
+    'event_created_at', 'created_at', 'datetime_full', 'paid_at', 'payment_date',
+    'processed_at', 'updated_at', 'timestamp',
+  ])
+  if (candidate) {
+    const numeric = Number(candidate)
+    if (Number.isFinite(numeric) && /^\d{10,13}$/.test(candidate)) {
+      const millis = candidate.length === 10 ? numeric * 1000 : numeric
+      const parsed = new Date(millis)
+      if (Number.isFinite(parsed.getTime())) return parsed.toISOString()
+    }
+    const parsed = new Date(candidate)
+    if (Number.isFinite(parsed.getTime())) return parsed.toISOString()
+  }
+  return new Date().toISOString()
+}
 
-  if (!providerFilter) return
+async function resolveWebhookEventId(payload: Record<string, unknown>) {
+  const explicit = findString(payload, ['event_id', 'webhook_id'])
+  if (explicit) return explicit
 
-  const rows = await supabaseFetch(
-    `/rest/v1/affiliate_student_payments?${baseFilter}&${providerFilter}&select=id&order=paid_at.desc&limit=1`,
-  )
-  const payment = Array.isArray(rows) ? rows[0] : null
-  if (!payment?.id) return
+  const sanitized = sanitizeWebhookPayloadForFingerprint(payload)
+  const canonical = stableStringify(sanitized)
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical))
+  const hex = Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+  return 'cartpanda:sha256:' + hex
+}
 
-  const now = new Date().toISOString()
-  await supabaseFetch(`/rest/v1/affiliate_student_payments?id=eq.${encodeURIComponent(payment.id)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      status: input.status,
-      reversal_event_id: input.eventId,
-      reversed_at: now,
-      updated_at: now,
-    }),
-  })
+function sanitizeWebhookPayloadForFingerprint(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeWebhookPayloadForFingerprint)
+  if (!value || typeof value !== 'object') return value
+  const source = value as Record<string, unknown>
+  const result: Record<string, unknown> = {}
+  for (const key of Object.keys(source).sort()) {
+    const normalized = normalizeKey(key)
+    if (['token', 'webhooktoken', 'secret', 'signature', 'authorization'].includes(normalized)) continue
+    result[key] = sanitizeWebhookPayloadForFingerprint(source[key])
+  }
+  return result
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']'
+  if (value && typeof value === 'object') {
+    const object = value as Record<string, unknown>
+    return '{' + Object.keys(object).sort()
+      .map((key) => JSON.stringify(key) + ':' + stableStringify(object[key]))
+      .join(',') + '}'
+  }
+  return JSON.stringify(value)
+}
+
+function shortEventRef(eventId: string) {
+  const normalized = String(eventId || '')
+  return normalized.length <= 16 ? normalized : normalized.slice(-16)
 }
 
 async function findStudentCheckoutSession(checkoutToken: string) {
@@ -352,51 +365,6 @@ async function findStudentCheckoutSessionByProviderSubscription(subscriptionId: 
   return Array.isArray(rows) ? rows[0] : null
 }
 
-async function updateStudentCheckoutSession(input: {
-  session: { checkout_token: string; coach_id: string; student_id: string }
-  status: string
-  buyerEmail: string
-  orderId: string
-  subscriptionId: string
-  amountCents: number | null
-  payload: Record<string, unknown>
-}) {
-  const now = new Date().toISOString()
-  const studentState = await findStudentSubscriptionState(input.session.student_id, input.session.coach_id)
-  const periodEndsAt = input.status === 'active' ? resolveStudentPeriodEnd(input.payload, now) : studentState?.app_subscription_expires_at || null
-  await supabaseFetch(`/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(input.session.checkout_token)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      status: input.status,
-      buyer_email: input.buyerEmail || null,
-      provider_order_id: input.orderId || null,
-      provider_subscription_id: input.subscriptionId || null,
-      amount_cents: input.amountCents,
-      paid_at: input.status === 'active' ? now : null,
-      updated_at: now,
-    }),
-  })
-
-  await supabaseFetch(`/rest/v1/students?id=eq.${encodeURIComponent(input.session.student_id)}&coach_id=eq.${encodeURIComponent(input.session.coach_id)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      app_payment_status: input.status,
-      app_subscription_started_at: input.status === 'active' ? studentState?.app_subscription_started_at || now : studentState?.app_subscription_started_at || null,
-      app_subscription_expires_at: periodEndsAt,
-      updated_at: now,
-    }),
-  })
-}
-
-async function findStudentSubscriptionState(studentId: string, coachId: string) {
-  const rows = await supabaseFetch(
-    `/rest/v1/students?id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(coachId)}&select=app_subscription_started_at,app_subscription_expires_at&limit=1`,
-  )
-  return Array.isArray(rows) ? rows[0] : null
-}
-
 async function findProcessedWebhookEvent(eventId: string) {
   if (!eventId) return false
   const rows = await supabaseFetch(
@@ -405,16 +373,16 @@ async function findProcessedWebhookEvent(eventId: string) {
   return Array.isArray(rows) && rows.length > 0
 }
 
-function resolveStudentPeriodEnd(payload: Record<string, unknown>, nowIso: string) {
+function resolveStudentPeriodEnd(payload: Record<string, unknown>, eventIso: string) {
   const providerDate = findString(payload, [
     'current_period_ends_at', 'current_period_end', 'next_billing_at', 'next_charge_at',
     'subscription_expires_at', 'expires_at',
   ])
   const parsedProviderDate = Date.parse(providerDate)
-  if (Number.isFinite(parsedProviderDate) && parsedProviderDate > Date.parse(nowIso)) {
+  if (Number.isFinite(parsedProviderDate) && parsedProviderDate > Date.parse(eventIso)) {
     return new Date(parsedProviderDate).toISOString()
   }
-  return addCalendarMonths(new Date(nowIso), 1).toISOString()
+  return addCalendarMonths(new Date(eventIso), 1).toISOString()
 }
 
 function addCalendarMonths(value: Date, months: number) {
