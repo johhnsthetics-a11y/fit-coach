@@ -38,6 +38,7 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
   const streamRef = useRef(null)
   const chunksRef = useRef([])
   const pointerRef = useRef(null)
+  const pointerCleanupRef = useRef(null)
   const timerRef = useRef(0)
   const startedAtRef = useRef(0)
   const pendingRef = useRef(false)
@@ -50,6 +51,11 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     timerRef.current = 0
   }
 
+  function detachPointerListeners() {
+    try { pointerCleanupRef.current?.() } catch {}
+    pointerCleanupRef.current = null
+  }
+
   function updateRecording(nextValue) {
     setRecording(nextValue)
     onRecordingChange?.(nextValue)
@@ -57,6 +63,7 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
 
   function resetUi() {
     clearTimer()
+    detachPointerListeners()
     updateRecording(false)
     setElapsedMs(0)
     setGesture('hold')
@@ -67,6 +74,7 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     canceledRef.current = true
     deferredStopRef.current = 'cancel'
     clearTimer()
+    detachPointerListeners()
     try {
       if (recorderRef.current?.state && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
     } catch {}
@@ -190,40 +198,82 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     }
   }
 
-  function handlePointerDown(event) {
-    if (!['touch', 'pen'].includes(event.pointerType)) return
-    event.preventDefault()
-    ignoreClickRef.current = true
-    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    startRecording()
+  function finishTouchGesture(event, cancel = false) {
+    const activePointer = pointerRef.current
+    if (!activePointer || activePointer.id !== event.pointerId) return
+
+    event.preventDefault?.()
+    const finalGesture = cancel
+      ? 'cancel'
+      : classifyChatAudioGesture({
+          dx: Number(event.clientX || activePointer.lastX || activePointer.x) - activePointer.x,
+          dy: Number(event.clientY || activePointer.lastY || activePointer.y) - activePointer.y,
+        })
+    const shouldCancel = cancel || activePointer.cancelIntent || finalGesture === 'cancel'
+
+    pointerRef.current = null
+    detachPointerListeners()
+    stopRecording(shouldCancel)
+    window.setTimeout(() => { ignoreClickRef.current = false }, 0)
   }
 
-  function handlePointerMove(event) {
-    const start = pointerRef.current
-    if (!start || start.id !== event.pointerId) return
-    const nextGesture = classifyChatAudioGesture({ dx: event.clientX - start.x, dy: event.clientY - start.y })
-    setGesture(nextGesture)
-  }
+  function bindTouchGesture(pointerId) {
+    detachPointerListeners()
 
-  function handlePointerUp(event) {
-    const start = pointerRef.current
-    if (!start || start.id !== event.pointerId) {
-      window.setTimeout(() => { ignoreClickRef.current = false }, 0)
-      return
+    const handleWindowPointerMove = (event) => {
+      const activePointer = pointerRef.current
+      if (!activePointer || activePointer.id !== pointerId || event.pointerId !== pointerId) return
+
+      event.preventDefault?.()
+      activePointer.lastX = event.clientX
+      activePointer.lastY = event.clientY
+      const nextGesture = classifyChatAudioGesture({
+        dx: event.clientX - activePointer.x,
+        dy: event.clientY - activePointer.y,
+      })
+
+      if (nextGesture === 'cancel') activePointer.cancelIntent = true
+      setGesture(activePointer.cancelIntent ? 'cancel' : 'hold')
     }
 
-    event.preventDefault()
-    const nextGesture = classifyChatAudioGesture({ dx: event.clientX - start.x, dy: event.clientY - start.y })
-    pointerRef.current = null
-    stopRecording(nextGesture === 'cancel')
-    window.setTimeout(() => { ignoreClickRef.current = false }, 0)
+    const handleWindowPointerUp = (event) => {
+      if (event.pointerId !== pointerId) return
+      finishTouchGesture(event, false)
+    }
+
+    const handleWindowPointerCancel = (event) => {
+      if (event.pointerId !== pointerId) return
+      finishTouchGesture(event, true)
+    }
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false })
+    window.addEventListener('pointerup', handleWindowPointerUp, { passive: false })
+    window.addEventListener('pointercancel', handleWindowPointerCancel, { passive: false })
+
+    pointerCleanupRef.current = () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove)
+      window.removeEventListener('pointerup', handleWindowPointerUp)
+      window.removeEventListener('pointercancel', handleWindowPointerCancel)
+    }
   }
 
-  function handlePointerCancel() {
-    pointerRef.current = null
-    stopRecording(true)
-    window.setTimeout(() => { ignoreClickRef.current = false }, 0)
+  function handlePointerDown(event) {
+    if (!['touch', 'pen'].includes(event.pointerType) || disabled) return
+
+    event.preventDefault()
+    ignoreClickRef.current = true
+    pointerRef.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      cancelIntent: false,
+    }
+
+    try { event.currentTarget.setPointerCapture?.(event.pointerId) } catch {}
+    bindTouchGesture(event.pointerId)
+    startRecording()
   }
 
   function handleClick(event) {
@@ -235,37 +285,36 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     else startRecording()
   }
 
-  if (recording || pendingRef.current) {
-    return (
-      <div className={`chat-recording-state chat-recording-${gesture}`} role="status" aria-label="Gravação de áudio em andamento">
-        <span className="chat-recording-dot" aria-hidden="true" />
-        <strong>{formatElapsed(elapsedMs)}</strong>
-        <RecordingWaveform />
-        <span className="chat-recording-hint">
-          {gesture === 'cancel' ? 'Solte para cancelar' : 'Deslize para a esquerda para cancelar'}
-        </span>
-        <span className="chat-recording-actions">
-          <button type="button" onClick={() => stopRecording(true)} aria-label="Cancelar gravação">Cancelar</button>
-          <button type="button" className="chat-recording-finish" onClick={() => stopRecording(false)} aria-label="Finalizar e enviar gravação">Enviar</button>
-        </span>
-      </div>
-    )
-  }
+  const active = recording || pendingRef.current
 
   return (
-    <button
-      type="button"
-      className="chat-record-button"
-      aria-label="Gravar áudio"
-      title="Segure para gravar áudio"
-      disabled={disabled}
-      onClick={handleClick}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-    >
-      <IconSlot Icon={Icon} name="mic" fallback="●" />
-    </button>
+    <div className={`chat-audio-recorder-shell ${active ? 'is-recording' : ''}`}>
+      <button
+        type="button"
+        className={`chat-record-button ${active ? 'is-recording' : ''}`}
+        aria-label="Gravar áudio"
+        title="Segure para gravar áudio"
+        disabled={disabled}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+      >
+        <IconSlot Icon={Icon} name="mic" fallback="●" />
+      </button>
+
+      {active ? (
+        <div className={`chat-recording-state chat-recording-${gesture}`} role="status" aria-label="Gravação de áudio em andamento">
+          <span className="chat-recording-dot" aria-hidden="true" />
+          <strong>{formatElapsed(elapsedMs)}</strong>
+          <RecordingWaveform />
+          <span className="chat-recording-hint">
+            {gesture === 'cancel' ? 'Solte para cancelar' : 'Deslize para a esquerda para cancelar'}
+          </span>
+          <span className="chat-recording-actions">
+            <button type="button" onClick={() => stopRecording(true)} aria-label="Cancelar gravação">Cancelar</button>
+            <button type="button" className="chat-recording-finish" onClick={() => stopRecording(false)} aria-label="Finalizar e enviar gravação">Enviar</button>
+          </span>
+        </div>
+      ) : null}
+    </div>
   )
 }

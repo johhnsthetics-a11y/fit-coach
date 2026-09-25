@@ -1434,3 +1434,48 @@ html[data-theme="dark"] .chat-connection-state,
     animation: none;
   }
 }
+
+
+/* Stable mobile voice-note pointer control */
+.chat-audio-recorder-shell {
+  display: contents;
+}
+
+.chat-audio-recorder-shell.is-recording {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chat-audio-recorder-shell.is-recording .chat-recording-state {
+  order: 1;
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.chat-audio-recorder-shell.is-recording .chat-record-button {
+  order: 2;
+  flex: 0 0 44px;
+  border-color: var(--chat-accent);
+  background: var(--chat-accent);
+  color: #ffffff;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (pointer: coarse) {
+  .chat-audio-recorder-shell.is-recording .chat-record-button {
+    position: relative;
+    z-index: 3;
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--chat-accent) 12%, transparent);
+  }
+
+  .chat-audio-recorder-shell.is-recording .chat-recording-state {
+    pointer-events: none;
+  }
+}

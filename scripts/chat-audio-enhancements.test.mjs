@@ -100,11 +100,14 @@ test('cleanup do microfone encerra todas as tracks mesmo se uma falhar', () => {
   assert.deepEqual(stopped, ['a', 'b', 'c'])
 })
 
-test('áudio React limpa o microfone, envia ao soltar e acompanha o teclado virtual', () => {
+test('áudio React mantém controle do toque até soltar em qualquer ponto da tela', () => {
   assert.match(recorderSource, /stopChatAudioStream/)
   assert.match(recorderSource, /useEffect\(\(\) => \(\) =>/)
-  assert.match(recorderSource, /onPointerCancel/)
-  assert.match(recorderSource, /stopRecording\(nextGesture === 'cancel'\)/)
+  assert.match(recorderSource, /window\.addEventListener\('pointermove'/)
+  assert.match(recorderSource, /window\.addEventListener\('pointerup'/)
+  assert.match(recorderSource, /window\.addEventListener\('pointercancel'/)
+  assert.match(recorderSource, /finishTouchGesture\(event, false\)/)
+  assert.match(recorderSource, /finishTouchGesture\(event, true\)/)
   assert.match(recorderSource, /MIN_RECORDING_MS/)
   assert.match(recorderSource, /MIN_AUDIO_BYTES/)
   assert.match(recorderSource, /requestData/)
@@ -194,4 +197,20 @@ test('anexos do chat usam URL pública estável do bucket que já é público e 
   assert.match(apiSource, /storage\/v1\/object\/public/)
   assert.match(apiSource, /normalizeMessageAttachmentMimeType/)
   assert.match(apiSource, /'Content-Type': contentType/)
+})
+
+
+test('botão do microfone permanece montado durante a gravação mobile', () => {
+  assert.match(recorderSource, /const active = recording \|\| pendingRef\.current/)
+  assert.match(recorderSource, /chat-audio-recorder-shell/)
+  assert.match(recorderSource, /<button[\s\S]*?className=\{\`chat-record-button/)
+  assert.doesNotMatch(recorderSource, /if \(recording \|\| pendingRef\.current\) \{[\s\S]*?return \(/)
+  assert.match(audioCss, /\.chat-audio-recorder-shell\.is-recording/)
+  assert.match(audioCss, /touch-action:\s*none/)
+})
+
+test('deslizar para a esquerda cria intenção de cancelamento persistente até soltar', () => {
+  assert.match(recorderSource, /cancelIntent:\s*false/)
+  assert.match(recorderSource, /if \(nextGesture === 'cancel'\) activePointer\.cancelIntent = true/)
+  assert.match(recorderSource, /activePointer\.cancelIntent \|\| finalGesture === 'cancel'/)
 })
