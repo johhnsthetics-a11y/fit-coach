@@ -11891,12 +11891,12 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
+export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
   const initialExecution = preview ? null : loadStudentWorkoutExecution(student?.id, workout?.id)
-  const [activeDayIndex, setActiveDayIndex] = useState(initialExecution?.activeDayIndex ?? Math.max(0, Number(dayIndex) || 0))
+  const [activeDayIndex, setActiveDayIndex] = useState(initialExecution?.activeDayIndex ?? (preview ? Math.max(0, Number(dayIndex) || 0) : -1))
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(initialExecution?.activeExerciseIndex ?? 0)
   const [setLogs, setSetLogs] = useState(initialExecution?.setLogs || {})
   const [effort, setEffort] = useState(initialExecution?.effort || 'Moderado')
@@ -11918,7 +11918,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     const saved = preview ? null : normalizeWorkoutSession(loadStudentWorkoutExecution(student?.id, workout?.id))
     previousExecutionKeyRef.current = executionStorageKey
     skipNextPersistRef.current = true
-    setActiveDayIndex(saved?.activeDayIndex ?? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)))
+    setActiveDayIndex(saved?.activeDayIndex ?? (preview ? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)) : -1))
     setActiveExerciseIndex(saved?.activeExerciseIndex ?? 0)
     setSetLogs(saved?.setLogs || {})
     setEffort(saved?.effort || 'Moderado')
@@ -11966,6 +11966,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
 
   useEffect(() => {
     if (preview || !student?.id || !workout?.id) return
+    if (activeDayIndex < 0) return
     if (skipNextPersistRef.current) {
       skipNextPersistRef.current = false
       return
@@ -12007,14 +12008,14 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
 
   if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
 
+  const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length)
+
   const safeDayIndex = Math.min(Math.max(activeDayIndex, 0), Math.max(days.length - 1, 0))
   const activeDay = days[safeDayIndex]
   const exercises = getWorkoutExercisesArray(activeDay?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const safeExerciseIndex = Math.min(Math.max(activeExerciseIndex, 0), Math.max(exercises.length - 1, 0))
   const exercise = exercises[safeExerciseIndex]
-  const exercisePositions = days.flatMap((day, currentDayIndex) => (
-    getWorkoutExercisesArray(day.exercises).map((_, currentExerciseIndex) => ({ dayIndex: currentDayIndex, exerciseIndex: currentExerciseIndex }))
-  ))
+  const exercisePositions = exercises.map((_, currentExerciseIndex) => ({ dayIndex: safeDayIndex, exerciseIndex: currentExerciseIndex }))
   const currentPositionIndex = exercisePositions.findIndex((position) => position.dayIndex === safeDayIndex && position.exerciseIndex === safeExerciseIndex)
   const hasPreviousExercise = currentPositionIndex > 0
   const hasNextExercise = currentPositionIndex >= 0 && currentPositionIndex < exercisePositions.length - 1
@@ -12033,6 +12034,34 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     }
   })
 
+  const exerciseStates = exercises.map((currentExercise, currentExerciseIndex) => {
+    const setCount = Math.max(1, Number.parseInt(currentExercise?.sets, 10) || 1)
+    let completed = 0
+    for (let setNumber = 1; setNumber <= setCount; setNumber += 1) {
+      const key = safeDayIndex + '-' + currentExerciseIndex + '-' + setNumber
+      if (setLogs[key]?.completed) completed += 1
+    }
+    return {
+      setCount,
+      completedSets: completed,
+      status: completed === setCount ? 'completed' : completed > 0 ? 'in-progress' : 'not-started',
+    }
+  })
+  const completedExercises = exerciseStates.filter((item) => item.status === 'completed').length
+  const remainingExercises = Math.max(0, exercises.length - completedExercises)
+  const currentExerciseState = exerciseStates[safeExerciseIndex] || { status: 'not-started', setCount: 0, completedSets: 0 }
+  const currentExerciseCompleted = currentExerciseState.status === 'completed'
+  const dayTotalSets = exerciseStates.reduce((sum, item) => sum + item.setCount, 0)
+  const dayCompletedSets = exerciseStates.reduce((sum, item) => sum + item.completedSets, 0)
+  const dayProgress = exercises.length ? Math.round((completedExercises / exercises.length) * 100) : 0
+  const dayComplete = exercises.length > 0 && completedExercises === exercises.length
+  const currentExerciseStatusLabel = currentExerciseState.status === 'completed'
+    ? 'Concluído'
+    : currentExerciseState.status === 'in-progress'
+      ? 'Em andamento'
+      : 'Não iniciado'
+
+
   function updateSet(setItem, field, value) {
     setSetLogs((current) => ({
       ...current,
@@ -12050,6 +12079,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   }
 
   function selectDay(nextDayIndex) {
+    if (nextDayIndex !== activeDayIndex) onSelectDay?.(nextDayIndex)
     setActiveDayIndex(nextDayIndex)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
@@ -12064,6 +12094,40 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     setActiveExerciseIndex(nextPosition.exerciseIndex)
     setRestRemaining(0)
   }
+
+  function scrollWorkoutTarget(id) {
+    if (typeof window === 'undefined') return
+    window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
+  function completeExerciseAndAdvance() {
+    if (!currentExerciseCompleted) {
+      setError('Conclua todas as séries deste exercício antes de avançar.')
+      return
+    }
+    setError('')
+    if (hasNextExercise) {
+      moveExercise(1)
+      scrollWorkoutTarget('student-current-exercise')
+      return
+    }
+    if (timerStartedAt && onToggleTimer) onToggleTimer()
+    if (canFinish) {
+      scrollWorkoutTarget('student-workout-finish')
+      return
+    }
+    scrollWorkoutTarget('student-workout-day-selector')
+  }
+
+  function returnToDaySelection() {
+    if (timerStartedAt && onToggleTimer) onToggleTimer()
+    onSelectDay?.(-1)
+    setActiveDayIndex(-1)
+    setActiveExerciseIndex(0)
+    setRestRemaining(0)
+    setError('')
+  }
+
 
   async function finishWorkout() {
     if (submissionLockRef.current || saving || completedLog) return
@@ -12120,7 +12184,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   }
 
   function startNewWorkoutSession() {
-    setActiveDayIndex(0)
+    setActiveDayIndex(preview ? 0 : -1)
+    onSelectDay?.(preview ? 0 : -1)
     setActiveExerciseIndex(0)
     setSetLogs({})
     setEffort('Moderado')
@@ -12133,91 +12198,194 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   }
 
   return (
-    <section className={`mobile-workout-student-experience-v2 ${compact ? 'is-compact' : ''}`} data-preview={preview ? 'true' : 'false'}>
+    <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
       <header className="mobile-workout-student-experience-head-v2">
         <div>
-          <p>{preview ? 'Simulação do aluno' : 'Treino em execução'}</p>
+          <p>{daySelected ? (preview ? 'Simulação do aluno' : 'Treino em execução') : 'Escolha o treino de hoje'}</p>
           <h3>{workout.title || 'Treino do dia'}</h3>
-          <span>{workout.focus || activeDay?.focus || student?.goal || 'Plano personalizado'}</span>
+          <span>{daySelected ? (workout.focus || activeDay?.focus || student?.goal || 'Plano personalizado') : 'Selecione primeiro o dia que você deseja executar.'}</span>
         </div>
         <strong>+80 XP</strong>
       </header>
 
-      {days.length > 1 ? (
-        <nav className="mobile-workout-student-day-tabs-v2" aria-label="Dias do treino">
-          {days.map((day, index) => (
-            <button key={day.id || `${day.day}-${index}`} type="button" className={index === safeDayIndex ? 'is-active' : ''} onClick={() => selectDay(index)}>
-              <span>Dia {index + 1}</span>
-              <strong>{day.day}</strong>
-            </button>
-          ))}
+      <section id="student-workout-day-selector" className={'mobile-workout-day-selection-v3 ' + (daySelected ? 'has-selection' : '')}>
+        <div className="mobile-workout-day-selection-copy-v3">
+          <span>1. Escolha o dia</span>
+          <strong>Qual treino você vai executar?</strong>
+          <p>Os exercícios e o cronômetro aparecem somente depois da sua escolha.</p>
+        </div>
+        <nav className="mobile-workout-student-day-tabs-v2 mobile-workout-day-tabs-v3" aria-label="Dias do treino">
+          {days.map((day, index) => {
+            const dayExerciseCount = getWorkoutExercisesArray(day.exercises).length
+            return (
+              <button key={day.id || (day.day + '-' + index)} type="button" className={index === activeDayIndex ? 'is-active' : ''} onClick={() => selectDay(index)}>
+                <span>Dia {index + 1}</span>
+                <strong>{day.day}</strong>
+                <small>{day.focus || workout.focus || 'Treino personalizado'}</small>
+                <em>{dayExerciseCount ? formatCount(dayExerciseCount, 'exercício') : 'Descanso'}</em>
+              </button>
+            )
+          })}
         </nav>
-      ) : null}
+      </section>
 
-      <div className="mobile-workout-student-progress-v2">
-        <div><span>Progresso do treino</span><strong>{completedSets}/{totalSets} séries</strong></div>
-        <progress value={completedSets} max={Math.max(totalSets, 1)} />
-        <small>{progress}% concluído{!preview ? ` · ${syncState === 'loading' ? 'Recuperando progresso' : syncState === 'syncing' ? 'Sincronizando' : syncState === 'error' ? 'Salvo neste aparelho' : 'Progresso salvo'}` : ''}</small>
-        {!preview && syncState === 'error' ? <button type="button" onClick={() => window.location.reload()}>Reconectar e recuperar progresso</button> : null}
-      </div>
-
-      {exercise ? (
-        <article className="mobile-workout-student-current-exercise-v2">
-          <div className="mobile-workout-student-video-v2">
-            <ExerciseMedia exercise={exercise} compact />
-            <span>Exercício {safeExerciseIndex + 1} de {exercises.length}</span>
+      {!daySelected ? (
+        <div className="mobile-workout-awaiting-day-v3">
+          <span className="mobile-workout-awaiting-icon-v3"><NavIcon name="calendar" className="h-6 w-6" /></span>
+          <div>
+            <strong>Selecione um dia para começar</strong>
+            <p>Depois disso você verá o tempo de treino, o exercício atual e o caminho até a finalização.</p>
           </div>
-          <div className="mobile-workout-student-current-copy-v2">
-            <div>
-              <p>{activeDay?.day || `Dia ${safeDayIndex + 1}`} · {activeDay?.focus || 'Treino do dia'}</p>
-              <h4>{exercise.name}</h4>
-              <span>{exercise.muscleGroup || exercise.group || 'Movimento personalizado'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</span>
-            </div>
-            <div className="mobile-workout-student-metrics-v2">
-              <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-              <ExerciseMetric label="Repetições" value={exercise.reps || '-'} />
-              <ExerciseMetric label="Carga alvo" value={exercise.load || '-'} />
-              <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
-            </div>
-            <div className="mobile-workout-student-instruction-v2">
-              <strong>Como executar</strong>
-              <p>{exercise.cues || exercise.instructions || 'Faça o movimento com controle, respeitando a amplitude orientada pelo treinador.'}</p>
-              <small>{getExerciseCommonMistake(exercise)}</small>
-            </div>
-          </div>
-
-          <div className="mobile-workout-student-series-v2">
-            <div className="mobile-workout-student-series-head-v2">
-              <strong>Registrar séries</strong>
-              {restRemaining ? <span>Descanso: {restRemaining}s</span> : <span>{exercise.rest || 'Descanso livre'}</span>}
-            </div>
-            {currentSets.map((setItem) => (
-              <div key={setItem.key} className={setItem.completed ? 'is-complete' : ''}>
-                <strong>Série {setItem.number}</strong>
-                <label>Carga (kg)<input inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} /></label>
-                <label>Repetições<input inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} /></label>
-                <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+        </div>
+      ) : (
+        <>
+          {exercises.length ? (
+            <div className="mobile-workout-timer-v3" aria-label="Tempo de treino">
+              <div>
+                <span>2. Tempo de treino</span>
+                <strong>{formatWorkoutTimer(durationSeconds)}</strong>
+                <small>{timerStartedAt ? 'Cronômetro em andamento' : 'Pronto para iniciar quando você estiver preparado'}</small>
               </div>
-            ))}
-          </div>
+              {onToggleTimer ? (
+                <button
+                  type="button"
+                  aria-label={timerStartedAt ? 'Pausar treino' : 'Iniciar treino'}
+                  onClick={onToggleTimer}
+                  disabled={Boolean(completedLog)}
+                  className={timerStartedAt ? 'is-running' : ''}
+                >
+                  {timerStartedAt ? 'Pausar treino' : '▶ Iniciar treino'}
+                </button>
+              ) : (
+                <small className="mobile-workout-timer-preview-v3">Cronômetro disponível na conta do aluno</small>
+              )}
+            </div>
+          ) : null}
 
-          <div className="mobile-workout-student-navigation-v2">
-            <button type="button" onClick={() => moveExercise(-1)} disabled={!hasPreviousExercise}>Anterior</button>
-            <div><span>Exercício atual</span><strong>{Math.max(currentPositionIndex + 1, 0)}/{exercisePositions.length}</strong></div>
-            <button type="button" onClick={() => moveExercise(1)} disabled={!hasNextExercise}>Próximo exercício</button>
-          </div>
-        </article>
-      ) : <Empty text="Este dia ainda não possui exercícios cadastrados." />}
+          {exercises.length ? (
+            <div className="mobile-workout-exercise-progress-v3">
+              <div className="mobile-workout-exercise-progress-head-v3">
+                <div>
+                  <span>3. Exercício atual</span>
+                  <strong>Exercício {safeExerciseIndex + 1} de {exercises.length}</strong>
+                </div>
+                <small>{completedExercises} concluídos · {remainingExercises} restantes</small>
+              </div>
+              <div
+                className="mobile-workout-exercise-dots-v3"
+                role="progressbar"
+                aria-label="Progresso dos exercícios"
+                aria-valuemin="0"
+                aria-valuemax={exercises.length}
+                aria-valuenow={completedExercises}
+              >
+                {exerciseStates.map((state, index) => (
+                  <span
+                    key={index}
+                    className={(state.status === 'completed' ? 'is-complete ' : '') + (index === safeExerciseIndex ? 'is-current' : '')}
+                    title={'Exercício ' + (index + 1) + ': ' + (state.status === 'completed' ? 'concluído' : index === safeExerciseIndex ? 'atual' : 'pendente')}
+                  />
+                ))}
+              </div>
+              <div className="mobile-workout-student-progress-v2">
+                <div><span>Progresso do dia</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
+                <progress value={dayCompletedSets} max={Math.max(dayTotalSets, 1)} />
+                <small>{dayProgress}% dos exercícios concluídos{!preview ? ' · ' + (syncState === 'loading' ? 'Recuperando progresso' : syncState === 'syncing' ? 'Sincronizando' : syncState === 'error' ? 'Salvo neste aparelho' : 'Progresso salvo') : ''}</small>
+                {!preview && syncState === 'error' ? <button type="button" onClick={() => window.location.reload()}>Reconectar e recuperar progresso</button> : null}
+              </div>
+            </div>
+          ) : null}
 
-      <footer className="mobile-workout-student-finish-v2">
-        <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
-        <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
-        <button type="button" disabled={saving || !totalSets || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : completedLog ? 'Treino já concluído' : 'Finalizar treino'}</button>
-        {totalSets && !canFinish && !completedLog ? <small>Conclua as {totalSets - completedSets} séries restantes para finalizar.</small> : null}
-        {message ? <div className="mobile-workout-student-success-v2"><strong>Treino concluído</strong><span>{message}</span></div> : null}
-        {completedLog && !preview ? <button type="button" className="mobile-workout-student-new-session-v2" onClick={startNewWorkoutSession}>Iniciar nova sessão</button> : null}
-        {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
-      </footer>
+          {exercise ? (
+            <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2">
+              <div className="mobile-workout-student-video-v2">
+                <ExerciseMedia exercise={exercise} compact />
+                <div className="mobile-workout-exercise-media-meta-v3">
+                  <span>Exercício {safeExerciseIndex + 1} de {exercises.length}</span>
+                  <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
+                </div>
+              </div>
+
+              <div className="mobile-workout-student-current-copy-v2">
+                <div>
+                  <p>{activeDay?.day || ('Dia ' + (safeDayIndex + 1))} · {activeDay?.focus || 'Treino do dia'}</p>
+                  <h4>{exercise.name}</h4>
+                  <span>{exercise.muscleGroup || exercise.group || 'Movimento personalizado'}{exercise.equipment ? ' · ' + exercise.equipment : ''}</span>
+                </div>
+                <div className="mobile-workout-student-metrics-v2">
+                  <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+                  <ExerciseMetric label="Repetições" value={exercise.reps || '-'} />
+                  <ExerciseMetric label="Carga alvo" value={exercise.load || '-'} />
+                  <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
+                </div>
+                <div className="mobile-workout-student-instruction-v2">
+                  <strong>Como executar</strong>
+                  <p>{exercise.cues || exercise.instructions || 'Faça o movimento com controle, respeitando a amplitude orientada pelo treinador.'}</p>
+                  <small>{getExerciseCommonMistake(exercise)}</small>
+                  {exercise.notes ? <p className="mobile-workout-coach-note-v3"><strong>Observação do treinador:</strong> {exercise.notes}</p> : null}
+                </div>
+              </div>
+
+              <div className="mobile-workout-student-series-v2">
+                <div className="mobile-workout-student-series-head-v2">
+                  <strong>Registrar séries</strong>
+                  {restRemaining ? <span>Descanso: {restRemaining}s</span> : <span>{exercise.rest || 'Descanso livre'}</span>}
+                </div>
+                {currentSets.map((setItem) => (
+                  <div key={setItem.key} className={setItem.completed ? 'is-complete' : ''}>
+                    <strong>Série {setItem.number}</strong>
+                    <label>Carga (kg)<input inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} /></label>
+                    <label>Repetições<input inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} /></label>
+                    <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mobile-workout-student-navigation-v3">
+                <button type="button" className="is-secondary" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }} disabled={!hasPreviousExercise}>
+                  ← Exercício anterior
+                </button>
+                <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>
+                  {hasNextExercise ? 'Concluir exercício e ir para o próximo →' : canFinish ? 'Ir para finalização do treino ↓' : 'Concluir dia e escolher outro →'}
+                </button>
+              </div>
+              {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">Conclua todas as séries deste exercício para liberar o avanço.</small> : null}
+            </article>
+          ) : (
+            <div className="mobile-workout-rest-day-v3">
+              <span><NavIcon name="calendar" className="h-6 w-6" /></span>
+              <div>
+                <strong>Dia de descanso</strong>
+                <p>Este dia não possui exercícios cadastrados. Use a recuperação como parte do seu plano.</p>
+              </div>
+              <button type="button" onClick={returnToDaySelection}>Escolher outro dia</button>
+            </div>
+          )}
+
+          {dayComplete && !canFinish && !completedLog ? (
+            <div className="mobile-workout-day-complete-v3">
+              <div>
+                <span>Dia concluído</span>
+                <strong>{activeDay?.day || 'Treino do dia'} finalizado</strong>
+                <p>Todos os exercícios deste dia estão concluídos. Escolha outro dia para continuar a rotina.</p>
+              </div>
+              <button type="button" onClick={returnToDaySelection}>Escolher outro dia →</button>
+            </div>
+          ) : null}
+
+          {exercises.length ? (
+            <footer id="student-workout-finish" className="mobile-workout-student-finish-v2">
+              <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
+              <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
+              <button type="button" disabled={saving || !totalSets || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : completedLog ? 'Treino já concluído' : 'Finalizar treino'}</button>
+              {totalSets && !canFinish && !completedLog ? <small>Conclua as {totalSets - completedSets} séries restantes do treino para finalizar.</small> : null}
+              {message ? <div className="mobile-workout-student-success-v2"><strong>Treino concluído</strong><span>{message}</span></div> : null}
+              {completedLog && !preview ? <button type="button" className="mobile-workout-student-new-session-v2" onClick={startNewWorkoutSession}>Iniciar nova sessão</button> : null}
+              {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
+            </footer>
+          ) : null}
+        </>
+      )}
     </section>
   )
 }
@@ -15504,16 +15672,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             body={`Hora de treinar, ${student.name}. Abra o Coach Fit Pro e siga o plano de hoje.`}
             action="Ativar lembrete"
           />
-          <div className="mb-4 overflow-hidden rounded-md border border-emerald-300/25 bg-emerald-400/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Tempo de treino</p>
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <p className="font-mono text-4xl font-black text-white">{formatWorkoutTimer(workoutSeconds)}</p>
-              <button type="button" onClick={toggleWorkoutTimer} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
-                {workoutStartedAt ? 'Pausar treino' : 'Iniciar treino'}
-              </button>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-zinc-400">Ao iniciar, o contador ajuda você a acompanhar o tempo total da sessão.</p>
-          </div>
+
           {studentWorkouts.length ? (
             <>
               <StudentWorkoutExecution
@@ -15523,6 +15682,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 durationSeconds={workoutSeconds}
                 sessionDurationSeconds={workoutElapsedSeconds}
                 timerStartedAt={workoutStartedAt ? new Date(workoutStartedAt).toISOString() : ''}
+                onToggleTimer={toggleWorkoutTimer}
+                onSelectDay={() => {
+                  setWorkoutStartedAt(null)
+                  setWorkoutElapsedSeconds(0)
+                  setWorkoutStartNotified(false)
+                  setWorkoutClock(Date.now())
+                }}
                 onCompleteWorkout={completeWorkoutFromStudent}
                 onLoadWorkoutSession={onLoadWorkoutSession}
                 onSaveWorkoutSession={onSaveWorkoutSession}

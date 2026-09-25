@@ -149,7 +149,7 @@ try {
           for (let exerciseIndex = 0; exerciseIndex < 3; exerciseIndex++) {
             const sets = preview.getByRole('button', { name: 'Concluir série', exact: true })
             while (await sets.count()) await sets.first().click()
-            if (exerciseIndex < 2) await preview.getByRole('button', { name: 'Próximo exercício', exact: true }).click()
+            if (exerciseIndex < 2) await preview.getByRole('button', { name: 'Concluir exercício e ir para o próximo →', exact: true }).click()
           }
           await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
           await preview.getByText(/Simulação concluída/).waitFor()
