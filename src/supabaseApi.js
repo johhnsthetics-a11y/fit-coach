@@ -337,7 +337,7 @@ export async function refreshCoachSession(refreshToken) {
 
 export async function loadRemoteData() {
   const revision = sessionRevision
-  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings, professionalAffiliate] = await Promise.all([
+  const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings, professionalAffiliate, affiliateSelfReport] = await Promise.all([
     request('users?select=*&order=created_at.desc&limit=1'),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
@@ -356,6 +356,8 @@ export async function loadRemoteData() {
     optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
     optionalTableRequest('workout_progression_decisions?select=*&order=created_at.desc'),
     loadRemoteAppAdminSettings().catch(() => null),
+    loadRemoteCurrentProfessionalAffiliate().catch(() => false),
+    loadRemoteMyAffiliateReport().catch(() => null),
   ])
 
   const questionnaires = await loadRemoteQuestionnaires()
@@ -387,12 +389,24 @@ export async function loadRemoteData() {
     exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
     workoutProgressionDecisions: workoutProgressionDecisions.map(fromWorkoutProgressionDecisionRow),
     appAdminSettings,
+    professionalAffiliate,
+    affiliateSelfReport,
   }
 }
 
 export async function loadRemoteCurrentProfessionalAffiliate() {
   const result = await rpcRequest('coachfit_current_professional_is_affiliate', {})
   return result === true
+}
+
+export async function loadRemoteMyAffiliateReport() {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const monthStart = `${today.slice(0, 7)}-01`
+  const result = await rpcRequest('get_my_affiliate_report', {
+    p_start_date: monthStart,
+    p_end_date: today,
+  })
+  return result && typeof result === 'object' ? result : null
 }
 
 export async function loadRemoteAppAdminSettings() {
