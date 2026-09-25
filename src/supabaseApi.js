@@ -302,10 +302,43 @@ export async function updateRecoveredPassword(accessToken, password) {
     body: JSON.stringify({ password }),
   })
 
-  if (!response.ok) {
-    const message = await response.text()
-    throw serviceError(response.status, message)
+  const responseText = await response.text()
+  let payload = {}
+  try {
+    payload = responseText ? JSON.parse(responseText) : {}
+  } catch {
+    payload = {}
   }
+
+  if (!response.ok) {
+    throw serviceError(response.status, responseText)
+  }
+
+  const email = String(payload?.email || '').trim().toLowerCase()
+  if (!email) {
+    throw new Error('A senha foi atualizada, mas não foi possível confirmar a conta.')
+  }
+
+  return { email }
+}
+
+export async function verifyRecoveredPasswordChange(email, password) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!normalizedEmail || !password) {
+    throw new Error('Não foi possível validar a nova senha.')
+  }
+
+  const payload = await authRequest('token?grant_type=password', {
+    email: normalizedEmail,
+    password,
+  })
+
+  if (!payload?.access_token) {
+    throw new Error('A nova senha não pôde ser validada.')
+  }
+
+  await signOutCoach(payload.access_token).catch(() => {})
+  return true
 }
 
 export async function deleteRemoteCoachAccount({ email, confirmation }) {
