@@ -22,6 +22,7 @@ const {
   classifyChatAudioGesture,
   formatChatAudioDuration,
   nextChatAudioPlaybackRate,
+  prefersMp4ChatAudio,
   selectChatAudioMimeType,
   shouldUsePressToRecord,
   stopChatAudioStream,
@@ -47,9 +48,9 @@ test('player de áudio cabe na bolha em telas mobile estreitas', () => {
   assert.match(audioCss, /\.chat-audio-message\s*\{[\s\S]*?max-width:\s*100%/)
 })
 
-test('gestos de gravação distinguem cancelar, travar e manter pressionado', () => {
+test('gesto mobile envia ao soltar e cancela apenas ao deslizar para a esquerda', () => {
   assert.equal(classifyChatAudioGesture({ dx: -96, dy: -20 }), 'cancel')
-  assert.equal(classifyChatAudioGesture({ dx: -10, dy: -90 }), 'lock')
+  assert.equal(classifyChatAudioGesture({ dx: -10, dy: -90 }), 'hold')
   assert.equal(classifyChatAudioGesture({ dx: -18, dy: -14 }), 'hold')
 })
 
@@ -72,12 +73,15 @@ test('velocidade do player alterna 1x, 1.5x e 2x em ciclo', () => {
   assert.equal(nextChatAudioPlaybackRate(2), 1)
 })
 
-test('mime do recorder prioriza opus e possui fallback para Safari', () => {
+test('mime do recorder prioriza MP4 no iPhone e Opus nos demais navegadores', () => {
   const onlyMp4 = (type) => type === 'audio/mp4'
   assert.equal(selectChatAudioMimeType(onlyMp4), 'audio/mp4')
 
-  const supportsOpus = (type) => type === 'audio/webm;codecs=opus' || type === 'audio/mp4'
-  assert.equal(selectChatAudioMimeType(supportsOpus), 'audio/webm;codecs=opus')
+  const supportsBoth = (type) => type === 'audio/webm;codecs=opus' || type === 'audio/mp4'
+  assert.equal(selectChatAudioMimeType(supportsBoth), 'audio/webm;codecs=opus')
+  assert.equal(selectChatAudioMimeType(supportsBoth, { preferMp4: true }), 'audio/mp4')
+  assert.equal(prefersMp4ChatAudio({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)' }), true)
+  assert.equal(prefersMp4ChatAudio({ userAgent: 'Mozilla/5.0 (Linux; Android 15)' }), false)
 
   assert.equal(selectChatAudioMimeType(() => false), '')
 })
@@ -96,11 +100,14 @@ test('cleanup do microfone encerra todas as tracks mesmo se uma falhar', () => {
   assert.deepEqual(stopped, ['a', 'b', 'c'])
 })
 
-test('áudio React limpa o microfone, suporta gesto e acompanha o teclado virtual', () => {
+test('áudio React limpa o microfone, envia ao soltar e acompanha o teclado virtual', () => {
   assert.match(recorderSource, /stopChatAudioStream/)
   assert.match(recorderSource, /useEffect\(\(\) => \(\) =>/)
   assert.match(recorderSource, /onPointerCancel/)
-  assert.match(recorderSource, /selectChatAudioMimeType/)
+  assert.match(recorderSource, /stopRecording\(nextGesture === 'cancel'\)/)
+  assert.match(recorderSource, /MIN_RECORDING_MS/)
+  assert.match(recorderSource, /MIN_AUDIO_BYTES/)
+  assert.match(recorderSource, /requestData/)
   assert.match(conversationSource, /visualViewport/)
   assert.match(chatCss, /--chat-pro-visual-height/)
 })
@@ -160,15 +167,31 @@ test('envio de mensagem é otimista para áudio aparecer imediatamente após toc
   assert.match(appSource, /String\(item\.id\) === String\(clientMessageId\)/)
   assert.match(appSource, /deliveryState:\s*'failed'/)
   assert.match(appSource, /reconcileMessageDelivery\(current\.messages, localMessage\.id, savedMessage\)/)
-  assert.match(composerHookSource, /setDraftState\(''\)[\s\S]*?clearAttachment\(\)[\s\S]*?await onSend\(payload\)/)
+  assert.match(composerHookSource, /previewRef\.current = ''[\s\S]*?await onSend\(payload\)[\s\S]*?revokePreview\(queuedPreview\)/)
+  assert.match(composerHookSource, /sendAttachmentImmediately/)
 })
 
-test('botão verde envia áudio pelo submit normal sem requestAnimationFrame ou confirmação extra', () => {
-  const studentSection = appSource.slice(appSource.indexOf('function StudentMessagePanel('), appSource.indexOf('function StudentConsent('))
-  const coachSection = appSource.slice(appSource.indexOf('function Messages({'), appSource.indexOf('function createBlankStudent'))
-  assert.doesNotMatch(studentSection, /requestAnimationFrame/)
-  assert.doesNotMatch(coachSection, /requestAnimationFrame/)
-  assert.match(studentSection, /<ChatConversation/)
-  assert.match(coachSection, /<ChatConversation/)
-  assert.match(composerSource, /type="submit"/)
+test('áudio gravado é enviado automaticamente ao soltar sem confirmação extra', () => {
+  assert.match(composerSource, /onRecorded=\{sendAttachmentImmediately\}/)
+  assert.match(composerHookSource, /const sendAttachmentImmediately = useCallback/)
+  assert.match(composerHookSource, /await onSend\(payload\)/)
+  assert.match(recorderSource, /Deslize para a esquerda para cancelar/)
+  assert.doesNotMatch(recorderSource, /Gravação travada/)
+})
+
+test('player renderiza waveform com progresso e recarrega quando a URL definitiva chega', () => {
+  assert.match(audioMessageSource, /buildWaveform/)
+  assert.match(audioMessageSource, /chat-audio-waveform/)
+  assert.match(audioMessageSource, /className=\{played \? 'is-played' : ''\}/)
+  assert.match(audioMessageSource, /audio\.load\(\)/)
+  assert.match(audioMessageSource, /onCanPlay=\{\(\) => setError\(''\)\}/)
+  assert.match(audioCss, /\.chat-audio-waveform/)
+  assert.match(audioCss, /\.chat-audio-waveform i\.is-played/)
+})
+
+test('anexos do chat usam URL pública estável do bucket que já é público e MIME normalizado', () => {
+  assert.match(apiSource, /publicStorageObjectUrl\(MESSAGE_ATTACHMENT_BUCKET, path\)/)
+  assert.match(apiSource, /storage\/v1\/object\/public/)
+  assert.match(apiSource, /normalizeMessageAttachmentMimeType/)
+  assert.match(apiSource, /'Content-Type': contentType/)
 })
