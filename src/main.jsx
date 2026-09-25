@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import PasswordRecoveryFlow from './PasswordRecoveryFlow'
+import PasswordRecoveryFlow, { isPasswordRecoveryRoute } from './PasswordRecoveryFlow'
 import { installChatWallpaperEnhancements } from '../chatWallpaperEnhancements'
 import './index.css'
 import './chat/chat.css'
@@ -42,11 +42,29 @@ class AppErrorBoundary extends React.Component {
   }
 }
 
+function CoachFitRoot() {
+  const [recoveryOnly, setRecoveryOnly] = React.useState(() => isPasswordRecoveryRoute())
+
+  React.useEffect(() => {
+    const syncRoute = () => setRecoveryOnly(isPasswordRecoveryRoute())
+    window.addEventListener('popstate', syncRoute)
+    return () => window.removeEventListener('popstate', syncRoute)
+  }, [])
+
+  return recoveryOnly
+    ? <PasswordRecoveryFlow />
+    : (
+      <>
+        <App />
+        <PasswordRecoveryFlow />
+      </>
+    )
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>
-      <App />
-      <PasswordRecoveryFlow />
+      <CoachFitRoot />
     </AppErrorBoundary>
   </React.StrictMode>,
 )
