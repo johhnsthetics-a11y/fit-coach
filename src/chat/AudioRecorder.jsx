@@ -256,7 +256,7 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     <button
       type="button"
       className="chat-record-button"
-      aria-label="Segure para gravar áudio"
+      aria-label="Gravar áudio"
       title="Segure para gravar áudio"
       disabled={disabled}
       onClick={handleClick}
