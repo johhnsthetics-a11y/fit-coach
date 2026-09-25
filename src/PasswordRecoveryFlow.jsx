@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { requestCoachPasswordReset, updateRecoveredPassword } from './supabaseApi'
+import fitCoachLogo from './fit-coach-logo.png'
+import { requestCoachPasswordReset, updateRecoveredPassword, verifyRecoveredPasswordChange } from './supabaseApi'
 
 export function isPasswordRecoveryRoute() {
   const url = new URL(window.location.href)
@@ -99,9 +100,11 @@ function RecoveryShell({ title, description, eyebrow, children }) {
     <main className="min-h-screen bg-[#F8FAFA] px-4 py-8 text-zinc-950 dark:bg-zinc-950 dark:text-white sm:grid sm:place-items-center sm:py-12">
       <section className="mx-auto w-full max-w-[440px] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_20px_55px_rgba(15,23,42,0.08)] dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-100 px-6 pb-5 pt-7 dark:border-zinc-800 sm:px-8 sm:pt-8">
-          <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white shadow-sm">
-            CF
-          </div>
+          <img
+            src={fitCoachLogo}
+            alt="Coach Fit Pro"
+            className="mb-5 h-10 w-auto max-w-[180px] object-contain object-left"
+          />
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">{eyebrow}</p>
           <h1 className="mt-2 text-2xl font-black tracking-tight text-zinc-950 dark:text-white">{title}</h1>
           <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{description}</p>
@@ -195,7 +198,8 @@ export default function PasswordRecoveryFlow() {
 
     setBusy(true)
     try {
-      await updateRecoveredPassword(recoveryToken, newPassword)
+      const updatedAccount = await updateRecoveredPassword(recoveryToken, newPassword)
+      await verifyRecoveredPasswordChange(updatedAccount.email, newPassword)
       setDone(true)
       setRecoveryToken('')
       setNewPassword('')
@@ -257,7 +261,7 @@ export default function PasswordRecoveryFlow() {
       <RecoveryShell
         eyebrow="Segurança da conta"
         title="Criar nova senha"
-        description="Crie uma senha nova para sua conta. Use os ícones de olho para conferir o que digitou antes de salvar."
+        description="Crie uma nova senha para acessar sua conta."
       >
         {done ? (
           <div className="space-y-4">
