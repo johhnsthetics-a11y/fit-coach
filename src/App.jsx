@@ -15418,6 +15418,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     const savedLog = await onCompleteWorkout(log)
     const alreadyRegistered = studentWorkoutLogs.some((item) => sameId(item.id, savedLog?.id))
     const completedCount = studentWorkoutLogs.length + (alreadyRegistered ? 0 : 1)
+    if (!alreadyRegistered) setXpGain(80)
     sendLocalNotification('Treino finalizado', `${student.name} concluiu o treino.`)
     await onSendMessage?.({
       studentId: student.id,
