@@ -647,4 +647,140 @@ grant select on public.cartpanda_webhook_events to service_role;
 -- Trigger functions are not public RPC endpoints.
 revoke all on function public.create_coach_subscription() from public, anon, authenticated;
 
+
+-- Read-only affiliate summary for the authenticated trainer/nutritionist.
+create or replace function public.get_my_affiliate_report(
+  p_start_date date default date_trunc('month', current_date)::date,
+  p_end_date date default current_date
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $
+declare
+  v_start date := coalesce(p_start_date, date_trunc('month', current_date)::date);
+  v_end date := coalesce(p_end_date, current_date);
+  v_email text;
+  v_result jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'Sessao expirada' using errcode = '42501';
+  end if;
+
+  if v_start > v_end or (v_end - v_start) > 1095 then
+    raise exception 'Periodo invalido' using errcode = '22007';
+  end if;
+
+  select lower(btrim(users.email)) into v_email
+  from public.users as users
+  where users.id = auth.uid();
+
+  if v_email is null or not exists (
+    select 1
+    from public.affiliate_professionals as affiliates
+    where affiliates.email = v_email
+      and affiliates.active = true
+  ) then
+    return null;
+  end if;
+
+  select jsonb_build_object(
+    'startDate', v_start,
+    'endDate', v_end,
+    'studentsBrought', (
+      select count(*)::int
+      from public.students as students
+      where students.coach_id = auth.uid()
+    ),
+    'activeClients', (
+      select count(*)::int
+      from public.students as students
+      where students.coach_id = auth.uid()
+        and students.app_payment_status = 'active'
+        and (
+          students.app_subscription_expires_at is null
+          or students.app_subscription_expires_at > now()
+        )
+    ),
+    'paidClients', (
+      select count(distinct payments.student_id)::int
+      from public.affiliate_student_payments as payments
+      where payments.coach_id = auth.uid()
+        and payments.affiliate_email = v_email
+        and payments.status = 'paid'
+        and payments.paid_at >= v_start::timestamptz
+        and payments.paid_at < (v_end + 1)::timestamptz
+    ),
+    'paidInstallments', (
+      select count(*)::int
+      from public.affiliate_student_payments as payments
+      where payments.coach_id = auth.uid()
+        and payments.affiliate_email = v_email
+        and payments.status = 'paid'
+        and payments.paid_at >= v_start::timestamptz
+        and payments.paid_at < (v_end + 1)::timestamptz
+    ),
+    'revenueCents', (
+      select coalesce(sum(payments.revenue_cents), 0)::int
+      from public.affiliate_student_payments as payments
+      where payments.coach_id = auth.uid()
+        and payments.affiliate_email = v_email
+        and payments.status = 'paid'
+        and payments.paid_at >= v_start::timestamptz
+        and payments.paid_at < (v_end + 1)::timestamptz
+    ),
+    'commissionCents', (
+      select coalesce(sum(payments.commission_cents), 0)::int
+      from public.affiliate_student_payments as payments
+      where payments.coach_id = auth.uid()
+        and payments.affiliate_email = v_email
+        and payments.status = 'paid'
+        and payments.paid_at >= v_start::timestamptz
+        and payments.paid_at < (v_end + 1)::timestamptz
+    ),
+    'sales', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'paymentId', payments.id,
+          'studentId', payments.student_id,
+          'clientName', coalesce(nullif(btrim(students.name), ''), 'Aluno/Paciente'),
+          'paidAt', payments.paid_at,
+          'revenueCents', payments.revenue_cents,
+          'commissionCents', payments.commission_cents,
+          'status', payments.status,
+          'offerCode', sessions.offer_code
+        )
+        order by payments.paid_at desc
+      )
+      from public.affiliate_student_payments as payments
+      left join public.students as students
+        on students.id = payments.student_id
+       and students.coach_id = auth.uid()
+      left join public.student_checkout_sessions as sessions
+        on sessions.coach_id = payments.coach_id
+       and sessions.student_id = payments.student_id
+       and (
+         sessions.provider_order_id = payments.provider_order_id
+         or (
+           sessions.provider_order_id is null
+           and sessions.provider_subscription_id = payments.provider_subscription_id
+         )
+       )
+      where payments.coach_id = auth.uid()
+        and payments.affiliate_email = v_email
+        and payments.paid_at >= v_start::timestamptz
+        and payments.paid_at < (v_end + 1)::timestamptz
+    ), '[]'::jsonb)
+  )
+  into v_result;
+
+  return v_result;
+end;
+$;
+
+revoke all on function public.get_my_affiliate_report(date, date) from public, anon;
+grant execute on function public.get_my_affiliate_report(date, date) to authenticated;
+
 commit;
