@@ -31,3 +31,24 @@ test('retorno de recuperacao remove token da URL e exige senha forte confirmada'
   assert.match(flow, /updateRecoveredPassword\(recoveryToken, newPassword\)/)
   assert.match(flow, /Senha alterada com sucesso/)
 })
+
+
+test('recuperacao usa uma unica tela e nao deixa o app renderizado por baixo', async () => {
+  const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+  const flow = await readFile(new URL('../src/PasswordRecoveryFlow.jsx', import.meta.url), 'utf8')
+
+  assert.match(main, /const \[recoveryOnly, setRecoveryOnly\]/)
+  assert.match(main, /recoveryOnly\s*\?\s*<PasswordRecoveryFlow \/>/)
+  assert.match(flow, /export function isPasswordRecoveryRoute/)
+  assert.match(flow, /mode === 'forgot-password'/)
+  assert.match(flow, /mode === 'recovery'/)
+})
+
+test('campos de nova senha possuem controle visual de mostrar e ocultar', async () => {
+  const flow = await readFile(new URL('../src/PasswordRecoveryFlow.jsx', import.meta.url), 'utf8')
+
+  assert.match(flow, /allowVisibilityToggle/)
+  assert.match(flow, /aria-label=\{visible \? 'Ocultar senha' : 'Mostrar senha'\}/)
+  assert.match(flow, /effectiveType = allowVisibilityToggle \? \(visible \? 'text' : 'password'\)/)
+  assert.match(flow, /<EyeIcon hidden=\{!visible\} \/>/)
+})
