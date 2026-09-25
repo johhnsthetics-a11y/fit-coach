@@ -341,7 +341,8 @@ function stableStringify(value: unknown): string {
       .map((key) => JSON.stringify(key) + ':' + stableStringify(object[key]))
       .join(',') + '}'
   }
-  return JSON.stringify(value)
+  const serialized = JSON.stringify(value)
+  return serialized === undefined ? 'null' : serialized
 }
 
 function shortEventRef(eventId: string) {
