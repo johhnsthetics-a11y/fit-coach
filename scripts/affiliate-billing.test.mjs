@@ -212,3 +212,15 @@ test('Cadastro de Afiliados prepara tabela desktop e cards mobile sem alterar aÃ
   assert.match(app, /md:hidden/)
   assert.match(app, /Pendente/)
 })
+
+
+test('CTA de vÃ­nculo fica alinhado ao input e visualmente destacado', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /lg:col-start-1 lg:row-start-2/)
+  assert.match(app, /lg:col-start-2 lg:row-start-2/)
+  assert.match(app, /lg:col-start-1 lg:row-start-3/)
+  assert.match(app, /bg-\[#0F766E\]/)
+  assert.match(app, /font-bold text-white/)
+  assert.match(app, /lg:min-w-\[205px\]/)
+})
