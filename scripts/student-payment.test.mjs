@@ -81,14 +81,19 @@ test('area do aluno prioriza cabecalho e navegacao essencial', async () => {
   assert.match(app, /Abrir menu do aluno/)
 })
 
-test('backend bloqueia conteudo e execucao quando um dos pagamentos esta pendente', async () => {
-  const sql = await readFile(new URL('../SUPABASE/migrations/20260921_student_payment_backend_enforcement.sql', import.meta.url), 'utf8')
+test('backend separa mensalidade do profissional da assinatura do app do afiliado', async () => {
+  const legacy = await readFile(new URL('../SUPABASE/migrations/20260921_student_payment_backend_enforcement.sql', import.meta.url), 'utf8')
+  const integrity = await readFile(new URL('../SUPABASE/migrations/20260925_affiliate_e2e_integrity.sql', import.meta.url), 'utf8')
 
-  assert.match(sql, /students\.payment = 'Pago'/i)
-  assert.match(sql, /students\.app_payment_status = 'active'/i)
-  assert.match(sql, /create or replace function public\.get_student_portal\(invite_code text\)/i)
-  assert.match(sql, /create or replace function public\.get_student_workouts\(invite_code text\)/i)
-  assert.match(sql, /create or replace function public\.save_student_workout_session/i)
-  assert.match(sql, /create or replace function public\.complete_student_workout_session/i)
-  assert.match(sql, /revoke all on function public\.get_student_portal_unchecked\(text\) from public, anon, authenticated/i)
+  assert.match(legacy, /create or replace function public\.get_student_portal\(invite_code text\)/i)
+  assert.match(integrity, /create or replace function public\.coachfit_student_financial_access_by_invite/i)
+  assert.match(integrity, /students\.app_payment_status = 'active'/i)
+  assert.doesNotMatch(
+    integrity.slice(
+      integrity.indexOf('create or replace function public.coachfit_student_financial_access_by_invite'),
+      integrity.indexOf('create or replace function public.create_student_checkout_session'),
+    ),
+    /students\.payment = 'Pago'/i,
+  )
+  assert.match(integrity, /revoke all on function public\.coachfit_student_financial_access_by_invite/i)
 })
