@@ -37,9 +37,16 @@ Deno.serve(async (request) => {
   const subscriptionId = providerSubscriptionId || productId
   const amountCents = parseMoneyToCents(findValue(payload, ['total_price', 'amount', 'amount_net', 'price', 'value']))
   const status = mapSubscriptionStatus(eventType, payload)
-  const eventId = findString(payload, ['event_id', 'webhook_id'])
-    || ['cartpanda', orderId, subscriptionId, correlationId, buyerEmail, eventType].filter(Boolean).join(':')
-    || `cartpanda:${Date.now()}`
+  const sanitizedPayload = sanitizeWebhookPayload(payload)
+  const eventId = await buildDeterministicEventId({
+    explicitEventId: findString(payload, ['event_id', 'webhook_id']),
+    orderId,
+    subscriptionId,
+    correlationId,
+    buyerEmail,
+    eventType,
+    payload: sanitizedPayload,
+  })
 
   if (await findProcessedWebhookEvent(eventId)) {
     return jsonResponse({ ok: true, processed: true, reason: 'duplicate_event' }, 200)
@@ -55,7 +62,7 @@ Deno.serve(async (request) => {
     productName,
     amountCents,
     status,
-    payload,
+    payload: sanitizedPayload,
     processed: false,
   })
 
@@ -71,18 +78,29 @@ Deno.serve(async (request) => {
       return jsonResponse({ ok: true, processed: false, reason: 'student_checkout_not_found' }, 202)
     }
 
-    const safeStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
-    await updateStudentCheckoutSession({
-      session: checkoutSession,
-      status: safeStatus,
-      buyerEmail,
-      orderId,
-      subscriptionId,
-      amountCents,
-      payload,
+    const incomingStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
+    const transition = resolveSubscriptionStatusTransition({
+      currentStatus: checkoutSession.status,
+      incomingStatus,
+      currentOrderId: checkoutSession.provider_order_id,
+      incomingOrderId: orderId,
+      currentSubscriptionId: checkoutSession.provider_subscription_id,
+      incomingSubscriptionId: subscriptionId,
     })
 
-    if (safeStatus === 'active' && isConfirmedPayment(eventType, payload)) {
+    if (transition.apply) {
+      await updateStudentCheckoutSession({
+        session: checkoutSession,
+        status: transition.status,
+        buyerEmail,
+        orderId,
+        subscriptionId,
+        amountCents,
+        payload,
+      })
+    }
+
+    if (transition.apply && transition.status === 'active' && isConfirmedPayment(eventType, payload)) {
       const affiliate = await findActiveAffiliateForCoach(checkoutSession.coach_id)
       if (affiliate?.email) {
         await recordAffiliateStudentPayment({
@@ -95,19 +113,26 @@ Deno.serve(async (request) => {
           providerAmountCents: amountCents,
         })
       }
-    } else if (status === 'refunded' || status === 'chargeback') {
+    } else if (transition.apply && (incomingStatus === 'refunded' || incomingStatus === 'chargeback')) {
       await reverseAffiliateStudentPayment({
         eventId,
         coachId: checkoutSession.coach_id,
         studentId: checkoutSession.student_id,
         orderId,
         subscriptionId,
-        status,
+        status: incomingStatus,
       })
     }
 
     await markWebhookProcessed(eventId)
-    return jsonResponse({ ok: true, processed: true, studentId: checkoutSession.student_id, status: safeStatus }, 200)
+    return jsonResponse({
+      ok: true,
+      processed: true,
+      studentId: checkoutSession.student_id,
+      status: transition.status,
+      ignored: !transition.apply,
+      reason: transition.reason || null,
+    }, 200)
   }
 
   if (!buyerEmail) {
@@ -121,7 +146,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: true, processed: false, reason: 'coach_not_found' }, 202)
   }
 
-  await updateCoachSubscription({
+  const coachStatus = await updateCoachSubscription({
     coachId: user.id,
     status,
     orderId,
@@ -133,7 +158,7 @@ Deno.serve(async (request) => {
   })
 
   await markWebhookProcessed(eventId)
-  return jsonResponse({ ok: true, processed: true, coachId: user.id, status }, 200)
+  return jsonResponse({ ok: true, processed: true, coachId: user.id, status: coachStatus }, 200)
 })
 
 async function readPayload(request: Request): Promise<Record<string, unknown>> {
@@ -192,6 +217,126 @@ function mapSubscriptionStatus(eventType: string, payload: Record<string, unknow
   )
 
   return hasSaleSignals ? 'active' : 'pending'
+}
+
+function resolveSubscriptionStatusTransition(input: {
+  currentStatus: string
+  incomingStatus: string
+  currentOrderId: string
+  incomingOrderId: string
+  currentSubscriptionId: string
+  incomingSubscriptionId: string
+}) {
+  const currentStatus = normalizeSubscriptionStatus(input.currentStatus)
+  const incomingStatus = normalizeSubscriptionStatus(input.incomingStatus) || 'pending'
+
+  if (!currentStatus) return { status: incomingStatus, apply: true, reason: '' }
+
+  const sameOrder = !input.currentOrderId || !input.incomingOrderId || input.currentOrderId === input.incomingOrderId
+  const sameSubscription = !input.currentSubscriptionId
+    || !input.incomingSubscriptionId
+    || input.currentSubscriptionId === input.incomingSubscriptionId
+  const samePurchase = sameOrder && sameSubscription
+
+  if (!samePurchase) return { status: incomingStatus, apply: true, reason: '' }
+
+  if (currentStatus === incomingStatus) {
+    return { status: currentStatus, apply: false, reason: 'duplicate_state' }
+  }
+
+  if ((currentStatus === 'active' || currentStatus === 'past_due') && incomingStatus === 'pending') {
+    return { status: currentStatus, apply: false, reason: 'stale_pending_event' }
+  }
+
+  if (currentStatus === 'refunded' || currentStatus === 'chargeback') {
+    return { status: currentStatus, apply: false, reason: 'terminal_state' }
+  }
+
+  if (currentStatus === 'canceled' && ['pending', 'active', 'past_due'].includes(incomingStatus)) {
+    return { status: currentStatus, apply: false, reason: 'terminal_state' }
+  }
+
+  return { status: incomingStatus, apply: true, reason: '' }
+}
+
+function normalizeSubscriptionStatus(value: string) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return ['pending', 'active', 'past_due', 'canceled', 'refunded', 'chargeback'].includes(normalized)
+    ? normalized
+    : ''
+}
+
+function sanitizeWebhookPayload(value: unknown): Record<string, unknown> {
+  const sensitiveKeys = new Set([
+    'token',
+    'webhooktoken',
+    'secret',
+    'signature',
+    'authorization',
+    'apikey',
+    'password',
+    'accesstoken',
+    'refreshtoken',
+  ])
+
+  const sanitize = (input: unknown): unknown => {
+    if (Array.isArray(input)) return input.map(sanitize)
+    if (!input || typeof input !== 'object') return input
+
+    return Object.fromEntries(
+      Object.entries(input as Record<string, unknown>).map(([key, nestedValue]) => [
+        key,
+        sensitiveKeys.has(normalizeKey(key)) ? '[REDACTED]' : sanitize(nestedValue),
+      ]),
+    )
+  }
+
+  return sanitize(value) as Record<string, unknown>
+}
+
+async function buildDeterministicEventId(input: {
+  explicitEventId: string
+  orderId: string
+  subscriptionId: string
+  correlationId: string
+  buyerEmail: string
+  eventType: string
+  payload: Record<string, unknown>
+}) {
+  if (input.explicitEventId) return input.explicitEventId
+
+  const identity = [
+    'cartpanda',
+    input.orderId,
+    input.subscriptionId,
+    input.correlationId,
+    input.buyerEmail,
+    input.eventType,
+  ].filter(Boolean).join(':')
+
+  if (identity !== 'cartpanda') return identity
+
+  const canonicalPayload = stableSerialize(input.payload)
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalPayload))
+  const hash = Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+  return `cartpanda:sha256:${hash}`
+}
+
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nestedValue]) => `${JSON.stringify(key)}:${stableSerialize(nestedValue)}`)
+    return `{${entries.join(',')}}`
+  }
+
+  return JSON.stringify(value)
 }
 
 async function saveWebhookEvent(event: {
@@ -321,7 +466,7 @@ async function reverseAffiliateStudentPayment(input: {
 async function findStudentCheckoutSession(checkoutToken: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutToken)) return null
   const rows = await supabaseFetch(
-    `/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(checkoutToken)}&select=id,checkout_token,coach_id,student_id,status,paid_at,provider_subscription_id&limit=1`,
+    `/rest/v1/student_checkout_sessions?checkout_token=eq.${encodeURIComponent(checkoutToken)}&select=id,checkout_token,coach_id,student_id,status,paid_at,provider_order_id,provider_subscription_id&limit=1`,
   )
   return Array.isArray(rows) ? rows[0] : null
 }
@@ -329,7 +474,7 @@ async function findStudentCheckoutSession(checkoutToken: string) {
 async function findStudentCheckoutSessionByProviderSubscription(subscriptionId: string) {
   if (!subscriptionId) return null
   const rows = await supabaseFetch(
-    `/rest/v1/student_checkout_sessions?provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id,checkout_token,coach_id,student_id,status,paid_at,provider_subscription_id&order=created_at.desc&limit=1`,
+    `/rest/v1/student_checkout_sessions?provider_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id,checkout_token,coach_id,student_id,status,paid_at,provider_order_id,provider_subscription_id&order=created_at.desc&limit=1`,
   )
   return Array.isArray(rows) ? rows[0] : null
 }
@@ -360,15 +505,18 @@ async function updateStudentCheckoutSession(input: {
     }),
   })
 
+  const studentPatch = {
+    app_payment_status: input.status,
+    app_subscription_started_at: input.status === 'active' ? studentState?.app_subscription_started_at || now : studentState?.app_subscription_started_at || null,
+    app_subscription_expires_at: periodEndsAt,
+    updated_at: now,
+    ...(input.status === 'active' ? { payment: 'Pago' } : {}),
+  }
+
   await supabaseFetch(`/rest/v1/students?id=eq.${encodeURIComponent(input.session.student_id)}&coach_id=eq.${encodeURIComponent(input.session.coach_id)}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      app_payment_status: input.status,
-      app_subscription_started_at: input.status === 'active' ? studentState?.app_subscription_started_at || now : studentState?.app_subscription_started_at || null,
-      app_subscription_expires_at: periodEndsAt,
-      updated_at: now,
-    }),
+    body: JSON.stringify(studentPatch),
   })
 }
 
@@ -428,11 +576,23 @@ async function updateCoachSubscription(input: {
   amountCents: number | null
   payload: Record<string, unknown>
 }) {
+  const currentState = await findCoachSubscriptionState(input.coachId)
+  const transition = resolveSubscriptionStatusTransition({
+    currentStatus: currentState?.status || '',
+    incomingStatus: input.status,
+    currentOrderId: currentState?.provider_order_id || '',
+    incomingOrderId: input.orderId,
+    currentSubscriptionId: currentState?.provider_subscription_id || '',
+    incomingSubscriptionId: input.subscriptionId,
+  })
+
+  if (!transition.apply) return transition.status
+
   const now = new Date()
   const months = inferCycleMonths(input.productName, input.productId, input.payload)
   const nextBillingAt = addMonths(now, months)
 
-  const activePayload = input.status === 'active'
+  const activePayload = transition.status === 'active'
     ? {
         paid_at: now.toISOString(),
         current_period_started_at: now.toISOString(),
@@ -446,7 +606,7 @@ async function updateCoachSubscription(input: {
     headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({
       coach_id: input.coachId,
-      status: input.status,
+      status: transition.status,
       provider: 'cartpanda',
       provider_order_id: input.orderId || null,
       provider_subscription_id: input.subscriptionId || null,
@@ -454,6 +614,15 @@ async function updateCoachSubscription(input: {
       ...activePayload,
     }),
   })
+
+  return transition.status
+}
+
+async function findCoachSubscriptionState(coachId: string) {
+  const rows = await supabaseFetch(
+    `/rest/v1/coach_subscriptions?coach_id=eq.${encodeURIComponent(coachId)}&select=status,provider_order_id,provider_subscription_id&limit=1`,
+  )
+  return Array.isArray(rows) ? rows[0] : null
 }
 
 async function markWebhookProcessed(eventId: string) {
