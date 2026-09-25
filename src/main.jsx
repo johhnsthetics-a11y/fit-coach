@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import PasswordRecoveryFlow from './PasswordRecoveryFlow'
 import { installChatWallpaperEnhancements } from '../chatWallpaperEnhancements'
 import './index.css'
 import './chat/chat.css'
@@ -45,6 +46,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>
       <App />
+      <PasswordRecoveryFlow />
     </AppErrorBoundary>
   </React.StrictMode>,
 )

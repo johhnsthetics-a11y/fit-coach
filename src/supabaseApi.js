@@ -282,8 +282,9 @@ export async function signOutCoach(accessToken) {
 }
 
 export async function requestCoachPasswordReset(email) {
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
-  await authRequest(`recover?redirect_to=${encodeURIComponent(redirectTo)}`, { email })
+  const redirectUrl = new URL('/login', window.location.origin)
+  redirectUrl.searchParams.set('mode', 'recovery')
+  await authRequest(`recover?redirect_to=${encodeURIComponent(redirectUrl.toString())}`, { email })
 }
 
 export async function updateRecoveredPassword(accessToken, password) {
