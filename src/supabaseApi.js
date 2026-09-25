@@ -413,6 +413,35 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
+export async function loadRemoteMyAffiliateReport(startDate = '', endDate = '') {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const currentMonthStart = `${today.slice(0, 7)}-01`
+  const normalizedStart = /^\d{4}-\d{2}-\d{2}$/.test(String(startDate || '').trim())
+    ? String(startDate).trim()
+    : currentMonthStart
+  const normalizedEnd = /^\d{4}-\d{2}-\d{2}$/.test(String(endDate || '').trim())
+    ? String(endDate).trim()
+    : today
+
+  const result = await rpcRequest('get_my_affiliate_report', {
+    p_start_date: normalizedStart,
+    p_end_date: normalizedEnd,
+  })
+
+  return result && typeof result === 'object' ? result : {
+    period: { startDate: normalizedStart, endDate: normalizedEnd },
+    totals: {
+      referredClients: 0,
+      activeClients: 0,
+      paidClients: 0,
+      sales: 0,
+      revenueCents: 0,
+      commissionCents: 0,
+    },
+    sales: [],
+  }
+}
+
 export async function loadRemoteAffiliateFinanceReport(startDate = '', endDate = '') {
   const today = new Date().toLocaleDateString('sv-SE')
   const currentMonthStart = `${today.slice(0, 7)}-01`
@@ -570,7 +599,18 @@ export async function upsertRemoteUser(user) {
 
 export async function saveRemoteStudent(student, coachId) {
   const row = toStudentRow(student, coachId)
-  const method = isUuid(student.id) ? 'PATCH' : 'POST'
+  const existingId = isUuid(student.id)
+
+  if (!existingId && (String(student.email || '').trim() || String(student.phone || '').trim())) {
+    const existing = await rpcRequest('find_my_student_by_contact', {
+      p_email: String(student.email || '').trim() || null,
+      p_phone: String(student.phone || '').trim() || null,
+    })
+    const existingRow = Array.isArray(existing) ? existing[0] : existing
+    if (existingRow?.id) return fromStudentRow(existingRow)
+  }
+
+  const method = existingId ? 'PATCH' : 'POST'
   const path = method === 'PATCH' ? `students?id=eq.${student.id}` : 'students'
   const rows = await request(path, {
     method,
