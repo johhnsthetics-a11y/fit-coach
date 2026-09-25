@@ -37,9 +37,10 @@ Deno.serve(async (request) => {
   const subscriptionId = providerSubscriptionId || productId
   const amountCents = parseMoneyToCents(findValue(payload, ['total_price', 'amount', 'amount_net', 'price', 'value']))
   const status = mapSubscriptionStatus(eventType, payload)
+  const eventAt = resolveProviderEventAt(payload)
   const eventId = findString(payload, ['event_id', 'webhook_id'])
-    || ['cartpanda', orderId, subscriptionId, correlationId, buyerEmail, eventType].filter(Boolean).join(':')
-    || `cartpanda:${Date.now()}`
+    || (orderId ? ['cartpanda', 'order', orderId, eventType, status].join(':') : '')
+    || await buildStableEventId(payload)
 
   if (await findProcessedWebhookEvent(eventId)) {
     return jsonResponse({ ok: true, processed: true, reason: 'duplicate_event' }, 200)
@@ -66,48 +67,30 @@ Deno.serve(async (request) => {
       : null
 
   if (correlationId || checkoutSession) {
-    if (!checkoutSession?.student_id) {
+    if (!checkoutSession?.checkout_token) {
       await markWebhookError(eventId, 'Student checkout token not found or expired')
       return jsonResponse({ ok: true, processed: false, reason: 'student_checkout_not_found' }, 202)
     }
 
-    const safeStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
-    await updateStudentCheckoutSession({
-      session: checkoutSession,
-      status: safeStatus,
+    const result = await processStudentCartpandaEvent({
+      checkoutToken: checkoutSession.checkout_token,
+      eventId,
+      eventAt,
+      status,
+      confirmed: isConfirmedPayment(eventType, payload),
       buyerEmail,
       orderId,
-      subscriptionId,
+      subscriptionId: providerSubscriptionId,
       amountCents,
-      payload,
     })
 
-    if (safeStatus === 'active' && isConfirmedPayment(eventType, payload)) {
-      const affiliate = await findActiveAffiliateForCoach(checkoutSession.coach_id)
-      if (affiliate?.email) {
-        await recordAffiliateStudentPayment({
-          eventId,
-          coachId: checkoutSession.coach_id,
-          studentId: checkoutSession.student_id,
-          affiliateEmail: affiliate.email,
-          orderId,
-          subscriptionId,
-          providerAmountCents: amountCents,
-        })
-      }
-    } else if (status === 'refunded' || status === 'chargeback') {
-      await reverseAffiliateStudentPayment({
-        eventId,
-        coachId: checkoutSession.coach_id,
-        studentId: checkoutSession.student_id,
-        orderId,
-        subscriptionId,
-        status,
-      })
-    }
-
-    await markWebhookProcessed(eventId)
-    return jsonResponse({ ok: true, processed: true, studentId: checkoutSession.student_id, status: safeStatus }, 200)
+    const processed = result?.processed === true || result?.duplicate === true
+    return jsonResponse({
+      ok: true,
+      processed,
+      reason: result?.reason || null,
+      status: result?.status || status,
+    }, processed ? 200 : 202)
   }
 
   if (!buyerEmail) {
@@ -121,9 +104,15 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: true, processed: false, reason: 'coach_not_found' }, 202)
   }
 
+  const safeCoachStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
+  if (safeCoachStatus === 'active' && !orderId) {
+    await markWebhookError(eventId, 'Confirmed professional payment missing provider order id')
+    return jsonResponse({ ok: true, processed: false, reason: 'missing_order_id' }, 202)
+  }
+
   await updateCoachSubscription({
     coachId: user.id,
-    status,
+    status: safeCoachStatus,
     orderId,
     subscriptionId,
     productId,
@@ -133,7 +122,7 @@ Deno.serve(async (request) => {
   })
 
   await markWebhookProcessed(eventId)
-  return jsonResponse({ ok: true, processed: true, coachId: user.id, status }, 200)
+  return jsonResponse({ ok: true, processed: true, status: safeCoachStatus }, 200)
 })
 
 async function readPayload(request: Request): Promise<Record<string, unknown>> {
@@ -209,7 +198,7 @@ async function saveWebhookEvent(event: {
 }) {
   await supabaseFetch('/rest/v1/payment_webhook_events?on_conflict=event_id', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates' },
+    headers: { Prefer: 'resolution=ignore-duplicates' },
     body: JSON.stringify({
       provider: 'cartpanda',
       event_id: event.eventId,
@@ -225,6 +214,65 @@ async function saveWebhookEvent(event: {
       payload: event.payload,
     }),
   })
+}
+
+async function processStudentCartpandaEvent(input: {
+  checkoutToken: string
+  eventId: string
+  eventAt: string
+  status: string
+  confirmed: boolean
+  buyerEmail: string
+  orderId: string
+  subscriptionId: string
+  amountCents: number | null
+}) {
+  return supabaseFetch('/rest/v1/rpc/process_student_cartpanda_event', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      p_checkout_token: input.checkoutToken,
+      p_event_id: input.eventId,
+      p_event_at: input.eventAt,
+      p_status: input.status,
+      p_is_confirmed: input.confirmed,
+      p_buyer_email: input.buyerEmail || null,
+      p_provider_order_id: input.orderId || null,
+      p_provider_subscription_id: input.subscriptionId || null,
+      p_provider_amount_cents: input.amountCents,
+    }),
+  })
+}
+
+function resolveProviderEventAt(payload: Record<string, unknown>) {
+  const raw = findString(payload, [
+    'event_at', 'updated_at', 'paid_at', 'processed_at', 'created_at', 'datetime_full', 'datetime',
+  ])
+  if (raw) {
+    const parsed = Date.parse(raw)
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString()
+  }
+  return new Date().toISOString()
+}
+
+async function buildStableEventId(payload: Record<string, unknown>) {
+  const canonical = stableStringify(payload)
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical))
+  const hash = Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+  return `cartpanda:sha256:${hash}`
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
 }
 
 async function findUserByEmail(email: string) {
