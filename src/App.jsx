@@ -11704,28 +11704,28 @@ function ExerciseMedia({ exercise, compact = false }) {
 }
 
 function ExerciseTechniqueCard({ exercise, compact = false }) {
-  const target = exercise.muscleGroup || 'Músculo alvo'
+  const profile = getExerciseMuscleProfile(exercise)
+  const target = profile.primaryLabel !== 'Músculo alvo não identificado'
+    ? profile.primaryLabel
+    : exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Movimento'
+
   return (
-    <div className={`rounded-md border border-emerald-300/20 bg-zinc-950/70 ${compact ? 'p-3' : 'p-4'}`}>
-      <div className="flex flex-col gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-emerald-200">Vídeo ainda não cadastrado na biblioteca</p>
-          <p className="mt-1 text-xs font-bold uppercase text-zinc-500">{target}</p>
-          <p className="mt-1 text-sm leading-6 text-zinc-300">
-            {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
-          </p>
-          <p className="mt-2 text-xs leading-5 text-zinc-500">
-            O treinador pode vincular um vídeo próprio ou um vídeo da biblioteca para este exercício aparecer aqui.
-          </p>
-          <a
-            href={getExerciseVideoUrl(exercise)}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100"
-          >
-            Buscar execução no YouTube
-          </a>
-        </div>
+    <div className={`grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/55 ${compact ? 'p-3' : 'p-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch'}`}>
+      <MuscleMap exercise={exercise} compact />
+      <div className="flex min-w-0 flex-col justify-center rounded-xl border border-white/10 bg-white/[0.035] p-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Guia muscular do exercício</p>
+        <p className="mt-1 text-sm font-black text-white">{target}</p>
+        <p className="mt-3 text-sm leading-6 text-zinc-300">
+          {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
+        </p>
+        <a
+          href={getExerciseVideoUrl(exercise)}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100"
+        >
+          Buscar execução no YouTube
+        </a>
       </div>
     </div>
   )
