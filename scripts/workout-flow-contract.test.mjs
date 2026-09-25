@@ -62,6 +62,7 @@ test('funções renomeadas de sessão não mantêm referências ao nome antigo',
 test('conclusão de treino mantém recompensa visual de XP para o aluno', () => {
   assert.match(appSource, /student-xp-gain/)
   assert.match(appSource, /\+80 XP/)
+  assert.match(appSource, /if \(!alreadyRegistered\) setXpGain\(80\)/)
   assert.match(cssSource, /\.student-xp-gain[\s\S]*?animation:\s*student-xp-enter/)
   assert.match(cssSource, /@keyframes\s+student-xp-enter/)
 })
