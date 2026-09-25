@@ -413,6 +413,38 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
+export async function loadRemoteMyAffiliateFinanceReport(startDate = '', endDate = '') {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const currentMonthStart = `${today.slice(0, 7)}-01`
+  const normalizedStart = /^\d{4}-\d{2}-\d{2}$/.test(String(startDate || '').trim())
+    ? String(startDate).trim()
+    : currentMonthStart
+  const normalizedEnd = /^\d{4}-\d{2}-\d{2}$/.test(String(endDate || '').trim())
+    ? String(endDate).trim()
+    : today
+
+  const result = await rpcRequest('get_my_affiliate_finance_report', {
+    p_start_date: normalizedStart,
+    p_end_date: normalizedEnd,
+  })
+
+  return result && typeof result === 'object' ? result : {
+    period: { startDate: normalizedStart, endDate: normalizedEnd },
+    professionalName: '',
+    professionalType: 'trainer',
+    monthlyFeeCents: 2500,
+    commissionRate: 0.25,
+    commissionPerPaidInstallmentCents: 625,
+    studentsBrought: 0,
+    newStudentsInPeriod: 0,
+    paidStudents: 0,
+    paidInstallments: 0,
+    revenueCents: 0,
+    commissionCents: 0,
+    sales: [],
+  }
+}
+
 export async function loadRemoteAffiliateFinanceReport(startDate = '', endDate = '') {
   const today = new Date().toLocaleDateString('sv-SE')
   const currentMonthStart = `${today.slice(0, 7)}-01`
