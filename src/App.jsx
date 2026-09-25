@@ -2345,10 +2345,10 @@ function AppContent() {
     }
 
     setData((current) => {
-      const previousStudent = current.students.find((item) => item.id === student.id)
-      const exists = current.students.some((item) => item.id === student.id)
+      const previousStudent = current.students.find((item) => String(item.id) === String(savedStudent.id))
+      const exists = current.students.some((item) => String(item.id) === String(savedStudent.id))
       const students = exists
-        ? current.students.map((item) => (item.id === student.id ? savedStudent : item))
+        ? current.students.map((item) => (String(item.id) === String(savedStudent.id) ? savedStudent : item))
         : [savedStudent, ...current.students]
       const planChanged = Boolean(previousStudent && previousStudent.plan !== savedStudent.plan)
       const nextBillingDate = planChanged
@@ -3807,6 +3807,7 @@ function AppContent() {
             {activeView === 'alunos' && (
               <Students
                 nutritionist={nutritionistUser}
+                affiliateBillingEnabled={professionalAffiliate}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 students={data.students}
                 workoutLogs={data.workoutLogs ?? []}
@@ -6386,7 +6387,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onCreateStudentCheckout, onDelete, coachPlans = plans }) {
+function Students({ nutritionist = false, affiliateBillingEnabled = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onCreateStudentCheckout, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -6566,46 +6567,48 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
             </div>
-            <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-200">
-                O portal libera treino, dieta e progresso quando a assinatura Cartpanda e a mensalidade do profissional estão em dia. Você pode liberar temporariamente em casos de exceção.
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
-                  Dias de liberação
-                  <input
-                    type="number"
-                    min="1"
-                    max="90"
-                    value={releaseDays}
-                    onChange={(event) => setReleaseDays(event.target.value)}
-                    className="min-h-10 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case text-zinc-100 outline-none focus:border-amber-300"
-                  />
-                </label>
-                <button type="button" disabled={accessSaving} onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md bg-amber-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-                  {accessSaving ? 'Salvando...' : 'Liberar acesso'}
-                </button>
-                <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberação</button>
-              </div>
-              <div className="mt-4 border-t border-amber-200/15 pt-4">
-                <p className="text-xs font-black uppercase text-amber-100">Pagamento automático pela Cartpanda</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Gere um link exclusivo para a assinatura do Coach Fit Pro. A Cartpanda confirma esta etapa automaticamente; a mensalidade do profissional continua sendo controlada separadamente em Recebimentos.
+            {affiliateBillingEnabled ? (
+              <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
+                <p className="text-xs font-black uppercase text-amber-200">{nutritionist ? 'Acesso do paciente afiliado' : 'Acesso do aluno afiliado'}</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-200">
+                  O portal libera as ferramentas pagas quando a assinatura Coach Fit Pro de R$ 25 estiver ativa. A mensalidade cobrada pelo profissional é independente e não interfere nesta liberação.
                 </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <button type="button" disabled={checkoutSaving || !studentCheckoutBaseUrl} onClick={generateStudentPaymentLink} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50">
-                    {checkoutSaving ? 'Gerando...' : 'Gerar link de pagamento'}
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
+                    Dias de liberação
+                    <input type="number" min="1" max="90" value={releaseDays} onChange={(event) => setReleaseDays(event.target.value)} className="min-h-10 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case text-zinc-100 outline-none focus:border-amber-300" />
+                  </label>
+                  <button type="button" disabled={accessSaving} onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md bg-amber-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                    {accessSaving ? 'Salvando...' : 'Liberar acesso'}
                   </button>
-                  {checkoutLink ? <button type="button" onClick={copyStudentPaymentLink} className="min-h-11 rounded-md border border-emerald-200/30 px-4 py-2 text-xs font-black text-emerald-100">Copiar link</button> : null}
+                  <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberação</button>
                 </div>
-                {!studentCheckoutBaseUrl ? <p className="mt-2 text-xs leading-5 text-amber-100">Aguardando o link oficial do checkout do aluno para ativar esta ação.</p> : null}
-                {checkoutLink ? <a href={checkoutLink} target="_blank" rel="noreferrer" className="mt-3 block break-all rounded-md border border-white/10 bg-black/25 p-3 text-xs font-bold text-emerald-100">{checkoutLink}</a> : null}
-                {checkoutMessage ? <p className="mt-2 text-xs font-bold text-emerald-100">{checkoutMessage}</p> : null}
+                <div className="mt-4 border-t border-amber-200/15 pt-4">
+                  <p className="text-xs font-black uppercase text-amber-100">Pagamento automático pela Cartpanda</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">
+                    Gere um link exclusivo para a assinatura mensal de R$ 25 do Coach Fit Pro. A Cartpanda confirma o pagamento e o backend libera o acesso automaticamente.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button type="button" disabled={checkoutSaving || !studentCheckoutBaseUrl} onClick={generateStudentPaymentLink} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50">
+                      {checkoutSaving ? 'Gerando...' : 'Gerar link de pagamento'}
+                    </button>
+                    {checkoutLink ? <button type="button" onClick={copyStudentPaymentLink} className="min-h-11 rounded-md border border-emerald-200/30 px-4 py-2 text-xs font-black text-emerald-100">Copiar link</button> : null}
+                  </div>
+                  {!studentCheckoutBaseUrl ? <p className="mt-2 text-xs leading-5 text-amber-100">Aguardando o link oficial do checkout do aluno para ativar esta ação.</p> : null}
+                  {checkoutLink ? <a href={checkoutLink} target="_blank" rel="noreferrer" className="mt-3 block break-all rounded-md border border-white/10 bg-black/25 p-3 text-xs font-bold text-emerald-100">{checkoutLink}</a> : null}
+                  {checkoutMessage ? <p className="mt-2 text-xs font-bold text-emerald-100">{checkoutMessage}</p> : null}
+                </div>
+                {accessMessage ? <p className="mt-3 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{accessMessage}</p> : null}
+                {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
               </div>
-              {accessMessage ? <p className="mt-3 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{accessMessage}</p> : null}
-              {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
-            </div>
+            ) : (
+              <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <p className="text-xs font-black uppercase text-emerald-200">Acesso sem cobrança adicional do app</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Este profissional não participa da cobrança de R$ 25 por aluno/paciente. O link individual dá acesso normal ao Coach Fit Pro sem checkout Cartpanda adicional.
+                </p>
+              </div>
+            )}
             <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
               {selectedInvite ? (
