@@ -51,9 +51,9 @@ test('player de áudio cabe na bolha em telas mobile estreitas', () => {
 test('gesto mobile cancela ao atingir a distância para a esquerda mesmo em diagonal', () => {
   assert.equal(classifyChatAudioGesture({ dx: -96, dy: -20 }), 'cancel')
   assert.equal(classifyChatAudioGesture({ dx: -70, dy: -120 }), 'cancel')
-  assert.equal(classifyChatAudioGesture({ dx: -56, dy: 80 }), 'cancel')
+  assert.equal(classifyChatAudioGesture({ dx: -32, dy: 80 }), 'cancel')
   assert.equal(classifyChatAudioGesture({ dx: -10, dy: -90 }), 'hold')
-  assert.equal(classifyChatAudioGesture({ dx: -40, dy: -14 }), 'hold')
+  assert.equal(classifyChatAudioGesture({ dx: -24, dy: -14 }), 'hold')
 })
 
 test('gravação por pressão é usada em touch/pen e desktop usa clique', () => {
