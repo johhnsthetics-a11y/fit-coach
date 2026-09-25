@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises'
 const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8').catch(() => '')
+const renamedReferenceFixSource = await readFile(new URL('../supabase/migrations/20260925_fix_workout_session_renamed_refs.sql', import.meta.url), 'utf8').catch(() => '')
+const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
 test('rascunho permanece privado e publicação fica disponível ao aluno', () => {
   assert.match(apiSource, /publication_status:\s*workout\.status === 'Rascunho' \? 'draft' : 'published'/)
@@ -47,4 +49,19 @@ test('aluno pode escolher entre vários treinos publicados', () => {
   assert.match(studentAppSource, /selectedStudentWorkoutId/)
   assert.match(studentAppSource, /student-workout-selector/)
   assert.doesNotMatch(studentAppSource, /workout=\{studentWorkouts\[0\]\}/)
+})
+
+
+test('funções renomeadas de sessão não mantêm referências ao nome antigo', () => {
+  assert.match(renamedReferenceFixSource, /save_student_workout_session_unchecked\.completion_token/)
+  assert.match(renamedReferenceFixSource, /complete_student_workout_session_unchecked\.completion_token/)
+  assert.doesNotMatch(renamedReferenceFixSource, /replace\([\s\S]*?'save_student_workout_session\.completion_token'[\s\S]*?'save_student_workout_session\.completion_token'/)
+  assert.doesNotMatch(renamedReferenceFixSource, /replace\([\s\S]*?'complete_student_workout_session\.completion_token'[\s\S]*?'complete_student_workout_session\.completion_token'/)
+})
+
+test('conclusão de treino mantém recompensa visual de XP para o aluno', () => {
+  assert.match(appSource, /student-xp-gain/)
+  assert.match(appSource, /\+80 XP/)
+  assert.match(cssSource, /\.student-xp-gain[\s\S]*?animation:\s*student-xp-enter/)
+  assert.match(cssSource, /@keyframes\s+student-xp-enter/)
 })
