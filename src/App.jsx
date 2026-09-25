@@ -18436,31 +18436,34 @@ function AffiliateProfessionalsPanel() {
           <p className="mt-1 text-sm text-[#718182]">Informe o e-mail para criar o vínculo de afiliado.</p>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div className="grid gap-2">
-            <label htmlFor="affiliate-professional-email" className="text-sm font-medium text-[#30494A]">E-mail do profissional afiliado</label>
-            <input
-              id="affiliate-professional-email"
-              type="email"
-              value={email}
-              onChange={(event) => {
-                setEmail(event.target.value)
-                if (feedback?.field === 'email') setFeedback(null)
-              }}
-              placeholder="nome@exemplo.com"
-              autoComplete="email"
-              aria-invalid={feedback?.field === 'email' && feedback?.type === 'error' ? 'true' : undefined}
-              aria-describedby="affiliate-email-helper"
-              className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition placeholder:text-[#9AA7A8] focus:ring-2 focus:ring-[#147D70]/10 ' + (feedback?.field === 'email' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
-            />
-            <span id="affiliate-email-helper" className="text-xs leading-5 text-[#7A8A8B]">Use exatamente o mesmo e-mail da conta profissional.</span>
-          </div>
+        <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label
+            htmlFor="affiliate-professional-email"
+            className="text-sm font-medium text-[#30494A] lg:col-start-1 lg:row-start-1"
+          >
+            E-mail do profissional afiliado
+          </label>
+
+          <input
+            id="affiliate-professional-email"
+            type="email"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value)
+              if (feedback?.field === 'email') setFeedback(null)
+            }}
+            placeholder="nome@exemplo.com"
+            autoComplete="email"
+            aria-invalid={feedback?.field === 'email' && feedback?.type === 'error' ? 'true' : undefined}
+            aria-describedby="affiliate-email-helper"
+            className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition placeholder:text-[#9AA7A8] focus:ring-2 focus:ring-[#147D70]/10 lg:col-start-1 lg:row-start-2 ' + (feedback?.field === 'email' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
+          />
 
           <button
             type="button"
             disabled={saving}
             onClick={addAffiliate}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#147D70] px-5 text-sm font-semibold text-white transition hover:bg-[#0F6B60] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#147D70]/35 disabled:cursor-wait disabled:opacity-55 lg:w-auto lg:min-w-[190px]"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#0D6C61] bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_4px_12px_rgba(15,118,110,0.18)] transition hover:-translate-y-px hover:bg-[#0B625A] hover:shadow-[0_6px_16px_rgba(15,118,110,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E]/35 focus-visible:ring-offset-2 disabled:cursor-wait disabled:translate-y-0 disabled:opacity-55 disabled:shadow-none lg:col-start-2 lg:row-start-2 lg:min-w-[205px] lg:w-auto"
           >
             {saving ? (
               <>
@@ -18474,6 +18477,13 @@ function AffiliateProfessionalsPanel() {
               </>
             )}
           </button>
+
+          <span
+            id="affiliate-email-helper"
+            className="text-xs leading-5 text-[#7A8A8B] lg:col-start-1 lg:row-start-3"
+          >
+            Use exatamente o mesmo e-mail da conta profissional.
+          </span>
         </div>
 
         {feedback ? <div className="mt-4"><AffiliateInlineNotice type={feedback.type}>{feedback.message}</AffiliateInlineNotice></div> : null}
