@@ -47,12 +47,15 @@ test('migration implementa vencimentos, checkout por convite e acesso centraliza
   assert.match(sql, /grant execute on function public\.create_student_checkout_session_by_invite\(text\) to anon, authenticated/i)
 })
 
-test('webhook ignora evento ja processado e persiste periodo do aluno', async () => {
+test('webhook ignora replay e persiste periodo do aluno no processador atomico', async () => {
   const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const integrity = await readFile(new URL('../SUPABASE/migrations/20260925_affiliate_e2e_integrity.sql', import.meta.url), 'utf8')
   assert.match(webhook, /findProcessedWebhookEvent/)
-  assert.match(webhook, /reason: 'duplicate_event'/)
-  assert.match(webhook, /app_subscription_started_at/)
-  assert.match(webhook, /app_subscription_expires_at/)
+  assert.match(webhook, /process_cartpanda_student_payment_event/)
+  assert.match(webhook, /resolveWebhookEventId/)
+  assert.match(integrity, /app_subscription_started_at/)
+  assert.match(integrity, /app_subscription_expires_at/)
+  assert.match(integrity, /duplicate_event/)
   const confirmationBlock = webhook.slice(webhook.indexOf('function isConfirmedPayment'), webhook.indexOf('function parseMoneyToCents'))
   assert.match(confirmationBlock, /order_type/)
 })
