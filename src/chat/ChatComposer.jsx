@@ -46,6 +46,7 @@ export function ChatComposer({
     setError,
     clearAttachment,
     selectAttachment,
+    sendAttachmentImmediately,
     submit,
     retry,
   } = useChatComposer({
@@ -108,7 +109,7 @@ export function ChatComposer({
         ) : (
           <AudioRecorder
             disabled={unavailable}
-            onRecorded={selectAttachment}
+            onRecorded={sendAttachmentImmediately}
             onError={setError}
             onRecordingChange={setRecording}
             Icon={Icon}
