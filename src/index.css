@@ -13558,3 +13558,261 @@ html[data-theme="dark"] body { background: #05070d; }
   .mobile-workout-day-complete-v3 button,
   .mobile-workout-rest-day-v3 button { width: 100%; }
 }
+
+
+/* coachfit-student-workout-premium-v4 */
+.student-training-premium-v4 {
+  background: #eef4fb !important;
+  background-image: none !important;
+  color: #10213f !important;
+}
+.student-training-premium-v4 .student-header-nav { display: none !important; }
+.student-training-premium-v4 .student-app-layout { max-width: 1180px; padding-top: 0 !important; }
+.student-training-premium-v4 .coachfit-workout-route-v4 { min-width: 0; }
+.student-training-premium-v4 .mobile-workout-student-experience-v2.coachfit-workout-premium-v4 {
+  display: grid; gap: 14px; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; padding: 0 !important; color: #10213f !important; box-shadow: none !important;
+}
+.coachfit-workout-hero-v4 {
+  position: relative; overflow: hidden; min-height: 220px; border-radius: 0 0 30px 30px;
+  background:
+    radial-gradient(circle at 88% 42%, rgba(33,113,181,.34), transparent 20%),
+    radial-gradient(circle at 86% 44%, transparent 0 50px, rgba(255,255,255,.06) 52px 54px, transparent 56px 71px, rgba(255,255,255,.035) 73px 75px, transparent 77px),
+    linear-gradient(135deg,#0b3458 0%,#082746 52%,#061a30 100%);
+  padding: 22px 24px 28px; color: #fff; box-shadow: 0 22px 44px rgba(19,58,96,.18);
+}
+.coachfit-workout-hero-v4::after {
+  content:""; position:absolute; right:-28px; bottom:-44px; width:220px; height:220px;
+  border:24px solid rgba(255,255,255,.035); border-radius:50%;
+  box-shadow: inset 0 0 0 18px rgba(255,255,255,.02),0 0 0 28px rgba(255,255,255,.018);
+}
+.coachfit-workout-hero-top-v4,.coachfit-workout-hero-copy-v4{position:relative;z-index:1}
+.coachfit-workout-hero-top-v4{display:grid;grid-template-columns:46px 1fr 46px;align-items:center;gap:10px}
+.coachfit-workout-back-v4,.coachfit-workout-bell-v4{display:grid;width:44px;height:44px;place-items:center;border:1px solid rgba(255,255,255,.12);border-radius:50%;background:rgba(255,255,255,.08);color:#fff}
+.coachfit-workout-brand-v4{display:flex;align-items:center;justify-content:center;gap:10px}
+.coachfit-workout-brand-v4>span{display:grid;width:42px;height:42px;place-items:center;border-radius:12px;background:linear-gradient(145deg,#169cff,#0875e8);color:#fff}
+.coachfit-workout-brand-v4 strong{color:#fff;font-size:clamp(1.6rem,5vw,2.05rem);font-weight:950;letter-spacing:-.04em}
+.coachfit-workout-brand-v4 strong span{color:#27c8ff}
+.coachfit-workout-hero-copy-v4{margin-top:30px}
+.coachfit-workout-hero-copy-v4 h2{margin:0;max-width:780px;color:#fff;font-size:clamp(2rem,7vw,3.15rem);font-weight:950;letter-spacing:-.035em;line-height:1}
+.coachfit-workout-hero-copy-v4 p{margin:10px 0 0;max-width:720px;color:rgba(255,255,255,.82);font-size:clamp(.95rem,3vw,1.15rem);line-height:1.5}
+
+.coachfit-plan-card-v4,.coachfit-day-card-v4,.coachfit-day-overview-v4,.coachfit-day-exercises-v4>article,
+.coachfit-session-strip-v4,.coachfit-current-exercise-v4,.coachfit-workout-finish-v4,.coachfit-history-identity-v4,
+.coachfit-history-chart-v4,.coachfit-history-list-v4,.coachfit-next-reference-v4,.coachfit-complete-card-v4,
+.coachfit-summary-highlights-v4,.coachfit-recovery-v4{
+  border:1px solid #e1eaf4;background:#fff;box-shadow:0 10px 30px rgba(40,72,112,.08)
+}
+.coachfit-plan-card-v4{display:grid;grid-template-columns:86px minmax(0,1fr);align-items:center;gap:18px;border-radius:24px;padding:22px}
+.coachfit-plan-icon-v4{display:grid;width:82px;height:82px;place-items:center;border-radius:50%;background:#e9f3ff;color:#087aed}
+.coachfit-plan-card-v4 h3{margin:0 0 8px;color:#10213f;font-size:1.65rem;font-weight:950}
+.coachfit-plan-card-v4 p{display:flex;align-items:center;gap:8px;margin:6px 0 0;color:#60738f;font-size:.9rem}
+.coachfit-day-list-v4{display:grid;gap:14px}
+.coachfit-day-card-v4{border-radius:22px;padding:18px}
+.coachfit-day-card-main-v4{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:14px}
+.coachfit-day-muscle-icon-v4{display:grid;width:72px;height:72px;place-items:center;border-radius:20px;background:linear-gradient(145deg,#edf4ff,#f8fbff);color:#1a79df}
+.coachfit-day-card-v4 h3{margin:0;color:#10213f;font-size:1.45rem;font-weight:950}
+.coachfit-day-card-v4 p{margin:4px 0 0;color:#263c5d;font-size:1rem}
+.coachfit-day-card-v4 small{display:block;margin-top:8px;color:#0b7ff1;font-weight:750}
+.coachfit-day-card-v4 small.has-progress{color:#0e9a69}
+.coachfit-day-card-actions-v4{display:grid;grid-template-columns:.85fr .95fr 1.15fr;gap:8px;margin-top:16px}
+.coachfit-day-card-actions-v4 button,.coachfit-workout-navigation-v4 button,.coachfit-complete-actions-v4 button{min-height:48px;border-radius:12px;font-size:.82rem;font-weight:900}
+.coachfit-day-card-actions-v4 .is-secondary,.coachfit-workout-navigation-v4 .is-secondary,.coachfit-complete-actions-v4 button:not(.is-primary){
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid #1184f5;background:#fff;color:#0b79e6
+}
+.coachfit-day-card-actions-v4 .is-primary,.coachfit-workout-navigation-v4 .is-primary,.coachfit-complete-actions-v4 .is-primary{
+  border:0;background:linear-gradient(135deg,#118bff,#0471e7);color:#fff;box-shadow:0 10px 22px rgba(4,113,231,.18)
+}
+.coachfit-day-overview-v4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:24px;padding:18px 12px}
+.coachfit-day-overview-v4>div{display:grid;min-width:0;justify-items:center;gap:4px;border-right:1px solid #e5edf6;padding:4px 10px;text-align:center}
+.coachfit-day-overview-v4>div:last-child{border-right:0}
+.coachfit-day-overview-v4>div>span,.coachfit-summary-grid-v4>div>span{display:grid;width:44px;height:44px;place-items:center;border-radius:50%;background:#eaf4ff;color:#0d7eea}
+.coachfit-day-overview-v4 strong{color:#112443;font-size:1rem;font-weight:950;overflow-wrap:anywhere}
+.coachfit-day-overview-v4 small{color:#71829a;font-size:.72rem}
+.coachfit-start-workout-v4{display:flex;min-height:62px;width:100%;align-items:center;justify-content:center;gap:10px;border:0;border-radius:16px;background:linear-gradient(135deg,#18c77e,#0bb86c);color:#fff;font-size:1.15rem;font-weight:950;box-shadow:0 12px 24px rgba(11,184,108,.19)}
+.coachfit-day-exercises-v4{display:grid;gap:12px}
+.coachfit-section-title-v4{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.coachfit-section-title-v4>div{display:flex;align-items:center;gap:8px;color:#10213f}
+.coachfit-section-title-v4 strong{color:#10213f;font-size:1.12rem;font-weight:950}
+.coachfit-section-title-v4>span,.coachfit-section-title-v4>button{border:0;border-radius:999px;background:#eaf4ff;padding:6px 10px;color:#0878e5;font-size:.72rem;font-weight:850}
+.coachfit-day-exercises-v4>article{display:grid;grid-template-columns:42px minmax(0,1fr) 92px;align-items:center;gap:12px;border-radius:18px;padding:14px}
+.coachfit-exercise-number-v4{display:grid;width:36px;height:36px;place-items:center;border-radius:50%;background:#e9f3ff;color:#0b79e6;font-weight:950}
+.coachfit-day-exercise-copy-v4 h4{margin:0;color:#10213f;font-size:1rem;font-weight:950}
+.coachfit-day-exercise-copy-v4 p{margin:3px 0 0;color:#667891;font-size:.78rem}
+.coachfit-day-exercise-copy-v4 small{display:block;margin-top:7px;border-radius:10px;background:#f2f7fd;padding:7px 9px;color:#60738f;font-size:.7rem;line-height:1.4}
+.coachfit-exercise-history-link-v4{display:grid;justify-items:center;gap:2px;border:0;border-radius:14px;background:#f5f9fd;padding:8px;color:#0d7eea}
+.coachfit-exercise-history-link-v4 span{font-size:.64rem;font-weight:850}
+.coachfit-workout-selector-v4{display:grid;gap:5px;margin:12px 0;color:#496078;font-size:.72rem;font-weight:850}
+.coachfit-workout-selector-v4 select{min-height:46px;border:1px solid #d9e6f3;border-radius:12px;background:#fff;padding:0 12px;color:#10213f;font-weight:800}
+.coachfit-session-strip-v4{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);align-items:center;gap:16px;border-radius:20px;padding:14px 16px}
+.coachfit-session-strip-v4>div:first-child{display:flex;align-items:center;gap:10px}
+.coachfit-session-strip-v4>div:first-child>span{display:grid;width:48px;height:48px;place-items:center;border-radius:50%;background:#e8fbf2;color:#0aaa67}
+.coachfit-session-strip-v4 small{color:#61748f;font-size:.72rem}
+.coachfit-session-strip-v4 strong{display:block;color:#10213f;font-size:1.25rem;font-weight:950}
+.coachfit-session-progress-v4>div{display:flex;justify-content:space-between;gap:8px;font-size:.8rem}
+.coachfit-session-progress-v4>div span{color:#61748f}
+.coachfit-session-progress-v4 progress{width:100%;height:9px;margin-top:8px;border:0;border-radius:999px;background:#dbe6f1;accent-color:#087af0}
+.coachfit-current-exercise-v4{display:grid;gap:12px;border-radius:22px;padding:16px}
+.coachfit-current-exercise-head-v4{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.72fr);gap:16px;align-items:stretch}
+.coachfit-current-exercise-copy-v4>small{color:#087af0;font-size:.72rem;font-weight:950;text-transform:uppercase}
+.coachfit-current-exercise-copy-v4 h3{margin:6px 0 10px;color:#10213f;font-size:clamp(1.5rem,5vw,2rem);font-weight:950}
+.coachfit-current-exercise-copy-v4 p{margin:5px 0 0;color:#4f6481;font-size:.9rem}
+.coachfit-current-exercise-copy-v4 button{margin-top:12px;border:0;background:transparent;padding:0;color:#087af0;font-size:.78rem;font-weight:900}
+.coachfit-current-muscle-v4{min-height:0!important;border:0!important;border-radius:18px!important;background:#f4f8fc!important;padding:8px!important;box-shadow:none!important}
+.coachfit-current-muscle-v4>div:first-child,.coachfit-current-muscle-v4>div:last-child{display:none!important}
+.coachfit-current-muscle-v4 svg{height:210px!important;max-width:190px!important;margin-top:0!important}
+.coachfit-trainer-tip-v4{display:flex;gap:10px;align-items:flex-start;border-radius:14px;background:#eef6ff;padding:12px}
+.coachfit-trainer-tip-v4>span{display:grid;width:36px;height:36px;flex:0 0 36px;place-items:center;border-radius:50%;background:#e1efff;color:#0b7dec}
+.coachfit-trainer-tip-v4 strong{color:#0d62b8;font-size:.8rem}
+.coachfit-trainer-tip-v4 p{margin:2px 0 0;color:#5e7290;font-size:.78rem;line-height:1.45}
+.coachfit-series-log-v4{display:grid;gap:0;border-top:1px solid #e7eef6;padding-top:14px}
+.coachfit-series-row-v4{display:grid;grid-template-columns:46px minmax(120px,.8fr) minmax(96px,1fr) minmax(96px,1fr) 44px;align-items:center;gap:8px;border-bottom:1px solid #e7eef6;padding:11px 0}
+.coachfit-series-row-v4:last-child{border-bottom:0}
+.coachfit-series-status-v4,.coachfit-series-check-v4{display:grid;width:40px;height:40px;place-items:center;border:2px solid #d5dfeb;border-radius:50%;background:#eef3f8;color:#526987;font-weight:950}
+.coachfit-series-row-v4.is-complete .coachfit-series-status-v4,.coachfit-series-row-v4.is-complete .coachfit-series-check-v4{border-color:#17b86f;background:#17b86f;color:#fff}
+.coachfit-series-label-v4 strong{display:block;color:#10213f;font-size:.9rem}
+.coachfit-series-label-v4 small{display:block;margin-top:2px;color:#71829a;font-size:.68rem}
+.coachfit-series-row-v4 label{display:grid;gap:4px;color:#63758f;font-size:.68rem;font-weight:750}
+.coachfit-series-row-v4 input,.coachfit-workout-finish-v4 select,.coachfit-workout-finish-v4 textarea{
+  width:100%;min-height:46px;border:1.5px solid #d9e3ef!important;border-radius:10px!important;background:#f8fbfe!important;padding:9px 10px!important;color:#10213f!important;-webkit-text-fill-color:#10213f!important;font-size:1rem!important;font-weight:850;box-shadow:none!important
+}
+.coachfit-series-row-v4 input:focus{border-color:#087af0!important;outline:2px solid rgba(8,122,240,.12)}
+.coachfit-rest-timer-v4{display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);align-items:center;gap:12px;border-radius:16px;background:#f4f8fd;padding:12px}
+.coachfit-rest-clock-v4{display:flex;align-items:center;gap:10px}
+.coachfit-rest-clock-v4>span{display:grid;width:42px;height:42px;place-items:center;border-radius:50%;background:#e7f2ff;color:#087af0}
+.coachfit-rest-clock-v4 small{color:#61748f;font-size:.68rem}
+.coachfit-rest-clock-v4 strong{display:block;color:#10213f;font-size:1.35rem}
+.coachfit-rest-controls-v4{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.coachfit-rest-controls-v4 button{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:5px;border:1px solid #cfe0f1;border-radius:10px;background:#fff;color:#0874da;font-size:.72rem;font-weight:900}
+.coachfit-rest-controls-v4 button.is-start{border:0;background:#16bd72;color:#fff}
+.coachfit-rest-controls-v4 button:disabled{opacity:.4}
+.coachfit-pause-icon-v4{font-weight:950;letter-spacing:-2px}
+.coachfit-workout-navigation-v4{display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);gap:8px}
+.coachfit-workout-navigation-v4 button:disabled{opacity:.38}
+.coachfit-workout-hint-v4{color:#76889f;font-size:.7rem;text-align:right}
+.coachfit-workout-finish-v4{display:grid;gap:10px;border-radius:18px;padding:14px}
+.coachfit-workout-finish-v4 label{display:grid;gap:5px;color:#61748f;font-size:.72rem;font-weight:800}
+.coachfit-workout-finish-v4 textarea{resize:vertical}
+.coachfit-workout-finish-v4>button{min-height:52px;border:0;border-radius:12px;background:linear-gradient(135deg,#118bff,#0471e7);color:#fff;font-weight:950}
+.coachfit-workout-finish-v4>button:disabled{opacity:.42}
+.coachfit-workout-finish-v4>small{color:#76889f;font-size:.7rem;text-align:center}
+.coachfit-day-complete-v4{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #bfead6;border-radius:18px;background:#ecfbf4;padding:14px}
+.coachfit-day-complete-v4 small{color:#0f9360;font-size:.68rem;font-weight:900;text-transform:uppercase}
+.coachfit-day-complete-v4 strong{display:block;margin-top:3px;color:#123e31}
+.coachfit-day-complete-v4 p{margin:2px 0 0;color:#5a7b70;font-size:.72rem}
+.coachfit-day-complete-v4 button{min-height:42px;border:0;border-radius:10px;background:#11b56d;padding:0 12px;color:#fff;font-size:.75rem;font-weight:900}
+.coachfit-rest-day-v4{display:flex;align-items:center;gap:10px;border:1px dashed #bfd3e6;border-radius:16px;background:#f8fbfe;padding:16px;color:#087af0}
+.coachfit-rest-day-v4 strong{color:#10213f}
+.coachfit-rest-day-v4 p{margin:2px 0 0;color:#6d7f97;font-size:.75rem}
+
+.coachfit-history-identity-v4{display:grid;grid-template-columns:110px minmax(0,1fr);gap:16px;border-radius:22px;padding:18px}
+.coachfit-history-muscle-v4{display:grid;place-items:center;border-radius:18px;background:#edf5ff;color:#0b7bec}
+.coachfit-history-copy-v4 h3{margin:0;color:#10213f;font-size:1.35rem;font-weight:950}
+.coachfit-history-copy-v4 p{margin:4px 0;color:#314766}
+.coachfit-history-copy-v4 small{color:#0d6ac4}
+.coachfit-history-stats-v4{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid #e6edf6;padding-top:14px}
+.coachfit-history-stats-v4>div{display:grid;gap:2px}
+.coachfit-history-stats-v4 span{color:#657790;font-size:.68rem}
+.coachfit-history-stats-v4 strong{color:#10213f;font-size:1rem}
+.coachfit-history-chart-v4,.coachfit-history-list-v4{border-radius:20px;padding:16px}
+.coachfit-history-svg-v4{width:100%;height:210px;margin-top:10px;color:#087af0}
+.coachfit-history-svg-v4 path{stroke:#e1eaf4;stroke-width:.7}
+.coachfit-history-svg-v4 circle{fill:#fff;stroke:#087af0;stroke-width:1.3}
+.coachfit-history-empty-v4{margin:18px 0 4px;color:#70829a;font-size:.8rem}
+.coachfit-history-list-v4{display:grid;gap:8px}
+.coachfit-history-list-v4>article{display:grid;grid-template-columns:70px minmax(0,1fr) auto;align-items:center;gap:10px;border:1px solid #e4ecf5;border-radius:14px;padding:9px}
+.coachfit-history-date-v4{display:grid;justify-items:center;color:#62758f}
+.coachfit-history-date-v4 small{text-transform:uppercase}
+.coachfit-history-date-v4 strong{color:#10213f}
+.coachfit-history-session-v4>strong{color:#10213f;font-size:.78rem}
+.coachfit-history-session-v4>div{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:4px}
+.coachfit-history-session-v4 span{color:#6f8097;font-size:.66rem}
+.coachfit-history-session-v4 b{color:#10213f}
+.coachfit-history-list-v4 em{border-radius:999px;background:#e8fbf2;padding:5px 8px;color:#0d9a64;font-size:.68rem;font-style:normal;font-weight:900}
+.coachfit-next-reference-v4{display:grid;grid-template-columns:54px minmax(0,1fr);gap:10px;border-radius:18px;padding:14px}
+.coachfit-next-reference-v4>span{display:grid;width:48px;height:48px;place-items:center;border-radius:50%;background:#eaf4ff;color:#087af0}
+.coachfit-next-reference-v4 strong{color:#10213f}
+.coachfit-next-reference-v4 p{margin:2px 0 0;color:#6f8198;font-size:.72rem}
+.coachfit-next-reference-grid-v4{grid-column:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.coachfit-next-reference-grid-v4>span{display:grid;border-radius:10px;background:#edf5ff;padding:8px}
+.coachfit-next-reference-grid-v4 small{color:#6e8098;font-size:.62rem}
+.coachfit-next-reference-grid-v4 b{color:#10213f;font-size:.82rem}
+
+.coachfit-complete-card-v4{display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:16px;border-color:#c8efdd;border-radius:22px;background:linear-gradient(135deg,#effcf6,#fff);padding:18px}
+.coachfit-complete-check-v4{display:grid;width:76px;height:76px;place-items:center;border-radius:50%;background:#12b96d;color:#fff;box-shadow:0 0 0 14px #e3f9ee}
+.coachfit-complete-card-v4 small{color:#0d8e5d;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
+.coachfit-complete-card-v4 h3{margin:4px 0 0;color:#10213f;font-size:1.45rem;font-weight:950}
+.coachfit-complete-card-v4 p{margin:4px 0 0;color:#536a86}
+.coachfit-summary-grid-v4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.coachfit-summary-grid-v4>div{display:grid;justify-items:center;gap:5px;border:1px solid #e1eaf4;border-radius:18px;background:#fff;padding:14px 8px;box-shadow:0 8px 22px rgba(40,72,112,.06);text-align:center}
+.coachfit-summary-grid-v4 small{color:#6d7f97;font-size:.66rem}
+.coachfit-summary-grid-v4 strong{color:#10213f;font-size:1rem;font-weight:950}
+.coachfit-summary-highlights-v4{border-radius:20px;padding:16px}
+.coachfit-summary-insights-v4{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.coachfit-summary-insights-v4>div{display:grid;gap:4px;border-radius:14px;background:#f4f8fd;padding:12px;color:#087af0}
+.coachfit-summary-insights-v4 strong{color:#10213f;font-size:.78rem}
+.coachfit-summary-insights-v4 small{color:#76879c;font-size:.64rem}
+.coachfit-recovery-v4{display:flex;align-items:center;gap:12px;border-radius:18px;padding:14px}
+.coachfit-recovery-v4>span{display:grid;width:50px;height:50px;flex:0 0 50px;place-items:center;border-radius:50%;background:#e9f4ff;color:#087af0}
+.coachfit-recovery-v4 strong{color:#10213f}
+.coachfit-recovery-v4 p{margin:2px 0 0;color:#6e8096;font-size:.72rem}
+.coachfit-complete-actions-v4{display:grid;grid-template-columns:1.15fr .85fr;gap:8px}
+
+.student-training-premium-v4 .student-bottom-nav{border-color:#dce6f1!important;background:rgba(255,255,255,.97)!important;box-shadow:0 -10px 30px rgba(31,64,101,.10)!important}
+.student-training-premium-v4 .student-bottom-nav>div{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.student-training-premium-v4 .student-bottom-nav button{min-height:58px!important;border:0!important;background:transparent!important;color:#677a94!important}
+.student-training-premium-v4 .student-bottom-nav button svg{color:#137fe8!important}
+.student-training-premium-v4 .student-bottom-nav button[class*="bg-[#00c7a8]"]{color:#087af0!important}
+.student-training-premium-v4 .student-bottom-nav button[class*="bg-[#00c7a8]"]::after{content:"";width:26px;height:3px;border-radius:999px;background:#087af0}
+
+@media (max-width:720px){
+  .student-training-premium-v4 .student-app-layout{padding-inline:0!important;padding-bottom:86px!important}
+  .student-training-premium-v4 .coachfit-workout-route-v4>.coachfit-workout-selector-v4{margin-inline:12px}
+  .coachfit-workout-hero-v4{border-radius:0 0 24px 24px;padding:18px 16px 24px}
+  .coachfit-workout-hero-top-v4{grid-template-columns:42px 1fr 42px}
+  .coachfit-workout-brand-v4 strong{font-size:1.55rem}
+  .coachfit-workout-hero-copy-v4{margin-top:22px}
+  .coachfit-workout-hero-copy-v4 h2{font-size:2rem}
+  .coachfit-plan-card-v4,.coachfit-day-list-v4,.coachfit-day-overview-v4,.coachfit-start-workout-v4,.coachfit-day-exercises-v4,
+  .coachfit-session-strip-v4,.coachfit-current-exercise-v4,.coachfit-workout-finish-v4,.coachfit-day-complete-v4,
+  .coachfit-history-identity-v4,.coachfit-history-chart-v4,.coachfit-history-list-v4,.coachfit-next-reference-v4,
+  .coachfit-complete-card-v4,.coachfit-summary-grid-v4,.coachfit-summary-highlights-v4,.coachfit-recovery-v4,.coachfit-complete-actions-v4{margin-inline:12px}
+  .coachfit-plan-card-v4{grid-template-columns:68px minmax(0,1fr);padding:16px}
+  .coachfit-plan-icon-v4{width:64px;height:64px}
+  .coachfit-plan-card-v4 h3{font-size:1.35rem}
+  .coachfit-day-card-actions-v4{grid-template-columns:1fr 1fr}
+  .coachfit-day-card-actions-v4 .is-primary{grid-column:1/-1}
+  .coachfit-day-overview-v4{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 0}
+  .coachfit-day-overview-v4>div:nth-child(2){border-right:0}
+  .coachfit-day-overview-v4>div:nth-child(-n+2){border-bottom:1px solid #e5edf6;padding-bottom:10px}
+  .coachfit-day-exercises-v4>article{grid-template-columns:38px minmax(0,1fr) 78px;padding:12px}
+  .coachfit-current-exercise-head-v4{grid-template-columns:minmax(0,1fr) 145px}
+  .coachfit-current-muscle-v4 svg{height:170px!important}
+  .coachfit-series-row-v4{grid-template-columns:40px minmax(0,1fr) minmax(76px,.8fr) minmax(76px,.8fr);gap:7px}
+  .coachfit-series-row-v4 .coachfit-series-check-v4{display:none}
+  .coachfit-series-label-v4{grid-column:2}
+  .coachfit-rest-timer-v4{grid-template-columns:1fr}
+  .coachfit-workout-navigation-v4{grid-template-columns:1fr}
+  .coachfit-workout-navigation-v4 .is-primary{grid-row:1}
+  .coachfit-session-strip-v4{grid-template-columns:1fr}
+  .coachfit-session-strip-v4>div:first-child{border-bottom:1px solid #e5edf6;padding-bottom:10px}
+  .coachfit-history-identity-v4{grid-template-columns:86px minmax(0,1fr)}
+  .coachfit-history-list-v4>article{grid-template-columns:58px minmax(0,1fr)}
+  .coachfit-history-list-v4>article>em{grid-column:2;width:fit-content}
+  .coachfit-next-reference-grid-v4{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .coachfit-summary-grid-v4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .coachfit-summary-insights-v4{grid-template-columns:1fr}
+  .coachfit-complete-card-v4{grid-template-columns:64px minmax(0,1fr)}
+  .coachfit-complete-check-v4{width:58px;height:58px;box-shadow:0 0 0 9px #e3f9ee}
+  .coachfit-complete-card-v4 h3{font-size:1.15rem}
+}
+@media (max-width:430px){
+  .coachfit-day-card-main-v4{grid-template-columns:60px minmax(0,1fr)}
+  .coachfit-day-muscle-icon-v4{width:58px;height:58px;border-radius:16px}
+  .coachfit-current-exercise-head-v4{grid-template-columns:minmax(0,1fr) 122px}
+  .coachfit-current-muscle-v4 svg{height:145px!important}
+  .coachfit-series-row-v4{grid-template-columns:34px minmax(90px,.9fr) minmax(70px,.8fr) minmax(70px,.8fr)}
+  .coachfit-series-status-v4{width:32px;height:32px}
+  .coachfit-series-label-v4 small{font-size:.6rem}
+  .coachfit-series-row-v4 input{min-height:42px;padding-inline:6px!important;font-size:.9rem!important}
+}

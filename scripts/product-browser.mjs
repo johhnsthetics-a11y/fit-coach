@@ -98,7 +98,7 @@ try {
       assert.equal(saved.answers.q1.observation,'Observação preservada')
       await page.locator('.student-xp-gain').getByText('+60 XP', { exact: true }).waitFor()
       await page.goto(base+'qa-student?alunoTab=treino')
-      await page.getByRole('button',{name:/Treino principal/}).click()
+      await page.getByRole('button',{name:/Ver treino/}).first().click()
       await page.getByRole('button',{name:'Iniciar treino',exact:true}).click()
       await page.getByRole('button',{name:'Finalizar treino',exact:true}).click()
       await page.getByText(/Conclua as 3 séries restantes do treino antes/).waitFor()
