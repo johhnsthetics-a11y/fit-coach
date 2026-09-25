@@ -11941,6 +11941,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [completionToken, setCompletionToken] = useState(initialExecution?.completionToken || createWorkoutCompletionToken)
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
+  const [restPaused, setRestPaused] = useState(false)
+  const [historyExerciseIndex, setHistoryExerciseIndex] = useState(null)
+  const [showCompletionSummary, setShowCompletionSummary] = useState(Boolean(initialExecution?.completedLog))
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
   const [syncState, setSyncState] = useState(preview ? 'preview' : 'local')
@@ -11985,6 +11988,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           setSessionNotes(merged.sessionNotes)
           setCompletionToken(merged.completionToken)
           setCompletedLog(merged.completedLog)
+          setShowCompletionSummary(Boolean(merged.completedLog))
           onSessionHydrated?.(merged)
         } else if (executionChanged) {
           onSessionHydrated?.({ durationSeconds: 0, timerStartedAt: '' })
@@ -12038,10 +12042,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
 
   useEffect(() => {
-    if (!restRemaining) return undefined
+    if (!restRemaining || restPaused) return undefined
     const timer = window.setInterval(() => setRestRemaining((current) => Math.max(0, current - 1)), 1000)
     return () => window.clearInterval(timer)
-  }, [restRemaining > 0])
+  }, [restPaused, restRemaining > 0])
 
   if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
 
@@ -12159,7 +12163,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     if (!nextPosition) return
     setActiveDayIndex(nextPosition.dayIndex)
     setActiveExerciseIndex(nextPosition.exerciseIndex)
+    setHistoryExerciseIndex(null)
     setRestRemaining(0)
+    setRestPaused(false)
   }
 
   function scrollWorkoutTarget(id) {
@@ -12261,7 +12267,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setSessionNotes('')
     setCompletionToken(createWorkoutCompletionToken())
     setCompletedLog(null)
+    setShowCompletionSummary(false)
+    setHistoryExerciseIndex(null)
     setRestRemaining(0)
+    setRestPaused(false)
     setMessage('Nova sessão iniciada. Registre novamente todas as séries.')
     setError('')
   }
@@ -12466,7 +12475,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               const previous = previousSetRecords.get(setItem.number)
               return (
                 <div key={setItem.key} className={'coachfit-series-row-v4 ' + (setItem.completed ? 'is-complete' : '')}>
-                  <button type="button" className="coachfit-series-status-v4" aria-label={setItem.completed ? 'Série concluída' : 'Concluir série'} onClick={() => completeSet(setItem)}>{setItem.completed ? <NavIcon name="check" className="h-5 w-5" /> : setItem.number}</button>
+                  <button type="button" className="coachfit-series-status-v4" aria-label={setItem.completed ? '✓ Série concluída' : 'Concluir série'} onClick={() => completeSet(setItem)}>{setItem.completed ? <NavIcon name="check" className="h-5 w-5" /> : setItem.number}</button>
                   <div className="coachfit-series-label-v4"><strong>Série {setItem.number}</strong><small>{previous ? 'Último: ' + previous.load + ' kg × ' + previous.reps + ' reps' : 'Sem histórico anterior'}</small></div>
                   <label>Carga (kg)<input inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
                   <label>Repetições<input inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
