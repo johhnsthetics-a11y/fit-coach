@@ -60,6 +60,43 @@ $$;
 
 revoke all on function public.coachfit_student_financial_access_by_invite(text) from public, anon, authenticated;
 
+create or replace function public.find_my_student_by_contact(
+  p_email text default null,
+  p_phone text default null
+)
+returns public.students
+language sql
+stable
+security invoker
+set search_path = ''
+as $
+  select students
+  from public.students as students
+  where students.coach_id = auth.uid()
+    and (
+      (
+        nullif(btrim(p_email), '') is not null
+        and lower(btrim(students.email)) = lower(btrim(p_email))
+      )
+      or (
+        nullif(regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g'), '') is not null
+        and regexp_replace(coalesce(students.phone, ''), '[^0-9]', '', 'g')
+          = regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')
+      )
+    )
+  order by
+    case
+      when nullif(btrim(p_email), '') is not null
+       and lower(btrim(students.email)) = lower(btrim(p_email))
+      then 0 else 1
+    end,
+    students.created_at asc nulls last
+  limit 1;
+$;
+
+revoke all on function public.find_my_student_by_contact(text, text) from public, anon;
+grant execute on function public.find_my_student_by_contact(text, text) to authenticated;
+
 drop policy if exists "affiliate_student_payments_owner_select" on public.affiliate_student_payments;
 create policy "affiliate_student_payments_owner_select"
 on public.affiliate_student_payments
