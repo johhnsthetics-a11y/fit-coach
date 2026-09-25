@@ -20,6 +20,7 @@ import {
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
+  loadRemoteMyAffiliateReport,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -1303,6 +1304,8 @@ function createInitialData() {
     anamneses: [],
     coachSettings: null,
     coachSubscription: null,
+    professionalAffiliate: false,
+    affiliateSelfReport: null,
     appAdminSettings: loadLocalAdminSettings(),
   }
 }
@@ -1797,6 +1800,37 @@ function AppContent() {
   }, [data.session?.access_token])
 
   useEffect(() => {
+    if (!professionalAffiliate || !data.session?.access_token || !supabaseEnabled) return undefined
+
+    let active = true
+    let pending = false
+
+    const refreshAffiliateReport = async () => {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
+      try {
+        const affiliateSelfReport = await loadRemoteMyAffiliateReport()
+        if (active) setData((current) => ({ ...current, affiliateSelfReport }))
+      } catch (error) {
+        if (active) setRemoteError(error?.message || 'Não foi possível atualizar as métricas de afiliado.')
+      } finally {
+        pending = false
+      }
+    }
+
+    refreshAffiliateReport()
+    const timer = window.setInterval(refreshAffiliateReport, 15000)
+    window.addEventListener('focus', refreshAffiliateReport)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshAffiliateReport)
+    }
+  }, [professionalAffiliate, data.session?.access_token])
+
+
+  useEffect(() => {
     const timer = window.setInterval(() => setBillingClock(Date.now()), 60 * 1000)
     return () => window.clearInterval(timer)
   }, [])
@@ -1910,6 +1944,8 @@ function AppContent() {
         anamneses: remoteData.anamneses ?? [],
         coachSettings: remoteData.coachSettings,
         coachSubscription: remoteData.coachSubscription,
+        professionalAffiliate: remoteData.professionalAffiliate === true,
+        affiliateSelfReport: remoteData.affiliateSelfReport ?? current.affiliateSelfReport,
       }
     })
 
@@ -3781,6 +3817,12 @@ function AppContent() {
               <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
               <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
             </section>
+          ) : null}
+
+          {activeView === 'visao' && professionalAffiliate ? (
+            <div className="mt-5 xl:mt-6">
+              <AffiliateProfessionalSummary report={data.affiliateSelfReport} nutritionist={nutritionistUser} />
+            </div>
           ) : null}
 
           <div className="mt-5 xl:mt-6">
@@ -5985,6 +6027,26 @@ function RevenueResult({ label, value, highlight = false, accent = false }) {
       <p className="mt-2 break-words text-xl font-black text-white">{value}</p>
       <p className="mt-1 text-xs text-zinc-500">por mês</p>
     </div>
+  )
+}
+
+function AffiliateProfessionalSummary({ report, nutritionist = false }) {
+  const sales = Array.isArray(report?.sales) ? report.sales : []
+  const currency = (cents) => formatCurrency(Number(cents || 0) / 100)
+
+  return (
+    <Panel title="Programa de afiliados" action="Mês atual">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <Metric label={nutritionist ? 'Pacientes indicados' : 'Alunos indicados'} value={Number(report?.studentsBrought || 0)} detail={`${Number(report?.activeClients || 0)} ativos no app`} />
+        <Metric label="Pagantes no mês" value={Number(report?.paidClients || 0)} detail={`${Number(report?.paidInstallments || 0)} pagamento(s)`} />
+        <Metric label="Receita gerada" value={currency(report?.revenueCents)} detail="R$ 25 por mensalidade paga" />
+        <Metric label="Sua comissão" value={currency(report?.commissionCents)} detail="25% sobre pagamentos confirmados" />
+        <Metric label="Última venda" value={sales[0]?.paidAt ? formatDate(sales[0].paidAt) : '—'} detail={sales[0]?.clientName || 'Nenhuma venda confirmada'} />
+      </div>
+      <p className="mt-3 text-xs leading-5 text-zinc-500">
+        Estes números vêm do backend e consideram somente pagamentos Cartpanda confirmados para clientes vinculados à sua conta.
+      </p>
+    </Panel>
   )
 }
 
