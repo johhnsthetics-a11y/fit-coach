@@ -140,11 +140,15 @@ export function useChatComposer({ context, storage, onSend, buildPayload } = {})
     setError('')
     setDraftState('')
     saveChatDraft(resolvedStorage, stableContext, '')
-    clearAttachment()
+    attachmentDraftRef.current.delete(submitContextKey)
+    previewRef.current = ''
+    setAttachment(null)
+    setAttachmentPreview('')
 
     try {
       await onSend(payload)
       failedAttemptRef.current.delete(submitContextKey)
+      revokePreview(queuedPreview)
       return true
     } catch (sendError) {
       const failureMessage = sendError?.message || 'Não foi possível enviar a mensagem.'
@@ -159,19 +163,76 @@ export function useChatComposer({ context, storage, onSend, buildPayload } = {})
       if (contextKeyRef.current === submitContextKey) {
         setDraftState(queuedDraft)
         if (queuedAttachment) {
-          const restoredPreview = createPreview(queuedAttachment)
+          const restoredPreview = queuedPreview || createPreview(queuedAttachment)
           previewRef.current = restoredPreview
           setAttachment(queuedAttachment)
           setAttachmentPreview(restoredPreview)
         }
         setError(failureMessage)
+      } else {
+        revokePreview(queuedPreview)
       }
       return false
     } finally {
       sendingRef.current = false
       setSending(false)
     }
-  }, [attachment, attachmentPreview, buildPayload, clearAttachment, draft, onSend, resolvedStorage, stableContext])
+  }, [attachment, attachmentPreview, buildPayload, draft, onSend, resolvedStorage, stableContext])
+
+  const sendAttachmentImmediately = useCallback(async (file) => {
+    if (!file || sendingRef.current || typeof onSend !== 'function') return false
+
+    const validationError = validateChatAttachment(file)
+    if (validationError) {
+      setError(validationError)
+      return false
+    }
+
+    const submitContextKey = contextKeyRef.current
+    const submitContext = { ...stableContext }
+    const clientMessageId = createChatMessageId()
+    const preview = createPreview(file)
+    const basePayload = typeof buildPayload === 'function'
+      ? buildPayload({ body: '', attachmentFile: file, attachmentPreview: preview })
+      : { body: '', attachmentFile: file, attachmentPreview: preview }
+    const payload = { ...basePayload, clientMessageId }
+
+    sendingRef.current = true
+    setSending(true)
+    setError('')
+    failedAttemptRef.current.delete(submitContextKey)
+    attachmentDraftRef.current.delete(submitContextKey)
+
+    try {
+      await onSend(payload)
+      revokePreview(preview)
+      return true
+    } catch (sendError) {
+      const failureMessage = sendError?.message || 'Não foi possível enviar o áudio.'
+      failedAttemptRef.current.set(submitContextKey, {
+        clientMessageId,
+        draft: '',
+        attachment: file,
+        error: failureMessage,
+      })
+      attachmentDraftRef.current.set(submitContextKey, file)
+
+      if (contextKeyRef.current === submitContextKey) {
+        previewRef.current = preview
+        setAttachment(file)
+        setAttachmentPreview(preview)
+        setError(failureMessage)
+      } else {
+        revokePreview(preview)
+      }
+
+      saveChatDraft(resolvedStorage, submitContext, '')
+      return false
+    } finally {
+      sendingRef.current = false
+      setSending(false)
+    }
+  }, [buildPayload, onSend, resolvedStorage, stableContext])
 
   const retry = useCallback(() => performSubmit(), [performSubmit])
 
@@ -185,6 +246,7 @@ export function useChatComposer({ context, storage, onSend, buildPayload } = {})
     setError,
     clearAttachment,
     selectAttachment,
+    sendAttachmentImmediately,
     submit: performSubmit,
     retry,
   }
