@@ -1394,15 +1394,31 @@ export async function saveRemoteMessage(message) {
   return hydrateMessageRow(rows[0])
 }
 
+function normalizeMessageAttachmentMimeType(value = '') {
+  return String(value || '').split(';')[0].trim().toLowerCase()
+}
+
+function messageAttachmentExtension(file) {
+  const mimeType = normalizeMessageAttachmentMimeType(file?.type)
+  if (mimeType === 'audio/mp4') return 'm4a'
+  if (mimeType === 'audio/ogg') return 'ogg'
+  if (mimeType === 'audio/mpeg') return 'mp3'
+  if (mimeType === 'audio/wav' || mimeType === 'audio/x-wav') return 'wav'
+  if (mimeType === 'audio/webm') return 'webm'
+  return String(file?.name || '').split('.').pop() || 'bin'
+}
+
 async function uploadMessageAttachment(file, studentId, inviteCode = '', clientMessageId = '') {
-  const extension = file.name?.split('.').pop() || 'jpg'
+  const extension = messageAttachmentExtension(file)
   const owner = inviteCode || studentId || 'chat'
   const stableName = clientMessageId || `${Date.now()}-${Math.random().toString(36).slice(2)}`
   const safeName = `${owner}/${stableName}.${extension}`.replace(/\s+/g, '-')
+  const contentType = normalizeMessageAttachmentMimeType(file?.type) || 'application/octet-stream'
+
   const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`, {
     method: 'POST',
     headers: authHeaders({
-      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Type': contentType,
       'x-upsert': 'true',
     }),
     body: file,
@@ -1736,15 +1752,21 @@ async function hydrateMessageRow(row) {
   const message = fromMessageRow(row)
   if (!message.attachmentUrl) return message
 
-  const path = extractStoragePath(message.attachmentUrl, MESSAGE_ATTACHMENT_BUCKET)
+  const rawUrl = String(message.attachmentUrl || '')
+  if (/^https?:\/\//i.test(rawUrl) && !rawUrl.includes('/storage/v1/object/')) return message
+
+  const path = extractStoragePath(rawUrl, MESSAGE_ATTACHMENT_BUCKET)
   if (!path) return message
 
-  const signedUrl = await signStorageObject(MESSAGE_ATTACHMENT_BUCKET, path, 60 * 60).catch(() => '')
   return {
     ...message,
     attachmentPath: path,
-    attachmentUrl: signedUrl || message.attachmentUrl,
+    attachmentUrl: publicStorageObjectUrl(MESSAGE_ATTACHMENT_BUCKET, path),
   }
+}
+
+function publicStorageObjectUrl(bucket, path) {
+  return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(path)}`
 }
 
 async function hydrateWorkoutRow(row) {
