@@ -37,9 +37,71 @@ Deno.serve(async (request) => {
   const subscriptionId = providerSubscriptionId || productId
   const amountCents = parseMoneyToCents(findValue(payload, ['total_price', 'amount', 'amount_net', 'price', 'value']))
   const status = mapSubscriptionStatus(eventType, payload)
-  const eventId = findString(payload, ['event_id', 'webhook_id'])
-    || ['cartpanda', orderId, subscriptionId, correlationId, buyerEmail, eventType].filter(Boolean).join(':')
-    || `cartpanda:${Date.now()}`
+  const providerEventAt = resolveProviderEventAt(payload)
+  const eventId = await resolveWebhookEventId(payload)
+
+  console.info(JSON.stringify({
+    event: 'cartpanda_webhook_received',
+    eventRef: shortEventRef(eventId),
+    eventType,
+    status,
+    hasCorrelationId: Boolean(correlationId),
+    hasOrderId: Boolean(orderId),
+    hasSubscriptionId: Boolean(providerSubscriptionId),
+  }))
+
+  const checkoutSession = correlationId
+    ? await findStudentCheckoutSession(correlationId)
+    : providerSubscriptionId
+      ? await findStudentCheckoutSessionByProviderSubscription(providerSubscriptionId)
+      : null
+
+  if (correlationId || checkoutSession) {
+    const confirmedPayment = isConfirmedPayment(eventType, payload)
+    const periodEndsAt = status === 'active' && confirmedPayment
+      ? resolveStudentPeriodEnd(payload, providerEventAt)
+      : null
+
+    const result = await processStudentPaymentEvent({
+      eventId,
+      eventType,
+      correlationId,
+      buyerEmail,
+      orderId,
+      subscriptionId,
+      productId,
+      productName,
+      amountCents,
+      status,
+      confirmedPayment,
+      providerEventAt,
+      periodEndsAt,
+      payload,
+    })
+
+    console.info(JSON.stringify({
+      event: 'cartpanda_student_event_processed',
+      eventRef: shortEventRef(eventId),
+      processed: result?.processed === true,
+      reason: result?.reason || 'unknown',
+      status: result?.status || status,
+      studentId: result?.studentId || null,
+      coachId: result?.coachId || null,
+    }))
+
+    if (result?.reason === 'student_checkout_not_found' || result?.reason === 'student_not_found') {
+      return jsonResponse({ ok: true, processed: false, reason: result.reason }, 202)
+    }
+    if (result?.reason === 'unexpected_student_amount') {
+      return jsonResponse({ ok: false, processed: true, reason: result.reason }, 202)
+    }
+    return jsonResponse({
+      ok: result?.ok !== false,
+      processed: result?.processed === true,
+      reason: result?.reason || 'processed',
+      status: result?.status || status,
+    }, 200)
+  }
 
   if (await findProcessedWebhookEvent(eventId)) {
     return jsonResponse({ ok: true, processed: true, reason: 'duplicate_event' }, 200)
@@ -55,60 +117,10 @@ Deno.serve(async (request) => {
     productName,
     amountCents,
     status,
+    providerEventAt,
     payload,
     processed: false,
   })
-
-  const checkoutSession = correlationId
-    ? await findStudentCheckoutSession(correlationId)
-    : providerSubscriptionId
-      ? await findStudentCheckoutSessionByProviderSubscription(providerSubscriptionId)
-      : null
-
-  if (correlationId || checkoutSession) {
-    if (!checkoutSession?.student_id) {
-      await markWebhookError(eventId, 'Student checkout token not found or expired')
-      return jsonResponse({ ok: true, processed: false, reason: 'student_checkout_not_found' }, 202)
-    }
-
-    const safeStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
-    await updateStudentCheckoutSession({
-      session: checkoutSession,
-      status: safeStatus,
-      buyerEmail,
-      orderId,
-      subscriptionId,
-      amountCents,
-      payload,
-    })
-
-    if (safeStatus === 'active' && isConfirmedPayment(eventType, payload)) {
-      const affiliate = await findActiveAffiliateForCoach(checkoutSession.coach_id)
-      if (affiliate?.email) {
-        await recordAffiliateStudentPayment({
-          eventId,
-          coachId: checkoutSession.coach_id,
-          studentId: checkoutSession.student_id,
-          affiliateEmail: affiliate.email,
-          orderId,
-          subscriptionId,
-          providerAmountCents: amountCents,
-        })
-      }
-    } else if (status === 'refunded' || status === 'chargeback') {
-      await reverseAffiliateStudentPayment({
-        eventId,
-        coachId: checkoutSession.coach_id,
-        studentId: checkoutSession.student_id,
-        orderId,
-        subscriptionId,
-        status,
-      })
-    }
-
-    await markWebhookProcessed(eventId)
-    return jsonResponse({ ok: true, processed: true, studentId: checkoutSession.student_id, status: safeStatus }, 200)
-  }
 
   if (!buyerEmail) {
     await markWebhookError(eventId, 'Buyer email not found in Cartpanda payload')
@@ -117,7 +129,7 @@ Deno.serve(async (request) => {
 
   const user = await findUserByEmail(buyerEmail)
   if (!user?.id) {
-    await markWebhookError(eventId, `Coach not found for email ${buyerEmail}`)
+    await markWebhookError(eventId, 'Coach not found for webhook e-mail')
     return jsonResponse({ ok: true, processed: false, reason: 'coach_not_found' }, 202)
   }
 
@@ -133,7 +145,13 @@ Deno.serve(async (request) => {
   })
 
   await markWebhookProcessed(eventId)
-  return jsonResponse({ ok: true, processed: true, coachId: user.id, status }, 200)
+  console.info(JSON.stringify({
+    event: 'cartpanda_coach_event_processed',
+    eventRef: shortEventRef(eventId),
+    coachId: user.id,
+    status,
+  }))
+  return jsonResponse({ ok: true, processed: true, status }, 200)
 })
 
 async function readPayload(request: Request): Promise<Record<string, unknown>> {
