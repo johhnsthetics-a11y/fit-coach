@@ -67,3 +67,26 @@ test('frontend oferece ativacao pelo convite e atualiza o portal automaticamente
   assert.match(api, /create_student_checkout_session_by_invite/)
   assert.match(api, /financialAccessOpen:\s*payload\.financial_access_open/)
 })
+
+
+test('webhook sincroniza pagamento legado, bloqueia regressao de estado e nao persiste segredo', async () => {
+  const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.match(webhook, /payment:\s*'Pago'/)
+  assert.match(webhook, /resolveSubscriptionStatusTransition/)
+  assert.match(webhook, /stale_pending_event/)
+  assert.match(webhook, /terminal_state/)
+  assert.match(webhook, /sanitizeWebhookPayload/)
+  assert.match(webhook, /payload:\s*sanitizedPayload/)
+  assert.match(webhook, /buildDeterministicEventId/)
+  assert.match(webhook, /cartpanda:sha256:/)
+  assert.doesNotMatch(webhook, /cartpanda:\$\{Date\.now\(\)\}/)
+})
+
+test('webhook protege tambem a assinatura do profissional contra evento atrasado', async () => {
+  const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.match(webhook, /findCoachSubscriptionState/)
+  assert.match(webhook, /currentStatus:\s*currentState\?\.status/)
+  assert.match(webhook, /return transition\.status/)
+})
