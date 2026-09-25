@@ -569,15 +569,46 @@ export async function upsertRemoteUser(user) {
 }
 
 export async function saveRemoteStudent(student, coachId) {
-  const row = toStudentRow(student, coachId)
+  const safeCoachId = requireCoachId(coachId)
+  const row = toStudentRow(student, safeCoachId)
   const method = isUuid(student.id) ? 'PATCH' : 'POST'
-  const path = method === 'PATCH' ? `students?id=eq.${student.id}` : 'students'
-  const rows = await request(path, {
-    method,
-    body: JSON.stringify(row),
-  })
 
-  return fromStudentRow(rows[0])
+  if (method === 'POST') {
+    const normalizedEmail = String(row.email || '').trim().toLowerCase()
+    if (normalizedEmail) {
+      const existingByEmail = await request(
+        `students?coach_id=eq.${encodeURIComponent(safeCoachId)}&email=eq.${encodeURIComponent(normalizedEmail)}&select=*&limit=1`,
+      )
+      if (existingByEmail[0]) return fromStudentRow(existingByEmail[0])
+    } else {
+      const phoneDigits = String(row.phone || '').replace(/\D/g, '')
+      if (phoneDigits) {
+        const candidates = await request(
+          `students?coach_id=eq.${encodeURIComponent(safeCoachId)}&select=*&limit=500`,
+        )
+        const samePhone = candidates.filter((candidate) => (
+          String(candidate.phone || '').replace(/\D/g, '') === phoneDigits
+        ))
+        if (samePhone.length) {
+          throw new Error('Já existe um aluno/paciente com este telefone. Abra o cadastro existente em vez de criar outro.')
+        }
+      }
+    }
+  }
+
+  const path = method === 'PATCH' ? `students?id=eq.${student.id}` : 'students'
+  try {
+    const rows = await request(path, {
+      method,
+      body: JSON.stringify(row),
+    })
+    return fromStudentRow(rows[0])
+  } catch (error) {
+    if (method === 'POST' && /23505|duplicate key|unique/i.test(error?.message || '')) {
+      throw new Error('Já existe um aluno/paciente com este e-mail neste perfil profissional.')
+    }
+    throw error
+  }
 }
 
 export async function deleteRemoteStudent(studentId) {
@@ -1640,8 +1671,8 @@ function toStudentRow(student, coachId) {
   return {
     coach_id: requireCoachId(coachId),
     name: student.name,
-    email: student.email,
-    phone: student.phone,
+    email: String(student.email || '').trim().toLowerCase() || null,
+    phone: String(student.phone || '').trim() || null,
     cpf: student.cpf || null,
     goal: student.goal,
     phase: student.phase,
