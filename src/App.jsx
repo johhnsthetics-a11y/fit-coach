@@ -20,6 +20,7 @@ import {
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
+  loadRemoteMyAffiliateFinanceReport,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -542,6 +543,7 @@ const navItems = [
   { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
   { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
   { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
+  { id: 'affiliate-performance', label: 'Minhas indicações', icon: 'chart', tone: 'teal' },
   { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
@@ -549,7 +551,7 @@ const navItems = [
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
 const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
-const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'affiliate-performance', 'configuracoes', 'assinatura'])
 
 function getProfessionalRole(user = {}) {
   const role = normalizeText(user?.role || user?.profession || user?.profile || '')
@@ -1754,7 +1756,7 @@ function AppContent() {
   const visibleNavItems = useMemo(() => {
     const professionalItems = professionalAffiliate
       ? navItems.filter((item) => item.id !== 'assinatura')
-      : navItems
+      : navItems.filter((item) => item.id !== 'affiliate-performance')
     const scopedItems = nutritionistUser ? professionalItems
       .filter((item) => nutritionistViewIds.has(item.id))
       .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
@@ -2322,6 +2324,21 @@ function AppContent() {
     const isNewStudent = !student.id
     let savedStudent = { ...student, id: studentId }
     let createdInvite = null
+
+    if (isNewStudent) {
+      const normalizedEmail = String(student.email || '').trim().toLowerCase()
+      const normalizedPhone = String(student.phone || '').replace(/\D/g, '')
+      const duplicate = data.students.find((item) => {
+        const itemEmail = String(item.email || '').trim().toLowerCase()
+        const itemPhone = String(item.phone || '').replace(/\D/g, '')
+        return (normalizedEmail && itemEmail === normalizedEmail)
+          || (normalizedPhone && itemPhone === normalizedPhone)
+      })
+      if (duplicate) {
+        const matchedByEmail = normalizedEmail && String(duplicate.email || '').trim().toLowerCase() === normalizedEmail
+        throw new Error(`Já existe um aluno/paciente cadastrado com ${matchedByEmail ? 'este e-mail' : 'este telefone'}.`)
+      }
+    }
 
     if (supabaseEnabled) {
       try {
@@ -3892,6 +3909,9 @@ function AppContent() {
                 onRefreshSubscription={syncCoachWorkspace}
                 professionalAffiliate={professionalAffiliate}
               />
+            )}
+            {activeView === 'affiliate-performance' && professionalAffiliate && (
+              <MyAffiliatePerformance />
             )}
             {activeView === 'admin-affiliate-finance' && masterAdmin && (
               <AffiliateAdminPage />
@@ -17775,6 +17795,115 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
           {compact ? 'Abrir' : alert.action}
         </button>
       </div>
+    </div>
+  )
+}
+
+function MyAffiliatePerformance() {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const monthStart = `${today.slice(0, 7)}-01`
+  const [startDate, setStartDate] = useState(monthStart)
+  const [endDate, setEndDate] = useState(today)
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadReport = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setReport(await loadRemoteMyAffiliateFinanceReport(startDate, endDate))
+    } catch (loadError) {
+      setError(loadError?.message || 'Não foi possível carregar suas indicações.')
+    } finally {
+      setLoading(false)
+    }
+  }, [startDate, endDate])
+
+  useEffect(() => {
+    loadReport()
+  }, [loadReport])
+
+  const currencyFromCents = (value) => formatCurrency(Number(value || 0) / 100)
+  const sales = Array.isArray(report?.sales) ? report.sales : []
+
+  return (
+    <div className="grid gap-4 lg:gap-6">
+      <section className="rounded-2xl border border-teal-300/20 bg-[linear-gradient(135deg,rgba(13,148,136,0.16),rgba(9,12,15,0.92))] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide text-teal-200">Programa de afiliados</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Minhas indicações</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
+              Acompanhe somente os alunos/pacientes vinculados à sua conta e as mensalidades confirmadas pela Cartpanda.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+            <input aria-label="Data inicial" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm text-white" />
+            <input aria-label="Data final" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm text-white" />
+            <button type="button" onClick={loadReport} disabled={loading} className="h-11 rounded-xl bg-teal-300 px-4 text-sm font-black text-zinc-950 disabled:opacity-60">
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {error ? <p role="alert" className="rounded-xl border border-rose-300/20 bg-rose-300/10 p-4 text-sm font-bold text-rose-100">{error}</p> : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          ['Indicados', report?.studentsBrought || 0],
+          ['Novos no período', report?.newStudentsInPeriod || 0],
+          ['Pagantes', report?.paidStudents || 0],
+          ['Receita gerada', currencyFromCents(report?.revenueCents)],
+          ['Minha comissão', currencyFromCents(report?.commissionCents)],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <p className="text-[11px] font-black uppercase text-zinc-500">{label}</p>
+            <p className="mt-2 text-2xl font-black text-white">{value}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
+        <div className="border-b border-white/10 p-4 sm:p-5">
+          <h3 className="text-lg font-black text-white">Vendas confirmadas</h3>
+          <p className="mt-1 text-sm text-zinc-400">Somente pagamentos aprovados que entram na sua comissão.</p>
+        </div>
+        {loading && !report ? (
+          <p className="p-5 text-sm text-zinc-400">Carregando...</p>
+        ) : sales.length ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-[720px] w-full text-left text-sm">
+              <thead className="bg-white/[0.035] text-xs uppercase text-zinc-500">
+                <tr>
+                  <th className="px-4 py-3">Data</th>
+                  <th className="px-4 py-3">Aluno/Paciente</th>
+                  <th className="px-4 py-3">Mensalidade</th>
+                  <th className="px-4 py-3">Comissão</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.paymentId || `${sale.studentId}-${sale.paidAt}`} className="border-t border-white/8 text-zinc-300">
+                    <td className="px-4 py-3 whitespace-nowrap">{sale.paidAt ? new Date(sale.paidAt).toLocaleString('pt-BR') : '—'}</td>
+                    <td className="px-4 py-3 font-bold text-white">{sale.studentName || 'Aluno/Paciente'}</td>
+                    <td className="px-4 py-3">{currencyFromCents(sale.revenueCents)}</td>
+                    <td className="px-4 py-3 font-black text-teal-200">{currencyFromCents(sale.commissionCents)}</td>
+                    <td className="px-4 py-3"><span className="rounded-full bg-emerald-300/10 px-2.5 py-1 text-xs font-black text-emerald-200">Pago</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6 text-center">
+            <p className="text-sm font-black text-zinc-300">Nenhuma venda confirmada neste período.</p>
+            <p className="mt-1 text-xs text-zinc-500">Quando a Cartpanda confirmar uma mensalidade, ela aparecerá aqui automaticamente.</p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
