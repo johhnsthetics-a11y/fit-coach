@@ -1,9 +1,9 @@
 export const CHAT_AUDIO_PLAYBACK_RATES = Object.freeze([1, 1.5, 2])
 
-const CANCEL_DISTANCE = 72
+const CANCEL_DISTANCE = 56
 
 export function classifyChatAudioGesture({ dx = 0, dy = 0 } = {}) {
-  if (Number(dx) <= -CANCEL_DISTANCE && Math.abs(Number(dx)) >= Math.abs(Number(dy))) return 'cancel'
+  if (Number(dx) <= -CANCEL_DISTANCE) return 'cancel'
   return 'hold'
 }
 
