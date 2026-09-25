@@ -328,7 +328,7 @@ begin
       nullif(btrim(coalesce(p_provider_subscription_id, '')), ''),
       now()
     )
-    on conflict (webhook_event_id) do nothing;
+    on conflict do nothing;
   elsif v_status in ('refunded', 'chargeback') then
     update public.affiliate_student_payments
     set status = v_status,
