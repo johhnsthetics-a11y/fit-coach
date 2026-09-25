@@ -1233,3 +1233,204 @@ html[data-theme="dark"] .chat-connection-state,
     animation: none;
   }
 }
+
+
+/* WhatsApp-style voice notes */
+.chat-record-button {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.chat-recording-state {
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.chat-recording-cancel {
+  border-color: color-mix(in srgb, #ef4444 52%, var(--chat-border));
+  background: color-mix(in srgb, #ef4444 8%, var(--chat-surface));
+}
+
+.chat-recording-wave {
+  display: flex;
+  min-width: 4.75rem;
+  height: 1.35rem;
+  flex: 0 1 7.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  color: inherit;
+  letter-spacing: 0;
+}
+
+.chat-recording-wave i {
+  width: 2px;
+  height: 35%;
+  flex: 0 0 2px;
+  border-radius: 99px;
+  background: var(--chat-accent-strong);
+  animation: chat-recording-wave-pulse 780ms ease-in-out infinite alternate;
+  animation-delay: calc(var(--wave-index) * -42ms);
+  transform-origin: center;
+}
+
+.chat-recording-wave i:nth-child(3n) { height: 72%; }
+.chat-recording-wave i:nth-child(4n) { height: 52%; }
+.chat-recording-wave i:nth-child(5n) { height: 88%; }
+
+@keyframes chat-recording-wave-pulse {
+  from { transform: scaleY(0.42); opacity: 0.55; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+.chat-recording-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chat-audio-message {
+  width: min(23rem, 100%);
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  border-radius: 14px;
+  padding: 0.45rem 0.5rem;
+}
+
+.chat-audio-track {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1.8rem;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+}
+
+.chat-audio-label {
+  grid-column: 1 / -1;
+  font-size: 0.66rem;
+  opacity: 0.82;
+}
+
+.chat-audio-waveform {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  min-width: 0;
+  height: 1.55rem;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chat-audio-waveform i {
+  width: 2px;
+  min-width: 2px;
+  max-height: 100%;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--chat-muted) 55%, transparent);
+  transition: background-color 120ms linear;
+}
+
+.chat-audio-waveform i.is-played {
+  background: var(--chat-accent-strong);
+}
+
+.chat-audio-wave-range {
+  position: absolute;
+  left: 0;
+  right: 3.25rem;
+  bottom: 0;
+  z-index: 2;
+  width: calc(100% - 3.25rem);
+  height: 1.8rem;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+  touch-action: none;
+}
+
+.chat-audio-time {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  min-width: 2.65rem;
+  text-align: right;
+}
+
+.chat-audio-play {
+  border: 0;
+  background: var(--chat-accent);
+  color: #ffffff;
+}
+
+.chat-audio-rate {
+  min-width: 2.55rem;
+  min-height: 2rem;
+  align-self: end;
+  border: 0;
+  background: color-mix(in srgb, var(--chat-accent) 10%, var(--chat-surface-raised));
+  color: var(--chat-accent-strong);
+  font-size: 0.64rem;
+}
+
+@media (pointer: coarse) {
+  .chat-recording-actions {
+    display: none;
+  }
+
+  .chat-recording-hint {
+    display: block;
+  }
+
+  .chat-recording-wave {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-recording-state {
+    gap: 0.4rem;
+  }
+
+  .chat-recording-state strong {
+    margin-right: 0;
+  }
+
+  .chat-recording-hint {
+    display: block;
+    flex: 1 1 auto;
+    font-size: 0.64rem;
+  }
+
+  .chat-recording-wave {
+    display: flex;
+    min-width: 3.25rem;
+    flex-basis: 4.6rem;
+  }
+
+  .chat-audio-message {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 0.38rem;
+  }
+
+  .chat-audio-waveform {
+    gap: 1.5px;
+  }
+
+  .chat-audio-waveform i {
+    width: 1.5px;
+    min-width: 1.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-recording-wave i {
+    animation: none;
+  }
+}
