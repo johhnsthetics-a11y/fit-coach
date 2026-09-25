@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  chatAudioExtension,
   classifyChatAudioGesture,
+  normalizeChatAudioMimeType,
+  prefersMp4ChatAudio,
   selectChatAudioMimeType,
   stopChatAudioStream,
 } from './chatAudioModel'
+
+const MIN_RECORDING_MS = 500
+const MIN_AUDIO_BYTES = 256
 
 function formatElapsed(milliseconds = 0) {
   const seconds = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000))
@@ -14,10 +20,19 @@ function IconSlot({ Icon, name, fallback }) {
   return Icon ? <Icon name={name} className="chat-action-icon" /> : <span aria-hidden="true">{fallback}</span>
 }
 
+function RecordingWaveform() {
+  return (
+    <span className="chat-recording-wave" aria-hidden="true">
+      {Array.from({ length: 18 }, (_, index) => (
+        <i key={index} style={{ '--wave-index': index }} />
+      ))}
+    </span>
+  )
+}
+
 export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordingChange, Icon }) {
   const [recording, setRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const [locked, setLocked] = useState(false)
   const [gesture, setGesture] = useState('hold')
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
@@ -44,7 +59,6 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     clearTimer()
     updateRecording(false)
     setElapsedMs(0)
-    setLocked(false)
     setGesture('hold')
     pointerRef.current = null
   }
@@ -76,15 +90,22 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       })
       streamRef.current = stream
+
       if (canceledRef.current) {
         stopChatAudioStream(stream)
         pendingRef.current = false
         return
       }
 
+      const preferMp4 = prefersMp4ChatAudio({
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        maxTouchPoints: navigator.maxTouchPoints,
+      })
       const mimeType = selectChatAudioMimeType((type) => {
         try { return window.MediaRecorder.isTypeSupported?.(type) } catch { return false }
-      })
+      }, { preferMp4 })
+
       let recorder
       try {
         recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 96000 } : undefined)
@@ -98,17 +119,25 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
       }
       recorder.onstop = () => {
         const effectiveType = recorder.mimeType || mimeType || chunksRef.current[0]?.type || 'audio/webm'
-        const blob = new Blob(chunksRef.current, { type: effectiveType })
+        const normalizedType = normalizeChatAudioMimeType(effectiveType)
+        const blob = new Blob(chunksRef.current, { type: normalizedType })
         const canceled = canceledRef.current
-        const extension = /mp4|m4a/i.test(effectiveType) ? 'm4a' : /ogg/i.test(effectiveType) ? 'ogg' : 'webm'
+        const elapsed = Date.now() - startedAtRef.current
+        const extension = chatAudioExtension(normalizedType)
+
         recorderRef.current = null
         pendingRef.current = false
         stopChatAudioStream(streamRef.current)
         streamRef.current = null
         resetUi()
-        if (!canceled && blob.size > 0) {
-          onRecorded?.(new File([blob], `audio-fitcoach-${Date.now()}.${extension}`, { type: effectiveType }))
+
+        if (canceled) return
+        if (elapsed < MIN_RECORDING_MS || blob.size < MIN_AUDIO_BYTES) {
+          onError?.('Gravação muito curta. Segure o microfone por um pouco mais de tempo.')
+          return
         }
+
+        onRecorded?.(new File([blob], `audio-coachfit-${Date.now()}.${extension}`, { type: normalizedType }))
       }
 
       recorderRef.current = recorder
@@ -139,13 +168,17 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
   function stopRecording(cancel = false) {
     canceledRef.current = Boolean(cancel)
     clearTimer()
+
     if (pendingRef.current) {
       deferredStopRef.current = cancel ? 'cancel' : 'send'
       return
     }
+
     try {
-      if (recorderRef.current?.state && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
-      else {
+      if (recorderRef.current?.state && recorderRef.current.state !== 'inactive') {
+        try { recorderRef.current.requestData?.() } catch {}
+        recorderRef.current.stop()
+      } else {
         stopChatAudioStream(streamRef.current)
         streamRef.current = null
         resetUi()
@@ -158,7 +191,7 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
   }
 
   function handlePointerDown(event) {
-    if (!['touch', 'pen'].includes(event.pointerType) || locked) return
+    if (!['touch', 'pen'].includes(event.pointerType)) return
     event.preventDefault()
     ignoreClickRef.current = true
     pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
@@ -168,13 +201,9 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
 
   function handlePointerMove(event) {
     const start = pointerRef.current
-    if (!start || start.id !== event.pointerId || locked) return
+    if (!start || start.id !== event.pointerId) return
     const nextGesture = classifyChatAudioGesture({ dx: event.clientX - start.x, dy: event.clientY - start.y })
     setGesture(nextGesture)
-    if (nextGesture === 'lock') {
-      setLocked(true)
-      pointerRef.current = null
-    }
   }
 
   function handlePointerUp(event) {
@@ -183,10 +212,11 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
       window.setTimeout(() => { ignoreClickRef.current = false }, 0)
       return
     }
+
     event.preventDefault()
     const nextGesture = classifyChatAudioGesture({ dx: event.clientX - start.x, dy: event.clientY - start.y })
     pointerRef.current = null
-    if (nextGesture !== 'lock') stopRecording(nextGesture === 'cancel')
+    stopRecording(nextGesture === 'cancel')
     window.setTimeout(() => { ignoreClickRef.current = false }, 0)
   }
 
@@ -210,10 +240,14 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
       <div className={`chat-recording-state chat-recording-${gesture}`} role="status" aria-label="Gravação de áudio em andamento">
         <span className="chat-recording-dot" aria-hidden="true" />
         <strong>{formatElapsed(elapsedMs)}</strong>
-        <span className="chat-recording-wave" aria-hidden="true">||||||||||||</span>
-        <span className="chat-recording-hint">{locked ? 'Gravação travada' : gesture === 'cancel' ? 'Solte para cancelar' : 'Deslize para cancelar ou travar'}</span>
-        <button type="button" onClick={() => stopRecording(true)} aria-label="Cancelar gravação">Cancelar</button>
-        <button type="button" className="chat-recording-finish" onClick={() => stopRecording(false)} aria-label="Finalizar gravação">Concluir</button>
+        <RecordingWaveform />
+        <span className="chat-recording-hint">
+          {gesture === 'cancel' ? 'Solte para cancelar' : 'Deslize para a esquerda para cancelar'}
+        </span>
+        <span className="chat-recording-actions">
+          <button type="button" onClick={() => stopRecording(true)} aria-label="Cancelar gravação">Cancelar</button>
+          <button type="button" className="chat-recording-finish" onClick={() => stopRecording(false)} aria-label="Finalizar e enviar gravação">Enviar</button>
+        </span>
       </div>
     )
   }
@@ -222,8 +256,8 @@ export function AudioRecorder({ disabled = false, onRecorded, onError, onRecordi
     <button
       type="button"
       className="chat-record-button"
-      aria-label="Gravar áudio"
-      title="Gravar áudio"
+      aria-label="Segure para gravar áudio"
+      title="Segure para gravar áudio"
       disabled={disabled}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
