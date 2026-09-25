@@ -569,7 +569,36 @@ export async function upsertRemoteUser(user) {
 }
 
 export async function saveRemoteStudent(student, coachId) {
-  const row = toStudentRow(student, coachId)
+  const safeCoachId = requireCoachId(coachId)
+  const row = toStudentRow(student, safeCoachId)
+
+  if (!isUuid(student.id)) {
+    const normalizedEmail = String(row.email || '').trim().toLowerCase()
+    const normalizedPhone = String(row.phone || '').replace(/\D/g, '')
+    const existingRows = await request(
+      `students?coach_id=eq.${encodeURIComponent(safeCoachId)}&select=*`,
+    )
+
+    const emailMatches = normalizedEmail
+      ? existingRows.filter((item) => String(item.email || '').trim().toLowerCase() === normalizedEmail)
+      : []
+    const phoneMatches = normalizedPhone
+      ? existingRows.filter((item) => String(item.phone || '').replace(/\D/g, '') === normalizedPhone)
+      : []
+
+    const uniqueMatches = [...new Map(
+      [...emailMatches, ...phoneMatches].map((item) => [String(item.id), item]),
+    ).values()]
+
+    if (uniqueMatches.length > 1) {
+      throw new Error('Há mais de um cadastro com este e-mail/telefone. Revise os perfis existentes antes de criar outro.')
+    }
+
+    if (uniqueMatches[0]) {
+      return fromStudentRow(uniqueMatches[0])
+    }
+  }
+
   const method = isUuid(student.id) ? 'PATCH' : 'POST'
   const path = method === 'PATCH' ? `students?id=eq.${student.id}` : 'students'
   const rows = await request(path, {
