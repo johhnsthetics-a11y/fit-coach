@@ -20,6 +20,7 @@ import {
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
+  loadRemoteMyAffiliateReport,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -544,12 +545,13 @@ const navItems = [
   { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
   { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
+  { id: 'afiliado', label: 'Meu afiliado', icon: 'wallet', tone: 'teal' },
 ]
 
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
 const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
-const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura', 'afiliado'])
 
 function getProfessionalRole(user = {}) {
   const role = normalizeText(user?.role || user?.profession || user?.profile || '')
@@ -1754,7 +1756,7 @@ function AppContent() {
   const visibleNavItems = useMemo(() => {
     const professionalItems = professionalAffiliate
       ? navItems.filter((item) => item.id !== 'assinatura')
-      : navItems
+      : navItems.filter((item) => item.id !== 'afiliado')
     const scopedItems = nutritionistUser ? professionalItems
       .filter((item) => nutritionistViewIds.has(item.id))
       .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
@@ -3892,6 +3894,9 @@ function AppContent() {
                 onRefreshSubscription={syncCoachWorkspace}
                 professionalAffiliate={professionalAffiliate}
               />
+            )}
+            {activeView === 'afiliado' && professionalAffiliate && !masterAdmin && (
+              <AffiliateProfessionalDashboard nutritionist={nutritionistUser} />
             )}
             {activeView === 'admin-affiliate-finance' && masterAdmin && (
               <AffiliateAdminPage />
@@ -17776,6 +17781,117 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
         </button>
       </div>
     </div>
+  )
+}
+
+function AffiliateProfessionalDashboard({ nutritionist = false }) {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const monthStart = `${today.slice(0, 7)}-01`
+  const [startDate, setStartDate] = useState(monthStart)
+  const [endDate, setEndDate] = useState(today)
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadReport = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setReport(await loadRemoteMyAffiliateReport(startDate, endDate))
+    } catch (loadError) {
+      setError(loadError?.message || 'Não foi possível carregar seus dados de afiliado.')
+    } finally {
+      setLoading(false)
+    }
+  }, [startDate, endDate])
+
+  useEffect(() => {
+    loadReport()
+  }, [loadReport])
+
+  const totals = report?.totals || {}
+  const sales = Array.isArray(report?.sales) ? report.sales : []
+  const currency = (cents) => formatCurrency(Number(cents || 0) / 100)
+  const clientLabel = nutritionist ? 'pacientes' : 'alunos'
+
+  return (
+    <section className="grid gap-5">
+      <div className="rounded-2xl border border-white/10 bg-zinc-950/80 p-5 sm:p-6">
+        <p className="text-xs font-black uppercase tracking-wide text-emerald-300">Programa de afiliados</p>
+        <h2 className="mt-2 text-2xl font-black text-white">Meu desempenho como afiliado</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
+          Acompanhe somente suas indicações, vendas confirmadas e comissão. Pagamentos pendentes, recusados, reembolsados ou em chargeback não entram nos totais.
+        </p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+            Data inicial
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100 outline-none focus:border-emerald-300/50" />
+          </label>
+          <label className="grid gap-2 text-xs font-black uppercase text-zinc-500">
+            Data final
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950 px-3 text-sm font-bold normal-case text-zinc-100 outline-none focus:border-emerald-300/50" />
+          </label>
+          <button type="button" onClick={loadReport} disabled={loading} className="h-11 rounded-xl bg-emerald-400 px-5 text-sm font-black text-zinc-950 disabled:opacity-60">
+            {loading ? 'Atualizando...' : 'Atualizar'}
+          </button>
+        </div>
+      </div>
+
+      {error ? <div role="alert" className="rounded-xl border border-rose-300/25 bg-rose-300/10 p-4 text-sm font-bold text-rose-100">{error}</div> : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        {[
+          [`${nutritionist ? 'Pacientes' : 'Alunos'} indicados`, Number(totals.referredClients || 0)],
+          ['Clientes ativos', Number(totals.activeClients || 0)],
+          ['Pagantes no período', Number(totals.paidClients || 0)],
+          ['Vendas confirmadas', Number(totals.sales || 0)],
+          ['Receita gerada', currency(totals.revenueCents)],
+          ['Minha comissão', currency(totals.commissionCents)],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+            <p className="text-[10px] font-black uppercase text-zinc-500">{label}</p>
+            <p className="mt-2 text-xl font-black text-white">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4 sm:p-5">
+        <div className="mb-4">
+          <h3 className="text-base font-black text-white">Vendas confirmadas</h3>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">Histórico dos seus {clientLabel} que geraram comissão no período selecionado.</p>
+        </div>
+        {loading && !report ? (
+          <p className="text-sm font-bold text-zinc-400">Carregando vendas...</p>
+        ) : sales.length ? (
+          <div className="overflow-x-auto rounded-xl border border-white/10">
+            <table className="min-w-[680px] w-full text-left text-xs">
+              <thead className="bg-white/[0.04] text-[10px] font-black uppercase text-zinc-500">
+                <tr>
+                  <th className="px-3 py-3">Data</th>
+                  <th className="px-3 py-3">{nutritionist ? 'Paciente' : 'Aluno'}</th>
+                  <th className="px-3 py-3">Venda</th>
+                  <th className="px-3 py-3">Comissão</th>
+                  <th className="px-3 py-3">Pedido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.paymentId} className="border-t border-white/8 text-zinc-300">
+                    <td className="px-3 py-3 whitespace-nowrap">{sale.paidAt ? new Date(sale.paidAt).toLocaleString('pt-BR') : '—'}</td>
+                    <td className="px-3 py-3 font-bold text-white">{sale.studentName || (nutritionist ? 'Paciente' : 'Aluno')}</td>
+                    <td className="px-3 py-3 font-black text-emerald-200">{currency(sale.revenueCents)}</td>
+                    <td className="px-3 py-3 font-black text-cyan-200">{currency(sale.commissionCents)}</td>
+                    <td className="px-3 py-3 font-mono text-[11px] text-zinc-500">{sale.providerOrderId || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-white/10 bg-white/[0.025] p-4 text-sm text-zinc-500">Nenhuma venda confirmada neste período.</p>
+        )}
+      </div>
+    </section>
   )
 }
 
