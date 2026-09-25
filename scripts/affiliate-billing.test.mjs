@@ -18,13 +18,20 @@ test('afiliados ficam em tabela separada e protegida pelo Admin Master', async (
 })
 
 test('somente profissionais afiliados exigem pagamento do app', async () => {
-  const sql = await readFile(migrationUrl, 'utf8')
+  const base = await readFile(migrationUrl, 'utf8')
+  const integrity = await readFile(new URL('../SUPABASE/migrations/20260925_affiliate_e2e_integrity.sql', import.meta.url), 'utf8')
 
-  assert.match(sql, /coachfit_professional_requires_app_payment/i)
-  assert.match(sql, /affiliates\.email = lower\(btrim\(users\.email\)\)/i)
-  assert.match(sql, /not public\.coachfit_professional_requires_app_payment\(invites\.coach_id\)/i)
-  assert.match(sql, /students\.app_payment_status = 'active'/i)
-  assert.match(sql, /students\.payment = 'Pago'/i)
+  assert.match(base, /coachfit_professional_requires_app_payment/i)
+  assert.match(base, /affiliates\.email = lower\(btrim\(users\.email\)\)/i)
+  assert.match(integrity, /not public\.coachfit_professional_requires_app_payment\(invites\.coach_id\)/i)
+  assert.match(integrity, /students\.app_payment_status = 'active'/i)
+  assert.doesNotMatch(
+    integrity.slice(
+      integrity.indexOf('create or replace function public.coachfit_student_financial_access_by_invite'),
+      integrity.indexOf('create or replace function public.create_student_checkout_session'),
+    ),
+    /students\.payment = 'Pago'/i,
+  )
 })
 
 test('checkout por convite só pode ser criado para profissional afiliado', async () => {
@@ -101,18 +108,21 @@ test('dashboard de comissões usa somente mensalidades confirmadas', async () =>
   assert.match(app, /Exportar vendas/)
 })
 
-test('webhook cria lançamento idempotente e remove estorno da comissão', async () => {
+test('webhook usa processador atomico, idempotente e reversivel para comissão', async () => {
   const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const integrity = await readFile(new URL('../SUPABASE/migrations/20260925_affiliate_e2e_integrity.sql', import.meta.url), 'utf8')
 
-  assert.match(webhook, /findActiveAffiliateForCoach/)
-  assert.match(webhook, /recordAffiliateStudentPayment/)
-  assert.match(webhook, /webhook_event_id: input\.eventId/)
-  assert.match(webhook, /revenue_cents: 2500/)
-  assert.match(webhook, /commission_cents: 625/)
-  assert.match(webhook, /resolution=ignore-duplicates/)
-  assert.match(webhook, /status === 'refunded' \|\| status === 'chargeback'/)
-  assert.match(webhook, /reverseAffiliateStudentPayment/)
-  assert.match(webhook, /reversal_event_id: input\.eventId/)
+  assert.match(webhook, /process_cartpanda_student_payment_event/)
+  assert.match(webhook, /resolveWebhookEventId/)
+  assert.match(webhook, /SHA-256/)
+  assert.doesNotMatch(webhook, /cartpanda:\$\{Date\.now\(\)\}/)
+  assert.match(integrity, /pg_advisory_xact_lock/)
+  assert.match(integrity, /on conflict \(event_id\) do nothing/i)
+  assert.match(integrity, /on conflict \(webhook_event_id\) do nothing/i)
+  assert.match(integrity, /unexpected_student_amount/i)
+  assert.match(integrity, /stale_event_ignored/i)
+  assert.match(integrity, /reversal_event_id = p_event_id/i)
+  assert.match(integrity, /commission_cents[\s\S]*625/i)
 })
 
 
