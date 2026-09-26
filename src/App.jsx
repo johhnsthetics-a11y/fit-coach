@@ -12508,26 +12508,12 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
           </div>
 
-          <div className={'mobile-workout-timer-panel-v5 ' + (restRemaining ? 'is-resting' : '')}>
+          <div className="mobile-workout-timer-panel-v5">
             <div className="mobile-workout-session-timer-v5">
               <span>Tempo do treino</span>
               <strong>{formatWorkoutTimer(durationSeconds)}</strong>
-              <small>{timerStartedAt ? 'Cronômetro em andamento' : 'Cronômetro pausado'}</small>
+              <small>{timerStartedAt ? 'Em andamento' : 'Pausado'}</small>
             </div>
-            {restRemaining ? (
-              <div className="mobile-workout-rest-timer-v5">
-                <div>
-                  <span>Descanso</span>
-                  <strong aria-live="polite">{formatWorkoutTimer(restRemaining)}</strong>
-                  <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
-                </div>
-                <div className="mobile-workout-rest-actions-v5">
-                  <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
-                  <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-                  <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div className="mobile-workout-student-metrics-v2">
@@ -12585,6 +12571,28 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         </article>
+      ) : null}
+
+      {restRemaining ? (
+        <div
+          className="mobile-workout-rest-floating-v6"
+          role="timer"
+          aria-live="off"
+          aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}
+        >
+          <div className="mobile-workout-rest-floating-card-v6">
+            <div className="mobile-workout-rest-floating-copy-v6">
+              <span>Descanso</span>
+              <strong>{formatWorkoutTimer(restRemaining)}</strong>
+              <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
+            </div>
+            <div className="mobile-workout-rest-actions-v5">
+              <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
+              <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
+              <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {exercises.length ? (
