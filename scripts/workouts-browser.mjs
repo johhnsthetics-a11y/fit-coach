@@ -145,8 +145,10 @@ try {
           const clipping = await preview.evaluate(root => [root, ...root.querySelectorAll('*')].filter(el => /^(hidden|clip)$/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2).map(el => el.className))
           assert.deepEqual(clipping, [], 'A prévia não pode esconder séries ou conclusão')
           await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
-          await preview.locator('.mobile-workout-student-error-v2').getByText(/Conclua as .* séries restantes/).waitFor()
+          await preview.locator('.mobile-workout-student-error-v2').getByText('Conclua ao menos uma série antes de finalizar o treino.', { exact: true }).waitFor()
           for (let exerciseIndex = 0; exerciseIndex < 3; exerciseIndex++) {
+            const reps = preview.getByLabel('Repetições', { exact: true })
+            for (let setIndex = 0; setIndex < await reps.count(); setIndex++) await reps.nth(setIndex).fill('10')
             const sets = preview.getByRole('button', { name: 'Concluir série', exact: true })
             while (await sets.count()) await sets.first().click()
             if (exerciseIndex < 2) await preview.getByRole('button', { name: 'Concluir exercício e ir para o próximo →', exact: true }).click()

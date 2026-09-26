@@ -13558,3 +13558,91 @@ html[data-theme="dark"] body { background: #05070d; }
   .mobile-workout-day-complete-v3 button,
   .mobile-workout-rest-day-v3 button { width: 100%; }
 }
+
+
+/* coachfit-workout-native-ux-v4 */
+.mobile-workout-program-card-v4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem}
+.mobile-workout-program-card-v4>div{display:grid;gap:.2rem;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035);padding:.75rem}
+.mobile-workout-program-card-v4 span,.mobile-workout-day-card-v4>div:first-child>span,.mobile-workout-day-detail-head-v4 p,.mobile-workout-execution-head-v4 span,.mobile-workout-summary-grid-v4 span{color:#63f6df;font-size:.7rem;font-weight:900;letter-spacing:.07em;text-transform:uppercase}
+.mobile-workout-program-card-v4 strong{color:#fff;font-size:.88rem}
+.mobile-workout-day-list-v4{display:grid;gap:.7rem}
+.mobile-workout-day-card-v4{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.8rem;border:1px solid rgba(255,255,255,.09);border-radius:16px;background:rgba(255,255,255,.035);padding:.85rem}
+.mobile-workout-day-card-v4 h4{margin:.15rem 0 0;color:#fff;font-size:1rem;font-weight:950}
+.mobile-workout-day-card-v4 p{margin:.2rem 0 0;color:#cddbd7;font-size:.82rem}
+.mobile-workout-day-card-v4 small{display:block;margin-top:.35rem;color:#839690;font-size:.72rem}
+.mobile-workout-day-card-actions-v4{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.45rem}
+.mobile-workout-day-card-actions-v4 button,.mobile-workout-day-detail-head-v4>button,.mobile-workout-summary-actions-v4 button{min-height:42px;border:0;border-radius:11px;background:#00d2b2;padding:.55rem .75rem;color:#02110e;font-size:.78rem;font-weight:900}
+.mobile-workout-day-card-actions-v4 .is-secondary,.mobile-workout-summary-actions-v4 .is-secondary{border:1px solid rgba(0,210,178,.26);background:rgba(0,210,178,.08);color:#8bffed}
+.mobile-workout-day-detail-head-v4,.mobile-workout-execution-head-v4{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.7rem}
+.mobile-workout-day-detail-head-v4>div,.mobile-workout-execution-head-v4>div{min-width:0}
+.mobile-workout-day-detail-head-v4 h3,.mobile-workout-execution-head-v4 strong{display:block;margin:.1rem 0 0;overflow-wrap:anywhere;color:#fff;font-size:1.1rem;font-weight:950}
+.mobile-workout-day-detail-head-v4>span,.mobile-workout-execution-head-v4>em{border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.04);padding:.45rem .6rem;color:#cfe1dd;font-size:.72rem;font-style:normal;font-weight:850}
+.mobile-workout-preview-notice-v4{border-left:3px solid #00d2b2;border-radius:0 12px 12px 0;background:rgba(0,210,178,.07);padding:.7rem .8rem}
+.mobile-workout-preview-notice-v4 strong{color:#a7fff2;font-size:.85rem}
+.mobile-workout-preview-notice-v4 p{margin:.2rem 0 0;color:#a9bbb6;font-size:.78rem;line-height:1.45}
+.mobile-workout-start-session-v4{min-height:54px;border:0;border-radius:14px;background:#00d2b2;color:#02110e;font-size:.95rem;font-weight:950}
+.mobile-workout-day-exercise-list-v4{display:grid;gap:.55rem}
+.mobile-workout-day-exercise-list-v4>article{display:grid;grid-template-columns:58px minmax(0,1fr);gap:.75rem;align-items:center;border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(255,255,255,.03);padding:.7rem}
+.mobile-workout-day-exercise-muscle-v4{display:grid;width:58px;height:58px;place-items:center;border-radius:14px;background:rgba(0,210,178,.08);color:#00d2b2}
+.mobile-workout-day-exercise-list-v4 h4{margin:.1rem 0 0;color:#fff;font-size:.92rem;font-weight:950}
+.mobile-workout-day-exercise-list-v4 small,.mobile-workout-day-exercise-list-v4 span{color:#71e8d5;font-size:.68rem;font-style:normal}
+.mobile-workout-day-exercise-list-v4 p{margin:.2rem 0 0;color:#b7c5c1;font-size:.74rem}
+.mobile-workout-day-exercise-list-v4 em{display:block;margin-top:.35rem;color:#7f928d;font-size:.7rem;font-style:normal;line-height:1.4}
+.mobile-workout-exercise-switcher-v4{display:flex;gap:.4rem;overflow-x:auto;padding-top:.15rem;scrollbar-width:thin}
+.mobile-workout-exercise-switcher-v4 button{width:34px;height:34px;flex:0 0 34px;border:1px solid rgba(255,255,255,.12);border-radius:50%;background:rgba(255,255,255,.04);color:#9cafaa;font-size:.75rem;font-weight:900}
+.mobile-workout-exercise-switcher-v4 button.is-current{border-color:rgba(0,210,178,.55);color:#8bffed;box-shadow:0 0 0 2px rgba(0,210,178,.09)}
+.mobile-workout-exercise-switcher-v4 button.is-complete{background:#00d2b2;color:#02110e}
+.mobile-workout-muscle-target-v4>.muscle-map-card{border:0;background:transparent;padding:.3rem}
+.mobile-workout-orientations-v4{border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(255,255,255,.025);padding:.7rem}
+.mobile-workout-orientations-v4 summary{cursor:pointer;color:#a7fff2;font-size:.8rem;font-weight:900}
+.mobile-workout-orientations-v4 p{margin:.45rem 0 0;color:#d2dfdc;font-size:.8rem;line-height:1.5}
+.mobile-workout-orientations-v4 small{display:block;margin-top:.35rem;color:#81938e;font-size:.72rem}
+.mobile-workout-evolution-link-v4{width:fit-content;border:0;background:transparent;padding:0;color:#63f6df;font-size:.76rem;font-weight:900}
+.mobile-workout-set-label-v4{display:grid;gap:.12rem;min-width:0}
+.mobile-workout-set-label-v4>strong{color:#fff}
+.mobile-workout-set-label-v4 small{color:#a7b8b4;font-size:.68rem}
+.mobile-workout-set-label-v4 em{overflow-wrap:anywhere;color:#63f6df;font-size:.66rem;font-style:normal;font-weight:800}
+.mobile-workout-rest-control-v4{display:flex;align-items:center;justify-content:space-between;gap:.7rem;border:1px solid rgba(0,210,178,.24);border-radius:15px;background:rgba(0,210,178,.07);padding:.7rem}
+.mobile-workout-rest-control-v4>div:first-child{display:grid;gap:.05rem}
+.mobile-workout-rest-control-v4 span{color:#63f6df;font-size:.68rem;font-weight:900;text-transform:uppercase}
+.mobile-workout-rest-control-v4 strong{color:#fff;font-size:1.35rem;font-weight:950}
+.mobile-workout-rest-control-v4>div:last-child{display:flex;flex-wrap:wrap;gap:.35rem}
+.mobile-workout-rest-control-v4 button{min-height:38px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);padding:.45rem .6rem;color:#d9e7e3;font-size:.72rem;font-weight:850}
+.mobile-workout-finish-confirm-v4{display:grid;gap:.5rem;border:1px solid rgba(251,191,36,.28);border-radius:13px;background:rgba(251,191,36,.07);padding:.75rem}
+.mobile-workout-finish-confirm-v4 strong{color:#fde68a;font-size:.8rem}
+.mobile-workout-finish-confirm-v4 p{margin:0;color:#c8bfa7;font-size:.72rem}
+.mobile-workout-finish-confirm-v4>div{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}
+.mobile-workout-finish-confirm-v4 button{min-height:42px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.04);color:#fff;font-size:.74rem;font-weight:900}
+.mobile-workout-finish-confirm-v4 button:last-child{border:0;background:#00d2b2;color:#02110e}
+.mobile-workout-session-summary-v4{gap:.8rem}
+.mobile-workout-summary-grid-v4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}
+.mobile-workout-summary-grid-v4>div{display:grid;gap:.18rem;border:1px solid rgba(255,255,255,.08);border-radius:13px;background:rgba(255,255,255,.035);padding:.7rem}
+.mobile-workout-summary-grid-v4 strong{color:#fff;font-size:.9rem}
+.mobile-workout-summary-evolution-v4{display:grid;gap:.45rem;border:1px solid rgba(0,210,178,.2);border-radius:14px;background:rgba(0,210,178,.06);padding:.75rem}
+.mobile-workout-summary-evolution-v4>strong{color:#a7fff2;font-size:.82rem}
+.mobile-workout-summary-evolution-v4>div{display:flex;flex-wrap:wrap;gap:.4rem}
+.mobile-workout-summary-evolution-v4 span{border-radius:999px;background:rgba(0,210,178,.11);padding:.35rem .55rem;color:#9affee;font-size:.7rem;font-weight:850}
+.mobile-workout-summary-actions-v4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
+
+@media(max-width:640px){
+  .mobile-workout-day-card-v4{grid-template-columns:1fr}
+  .mobile-workout-day-card-actions-v4{justify-content:stretch}
+  .mobile-workout-day-card-actions-v4 button{flex:1 1 0;min-height:48px}
+  .mobile-workout-day-detail-head-v4,.mobile-workout-execution-head-v4{grid-template-columns:auto minmax(0,1fr)}
+  .mobile-workout-day-detail-head-v4>span,.mobile-workout-execution-head-v4>em{grid-column:2;width:fit-content}
+  .mobile-workout-student-series-v2>div:not(.mobile-workout-student-series-head-v2){grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mobile-workout-student-series-v2>div:not(.mobile-workout-student-series-head-v2)>.mobile-workout-set-label-v4,
+  .mobile-workout-student-series-v2>div:not(.mobile-workout-student-series-head-v2)>button{grid-column:1/-1}
+  .mobile-workout-student-series-v2 input{min-height:48px}
+  .mobile-workout-rest-control-v4{align-items:stretch;flex-direction:column}
+  .mobile-workout-rest-control-v4>div:last-child{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mobile-workout-rest-control-v4 button{min-height:44px}
+  .mobile-workout-summary-grid-v4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:360px){
+  .mobile-workout-student-experience-v2{padding:.65rem}
+  .mobile-workout-day-exercise-list-v4>article{grid-template-columns:48px minmax(0,1fr);gap:.6rem}
+  .mobile-workout-day-exercise-muscle-v4{width:48px;height:48px}
+  .mobile-workout-day-exercise-muscle-v4 svg{width:40px!important;height:40px!important}
+  .mobile-workout-finish-confirm-v4>div,.mobile-workout-summary-actions-v4{grid-template-columns:1fr}
+}
