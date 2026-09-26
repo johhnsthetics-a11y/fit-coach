@@ -555,3 +555,26 @@ test('tema claro e escuro têm estados acessíveis e timer tabular estável', as
   assert.match(cssSource, /font-variant-numeric:\s*tabular-nums/)
   assert.match(cssSource, /width:\s*5\.7ch/)
 })
+
+
+test('descanso flutua acima da navegação e o tempo do treino permanece compacto', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(appSource, /mobile-workout-rest-floating-v6/)
+  assert.match(appSource, /role="timer"/)
+  assert.match(appSource, /aria-label=\{'Descanso: ' \+ formatWorkoutTimer\(restRemaining\)\}/)
+  assert.match(cssSource, /workout-execution-polish-v6/)
+  assert.match(cssSource, /\.mobile-workout-rest-floating-v6\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*70/)
+  assert.match(cssSource, /\.mobile-workout-session-timer-v5 > strong\s*\{[\s\S]*font-size:\s*clamp\(1\.55rem,\s*4\.5vw,\s*1\.9rem\)/)
+  assert.match(cssSource, /bottom:\s*calc\(5\.35rem \+ env\(safe-area-inset-bottom, 0px\)\)/)
+})
+
+test('tema claro do treino usa superfícies neutras e teal do branding sem excesso de verde', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /\.student-mobile-shell\.app-theme-light\.fit-gradient-bg\s*\{[\s\S]*#f1f4f2[\s\S]*linear-gradient\(180deg, #f7f9f8 0%, #eef2f0 100%\)/)
+  assert.match(cssSource, /\.student-mobile-shell\.app-theme-light \.mobile-workout-student-experience-v2\s*\{[\s\S]*--workout-primary:\s*#0a7b6b[\s\S]*background:\s*#ffffff !important/)
+  assert.match(cssSource, /\.mobile-workout-start-session-v4[\s\S]*background:\s*#0a7b6b !important/)
+  assert.match(cssSource, /\.student-mobile-shell\.app-theme-light \.mobile-workout-rest-floating-card-v6\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.97\)/)
+})
