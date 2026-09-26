@@ -51,6 +51,7 @@ import {
   saveRemoteWorkout,
   saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
+  saveRemoteWorkoutEarlyEnd,
   saveRemoteWorkoutSession,
   setSupabaseSession,
   signInCoach,
@@ -2828,6 +2829,28 @@ function AppContent() {
     return savedLog
   }
 
+  async function endWorkout(log) {
+    let savedLog = { ...log, id: Date.now(), completedAt: new Date().toISOString(), endedEarly: true }
+
+    if (supabaseEnabled) {
+      try {
+        savedLog = { ...(await saveRemoteWorkoutEarlyEnd(log)), endedEarly: true }
+        setRemoteStatus('Treino encerrado')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao encerrar treino')
+        throw error
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      workoutLogs: [savedLog, ...(current.workoutLogs ?? []).filter((item) => !sameId(item.id, savedLog.id))],
+    }))
+
+    return savedLog
+  }
+
   async function saveAppointment(appointment) {
     const localAppointment = {
       ...appointment,
@@ -3482,6 +3505,7 @@ function AppContent() {
         assessments={studentAccess.assessments ?? []}
         coachSettings={studentAccess.coachSettings}
         onCompleteWorkout={completeWorkout}
+        onEndWorkout={endWorkout}
         onAddCheckin={addCheckin}
         onSendMessage={sendMessage}
         onEditMessage={editMessage}
@@ -11748,8 +11772,8 @@ function WorkoutLogList({ logs }) {
               </p>
               {log.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{log.notes}</p> : null}
             </div>
-            <span className="rounded border border-blue-300/40 bg-blue-300/10 px-2 py-1 text-xs font-black text-blue-200">
-              {log.offline ? 'Offline' : 'Feito'}
+            <span className={`rounded border px-2 py-1 text-xs font-black ${log.endedEarly ? 'border-amber-300/40 bg-amber-300/10 text-amber-200' : 'border-blue-300/40 bg-blue-300/10 text-blue-200'}`}>
+              {log.endedEarly ? 'Encerrado' : log.offline ? 'Offline' : 'Feito'}
             </span>
           </div>
         </div>
@@ -11923,6 +11947,7 @@ function getWorkoutDayLastLog(logs = [], workoutId, dayExercises = []) {
   const names = dayExercises.map((item) => normalizeText(item?.name || '')).filter(Boolean)
   if (!names.length) return null
   return logs
+    .filter((log) => !log?.endedEarly)
     .filter((log) => !workoutId || !log?.workoutId || sameId(log.workoutId, workoutId))
     .filter((log) => {
       const notes = normalizeText(log?.notes || '')
@@ -11938,7 +11963,7 @@ function getWorkoutSetNumeric(value) {
   return Number.isFinite(number) ? number : 0
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -11952,11 +11977,11 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
   const [restPaused, setRestPaused] = useState(false)
-  const [finishConfirmOpen, setFinishConfirmOpen] = useState(false)
+  const [endConfirmOpen, setEndConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
   const [syncState, setSyncState] = useState(preview ? 'preview' : 'local')
-  const [message, setMessage] = useState(initialExecution?.completedLog ? 'Treino já concluído. O XP foi registrado uma única vez.' : '')
+  const [message, setMessage] = useState(initialExecution?.completedLog ? (initialExecution.completedLog.endedEarly ? 'Treino encerrado. Seu progresso foi mantido.' : 'Treino já concluído. O XP foi registrado uma única vez.') : '')
   const [error, setError] = useState('')
   const previousExecutionKeyRef = useRef(executionStorageKey)
   const skipNextPersistRef = useRef(false)
@@ -11974,7 +11999,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setSessionNotes(saved?.sessionNotes || '')
     setCompletionToken(saved?.completionToken || createWorkoutCompletionToken())
     setCompletedLog(saved?.completedLog || null)
-    setMessage(saved?.completedLog ? 'Treino já concluído. O XP foi registrado uma única vez.' : '')
+    setMessage(saved?.completedLog ? (saved.completedLog.endedEarly ? 'Treino encerrado. Seu progresso foi mantido.' : 'Treino já concluído. O XP foi registrado uma única vez.') : '')
     setError('')
     if (preview || !onLoadWorkoutSession || !workout?.id) {
       setRemoteHydrated(true)
@@ -12167,7 +12192,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveExerciseIndex(0)
     setRestRemaining(0)
     setRestPaused(false)
-    setFinishConfirmOpen(false)
+    setEndConfirmOpen(false)
     setMessage('')
     setError('')
   }
@@ -12179,7 +12204,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveExerciseIndex(nextPosition.exerciseIndex)
     setRestRemaining(0)
     setRestPaused(false)
-    setFinishConfirmOpen(false)
+    setEndConfirmOpen(false)
   }
 
   function scrollWorkoutTarget(id) {
@@ -12208,23 +12233,12 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveExerciseIndex(0)
     setRestRemaining(0)
     setRestPaused(false)
-    setFinishConfirmOpen(false)
+    setEndConfirmOpen(false)
     setError('')
   }
 
 
-  async function finishWorkout(force = false) {
-    if (submissionLockRef.current || saving || completedLog) return
-    if (!dayCompletedSets) {
-      setError('Conclua ao menos uma série antes de finalizar o treino.')
-      return
-    }
-    if (!dayCanFinish && !force) {
-      setFinishConfirmOpen(true)
-      setError('')
-      return
-    }
-
+  function buildCurrentWorkoutPayload() {
     const exerciseEntries = exercises.map((currentExercise, currentExerciseIndex) => ({
       exercise: { ...currentExercise, day: activeDay?.day },
       sets: Array.from({ length: Math.max(1, Number.parseInt(currentExercise.sets, 10) || 1) }, (_, setIndex) => {
@@ -12234,7 +12248,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       }),
     }))
 
-    const payload = {
+    return {
       ...buildWorkoutCompletionPayload({
         student,
         workout: { ...workout, title: [workout?.title || 'Treino', activeDay?.day || activeDay?.focus || 'Dia'].join(' · ') },
@@ -12256,24 +12270,65 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         updatedAt: new Date().toISOString(),
       }),
     }
+  }
 
+  async function finishWorkout() {
+    if (submissionLockRef.current || saving || completedLog) return
+    if (!dayCanFinish) {
+      setError(`Existem ${dayRemainingSets} ${dayRemainingSets === 1 ? 'série ainda não concluída' : 'séries ainda não concluídas'}. Conclua todas ou use "Encerrar treino".`)
+      return
+    }
+
+    const payload = buildCurrentWorkoutPayload()
     submissionLockRef.current = true
     setSaving(true)
-    setFinishConfirmOpen(false)
+    setEndConfirmOpen(false)
     setMessage('')
     setError('')
     try {
       if (!preview) {
         if (!onCompleteWorkout) throw new Error('Não foi possível acessar o histórico do treino.')
         const savedLog = await onCompleteWorkout(payload)
-        setCompletedLog(savedLog || { id: completionToken, completedAt: new Date().toISOString() })
+        setCompletedLog({ ...(savedLog || { id: completionToken, completedAt: new Date().toISOString() }), durationSeconds: payload.durationSeconds })
       } else {
-        setCompletedLog({ id: completionToken, completedAt: new Date().toISOString() })
+        setCompletedLog({ id: completionToken, completedAt: new Date().toISOString(), durationSeconds: payload.durationSeconds })
       }
       if (timerStartedAt && onToggleTimer) onToggleTimer()
       setMessage(preview ? 'Simulação concluída. Na conta do aluno, este treino adicionará +80 XP.' : 'Treino finalizado! +80 XP adicionados ao ranking e ao histórico.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
+    } finally {
+      submissionLockRef.current = false
+      setSaving(false)
+    }
+  }
+
+  async function endWorkoutEarly() {
+    if (submissionLockRef.current || saving || completedLog) return
+    const basePayload = buildCurrentWorkoutPayload()
+    const partialNotes = [
+      String(basePayload.notes || '').replace('Treino concluído pelo aluno no app.', 'Sessão encerrada pelo aluno no app.'),
+      'Tempo realizado: ' + formatWorkoutTimer(basePayload.durationSeconds),
+    ].filter(Boolean).join('\n\n')
+    const payload = { ...basePayload, notes: partialNotes, endedEarly: true }
+    submissionLockRef.current = true
+    setSaving(true)
+    setMessage('')
+    setError('')
+    try {
+      let savedLog
+      if (!preview) {
+        if (!onEndWorkout) throw new Error('Não foi possível encerrar esta sessão.')
+        savedLog = await onEndWorkout(payload)
+      } else {
+        savedLog = { id: completionToken, completedAt: new Date().toISOString(), endedEarly: true }
+      }
+      setCompletedLog({ ...savedLog, endedEarly: true, durationSeconds: payload.durationSeconds })
+      setEndConfirmOpen(false)
+      if (timerStartedAt && onToggleTimer) onToggleTimer()
+      setMessage('Treino encerrado. Seu progresso realizado até aqui foi mantido no histórico.')
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível encerrar o treino.')
     } finally {
       submissionLockRef.current = false
       setSaving(false)
@@ -12291,7 +12346,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setCompletedLog(null)
     setRestRemaining(0)
     setRestPaused(false)
-    setFinishConfirmOpen(false)
+    setEndConfirmOpen(false)
     setMessage('Nova sessão iniciada. Registre novamente todas as séries.')
     setError('')
   }
@@ -12301,14 +12356,14 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 ' + (compact ? 'is-compact' : '')}>
         <header className="mobile-workout-student-experience-head-v2">
           <div>
-            <p>Treino concluído</p>
+            <p>{completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído'}</p>
             <h3>{activeDay?.focus || activeDay?.day || workout.title || 'Sessão finalizada'}</h3>
-            <span>{(activeDay?.day || 'Treino do dia') + ' · desempenho salvo no histórico'}</span>
+            <span>{(activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
           </div>
-          <strong>+80 XP</strong>
+          <strong>{completedLog?.endedEarly ? 'Progresso salvo' : '+80 XP'}</strong>
         </header>
         <div className="mobile-workout-summary-grid-v4">
-          <div><span>Duração</span><strong>{formatWorkoutTimer(durationSeconds)}</strong></div>
+          <div><span>Duração</span><strong>{formatWorkoutTimer(completedLog?.durationSeconds ?? durationSeconds)}</strong></div>
           <div><span>Exercícios</span><strong>{completedExercises + '/' + exercises.length}</strong></div>
           <div><span>Séries</span><strong>{dayCompletedSets}</strong></div>
           <div><span>Volume</span><strong>{Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
@@ -12322,7 +12377,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         ) : null}
-        {message ? <div className="mobile-workout-student-success-v2"><strong>Registro concluído</strong><span>{message}</span></div> : null}
+        {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
         <div className="mobile-workout-summary-actions-v4">
           {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Ver evolução</button> : null}
           <button type="button" onClick={startNewWorkoutSession}>Voltar aos treinos</button>
@@ -12422,7 +12477,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       <div className="mobile-workout-execution-head-v4">
         <button type="button" onClick={returnToDaySelection}>← Voltar</button>
         <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
-        <em>{formatWorkoutTimer(durationSeconds)}</em>
+        {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button> : null}
       </div>
 
       <div className="mobile-workout-exercise-progress-v3">
@@ -12444,34 +12499,42 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
       {exercise ? (
         <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2">
-          <div className="mobile-workout-student-video-v2 mobile-workout-muscle-target-v4">
-            <MuscleMap exercise={exercise} compact />
-            <div className="mobile-workout-exercise-media-meta-v3">
-              <span>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</span>
-              <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
-            </div>
-          </div>
-
-          <div className="mobile-workout-student-current-copy-v2">
+          <div className="mobile-workout-current-heading-v5">
             <div>
               <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
               <h4>{exercise.name}</h4>
               <span>{getExerciseMuscleProfile(exercise).primaryLabel + (exercise.equipment ? ' · ' + exercise.equipment : '')}</span>
             </div>
-            <div className="mobile-workout-student-metrics-v2">
-              <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-              <ExerciseMetric label="Meta de reps" value={exercise.reps || '-'} />
-              <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
-              <ExerciseMetric label="Status" value={currentExerciseStatusLabel} />
+            <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
+          </div>
+
+          <div className={'mobile-workout-timer-panel-v5 ' + (restRemaining ? 'is-resting' : '')}>
+            <div className="mobile-workout-session-timer-v5">
+              <span>Tempo do treino</span>
+              <strong>{formatWorkoutTimer(durationSeconds)}</strong>
+              <small>{timerStartedAt ? 'Cronômetro em andamento' : 'Cronômetro pausado'}</small>
             </div>
-            {(exercise.cues || exercise.instructions || exercise.notes) ? (
-              <details className="mobile-workout-orientations-v4" open>
-                <summary>Orientações do coach</summary>
-                <p>{exercise.cues || exercise.instructions || 'Siga a execução orientada pelo seu coach.'}</p>
-                {exercise.notes ? <small>{exercise.notes}</small> : null}
-              </details>
+            {restRemaining ? (
+              <div className="mobile-workout-rest-timer-v5">
+                <div>
+                  <span>Descanso</span>
+                  <strong aria-live="polite">{formatWorkoutTimer(restRemaining)}</strong>
+                  <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
+                </div>
+                <div className="mobile-workout-rest-actions-v5">
+                  <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
+                  <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
+                  <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
+                </div>
+              </div>
             ) : null}
-            {onOpenProgress ? <button type="button" className="mobile-workout-evolution-link-v4" onClick={onOpenProgress}>Ver evolução do exercício</button> : null}
+          </div>
+
+          <div className="mobile-workout-student-metrics-v2">
+            <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+            <ExerciseMetric label="Meta de reps" value={exercise.reps || '-'} />
+            <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
+            <ExerciseMetric label="Status" value={currentExerciseStatusLabel} />
           </div>
 
           <div className="mobile-workout-student-series-v2">
@@ -12496,22 +12559,31 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             })}
           </div>
 
-          {restRemaining ? (
-            <div className="mobile-workout-rest-control-v4">
-              <div><span>Descanso</span><strong>{formatWorkoutTimer(restRemaining)}</strong></div>
-              <div>
-                <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
-                <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-                <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
-              </div>
-            </div>
-          ) : null}
 
           <div className="mobile-workout-student-navigation-v3">
             <button type="button" className="is-secondary" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }} disabled={!hasPreviousExercise}>← Exercício anterior</button>
             <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>{hasNextExercise ? 'Concluir exercício e ir para o próximo →' : 'Ir para finalização do treino ↓'}</button>
           </div>
           {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">Conclua todas as séries deste exercício para liberar o avanço rápido. Você também pode abrir outro exercício acima.</small> : null}
+
+          <div className="mobile-workout-supplementary-v5">
+            {(exercise.cues || exercise.instructions || exercise.notes) ? (
+              <details className="mobile-workout-orientations-v4">
+                <summary>Orientações do coach</summary>
+                <p>{exercise.cues || exercise.instructions || 'Siga a execução orientada pelo seu coach.'}</p>
+                {exercise.notes ? <small>{exercise.notes}</small> : null}
+              </details>
+            ) : null}
+            {onOpenProgress ? <button type="button" className="mobile-workout-evolution-link-v4" onClick={onOpenProgress}>Ver evolução do exercício</button> : null}
+            <div className="mobile-workout-muscle-target-compact-v5" role="img" aria-label={'Mapa muscular: ' + getExerciseMuscleProfile(exercise).primaryLabel}>
+              <MuscleMapMini exercise={exercise} className="h-16 w-16" />
+              <div>
+                <span>Músculo alvo</span>
+                <strong>{getExerciseMuscleProfile(exercise).primaryLabel}</strong>
+                <small>Referência rápida da musculatura principal.</small>
+              </div>
+            </div>
+          </div>
         </article>
       ) : null}
 
@@ -12519,17 +12591,23 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         <footer id="student-workout-finish" className="mobile-workout-student-finish-v2">
           <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
           <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
-          <button type="button" disabled={saving || !dayTotalSets || Boolean(completedLog)} onClick={() => finishWorkout(false)}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
-          {!dayCanFinish && !finishConfirmOpen ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'série ainda não concluída' : 'séries ainda não concluídas') + '.'}</small> : null}
-          {finishConfirmOpen ? (
-            <div className="mobile-workout-finish-confirm-v4">
-              <strong>{'Existem ' + dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'série ainda não concluída' : 'séries ainda não concluídas') + '.'}</strong>
-              <p>Você pode continuar o treino ou finalizar esta sessão mesmo assim.</p>
-              <div><button type="button" onClick={() => setFinishConfirmOpen(false)}>Continuar treino</button><button type="button" onClick={() => finishWorkout(true)}>Finalizar mesmo assim</button></div>
-            </div>
-          ) : null}
+          <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
+          {!dayCanFinish ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'série ainda não concluída' : 'séries ainda não concluídas') + '. Você pode concluir as séries ou encerrar a sessão atual.'}</small> : null}
+          <button type="button" className="mobile-workout-end-secondary-v5" disabled={saving || Boolean(completedLog)} onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button>
           {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
         </footer>
+      ) : null}
+      {endConfirmOpen ? (
+        <div className="mobile-workout-end-overlay-v5" role="presentation">
+          <div className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
+            <strong id="workout-end-title">Deseja encerrar o treino agora?</strong>
+            <p id="workout-end-description">Seu progresso realizado até aqui será mantido.</p>
+            <div>
+              <button type="button" className="is-secondary" disabled={saving} onClick={() => setEndConfirmOpen(false)}>Continuar treino</button>
+              <button type="button" className="is-end" disabled={saving} onClick={endWorkoutEarly}>{saving ? 'Encerrando...' : 'Encerrar treino'}</button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </section>
   )
@@ -15412,7 +15490,7 @@ function ProfileAvatar({ name, src = '', size = 'md', className = '' }) {
   )
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
+function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -15424,6 +15502,10 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
 
   function completeStudentWorkout(log) {
     return onCompleteWorkout({ ...log, inviteCode })
+  }
+
+  function endStudentWorkout(log) {
+    return onEndWorkout({ ...log, inviteCode })
   }
 
   const loadStudentWorkoutSession = useCallback((workoutId) => (
@@ -15481,6 +15563,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       theme={uiTheme}
       toggleUiTheme={toggleUiTheme}
       onCompleteWorkout={completeStudentWorkout}
+      onEndWorkout={endStudentWorkout}
       onLoadWorkoutSession={loadStudentWorkoutSession}
       onSaveWorkoutSession={saveStudentWorkoutSession}
       onAddCheckin={addStudentCheckin}
@@ -15496,7 +15579,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -15750,6 +15833,21 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     return savedLog
   }
 
+  async function endWorkoutFromStudent(log) {
+    if (!onEndWorkout) throw new Error('Não foi possível encerrar esta sessão.')
+    const savedLog = await onEndWorkout({ ...log, endedEarly: true })
+    sendLocalNotification('Treino encerrado', `${student.name} encerrou o treino.`)
+    await onSendMessage?.({
+      studentId: student.id,
+      sender: 'student',
+      body: `${student.name} encerrou o treino ${log.title}. O progresso realizado até aqui foi mantido.`,
+    }).catch(() => {})
+    setWorkoutStartedAt(null)
+    setWorkoutElapsedSeconds(0)
+    setWorkoutStartNotified(false)
+    return { ...savedLog, endedEarly: true }
+  }
+
   async function installStudentApp() {
     if (!installPrompt) return
     installPrompt.prompt()
@@ -15837,6 +15935,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                   setWorkoutClock(Date.now())
                 }}
                 onCompleteWorkout={completeWorkoutFromStudent}
+                onEndWorkout={endWorkoutFromStudent}
                 onLoadWorkoutSession={onLoadWorkoutSession}
                 onSaveWorkoutSession={onSaveWorkoutSession}
                 onSessionHydrated={(session) => {
@@ -16417,7 +16516,7 @@ export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPerc
     return { week: day.toISOString().slice(0, 10), month: dayKey.slice(0, 7) }
   }
   const belongsToStudent = (record) => record && studentId != null && String(record.studentId ?? record.student_id) === String(studentId)
-  const logs = (Array.isArray(workoutLogs) ? workoutLogs : []).filter(belongsToStudent)
+  const logs = (Array.isArray(workoutLogs) ? workoutLogs : []).filter((log) => belongsToStudent(log) && !log?.endedEarly)
     .slice().sort((a, b) => new Date(a.completedAt ?? a.completed_at) - new Date(b.completedAt ?? b.completed_at))
   for (const log of logs) {
     const at = log.completedAt ?? log.completed_at
@@ -16535,7 +16634,7 @@ function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' 
 function buildStudentWeekProgress(logs = []) {
   const today = new Date()
   const monday = getWeekStart(today)
-  const completedKeys = new Set(logs.map((log) => toLocalDateKey(log.completedAt)).filter(Boolean))
+  const completedKeys = new Set(logs.filter((log) => !log?.endedEarly).map((log) => toLocalDateKey(log.completedAt)).filter(Boolean))
   const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
   return labels.map((label, index) => {
@@ -16554,7 +16653,7 @@ function buildStudentWeekProgress(logs = []) {
 
 function countWorkoutLogsThisMonth(logs = []) {
   const now = new Date()
-  return logs.filter((log) => {
+  return logs.filter((log) => !log?.endedEarly).filter((log) => {
     const date = new Date(log.completedAt)
     return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()
   }).length
@@ -16564,7 +16663,7 @@ function countWorkoutLogsThisWeek(logs = []) {
   const start = getWeekStart(new Date())
   const end = new Date(start)
   end.setDate(start.getDate() + 7)
-  return (Array.isArray(logs) ? logs : []).filter((log) => {
+  return (Array.isArray(logs) ? logs : []).filter((log) => !log?.endedEarly).filter((log) => {
     const date = new Date(log?.completedAt || log?.createdAt || log?.date)
     return Number.isFinite(date.getTime()) && date >= start && date < end
   }).length

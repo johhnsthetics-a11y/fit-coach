@@ -5,6 +5,8 @@ const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
 const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
 const WORKOUT_COMPLETION_TOKEN_PATTERN = /\n?\[coachfitpro-completion:[^\]]+\]\s*/g
+const WORKOUT_ENDED_EARLY_TOKEN_PATTERN = /\n?\[coachfitpro-ended-early:[^\]]+\]\s*/g
+const WORKOUT_ENDED_EARLY_TOKEN_TEST = /\[coachfitpro-ended-early:[^\]]+\]/
 export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies.sql'
 
 let sessionToken = ''
@@ -1264,6 +1266,24 @@ export async function saveRemoteWorkoutLog(log) {
   return fromWorkoutLogRow(rows[0])
 }
 
+export async function saveRemoteWorkoutEarlyEnd(log) {
+  if (!log?.inviteCode) throw new Error('Não foi possível identificar o acesso desta sessão.')
+  if (!log?.completionToken) throw new Error('Não foi possível identificar esta sessão de treino. Inicie o treino novamente.')
+
+  const result = await rpcRequest('end_student_workout_session', {
+    invite_code: log.inviteCode,
+    selected_workout_id: isUuid(log.workoutId) ? log.workoutId : null,
+    workout_title: log.title,
+    effort_value: log.effort,
+    notes_value: log.notes,
+    completion_token: log.completionToken,
+    duration_seconds_value: Math.max(0, Number(log.durationSeconds) || 0),
+    execution_value: log.execution && typeof log.execution === 'object' ? log.execution : {},
+  })
+  const payload = Array.isArray(result) ? result[0] : result
+  return { ...fromWorkoutLogRow(payload?.workout_log || payload), endedEarly: true }
+}
+
 function fromWorkoutSessionRow(row) {
   if (!row || typeof row !== 'object') return null
   const execution = row.execution && typeof row.execution === 'object' && !Array.isArray(row.execution) ? row.execution : {}
@@ -2028,6 +2048,7 @@ function stripNutritionPlanMetadata(notes = '') {
 }
 
 function fromWorkoutLogRow(row) {
+  const rawNotes = String(row.notes ?? '')
   return {
     id: row.id,
     coachId: row.coach_id,
@@ -2035,8 +2056,12 @@ function fromWorkoutLogRow(row) {
     workoutId: row.workout_id,
     title: row.title ?? '',
     effort: row.effort ?? '',
-    notes: String(row.notes ?? '').replace(WORKOUT_COMPLETION_TOKEN_PATTERN, '').trim(),
+    notes: rawNotes
+      .replace(WORKOUT_COMPLETION_TOKEN_PATTERN, '')
+      .replace(WORKOUT_ENDED_EARLY_TOKEN_PATTERN, '')
+      .trim(),
     completedAt: row.completed_at ?? row.created_at,
+    endedEarly: WORKOUT_ENDED_EARLY_TOKEN_TEST.test(rawNotes),
   }
 }
 
