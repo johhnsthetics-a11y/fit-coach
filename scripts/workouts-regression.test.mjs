@@ -454,7 +454,7 @@ test('conclusão do aluno fecha a sessão com token idempotente e vínculo valid
 
 test('falha de rede mantém a execução pendente para retry sem conceder XP local', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-  const completeWorkoutSource = appSource.match(/async function completeWorkout\(log\)[\s\S]*?\r?\n  }\r?\n\r?\n  async function saveAppointment/)?.[0] || ''
+  const completeWorkoutSource = appSource.match(/async function completeWorkout\(log\)[\s\S]*?\r?\n  }\r?\n\r?\n  async function endWorkout/)?.[0] || ''
 
   assert.doesNotMatch(completeWorkoutSource, /syncStatus:\s*'pending'/)
   assert.match(completeWorkoutSource, /throw error/)
@@ -487,4 +487,71 @@ test('mapa muscular usa silhueta humana orgânica e mantém regiões interativas
   assert.match(appSource, /className:\s*`muscle-map-region/)
   assert.match(appSource, /compact \? 'h-52' : 'h-64'/)
   assert.doesNotMatch(appSource, /M39 24h22l7 28-6 29H38l-6-29 7-28Z/)
+})
+
+
+test('encerramento antecipado preserva histórico sem conceder XP de conclusão', () => {
+  const partial = {
+    id: 'partial-session',
+    studentId: student.id,
+    workoutId: workout.id,
+    completedAt: '2026-09-26T12:00:00Z',
+    endedEarly: true,
+    notes: 'Supino reto com barra — S1: 40 kg × 10 reps',
+  }
+  const stats = buildStudentRewardStats({ studentId: student.id, workoutLogs: [partial] })
+  assert.equal(stats.xp, 0)
+  assert.equal(stats.completedThisWeek, 0)
+  assert.equal(stats.history.length, 0)
+})
+
+test('executor destaca timer, encerramento e músculo alvo compacto', () => {
+  const html = renderToString(React.createElement(StudentWorkoutExecution, {
+    student,
+    preview: true,
+    dayIndex: 0,
+    durationSeconds: 125,
+    workout: {
+      title: 'Treino A',
+      days: [{
+        day: 'Segunda-feira',
+        focus: 'Peito',
+        exercises: [{ name: 'Supino reto com barra', sets: '3', reps: '10', rest: '60s' }],
+      }],
+    },
+  }))
+
+  assert.match(html, /Tempo do treino/)
+  assert.match(html, /02:05/)
+  assert.match(html, /Encerrar treino/)
+  assert.match(html, /mobile-workout-timer-panel-v5/)
+  assert.match(html, /mobile-workout-muscle-target-compact-v5/)
+  assert.match(html, /Músculo alvo/)
+})
+
+test('encerramento antecipado usa RPC dedicado e mantém validação da conclusão normal', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const migrationSource = await readFile(new URL('../supabase/migrations/20260926_workout_early_end_history.sql', import.meta.url), 'utf8')
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /rpcRequest\('end_student_workout_session'/)
+  assert.match(apiSource, /endedEarly:\s*WORKOUT_ENDED_EARLY_TOKEN_TEST\.test/)
+  assert.match(migrationSource, /create or replace function public\.end_student_workout_session/i)
+  assert.match(migrationSource, /status\s*=\s*'ended_early'/i)
+  assert.match(migrationSource, /workout_sessions[\s\S]*execution/i)
+  assert.match(appSource, /Deseja encerrar o treino agora\?/)
+  assert.match(appSource, /Seu progresso realizado até aqui será mantido\./)
+  assert.match(appSource, /if \(!dayCanFinish\)[\s\S]*Encerrar treino/)
+})
+
+test('tema claro e escuro têm estados acessíveis e timer tabular estável', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /workout-execution-controls-v5/)
+  assert.match(cssSource, /\.app-theme-light \.mobile-workout-student-experience-v2/)
+  assert.match(cssSource, /\.app-theme-dark \.mobile-workout-student-experience-v2/)
+  assert.match(cssSource, /button:focus-visible/)
+  assert.match(cssSource, /button:not\(:disabled\):active/)
+  assert.match(cssSource, /font-variant-numeric:\s*tabular-nums/)
+  assert.match(cssSource, /width:\s*5\.7ch/)
 })
