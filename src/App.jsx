@@ -12510,7 +12510,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
           <div className="mobile-workout-timer-panel-v5">
             <div className="mobile-workout-session-timer-v5">
-              <span>Tempo de treino</span>
+              <span>Tempo do treino</span>
               <strong>{formatWorkoutTimer(durationSeconds)}</strong>
               <small>{timerStartedAt ? 'Em andamento' : 'Pausado'}</small>
             </div>
