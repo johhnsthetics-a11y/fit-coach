@@ -12289,9 +12289,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       if (!preview) {
         if (!onCompleteWorkout) throw new Error('Não foi possível acessar o histórico do treino.')
         const savedLog = await onCompleteWorkout(payload)
-        setCompletedLog(savedLog || { id: completionToken, completedAt: new Date().toISOString() })
+        setCompletedLog({ ...(savedLog || { id: completionToken, completedAt: new Date().toISOString() }), durationSeconds: payload.durationSeconds })
       } else {
-        setCompletedLog({ id: completionToken, completedAt: new Date().toISOString() })
+        setCompletedLog({ id: completionToken, completedAt: new Date().toISOString(), durationSeconds: payload.durationSeconds })
       }
       if (timerStartedAt && onToggleTimer) onToggleTimer()
       setMessage(preview ? 'Simulação concluída. Na conta do aluno, este treino adicionará +80 XP.' : 'Treino finalizado! +80 XP adicionados ao ranking e ao histórico.')
@@ -12305,7 +12305,12 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   async function endWorkoutEarly() {
     if (submissionLockRef.current || saving || completedLog) return
-    const payload = { ...buildCurrentWorkoutPayload(), endedEarly: true }
+    const basePayload = buildCurrentWorkoutPayload()
+    const partialNotes = [
+      String(basePayload.notes || '').replace('Treino concluído pelo aluno no app.', 'Sessão encerrada pelo aluno no app.'),
+      'Tempo realizado: ' + formatWorkoutTimer(basePayload.durationSeconds),
+    ].filter(Boolean).join('\n\n')
+    const payload = { ...basePayload, notes: partialNotes, endedEarly: true }
     submissionLockRef.current = true
     setSaving(true)
     setMessage('')
@@ -12318,7 +12323,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       } else {
         savedLog = { id: completionToken, completedAt: new Date().toISOString(), endedEarly: true }
       }
-      setCompletedLog({ ...savedLog, endedEarly: true })
+      setCompletedLog({ ...savedLog, endedEarly: true, durationSeconds: payload.durationSeconds })
       setEndConfirmOpen(false)
       if (timerStartedAt && onToggleTimer) onToggleTimer()
       setMessage('Treino encerrado. Seu progresso realizado até aqui foi mantido no histórico.')
@@ -12358,7 +12363,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <strong>{completedLog?.endedEarly ? 'Progresso salvo' : '+80 XP'}</strong>
         </header>
         <div className="mobile-workout-summary-grid-v4">
-          <div><span>Duração</span><strong>{formatWorkoutTimer(durationSeconds)}</strong></div>
+          <div><span>Duração</span><strong>{formatWorkoutTimer(completedLog?.durationSeconds ?? durationSeconds)}</strong></div>
           <div><span>Exercícios</span><strong>{completedExercises + '/' + exercises.length}</strong></div>
           <div><span>Séries</span><strong>{dayCompletedSets}</strong></div>
           <div><span>Volume</span><strong>{Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
