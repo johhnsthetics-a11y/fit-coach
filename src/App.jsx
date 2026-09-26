@@ -11368,10 +11368,10 @@ function getExerciseMuscleProfile(exercise = {}) {
   }
 }
 
-function MuscleMapMini({ exercise }) {
+function MuscleMapMini({ exercise, className = 'h-5 w-5' }) {
   const profile = getExerciseMuscleProfile(exercise)
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
       <path d="M12 2.5a2.6 2.6 0 0 1 2.6 2.6 2.5 2.5 0 0 1-1.1 2.1l1.7 1.4 1.5 5.6-1.8.5-1.1-3.8-.9 3.5.7 6.7h-2l-.6-5.2-.6 5.2h-2l.7-6.7-.9-3.5-1.1 3.8-1.8-.5 1.5-5.6 1.7-1.4a2.5 2.5 0 0 1-1.1-2.1A2.6 2.6 0 0 1 12 2.5Z" fill="currentColor" opacity="0.32" />
       <circle cx="12" cy="5.1" r="2.1" fill="currentColor" opacity="0.44" />
       <path
@@ -11869,8 +11869,8 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
     const completedSets = sets.filter((setItem) => setItem.completed)
     if (!completedSets.length) return []
     const series = completedSets.map((setItem) => {
-      const load = String(setItem.load || exercise.load || '0').trim()
-      const reps = String(setItem.reps || exercise.reps || '-').trim()
+      const load = String(setItem.load ?? '').trim() || '0'
+      const reps = String(setItem.reps ?? '').trim() || '-'
       return `S${setItem.number}: ${load} kg × ${reps}`
     }).join(' · ')
     return `${exercise.name || 'Exercício'} — ${series}`
@@ -11891,7 +11891,54 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
+
+function getWorkoutSetTargetReps(exercise, setIndex) {
+  const raw = String(exercise?.reps || '').trim()
+  if (!raw) return ''
+  const parts = raw.split(/\s*\/\s*/).filter(Boolean)
+  if (parts.length <= 1) return raw
+  return parts[Math.min(setIndex, parts.length - 1)] || raw
+}
+
+function getPreviousExerciseSession(logs = [], workoutId, exerciseName) {
+  const target = normalizeText(exerciseName || '')
+  if (!target) return null
+  const sorted = logs
+    .filter((log) => !workoutId || !log?.workoutId || sameId(log.workoutId, workoutId))
+    .slice()
+    .sort((a, b) => new Date(b?.completedAt || b?.createdAt || 0) - new Date(a?.completedAt || a?.createdAt || 0))
+  for (const log of sorted) {
+    const line = String(log?.notes || '').split(/\r?\n/).find((item) => normalizeText(String(item).split('—')[0]).includes(target))
+    if (!line) continue
+    const sets = new Map()
+    for (const match of line.matchAll(/S(\d+):\s*([^·\n]+?)\s*kg\s*[×x]\s*([^·\n]+)/gi)) {
+      sets.set(Number(match[1]), { number: Number(match[1]), load: String(match[2] || '').trim(), reps: String(match[3] || '').trim() })
+    }
+    if (sets.size) return { log, sets }
+  }
+  return null
+}
+
+function getWorkoutDayLastLog(logs = [], workoutId, dayExercises = []) {
+  const names = dayExercises.map((item) => normalizeText(item?.name || '')).filter(Boolean)
+  if (!names.length) return null
+  return logs
+    .filter((log) => !workoutId || !log?.workoutId || sameId(log.workoutId, workoutId))
+    .filter((log) => {
+      const notes = normalizeText(log?.notes || '')
+      return names.some((name) => notes.includes(name))
+    })
+    .slice()
+    .sort((a, b) => new Date(b?.completedAt || b?.createdAt || 0) - new Date(a?.completedAt || a?.createdAt || 0))[0] || null
+}
+
+function getWorkoutSetNumeric(value) {
+  const normalized = String(value ?? '').replace(',', '.').replace(/[^\d.-]/g, '')
+  const number = Number(normalized)
+  return Number.isFinite(number) ? number : 0
+}
+
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -11904,6 +11951,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   const [completionToken, setCompletionToken] = useState(initialExecution?.completionToken || createWorkoutCompletionToken)
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
+  const [restPaused, setRestPaused] = useState(false)
+  const [finishConfirmOpen, setFinishConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
   const [syncState, setSyncState] = useState(preview ? 'preview' : 'local')
@@ -12001,10 +12050,10 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
 
   useEffect(() => {
-    if (!restRemaining) return undefined
+    if (!restRemaining || restPaused) return undefined
     const timer = window.setInterval(() => setRestRemaining((current) => Math.max(0, current - 1)), 1000)
     return () => window.clearInterval(timer)
-  }, [restRemaining > 0])
+  }, [restPaused, restRemaining > 0])
 
   if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
 
@@ -12024,13 +12073,14 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
   const exerciseSetCount = Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
   const currentSets = Array.from({ length: exerciseSetCount }, (_, index) => {
     const number = index + 1
-    const key = `${safeDayIndex}-${safeExerciseIndex}-${number}`
+    const key = safeDayIndex + '-' + safeExerciseIndex + '-' + number
     return {
       key,
       number,
       completed: Boolean(setLogs[key]?.completed),
-      load: setLogs[key]?.load ?? String(exercise?.load || '').replace(/\s*kg$/i, ''),
-      reps: setLogs[key]?.reps ?? exercise?.reps ?? '',
+      load: setLogs[key]?.load ?? '',
+      reps: setLogs[key]?.reps ?? '',
+      targetReps: getWorkoutSetTargetReps(exercise, index),
     }
   })
 
@@ -12061,6 +12111,30 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       ? 'Em andamento'
       : 'Não iniciado'
 
+  const sessionStarted = preview || Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0
+  const dayCanFinish = dayTotalSets > 0 && dayCompletedSets === dayTotalSets
+  const dayRemainingSets = Math.max(0, dayTotalSets - dayCompletedSets)
+  const previousExerciseSession = exercise ? getPreviousExerciseSession(workoutLogs, workout?.id, exercise.name) : null
+  const previousSetRecords = previousExerciseSession?.sets || new Map()
+  const dayVolume = exercises.reduce((sum, currentExercise, currentExerciseIndex) => {
+    const setCount = Math.max(1, Number.parseInt(currentExercise?.sets, 10) || 1)
+    for (let setNumber = 1; setNumber <= setCount; setNumber += 1) {
+      const item = setLogs[safeDayIndex + '-' + currentExerciseIndex + '-' + setNumber]
+      if (!item?.completed) continue
+      sum += getWorkoutSetNumeric(item.load) * getWorkoutSetNumeric(item.reps)
+    }
+    return sum
+  }, 0)
+  let loadImprovements = 0
+  let repImprovements = 0
+  currentSets.forEach((setItem) => {
+    const previous = previousSetRecords.get(setItem.number)
+    if (!setItem.completed || !previous) return
+    if (getWorkoutSetNumeric(setItem.load) > getWorkoutSetNumeric(previous.load)) loadImprovements += 1
+    if (getWorkoutSetNumeric(setItem.reps) > getWorkoutSetNumeric(previous.reps)) repImprovements += 1
+  })
+
+
 
   function updateSet(setItem, field, value) {
     setSetLogs((current) => ({
@@ -12071,11 +12145,22 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
 
   function completeSet(setItem) {
     const nextCompleted = !setItem.completed
+    if (nextCompleted && !String(setItem.reps || '').trim()) {
+      setError('Informe as repetições realizadas antes de concluir a série.')
+      window.requestAnimationFrame(() => document.getElementById('workout-set-reps-' + setItem.key)?.focus())
+      return
+    }
+    setError('')
     setSetLogs((current) => ({
       ...current,
       [setItem.key]: { ...setItem, ...current[setItem.key], completed: nextCompleted },
     }))
-    if (nextCompleted) setRestRemaining(Math.max(0, Number.parseInt(exercise?.rest, 10) || 0))
+    if (nextCompleted) {
+      setRestRemaining(Math.max(0, Number.parseInt(exercise?.rest, 10) || 0))
+      setRestPaused(false)
+      const nextSet = currentSets.find((item) => item.number === setItem.number + 1)
+      if (nextSet) window.requestAnimationFrame(() => document.getElementById('workout-set-load-' + nextSet.key)?.focus())
+    }
   }
 
   function selectDay(nextDayIndex) {
@@ -12083,6 +12168,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     setActiveDayIndex(nextDayIndex)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
+    setRestPaused(false)
+    setFinishConfirmOpen(false)
     setMessage('')
     setError('')
   }
@@ -12093,6 +12180,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     setActiveDayIndex(nextPosition.dayIndex)
     setActiveExerciseIndex(nextPosition.exerciseIndex)
     setRestRemaining(0)
+    setRestPaused(false)
+    setFinishConfirmOpen(false)
   }
 
   function scrollWorkoutTarget(id) {
@@ -12125,29 +12214,42 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     setActiveDayIndex(-1)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
+    setRestPaused(false)
+    setFinishConfirmOpen(false)
     setError('')
   }
 
 
-  async function finishWorkout() {
+  async function finishWorkout(force = false) {
     if (submissionLockRef.current || saving || completedLog) return
-    if (!canFinish) {
-      setError(`Conclua as ${Math.max(0, totalSets - completedSets)} séries restantes do treino antes de finalizar.`)
+    if (!dayCompletedSets) {
+      setError('Conclua ao menos uma série antes de finalizar o treino.')
+      return
+    }
+    if (!dayCanFinish && !force) {
+      setFinishConfirmOpen(true)
+      setError('')
       return
     }
 
-    const exerciseEntries = days.flatMap((day, currentDayIndex) => (
-      getWorkoutExercisesArray(day.exercises).map((currentExercise, currentExerciseIndex) => ({
-        exercise: { ...currentExercise, day: day.day },
-        sets: Array.from({ length: Math.max(1, Number.parseInt(currentExercise.sets, 10) || 1) }, (_, setIndex) => {
-          const number = setIndex + 1
-          const key = `${currentDayIndex}-${currentExerciseIndex}-${number}`
-          return { number, ...(setLogs[key] || {}), completed: Boolean(setLogs[key]?.completed) }
-        }),
-      }))
-    ))
+    const exerciseEntries = exercises.map((currentExercise, currentExerciseIndex) => ({
+      exercise: { ...currentExercise, day: activeDay?.day },
+      sets: Array.from({ length: Math.max(1, Number.parseInt(currentExercise.sets, 10) || 1) }, (_, setIndex) => {
+        const number = setIndex + 1
+        const key = safeDayIndex + '-' + currentExerciseIndex + '-' + number
+        return { number, ...(setLogs[key] || {}), completed: Boolean(setLogs[key]?.completed) }
+      }),
+    }))
+
     const payload = {
-      ...buildWorkoutCompletionPayload({ student, workout, effort, durationSeconds, exerciseEntries, notes: sessionNotes }),
+      ...buildWorkoutCompletionPayload({
+        student,
+        workout: { ...workout, title: [workout?.title || 'Treino', activeDay?.day || activeDay?.focus || 'Dia'].join(' · ') },
+        effort,
+        durationSeconds,
+        exerciseEntries,
+        notes: sessionNotes,
+      }),
       completionToken,
       execution: serializeWorkoutSession({
         completionToken,
@@ -12164,6 +12266,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
 
     submissionLockRef.current = true
     setSaving(true)
+    setFinishConfirmOpen(false)
     setMessage('')
     setError('')
     try {
@@ -12174,6 +12277,7 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
       } else {
         setCompletedLog({ id: completionToken, completedAt: new Date().toISOString() })
       }
+      if (timerStartedAt && onToggleTimer) onToggleTimer()
       setMessage(preview ? 'Simulação concluída. Na conta do aluno, este treino adicionará +80 XP.' : 'Treino finalizado! +80 XP adicionados ao ranking e ao histórico.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
@@ -12193,6 +12297,8 @@ export function StudentWorkoutExecution({ student, workout, exerciseLibraryItems
     setCompletionToken(createWorkoutCompletionToken())
     setCompletedLog(null)
     setRestRemaining(0)
+    setRestPaused(false)
+    setFinishConfirmOpen(false)
     setMessage('Nova sessão iniciada. Registre novamente todas as séries.')
     setError('')
   }
@@ -15678,11 +15784,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <StudentWorkoutExecution
                 student={student}
                 workout={selectedStudentWorkout}
+                workoutLogs={studentWorkoutLogs}
                 exerciseLibraryItems={availableExerciseLibrary}
                 durationSeconds={workoutSeconds}
                 sessionDurationSeconds={workoutElapsedSeconds}
                 timerStartedAt={workoutStartedAt ? new Date(workoutStartedAt).toISOString() : ''}
                 onToggleTimer={toggleWorkoutTimer}
+                onOpenProgress={() => openTab('progresso')}
                 onSelectDay={() => {
                   setWorkoutStartedAt(null)
                   setWorkoutElapsedSeconds(0)
