@@ -91,7 +91,7 @@ begin
   ) values (
     v_coach_id, v_student_id, selected_workout_id, completion_token, 'ended_early', v_execution, now()
   )
-  on conflict (student_id, completion_token) do update
+  on conflict on constraint workout_sessions_student_token_key do update
   set status = 'ended_early',
       execution = excluded.execution,
       completed_at = coalesce(public.workout_sessions.completed_at, now()),
