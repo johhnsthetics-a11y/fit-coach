@@ -12068,8 +12068,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const currentPositionIndex = exercisePositions.findIndex((position) => position.dayIndex === safeDayIndex && position.exerciseIndex === safeExerciseIndex)
   const hasPreviousExercise = currentPositionIndex > 0
   const hasNextExercise = currentPositionIndex >= 0 && currentPositionIndex < exercisePositions.length - 1
-  const executionSummary = buildWorkoutExecutionSummary(workout, setLogs, availableExerciseLibrary)
-  const { totalSets, completedSets, progress, canFinish } = executionSummary
   const exerciseSetCount = Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
   const currentSets = Array.from({ length: exerciseSetCount }, (_, index) => {
     const number = index + 1
@@ -12200,12 +12198,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       scrollWorkoutTarget('student-current-exercise')
       return
     }
-    if (timerStartedAt && onToggleTimer) onToggleTimer()
-    if (canFinish) {
-      scrollWorkoutTarget('student-workout-finish')
-      return
-    }
-    scrollWorkoutTarget('student-workout-day-selector')
+    scrollWorkoutTarget('student-workout-finish')
   }
 
   function returnToDaySelection() {
