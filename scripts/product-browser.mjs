@@ -58,6 +58,23 @@ try {
       results.push(`coach ${width} ${area}`)
       if (width === 390 && ['agenda','alunos','nutricao','configuracoes'].includes(area)) await page.screenshot({ path: resolve(output, `${area}-${width}.png`), fullPage:true })
     }
+    if (width === 390) {
+      await page.goto(base + '?area=alunos')
+      await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
+      const coachMenu = page.locator('.coach-mobile-menu-panel')
+      await coachMenu.waitFor()
+      assert.ok(parseFloat(await coachMenu.evaluate(element => getComputedStyle(element).borderRadius)) >= 20)
+      const coachMenuBox = await coachMenu.boundingBox()
+      const coachFirstIconBox = await coachMenu.locator('.app-nav-tone-icon').first().boundingBox()
+      assert.ok(coachFirstIconBox.x >= coachMenuBox.x + 8, 'Ícones do menu profissional devem permanecer dentro do painel')
+      const coachWorkoutIconColor = await coachMenu.getByRole('button', { name: /Treinos/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
+      const coachNutritionIconColor = await coachMenu.getByRole('button', { name: /Nutrição/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
+      assert.notEqual(coachWorkoutIconColor, coachNutritionIconColor, 'Treino e Nutrição devem usar cores de módulo distintas')
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+      await page.screenshot({ path: resolve(output, 'coach-menu-390.png') })
+      await coachMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
+      results.push('coach 390 menu: rounded panel, module tones and no overflow')
+    }
     await page.goto(base + 'qa-student')
     for (const tab of ['inicio','treino','dieta','checkin','mensagens','pagamentos','agenda','progresso','historico']) {
       errors=[]
@@ -69,6 +86,20 @@ try {
       if(broken || errors.length || overflow) problems.push({role:'student',width,tab,errors:[...errors],overflow,broken})
       results.push(`student ${width} ${tab}`)
       if(width===390 && ['inicio','treino'].includes(tab)) await page.screenshot({path:resolve(output,`student-${tab}-${width}.png`),fullPage:true})
+    }
+    if (width === 390) {
+      await page.goto(base + 'qa-student?alunoTab=inicio')
+      await page.getByRole('button', { name: 'Abrir menu do aluno', exact: true }).click()
+      const studentMenu = page.locator('.student-mobile-menu-panel')
+      await studentMenu.waitFor()
+      assert.ok(parseFloat(await studentMenu.evaluate(element => getComputedStyle(element).borderRadius)) >= 20)
+      const studentWorkoutIconColor = await studentMenu.getByRole('button', { name: /Treino/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
+      const studentNutritionIconColor = await studentMenu.getByRole('button', { name: /Dieta/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
+      assert.notEqual(studentWorkoutIconColor, studentNutritionIconColor, 'Treino e Dieta devem usar cores de módulo distintas')
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+      await page.screenshot({ path: resolve(output, 'student-menu-390.png') })
+      await studentMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
+      results.push('student 390 menu: rounded panel, module tones and no overflow')
     }
     if ([390,1440].includes(width)) {
       errors=[]
