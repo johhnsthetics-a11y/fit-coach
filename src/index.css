@@ -14891,3 +14891,80 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: #6ca99d !important;
   filter: brightness(0.97);
 }
+
+/* workout-light-action-hierarchy-v10 */
+.app-theme-light .mobile-workout-student-experience-v2 :is(
+  .mobile-workout-start-session-v4,
+  .mobile-workout-student-series-v2 > div:not(.is-complete) > button,
+  .mobile-workout-student-navigation-v3 .is-primary,
+  .mobile-workout-finalize-primary-v5:not(:disabled),
+  .mobile-workout-day-card-actions-v4 > button:not(.is-secondary),
+  .mobile-workout-summary-actions-v4 > button:not(.is-secondary),
+  .mobile-workout-day-tabs-v3 button.is-active
+) {
+  border-color: #066458 !important;
+  background: #087d6c !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 7px 18px rgba(8, 125, 108, 0.18) !important;
+}
+
+.app-theme-light .mobile-workout-student-experience-v2 :is(
+  .mobile-workout-evolution-link-v4,
+  .mobile-workout-day-card-actions-v4 .is-secondary,
+  .mobile-workout-summary-actions-v4 .is-secondary,
+  .mobile-workout-day-tabs-v3 button:not(.is-active),
+  .mobile-workout-student-navigation-v3 .is-secondary
+) {
+  border: 1px solid #5f9f92 !important;
+  background: #cce9e3 !important;
+  background-image: none !important;
+  color: #064f46 !important;
+  -webkit-text-fill-color: #064f46 !important;
+  box-shadow: 0 4px 12px rgba(8, 125, 108, 0.1) !important;
+}
+
+.app-theme-light .mobile-workout-student-experience-v2 :is(
+  .mobile-workout-evolution-link-v4,
+  .mobile-workout-day-card-actions-v4 button,
+  .mobile-workout-summary-actions-v4 button,
+  .mobile-workout-day-tabs-v3 button
+) {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0.56rem 0.78rem;
+  font-weight: 900;
+}
+
+.app-theme-light .mobile-workout-student-experience-v2 .mobile-workout-finalize-primary-v5:disabled {
+  border-color: #6f9f95 !important;
+  background: #a9c7c0 !important;
+  background-image: none !important;
+  color: #244f47 !important;
+  -webkit-text-fill-color: #244f47 !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+
+.app-theme-light .mobile-workout-student-experience-v2 :is(
+  .mobile-workout-end-trigger-v5,
+  .mobile-workout-end-secondary-v5,
+  .mobile-workout-end-dialog-v5 .is-end
+) {
+  border-color: #c38a27 !important;
+  background: #f3cf7c !important;
+  background-image: none !important;
+  color: #553700 !important;
+  -webkit-text-fill-color: #553700 !important;
+  box-shadow: 0 5px 14px rgba(164, 109, 13, 0.13) !important;
+}
+
+.app-theme-light .mobile-workout-student-experience-v2 .mobile-workout-student-series-v2 > div.is-complete > button {
+  border-color: #4e9d8d !important;
+  background: #a8d9cd !important;
+  background-image: none !important;
+  color: #044b42 !important;
+  -webkit-text-fill-color: #044b42 !important;
+  box-shadow: none !important;
+}

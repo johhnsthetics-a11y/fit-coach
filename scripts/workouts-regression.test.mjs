@@ -604,13 +604,15 @@ test('tema claro usa verde safira e botão Voltar arredondado', async () => {
   assert.match(cssSource, /mobile-workout-execution-head-v4 > button:first-child[\s\S]*min-height:\s*44px[\s\S]*border-radius:\s*999px[\s\S]*background:\s*#eaf5f2 !important/)
 })
 
-test('tema claro diferencia ações positivas, informativas e de encerramento', async () => {
+test('tema claro diferencia ações positivas, informativas e de encerramento com contraste visível', async () => {
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
-  assert.match(cssSource, /workout-light-action-hierarchy-v9/)
+  assert.match(cssSource, /workout-light-action-hierarchy-v10/)
   assert.match(cssSource, /mobile-workout-day-card-actions-v4 > button:not\(\.is-secondary\)[\s\S]*background:\s*#087d6c !important/)
-  assert.match(cssSource, /mobile-workout-day-card-actions-v4 \.is-secondary[\s\S]*background:\s*#eaf5f2 !important/)
-  assert.match(cssSource, /mobile-workout-evolution-link-v4[\s\S]*background:\s*#eaf5f2 !important/)
-  assert.match(cssSource, /mobile-workout-finalize-primary-v5:disabled[\s\S]*background:\s*#c8ddd8 !important/)
-  assert.match(cssSource, /mobile-workout-end-trigger-v5[\s\S]*background:\s*#fff3d6 !important/)
+  assert.match(cssSource, /mobile-workout-summary-actions-v4 > button:not\(\.is-secondary\)[\s\S]*background:\s*#087d6c !important/)
+  assert.match(cssSource, /mobile-workout-day-card-actions-v4 \.is-secondary[\s\S]*background:\s*#cce9e3 !important/)
+  assert.match(cssSource, /mobile-workout-evolution-link-v4[\s\S]*background:\s*#cce9e3 !important/)
+  assert.match(cssSource, /mobile-workout-finalize-primary-v5:disabled[\s\S]*background:\s*#a9c7c0 !important[\s\S]*opacity:\s*1 !important/)
+  assert.match(cssSource, /mobile-workout-end-trigger-v5[\s\S]*background:\s*#f3cf7c !important/)
+  assert.match(cssSource, /div\.is-complete > button[\s\S]*background:\s*#a8d9cd !important/)
 })
