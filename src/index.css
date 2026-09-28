@@ -36,7 +36,7 @@
 
 .student-bottom-nav {
   right: max(0.6rem, env(safe-area-inset-right)) !important;
-  bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px)) !important;
+  bottom: max(0.15rem, env(safe-area-inset-bottom, 0px)) !important;
   left: max(0.6rem, env(safe-area-inset-left)) !important;
   border: 1px solid rgba(0, 210, 178, 0.2) !important;
   border-radius: 24px;
@@ -81,10 +81,19 @@
     border: 1px solid rgba(0, 210, 178, 0.18) !important;
     border-radius: 26px !important;
     box-shadow: 0 28px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .student-mobile-menu-panel {
+    position: absolute !important;
     width: min(320px, calc(100vw - 1.1rem)) !important;
+    overflow-y: auto !important;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .coach-mobile-bottom-nav {
+    bottom: max(0.15rem, env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
