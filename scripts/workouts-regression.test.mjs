@@ -595,3 +595,11 @@ test('tema claro mantém timer contido e hierarquia profissional nos controles',
   assert.match(cssSource, /\.app-theme-light \.mobile-workout-orientations-v4 summary\s*\{[\s\S]*color:\s*#075f53/)
   assert.match(cssSource, /workout-light-controls-v7[\s\S]*mobile-workout-end-trigger-v5[\s\S]*background:\s*#fff8ea !important/)
 })
+
+test('tema claro usa verde safira e botão Voltar arredondado', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /workout-sapphire-buttons-v8/)
+  assert.match(cssSource, /workout-sapphire-buttons-v8[\s\S]*mobile-workout-finalize-primary-v5[\s\S]*background:\s*#087d6c !important/)
+  assert.match(cssSource, /mobile-workout-execution-head-v4 > button:first-child[\s\S]*min-height:\s*44px[\s\S]*border-radius:\s*999px[\s\S]*background:\s*#eaf5f2 !important/)
+})

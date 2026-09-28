@@ -14780,3 +14780,36 @@ html[data-theme="dark"] body { background: #05070d; }
     grid-row: 3;
   }
 }
+
+/* workout-sapphire-buttons-v8 */
+.app-theme-light .mobile-workout-student-experience-v2 :is(
+  .mobile-workout-start-session-v4,
+  .mobile-workout-student-series-v2 > div > button,
+  .mobile-workout-student-navigation-v3 .is-primary,
+  .mobile-workout-finalize-primary-v5
+) {
+  border-color: #066458 !important;
+  background: #087d6c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 7px 18px rgba(8, 125, 108, 0.18) !important;
+}
+
+.app-theme-light .mobile-workout-execution-head-v4 > button:first-child {
+  width: fit-content;
+  min-height: 44px;
+  border: 1px solid #8dbeb4 !important;
+  border-radius: 999px !important;
+  background: #eaf5f2 !important;
+  padding: 0.56rem 0.88rem !important;
+  color: #075f53 !important;
+  -webkit-text-fill-color: #075f53 !important;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(8, 125, 108, 0.08) !important;
+}
+
+.app-theme-light .mobile-workout-execution-head-v4 > button:first-child:not(:disabled):hover {
+  border-color: #6ca99d !important;
+  background: #dcefeb !important;
+}
