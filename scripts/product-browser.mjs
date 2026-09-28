@@ -59,6 +59,8 @@ try {
       if (width === 390 && ['agenda','alunos','nutricao','configuracoes'].includes(area)) await page.screenshot({ path: resolve(output, `${area}-${width}.png`), fullPage:true })
     }
     if (width === 390) {
+      const shortMobileHeight = 568
+      await page.setViewportSize({ width, height: shortMobileHeight })
       await page.goto(base + '?area=alunos')
       await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
       const coachMenu = page.locator('.coach-mobile-menu-panel')
@@ -70,9 +72,16 @@ try {
       const coachWorkoutIconColor = await coachMenu.getByRole('button', { name: /Treinos/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
       const coachNutritionIconColor = await coachMenu.getByRole('button', { name: /Nutrição/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
       assert.notEqual(coachWorkoutIconColor, coachNutritionIconColor, 'Treino e Nutrição devem usar cores de módulo distintas')
+      const coachScroll = await coachMenu.locator('nav').evaluate(element => ({ clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }))
+      assert.ok(coachScroll.scrollHeight > coachScroll.clientHeight, 'Menu profissional curto deve oferecer rolagem interna')
+      await coachMenu.locator('nav').evaluate(element => { element.scrollTop = element.scrollHeight })
+      assert.ok(await coachMenu.locator('nav').evaluate(element => element.scrollTop > 0), 'Menu profissional deve rolar até as opções finais')
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
       await page.screenshot({ path: resolve(output, 'coach-menu-390.png') })
       await coachMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
+      const coachBottomNavBox = await page.locator('.coach-mobile-bottom-nav').boundingBox()
+      assert.ok(shortMobileHeight - (coachBottomNavBox.y + coachBottomNavBox.height) <= 4, 'Menu inferior profissional deve permanecer próximo da borda segura')
+      await page.setViewportSize({ width, height: 900 })
       results.push('coach 390 menu: rounded panel, module tones and no overflow')
     }
     await page.goto(base + 'qa-student')
@@ -88,6 +97,8 @@ try {
       if(width===390 && ['inicio','treino'].includes(tab)) await page.screenshot({path:resolve(output,`student-${tab}-${width}.png`),fullPage:true})
     }
     if (width === 390) {
+      const shortMobileHeight = 568
+      await page.setViewportSize({ width, height: shortMobileHeight })
       await page.goto(base + 'qa-student?alunoTab=inicio')
       await page.getByRole('button', { name: 'Abrir menu do aluno', exact: true }).click()
       const studentMenu = page.locator('.student-mobile-menu-panel')
@@ -96,9 +107,16 @@ try {
       const studentWorkoutIconColor = await studentMenu.getByRole('button', { name: /Treino/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
       const studentNutritionIconColor = await studentMenu.getByRole('button', { name: /Dieta/ }).locator('.app-nav-tone-icon').evaluate(element => getComputedStyle(element).color)
       assert.notEqual(studentWorkoutIconColor, studentNutritionIconColor, 'Treino e Dieta devem usar cores de módulo distintas')
+      const studentScroll = await studentMenu.evaluate(element => ({ clientHeight: element.clientHeight, scrollHeight: element.scrollHeight }))
+      assert.ok(studentScroll.scrollHeight > studentScroll.clientHeight, 'Menu do aluno curto deve oferecer rolagem interna')
+      await studentMenu.evaluate(element => { element.scrollTop = element.scrollHeight })
+      assert.ok(await studentMenu.evaluate(element => element.scrollTop > 0), 'Menu do aluno deve rolar até as opções finais')
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
       await page.screenshot({ path: resolve(output, 'student-menu-390.png') })
       await studentMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
+      const studentBottomNavBox = await page.locator('.student-bottom-nav').boundingBox()
+      assert.ok(shortMobileHeight - (studentBottomNavBox.y + studentBottomNavBox.height) <= 4, 'Menu inferior do aluno deve permanecer próximo da borda segura')
+      await page.setViewportSize({ width, height: 900 })
       results.push('student 390 menu: rounded panel, module tones and no overflow')
     }
     if ([390,1440].includes(width)) {
