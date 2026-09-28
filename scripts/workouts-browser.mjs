@@ -158,6 +158,8 @@ try {
           }), true, 'O cronômetro deve permanecer contido no card')
           assert.equal(await preview.locator('.mobile-workout-orientations-v4').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(234, 245, 242)', 'Orientações do coach deve receber destaque teal suave')
           assert.equal(await preview.getByRole('button', { name: 'Concluir série', exact: true }).first().evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(8, 125, 108)', 'Ação principal deve usar o verde do branding')
+          assert.equal(await preview.locator('.mobile-workout-end-trigger-v5').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(255, 243, 214)', 'Encerrar treino deve usar o âmbar de atenção')
+          assert.equal(await preview.locator('.mobile-workout-finalize-primary-v5').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(200, 221, 216)', 'Finalizar treino desabilitado deve manter fundo visível')
           assert.deepEqual(await preview.locator('.mobile-workout-execution-head-v4 > button:first-child').evaluate((element) => {
             const styles = getComputedStyle(element)
             return {
