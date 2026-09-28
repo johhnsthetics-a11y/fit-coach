@@ -454,6 +454,7 @@ export async function loadRemoteData() {
     optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
     optionalTableRequest('workout_progression_decisions?select=*&order=created_at.desc'),
     loadRemoteAppAdminSettings().catch(() => null),
+    loadRemoteCurrentProfessionalAffiliate().catch(() => false),
   ])
 
   const questionnaires = await loadRemoteQuestionnaires()
@@ -485,6 +486,7 @@ export async function loadRemoteData() {
     exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
     workoutProgressionDecisions: workoutProgressionDecisions.map(fromWorkoutProgressionDecisionRow),
     appAdminSettings,
+    professionalAffiliate,
   }
 }
 
