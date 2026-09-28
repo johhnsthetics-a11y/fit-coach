@@ -505,7 +505,7 @@ test('encerramento antecipado preserva histórico sem conceder XP de conclusão'
   assert.equal(stats.history.length, 0)
 })
 
-test('executor destaca timer, encerramento e músculo alvo compacto', () => {
+test('executor destaca timer, encerramento e músculo alvo anatômico no topo', () => {
   const html = renderToString(React.createElement(StudentWorkoutExecution, {
     student,
     preview: true,
@@ -525,7 +525,12 @@ test('executor destaca timer, encerramento e músculo alvo compacto', () => {
   assert.match(html, /02:05/)
   assert.match(html, /Encerrar treino/)
   assert.match(html, /mobile-workout-timer-panel-v5/)
-  assert.match(html, /mobile-workout-muscle-target-compact-v5/)
+  const exerciseTitleIndex = html.indexOf('Supino reto com barra')
+  const muscleMapIndex = html.indexOf('mobile-workout-muscle-target-anatomy-v6')
+  const timerIndex = html.indexOf('mobile-workout-timer-panel-v5')
+  assert.ok(exerciseTitleIndex >= 0 && muscleMapIndex > exerciseTitleIndex && timerIndex > muscleMapIndex)
+  assert.match(html, /muscle-map-region is-active is-primary/)
+  assert.doesNotMatch(html, /mobile-workout-muscle-target-compact-v5/)
   assert.match(html, /Músculo alvo/)
 })
 

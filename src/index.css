@@ -13991,6 +13991,80 @@ html[data-theme="dark"] body { background: #05070d; }
   line-height: 1.35;
 }
 
+.mobile-workout-muscle-target-anatomy-v6 {
+  display: grid;
+  grid-template-areas:
+    "figure heading"
+    "figure details";
+  grid-template-columns: minmax(96px, 0.36fr) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.85rem;
+  min-width: 0;
+  border-color: color-mix(in srgb, var(--workout-primary) 24%, var(--workout-border) 76%) !important;
+  border-radius: 16px !important;
+  background: color-mix(in srgb, var(--workout-primary) 5%, var(--workout-surface-raised) 95%) !important;
+  padding: 0.7rem !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:first-child {
+  grid-area: heading;
+  align-self: end;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:first-child > div p:first-child {
+  color: var(--workout-focus) !important;
+  letter-spacing: 0.06em !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:first-child > div p:last-child {
+  color: var(--workout-secondary-text) !important;
+  font-size: 1rem !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:first-child > span {
+  border-color: var(--workout-border) !important;
+  background: var(--workout-surface-raised) !important;
+  color: var(--workout-muted) !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > svg {
+  grid-area: figure;
+  width: 100% !important;
+  max-width: 118px !important;
+  height: 148px !important;
+  margin: 0 auto !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:last-child {
+  grid-area: details;
+  align-self: start;
+  gap: 0.3rem !important;
+  margin-top: 0.3rem !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:last-child > div {
+  gap: 0.3rem !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:last-child span {
+  border-color: rgba(239, 68, 68, 0.24) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: color-mix(in srgb, #ef4444 72%, var(--workout-secondary-text) 28%) !important;
+  padding: 0.25rem 0.45rem !important;
+  font-size: 0.64rem !important;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:last-child span:nth-child(2),
+.mobile-workout-muscle-target-anatomy-v6 > div:last-child > p:last-child {
+  display: none;
+}
+
+.mobile-workout-muscle-target-anatomy-v6 > div:last-child > p {
+  color: var(--workout-muted) !important;
+  font-size: 0.72rem !important;
+  line-height: 1.35 !important;
+}
+
 .mobile-workout-end-secondary-v5 {
   width: 100%;
   min-height: 44px;
@@ -14126,6 +14200,16 @@ html[data-theme="dark"] body { background: #05070d; }
     width: 54px !important;
     height: 54px !important;
     max-width: 54px !important;
+  }
+
+  .mobile-workout-muscle-target-anatomy-v6 {
+    grid-template-columns: 82px minmax(0, 1fr);
+    column-gap: 0.65rem;
+    padding: 0.58rem !important;
+  }
+
+  .mobile-workout-muscle-target-anatomy-v6 > svg {
+    height: 126px !important;
   }
 
   .mobile-workout-end-dialog-v5 > div {

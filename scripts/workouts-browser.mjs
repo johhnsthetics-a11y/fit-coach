@@ -32,7 +32,7 @@ try {
     { name: 'sem-alunos', students: [], workouts: [] },
     { name: 'exercicios-nulos', students: [student], workouts: [{ ...workout, exercises: null }] },
   ]
-  for (const viewport of [{ width: 1440, height: 1000 }, { width: 768, height: 900 }, { width: 430, height: 932 }, { width: 390, height: 844 }, { width: 360, height: 740 }, { width: 320, height: 740 }].filter(item => !process.env.QA_WIDTHS || process.env.QA_WIDTHS.split(',').includes(String(item.width)))) {
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 768, height: 900 }, { width: 430, height: 932 }, { width: 414, height: 896 }, { width: 390, height: 844 }, { width: 360, height: 740 }, { width: 320, height: 740 }].filter(item => !process.env.QA_WIDTHS || process.env.QA_WIDTHS.split(',').includes(String(item.width)))) {
     for (const scenario of (expectFailure ? scenarios.slice(0, 1) : scenarios).filter(item => !process.env.QA_SCENARIO || process.env.QA_SCENARIO === item.name)) {
       const context = await browser.newContext({ viewport })
       const page = await context.newPage()
@@ -142,10 +142,23 @@ try {
           assert.ok(await page.getByLabel('Carga (kg)', { exact: true }).count())
           assert.ok(await page.getByLabel('Repetições', { exact: true }).count())
           const preview = page.locator('.mobile-workout-live-preview')
+          const muscleMap = preview.locator('.mobile-workout-muscle-target-anatomy-v6')
+          assert.equal(await muscleMap.count(), 1, 'A prévia deve exibir um único mapa muscular anatômico')
+          assert.ok(await muscleMap.locator('.muscle-map-region.is-primary').count() > 0, 'O músculo principal deve estar destacado')
+          assert.equal(await preview.locator('.mobile-workout-muscle-target-compact-v5').count(), 0, 'O boneco simplificado não deve permanecer na execução')
+          assert.equal(await preview.evaluate((root) => {
+            const heading = root.querySelector('.mobile-workout-current-heading-v5')
+            const map = root.querySelector('.mobile-workout-muscle-target-anatomy-v6')
+            const timer = root.querySelector('.mobile-workout-timer-panel-v5')
+            return Boolean(heading && map && timer && heading.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING && map.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING)
+          }), true, 'O mapa muscular deve ficar entre o nome do exercício e o timer')
           const clipping = await preview.evaluate(root => [root, ...root.querySelectorAll('*')].filter(el => /^(hidden|clip)$/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2).map(el => el.className))
           assert.deepEqual(clipping, [], 'A prévia não pode esconder séries ou conclusão')
-          await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
-          await preview.locator('.mobile-workout-student-error-v2').getByText('Conclua ao menos uma série antes de finalizar o treino.', { exact: true }).waitFor()
+          assert.equal(
+            await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).isDisabled(),
+            true,
+            'Finalizar treino deve permanecer indisponível antes de concluir as séries',
+          )
           for (let exerciseIndex = 0; exerciseIndex < 3; exerciseIndex++) {
             const reps = preview.getByLabel('Repetições', { exact: true })
             for (let setIndex = 0; setIndex < await reps.count(); setIndex++) await reps.nth(setIndex).fill('10')
@@ -167,9 +180,11 @@ try {
           assert.equal(saved.exercises.length, 3)
           await page.getByRole('button', { name: 'Visão do aluno', exact: true }).click()
           const modal = page.getByRole('dialog', { name: 'Visão do aluno', exact: true })
-          await modal.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
-          await modal.locator('.mobile-workout-student-error-v2').scrollIntoViewIfNeeded()
-          await modal.locator('.mobile-workout-student-error-v2').waitFor({ state: 'visible' })
+          assert.equal(
+            await modal.getByRole('button', { name: 'Finalizar treino', exact: true }).isDisabled(),
+            true,
+            'A visão do aluno não deve finalizar um treino sem séries concluídas',
+          )
           assert.equal(await modal.evaluate(el => el.scrollWidth > el.clientWidth + 1), false, 'Modal deve caber sem corte horizontal')
           await page.screenshot({ path: resolve(output, `expanded-${viewport.width}.png`) })
           await modal.getByRole('button', { name: /Voltar para edição/ }).click()

@@ -12508,6 +12508,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
           </div>
 
+          <MuscleMap exercise={exercise} compact className="mobile-workout-muscle-target-anatomy-v6" />
+
           <div className="mobile-workout-timer-panel-v5">
             <div className="mobile-workout-session-timer-v5">
               <span>Tempo do treino</span>
@@ -12561,14 +12563,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               </details>
             ) : null}
             {onOpenProgress ? <button type="button" className="mobile-workout-evolution-link-v4" onClick={onOpenProgress}>Ver evolução do exercício</button> : null}
-            <div className="mobile-workout-muscle-target-compact-v5" role="img" aria-label={'Mapa muscular: ' + getExerciseMuscleProfile(exercise).primaryLabel}>
-              <MuscleMapMini exercise={exercise} className="h-16 w-16" />
-              <div>
-                <span>Músculo alvo</span>
-                <strong>{getExerciseMuscleProfile(exercise).primaryLabel}</strong>
-                <small>Referência rápida da musculatura principal.</small>
-              </div>
-            </div>
           </div>
         </article>
       ) : null}
