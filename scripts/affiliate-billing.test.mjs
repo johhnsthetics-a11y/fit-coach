@@ -78,6 +78,20 @@ test('profissional afiliado recebe acesso profissional sem mensalidade', async (
   assert.match(app, /funil normal de assinatura/)
 })
 
+test('profissional conectado recebe liberacao automatica quando o Admin o vincula como afiliado', async () => {
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(api, /loadRemoteCurrentProfessionalAffiliate\(\)\.catch\(\(\) => false\)/)
+  assert.match(api, /professionalAffiliate,\s*\n\s*}/)
+  assert.match(app, /professionalAffiliate:\s*false/)
+  assert.match(app, /loadRemoteCurrentProfessionalAffiliate,/)
+  assert.match(app, /AFFILIATE_ACCESS_REFRESH_MS/)
+  assert.match(app, /setInterval\(refreshProfessionalAffiliateAccess,\s*AFFILIATE_ACCESS_REFRESH_MS\)/)
+  assert.match(app, /professionalAffiliate:\s*true/)
+  assert.match(app, /Seu vínculo de afiliado foi confirmado/)
+})
+
 
 test('dashboard de comissões usa somente mensalidades confirmadas', async () => {
   const sql = await readFile(new URL('../SUPABASE/migrations/20260924_affiliate_commission_dashboard.sql', import.meta.url), 'utf8')

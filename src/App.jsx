@@ -20,6 +20,7 @@ import {
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
+  loadRemoteCurrentProfessionalAffiliate,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -83,6 +84,7 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
+const AFFILIATE_ACCESS_REFRESH_MS = 10 * 1000
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
@@ -1305,6 +1307,7 @@ function createInitialData() {
     anamneses: [],
     coachSettings: null,
     coachSubscription: null,
+    professionalAffiliate: false,
     appAdminSettings: loadLocalAdminSettings(),
   }
 }
@@ -1881,9 +1884,11 @@ function AppContent() {
     }
 
     const activeSubscription = isCoachSubscriptionActive(remoteData.coachSubscription)
+    const affiliateAccess = remoteData.professionalAffiliate === true
+    const activeProfessionalAccess = activeSubscription || affiliateAccess
     setData((current) => {
-      const wasActive = isCoachSubscriptionActive(current.coachSubscription)
-      const unlockedNow = !wasActive && activeSubscription
+      const wasActive = isCoachSubscriptionActive(current.coachSubscription) || current.professionalAffiliate === true
+      const unlockedNow = !wasActive && activeProfessionalAccess
       return {
         ...current,
         user: remoteData.user ?? current.user,
@@ -1893,8 +1898,10 @@ function AppContent() {
           ? [
             {
               id: `subscription-${Date.now()}`,
-              title: 'Assinatura liberada',
-              body: 'Pagamento confirmado. Suas ferramentas profissionais foram desbloqueadas.',
+              title: affiliateAccess ? 'Acesso profissional liberado' : 'Assinatura liberada',
+              body: affiliateAccess
+                ? 'Seu vínculo de afiliado foi confirmado. Todas as ferramentas profissionais estão disponíveis.'
+                : 'Pagamento confirmado. Suas ferramentas profissionais foram desbloqueadas.',
               read: false,
             },
             ...remoteData.notifications,
@@ -1912,11 +1919,12 @@ function AppContent() {
         anamneses: remoteData.anamneses ?? [],
         coachSettings: remoteData.coachSettings,
         coachSubscription: remoteData.coachSubscription,
+        professionalAffiliate: affiliateAccess,
       }
     })
 
-    if (activeSubscription) {
-      setRemoteStatus('Assinatura liberada')
+    if (activeProfessionalAccess) {
+      setRemoteStatus(affiliateAccess ? 'Acesso profissional liberado' : 'Assinatura liberada')
       setRemoteError('')
       if (goToOverviewOnActive) setActiveView('visao')
     } else if (!silent) {
@@ -1924,11 +1932,64 @@ function AppContent() {
       setRemoteError('')
     }
 
-    return { active: activeSubscription, refreshed: true, remoteData }
+    return { active: activeProfessionalAccess, refreshed: true, remoteData }
   }, [data.session?.access_token, data.session?.refresh_token])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess || coachSubscriptionActive) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || professionalAccessActive || masterAdmin) return undefined
+
+    let active = true
+    let pending = false
+
+    async function refreshProfessionalAffiliateAccess() {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
+      try {
+        const affiliate = await loadRemoteCurrentProfessionalAffiliate()
+        if (!active || !affiliate) return
+
+        setData((current) => current.professionalAffiliate ? current : {
+          ...current,
+          professionalAffiliate: true,
+          notifications: [
+            {
+              id: `affiliate-access-${Date.now()}`,
+              title: 'Acesso profissional liberado',
+              body: 'Seu vínculo de afiliado foi confirmado. Todas as ferramentas profissionais estão disponíveis.',
+              read: false,
+            },
+            ...current.notifications,
+          ],
+        })
+        setRemoteStatus('Acesso profissional liberado')
+        setRemoteError('')
+        setActiveView('visao')
+      } catch {
+        // Mantém a tela atual e tenta novamente quando a conexão estiver disponível.
+      } finally {
+        pending = false
+      }
+    }
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') refreshProfessionalAffiliateAccess()
+    }
+
+    refreshProfessionalAffiliateAccess()
+    const timer = window.setInterval(refreshProfessionalAffiliateAccess, AFFILIATE_ACCESS_REFRESH_MS)
+    window.addEventListener('focus', refreshProfessionalAffiliateAccess)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshProfessionalAffiliateAccess)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [data.session?.access_token, studentAccess, professionalAccessActive, masterAdmin])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || professionalAccessActive) return undefined
 
     async function checkSubscriptionOnReturn() {
       if (document.visibilityState === 'hidden') return
@@ -1948,10 +2009,10 @@ function AppContent() {
       window.removeEventListener('focus', checkSubscriptionOnReturn)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [data.session?.access_token, studentAccess, coachSubscriptionActive, syncCoachWorkspace])
+  }, [data.session?.access_token, studentAccess, professionalAccessActive, syncCoachWorkspace])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess || coachSubscriptionActive) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || professionalAccessActive) return undefined
 
     const params = new URLSearchParams(window.location.search)
     const paymentStatus = params.get('pagamento') || params.get('payment') || params.get('checkout')
@@ -1990,7 +2051,7 @@ function AppContent() {
       stopped = true
       window.clearInterval(timer)
     }
-  }, [data.session?.access_token, studentAccess, coachSubscriptionActive, syncCoachWorkspace])
+  }, [data.session?.access_token, studentAccess, professionalAccessActive, syncCoachWorkspace])
 
   useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('invite')
