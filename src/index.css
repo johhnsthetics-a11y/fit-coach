@@ -2,6 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
+/* navigation-module-tones-v1 */
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-emerald { --nav-tone: 0 210 178; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-lime { --nav-tone: 132 204 22; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-orange { --nav-tone: 249 115 22; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-rose { --nav-tone: 244 63 94; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-blue { --nav-tone: 59 130 246; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-green { --nav-tone: 34 197 94; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-sky { --nav-tone: 14 165 233; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-amber { --nav-tone: 245 158 11; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-slate { --nav-tone: 148 163 184; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-cyan { --nav-tone: 6 182 212; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-violet { --nav-tone: 139 92 246; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-indigo { --nav-tone: 99 102 241; }
+:is(.app-nav-toned-button, .coach-mobile-bottom-button, .student-mobile-nav-button).tone-teal { --nav-tone: 20 184 166; }
+
+.app-nav-toned-button .app-nav-tone-icon {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.24) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.1) !important;
+  color: rgb(var(--nav-tone, 0 210 178)) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.app-nav-toned-button.is-active {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.42) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.12) !important;
+}
+
+.app-nav-toned-button.is-active .app-nav-tone-icon {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.48) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.2) !important;
+}
+
+.student-bottom-nav {
+  right: max(0.6rem, env(safe-area-inset-right)) !important;
+  bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px)) !important;
+  left: max(0.6rem, env(safe-area-inset-left)) !important;
+  border: 1px solid rgba(0, 210, 178, 0.2) !important;
+  border-radius: 24px;
+  background: rgba(4, 12, 10, 0.94) !important;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.student-mobile-nav-button {
+  color: rgb(var(--nav-tone, 0 210 178) / 0.78) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-nav-button svg {
+  color: rgb(var(--nav-tone, 0 210 178)) !important;
+}
+
+.student-mobile-nav-button.is-active {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.4) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.14) !important;
+  color: rgb(var(--nav-tone, 0 210 178)) !important;
+}
+
+.coach-mobile-bottom-button {
+  color: rgb(var(--nav-tone, 0 210 178) / 0.78) !important;
+}
+
+.coach-mobile-bottom-button.is-active {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.42) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.14) !important;
+  color: rgb(var(--nav-tone, 0 210 178)) !important;
+}
+
+@media (max-width: 1023px) {
+  .coach-mobile-menu-panel,
+  .student-mobile-menu-panel {
+    top: max(0.55rem, env(safe-area-inset-top, 0px)) !important;
+    bottom: max(0.55rem, env(safe-area-inset-bottom, 0px)) !important;
+    left: max(0.55rem, env(safe-area-inset-left, 0px)) !important;
+    width: min(286px, calc(100vw - 1.1rem)) !important;
+    height: auto !important;
+    max-width: calc(100vw - 1.1rem) !important;
+    border: 1px solid rgba(0, 210, 178, 0.18) !important;
+    border-radius: 26px !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .student-mobile-menu-panel {
+    width: min(320px, calc(100vw - 1.1rem)) !important;
+  }
+}
+
+.student-mobile-shell.app-theme-light .student-bottom-nav {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 156, 134, 0.2) !important;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+}
+
+.student-mobile-shell.app-theme-light .student-mobile-nav-button.is-active,
+.student-mobile-shell.app-theme-light .app-nav-toned-button.is-active {
+  background: rgb(var(--nav-tone, 0 156 134) / 0.11) !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -14967,4 +15064,37 @@ html[data-theme="dark"] body { background: #05070d; }
   color: #044b42 !important;
   -webkit-text-fill-color: #044b42 !important;
   box-shadow: none !important;
+}
+
+/* navigation-module-tones-light-v2 */
+.app-theme-light .coach-nav-item.app-nav-toned-button .coach-menu-icon-shell {
+  border-color: rgb(var(--nav-tone, 0 156 134) / 0.28) !important;
+  background: rgb(var(--nav-tone, 0 156 134) / 0.11) !important;
+  color: rgb(var(--nav-tone, 0 156 134)) !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 7px 16px rgb(var(--nav-tone, 0 156 134) / 0.08) !important;
+}
+
+.app-theme-light .coach-nav-item.app-nav-toned-button:is(.is-active, [aria-current="page"]) {
+  border-color: rgb(var(--nav-tone, 0 156 134) / 0.42) !important;
+  background: linear-gradient(135deg, rgb(var(--nav-tone, 0 156 134) / 0.16), rgba(255, 255, 255, 0.94)) !important;
+  box-shadow: 0 13px 28px rgb(var(--nav-tone, 0 156 134) / 0.1) !important;
+}
+
+.app-theme-light .coach-nav-item.app-nav-toned-button:is(.is-active, [aria-current="page"]) .coach-menu-icon-shell {
+  border-color: rgb(var(--nav-tone, 0 156 134) / 0.5) !important;
+  background: rgb(var(--nav-tone, 0 156 134) / 0.22) !important;
+  color: color-mix(in srgb, rgb(var(--nav-tone, 0 156 134)) 78%, #10211e) !important;
+}
+
+.student-mobile-menu-panel .app-nav-toned-button .app-nav-tone-icon {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.28) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.11) !important;
+  color: rgb(var(--nav-tone, 0 210 178)) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.student-mobile-menu-panel .app-nav-toned-button.is-active {
+  border-color: rgb(var(--nav-tone, 0 210 178) / 0.4) !important;
+  background: rgb(var(--nav-tone, 0 210 178) / 0.11) !important;
 }

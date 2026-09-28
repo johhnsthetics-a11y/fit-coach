@@ -3721,7 +3721,7 @@ function AppContent() {
         />
       ) : null}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
+      <aside className={`coach-mobile-menu-panel fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -3760,7 +3760,7 @@ function AppContent() {
                     setActiveViewSafely(item.id)
                     setMobileMenuOpen(false)
                   }}
-                  className={`coach-nav-item group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
+                  className={`coach-nav-item app-nav-toned-button tone-${item.tone} ${isActive ? 'is-active' : ''} group flex min-h-[38px] min-w-0 items-center gap-2.5 rounded-lg border px-2.5 py-1.5 text-left text-sm font-semibold transition active:scale-[0.99] ${
                     isActive
                       ? `${tone.active} shadow-lg shadow-black/20`
                       : isLocked
@@ -3768,7 +3768,7 @@ function AppContent() {
                         : `${tone.idle} hover:-translate-y-0.5 hover:bg-white/[0.065]`
                   }`}
                 >
-                  <span className={`coach-menu-icon-shell grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
+                  <span className={`coach-menu-icon-shell app-nav-tone-icon grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition ${
                     isActive ? tone.iconActive : isLocked ? 'border-white/5 bg-zinc-900 text-zinc-700' : tone.iconIdle
                   }`}>
                     <NavIcon name={item.icon} className="h-3.5 w-3.5" />
@@ -4115,7 +4115,7 @@ function AppContent() {
                 setActiveView(item.id)
                 setMobileMenuOpen(false)
               }}
-              className={`coach-mobile-bottom-button ${isActive ? 'is-active' : ''}`}
+              className={`coach-mobile-bottom-button tone-${item.tone} ${isActive ? 'is-active' : ''}`}
             >
               <NavIcon name={item.icon} className="h-5 w-5" />
               <span>{coachMobileNavLabels[item.id] || item.label}</span>
@@ -4125,7 +4125,7 @@ function AppContent() {
         <button
           type="button"
           onClick={() => setMobileMenuOpen(true)}
-          className="coach-mobile-bottom-button"
+          className="coach-mobile-bottom-button tone-emerald"
         >
           <NavIcon name="menu" className="h-5 w-5" />
           <span>Menu</span>
@@ -16165,7 +16165,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       {menuOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <nav className="relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black">
+          <nav className="student-mobile-menu-panel relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black">
             <div className="mb-5 flex items-center justify-between gap-3">
               <BrandLockup compact subtitle="Coach Fit Pro" />
               <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar menu" className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-zinc-200">
@@ -16191,8 +16191,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 const active = activeTab === item.id
 
                 return (
-                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
+                    <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -16208,8 +16208,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 const active = activeTab === item.id
 
                 return (
-                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-11 items-center gap-3 rounded-md border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
+                    <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -16259,8 +16259,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 const active = activeTab === item.id
 
                 return (
-                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-10 items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : `${tone.idle} hover:-translate-y-0.5`}`}>
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-10 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : `${tone.idle} hover:-translate-y-0.5`}`}>
+                    <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -16276,8 +16276,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                   const active = activeTab === item.id
 
                   return (
-                    <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`flex min-h-10 items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : tone.idle}`}>
-                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? tone.iconActive : tone.iconIdle}`}>
+                    <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-10 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : tone.idle}`}>
+                      <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                         <NavIcon name={item.icon} className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -16351,7 +16351,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             const active = activeTab === item.id
 
             return (
-              <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`grid min-h-14 place-items-center gap-0.5 rounded-lg border px-1 py-1 text-center text-[10px] font-black transition ${
+              <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`student-mobile-nav-button tone-${item.tone} ${active ? 'is-active' : ''} grid min-h-14 place-items-center gap-0.5 rounded-2xl border px-1 py-1 text-center text-[10px] font-black transition ${
                 active
                   ? 'border-[#00c7a8]/45 bg-[#00c7a8]/15 text-[#9fffe8]'
                   : 'border-transparent text-zinc-400'
@@ -16361,7 +16361,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               </button>
             )
           })}
-          <button type="button" onClick={() => setMenuOpen(true)} className="grid min-h-14 place-items-center gap-0.5 rounded-lg border border-transparent px-1 py-1 text-center text-[10px] font-black text-zinc-400 transition">
+          <button type="button" onClick={() => setMenuOpen(true)} className="student-mobile-nav-button tone-emerald grid min-h-14 place-items-center gap-0.5 rounded-2xl border border-transparent px-1 py-1 text-center text-[10px] font-black text-zinc-400 transition">
             <NavIcon name="menu" className="h-4 w-4 text-[#00c7a8]" />
             <span className="leading-tight">MENU</span>
           </button>
