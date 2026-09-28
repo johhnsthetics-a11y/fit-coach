@@ -152,6 +152,12 @@ try {
             const timer = root.querySelector('.mobile-workout-timer-panel-v5')
             return Boolean(heading && map && timer && heading.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING && map.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING)
           }), true, 'O mapa muscular deve ficar entre o nome do exercício e o timer')
+          assert.equal(await preview.locator('.mobile-workout-timer-panel-v5').evaluate((timer) => {
+            const value = timer.querySelector('.mobile-workout-session-timer-v5 > strong')
+            return timer.scrollWidth <= timer.clientWidth + 1 && value && value.getBoundingClientRect().right <= timer.getBoundingClientRect().right + 1
+          }), true, 'O cronômetro deve permanecer contido no card')
+          assert.equal(await preview.locator('.mobile-workout-orientations-v4').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(234, 245, 242)', 'Orientações do coach deve receber destaque teal suave')
+          assert.equal(await preview.getByRole('button', { name: 'Concluir série', exact: true }).first().evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(8, 125, 108)', 'Ação principal deve usar o verde do branding')
           const clipping = await preview.evaluate(root => [root, ...root.querySelectorAll('*')].filter(el => /^(hidden|clip)$/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2).map(el => el.className))
           assert.deepEqual(clipping, [], 'A prévia não pode esconder séries ou conclusão')
           assert.equal(
@@ -187,6 +193,10 @@ try {
           )
           assert.equal(await modal.evaluate(el => el.scrollWidth > el.clientWidth + 1), false, 'Modal deve caber sem corte horizontal')
           await page.screenshot({ path: resolve(output, `expanded-${viewport.width}.png`) })
+          await modal.locator('.mobile-workout-timer-panel-v5').scrollIntoViewIfNeeded()
+          await page.screenshot({ path: resolve(output, `timer-${viewport.width}.png`) })
+          await modal.locator('.mobile-workout-orientations-v4').scrollIntoViewIfNeeded()
+          await page.screenshot({ path: resolve(output, `orientations-${viewport.width}.png`) })
           await modal.getByRole('button', { name: /Voltar para edição/ }).click()
         }
         if (viewport.width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()

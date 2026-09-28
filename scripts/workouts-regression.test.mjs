@@ -583,3 +583,15 @@ test('tema claro do treino usa superfícies neutras e teal do branding sem exces
   assert.match(cssSource, /\.mobile-workout-start-session-v4[\s\S]*background:\s*#0a7b6b !important/)
   assert.match(cssSource, /\.student-mobile-shell\.app-theme-light \.mobile-workout-rest-floating-card-v6\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.97\)/)
 })
+
+test('tema claro mantém timer contido e hierarquia profissional nos controles', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /workout-light-controls-v7/)
+  assert.match(cssSource, /\.mobile-workout-timer-panel-v5\s*\{[\s\S]*width:\s*100%[\s\S]*max-width:\s*100%[\s\S]*overflow:\s*hidden/)
+  assert.match(cssSource, /\.mobile-workout-session-timer-v5 > strong\s*\{[\s\S]*width:\s*auto[\s\S]*min-width:\s*8ch[\s\S]*max-width:\s*100%/)
+  assert.match(cssSource, /@media \(max-width:\s*340px\)[\s\S]*\.mobile-workout-session-timer-v5\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/)
+  assert.match(cssSource, /\.app-theme-light \.mobile-workout-orientations-v4\s*\{[\s\S]*background:\s*#eaf5f2/)
+  assert.match(cssSource, /\.app-theme-light \.mobile-workout-orientations-v4 summary\s*\{[\s\S]*color:\s*#075f53/)
+  assert.match(cssSource, /workout-light-controls-v7[\s\S]*mobile-workout-end-trigger-v5[\s\S]*background:\s*#fff8ea !important/)
+})
