@@ -12,7 +12,10 @@ export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies
 let sessionToken = ''
 let sessionRevision = 0
 const avatarUrlCache = new Map()
+const messageAttachmentUrlCache = new Map()
 const REQUEST_TIMEOUT_MS = 25000
+let realtimeClient = null
+let realtimeClientPromise = null
 
 export const supabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_KEY)
 
@@ -21,8 +24,67 @@ function shouldLoadStudentPremiumData(portalPayload) {
 }
 
 export function setSupabaseSession(token) {
-  if (sessionToken !== (token || '')) sessionRevision += 1
+  if (sessionToken !== (token || '')) {
+    sessionRevision += 1
+    messageAttachmentUrlCache.clear()
+  }
   sessionToken = token || ''
+}
+
+async function getRealtimeClient() {
+  if (!realtimeClient && !realtimeClientPromise && supabaseEnabled) {
+    realtimeClientPromise = import('@supabase/supabase-js').then(({ createClient }) => {
+      realtimeClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          persistSession: false,
+        },
+      })
+      return realtimeClient
+    })
+  }
+  return realtimeClient || realtimeClientPromise
+}
+
+export async function subscribeRemoteChat({ inviteCode = '', onChange, onStatus } = {}) {
+  const client = await getRealtimeClient()
+  if (!client) throw new Error('Supabase não configurado')
+
+  let channel = null
+  let refreshTimer = 0
+  let stopped = false
+
+  const connect = async () => {
+    const access = await functionRequest('chat-realtime-token', { inviteCode })
+    if (stopped) return
+    if (!access?.token || !access?.topic) throw new Error('Não foi possível autorizar a atualização em tempo real.')
+
+    await client.realtime.setAuth(access.token)
+    if (channel) await client.removeChannel(channel)
+    if (stopped) return
+
+    channel = client
+      .channel(access.topic, { config: { private: true } })
+      .on('broadcast', { event: 'INSERT' }, (payload) => onChange?.(payload))
+      .on('broadcast', { event: 'UPDATE' }, (payload) => onChange?.(payload))
+      .on('broadcast', { event: 'DELETE' }, (payload) => onChange?.(payload))
+      .subscribe((status) => onStatus?.(status))
+
+    const refreshInMs = Math.max(60_000, (Number(access.expiresAt || 0) * 1000) - Date.now() - (5 * 60_000))
+    window.clearTimeout(refreshTimer)
+    refreshTimer = window.setTimeout(() => {
+      connect().catch((error) => onStatus?.('TOKEN_REFRESH_ERROR', error))
+    }, refreshInMs)
+  }
+
+  await connect()
+
+  return () => {
+    stopped = true
+    window.clearTimeout(refreshTimer)
+    if (channel) client.removeChannel(channel)
+  }
 }
 
 function assertCurrentSession(revision) {
@@ -579,7 +641,7 @@ export async function loadRemoteStudentMessages(studentId) {
 export async function loadRemoteStudentMessagesByInvite(inviteCode) {
   if (!inviteCode) return []
   const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
-  return Promise.all((Array.isArray(result) ? result : []).map(hydrateMessageRow))
+  return Promise.all((Array.isArray(result) ? result : []).map((row) => hydrateMessageRow(row, { inviteCode })))
 }
 
 export async function fetchRemoteExerciseMedia(query) {
@@ -832,7 +894,7 @@ export async function loadRemoteStudentByInvite(code) {
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
   const studentWorkoutRows = Array.isArray(studentWorkoutsPayload) ? studentWorkoutsPayload : []
   const hydratedWorkouts = await Promise.all(studentWorkoutRows.map(hydrateWorkoutRow))
-  const hydratedMessages = await Promise.all((payload.messages ?? []).map(hydrateMessageRow))
+  const hydratedMessages = await Promise.all((payload.messages ?? []).map((row) => hydrateMessageRow(row, { inviteCode: code })))
   const avatarIdentity = await loadStudentAvatarIdentityByInvite(code).catch(() => ({
     studentAvatarUrl: '',
     professionalAvatarUrl: '',
@@ -1361,7 +1423,7 @@ export async function updateRemoteStudentMessage(inviteCode, messageId, body) {
     selected_message_id: messageId,
     message_body: safeBody,
   })
-  return hydrateMessageRow(Array.isArray(result) ? result[0] : result)
+  return hydrateMessageRow(Array.isArray(result) ? result[0] : result, { inviteCode })
 }
 
 export async function deleteRemoteStudentMessage(inviteCode, messageId) {
@@ -1372,7 +1434,7 @@ export async function deleteRemoteStudentMessage(inviteCode, messageId) {
   })
   const saved = Array.isArray(result) ? result[0] : result
   if (!saved?.id) throw new Error('Mensagem não encontrada ou sem permissão para apagar.')
-  return hydrateMessageRow(saved)
+  return hydrateMessageRow(saved, { inviteCode })
 }
 
 export async function saveRemoteMessage(message) {
@@ -1392,7 +1454,7 @@ export async function saveRemoteMessage(message) {
       attachment_name: attachmentName || null,
       client_message_id: message.clientMessageId || null,
     })
-    return hydrateMessageRow(Array.isArray(result) ? result[0] : result)
+    return hydrateMessageRow(Array.isArray(result) ? result[0] : result, { inviteCode: message.inviteCode })
   }
 
   const rows = await request('messages?on_conflict=id', {
@@ -1414,42 +1476,16 @@ export async function saveRemoteMessage(message) {
   return hydrateMessageRow(rows[0])
 }
 
-function normalizeMessageAttachmentMimeType(value = '') {
-  return String(value || '').split(';')[0].trim().toLowerCase()
-}
-
-function messageAttachmentExtension(file) {
-  const mimeType = normalizeMessageAttachmentMimeType(file?.type)
-  if (mimeType === 'audio/mp4') return 'm4a'
-  if (mimeType === 'audio/ogg') return 'ogg'
-  if (mimeType === 'audio/mpeg') return 'mp3'
-  if (mimeType === 'audio/wav' || mimeType === 'audio/x-wav') return 'wav'
-  if (mimeType === 'audio/webm') return 'webm'
-  return String(file?.name || '').split('.').pop() || 'bin'
-}
-
 async function uploadMessageAttachment(file, studentId, inviteCode = '', clientMessageId = '') {
-  const extension = messageAttachmentExtension(file)
-  const owner = inviteCode || studentId || 'chat'
-  const stableName = clientMessageId || `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const safeName = `${owner}/${stableName}.${extension}`.replace(/\s+/g, '-')
-  const contentType = normalizeMessageAttachmentMimeType(file?.type) || 'application/octet-stream'
-
-  const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${MESSAGE_ATTACHMENT_BUCKET}/${safeName}`, {
-    method: 'POST',
-    headers: authHeaders({
-      'Content-Type': contentType,
-      'x-upsert': 'true',
-    }),
-    body: file,
-  })
-
-  if (!response.ok) {
-    const message = await response.text()
-    throw serviceError(response.status, message || 'Erro ao enviar anexo da conversa')
-  }
-
-  return safeName
+  const messageId = clientMessageId || crypto.randomUUID()
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('studentId', studentId || '')
+  formData.append('inviteCode', inviteCode || '')
+  formData.append('messageId', messageId)
+  const payload = await functionFormRequest('message-attachment', formData)
+  if (!payload?.path) throw new Error('O servidor não confirmou o envio do anexo.')
+  return payload.path
 }
 
 export async function markRemoteStudentMessagesRead(studentId) {
@@ -1768,7 +1804,7 @@ async function signCheckinPhoto(storageValue) {
   return signStorageObject(PHOTO_BUCKET, storageValue, 60 * 60)
 }
 
-async function hydrateMessageRow(row) {
+async function hydrateMessageRow(row, { inviteCode = '' } = {}) {
   const message = fromMessageRow(row)
   if (!message.attachmentUrl) return message
 
@@ -1778,15 +1814,27 @@ async function hydrateMessageRow(row) {
   const path = extractStoragePath(rawUrl, MESSAGE_ATTACHMENT_BUCKET)
   if (!path) return message
 
+  const cacheKey = `${inviteCode || `session-${sessionRevision}`}:${message.id}:${path}`
+  const cached = messageAttachmentUrlCache.get(cacheKey)
+  let signedUrl = cached?.expiresAt > Date.now() ? cached.url : ''
+  if (!signedUrl) {
+    const payload = await functionRequest('message-attachment', {
+      action: 'sign',
+      inviteCode,
+      messageId: message.id,
+      attachmentPath: path,
+    }).catch(() => null)
+    signedUrl = payload?.signedUrl || ''
+    if (signedUrl) {
+      messageAttachmentUrlCache.set(cacheKey, { url: signedUrl, expiresAt: Date.now() + (12 * 60 * 1000) })
+    }
+  }
+
   return {
     ...message,
     attachmentPath: path,
-    attachmentUrl: publicStorageObjectUrl(MESSAGE_ATTACHMENT_BUCKET, path),
+    attachmentUrl: signedUrl,
   }
-}
-
-function publicStorageObjectUrl(bucket, path) {
-  return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(path)}`
 }
 
 async function hydrateWorkoutRow(row) {

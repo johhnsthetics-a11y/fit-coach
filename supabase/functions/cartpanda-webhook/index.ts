@@ -1,3 +1,9 @@
+import {
+  parseAllowedCents,
+  parseAllowedIds,
+  validateStudentPayment,
+} from './cartpandaPaymentPolicy.mjs'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-token, x-cartpanda-token',
@@ -7,6 +13,10 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('FITCOACH_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const WEBHOOK_TOKEN = Deno.env.get('CARTPANDA_WEBHOOK_TOKEN') ?? Deno.env.get('LASTLINK_WEBHOOK_TOKEN') ?? ''
+const STUDENT_PRODUCT_IDS = parseAllowedIds(Deno.env.get('CARTPANDA_STUDENT_PRODUCT_IDS') ?? '')
+const PATIENT_PRODUCT_IDS = parseAllowedIds(Deno.env.get('CARTPANDA_PATIENT_PRODUCT_IDS') ?? '')
+const STUDENT_AMOUNT_CENTS = parseAllowedCents(Deno.env.get('CARTPANDA_STUDENT_AMOUNT_CENTS') ?? '')
+const PATIENT_AMOUNT_CENTS = parseAllowedCents(Deno.env.get('CARTPANDA_PATIENT_AMOUNT_CENTS') ?? '')
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
@@ -79,6 +89,21 @@ Deno.serve(async (request) => {
     }
 
     const incomingStatus = status === 'active' && !isConfirmedPayment(eventType, payload) ? 'pending' : status
+    if (incomingStatus === 'active') {
+      const professionalRole = await findProfessionalRole(checkoutSession.coach_id)
+      const patientCheckout = professionalRole.includes('nutri')
+      const validation = validateStudentPayment({ orderId, productId, amountCents }, {
+        productIds: patientCheckout ? PATIENT_PRODUCT_IDS : STUDENT_PRODUCT_IDS,
+        amounts: patientCheckout ? PATIENT_AMOUNT_CENTS : STUDENT_AMOUNT_CENTS,
+      })
+      if (!validation.ok) {
+        const reason = validation.reason === 'configuration_missing'
+          ? 'student_payment_configuration_missing'
+          : 'student_payment_mismatch'
+        await markWebhookError(eventId, `${reason}:${validation.reason}`)
+        return jsonResponse({ ok: false, processed: false, reason }, validation.reason === 'configuration_missing' ? 503 : 202)
+      }
+    }
     const transition = resolveSubscriptionStatusTransition({
       currentStatus: checkoutSession.status,
       incomingStatus,
@@ -261,6 +286,7 @@ function resolveSubscriptionStatusTransition(input: {
 
 function normalizeSubscriptionStatus(value: string) {
   const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'paid') return 'active'
   return ['pending', 'active', 'past_due', 'canceled', 'refunded', 'chargeback'].includes(normalized)
     ? normalized
     : ''
@@ -375,6 +401,15 @@ async function saveWebhookEvent(event: {
 async function findUserByEmail(email: string) {
   const rows = await supabaseFetch(`/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id,email&limit=1`)
   return Array.isArray(rows) ? rows[0] : null
+}
+
+async function findProfessionalRole(coachId: string) {
+  if (!coachId) return ''
+  const rows = await supabaseFetch(
+    `/rest/v1/users?id=eq.${encodeURIComponent(coachId)}&select=role&limit=1`,
+  )
+  const user = Array.isArray(rows) ? rows[0] : null
+  return String(user?.role || '').trim().toLowerCase()
 }
 
 async function findActiveAffiliateForCoach(coachId: string) {
@@ -495,7 +530,7 @@ async function updateStudentCheckoutSession(input: {
     method: 'PATCH',
     headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({
-      status: input.status,
+      status: input.status === 'active' ? 'paid' : input.status,
       buyer_email: input.buyerEmail || null,
       provider_order_id: input.orderId || null,
       provider_subscription_id: input.subscriptionId || null,

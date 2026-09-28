@@ -20,7 +20,7 @@ test('chat message ids are valid UUIDs for database idempotency', () => {
   assert.notEqual(firstId, secondId)
 })
 
-test('chat relies on the app synchronizer instead of mounting duplicate polling loops', () => {
+test('chat combines one fallback polling loop with the private realtime synchronizer', () => {
   assert.doesNotMatch(app, /setInterval\(refreshConversation/)
   assert.match(app, /catch \(error\)[\s\S]{0,260}throw error/)
   assert.match(app, /return \[data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError\]/)
@@ -32,7 +32,8 @@ test('chat relies on the app synchronizer instead of mounting duplicate polling 
   )
   assert.equal((studentPolling.match(/setInterval\(/g) || []).length, 1)
   assert.match(studentPolling, /let pending = false/)
-  assert.doesNotMatch(studentPolling, /loadRemoteStudentMessagesByInvite/)
+  assert.match(studentPolling, /subscribeRemoteChat/)
+  assert.match(studentPolling, /loadRemoteStudentMessagesByInvite/)
 })
 
 test('failed sends keep a stable id and remain retryable', () => {
