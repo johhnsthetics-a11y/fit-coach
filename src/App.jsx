@@ -58,6 +58,7 @@ import {
   signOutCoach,
   signUpCoach,
   submitRemoteStudentAnamnesis,
+  subscribeRemoteChat,
   supabaseEnabled,
   updateRemoteAppointmentStatus,
   updateRemoteInvoiceStatus,
@@ -2126,6 +2127,59 @@ function AppContent() {
       window.clearInterval(timer)
     }
   }, [studentAccess?.invite?.code])
+
+  useEffect(() => {
+    const inviteCode = studentAccess?.invite?.code || ''
+    if (!supabaseEnabled || (!data.session?.access_token && !inviteCode)) return undefined
+
+    let active = true
+    let unsubscribe = null
+    let refreshPending = false
+
+    async function refreshMessages() {
+      if (!active || refreshPending) return
+      refreshPending = true
+      try {
+        const latestMessages = inviteCode
+          ? await loadRemoteStudentMessagesByInvite(inviteCode)
+          : await loadRemoteMessages()
+        if (!active) return
+        setChatSyncError('')
+        setData((current) => ({ ...current, messages: mergeRecords(current.messages, latestMessages) }))
+        if (inviteCode) {
+          setStudentAccess((current) => current?.invite?.code === inviteCode
+            ? { ...current, messages: mergeRecords(current.messages, latestMessages) }
+            : current)
+        }
+      } catch (error) {
+        if (active) setChatSyncError(error?.message || 'Não foi possível atualizar a conversa em tempo real.')
+      } finally {
+        refreshPending = false
+      }
+    }
+
+    subscribeRemoteChat({
+      inviteCode,
+      onChange: refreshMessages,
+      onStatus: (status) => {
+        if (!active) return
+        if (status === 'SUBSCRIBED') setChatSyncError('')
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'TOKEN_REFRESH_ERROR') {
+          setChatSyncError('Conexão em tempo real instável. A conversa continuará sendo sincronizada.')
+        }
+      },
+    }).then((cleanup) => {
+      if (!active) cleanup()
+      else unsubscribe = cleanup
+    }).catch((error) => {
+      if (active) setChatSyncError(error?.message || 'Atualização em tempo real indisponível.')
+    })
+
+    return () => {
+      active = false
+      if (unsubscribe) unsubscribe()
+    }
+  }, [data.session?.access_token, studentAccess?.invite?.code])
 
   async function login(formData) {
     const name = formData.get('name')?.toString().trim() || 'Coach'
@@ -16453,6 +16507,19 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
     if (sameId(missingQuestionId, question.id)) setMissingQuestionId('')
   }
 
+  function openAssignment(assignment) {
+    const nextDraftKey = `coachfitpro-student-questionnaire-draft-${student?.id || 'student'}-${assignment?.id || 'none'}`
+    let nextAnswers = assignment?.status === 'Respondido' ? (assignment.answers || {}) : {}
+    if (assignment?.status !== 'Respondido') {
+      try { nextAnswers = JSON.parse(window.localStorage.getItem(nextDraftKey) || '{}') } catch { nextAnswers = {} }
+    }
+    setLoadedDraftKey(nextDraftKey)
+    setAnswers(nextAnswers)
+    setMessage('')
+    setMissingQuestionId('')
+    setOpenAssignmentId(assignment.id)
+  }
+
   async function submitAnswers() {
     if (submittingRef.current) return
     const missing = getMissingRequiredQuestion(questions, answers)
@@ -16485,7 +16552,7 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
       {activeAssignments.length > 1 ? (
         <div className="scrollbar-soft mt-3 flex gap-2 overflow-x-auto pb-1">
           {activeAssignments.map((assignment) => (
-            <button key={assignment.id} type="button" onClick={() => setOpenAssignmentId(assignment.id)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${sameId(openAssignmentId, assignment.id) ? 'border-emerald-300/45 bg-emerald-300/14 text-emerald-100' : 'border-white/10 text-zinc-400'}`}>
+            <button key={assignment.id} type="button" onClick={() => openAssignment(assignment)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black ${sameId(openAssignmentId, assignment.id) ? 'border-emerald-300/45 bg-emerald-300/14 text-emerald-100' : 'border-white/10 text-zinc-400'}`}>
               {assignment.questionSnapshot?.title || 'Questionário'}
             </button>
           ))}

@@ -194,11 +194,11 @@ test('player renderiza waveform com progresso e recarrega quando a URL definitiv
   assert.match(audioCss, /\.chat-audio-waveform i\.is-played/)
 })
 
-test('anexos do chat usam URL pública estável do bucket que já é público e MIME normalizado', () => {
-  assert.match(apiSource, /publicStorageObjectUrl\(MESSAGE_ATTACHMENT_BUCKET, path\)/)
-  assert.match(apiSource, /storage\/v1\/object\/public/)
-  assert.match(apiSource, /normalizeMessageAttachmentMimeType/)
-  assert.match(apiSource, /'Content-Type': contentType/)
+test('anexos do chat usam função protegida e URL assinada temporária', () => {
+  assert.match(apiSource, /functionFormRequest\('message-attachment'/)
+  assert.match(apiSource, /functionRequest\('message-attachment'/)
+  assert.match(apiSource, /attachmentUrl:\s*signedUrl/)
+  assert.doesNotMatch(apiSource, /publicStorageObjectUrl\(MESSAGE_ATTACHMENT_BUCKET/)
 })
 
 
