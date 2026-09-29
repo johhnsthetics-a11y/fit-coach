@@ -56,3 +56,15 @@ test('foto de check-in usa nome unico sem exigir permissao de upsert do aluno', 
   assert.match(uploadFunction, /Date\.now\(\)/)
   assert.doesNotMatch(uploadFunction, /['"]x-upsert['"]\s*:\s*['"]true['"]/)
 })
+
+test('storage valida convite ativo sem reabrir a tabela de convites ao anonimo', async () => {
+  const migration = await readFile(new URL('../supabase/migrations/20260928_fix_student_checkin_photo_storage_rls.sql', import.meta.url), 'utf8')
+
+  assert.match(migration, /create schema if not exists private/i)
+  assert.match(migration, /private\.coachfit_valid_student_checkin_photo_path/i)
+  assert.match(migration, /security definer/i)
+  assert.match(migration, /revoke all on function private\.coachfit_valid_student_checkin_photo_path\(text\) from public/i)
+  assert.match(migration, /grant execute on function private\.coachfit_valid_student_checkin_photo_path\(text\) to anon, authenticated/i)
+  assert.match(migration, /to anon, authenticated[\s\S]*private\.coachfit_valid_student_checkin_photo_path\(storage\.objects\.name\)/i)
+  assert.doesNotMatch(migration, /create policy[\s\S]*on public\.student_invites[\s\S]*to anon/i)
+})
