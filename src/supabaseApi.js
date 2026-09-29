@@ -768,7 +768,6 @@ async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
     method: 'POST',
     headers: authHeaders({
       'Content-Type': file.type || 'application/octet-stream',
-      'x-upsert': 'true',
     }),
     body: file,
   })

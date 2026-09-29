@@ -48,3 +48,11 @@ test('service worker preserva caches de outros aplicativos na mesma origem', asy
   await finished
   assert.deepEqual(removed,['coach-fit-pro-old'])
 })
+
+test('foto de check-in usa nome unico sem exigir permissao de upsert do aluno', async () => {
+  const source = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const uploadFunction = source.match(/async function uploadCheckinPhoto[\s\S]*?\n}/)?.[0] || ''
+
+  assert.match(uploadFunction, /Date\.now\(\)/)
+  assert.doesNotMatch(uploadFunction, /['"]x-upsert['"]\s*:\s*['"]true['"]/)
+})

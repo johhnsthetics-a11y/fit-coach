@@ -100,6 +100,12 @@ try {
       const shortMobileHeight = 568
       await page.setViewportSize({ width, height: shortMobileHeight })
       await page.goto(base + 'qa-student?alunoTab=inicio')
+      const waterActionColors = await Promise.all([
+        page.getByRole('button', { name: '+250 ml', exact: true }),
+        page.getByRole('button', { name: '+500 ml', exact: true }),
+        page.getByRole('button', { name: 'Zerar', exact: true }),
+      ].map((button) => button.evaluate((element) => getComputedStyle(element).backgroundColor)))
+      assert.equal(new Set(waterActionColors).size, 3, 'Ações de hidratação devem ter fundos distintos no tema claro')
       await page.getByRole('button', { name: 'Abrir menu do aluno', exact: true }).click()
       const studentMenu = page.locator('.student-mobile-menu-panel')
       await studentMenu.waitFor()

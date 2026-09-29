@@ -16869,9 +16869,9 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
             {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida pelo coach.` : 'Meta concluída hoje. Excelente consistência.'}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => onAddWater(250)} className="rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
-            <button type="button" onClick={() => onAddWater(500)} className="rounded-md bg-cyan-300 px-3 py-3 text-xs font-black text-zinc-950">+500 ml</button>
-            <button type="button" onClick={onReset} className="rounded-md border border-white/10 px-3 py-3 text-xs font-black text-zinc-200">
+            <button type="button" onClick={() => onAddWater(250)} className="student-water-action student-water-action--250 rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
+            <button type="button" onClick={() => onAddWater(500)} className="student-water-action student-water-action--500 rounded-md bg-cyan-300 px-3 py-3 text-xs font-black text-zinc-950">+500 ml</button>
+            <button type="button" onClick={onReset} className="student-water-action student-water-action--reset rounded-md border border-white/10 px-3 py-3 text-xs font-black text-zinc-200">
               Zerar
             </button>
           </div>
