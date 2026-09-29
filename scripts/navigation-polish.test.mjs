@@ -22,3 +22,16 @@ test('navigation polish styles cover floating shells and module colors', () => {
   assert.match(cssSource, /\.student-mobile-nav-button\.is-active/)
   assert.match(cssSource, /\.coach-mobile-bottom-button\.is-active/)
 })
+
+test('menu inferior do aluno usa safe area sem criar espaco interno duplicado', () => {
+  assert.match(cssSource, /\.student-mobile-shell \.student-bottom-nav\s*\{[^}]*padding-bottom:\s*0\.5rem\s*!important;/s)
+})
+
+test('hidratacao possui controles semanticos para o tema claro', () => {
+  assert.match(appSource, /student-water-action--250/)
+  assert.match(appSource, /student-water-action--500/)
+  assert.match(appSource, /student-water-action--reset/)
+  assert.match(cssSource, /\.app-theme-light \.student-water-action--250/)
+  assert.match(cssSource, /\.app-theme-light \.student-water-action--500/)
+  assert.match(cssSource, /\.app-theme-light \.student-water-action--reset/)
+})
