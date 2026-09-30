@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  isConfirmedCartpandaPayment,
+  mapCartpandaSubscriptionStatus,
   parseAllowedCents,
   parseAllowedIds,
   validateStudentPayment,
@@ -35,4 +37,20 @@ test('accepts only an exact configured payment', () => {
     productIds: new Set(['4665']),
     amounts: new Set([2500]),
   }), { ok: true, reason: '' })
+})
+
+test('detecta falha de renovacao e exige nova confirmacao para liberar', () => {
+  const failedPayload = { payment_status: 'failed', subscription_status: 'past_due' }
+  assert.equal(mapCartpandaSubscriptionStatus('subscription_payment_failed', failedPayload), 'past_due')
+  assert.equal(isConfirmedCartpandaPayment('subscription_payment_failed', failedPayload), false)
+
+  const paidPayload = { payment_status: 'approved', subscription_status: 'active' }
+  assert.equal(mapCartpandaSubscriptionStatus('subscription_payment_approved', paidPayload), 'active')
+  assert.equal(isConfirmedCartpandaPayment('subscription_payment_approved', paidPayload), true)
+})
+
+test('cancelamento da assinatura permanece estado terminal', () => {
+  const payload = { subscription_status: 'canceled' }
+  assert.equal(mapCartpandaSubscriptionStatus('subscription_canceled', payload), 'canceled')
+  assert.equal(isConfirmedCartpandaPayment('subscription_canceled', payload), false)
 })
