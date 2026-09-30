@@ -330,6 +330,33 @@ export async function signInCoach({ email, password }) {
   return toSession(payload)
 }
 
+export async function generateRemoteStudentCredentials(studentId) {
+  if (!isUuid(studentId)) throw new Error('Selecione um aluno ou paciente válido para gerar o acesso.')
+  return functionRequest('student-credentials', { action: 'generate', studentId })
+}
+
+export async function loadRemoteCurrentStudentAccess() {
+  const result = await rpcRequest('get_current_student_access', {})
+  const row = Array.isArray(result) ? result[0] : result
+  if (!row?.student_id || !row?.invite_code) return null
+  return {
+    studentId: row.student_id,
+    inviteCode: row.invite_code,
+    mustChangePassword: row.must_change_password === true,
+    email: row.email ?? '',
+    professionalType: row.professional_type ?? 'trainer',
+  }
+}
+
+export async function completeRemoteStudentFirstPassword(password) {
+  password = String(password || '')
+  if (password.length < 8) throw new Error('A nova senha deve ter pelo menos 8 caracteres.')
+  return functionRequest('student-credentials', {
+    action: 'complete-first-password',
+    password,
+  })
+}
+
 export async function signOutCoach(accessToken) {
   if (!supabaseEnabled || !accessToken) return
   const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout`, {
@@ -1740,6 +1767,9 @@ function fromStudentRow(row, avatarUrl = '') {
     waterGoalMl: row.water_goal_ml ?? '',
     avatarPath: row.avatar_path ?? '',
     photo: avatarUrl || getCachedAvatarUrl(row.avatar_path),
+    authUserId: row.auth_user_id ?? '',
+    mustChangePassword: row.must_change_password === true,
+    credentialsGeneratedAt: row.credentials_generated_at ?? '',
   }
 }
 

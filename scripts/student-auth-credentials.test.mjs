@@ -58,3 +58,27 @@ test('edge function enforces owner lookup, authenticated user and compensation c
   assert.match(source, /temporaryPassword/)
   assert.doesNotMatch(source, /console\.log\([^\n]*(password|token)/i)
 })
+
+test('frontend adapters use authenticated contracts without persisting credentials', async () => {
+  const source = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+
+  assert.match(source, /export async function generateRemoteStudentCredentials\(studentId\)/)
+  assert.match(source, /if \(!isUuid\(studentId\)\)/)
+  assert.match(source, /functionRequest\('student-credentials',\s*\{\s*action:\s*'generate',\s*studentId\s*\}\)/s)
+  assert.match(source, /export async function loadRemoteCurrentStudentAccess\(\)/)
+  assert.match(source, /rpcRequest\('get_current_student_access',\s*\{\}\)/)
+  assert.match(source, /inviteCode:\s*row\.invite_code/)
+  assert.match(source, /professionalType:\s*row\.professional_type/)
+  assert.match(source, /export async function completeRemoteStudentFirstPassword\(password\)/)
+  assert.match(source, /password\.length\s*<\s*8/)
+  assert.match(source, /action:\s*'complete-first-password'/)
+  assert.doesNotMatch(source, /localStorage[^\n]*(temporaryPassword|password)/i)
+})
+
+test('student row maps authentication state without password fields', async () => {
+  const source = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  assert.match(source, /authUserId:\s*row\.auth_user_id/)
+  assert.match(source, /mustChangePassword:\s*row\.must_change_password/)
+  assert.match(source, /credentialsGeneratedAt:\s*row\.credentials_generated_at/)
+  assert.doesNotMatch(source, /temporaryPassword:\s*row\./)
+})
