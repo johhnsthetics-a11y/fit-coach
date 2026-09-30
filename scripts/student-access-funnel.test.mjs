@@ -59,12 +59,31 @@ test('webhook ignora evento ja processado e persiste periodo do aluno', async ()
 test('frontend oferece ativacao depois do login e atualiza o portal automaticamente', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const paymentReturnEffectStart = app.indexOf('function clearPaymentReturn()')
+  const paymentReturnEffect = app.slice(paymentReturnEffectStart - 900, paymentReturnEffectStart + 4200)
   assert.match(app, /resolveStudentPaymentLockState/)
   assert.match(app, /createRemoteStudentCheckoutSessionByInvite/)
+  assert.match(app, /STUDENT_PAYMENT_RETURN_KEY/)
+  assert.match(app, /buildStudentPaymentReturnMarker/)
+  assert.match(app, /isStudentPaymentReturn/)
+  assert.match(app, /loadRemoteCurrentStudentAccess/)
+  assert.match(app, /portal\.financialAccessOpen === true/)
+  assert.match(app, /Confirmando pagamento/)
+  assert.doesNotMatch(paymentReturnEffect, /\|\| !studentAccess \|\|/)
+  assert.match(paymentReturnEffect, /studentAccess\?\.financialAccessOpen === true/)
+  assert.match(paymentReturnEffect, /if \(!stopped\) \{[\s\S]*?addEventListener\('focus'/)
   assert.match(app, /appLoginUrl/)
   assert.match(app, /Falar com \{professionalLabel\}/)
   assert.match(api, /create_student_checkout_session_by_invite/)
   assert.match(api, /financialAccessOpen:\s*payload\.financial_access_open/)
+})
+
+test('isencao do CoachFit nunca ignora pendencia com o profissional', async () => {
+  const sql = await readFile(new URL('../SUPABASE/migrations/20260930194500_fix_student_financial_access.sql', import.meta.url), 'utf8')
+
+  assert.match(sql, /students\.payment = 'Pago'[\s\S]*?not public\.coachfit_professional_requires_app_payment/i)
+  assert.match(sql, /students\.next_due_date is null or students\.next_due_date >= current_date/i)
+  assert.match(sql, /or students\.access_override_until > now\(\)/i)
 })
 
 

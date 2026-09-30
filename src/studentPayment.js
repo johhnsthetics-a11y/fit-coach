@@ -1,5 +1,9 @@
 export const DEFAULT_STUDENT_CHECKOUT_URL = 'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664'
 export const DEFAULT_PATIENT_CHECKOUT_URL = 'https://pagamento.coachfitpro.com.br/checkout/212922722:1?subscription=4665'
+export const STUDENT_PAYMENT_RETURN_KEY = 'coachfitpro-student-payment-return'
+
+const STUDENT_PAYMENT_RETURN_MAX_AGE_MS = 2 * 60 * 60 * 1000
+const SUCCESSFUL_PAYMENT_RETURN_STATUSES = new Set(['confirmado', 'aprovado', 'sucesso', 'success', 'paid', 'ok'])
 
 function isDirectCheckoutUrl(value) {
   try {
@@ -27,6 +31,24 @@ export function buildStudentCheckoutUrl(baseUrl, checkoutToken) {
     return url.toString()
   } catch {
     return ''
+  }
+}
+
+export function buildStudentPaymentReturnMarker(now = Date.now()) {
+  return JSON.stringify({ startedAt: Number(now) })
+}
+
+export function isStudentPaymentReturn({ search = '', marker = '', now = Date.now() } = {}) {
+  const params = new URLSearchParams(String(search || ''))
+  const returnStatus = String(params.get('pagamento') || params.get('payment') || params.get('checkout') || '').trim().toLowerCase()
+  if (SUCCESSFUL_PAYMENT_RETURN_STATUSES.has(returnStatus)) return true
+
+  try {
+    const startedAt = Number(JSON.parse(String(marker || ''))?.startedAt)
+    const age = Number(now) - startedAt
+    return Number.isFinite(startedAt) && startedAt > 0 && age >= 0 && age <= STUDENT_PAYMENT_RETURN_MAX_AGE_MS
+  } catch {
+    return false
   }
 }
 

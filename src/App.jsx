@@ -72,7 +72,14 @@ import {
   upsertRemoteUser,
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
-import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl, resolveStudentPaymentLockState } from './studentPayment'
+import {
+  buildStudentCheckoutUrl,
+  buildStudentPaymentReturnMarker,
+  isStudentPaymentReturn,
+  resolveAudienceCheckoutUrl,
+  resolveStudentPaymentLockState,
+  STUDENT_PAYMENT_RETURN_KEY,
+} from './studentPayment'
 import { addBillingCycle, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
 import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
@@ -1688,6 +1695,7 @@ function AppContent() {
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
   const [studentAccess, setStudentAccess] = useState(null)
   const [studentFirstAccess, setStudentFirstAccess] = useState(null)
+  const [studentPaymentReturnPending, setStudentPaymentReturnPending] = useState(false)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
@@ -2089,6 +2097,89 @@ function AppContent() {
     bootstrapAuthenticatedStudent()
     return () => { active = false }
   }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentFirstAccess) {
+      setStudentPaymentReturnPending(false)
+      return undefined
+    }
+
+    let marker = ''
+    try { marker = window.localStorage.getItem(STUDENT_PAYMENT_RETURN_KEY) || '' } catch { marker = '' }
+    if (!isStudentPaymentReturn({ search: window.location.search, marker })) return undefined
+
+    let stopped = false
+    let inFlight = false
+    let attempts = 0
+    let timer = null
+
+    function clearPaymentReturn() {
+      try { window.localStorage.removeItem(STUDENT_PAYMENT_RETURN_KEY) } catch { /* storage indisponível */ }
+      const url = new URL(window.location.href)
+      ;['pagamento', 'payment', 'checkout', 'mode'].forEach((key) => url.searchParams.delete(key))
+      const nextSearch = url.searchParams.toString()
+      window.history.replaceState({}, '', `/${nextSearch ? `?${nextSearch}` : ''}${url.hash}`)
+    }
+
+    function confirmPayment(portal) {
+      stopped = true
+      if (timer) window.clearInterval(timer)
+      setStudentAccess(portal)
+      setStudentPaymentReturnPending(false)
+      setRemoteStatus('Pagamento confirmado')
+      setRemoteError('')
+      clearPaymentReturn()
+    }
+
+    async function verifyStudentPaymentReturn() {
+      if (stopped || inFlight) return
+      if (studentAccess?.financialAccessOpen === true) {
+        confirmPayment(studentAccess)
+        return
+      }
+
+      inFlight = true
+      attempts += 1
+      setStudentPaymentReturnPending(true)
+      setRemoteStatus('Confirmando pagamento')
+      try {
+        const studentBootstrap = await loadRemoteCurrentStudentAccess()
+        if (!studentBootstrap || studentBootstrap.mustChangePassword) throw new Error('Acesso do aluno ainda não disponível.')
+        const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
+        if (stopped) return
+        setStudentAccess(portal)
+        if (portal.financialAccessOpen === true) confirmPayment(portal)
+      } catch {
+        // A confirmação pode chegar alguns segundos depois do retorno do checkout.
+      } finally {
+        inFlight = false
+      }
+
+      if (!stopped && attempts >= 120) {
+        stopped = true
+        if (timer) window.clearInterval(timer)
+        setStudentPaymentReturnPending(false)
+        setRemoteStatus('Aguardando confirmação do pagamento')
+      }
+    }
+
+    verifyStudentPaymentReturn()
+    if (!stopped) timer = window.setInterval(verifyStudentPaymentReturn, 5000)
+    const verifyWhenVisible = () => {
+      if (document.visibilityState === 'visible') verifyStudentPaymentReturn()
+    }
+    if (!stopped) {
+      window.addEventListener('focus', verifyStudentPaymentReturn)
+      document.addEventListener('visibilitychange', verifyWhenVisible)
+    }
+
+    return () => {
+      stopped = true
+      if (timer) window.clearInterval(timer)
+      window.removeEventListener('focus', verifyStudentPaymentReturn)
+      document.removeEventListener('visibilitychange', verifyWhenVisible)
+    }
+  }, [data.session?.access_token, studentAuthSession, studentAccess?.student?.id, studentAccess?.financialAccessOpen, studentFirstAccess])
 
   useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('invite')
@@ -3700,6 +3791,7 @@ function AppContent() {
       <StudentAccessApp
         key={studentAccess.student.id}
         access={studentAccess}
+        paymentReturnPending={studentPaymentReturnPending}
         checkins={data.checkins}
         workouts={studentAccess.workouts ?? []}
         nutritionPlans={studentAccess.nutritionPlans ?? []}
@@ -15718,7 +15810,7 @@ function ProfileAvatar({ name, src = '', size = 'md', className = '' }) {
   )
 }
 
-function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
+function StudentAccessApp({ access, paymentReturnPending = false, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -15762,6 +15854,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     })
     const checkoutUrl = buildStudentCheckoutUrl(checkoutBaseUrl, session.checkoutToken)
     if (!checkoutUrl) throw new Error('O checkout da Cartpanda ainda não foi configurado para este perfil.')
+    try { window.localStorage.setItem(STUDENT_PAYMENT_RETURN_KEY, buildStudentPaymentReturnMarker()) } catch { /* storage indisponível */ }
     return checkoutUrl
   }
 
@@ -15785,6 +15878,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
       }}
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
+      paymentReturnPending={paymentReturnPending}
       professionalType={access.professionalType}
       questionnaireError={access.questionnaireError || ''}
       appAdminSettings={appAdminSettings}
@@ -15807,7 +15901,7 @@ function StudentAccessApp({ access, checkins, workouts, nutritionPlans, nutritio
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -16090,6 +16184,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           student={student}
           coachSettings={coachSettings}
           professionalType={professionalType}
+          paymentReturnPending={paymentReturnPending}
           onActivateAccess={onActivateAccess}
           onOpenPayments={() => openTab('pagamentos')}
           onOpenChat={() => openTab('mensagens')}
@@ -16992,7 +17087,7 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
   )
 }
 
-function StudentPaymentLock({ student, coachSettings, professionalType = 'trainer', onActivateAccess, onOpenPayments, onOpenChat }) {
+function StudentPaymentLock({ student, coachSettings, professionalType = 'trainer', paymentReturnPending = false, onActivateAccess, onOpenPayments, onOpenChat }) {
   const billingBrand = getBillingBrand(coachSettings)
   const professionalPaymentCurrent = student?.payment === 'Pago'
   const appPaymentCurrent = student?.appPaymentStatus === 'active'
@@ -17039,8 +17134,8 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         {lockState?.canOpenCheckout ? (
-          <button type="button" disabled={activating || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-            {activating ? 'Abrindo checkout...' : lockState.actionLabel}
+          <button type="button" disabled={activating || paymentReturnPending || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+            {paymentReturnPending ? 'Confirmando pagamento...' : activating ? 'Abrindo checkout...' : lockState.actionLabel}
           </button>
         ) : null}
         {!professionalPaymentCurrent ? (
@@ -17058,6 +17153,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
         </button>
       </div>
       {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
+      {paymentReturnPending ? <p role="status" className="mt-3 text-xs leading-5 text-emerald-100">Retorno do checkout identificado. Estamos confirmando a liberação segura do seu acesso.</p> : null}
       {lockState?.canOpenCheckout ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
     </StudentAppSection>
   )

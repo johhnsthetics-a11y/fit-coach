@@ -3,7 +3,9 @@ import { test } from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 import {
+  buildStudentPaymentReturnMarker,
   buildStudentCheckoutUrl,
+  isStudentPaymentReturn,
   resolveAudienceCheckoutUrl,
   resolveStudentPaymentLockState,
 } from '../src/studentPayment.js'
@@ -19,6 +21,24 @@ test('link individual preserva o checkout e adiciona o token cid', () => {
 test('treinador usa checkout de aluno e nutricionista usa checkout de paciente', () => {
   assert.equal(resolveAudienceCheckoutUrl({ nutritionist: false }), 'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664')
   assert.equal(resolveAudienceCheckoutUrl({ nutritionist: true }), 'https://pagamento.coachfitpro.com.br/checkout/212922722:1?subscription=4665')
+})
+
+test('retorno do pagamento reconhece sucesso da Cartpanda para aluno e paciente', () => {
+  assert.equal(isStudentPaymentReturn({ search: '?pagamento=sucesso' }), true)
+  assert.equal(isStudentPaymentReturn({ search: '?payment=paid' }), true)
+  assert.equal(isStudentPaymentReturn({ search: '?checkout=confirmado' }), true)
+  assert.equal(isStudentPaymentReturn({ search: '?pagamento=cancelado' }), false)
+})
+
+test('marcador local de checkout e temporario e nao guarda identificadores sensiveis', () => {
+  const now = Date.parse('2026-09-30T18:00:00Z')
+  const marker = buildStudentPaymentReturnMarker(now)
+
+  assert.deepEqual(JSON.parse(marker), { startedAt: now })
+  assert.equal(isStudentPaymentReturn({ marker, now: now + 60_000 }), true)
+  assert.equal(isStudentPaymentReturn({ marker, now: now + (2 * 60 * 60 * 1000) + 1 }), false)
+  assert.equal(isStudentPaymentReturn({ marker: '{invalido', now }), false)
+  assert.doesNotMatch(marker, /cid|token|student|patient|email/i)
 })
 
 test('pagamento inicial pendente oferece ativacao de 25 reais no checkout correto', () => {
