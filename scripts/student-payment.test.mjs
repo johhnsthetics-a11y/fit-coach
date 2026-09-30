@@ -17,7 +17,7 @@ test('link individual preserva o checkout e adiciona o token cid', () => {
 })
 
 test('treinador usa checkout de aluno e nutricionista usa checkout de paciente', () => {
-  assert.equal(resolveAudienceCheckoutUrl({ nutritionist: false }), 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664')
+  assert.equal(resolveAudienceCheckoutUrl({ nutritionist: false }), 'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664')
   assert.equal(resolveAudienceCheckoutUrl({ nutritionist: true }), 'https://pagamento.coachfitpro.com.br/checkout/212922722:1?subscription=4665')
 })
 
@@ -85,20 +85,30 @@ test('cancelamento manual encerra o acesso e orienta contato com o suporte', () 
   )
 })
 
-test('checkout oficial configurado do aluno e preservado sem rota de produto inventada', () => {
+test('checkout generico antigo e ignorado em favor do link direto oficial do aluno', () => {
   assert.equal(
     resolveAudienceCheckoutUrl({
       nutritionist: false,
       studentUrl: 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664',
     }),
-    'https://pagamento.coachfitpro.com.br/checkout?subscription=4664',
+    'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664',
   )
   assert.equal(
     buildStudentCheckoutUrl(
-      'https://pagamento.coachfitpro.com.br/checkout?subscription=4664',
+      'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664',
       '5cf348b5-82ed-48fe-8e60-5dc0f34cd6c1',
     ),
-    'https://pagamento.coachfitpro.com.br/checkout?subscription=4664&cid=5cf348b5-82ed-48fe-8e60-5dc0f34cd6c1',
+    'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664&cid=5cf348b5-82ed-48fe-8e60-5dc0f34cd6c1',
+  )
+})
+
+test('checkout direto configurado continua sendo respeitado', () => {
+  assert.equal(
+    resolveAudienceCheckoutUrl({
+      nutritionist: false,
+      studentUrl: 'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664',
+    }),
+    'https://pagamento.coachfitpro.com.br/checkout/212922687:1?subscription=4664',
   )
 })
 
