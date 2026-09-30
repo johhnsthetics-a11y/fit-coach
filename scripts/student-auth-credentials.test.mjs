@@ -102,3 +102,33 @@ test('credential sharing copy adapts to student and patient', async () => {
   assert.match(source, /Senha temporária/)
   assert.match(source, /troque sua senha/i)
 })
+
+test('authenticated student login routes before professional workspace hydration', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  assert.match(api, /accountType:\s*appMetadata\.account_type/)
+  assert.match(app, /loadRemoteCurrentStudentAccess/)
+  assert.match(app, /data\.session\?\.user\?\.accountType === 'student'/)
+  assert.match(app, /if \(studentBootstrap\)/)
+  assert.match(app, /studentBootstrap\.mustChangePassword/)
+  assert.match(app, /loadRemoteStudentByInvite\(studentBootstrap\.inviteCode\)/)
+  assert.match(app, /if \(data\.session\?\.user\?\.accountType === 'student'\) return/)
+})
+
+test('first student login requires matching personal password before portal', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(app, /function StudentFirstPasswordScreen/)
+  assert.match(app, /completeRemoteStudentFirstPassword/)
+  assert.match(app, /password\.length < 8/)
+  assert.match(app, /password !== confirmation/)
+  assert.match(app, /Criar minha senha/)
+  assert.match(app, /setStudentFirstAccess\(null\)/)
+})
+
+test('authenticated student keeps existing server-side payment lock and clears session on exit', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(app, /resolveStudentPaymentLockState/)
+  assert.match(app, /financialAccessOpen/)
+  assert.match(app, /if \(studentAuthSession\) \{\s*logout\(\)/s)
+  assert.match(app, /setStudentFirstAccess\(null\)/)
+})

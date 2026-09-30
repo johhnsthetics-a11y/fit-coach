@@ -13,6 +13,7 @@ import {
   createRemoteStudentInvite,
   createRemoteStudentCheckoutSession,
   createRemoteStudentCheckoutSessionByInvite,
+  completeRemoteStudentFirstPassword,
   generateRemoteStudentCredentials,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
@@ -22,6 +23,7 @@ import {
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
   loadRemoteCurrentProfessionalAffiliate,
+  loadRemoteCurrentStudentAccess,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteStudentMessagesByInvite,
@@ -1508,6 +1510,7 @@ function useStoredData() {
     if (!supabaseEnabled || !data.session?.access_token) return
 
     setSupabaseSession(data.session.access_token)
+    if (data.session?.user?.accountType === 'student') return
 
     let active = true
     loadRemoteData()
@@ -1684,6 +1687,7 @@ function AppContent() {
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
   const [studentAccess, setStudentAccess] = useState(null)
+  const [studentFirstAccess, setStudentFirstAccess] = useState(null)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
@@ -1750,6 +1754,7 @@ function AppContent() {
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
   const professionalAffiliate = Boolean(data.professionalAffiliate)
+  const studentAuthSession = data.session?.user?.accountType === 'student'
   const professionalAccessActive = coachSubscriptionActive || professionalAffiliate
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
   const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
@@ -1937,7 +1942,7 @@ function AppContent() {
   }, [data.session?.access_token, data.session?.refresh_token])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess || professionalAccessActive || masterAdmin) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession || professionalAccessActive || masterAdmin) return undefined
 
     let active = true
     let pending = false
@@ -1987,10 +1992,10 @@ function AppContent() {
       window.removeEventListener('focus', refreshProfessionalAffiliateAccess)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
-  }, [data.session?.access_token, studentAccess, professionalAccessActive, masterAdmin])
+  }, [data.session?.access_token, studentAccess, studentAuthSession, professionalAccessActive, masterAdmin])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess || professionalAccessActive) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession || professionalAccessActive) return undefined
 
     async function checkSubscriptionOnReturn() {
       if (document.visibilityState === 'hidden') return
@@ -2010,10 +2015,10 @@ function AppContent() {
       window.removeEventListener('focus', checkSubscriptionOnReturn)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [data.session?.access_token, studentAccess, professionalAccessActive, syncCoachWorkspace])
+  }, [data.session?.access_token, studentAccess, studentAuthSession, professionalAccessActive, syncCoachWorkspace])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess || professionalAccessActive) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession || professionalAccessActive) return undefined
 
     const params = new URLSearchParams(window.location.search)
     const paymentStatus = params.get('pagamento') || params.get('payment') || params.get('checkout')
@@ -2052,27 +2057,58 @@ function AppContent() {
       stopped = true
       window.clearInterval(timer)
     }
-  }, [data.session?.access_token, studentAccess, professionalAccessActive, syncCoachWorkspace])
+  }, [data.session?.access_token, studentAccess, studentAuthSession, professionalAccessActive, syncCoachWorkspace])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentAccess || studentFirstAccess) return undefined
+    let active = true
+
+    async function bootstrapAuthenticatedStudent() {
+      try {
+        const studentBootstrap = await loadRemoteCurrentStudentAccess()
+        if (!active) return
+        if (!studentBootstrap) throw new Error('Este login não está vinculado a um aluno ou paciente ativo.')
+        if (studentBootstrap.mustChangePassword) {
+          setStudentFirstAccess(studentBootstrap)
+          setRemoteStatus('Primeiro acesso')
+          return
+        }
+        const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
+        if (!active) return
+        setStudentAccess(portal)
+        window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+        setRemoteStatus('Acesso carregado')
+        setRemoteError('')
+      } catch (error) {
+        if (!active) return
+        setRemoteStatus('Erro ao carregar acesso')
+        setRemoteError(error?.message || 'Não foi possível carregar seu acesso.')
+      }
+    }
+
+    bootstrapAuthenticatedStudent()
+    return () => { active = false }
+  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess])
 
   useEffect(() => {
     const inviteCode = new URLSearchParams(window.location.search).get('invite')
-    if (!inviteCode || studentAccess) return
+    if (!inviteCode || studentAccess || studentAuthSession) return
 
     enterStudentByInvite(inviteCode)
     window.history.replaceState({}, '', window.location.pathname)
-  }, [studentAccess])
+  }, [studentAccess, studentAuthSession])
 
   useEffect(() => {
-    if (studentAccess || !supabaseEnabled) return
+    if (studentAccess || studentAuthSession || !supabaseEnabled) return
 
     const savedCode = window.localStorage.getItem(STUDENT_ACCESS_KEY)
     if (!savedCode) return
 
     enterStudentByInvite(savedCode, { silent: true })
-  }, [studentAccess])
+  }, [studentAccess, studentAuthSession])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession) return undefined
 
     let active = true
     let pending = false
@@ -2090,10 +2126,10 @@ function AppContent() {
     const timer = window.setInterval(sync, 15000)
     window.addEventListener('focus', sync)
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', sync) }
-  }, [data.session?.access_token, studentAccess?.invite?.code])
+  }, [data.session?.access_token, studentAccess?.invite?.code, studentAuthSession])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAccess) return undefined
+    if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession) return undefined
 
     let active = true
     let pending = false
@@ -2148,7 +2184,7 @@ function AppContent() {
       active = false
       window.clearInterval(timer)
     }
-  }, [data.session?.access_token, studentAccess])
+  }, [data.session?.access_token, studentAccess, studentAuthSession])
 
   useEffect(() => {
     if (!supabaseEnabled || !studentAccess?.invite?.code) return undefined
@@ -2281,6 +2317,31 @@ function AppContent() {
         session = mode === 'signup'
           ? await signUpCoach({ name, email, password, role })
           : await signInCoach({ email, password })
+        const studentBootstrap = mode === 'signin' ? await loadRemoteCurrentStudentAccess() : null
+        if (studentBootstrap) {
+          const studentSession = {
+            ...session,
+            user: { ...session.user, accountType: 'student', role: studentBootstrap.professionalType === 'nutritionist' ? 'Paciente' : 'Aluno' },
+          }
+          setData((current) => ({
+            ...createInitialData(),
+            appAdminSettings: current.appAdminSettings,
+            session: studentSession,
+            user: studentSession.user,
+          }))
+          window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+          if (studentBootstrap.mustChangePassword) {
+            setStudentFirstAccess(studentBootstrap)
+            setRemoteStatus('Primeiro acesso')
+            setRemoteError('')
+            return true
+          }
+          const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
+          setStudentAccess(portal)
+          setRemoteStatus('Acesso carregado')
+          setRemoteError('')
+          return true
+        }
         const remoteData = await loadRemoteData()
         savedUser = mode === 'signup'
           ? await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || role })
@@ -2343,6 +2404,7 @@ function AppContent() {
     }
     setSupabaseSession('')
     setStudentAccess(null)
+    setStudentFirstAccess(null)
     setSelectedStudentId(null)
     window.localStorage.removeItem(STUDENT_ACCESS_KEY)
     setData(createInitialData())
@@ -3558,9 +3620,27 @@ function AppContent() {
   }
 
   function exitStudentAccess() {
+    if (studentAuthSession) {
+      logout()
+      return
+    }
     portalRequestRef.current += 1
     setStudentAccess(null)
     window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+  }
+
+  async function finishStudentFirstPassword(password) {
+    await completeRemoteStudentFirstPassword(password)
+    const studentBootstrap = await loadRemoteCurrentStudentAccess()
+    if (!studentBootstrap || studentBootstrap.mustChangePassword) {
+      throw new Error('Não foi possível concluir a ativação da senha. Tente novamente.')
+    }
+    const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
+    setStudentAccess(portal)
+    setStudentFirstAccess(null)
+    window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+    setRemoteStatus('Senha criada e acesso carregado')
+    setRemoteError('')
   }
 
   async function finishPasswordRecovery(password) {
@@ -3579,6 +3659,17 @@ function AppContent() {
     return <PasswordRecovery onSave={finishPasswordRecovery} />
   }
 
+  if (studentFirstAccess) {
+    return (
+      <StudentFirstPasswordScreen
+        email={studentFirstAccess.email}
+        professionalType={studentFirstAccess.professionalType}
+        onSave={finishStudentFirstPassword}
+        onExit={logout}
+      />
+    )
+  }
+
   if (salesPreview) {
     return (
       <LoginScreen
@@ -3594,7 +3685,7 @@ function AppContent() {
   }
 
   if (studentAccess) {
-    if (!studentAccess.consentAccepted) {
+    if (studentAccess.financialAccessOpen === true && !studentAccess.consentAccepted) {
       return (
         <StudentConsent
           access={studentAccess}
@@ -3608,7 +3699,7 @@ function AppContent() {
       )
     }
 
-    if (studentAccess.anamnesisRequired !== false && !studentAccess.anamnesisCompleted) {
+    if (studentAccess.financialAccessOpen === true && studentAccess.anamnesisRequired !== false && !studentAccess.anamnesisCompleted) {
       return (
         <StudentAnamnesis
           access={studentAccess}
@@ -4234,6 +4325,67 @@ function PasswordRecovery({ onSave }) {
   )
 }
 
+function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSave, onExit }) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const password = form.get('password')?.toString() || ''
+    const confirmation = form.get('confirmation')?.toString() || ''
+    if (password.length < 8) {
+      setError('A senha precisa ter pelo menos 8 caracteres.')
+      return
+    }
+    if (password !== confirmation) {
+      setError('As senhas informadas não são iguais.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(password)
+    } catch (saveError) {
+      setError(saveError?.message || 'Não foi possível criar sua senha pessoal.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const profileLabel = professionalType === 'nutritionist' ? 'paciente' : 'aluno'
+  return (
+    <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
+      <form onSubmit={handleSubmit} className="w-full max-w-md rounded-xl border border-emerald-300/20 bg-zinc-950/92 p-5 shadow-2xl shadow-black/40 sm:p-7">
+        <div className="flex justify-center"><BrandLockup subtitle="Coach Fit Pro" /></div>
+        <p className="mt-6 text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Primeiro acesso do {profileLabel}</p>
+        <h1 className="mt-2 text-2xl font-black text-white">Crie sua senha pessoal</h1>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Use uma senha só sua. Depois desta etapa, você seguirá para a ativação do seu acesso ao CoachFit.</p>
+        <label className="mt-5 grid gap-2 text-sm font-bold text-zinc-300">
+          E-mail
+          <input value={email || ''} readOnly className="min-h-11 rounded-md border border-white/10 bg-white/[0.04] px-3 text-zinc-400 outline-none" />
+        </label>
+        <label className="mt-4 grid gap-2 text-sm font-bold text-zinc-300">
+          Nova senha
+          <span className="flex rounded-md border border-white/10 bg-black/25 focus-within:border-emerald-300/60">
+            <input name="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" className="min-h-11 min-w-0 flex-1 bg-transparent px-3 text-white outline-none" />
+            <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} className="min-h-11 px-3 text-xs font-black text-emerald-200">{showPassword ? 'Ocultar' : 'Mostrar'}</button>
+          </span>
+        </label>
+        <label className="mt-4 grid gap-2 text-sm font-bold text-zinc-300">
+          Confirmar senha
+          <input name="confirmation" type={showPassword ? 'text' : 'password'} autoComplete="new-password" className="min-h-11 rounded-md border border-white/10 bg-black/25 px-3 text-white outline-none focus:border-emerald-300/60" />
+        </label>
+        {error ? <p className="mt-4 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+        <button disabled={saving} className="mt-5 min-h-12 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">{saving ? 'Salvando...' : 'Criar minha senha'}</button>
+        <button type="button" onClick={onExit} className="mt-3 min-h-11 w-full rounded-md border border-white/10 px-4 py-2 text-sm font-black text-zinc-300">Sair</button>
+      </form>
+    </main>
+  )
+}
+
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
   const initialMode = new URLSearchParams(window.location.search).get('mode')
@@ -4286,7 +4438,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       : `Crie sua conta e siga para o checkout do plano ${signupPlan?.name || 'selecionado'} usando o mesmo e-mail cadastrado.`
     : mode === 'forgot'
       ? 'Enviaremos um link seguro para o e-mail cadastrado.'
-      : 'Coach acessa com e-mail e senha. Aluno utiliza o código enviado pelo treinador.'
+      : 'Profissionais, alunos e pacientes acessam com e-mail e senha. O código individual continua disponível para acessos antigos.'
   const currentRevenue = revenueScenario.students * revenueScenario.monthlyPrice
   const projectedStudents = revenueScenario.students + revenueScenario.additionalStudents
   const projectedPrice = revenueScenario.monthlyPrice + revenueScenario.priceIncrease
@@ -6602,6 +6754,21 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     } finally {
       setCredentialsSaving(false)
     }
+  }
+
+  if (studentAuthSession) {
+    if (remoteError) {
+      return (
+        <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
+          <section className="w-full max-w-md rounded-xl border border-rose-300/25 bg-zinc-950/90 p-6 text-center shadow-2xl">
+            <h1 className="text-xl font-black text-white">Não foi possível carregar seu acesso</h1>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">{remoteError}</p>
+            <button type="button" onClick={logout} className="mt-5 min-h-11 rounded-md bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950">Voltar ao login</button>
+          </section>
+        </main>
+      )
+    }
+    return <AppLoading />
   }
 
   function getCredentialShareText() {

@@ -1647,6 +1647,7 @@ export async function saveRemoteCoachSettings(settings, coachId) {
 function toSession(payload, fallbackName, fallbackEmail, fallbackRole = 'Coach principal') {
   const user = payload.user ?? {}
   const metadata = user.user_metadata ?? {}
+  const appMetadata = user.app_metadata ?? {}
 
   return {
     access_token: payload.access_token ?? '',
@@ -1658,6 +1659,7 @@ function toSession(payload, fallbackName, fallbackEmail, fallbackRole = 'Coach p
       name: metadata.name || fallbackName || user.email || 'Coach',
       email: user.email || fallbackEmail,
       role: metadata.role || fallbackRole || 'Coach principal',
+      accountType: appMetadata.account_type || '',
     },
   }
 }
