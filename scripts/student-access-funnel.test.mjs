@@ -79,7 +79,7 @@ test('frontend oferece ativacao depois do login e atualiza o portal automaticame
 })
 
 test('isencao do CoachFit nunca ignora pendencia com o profissional', async () => {
-  const sql = await readFile(new URL('../SUPABASE/migrations/20260930194500_fix_student_financial_access.sql', import.meta.url), 'utf8')
+  const sql = await readFile(new URL('../SUPABASE/migrations/20260930222539_fix_student_financial_access.sql', import.meta.url), 'utf8')
 
   assert.match(sql, /students\.payment = 'Pago'[\s\S]*?not public\.coachfit_professional_requires_app_payment/i)
   assert.match(sql, /students\.next_due_date is null or students\.next_due_date >= current_date/i)
