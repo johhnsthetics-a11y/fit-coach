@@ -87,6 +87,7 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const AFFILIATE_ACCESS_REFRESH_MS = 10 * 1000
+const OFFICIAL_APP_LOGIN_URL = 'https://app.coachfitpro.com.br/login?mode=signin'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
 const LEAD_EVENTS_KEY = 'coachfitpro-lead-events'
@@ -3637,7 +3638,7 @@ function AppContent() {
     )
   }
 
-  if (studentAuthSession) {
+  if (studentAuthSession && !studentAccess) {
     if (remoteError) {
       return (
         <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
@@ -4342,7 +4343,7 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
         <div className="flex justify-center"><BrandLockup subtitle="Coach Fit Pro" /></div>
         <p className="mt-6 text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Primeiro acesso do {profileLabel}</p>
         <h1 className="mt-2 text-2xl font-black text-white">Crie sua senha pessoal</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Use uma senha só sua. Depois desta etapa, você seguirá para a ativação do seu acesso ao CoachFit.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">Use uma senha só sua. Depois desta etapa, seu acompanhamento será carregado automaticamente.</p>
         <label className="mt-5 grid gap-2 text-sm font-bold text-zinc-300">
           E-mail
           <input value={email || ''} readOnly className="min-h-11 rounded-md border border-white/10 bg-white/[0.04] px-3 text-zinc-400 outline-none" />
@@ -6685,7 +6686,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const [credentialsSaving, setCredentialsSaving] = useState(false)
   const [credentialsMessage, setCredentialsMessage] = useState('')
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
-  const appLoginUrl = typeof window !== 'undefined' ? `${window.location.origin}/login?mode=signin` : '/login?mode=signin'
+  const appLoginUrl = OFFICIAL_APP_LOGIN_URL
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
   const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
@@ -6713,15 +6714,16 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
 
   function getCredentialShareText() {
     if (!generatedCredentials) return ''
+    const passwordForWhatsApp = '```' + generatedCredentials.temporaryPassword + '```'
     return [
       `Seu acesso ao CoachFit está pronto como ${clientLabel}.`,
       `Aplicativo: ${appLoginUrl}`,
       `E-mail: ${generatedCredentials.email}`,
-      `Senha temporária: ${generatedCredentials.temporaryPassword}`,
+      `Senha temporária:\n${passwordForWhatsApp}`,
       `Entre no aplicativo e troque sua senha no primeiro acesso.`,
       professionalAffiliate
         ? 'Depois, ative o CoachFit por R$ 25 por mês para liberar as ferramentas.'
-        : 'Depois de trocar sua senha, o acesso às ferramentas estará liberado.',
+        : 'Depois de trocar sua senha, seu acompanhamento estará pronto para uso.',
     ].join('\n')
   }
 
@@ -6733,6 +6735,16 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       setCredentialsMessage('Acesso copiado. Envie em uma conversa privada.')
     } catch {
       setCredentialsMessage('Selecione e copie os dados exibidos.')
+    }
+  }
+
+  async function copyTemporaryPassword() {
+    if (!generatedCredentials?.temporaryPassword) return
+    try {
+      await navigator.clipboard.writeText(generatedCredentials.temporaryPassword)
+      setCredentialsMessage('Senha temporária copiada.')
+    } catch {
+      setCredentialsMessage('Selecione a senha exibida e copie manualmente.')
     }
   }
 
@@ -6807,7 +6819,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <p className="mt-2 text-sm leading-6 text-zinc-200">
                 {professionalAffiliate
                   ? `Gere o login e envie ao ${clientLabel}. Depois do primeiro acesso, o aplicativo solicitará a ativação de R$ 25 por mês antes de liberar as ferramentas.`
-                  : `Gere o login e envie ao ${clientLabel}. Como seu cadastro não participa do programa de afiliados, não haverá cobrança do aplicativo e as ferramentas serão liberadas após a troca da senha.`}
+                  : `Gere o login e envie ao ${clientLabel}. Após trocar a senha temporária, o acompanhamento estará pronto para uso.`}
               </p>
               <button
                 type="button"
@@ -6857,14 +6869,26 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       </div>
       {generatedCredentials ? createPortal(
         <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
-          <div className="w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 shadow-2xl">
+          <div className="credential-access-modal w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 text-zinc-100 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Acesso gerado</p>
             <h3 className="mt-2 text-xl font-black text-white">Envie estes dados uma única vez</h3>
             <p className="mt-2 text-sm leading-6 text-zinc-400">A senha temporária não fica salva nesta tela. O {clientLabel} deverá trocar sua senha no primeiro acesso.</p>
             <div className="mt-4 grid gap-3">
-              <Info label="Link do aplicativo" value={appLoginUrl} />
-              <Info label="E-mail" value={generatedCredentials.email} />
-              <Info label="Senha temporária" value={generatedCredentials.temporaryPassword} />
+              <div className="credential-access-item rounded-md border border-white/10 bg-white/[0.03] p-4">
+                <p className="credential-access-label text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Link do aplicativo</p>
+                <p className="credential-access-value mt-2 break-all text-sm font-black text-zinc-100">{appLoginUrl}</p>
+              </div>
+              <div className="credential-access-item rounded-md border border-white/10 bg-white/[0.03] p-4">
+                <p className="credential-access-label text-xs font-black uppercase tracking-[0.12em] text-zinc-500">E-mail</p>
+                <p className="credential-access-value mt-2 break-all text-sm font-black text-zinc-100">{generatedCredentials.email}</p>
+              </div>
+              <div className="credential-access-item rounded-md border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="credential-access-label text-xs font-black uppercase tracking-[0.12em] text-zinc-500">Senha temporária</p>
+                  <button type="button" onClick={copyTemporaryPassword} className="credential-access-copy rounded-md border border-emerald-300/30 px-2.5 py-1.5 text-xs font-black text-emerald-200">Copiar senha</button>
+                </div>
+                <p className="credential-access-value mt-2 break-all font-mono text-base font-black text-zinc-100">{generatedCredentials.temporaryPassword}</p>
+              </div>
             </div>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <button type="button" onClick={copyCredentials} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950">Copiar acesso</button>

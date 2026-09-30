@@ -15128,3 +15128,27 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: rgb(var(--nav-tone, 0 210 178) / 0.4) !important;
   background: rgb(var(--nav-tone, 0 210 178) / 0.11) !important;
 }
+/* One-time credentials are rendered in a portal and must keep their dark contrast in every theme. */
+.credential-access-modal {
+  color: #f4f4f5;
+}
+
+.credential-access-modal .credential-access-item {
+  border-color: rgb(255 255 255 / 0.1) !important;
+  background: rgb(255 255 255 / 0.035) !important;
+}
+
+.credential-access-modal .credential-access-label {
+  color: #a1a1aa !important;
+  -webkit-text-fill-color: #a1a1aa;
+}
+
+.credential-access-modal .credential-access-value {
+  color: #fafafa !important;
+  -webkit-text-fill-color: #fafafa;
+}
+
+.credential-access-modal .credential-access-copy {
+  color: #a7f3d0 !important;
+  -webkit-text-fill-color: #a7f3d0;
+}

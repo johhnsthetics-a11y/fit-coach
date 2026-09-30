@@ -100,10 +100,26 @@ test('credential sharing copy adapts to student and patient', async () => {
   const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   assert.match(source, /nutritionist \? 'paciente' : 'aluno'/)
   assert.match(source, /Senha temporária/)
+  assert.match(source, /'```' \+ generatedCredentials\.temporaryPassword \+ '```'/)
   assert.match(source, /troque sua senha/i)
   assert.match(source, /professionalAffiliate/)
   assert.match(source, /R\$ 25 por mês/)
-  assert.match(source, /acesso às ferramentas estará liberado/i)
+  assert.doesNotMatch(source, /não participa do programa de afiliados/i)
+})
+
+test('generated access always points to the official application domain', async () => {
+  const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(source, /https:\/\/app\.coachfitpro\.com\.br\/login\?mode=signin/)
+  assert.doesNotMatch(source, /window\.location\.origin\}\/login\?mode=signin/)
+})
+
+test('credential modal keeps readable values and offers direct password copy', async () => {
+  const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const styles = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  assert.match(source, /credential-access-modal/)
+  assert.match(source, /copyTemporaryPassword/)
+  assert.match(source, />Copiar senha</)
+  assert.match(styles, /\.credential-access-modal \.credential-access-value[\s\S]*color:\s*#fafafa\s*!important/)
 })
 
 test('professional screen exposes one access generator and never creates checkout links', async () => {
@@ -166,6 +182,7 @@ test('first student login requires matching personal password before portal', as
   assert.match(app, /password !== confirmation/)
   assert.match(app, /Criar minha senha/)
   assert.match(app, /setStudentFirstAccess\(null\)/)
+  assert.match(app, /if \(studentAuthSession && !studentAccess\)/)
 })
 
 test('authenticated student keeps existing server-side payment lock and clears session on exit', async () => {
