@@ -4,10 +4,13 @@ import test from 'node:test'
 
 test('recuperacao de senha fica disponivel no login e usa mensagem neutra', async () => {
   const main = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const flow = await readFile(new URL('../src/PasswordRecoveryFlow.jsx', import.meta.url), 'utf8')
 
   assert.match(main, /PasswordRecoveryFlow/)
-  assert.match(flow, /Esqueci minha senha/)
+  assert.match(app, /Esqueci minha senha/)
+  assert.doesNotMatch(flow, /Esqueci minha senha/)
+  assert.doesNotMatch(flow, /fixed bottom-/)
   assert.match(flow, /Se existir uma conta vinculada a este e-mail/)
   assert.match(flow, /Informe um e-mail válido/)
   assert.match(flow, /mode === 'forgot-password'/)

@@ -24,15 +24,6 @@ function getRouteState() {
   }
 }
 
-function replaceMode(mode) {
-  const url = new URL(window.location.href)
-  url.hash = ''
-  if (mode) url.searchParams.set('mode', mode)
-  else url.searchParams.delete('mode')
-  window.history.replaceState({}, '', url)
-  window.dispatchEvent(new PopStateEvent('popstate'))
-}
-
 function goToSignIn() {
   const url = new URL(window.location.href)
   url.hash = ''
@@ -147,13 +138,6 @@ export default function PasswordRecoveryFlow() {
     window.history.replaceState({}, '', cleanUrl)
     setRoute(getRouteState())
   }, [])
-
-  const openForgotPassword = () => {
-    setError('')
-    setMessage('')
-    setDone(false)
-    replaceMode('forgot-password')
-  }
 
   const requestReset = async (event) => {
     event.preventDefault()
@@ -306,16 +290,5 @@ export default function PasswordRecoveryFlow() {
     )
   }
 
-  if (route.mode && route.mode !== 'signin') return null
-
-  return (
-    <button
-      type="button"
-      onClick={openForgotPassword}
-      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[9999] rounded-full border border-zinc-200 bg-white/95 px-4 py-2.5 text-sm font-bold text-zinc-700 shadow-lg backdrop-blur transition hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-200 dark:hover:border-emerald-700 dark:hover:text-emerald-300 sm:right-6"
-      aria-label="Recuperar senha"
-    >
-      Esqueci minha senha
-    </button>
-  )
+  return null
 }
