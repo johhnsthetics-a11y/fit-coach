@@ -68,3 +68,17 @@ test('storage valida convite ativo sem reabrir a tabela de convites ao anonimo',
   assert.match(migration, /to anon, authenticated[\s\S]*private\.coachfit_valid_student_checkin_photo_path\(storage\.objects\.name\)/i)
   assert.doesNotMatch(migration, /create policy[\s\S]*on public\.student_invites[\s\S]*to anon/i)
 })
+
+test('gerenciamento salva com o treinador autenticado e permissao minima', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const saveFlow = app.match(/async function saveCoachSettings\(settings\)[\s\S]*?\n  }/)?.[0] || ''
+  const migration = await readFile(new URL('../supabase/migrations/20260930183000_fix_coach_settings_management_rls.sql', import.meta.url), 'utf8').catch(() => '')
+
+  assert.match(saveFlow, /coachId:\s*activeCoachId/)
+  assert.match(saveFlow, /saveRemoteCoachSettings\(settings,\s*activeCoachId\)/)
+  assert.match(migration, /alter table public\.coach_settings enable row level security/i)
+  assert.match(migration, /grant select, insert, update on table public\.coach_settings to authenticated/i)
+  assert.match(migration, /for insert[\s\S]*to authenticated[\s\S]*with check \(\(select auth\.uid\(\)\) = coach_id\)/i)
+  assert.match(migration, /for update[\s\S]*to authenticated[\s\S]*using \(\(select auth\.uid\(\)\) = coach_id\)[\s\S]*with check \(\(select auth\.uid\(\)\) = coach_id\)/i)
+  assert.doesNotMatch(migration, /grant (insert|update|delete)[^;]* to anon/i)
+})

@@ -3126,11 +3126,11 @@ function AppContent() {
   }
 
   async function saveCoachSettings(settings) {
-    let savedSettings = { ...settings, coachId: data.user?.id }
+    let savedSettings = { ...settings, coachId: activeCoachId }
 
     if (supabaseEnabled) {
       try {
-        savedSettings = await saveRemoteCoachSettings(settings, data.user?.id)
+        savedSettings = await saveRemoteCoachSettings(settings, activeCoachId)
         setRemoteStatus('Gerenciamento salvo')
         setRemoteError('')
       } catch (error) {
@@ -9148,7 +9148,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             ))}
           </div>
 
-          <div className={`mobile-workout-creator-workspace ${creatorStep === 'exercises' || creatorStep === 'review' ? 'has-student-preview' : ''}`}>
+          <div className="mobile-workout-creator-workspace">
           <div className="mobile-workout-creator-main">
 
           {creatorStep === 'info' ? (
@@ -9304,6 +9304,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   applyExercisePreset={applyExercisePreset}
                   updateDraftExerciseVideoFile={updateDraftExerciseVideoFile}
                   openExercisePicker={openExercisePicker}
+                  library={availableExerciseLibrary}
                   theme={uiTheme}
                   onBack={() => {
                     setActiveDayIndex(null)
@@ -9347,16 +9348,6 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             <button type="button" disabled={saving} onClick={continueCreatorFlow}>{getCreatorPrimaryLabel()}</button>
           </div>
           </div>
-          {(creatorStep === 'exercises' || creatorStep === 'review') && draft.days.length ? (
-            <WorkoutStudentLivePreview
-              key={`${draft.days[activeDayIndex ?? 0]?.id || 'preview'}-${creatorStep}`}
-              student={students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || students[0]}
-              workout={draft}
-              dayIndex={activeDayIndex ?? 0}
-              library={availableExerciseLibrary}
-              theme={uiTheme}
-            />
-          ) : null}
           </div>
         </div>
       ) : null}
@@ -9615,7 +9606,6 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
           return (
             <article key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-view ${isOpen ? 'is-open' : ''}`}>
               <button type="button" className="mobile-workout-exercise-accordion" onClick={() => setExpandedExerciseKey(isOpen ? '' : key)}>
-                <ExerciseThumbnail exercise={exercise} compact />
                 <span>
                   <strong>{exercise.name}</strong>
                   <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
@@ -9659,6 +9649,7 @@ function MobileWorkoutEditableDay({
   applyExercisePreset,
   updateDraftExerciseVideoFile,
   openExercisePicker,
+  library = exerciseLibrary,
   theme = DEFAULT_UI_THEME,
   onBack,
   onEditDay,
@@ -9702,7 +9693,6 @@ function MobileWorkoutEditableDay({
               className="mobile-workout-exercise-accordion"
               onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
             >
-              <ExerciseThumbnail exercise={exercise} compact />
               <span>
                 <strong>{exercise.name || 'Novo exercício'}</strong>
                 <small>{exercise.sets || '-'} × {exercise.reps || '-'} · {exercise.rest || 'descanso livre'}</small>
@@ -9764,7 +9754,15 @@ function MobileWorkoutEditableDay({
             <div><p>Visão fiel do aluno</p><strong>{day?.day || `Dia ${dayIndex + 1}`}</strong></div>
             <button type="button" onClick={() => setStudentPreviewOpen(false)}>Fechar</button>
           </div>
-          <StudentWorkoutExecution student={student} workout={workout} dayIndex={dayIndex} preview />
+          <div className={`mobile-workout-day-preview-student-shell student-mobile-shell app-theme-${theme}`}>
+            <StudentWorkoutExecution
+              student={student}
+              workout={workout}
+              exerciseLibraryItems={library}
+              dayIndex={dayIndex}
+              preview
+            />
+          </div>
         </div>
       </div>
     ), document.body) : null}
@@ -10886,7 +10884,6 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
           <div key={index} className="workout-exercise-card min-w-0 rounded-3xl border border-white/10 bg-white/[0.04] p-4 transition duration-200 hover:border-emerald-300/30 hover:bg-white/[0.055] hover:shadow-lg hover:shadow-emerald-950/10">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="workout-exercise-card-summary min-w-0">
-                <ExerciseThumbnail exercise={exercise} compact />
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
                   <h4 className="mt-1 truncate text-lg font-black text-white">{exercise.name || 'Novo exercício'}</h4>

@@ -18,7 +18,6 @@ let getExerciseLibrary
 let getExercisePickerResults
 let getStudentWorkoutExercises
 let buildWorkoutStudentPreviewState
-let WorkoutStudentLivePreview
 let StudentWorkoutExecution
 let StudentMobileApp
 let getExerciseFallbackImage
@@ -37,7 +36,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, WorkoutStudentLivePreview, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 test('XP acumulado preserva meses anteriores e ignora duplicatas e outros pacientes', () => {
@@ -256,52 +255,31 @@ test('prévia fiel do aluno inicia no exercício ativo com séries registráveis
   ])
 })
 
-test('prévia ao vivo renderiza a experiência interativa do aluno', () => {
-  const html = renderToString(React.createElement(WorkoutStudentLivePreview, {
-    student,
-    theme: 'light',
-    workout: {
-      title: 'Treino A',
-      days: [{
-        day: 'Segunda-feira',
-        focus: 'Peito e tríceps',
-        exercises: [{ name: 'Supino reto', sets: '4', reps: '8-12', load: '60 kg', rest: '90s' }],
-      }],
-    },
-    dayIndex: 0,
-  }))
-
-  assert.match(html, /Visão do aluno/)
-  assert.match(html, /Prévia ao vivo/)
-  assert.match(html, /Supino reto/)
-  assert.match(html, /Concluir série/)
-  assert.match(html, /Carga \(kg\)/)
-  assert.match(html, /Repetições/)
-  assert.match(html, /mobile-workout-live-preview-device student-mobile-shell app-theme-light/)
-  assert.doesNotMatch(html, /is-compact/)
-})
-
-test('montagem desktop mantém prévia fiel, seletor contextual e catálogo sem ícones provisórios', async () => {
+test('montagem mantém seletor contextual, remove prévia lateral e não mostra miniaturas provisórias', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const managerSource = appSource.match(/function MobileWorkoutManager[\s\S]*?\r?\n}\r?\n\r?\nfunction createExerciseDraft/)?.[0] || ''
-  const livePreviewSource = appSource.match(/export function WorkoutStudentLivePreview[\s\S]*?\r?\n}\r?\n\r?\nfunction MobileWorkoutDayScreen/)?.[0] || ''
+  const editableDaySource = appSource.match(/function MobileWorkoutEditableDay[\s\S]*?\r?\n}\r?\n\r?\nfunction createMobileWorkoutDraft/)?.[0] || ''
+  const dayScreenSource = appSource.match(/function MobileWorkoutDayScreen[\s\S]*?\r?\n}\r?\n\r?\nfunction MobileWorkoutEditableDay/)?.[0] || ''
 
   assert.match(managerSource, /mobile-workout-student-picker/)
   assert.match(managerSource, /Aluno do treino/)
   assert.match(managerSource, /selectedDraftStudent/)
-  assert.match(managerSource, /theme=\{uiTheme\}/)
+  assert.doesNotMatch(managerSource, /<WorkoutStudentLivePreview/)
+  assert.doesNotMatch(managerSource, /has-student-preview/)
   assert.doesNotMatch(managerSource, /mobile-workout-picker-card-v2[^]{0,500}<ExerciseThumbnail/)
-  assert.match(livePreviewSource, /student-mobile-shell app-theme-\$\{theme\}/)
-  assert.doesNotMatch(livePreviewSource, /compact\s*\/>/)
+  assert.doesNotMatch(editableDaySource, /<ExerciseThumbnail/)
+  assert.doesNotMatch(dayScreenSource, /<ExerciseThumbnail/)
 })
 
-test('layout do construtor usa coluna estável e responsividade própria da prévia', async () => {
+test('prévia única usa em tempo real o mesmo executor, tema e biblioteca do aluno', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const editableDaySource = appSource.match(/function MobileWorkoutEditableDay[\s\S]*?\r?\n}\r?\n\r?\nfunction createMobileWorkoutDraft/)?.[0] || ''
 
-  assert.match(cssSource, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(390px,\s*430px\)/)
-  assert.match(cssSource, /container-name:\s*workout-student-preview/)
-  assert.match(cssSource, /@container workout-student-preview\s*\(max-width:\s*430px\)/)
-  assert.match(cssSource, /\.mobile-workout-student-picker/)
+  assert.match(editableDaySource, /student-mobile-shell app-theme-\$\{theme\}/)
+  assert.match(editableDaySource, /<StudentWorkoutExecution[\s\S]*workout=\{workout\}[\s\S]*exerciseLibraryItems=\{library\}[\s\S]*preview/)
+  assert.match(cssSource, /\.mobile-workout-day-preview-portal\.app-theme-light \.mobile-workout-day-preview-head-v2\s*\{[\s\S]*background:\s*#(?:f[0-9a-f]{5}|fff(?:fff)?)/i)
+  assert.doesNotMatch(cssSource, /\.mobile-workout-day-preview-portal\.app-theme-light \.mobile-workout-day-preview-head-v2\s*\{[^}]*background:\s*rgba\(7,\s*17,\s*15/i)
 })
 
 test('treinador e aluno compartilham a experiência completa de execução', () => {
