@@ -11,7 +11,6 @@ import {
   archiveRemoteNutritionPlan,
   archiveRemoteWorkout,
   createRemoteStudentInvite,
-  createRemoteStudentCheckoutSession,
   createRemoteStudentCheckoutSessionByInvite,
   completeRemoteStudentFirstPassword,
   generateRemoteStudentCredentials,
@@ -74,7 +73,7 @@ import {
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl, resolveStudentPaymentLockState } from './studentPayment'
-import { addBillingCycle, buildStudentAccessUrl, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
+import { addBillingCycle, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
 import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
 import { ChatConversation } from './chat/ChatConversation'
@@ -2559,25 +2558,6 @@ function AppContent() {
     return { student: savedStudent, invite: createdInvite }
   }
 
-  async function generateStudentInvite(studentId) {
-    try {
-      const createdInvite = await createRemoteStudentInvite(studentId, activeCoachId)
-      setData((current) => ({
-        ...current,
-        invites: [
-          createdInvite,
-          ...(current.invites ?? []).filter((invite) => String(invite.studentId) !== String(studentId)),
-        ],
-      }))
-      setRemoteStatus('Código do aluno gerado')
-      setRemoteError('')
-      return createdInvite
-    } catch (error) {
-      handleRemoteError(error, 'Erro ao gerar código do aluno')
-      throw error
-    }
-  }
-
   async function deleteStudent(studentId) {
     if (supabaseEnabled) {
       try {
@@ -2666,19 +2646,6 @@ function AppContent() {
       ],
     }))
     return true
-  }
-
-  async function createStudentCheckout(studentId) {
-    if (!supabaseEnabled) throw new Error('Conecte o Supabase para gerar um link de pagamento seguro.')
-    try {
-      const session = await createRemoteStudentCheckoutSession(studentId)
-      setRemoteStatus('Link de pagamento protegido criado')
-      setRemoteError('')
-      return session
-    } catch (error) {
-      handleRemoteError(error, 'Erro ao gerar link de pagamento')
-      throw error
-    }
   }
 
   async function markNotificationsRead() {
@@ -4074,17 +4041,15 @@ function AppContent() {
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 students={data.students}
                 workoutLogs={data.workoutLogs ?? []}
-                invites={data.invites ?? []}
                 anamneses={data.anamneses ?? []}
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentIdSafely}
                 onSave={saveStudent}
                 onSaveCoachPlan={saveCoachPlan}
-                onGenerateInvite={generateStudentInvite}
                 onGenerateCredentials={generateStudentCredentials}
-                onCreateStudentCheckout={createStudentCheckout}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
+                professionalAffiliate={professionalAffiliate}
               />
             )}
             {activeView === 'avaliacoes' && (
@@ -6712,46 +6677,21 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onGenerateCredentials, onCreateStudentCheckout, onDelete, coachPlans = plans }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onDelete, coachPlans = plans, professionalAffiliate = false }) {
   const [editing, setEditing] = useState(null)
-  const [savedInvite, setSavedInvite] = useState(null)
-  const [generatingCode, setGeneratingCode] = useState(false)
-  const [inviteError, setInviteError] = useState('')
   const [deleting, setDeleting] = useState(false)
-  const [releaseDays, setReleaseDays] = useState('3')
-  const [accessSaving, setAccessSaving] = useState(false)
-  const [accessMessage, setAccessMessage] = useState('')
   const [accessError, setAccessError] = useState('')
-  const [checkoutLink, setCheckoutLink] = useState('')
-  const [checkoutSaving, setCheckoutSaving] = useState(false)
-  const [checkoutMessage, setCheckoutMessage] = useState('')
   const [generatedCredentials, setGeneratedCredentials] = useState(null)
   const [credentialsSaving, setCredentialsSaving] = useState(false)
   const [credentialsMessage, setCredentialsMessage] = useState('')
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
-  const studentCheckoutBaseUrl = resolveAudienceCheckoutUrl({
-    nutritionist,
-    studentUrl: import.meta.env.VITE_FITCOACH_STUDENT_CHECKOUT_URL,
-    patientUrl: import.meta.env.VITE_FITCOACH_PATIENT_CHECKOUT_URL,
-  })
-  const inviteIsUsable = (invite) => invite
-    && invite.status === 'active'
-    && (!invite.expiresAt || Date.parse(invite.expiresAt) > Date.now())
-  const selectedInvite = savedInvite?.studentId === selectedStudent?.id && inviteIsUsable(savedInvite)
-    ? savedInvite
-    : invites.find((invite) => String(invite.studentId) === String(selectedStudent?.id) && inviteIsUsable(invite))
-  const selectedAccessLink = selectedInvite && typeof window !== 'undefined'
-    ? buildStudentAccessUrl(`${window.location.origin}${window.location.pathname}`, selectedInvite.code)
-    : ''
+  const appLoginUrl = typeof window !== 'undefined' ? `${window.location.origin}/login?mode=signin` : '/login?mode=signin'
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
   const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
   useEffect(() => {
-    setAccessMessage('')
     setAccessError('')
-    setCheckoutLink('')
-    setCheckoutMessage('')
     setGeneratedCredentials(null)
     setCredentialsMessage('')
   }, [selectedStudent?.id])
@@ -6775,9 +6715,13 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     if (!generatedCredentials) return ''
     return [
       `Seu acesso ao CoachFit está pronto como ${clientLabel}.`,
+      `Aplicativo: ${appLoginUrl}`,
       `E-mail: ${generatedCredentials.email}`,
       `Senha temporária: ${generatedCredentials.temporaryPassword}`,
-      `Entre em ${window.location.origin}/login e troque sua senha no primeiro acesso.`,
+      `Entre no aplicativo e troque sua senha no primeiro acesso.`,
+      professionalAffiliate
+        ? 'Depois, ative o CoachFit por R$ 25 por mês para liberar as ferramentas.'
+        : 'Depois de trocar sua senha, o acesso às ferramentas estará liberado.',
     ].join('\n')
   }
 
@@ -6789,81 +6733,6 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       setCredentialsMessage('Acesso copiado. Envie em uma conversa privada.')
     } catch {
       setCredentialsMessage('Selecione e copie os dados exibidos.')
-    }
-  }
-
-  async function generateStudentPaymentLink() {
-    if (!selectedStudent) return
-    if (!studentCheckoutBaseUrl) {
-      setAccessError('O checkout do aluno ainda não foi configurado. Envie o link oficial da Cartpanda para concluir esta ativação.')
-      return
-    }
-
-    setCheckoutSaving(true)
-    setAccessError('')
-    setCheckoutMessage('')
-    try {
-      const session = await onCreateStudentCheckout(selectedStudent.id)
-      const link = buildStudentCheckoutUrl(studentCheckoutBaseUrl, session?.checkoutToken)
-      if (!link) throw new Error('O link-base da Cartpanda não é válido ou seguro.')
-      setCheckoutLink(link)
-      setCheckoutMessage(`Link individual criado para ${selectedStudent.name}.`)
-    } catch (error) {
-      setAccessError(error?.message || 'Não foi possível gerar o link de pagamento.')
-    } finally {
-      setCheckoutSaving(false)
-    }
-  }
-
-  async function copyStudentPaymentLink() {
-    if (!checkoutLink) return
-    try {
-      await navigator.clipboard.writeText(checkoutLink)
-      setCheckoutMessage('Link copiado. Envie somente para este aluno/paciente.')
-    } catch {
-      setCheckoutMessage('Selecione e copie o link exibido abaixo.')
-    }
-  }
-
-  async function copyStudentAccessLink() {
-    if (!selectedAccessLink) return
-    try {
-      await navigator.clipboard.writeText(selectedAccessLink)
-      setCheckoutMessage(`Link de acesso de ${selectedStudent?.name || 'aluno'} copiado.`)
-    } catch {
-      setCheckoutMessage('Selecione e copie o link de acesso exibido abaixo.')
-    }
-  }
-
-  async function releaseTemporaryAccess(days = 3) {
-    if (!selectedStudent) return
-    const safeDays = Math.max(1, Math.min(90, Number(days) || 1))
-    const until = new Date(Date.now() + safeDays * 24 * 60 * 60 * 1000).toISOString()
-    setAccessSaving(true)
-    setAccessMessage('')
-    setAccessError('')
-    try {
-      await onSave({ ...selectedStudent, accessOverrideUntil: until })
-      setAccessMessage(`Acesso liberado até ${formatFullDateTime(until)}.`)
-    } catch (error) {
-      setAccessError(error?.message || 'Não foi possível liberar o acesso do aluno.')
-    } finally {
-      setAccessSaving(false)
-    }
-  }
-
-  async function removeTemporaryAccess() {
-    if (!selectedStudent) return
-    setAccessSaving(true)
-    setAccessMessage('')
-    setAccessError('')
-    try {
-      await onSave({ ...selectedStudent, accessOverrideUntil: '' })
-      setAccessMessage('Liberação temporária removida.')
-    } catch (error) {
-      setAccessError(error?.message || 'Não foi possível remover a liberação.')
-    } finally {
-      setAccessSaving(false)
     }
   }
 
@@ -6912,8 +6781,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
             onSaveCoachPlan={onSaveCoachPlan}
             onCancel={() => setEditing(null)}
             onSave={async (student) => {
-              const result = await onSave(student)
-              if (result?.invite) setSavedInvite(result.invite)
+              await onSave(student)
               setEditing(null)
             }}
           />
@@ -6934,99 +6802,24 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
               <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
             </div>
-            <div className="mt-5 rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
-              <p className="text-xs font-black uppercase text-amber-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
+            <div className="mt-5 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
+              <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
               <p className="mt-2 text-sm leading-6 text-zinc-200">
-                O portal libera treino, dieta e progresso quando a assinatura Cartpanda e a mensalidade do profissional estão em dia. Você pode liberar temporariamente em casos de exceção.
+                {professionalAffiliate
+                  ? `Gere o login e envie ao ${clientLabel}. Depois do primeiro acesso, o aplicativo solicitará a ativação de R$ 25 por mês antes de liberar as ferramentas.`
+                  : `Gere o login e envie ao ${clientLabel}. Como seu cadastro não participa do programa de afiliados, não haverá cobrança do aplicativo e as ferramentas serão liberadas após a troca da senha.`}
               </p>
-              <div className="mt-4 rounded-md border border-emerald-300/25 bg-black/20 p-4">
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Login do {clientLabel}</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Gere e envie o e-mail com a senha temporária. No primeiro acesso, o {clientLabel} cria uma senha pessoal antes de continuar para a ativação do CoachFit.
-                </p>
-                <button
-                  type="button"
-                  disabled={credentialsSaving || !selectedStudent?.email || Boolean(selectedStudent?.authUserId && !selectedStudent?.mustChangePassword)}
-                  onClick={generateCredentials}
-                  className="mt-3 min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {credentialsSaving ? 'Gerando...' : selectedStudent?.mustChangePassword ? 'Gerar nova senha temporária' : 'Gerar dados de acesso'}
-                </button>
-                {!selectedStudent?.email ? <p className="mt-2 text-xs font-bold text-amber-100">Cadastre um e-mail válido antes de gerar o acesso.</p> : null}
-                {selectedStudent?.authUserId && !selectedStudent?.mustChangePassword ? <p className="mt-2 text-xs text-zinc-400">Acesso já ativado. Para trocar a senha, use “Esqueci minha senha” no login.</p> : null}
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
-                  Dias de liberação
-                  <input
-                    type="number"
-                    min="1"
-                    max="90"
-                    value={releaseDays}
-                    onChange={(event) => setReleaseDays(event.target.value)}
-                    className="min-h-10 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-sm normal-case text-zinc-100 outline-none focus:border-amber-300"
-                  />
-                </label>
-                <button type="button" disabled={accessSaving} onClick={() => releaseTemporaryAccess(releaseDays)} className="rounded-md bg-amber-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-                  {accessSaving ? 'Salvando...' : 'Liberar acesso'}
-                </button>
-                <button type="button" disabled={accessSaving} onClick={removeTemporaryAccess} className="rounded-md border border-rose-300/30 px-3 py-2 text-xs font-black text-rose-100 disabled:cursor-wait disabled:opacity-60">Remover liberação</button>
-              </div>
-              <div className="mt-4 border-t border-amber-200/15 pt-4">
-                <p className="text-xs font-black uppercase text-amber-100">Pagamento automático pela Cartpanda</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Gere um link exclusivo para a assinatura do Coach Fit Pro. A Cartpanda confirma esta etapa automaticamente; a mensalidade do profissional continua sendo controlada separadamente em Recebimentos.
-                </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <button type="button" disabled={checkoutSaving || !studentCheckoutBaseUrl} onClick={generateStudentPaymentLink} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50">
-                    {checkoutSaving ? 'Gerando...' : 'Gerar link de pagamento'}
-                  </button>
-                  {checkoutLink ? <button type="button" onClick={copyStudentPaymentLink} className="min-h-11 rounded-md border border-emerald-200/30 px-4 py-2 text-xs font-black text-emerald-100">Copiar link</button> : null}
-                </div>
-                {!studentCheckoutBaseUrl ? <p className="mt-2 text-xs leading-5 text-amber-100">Aguardando o link oficial do checkout do aluno para ativar esta ação.</p> : null}
-                {checkoutLink ? <a href={checkoutLink} target="_blank" rel="noreferrer" className="mt-3 block break-all rounded-md border border-white/10 bg-black/25 p-3 text-xs font-bold text-emerald-100">{checkoutLink}</a> : null}
-                {checkoutMessage ? <p className="mt-2 text-xs font-bold text-emerald-100">{checkoutMessage}</p> : null}
-              </div>
-              {accessMessage ? <p className="mt-3 rounded-md border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{accessMessage}</p> : null}
+              <button
+                type="button"
+                disabled={credentialsSaving || !selectedStudent?.email || Boolean(selectedStudent?.authUserId && !selectedStudent?.mustChangePassword)}
+                onClick={generateCredentials}
+                className="mt-4 min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {credentialsSaving ? 'Gerando...' : selectedStudent?.mustChangePassword ? 'Gerar nova senha temporária' : 'Gerar acesso'}
+              </button>
+              {!selectedStudent?.email ? <p className="mt-2 text-xs font-bold text-amber-100">Cadastre um e-mail válido antes de gerar o acesso.</p> : null}
+              {selectedStudent?.authUserId && !selectedStudent?.mustChangePassword ? <p className="mt-2 text-xs text-zinc-400">Acesso já ativado. Para trocar a senha, use “Esqueci minha senha” no login.</p> : null}
               {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
-            </div>
-            <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
-              {selectedInvite ? (
-                <>
-                  <p className="mt-2 text-sm leading-6 text-zinc-300">Envie o link individual abaixo. Ele reconhece automaticamente o cadastro e o profissional responsável, sem pedir código manual.</p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <button type="button" onClick={copyStudentAccessLink} className="min-h-11 rounded-md bg-blue-400 px-4 py-2 text-sm font-black text-zinc-950">Copiar link de acesso</button>
-                    <a href={selectedAccessLink} target="_blank" rel="noreferrer" className="grid min-h-11 place-items-center rounded-md border border-blue-200/30 px-4 py-2 text-sm font-black text-blue-100">Abrir link</a>
-                  </div>
-                  <p className="mt-3 break-all rounded-md border border-white/10 bg-black/25 p-3 text-xs font-bold text-blue-100">{selectedAccessLink}</p>
-                  <p className="mt-2 text-xs text-zinc-500">Código de recuperação: <span className="select-all font-bold text-zinc-300">{selectedInvite.code}</span></p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-2 text-sm text-amber-200">Código ainda não disponível.</p>
-                  <button
-                    type="button"
-                    disabled={generatingCode}
-                    onClick={async () => {
-                      setGeneratingCode(true)
-                      setInviteError('')
-                      try {
-                        const invite = await onGenerateInvite(selectedStudent.id)
-                        setSavedInvite(invite)
-                      } catch (error) {
-                        setInviteError(error.message)
-                      } finally {
-                        setGeneratingCode(false)
-                      }
-                    }}
-                    className="mt-3 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60"
-                  >
-                    {generatingCode ? 'Gerando código...' : 'Gerar código agora'}
-                  </button>
-                  {inviteError ? <p className="mt-2 text-sm text-red-200">{inviteError}</p> : null}
-                </>
-              )}
             </div>
             <div className="mt-5">
               <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} />
@@ -7042,12 +6835,11 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                   const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
                   if (!confirmed) return
                   setDeleting(true)
-                  setInviteError('')
+                  setAccessError('')
                   try {
                     await onDelete(selectedStudent.id)
-                    setSavedInvite(null)
                   } catch (error) {
-                    setInviteError(error?.message || 'Não foi possível excluir o aluno.')
+                    setAccessError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
                   } finally {
                     setDeleting(false)
                   }
@@ -7070,6 +6862,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
             <h3 className="mt-2 text-xl font-black text-white">Envie estes dados uma única vez</h3>
             <p className="mt-2 text-sm leading-6 text-zinc-400">A senha temporária não fica salva nesta tela. O {clientLabel} deverá trocar sua senha no primeiro acesso.</p>
             <div className="mt-4 grid gap-3">
+              <Info label="Link do aplicativo" value={appLoginUrl} />
               <Info label="E-mail" value={generatedCredentials.email} />
               <Info label="Senha temporária" value={generatedCredentials.temporaryPassword} />
             </div>
@@ -7218,6 +7011,11 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const cpf = form.get('cpf')?.toString().trim() || ''
+    const email = form.get('email')?.toString().trim().toLowerCase() || ''
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Informe um e-mail válido para gerar o acesso do aluno/paciente.')
+      return
+    }
     if (cpf && cpf.replace(/\D/g, '').length !== 11) {
       setError('Confira o CPF: ele deve ter 11 números.')
       return
@@ -7245,7 +7043,7 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
       await onSave({
         ...student,
         name: form.get('name').toString(),
-        email: form.get('email').toString(),
+        email,
         phone: form.get('phone').toString(),
         cpf: cpf.replace(/\D/g, ''),
         plan: planName,

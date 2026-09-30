@@ -56,12 +56,12 @@ test('webhook ignora evento ja processado e persiste periodo do aluno', async ()
   assert.match(webhook, /isConfirmedCartpandaPayment/)
 })
 
-test('frontend oferece ativacao pelo convite e atualiza o portal automaticamente', async () => {
+test('frontend oferece ativacao depois do login e atualiza o portal automaticamente', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   assert.match(app, /resolveStudentPaymentLockState/)
-  assert.match(app, /buildStudentAccessUrl/)
-  assert.match(app, /inviteIsUsable/)
+  assert.match(app, /createRemoteStudentCheckoutSessionByInvite/)
+  assert.match(app, /appLoginUrl/)
   assert.match(app, /Falar com \{professionalLabel\}/)
   assert.match(api, /create_student_checkout_session_by_invite/)
   assert.match(api, /financialAccessOpen:\s*payload\.financial_access_open/)

@@ -86,7 +86,7 @@ test('student row maps authentication state without password fields', async () =
 test('professional can generate and share one-time login credentials', async () => {
   const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   assert.match(source, /generateRemoteStudentCredentials/)
-  assert.match(source, /Gerar dados de acesso/)
+  assert.match(source, /Gerar acesso/)
   assert.match(source, /Copiar acesso/)
   assert.match(source, /wa\.me\/\?text=/)
   assert.match(source, /Enviar pelo WhatsApp/)
@@ -101,6 +101,35 @@ test('credential sharing copy adapts to student and patient', async () => {
   assert.match(source, /nutritionist \? 'paciente' : 'aluno'/)
   assert.match(source, /Senha temporária/)
   assert.match(source, /troque sua senha/i)
+  assert.match(source, /professionalAffiliate/)
+  assert.match(source, /R\$ 25 por mês/)
+  assert.match(source, /acesso às ferramentas estará liberado/i)
+})
+
+test('professional screen exposes one access generator and never creates checkout links', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const studentsStart = app.indexOf('function Students(')
+  const studentsEnd = app.indexOf('\nfunction StudentRankingPanel', studentsStart)
+  const studentsScreen = app.slice(studentsStart, studentsEnd)
+
+  assert.match(studentsScreen, /Gerar acesso/)
+  assert.match(studentsScreen, /Link do aplicativo/)
+  assert.doesNotMatch(studentsScreen, /Pagamento automático pela Cartpanda/)
+  assert.doesNotMatch(studentsScreen, /Gerar link de pagamento/)
+  assert.doesNotMatch(studentsScreen, /Copiar link de acesso/)
+  assert.doesNotMatch(studentsScreen, /onCreateStudentCheckout/)
+  assert.doesNotMatch(studentsScreen, /onGenerateInvite/)
+})
+
+test('student registration normalizes and validates the required email', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const formStart = app.indexOf('function StudentForm(')
+  const formEnd = app.indexOf('\nfunction StudentSnapshot', formStart)
+  const formScreen = app.slice(formStart, formEnd)
+
+  assert.match(formScreen, /form\.get\('email'\).*trim\(\).*toLowerCase\(\)/)
+  assert.match(formScreen, /Informe um e-mail válido/)
+  assert.match(formScreen, /email,/)
 })
 
 test('credential modal stays in the professional students screen', async () => {

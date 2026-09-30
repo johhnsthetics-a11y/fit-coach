@@ -102,14 +102,21 @@ test('checkout oficial configurado do aluno e preservado sem rota de produto inv
   )
 })
 
-test('frontend cria a sessão no banco antes de montar o link', async () => {
+test('checkout e criado somente dentro da conta do aluno ou paciente', async () => {
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const studentsStart = app.indexOf('function Students(')
+  const studentsEnd = app.indexOf('\nfunction StudentRankingPanel', studentsStart)
+  const accessStart = app.indexOf('function StudentAccessApp(')
+  const accessEnd = app.indexOf('\nfunction StudentMobileApp', accessStart)
+  const studentsScreen = app.slice(studentsStart, studentsEnd)
+  const accessScreen = app.slice(accessStart, accessEnd)
 
   assert.match(api, /create_student_checkout_session/)
-  assert.match(app, /Gerar link de pagamento/)
-  assert.match(app, /VITE_FITCOACH_STUDENT_CHECKOUT_URL/)
-  assert.match(app, /VITE_FITCOACH_PATIENT_CHECKOUT_URL/)
+  assert.doesNotMatch(studentsScreen, /Gerar link de pagamento/)
+  assert.match(accessScreen, /createRemoteStudentCheckoutSessionByInvite/)
+  assert.match(accessScreen, /VITE_FITCOACH_STUDENT_CHECKOUT_URL/)
+  assert.match(accessScreen, /VITE_FITCOACH_PATIENT_CHECKOUT_URL/)
 })
 
 test('webhook usa cid persistido antes do fallback de assinatura do coach', async () => {
