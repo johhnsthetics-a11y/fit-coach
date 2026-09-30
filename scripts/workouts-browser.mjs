@@ -84,6 +84,15 @@ try {
           results.push(`${viewport.width} / ${scenario.name} / ${action}: PASS`)
         }
         if (scenario.name === 'com-treinos') {
+          const publishedActions = page.locator('.mobile-workout-action-bar')
+          assert.deepEqual(await publishedActions.locator('.is-secondary').evaluate((button) => {
+            const style = getComputedStyle(button)
+            return { background: style.backgroundColor, color: style.color }
+          }), { background: 'rgb(223, 243, 238)', color: 'rgb(7, 95, 83)' })
+          assert.deepEqual(await publishedActions.locator('.is-accent').evaluate((button) => {
+            const style = getComputedStyle(button)
+            return { background: style.backgroundColor, color: style.color }
+          }), { background: 'rgb(8, 125, 108)', color: 'rgb(255, 255, 255)' })
           await page.screenshot({ path: resolve(output, `after-${viewport.width}.png`) })
           const darkModeButton = page.getByRole('button', { name: 'Ativar modo escuro', exact: true }).first()
           assert.ok(await darkModeButton.count(), 'O alternador de tema deve permanecer disponível em Treinos')

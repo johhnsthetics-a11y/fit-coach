@@ -282,6 +282,18 @@ test('prévia única usa em tempo real o mesmo executor, tema e biblioteca do al
   assert.doesNotMatch(cssSource, /\.mobile-workout-day-preview-portal\.app-theme-light \.mobile-workout-day-preview-head-v2\s*\{[^}]*background:\s*rgba\(7,\s*17,\s*15/i)
 })
 
+test('ações do treino publicado mantêm contraste profissional no tema claro', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const managerSource = appSource.match(/function MobileWorkoutManager[\s\S]*?\r?\n}\r?\n\r?\nfunction createExerciseDraft/)?.[0] || ''
+
+  assert.match(managerSource, /className="is-secondary"[\s\S]*?Duplicar treino/)
+  assert.match(managerSource, /className="is-accent"[\s\S]*?Adicionar exercício/)
+  assert.match(cssSource, /\.app-theme-light \.mobile-workout-action-bar button\.is-secondary\s*\{[^}]*background:\s*#[0-9a-f]{6}[^}]*color:\s*#[0-9a-f]{6}/i)
+  assert.match(cssSource, /\.app-theme-light \.mobile-workout-action-bar button\.is-accent\s*\{[^}]*background:\s*#[0-9a-f]{6}[^}]*color:\s*#fff(?:fff)?/i)
+  assert.match(managerSource, /formatCount\(days\.length \|\| 1, 'dia'\)\} · \{formatCount\(exerciseCount, 'exercício'\)/)
+})
+
 test('treinador e aluno compartilham a experiência completa de execução', () => {
   const html = renderToString(React.createElement(StudentWorkoutExecution, {
     student,

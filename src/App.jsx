@@ -8962,6 +8962,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           </div>
           {filteredWorkouts.length ? filteredWorkouts.slice(0, 10).map((workout) => {
             const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+            const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
             const isSelected = String(selectedWorkout?.id) === String(workout.id)
             return (
               <article key={workout.id} className={`mobile-workout-card ${isSelected ? 'is-selected' : ''}`}>
@@ -8969,8 +8970,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
                   <span>
                     <strong>{workout.title || 'Treino sem nome'}</strong>
-                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)} · {formatCount(days.length || 1, 'dia')}</small>
-                  <small>{formatCount((workout.exercises || []).length, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)}</small>
+                    <small>{formatCount(days.length || 1, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
                   </span>
                 </button>
                 <details className="mobile-workout-menu">
@@ -9047,11 +9048,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               <NavIcon name="eye" className="h-4 w-4" />
               Visão do aluno
             </button>
-            <button type="button" onClick={() => resetDraftFromWorkout(selectedWorkout)}>
+            <button type="button" className="is-secondary" onClick={() => resetDraftFromWorkout(selectedWorkout)}>
               <NavIcon name="layers" className="h-4 w-4" />
               Duplicar treino
             </button>
-            <button type="button" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
+            <button type="button" className="is-accent" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
               <NavIcon name="plus" className="h-4 w-4" />
               Adicionar exercício
             </button>

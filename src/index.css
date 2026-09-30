@@ -15415,6 +15415,30 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: rgb(var(--nav-tone, 0 210 178) / 0.4) !important;
   background: rgb(var(--nav-tone, 0 210 178) / 0.11) !important;
 }
+
+/* workout-published-actions-light-v1 */
+.app-theme-light .mobile-workout-action-bar button.is-secondary {
+  border-color: #84b9ae !important;
+  background: #dff3ee !important;
+  color: #075f53 !important;
+  -webkit-text-fill-color: #075f53 !important;
+  box-shadow: 0 5px 14px rgba(8, 125, 108, 0.09) !important;
+}
+
+.app-theme-light .mobile-workout-action-bar button.is-accent {
+  border-color: #066458 !important;
+  background: #087d6c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 7px 18px rgba(8, 125, 108, 0.18) !important;
+}
+
+.app-theme-light .mobile-workout-action-bar button:is(.is-secondary, .is-accent):not(:disabled):hover {
+  border-color: #075f53 !important;
+  filter: brightness(0.97);
+  transform: translateY(-1px);
+}
+
 /* One-time credentials are rendered in a portal and must keep their dark contrast in every theme. */
 .credential-access-modal {
   color: #f4f4f5;
