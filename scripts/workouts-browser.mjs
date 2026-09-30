@@ -93,7 +93,9 @@ try {
           await page.getByRole('button', { name: 'Ativar modo claro', exact: true }).first().click()
           await page.getByRole('button', { name: 'Criar treino', exact: true }).click()
           await page.getByText('Criar novo treino', { exact: true }).waitFor()
+          assert.ok(await page.locator('.mobile-workout-student-picker').count(), 'O aluno deve aparecer em um seletor contextual')
           await page.getByLabel('Nome da rotina', { exact: true }).fill(`Rotina QA ${viewport.width}`)
+          await page.screenshot({ path: resolve(output, `student-picker-${viewport.width}.png`) })
           for (const step of ['Aluno', 'Dias', 'Exercícios', 'Revisar']) {
             assert.ok(await page.getByRole('button', { name: new RegExp(step) }).count(), `Etapa ${step} deve estar visível`)
           }
@@ -106,7 +108,7 @@ try {
           await picker.waitFor({ state: 'visible' })
           const exerciseCards = picker.locator('.mobile-workout-picker-card-v2')
           assert.ok(await exerciseCards.count() >= 300)
-          assert.ok(await picker.locator('.exercise-thumb').count() >= 300)
+          assert.equal(await picker.locator('.exercise-thumb').count(), 0, 'O catálogo não deve exibir ícones provisórios de exercício')
           assert.equal(await picker.locator('.mobile-workout-picker-check').count(), 0, 'Não deve existir um segundo botão de adicionar')
           assert.equal(
             await picker.getByRole('button', { name: /^(Adicionar|✓ Adicionado)$/ }).count(),
@@ -142,6 +144,13 @@ try {
           assert.ok(await page.getByLabel('Carga (kg)', { exact: true }).count())
           assert.ok(await page.getByLabel('Repetições', { exact: true }).count())
           const preview = page.locator('.mobile-workout-live-preview')
+          assert.equal(await preview.locator('.mobile-workout-live-preview-device.student-mobile-shell').count(), 1, 'A prévia deve usar o mesmo shell visual do aluno')
+          assert.equal(await preview.locator('.is-compact').count(), 0, 'A prévia não deve usar uma versão compacta diferente da tela real')
+          assert.equal(await preview.locator('.mobile-workout-current-heading-v5 h4').evaluate((heading) => {
+            const rect = heading.getBoundingClientRect()
+            const styles = getComputedStyle(heading)
+            return rect.width >= 160 && styles.wordBreak !== 'break-all'
+          }), true, 'O nome do exercício deve permanecer legível sem empilhar letras')
           const muscleMap = preview.locator('.mobile-workout-muscle-target-anatomy-v6')
           assert.equal(await muscleMap.count(), 1, 'A prévia deve exibir um único mapa muscular anatômico')
           assert.ok(await muscleMap.locator('.muscle-map-region.is-primary').count() > 0, 'O músculo principal deve estar destacado')

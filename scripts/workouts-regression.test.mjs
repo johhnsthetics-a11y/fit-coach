@@ -259,6 +259,7 @@ test('prévia fiel do aluno inicia no exercício ativo com séries registráveis
 test('prévia ao vivo renderiza a experiência interativa do aluno', () => {
   const html = renderToString(React.createElement(WorkoutStudentLivePreview, {
     student,
+    theme: 'light',
     workout: {
       title: 'Treino A',
       days: [{
@@ -276,6 +277,31 @@ test('prévia ao vivo renderiza a experiência interativa do aluno', () => {
   assert.match(html, /Concluir série/)
   assert.match(html, /Carga \(kg\)/)
   assert.match(html, /Repetições/)
+  assert.match(html, /mobile-workout-live-preview-device student-mobile-shell app-theme-light/)
+  assert.doesNotMatch(html, /is-compact/)
+})
+
+test('montagem desktop mantém prévia fiel, seletor contextual e catálogo sem ícones provisórios', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const managerSource = appSource.match(/function MobileWorkoutManager[\s\S]*?\r?\n}\r?\n\r?\nfunction createExerciseDraft/)?.[0] || ''
+  const livePreviewSource = appSource.match(/export function WorkoutStudentLivePreview[\s\S]*?\r?\n}\r?\n\r?\nfunction MobileWorkoutDayScreen/)?.[0] || ''
+
+  assert.match(managerSource, /mobile-workout-student-picker/)
+  assert.match(managerSource, /Aluno do treino/)
+  assert.match(managerSource, /selectedDraftStudent/)
+  assert.match(managerSource, /theme=\{uiTheme\}/)
+  assert.doesNotMatch(managerSource, /mobile-workout-picker-card-v2[^]{0,500}<ExerciseThumbnail/)
+  assert.match(livePreviewSource, /student-mobile-shell app-theme-\$\{theme\}/)
+  assert.doesNotMatch(livePreviewSource, /compact\s*\/>/)
+})
+
+test('layout do construtor usa coluna estável e responsividade própria da prévia', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(390px,\s*430px\)/)
+  assert.match(cssSource, /container-name:\s*workout-student-preview/)
+  assert.match(cssSource, /@container workout-student-preview\s*\(max-width:\s*430px\)/)
+  assert.match(cssSource, /\.mobile-workout-student-picker/)
 })
 
 test('treinador e aluno compartilham a experiência completa de execução', () => {

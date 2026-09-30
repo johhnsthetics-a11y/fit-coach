@@ -8917,6 +8917,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
     ['review', 'Revisar'],
   ]
   const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
+  const selectedDraftStudent = students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || students[0]
 
   return (
     <section className="mobile-workout-manager">
@@ -9153,13 +9154,29 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
           {creatorStep === 'info' ? (
             <div className="mobile-workout-step-panel">
               <div className="mobile-workout-form-grid">
-                <label className="mobile-workout-student-field">
-                  Aluno
-                  <select name="studentId" value={selectedStudentId} onChange={(event) => { setSelectedStudentId(event.target.value); setError('') }} required>
-                    <option value="">Selecione o aluno</option>
-                    {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
-                  </select>
-                </label>
+                <div className="mobile-workout-student-picker">
+                  <div className="mobile-workout-student-picker-profile">
+                    <span className="mobile-workout-student-picker-avatar">
+                      {selectedDraftStudent?.photo ? (
+                        <img src={selectedDraftStudent.photo} alt={`Foto de ${selectedDraftStudent.name}`} />
+                      ) : (
+                        getInitials(selectedDraftStudent?.name || 'Aluno')
+                      )}
+                    </span>
+                    <span className="mobile-workout-student-picker-copy">
+                      <small>Aluno do treino</small>
+                      <strong>{selectedDraftStudent?.name || 'Selecione um aluno'}</strong>
+                      <em>{selectedDraftStudent?.goal || selectedDraftStudent?.plan || 'Defina para quem esta rotina será criada'}</em>
+                    </span>
+                  </div>
+                  <label className="mobile-workout-student-field">
+                    Selecionar aluno
+                    <select name="studentId" value={selectedStudentId} onChange={(event) => { setSelectedStudentId(event.target.value); setError('') }} required>
+                      <option value="">Selecione o aluno</option>
+                      {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
+                    </select>
+                  </label>
+                </div>
                 <label>Nome da rotina<input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Ex.: Semanal 5x" /></label>
                 <label>
                   Objetivo
@@ -9337,6 +9354,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
               workout={draft}
               dayIndex={activeDayIndex ?? 0}
               library={availableExerciseLibrary}
+              theme={uiTheme}
             />
           ) : null}
           </div>
@@ -9445,8 +9463,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                 const isAddingExercise = addingExerciseKey === exerciseAddKey
                 return (
                   <article key={exercise.name} className={`mobile-workout-picker-card-v2 ${exerciseAlreadyAdded ? 'is-added' : ''}`}>
-                    <ExerciseThumbnail exercise={exercise} compact />
-                    <span>
+                    <span className="mobile-workout-picker-card-copy">
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
                       <small>{[exercise.isFavorite ? 'Favorito' : '', exercise.isRecent ? 'Usado recentemente' : '', exercise.category || exercise.objective || ''].filter(Boolean).slice(0, 2).join(' · ')}</small>
@@ -9555,7 +9572,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   )
 }
 
-export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, library = exerciseLibrary }) {
+export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, library = exerciseLibrary, theme = DEFAULT_UI_THEME }) {
   return (
     <aside className="mobile-workout-live-preview" aria-label="Visão do aluno">
       <div className="mobile-workout-live-preview-heading">
@@ -9566,7 +9583,9 @@ export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, libr
         <span><i aria-hidden="true" />Prévia ao vivo</span>
       </div>
       <div className="mobile-workout-live-preview-body" role="region" aria-label="Simulação interativa do treino" tabIndex={0}>
-        <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} compact />
+        <div className={`mobile-workout-live-preview-device student-mobile-shell app-theme-${theme}`}>
+          <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} />
+        </div>
       </div>
     </aside>
   )
