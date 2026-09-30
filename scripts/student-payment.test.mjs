@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFile } from 'node:fs/promises'
 
-import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from '../src/studentPayment.js'
+import {
+  buildStudentCheckoutUrl,
+  resolveAudienceCheckoutUrl,
+  resolveStudentPaymentLockState,
+} from '../src/studentPayment.js'
 
 test('link individual preserva o checkout e adiciona o token cid', () => {
   assert.equal(
@@ -15,6 +19,70 @@ test('link individual preserva o checkout e adiciona o token cid', () => {
 test('treinador usa checkout de aluno e nutricionista usa checkout de paciente', () => {
   assert.equal(resolveAudienceCheckoutUrl({ nutritionist: false }), 'https://pagamento.coachfitpro.com.br/checkout?subscription=4664')
   assert.equal(resolveAudienceCheckoutUrl({ nutritionist: true }), 'https://pagamento.coachfitpro.com.br/checkout/212922722:1?subscription=4665')
+})
+
+test('pagamento inicial pendente oferece ativacao de 25 reais no checkout correto', () => {
+  assert.deepEqual(
+    resolveStudentPaymentLockState({
+      student: { payment: 'Pago', appPaymentStatus: 'pending' },
+      professionalType: 'trainer',
+    }),
+    {
+      kind: 'activation',
+      title: 'Seu acompanhamento já está preparado.',
+      message: 'Falta apenas ativar seu CoachFit por R$ 25 por mês para acessar todas as ferramentas.',
+      actionLabel: 'Ativar meu CoachFit',
+      canOpenCheckout: true,
+    },
+  )
+})
+
+test('falha na renovacao bloqueia e oferece regularizacao sem novo cadastro', () => {
+  assert.deepEqual(
+    resolveStudentPaymentLockState({
+      student: { payment: 'Pago', appPaymentStatus: 'past_due' },
+      professionalType: 'nutritionist',
+    }),
+    {
+      kind: 'renewal',
+      title: 'Não foi possível renovar seu CoachFit.',
+      message: 'Regularize a mensalidade de R$ 25 para voltar a acessar dieta, progresso e acompanhamento.',
+      actionLabel: 'Regularizar por R$ 25/mês',
+      canOpenCheckout: true,
+    },
+  )
+})
+
+test('pendencia com o profissional tem prioridade e nao abre checkout do CoachFit', () => {
+  assert.deepEqual(
+    resolveStudentPaymentLockState({
+      student: { payment: 'Pendente', appPaymentStatus: 'active' },
+      professionalType: 'trainer',
+    }),
+    {
+      kind: 'professional',
+      title: 'Seu acompanhamento está temporariamente pausado.',
+      message: 'Fale com seu treinador para regularizar a mensalidade do acompanhamento.',
+      actionLabel: '',
+      canOpenCheckout: false,
+    },
+  )
+})
+
+test('cancelamento manual encerra o acesso e orienta contato com o suporte', () => {
+  assert.deepEqual(
+    resolveStudentPaymentLockState({
+      student: { payment: 'Pago', appPaymentStatus: 'canceled' },
+      professionalType: 'nutritionist',
+    }),
+    {
+      kind: 'canceled',
+      title: 'Sua assinatura do CoachFit foi cancelada.',
+      message: 'Para reativar o aplicativo, entre em contato com o suporte do CoachFit.',
+      actionLabel: '',
+      canOpenCheckout: false,
+    },
+  )
 })
 
 test('checkout oficial configurado do aluno e preservado sem rota de produto inventada', () => {

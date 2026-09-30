@@ -19,3 +19,50 @@ export function buildStudentCheckoutUrl(baseUrl, checkoutToken) {
     return ''
   }
 }
+
+export function resolveStudentPaymentLockState({ student, professionalType = 'trainer' } = {}) {
+  const professionalLabel = professionalType === 'nutritionist' ? 'nutricionista' : 'treinador'
+
+  if (student?.payment !== 'Pago') {
+    return {
+      kind: 'professional',
+      title: 'Seu acompanhamento está temporariamente pausado.',
+      message: `Fale com seu ${professionalLabel} para regularizar a mensalidade do acompanhamento.`,
+      actionLabel: '',
+      canOpenCheckout: false,
+    }
+  }
+
+  const appStatus = String(student?.appPaymentStatus || 'pending').trim().toLowerCase()
+  if (appStatus === 'active') return null
+
+  if (appStatus === 'past_due') {
+    return {
+      kind: 'renewal',
+      title: 'Não foi possível renovar seu CoachFit.',
+      message: professionalType === 'nutritionist'
+        ? 'Regularize a mensalidade de R$ 25 para voltar a acessar dieta, progresso e acompanhamento.'
+        : 'Regularize a mensalidade de R$ 25 para voltar a acessar treinos, progresso e acompanhamento.',
+      actionLabel: 'Regularizar por R$ 25/mês',
+      canOpenCheckout: true,
+    }
+  }
+
+  if (['canceled', 'refunded', 'chargeback'].includes(appStatus)) {
+    return {
+      kind: 'canceled',
+      title: 'Sua assinatura do CoachFit foi cancelada.',
+      message: 'Para reativar o aplicativo, entre em contato com o suporte do CoachFit.',
+      actionLabel: '',
+      canOpenCheckout: false,
+    }
+  }
+
+  return {
+    kind: 'activation',
+    title: 'Seu acompanhamento já está preparado.',
+    message: 'Falta apenas ativar seu CoachFit por R$ 25 por mês para acessar todas as ferramentas.',
+    actionLabel: 'Ativar meu CoachFit',
+    canOpenCheckout: true,
+  }
+}

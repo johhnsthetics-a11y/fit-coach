@@ -1,4 +1,6 @@
 import {
+  isConfirmedCartpandaPayment,
+  mapCartpandaSubscriptionStatus,
   parseAllowedCents,
   parseAllowedIds,
   validateStudentPayment,
@@ -46,7 +48,7 @@ Deno.serve(async (request) => {
   const providerSubscriptionId = findString(payload, ['subscription_id', 'plan_subscription_id', 'recurrence_id'])
   const subscriptionId = providerSubscriptionId || productId
   const amountCents = parseMoneyToCents(findValue(payload, ['total_price', 'amount', 'amount_net', 'price', 'value']))
-  const status = mapSubscriptionStatus(eventType, payload)
+  const status = mapCartpandaSubscriptionStatus(eventType, payload)
   const sanitizedPayload = sanitizeWebhookPayload(payload)
   const eventId = await buildDeterministicEventId({
     explicitEventId: findString(payload, ['event_id', 'webhook_id']),
@@ -221,27 +223,6 @@ function isAuthorized(request: Request, payload: Record<string, unknown>) {
   ].filter(Boolean)
 
   return candidates.some((candidate) => candidate === WEBHOOK_TOKEN)
-}
-
-function mapSubscriptionStatus(eventType: string, payload: Record<string, unknown>) {
-  const haystack = [
-    eventType,
-    findString(payload, ['order_type', 'payment_status', 'status', 'transaction_status', 'subscription_status', 'financial_status']),
-  ].join(' ').toLowerCase()
-
-  if (/(chargeback|contest|dispute)/.test(haystack)) return 'chargeback'
-  if (/(refund|reembolso|refunded|estorno)/.test(haystack)) return 'refunded'
-  if (/(cancel|canceled|cancelado|cancelled)/.test(haystack)) return 'canceled'
-  if (/(fail|failed|recus|declin|denied|overdue|past_due|atras|unpaid)/.test(haystack)) return 'past_due'
-  if (/(paid|approved|aprov|complete|completed|active|confirm|captured|sale|order)/.test(haystack)) return 'active'
-
-  const hasSaleSignals = Boolean(
-    findString(payload, ['order_id', 'id', 'transaction_id'])
-    && findString(payload, ['email', 'buyer_email', 'customer_email'])
-    && findString(payload, ['product_id', 'product_name'])
-  )
-
-  return hasSaleSignals ? 'active' : 'pending'
 }
 
 function resolveSubscriptionStatusTransition(input: {
@@ -717,11 +698,7 @@ function addMonths(value: Date, months: number) {
 }
 
 function isConfirmedPayment(eventType: string, payload: Record<string, unknown>) {
-  const haystack = [
-    eventType,
-    findString(payload, ['order_type', 'payment_status', 'transaction_status', 'financial_status', 'subscription_status', 'status']),
-  ].join(' ').toLowerCase()
-  return /(paid|approved|aprov|complete|completed|active|confirm|captured|initial_sale)/.test(haystack)
+  return isConfirmedCartpandaPayment(eventType, payload)
 }
 
 function parseMoneyToCents(value: unknown): number | null {

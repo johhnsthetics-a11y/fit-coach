@@ -70,7 +70,7 @@ import {
   upsertRemoteUser,
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
-import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl } from './studentPayment'
+import { buildStudentCheckoutUrl, resolveAudienceCheckoutUrl, resolveStudentPaymentLockState } from './studentPayment'
 import { addBillingCycle, buildStudentAccessUrl, getFirstName, getLocalGreeting, isSubscriptionCurrent, normalizeBillingCycle } from './studentAccess'
 import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
@@ -16885,6 +16885,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   const billingBrand = getBillingBrand(coachSettings)
   const professionalPaymentCurrent = student?.payment === 'Pago'
   const appPaymentCurrent = student?.appPaymentStatus === 'active'
+  const lockState = resolveStudentPaymentLockState({ student, professionalType })
   const [activating, setActivating] = useState(false)
   const [activationError, setActivationError] = useState('')
   const professionalLabel = professionalType === 'nutritionist' ? 'nutricionista' : 'treinador'
@@ -16911,10 +16912,8 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
             <img src={billingBrand.logoUrl} alt={coachSettings?.brandName || 'Logo do coach'} className="h-16 max-w-48 rounded-md border border-white/10 bg-white object-contain p-2" />
           ) : null}
         </div>
-        <h3 className="mt-2 text-2xl font-black text-white">Seu acompanhamento já está preparado.</h3>
-        <p className="mt-2 text-sm leading-6 text-zinc-300">
-          Falta apenas ativar o Coach Fit Pro e manter o plano com seu {professionalLabel} em dia para acessar treinos, dieta, progresso e acompanhamento.
-        </p>
+        <h3 className="mt-2 text-2xl font-black text-white">{lockState?.title}</h3>
+        <p className="mt-2 text-sm leading-6 text-zinc-300">{lockState?.message}</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <div className={`rounded-md border p-3 ${appPaymentCurrent ? 'border-emerald-300/30 bg-emerald-300/10' : 'border-amber-300/30 bg-amber-300/10'}`}>
             <p className="text-xs font-black uppercase text-zinc-400">Coach Fit Pro</p>
@@ -16928,20 +16927,27 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        {!appPaymentCurrent ? (
+        {lockState?.canOpenCheckout ? (
           <button type="button" disabled={activating || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-            {activating ? 'Abrindo checkout...' : 'Ativar meu acesso'}
+            {activating ? 'Abrindo checkout...' : lockState.actionLabel}
           </button>
         ) : null}
-        <button type="button" onClick={onOpenPayments} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
-          Ir para Fatura
-        </button>
+        {!professionalPaymentCurrent ? (
+          <button type="button" onClick={onOpenPayments} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
+            Ver mensalidade do acompanhamento
+          </button>
+        ) : null}
+        {lockState?.kind === 'canceled' ? (
+          <a href="mailto:sac@coachfitpro.com.br" className="rounded-md bg-emerald-400 px-4 py-3 text-center text-sm font-black text-zinc-950">
+            Falar com o suporte CoachFit
+          </a>
+        ) : null}
         <button type="button" onClick={onOpenChat} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
           Falar com {professionalLabel}
         </button>
       </div>
       {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
-      {!appPaymentCurrent ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pelo webhook da Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
     </StudentAppSection>
   )
 }
