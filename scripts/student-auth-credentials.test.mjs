@@ -103,6 +103,20 @@ test('credential sharing copy adapts to student and patient', async () => {
   assert.match(source, /troque sua senha/i)
 })
 
+test('credential modal stays in the professional students screen', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const studentsStart = app.indexOf('function Students(')
+  const studentsEnd = app.indexOf('\nfunction StudentRankingPanel', studentsStart)
+  const workoutStart = app.indexOf('export function StudentWorkoutExecution')
+  const workoutEnd = app.indexOf('\nfunction WorkoutTimerPanel', workoutStart)
+  const studentsScreen = app.slice(studentsStart, studentsEnd)
+  const workoutScreen = app.slice(workoutStart, workoutEnd > workoutStart ? workoutEnd : undefined)
+
+  assert.match(studentsScreen, /generatedCredentials \? createPortal\(/)
+  assert.doesNotMatch(studentsScreen, /if \(studentAuthSession\)/)
+  assert.doesNotMatch(workoutScreen, /generatedCredentials/)
+})
+
 test('authenticated student login routes before professional workspace hydration', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')

@@ -3670,6 +3670,21 @@ function AppContent() {
     )
   }
 
+  if (studentAuthSession) {
+    if (remoteError) {
+      return (
+        <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
+          <section className="w-full max-w-md rounded-xl border border-rose-300/25 bg-zinc-950/90 p-6 text-center shadow-2xl">
+            <h1 className="text-xl font-black text-white">Não foi possível carregar seu acesso</h1>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">{remoteError}</p>
+            <button type="button" onClick={logout} className="mt-5 min-h-11 rounded-md bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950">Voltar ao login</button>
+          </section>
+        </main>
+      )
+    }
+    return <AppLoading />
+  }
+
   if (salesPreview) {
     return (
       <LoginScreen
@@ -6756,21 +6771,6 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     }
   }
 
-  if (studentAuthSession) {
-    if (remoteError) {
-      return (
-        <main className="app-shell fit-gradient-bg grid min-h-screen place-items-center p-4 text-zinc-100">
-          <section className="w-full max-w-md rounded-xl border border-rose-300/25 bg-zinc-950/90 p-6 text-center shadow-2xl">
-            <h1 className="text-xl font-black text-white">Não foi possível carregar seu acesso</h1>
-            <p className="mt-3 text-sm leading-6 text-zinc-400">{remoteError}</p>
-            <button type="button" onClick={logout} className="mt-5 min-h-11 rounded-md bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950">Voltar ao login</button>
-          </section>
-        </main>
-      )
-    }
-    return <AppLoading />
-  }
-
   function getCredentialShareText() {
     if (!generatedCredentials) return ''
     return [
@@ -7063,6 +7063,33 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
         )}
       </Panel>
       </div>
+      {generatedCredentials ? createPortal(
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
+          <div className="w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Acesso gerado</p>
+            <h3 className="mt-2 text-xl font-black text-white">Envie estes dados uma única vez</h3>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">A senha temporária não fica salva nesta tela. O {clientLabel} deverá trocar sua senha no primeiro acesso.</p>
+            <div className="mt-4 grid gap-3">
+              <Info label="E-mail" value={generatedCredentials.email} />
+              <Info label="Senha temporária" value={generatedCredentials.temporaryPassword} />
+            </div>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={copyCredentials} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950">Copiar acesso</button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(getCredentialShareText())}`}
+                target="_blank"
+                rel="noreferrer"
+                className="grid min-h-11 place-items-center rounded-md border border-emerald-200/30 px-4 py-2 text-sm font-black text-emerald-100"
+              >
+                Enviar pelo WhatsApp
+              </a>
+            </div>
+            {credentialsMessage ? <p className="mt-3 text-sm font-bold text-emerald-200">{credentialsMessage}</p> : null}
+            <button type="button" onClick={() => setGeneratedCredentials(null)} className="mt-4 min-h-11 w-full rounded-md border border-white/15 px-4 py-2 text-sm font-black text-zinc-200">Fechar e apagar da tela</button>
+          </div>
+        </div>,
+        document.body,
+      ) : null}
     </div>
   )
 }
@@ -12735,33 +12762,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               {loadImprovements ? <span>{'↑ carga em ' + formatCount(loadImprovements, 'série')}</span> : null}
               {repImprovements ? <span>{'↑ repetições em ' + formatCount(repImprovements, 'série')}</span> : null}
             </div>
-            {generatedCredentials ? createPortal(
-              <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
-                <div className="w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 shadow-2xl">
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Acesso gerado</p>
-                  <h3 className="mt-2 text-xl font-black text-white">Envie estes dados uma única vez</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">A senha temporária não fica salva nesta tela. O {clientLabel} deverá trocar sua senha no primeiro acesso.</p>
-                  <div className="mt-4 grid gap-3">
-                    <Info label="E-mail" value={generatedCredentials.email} />
-                    <Info label="Senha temporária" value={generatedCredentials.temporaryPassword} />
-                  </div>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                    <button type="button" onClick={copyCredentials} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950">Copiar acesso</button>
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(getCredentialShareText())}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="grid min-h-11 place-items-center rounded-md border border-emerald-200/30 px-4 py-2 text-sm font-black text-emerald-100"
-                    >
-                      Enviar pelo WhatsApp
-                    </a>
-                  </div>
-                  {credentialsMessage ? <p className="mt-3 text-sm font-bold text-emerald-200">{credentialsMessage}</p> : null}
-                  <button type="button" onClick={() => setGeneratedCredentials(null)} className="mt-4 min-h-11 w-full rounded-md border border-white/15 px-4 py-2 text-sm font-black text-zinc-200">Fechar e apagar da tela</button>
-                </div>
-              </div>,
-              document.body,
-            ) : null}
           </div>
         ) : null}
         {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
