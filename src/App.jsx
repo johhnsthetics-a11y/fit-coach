@@ -13,6 +13,7 @@ import {
   createRemoteStudentInvite,
   createRemoteStudentCheckoutSession,
   createRemoteStudentCheckoutSessionByInvite,
+  generateRemoteStudentCredentials,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
   fetchRemoteExerciseMedia,
@@ -3112,6 +3113,24 @@ function AppContent() {
     return savedSettings
   }
 
+  async function generateStudentCredentials(studentId) {
+    try {
+      const credentials = await generateRemoteStudentCredentials(studentId)
+      setData((current) => ({
+        ...current,
+        students: current.students.map((student) => String(student.id) === String(studentId)
+          ? { ...student, mustChangePassword: true, credentialsGeneratedAt: new Date().toISOString() }
+          : student),
+      }))
+      setRemoteStatus('Dados de acesso gerados')
+      setRemoteError('')
+      return credentials
+    } catch (error) {
+      handleRemoteError(error, 'Erro ao gerar dados de acesso')
+      throw error
+    }
+  }
+
   async function handleProfessionalAvatarChange(event) {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -3956,6 +3975,7 @@ function AppContent() {
                 onSave={saveStudent}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateInvite={generateStudentInvite}
+                onGenerateCredentials={generateStudentCredentials}
                 onCreateStudentCheckout={createStudentCheckout}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
@@ -6525,7 +6545,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onCreateStudentCheckout, onDelete, coachPlans = plans }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], invites = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateInvite, onGenerateCredentials, onCreateStudentCheckout, onDelete, coachPlans = plans }) {
   const [editing, setEditing] = useState(null)
   const [savedInvite, setSavedInvite] = useState(null)
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -6538,6 +6558,10 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const [checkoutLink, setCheckoutLink] = useState('')
   const [checkoutSaving, setCheckoutSaving] = useState(false)
   const [checkoutMessage, setCheckoutMessage] = useState('')
+  const [generatedCredentials, setGeneratedCredentials] = useState(null)
+  const [credentialsSaving, setCredentialsSaving] = useState(false)
+  const [credentialsMessage, setCredentialsMessage] = useState('')
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const studentCheckoutBaseUrl = resolveAudienceCheckoutUrl({
     nutritionist,
     studentUrl: import.meta.env.VITE_FITCOACH_STUDENT_CHECKOUT_URL,
@@ -6561,7 +6585,45 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     setAccessError('')
     setCheckoutLink('')
     setCheckoutMessage('')
+    setGeneratedCredentials(null)
+    setCredentialsMessage('')
   }, [selectedStudent?.id])
+
+  async function generateCredentials() {
+    if (!selectedStudent?.email || !onGenerateCredentials) return
+    setCredentialsSaving(true)
+    setAccessError('')
+    setCredentialsMessage('')
+    try {
+      const result = await onGenerateCredentials(selectedStudent.id)
+      setGeneratedCredentials(result)
+    } catch (error) {
+      setAccessError(error?.message || `Não foi possível gerar o acesso do ${clientLabel}.`)
+    } finally {
+      setCredentialsSaving(false)
+    }
+  }
+
+  function getCredentialShareText() {
+    if (!generatedCredentials) return ''
+    return [
+      `Seu acesso ao CoachFit está pronto como ${clientLabel}.`,
+      `E-mail: ${generatedCredentials.email}`,
+      `Senha temporária: ${generatedCredentials.temporaryPassword}`,
+      `Entre em ${window.location.origin}/login e troque sua senha no primeiro acesso.`,
+    ].join('\n')
+  }
+
+  async function copyCredentials() {
+    const text = getCredentialShareText()
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCredentialsMessage('Acesso copiado. Envie em uma conversa privada.')
+    } catch {
+      setCredentialsMessage('Selecione e copie os dados exibidos.')
+    }
+  }
 
   async function generateStudentPaymentLink() {
     if (!selectedStudent) return
@@ -6710,6 +6772,22 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               <p className="mt-2 text-sm leading-6 text-zinc-200">
                 O portal libera treino, dieta e progresso quando a assinatura Cartpanda e a mensalidade do profissional estão em dia. Você pode liberar temporariamente em casos de exceção.
               </p>
+              <div className="mt-4 rounded-md border border-emerald-300/25 bg-black/20 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Login do {clientLabel}</p>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Gere e envie o e-mail com a senha temporária. No primeiro acesso, o {clientLabel} cria uma senha pessoal antes de continuar para a ativação do CoachFit.
+                </p>
+                <button
+                  type="button"
+                  disabled={credentialsSaving || !selectedStudent?.email || Boolean(selectedStudent?.authUserId && !selectedStudent?.mustChangePassword)}
+                  onClick={generateCredentials}
+                  className="mt-3 min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {credentialsSaving ? 'Gerando...' : selectedStudent?.mustChangePassword ? 'Gerar nova senha temporária' : 'Gerar dados de acesso'}
+                </button>
+                {!selectedStudent?.email ? <p className="mt-2 text-xs font-bold text-amber-100">Cadastre um e-mail válido antes de gerar o acesso.</p> : null}
+                {selectedStudent?.authUserId && !selectedStudent?.mustChangePassword ? <p className="mt-2 text-xs text-zinc-400">Acesso já ativado. Para trocar a senha, use “Esqueci minha senha” no login.</p> : null}
+              </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <label className="grid gap-1 text-xs font-black uppercase text-zinc-500">
                   Dias de liberação
@@ -12490,6 +12568,33 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               {loadImprovements ? <span>{'↑ carga em ' + formatCount(loadImprovements, 'série')}</span> : null}
               {repImprovements ? <span>{'↑ repetições em ' + formatCount(repImprovements, 'série')}</span> : null}
             </div>
+            {generatedCredentials ? createPortal(
+              <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
+                <div className="w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 shadow-2xl">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Acesso gerado</p>
+                  <h3 className="mt-2 text-xl font-black text-white">Envie estes dados uma única vez</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">A senha temporária não fica salva nesta tela. O {clientLabel} deverá trocar sua senha no primeiro acesso.</p>
+                  <div className="mt-4 grid gap-3">
+                    <Info label="E-mail" value={generatedCredentials.email} />
+                    <Info label="Senha temporária" value={generatedCredentials.temporaryPassword} />
+                  </div>
+                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                    <button type="button" onClick={copyCredentials} className="min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950">Copiar acesso</button>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(getCredentialShareText())}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="grid min-h-11 place-items-center rounded-md border border-emerald-200/30 px-4 py-2 text-sm font-black text-emerald-100"
+                    >
+                      Enviar pelo WhatsApp
+                    </a>
+                  </div>
+                  {credentialsMessage ? <p className="mt-3 text-sm font-bold text-emerald-200">{credentialsMessage}</p> : null}
+                  <button type="button" onClick={() => setGeneratedCredentials(null)} className="mt-4 min-h-11 w-full rounded-md border border-white/15 px-4 py-2 text-sm font-black text-zinc-200">Fechar e apagar da tela</button>
+                </div>
+              </div>,
+              document.body,
+            ) : null}
           </div>
         ) : null}
         {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}

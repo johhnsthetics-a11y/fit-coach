@@ -82,3 +82,23 @@ test('student row maps authentication state without password fields', async () =
   assert.match(source, /credentialsGeneratedAt:\s*row\.credentials_generated_at/)
   assert.doesNotMatch(source, /temporaryPassword:\s*row\./)
 })
+
+test('professional can generate and share one-time login credentials', async () => {
+  const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(source, /generateRemoteStudentCredentials/)
+  assert.match(source, /Gerar dados de acesso/)
+  assert.match(source, /Copiar acesso/)
+  assert.match(source, /wa\.me\/\?text=/)
+  assert.match(source, /Enviar pelo WhatsApp/)
+  assert.match(source, /setGeneratedCredentials\(null\)/)
+  assert.match(source, /selectedStudent\?\.email/)
+  assert.match(source, /mustChangePassword/)
+  assert.doesNotMatch(source, /localStorage\.setItem\([^\n]*(temporaryPassword|generatedCredentials)/i)
+})
+
+test('credential sharing copy adapts to student and patient', async () => {
+  const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(source, /nutritionist \? 'paciente' : 'aluno'/)
+  assert.match(source, /Senha temporária/)
+  assert.match(source, /troque sua senha/i)
+})
