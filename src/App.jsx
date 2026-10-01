@@ -72,6 +72,7 @@ import {
   upsertRemoteUser,
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
+import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
 import {
   buildStudentCheckoutUrl,
   buildStudentPaymentReturnMarker,
@@ -18536,11 +18537,12 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
 }
 
 function AffiliateFinancePage() {
-  const today = new Date().toLocaleDateString('sv-SE')
+  const defaultPeriod = getAffiliateFinanceDefaultPeriod()
+  const today = defaultPeriod.endDate
   const monthStart = `${today.slice(0, 7)}-01`
-  const [startDate, setStartDate] = useState(monthStart)
+  const [startDate, setStartDate] = useState(defaultPeriod.startDate)
   const [endDate, setEndDate] = useState(today)
-  const [appliedPeriod, setAppliedPeriod] = useState({ startDate: monthStart, endDate: today })
+  const [appliedPeriod, setAppliedPeriod] = useState(defaultPeriod)
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

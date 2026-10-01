@@ -2,7 +2,23 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFile } from 'node:fs/promises'
 
+import { getAffiliateFinanceDefaultPeriod } from '../src/affiliateFinance.js'
+
 const migrationUrl = new URL('../SUPABASE/migrations/20260924_affiliate_student_billing.sql', import.meta.url)
+
+test('financeiro abre nos ultimos 30 dias mesmo na virada do mes', () => {
+  assert.deepEqual(
+    getAffiliateFinanceDefaultPeriod(new Date(2026, 9, 1, 12, 0, 0)),
+    { startDate: '2026-09-02', endDate: '2026-10-01' },
+  )
+})
+
+test('relatorio financeiro interpreta os limites no fuso de Sao Paulo', async () => {
+  const sql = await readFile(new URL('../SUPABASE/migrations/20261001133851_fix_affiliate_finance_timezone.sql', import.meta.url), 'utf8')
+
+  assert.match(sql, /alter function public\.get_affiliate_finance_report\(date, date\)/i)
+  assert.match(sql, /set timezone (?:to|=) 'America\/Sao_Paulo'/i)
+})
 
 test('afiliados ficam em tabela separada e protegida pelo Admin Master', async () => {
   const sql = await readFile(migrationUrl, 'utf8')
