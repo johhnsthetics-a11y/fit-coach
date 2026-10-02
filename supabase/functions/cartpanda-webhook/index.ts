@@ -184,6 +184,38 @@ Deno.serve(async (request) => {
     payload,
   })
 
+  if (status === 'refunded' || status === 'chargeback') {
+    await reverseAffiliateProfessionalPayment({
+      eventId,
+      referredUserId: user.id,
+      orderId,
+      subscriptionId,
+      status,
+    })
+  } else if (coachStatus === 'active' && isConfirmedPayment(eventType, payload)) {
+    const referral = await findCommissionableProfessionalReferral(user.id)
+    if (referral?.id) {
+      if (amountCents == null || amountCents <= 0) {
+        console.warn('professional_commission_skipped', {
+          eventId,
+          referredUserId: user.id,
+          reason: 'trusted_amount_missing',
+        })
+      } else {
+        await recordAffiliateProfessionalPayment({
+          eventId,
+          referral,
+          referredUserId: user.id,
+          orderId,
+          subscriptionId,
+          productId,
+          planCycle: resolveProfessionalPlanCycle(productName, productId, payload),
+          grossAmountCents: amountCents,
+        })
+      }
+    }
+  }
+
   await markWebhookProcessed(eventId)
   return jsonResponse({ ok: true, processed: true, coachId: user.id, status: coachStatus }, 200)
 })
@@ -479,6 +511,126 @@ async function reverseAffiliateStudentPayment(input: {
   })
 }
 
+async function findCommissionableProfessionalReferral(referredUserId: string) {
+  if (!referredUserId) return null
+  const referrals = await supabaseFetch(
+    `/rest/v1/affiliate_professional_referrals?referred_user_id=eq.${encodeURIComponent(referredUserId)}&status=in.(claimed,converted)&select=id,affiliate_id,affiliate_email,status,affiliate_professionals!inner(id,email,active)&affiliate_professionals.active=eq.true&order=created_at.asc&limit=1`,
+  )
+  const referral = Array.isArray(referrals) ? referrals[0] : null
+  if (!referral?.id) return null
+
+  const affiliate = Array.isArray(referral.affiliate_professionals)
+    ? referral.affiliate_professionals[0]
+    : referral.affiliate_professionals
+  if (!affiliate?.id || affiliate.active !== true) return null
+
+  return {
+    id: referral.id,
+    affiliateId: affiliate.id,
+    affiliateEmail: normalizeEmail(affiliate.email || referral.affiliate_email || ''),
+    status: referral.status,
+  }
+}
+
+async function recordAffiliateProfessionalPayment(input: {
+  eventId: string
+  referral: { id: string; affiliateId: string; affiliateEmail: string; status: string }
+  referredUserId: string
+  orderId: string
+  subscriptionId: string
+  productId: string
+  planCycle: 'monthly' | 'semiannual' | 'annual'
+  grossAmountCents: number | null
+}) {
+  if (input.grossAmountCents == null || input.grossAmountCents <= 0) return false
+
+  const paidAt = new Date().toISOString()
+  await supabaseFetch('/rest/v1/affiliate_professional_payments', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify({
+      referral_id: input.referral.id,
+      affiliate_id: input.referral.affiliateId,
+      affiliate_email: normalizeEmail(input.referral.affiliateEmail),
+      referred_user_id: input.referredUserId,
+      webhook_event_id: input.eventId,
+      provider: 'cartpanda',
+      provider_order_id: input.orderId || null,
+      provider_subscription_id: input.subscriptionId || null,
+      product_id: input.productId || null,
+      plan_cycle: input.planCycle,
+      gross_amount_cents: input.grossAmountCents,
+      commission_rate: 0.5,
+      commission_cents: Math.round(input.grossAmountCents * 0.5),
+      status: 'paid',
+      paid_at: paidAt,
+      updated_at: paidAt,
+    }),
+  })
+
+  const identityFilter = input.orderId
+    ? `provider=eq.cartpanda&provider_order_id=eq.${encodeURIComponent(input.orderId)}`
+    : `webhook_event_id=eq.${encodeURIComponent(input.eventId)}`
+  const payments = await supabaseFetch(
+    `/rest/v1/affiliate_professional_payments?${identityFilter}&referral_id=eq.${encodeURIComponent(input.referral.id)}&select=id&limit=1`,
+  )
+  if (!Array.isArray(payments) || !payments[0]?.id) return false
+
+  if (input.referral.status === 'claimed') {
+    await supabaseFetch(
+      `/rest/v1/affiliate_professional_referrals?id=eq.${encodeURIComponent(input.referral.id)}&status=eq.claimed`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          status: 'converted',
+          converted_at: paidAt,
+          updated_at: paidAt,
+        }),
+      },
+    )
+  }
+
+  return true
+}
+
+async function reverseAffiliateProfessionalPayment(input: {
+  eventId: string
+  referredUserId: string
+  orderId: string
+  subscriptionId: string
+  status: 'refunded' | 'chargeback'
+}) {
+  const providerFilter = input.orderId
+    ? `provider_order_id=eq.${encodeURIComponent(input.orderId)}`
+    : input.subscriptionId
+      ? `provider_subscription_id=eq.${encodeURIComponent(input.subscriptionId)}`
+      : ''
+  if (!providerFilter) return false
+
+  const payments = await supabaseFetch(
+    `/rest/v1/affiliate_professional_payments?referred_user_id=eq.${encodeURIComponent(input.referredUserId)}&status=eq.paid&${providerFilter}&select=id&order=paid_at.desc&limit=1`,
+  )
+  const payment = Array.isArray(payments) ? payments[0] : null
+  if (!payment?.id) return false
+
+  const reversedAt = new Date().toISOString()
+  await supabaseFetch(
+    `/rest/v1/affiliate_professional_payments?id=eq.${encodeURIComponent(payment.id)}&status=eq.paid`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        status: input.status,
+        reversal_event_id: input.eventId,
+        reversed_at: reversedAt,
+        updated_at: reversedAt,
+      }),
+    },
+  )
+  return true
+}
+
 async function findStudentCheckoutSession(checkoutToken: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutToken)) return null
   const rows = await supabaseFetch(
@@ -695,6 +847,17 @@ function addMonths(value: Date, months: number) {
   const result = new Date(value)
   result.setMonth(result.getMonth() + months)
   return result
+}
+
+function resolveProfessionalPlanCycle(
+  productName: string,
+  productId: string,
+  payload: Record<string, unknown>,
+): 'monthly' | 'semiannual' | 'annual' {
+  const months = inferCycleMonths(productName, productId, payload)
+  if (months >= 12) return 'annual'
+  if (months >= 6) return 'semiannual'
+  return 'monthly'
 }
 
 function isConfirmedPayment(eventType: string, payload: Record<string, unknown>) {

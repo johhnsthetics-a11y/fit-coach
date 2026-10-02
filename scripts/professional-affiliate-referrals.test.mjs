@@ -68,3 +68,48 @@ test('app preserva o convite ate a reivindicacao autenticada terminar', async ()
   assert.match(source, /result\?\.errorCode === 'email_mismatch'[\s\S]*return/)
   assert.match(source, /terminalProfessionalReferralErrors[\s\S]*sessionStorage\.removeItem\(PROFESSIONAL_REFERRAL_STORAGE_KEY\)/)
 })
+
+test('webhook registra comissão profissional de 50% sem alterar o fluxo de aluno', async () => {
+  const primary = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const mirror = await readFile(new URL('../SUPABASE/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.equal(primary, mirror)
+  assert.match(primary, /async function findCommissionableProfessionalReferral\(referredUserId: string\)/)
+  assert.match(primary, /affiliate_professional_referrals\?referred_user_id=eq\./)
+  assert.match(primary, /affiliate_professionals!inner\(id,email,active\)/)
+  assert.match(primary, /affiliate_professionals\.active=eq\.true/)
+  assert.match(primary, /async function recordAffiliateProfessionalPayment\(/)
+  assert.match(primary, /affiliate_professional_payments/)
+  assert.match(primary, /commission_rate:\s*0\.5/)
+  assert.match(primary, /commission_cents:\s*Math\.round\(input\.grossAmountCents \* 0\.5\)/)
+  assert.match(primary, /grossAmountCents:\s*amountCents/)
+  assert.match(primary, /resolveProfessionalPlanCycle\(productName, productId, payload\)/)
+  assert.match(primary, /if \(input\.grossAmountCents == null \|\| input\.grossAmountCents <= 0\)/)
+  assert.match(primary, /console\.warn\('professional_commission_skipped'/)
+  assert.match(primary, /recordAffiliateStudentPayment\(/)
+  assert.match(primary, /commission_rate:\s*0\.25/)
+})
+
+test('webhook trata renovação, duplicidade econômica e estorno profissional terminal', async () => {
+  const source = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /provider_order_id:\s*input\.orderId \|\| null/)
+  assert.match(source, /resolution=ignore-duplicates/)
+  assert.match(source, /status:\s*'converted'/)
+  assert.match(source, /converted_at:/)
+  assert.match(source, /async function reverseAffiliateProfessionalPayment\(/)
+  assert.match(source, /status=eq\.paid/)
+  assert.match(source, /status:\s*input\.status/)
+  assert.match(source, /reversal_event_id:\s*input\.eventId/)
+  assert.match(source, /reversed_at:/)
+  assert.match(source, /incomingStatus === 'refunded' \|\| incomingStatus === 'chargeback'/)
+})
+
+test('webhook reconhece os três ciclos comerciais do profissional', async () => {
+  const source = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const cycleFunction = source.match(/function resolveProfessionalPlanCycle[\s\S]*?\n}/)?.[0] || ''
+
+  assert.match(cycleFunction, /annual/)
+  assert.match(cycleFunction, /semiannual/)
+  assert.match(cycleFunction, /monthly/)
+})
