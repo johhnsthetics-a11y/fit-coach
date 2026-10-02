@@ -3,8 +3,53 @@ import { test } from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 import { getAffiliateFinanceDefaultPeriod } from '../src/affiliateFinance.js'
+import {
+  getProfessionalBillingLabel,
+  getStudentAppPaymentLabel,
+  summarizeStudentInvoices,
+} from '../src/studentBillingView.js'
 
 const migrationUrl = new URL('../SUPABASE/migrations/20260924_affiliate_student_billing.sql', import.meta.url)
+
+test('fatura do aluno usa status profissional e totais sincronizados', () => {
+  assert.equal(getStudentAppPaymentLabel('active'), 'COACH FIT PRO ATIVO')
+  assert.equal(getProfessionalBillingLabel('trainer'), 'Treinador')
+  assert.equal(getProfessionalBillingLabel('nutritionist'), 'Nutricionista')
+  assert.deepEqual(summarizeStudentInvoices([
+    { status: 'Pago', amount: 150 },
+    { status: 'Pendente', amount: 90 },
+    { status: 'Atrasado', amount: 60 },
+    { status: 'Cancelado', amount: 500 },
+  ]), {
+    paidTotal: 150,
+    pendingTotal: 150,
+    pendingCount: 2,
+  })
+})
+
+test('profissional consulta somente as proprias comissoes confirmadas', async () => {
+  const sql = await readFile(new URL('../SUPABASE/migrations/20261001160000_professional_commission_report.sql', import.meta.url), 'utf8')
+  const hardeningSql = await readFile(new URL('../SUPABASE/migrations/20261001163000_harden_professional_commission_report.sql', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(sql, /create or replace function public\.get_my_commission_report/i)
+  assert.match(sql, /current_user_id uuid := auth\.uid\(\)/i)
+  assert.match(sql, /payments\.coach_id = current_user_id/i)
+  assert.match(sql, /payments\.status = 'paid'/i)
+  assert.match(sql, /affiliates\.active = true/i)
+  assert.match(sql, /grant execute on function public\.get_my_commission_report\(date, date\) to authenticated/i)
+  assert.match(hardeningSql, /alter function public\.get_my_commission_report\(date, date\) security invoker/i)
+  assert.match(hardeningSql, /affiliate_student_payments\.coach_id = auth\.uid\(\)/i)
+  assert.match(hardeningSql, /affiliate_professionals\.email = lower\(coalesce\(auth\.jwt\(\) ->> 'email', ''\)\)/i)
+  assert.match(api, /loadRemoteProfessionalCommissionReport/)
+  assert.match(api, /get_my_commission_report/)
+  assert.match(app, /id: 'comissoes', label: 'Comissões'/)
+  assert.match(app, /export function ProfessionalCommissionsPage\(\{ loadCommissionReport = loadRemoteProfessionalCommissionReport \}\)/)
+  assert.match(app, /activeView === 'comissoes' && professionalAffiliate/)
+  assert.doesNotMatch(app, /professionalAffiliate \? 'Afiliado'/)
+  assert.doesNotMatch(app, /Seu vínculo de afiliado foi confirmado/)
+})
 
 test('financeiro abre nos ultimos 30 dias mesmo na virada do mes', () => {
   assert.deepEqual(
@@ -105,7 +150,8 @@ test('profissional conectado recebe liberacao automatica quando o Admin o vincul
   assert.match(app, /AFFILIATE_ACCESS_REFRESH_MS/)
   assert.match(app, /setInterval\(refreshProfessionalAffiliateAccess,\s*AFFILIATE_ACCESS_REFRESH_MS\)/)
   assert.match(app, /professionalAffiliate:\s*true/)
-  assert.match(app, /Seu vínculo de afiliado foi confirmado/)
+  assert.match(app, /Seu acesso profissional foi confirmado/)
+  assert.doesNotMatch(app, /Seu vínculo de afiliado foi confirmado/)
 })
 
 

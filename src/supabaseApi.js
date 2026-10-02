@@ -573,6 +573,37 @@ export async function loadRemoteAffiliateFinanceReport(startDate = '', endDate =
   }
 }
 
+export async function loadRemoteProfessionalCommissionReport(startDate = '', endDate = '') {
+  const today = new Date().toLocaleDateString('sv-SE')
+  const fallbackStart = new Date()
+  fallbackStart.setDate(fallbackStart.getDate() - 29)
+  const normalizedStart = /^\d{4}-\d{2}-\d{2}$/.test(String(startDate || '').trim())
+    ? String(startDate).trim()
+    : fallbackStart.toLocaleDateString('sv-SE')
+  const normalizedEnd = /^\d{4}-\d{2}-\d{2}$/.test(String(endDate || '').trim())
+    ? String(endDate).trim()
+    : today
+
+  const result = await rpcRequest('get_my_commission_report', {
+    p_start_date: normalizedStart,
+    p_end_date: normalizedEnd,
+  })
+
+  return result && typeof result === 'object' ? result : {
+    period: { startDate: normalizedStart, endDate: normalizedEnd },
+    monthlyFeeCents: 2500,
+    commissionRate: 0.25,
+    commissionPerPaidInstallmentCents: 625,
+    totals: {
+      paidClients: 0,
+      paidInstallments: 0,
+      revenueCents: 0,
+      commissionCents: 0,
+    },
+    clients: [],
+  }
+}
+
 export async function loadRemoteAffiliateCommissionDashboard(month = '') {
   const normalizedMonth = /^\d{4}-\d{2}$/.test(String(month || '').trim())
     ? `${String(month).trim()}-01`

@@ -21,6 +21,7 @@ import {
   loadRemoteAppAdminSettings,
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
+  loadRemoteProfessionalCommissionReport,
   loadRemoteCurrentProfessionalAffiliate,
   loadRemoteCurrentStudentAccess,
   loadRemoteLeadEvents,
@@ -73,6 +74,11 @@ import {
 } from './supabaseApi'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
+import {
+  getProfessionalBillingLabel,
+  getStudentAppPaymentLabel,
+  summarizeStudentInvoices,
+} from './studentBillingView'
 import {
   buildStudentCheckoutUrl,
   buildStudentPaymentReturnMarker,
@@ -554,6 +560,7 @@ const navItems = [
   { id: 'nutricao', label: 'Nutrição', icon: 'nutrition', tone: 'emerald' },
   { id: 'checkins', label: 'Check-ins', icon: 'camera', tone: 'rose' },
   { id: 'pagamentos', label: 'Recebimentos', icon: 'wallet', tone: 'green' },
+  { id: 'comissoes', label: 'Comissões', icon: 'wallet', tone: 'amber' },
   { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
   { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
   { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
@@ -564,7 +571,7 @@ const navItems = [
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
 const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
-const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
 
 function getProfessionalRole(user = {}) {
   const role = normalizeText(user?.role || user?.profession || user?.profile || '')
@@ -1772,9 +1779,9 @@ function AppContent() {
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
   const visibleNavItems = useMemo(() => {
-    const professionalItems = professionalAffiliate
-      ? navItems.filter((item) => item.id !== 'assinatura')
-      : navItems
+    const professionalItems = navItems.filter((item) => (
+      professionalAffiliate ? item.id !== 'assinatura' : item.id !== 'comissoes'
+    ))
     const scopedItems = nutritionistUser ? professionalItems
       .filter((item) => nutritionistViewIds.has(item.id))
       .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
@@ -1834,6 +1841,10 @@ function AppContent() {
 
   useEffect(() => {
     if (professionalAffiliate && activeView === 'assinatura') {
+      setActiveView('visao')
+      return
+    }
+    if (!professionalAffiliate && activeView === 'comissoes') {
       setActiveView('visao')
       return
     }
@@ -1913,9 +1924,9 @@ function AppContent() {
           ? [
             {
               id: `subscription-${Date.now()}`,
-              title: affiliateAccess ? 'Acesso profissional liberado' : 'Assinatura liberada',
+              title: affiliateAccess ? 'Conta profissional liberada' : 'Assinatura liberada',
               body: affiliateAccess
-                ? 'Seu vínculo de afiliado foi confirmado. Todas as ferramentas profissionais estão disponíveis.'
+                ? 'Seu acesso profissional foi confirmado. Todas as ferramentas estão disponíveis.'
                 : 'Pagamento confirmado. Suas ferramentas profissionais foram desbloqueadas.',
               read: false,
             },
@@ -1939,7 +1950,7 @@ function AppContent() {
     })
 
     if (activeProfessionalAccess) {
-      setRemoteStatus(affiliateAccess ? 'Acesso profissional liberado' : 'Assinatura liberada')
+      setRemoteStatus(affiliateAccess ? 'Conta profissional liberada' : 'Assinatura liberada')
       setRemoteError('')
       if (goToOverviewOnActive) setActiveView('visao')
     } else if (!silent) {
@@ -1968,15 +1979,15 @@ function AppContent() {
           professionalAffiliate: true,
           notifications: [
             {
-              id: `affiliate-access-${Date.now()}`,
-              title: 'Acesso profissional liberado',
-              body: 'Seu vínculo de afiliado foi confirmado. Todas as ferramentas profissionais estão disponíveis.',
+              id: `professional-access-${Date.now()}`,
+              title: 'Conta profissional liberada',
+              body: 'Seu acesso profissional foi confirmado. Todas as ferramentas estão disponíveis.',
               read: false,
             },
             ...current.notifications,
           ],
         })
-        setRemoteStatus('Acesso profissional liberado')
+        setRemoteStatus('Conta profissional liberada')
         setRemoteError('')
         setActiveView('visao')
       } catch {
@@ -4048,14 +4059,16 @@ function AppContent() {
                   <span className="mt-0.5 block">Admin Master</span>
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => setActiveViewSafely('assinatura')}
-                className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
-              >
-                <span className="block text-[10px] font-black uppercase text-emerald-300">{professionalAffiliate ? 'Afiliado' : 'Próxima cobrança'}</span>
-                <span className="mt-0.5 block">{professionalAffiliate ? 'Acesso profissional liberado' : `${coachBillingCycle.daysRemaining} ${coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}`}</span>
-              </button>
+              {!professionalAffiliate ? (
+                <button
+                  type="button"
+                  onClick={() => setActiveViewSafely('assinatura')}
+                  className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-left text-sm font-bold text-emerald-100"
+                >
+                  <span className="block text-[10px] font-black uppercase text-emerald-300">Próxima cobrança</span>
+                  <span className="mt-0.5 block">{coachBillingCycle.daysRemaining} {coachBillingCycle.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
+                </button>
+              ) : null}
             </div>
           </header>
 
@@ -4204,6 +4217,9 @@ function AppContent() {
                 onUpdateInvoiceStatus={updateInvoiceStatus}
                 onUpdatePayment={updatePayment}
               />
+            )}
+            {activeView === 'comissoes' && professionalAffiliate && (
+              <ProfessionalCommissionsPage />
             )}
             {activeView === 'assinatura' && (
               <CoachSubscription
@@ -15766,15 +15782,7 @@ function hasStudentAccess(student) {
 }
 
 function formatAppPaymentStatus(status) {
-  const labels = {
-    active: 'Cartpanda em dia',
-    pending: 'Aguardando pagamento',
-    past_due: 'Pagamento vencido',
-    canceled: 'Assinatura cancelada',
-    refunded: 'Pagamento reembolsado',
-    chargeback: 'Pagamento contestado',
-  }
-  return labels[status] || 'Aguardando pagamento'
+  return getStudentAppPaymentLabel(status)
 }
 
 async function sendLocalNotification(title, body) {
@@ -16323,6 +16331,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           student={student}
           invoices={studentInvoices}
           coachSettings={coachSettings}
+          professionalType={professionalType}
           onSendMessage={onSendMessage}
         />
       )
@@ -17096,6 +17105,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   const [activating, setActivating] = useState(false)
   const [activationError, setActivationError] = useState('')
   const professionalLabel = professionalType === 'nutritionist' ? 'nutricionista' : 'treinador'
+  const professionalBillingLabel = getProfessionalBillingLabel(professionalType)
 
   async function activateAccess() {
     if (!onActivateAccess || activating) return
@@ -17127,7 +17137,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
             <p className="mt-1 text-sm font-black text-white">{formatAppPaymentStatus(student?.appPaymentStatus)}</p>
           </div>
           <div className={`rounded-md border p-3 ${professionalPaymentCurrent ? 'border-emerald-300/30 bg-emerald-300/10' : 'border-amber-300/30 bg-amber-300/10'}`}>
-            <p className="text-xs font-black uppercase text-zinc-400">Profissional</p>
+            <p className="text-xs font-black uppercase text-zinc-400">{professionalBillingLabel}</p>
             <p className="mt-1 text-sm font-black text-white">{professionalPaymentCurrent ? 'Mensalidade em dia' : 'Mensalidade pendente'}</p>
           </div>
         </div>
@@ -17160,15 +17170,16 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   )
 }
 
-function StudentPaymentStatement({ student, invoices = [], coachSettings, onSendMessage }) {
+function StudentPaymentStatement({ student, invoices = [], coachSettings, professionalType = 'trainer', onSendMessage }) {
   const [noticeSending, setNoticeSending] = useState(false)
   const [noticeSent, setNoticeSent] = useState(false)
   const [noticeError, setNoticeError] = useState('')
   const visibleInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
-  const paidTotal = visibleInvoices.filter((invoice) => invoice.status === 'Pago').reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
+  const { paidTotal, pendingTotal } = summarizeStudentInvoices(visibleInvoices)
   const pendingInvoices = visibleInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
-  const pendingTotal = pendingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)
   const nextPendingInvoice = pendingInvoices[0]
+  const professionalLabel = getProfessionalBillingLabel(professionalType)
+  const professionalLabelLower = professionalLabel.toLowerCase()
 
   async function notifyPayment() {
     if (noticeSending) return
@@ -17179,11 +17190,11 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, onSend
       ? `${nextPendingInvoice.description || nextPendingInvoice.planName || 'Mensalidade'} - ${formatCurrency(nextPendingInvoice.amount)} - vencimento ${formatDate(nextPendingInvoice.dueDate)}`
       : `Total informado no app: ${formatCurrency(pendingTotal)}`
     try {
-    if (!onSendMessage) throw new Error('Abra o chat para informar o pagamento ao treinador.')
+    if (!onSendMessage) throw new Error(`Abra o chat para informar o pagamento ao ${professionalLabelLower}.`)
     await onSendMessage({
       studentId: student.id,
       sender: 'student',
-      body: `Solicitação de validação de pagamento: ${student.name} informou que pagou. Cobrança: ${invoiceSummary}. Coach, confirme em Recebimentos para liberar o acesso.`,
+      body: `Solicitação de validação de pagamento: ${student.name} informou que pagou. Cobrança: ${invoiceSummary}. ${professionalLabel}, confirme o recebimento para atualizar a fatura.`,
     })
     setNoticeSent(true)
     } catch (error) { setNoticeError(error.message || 'Não foi possível enviar. Tente novamente.') }
@@ -17193,17 +17204,17 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, onSend
   return (
     <StudentAppSection title="Fatura" action={`${visibleInvoices.length} registros`}>
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <StudentStatusCard label="Coach Fit Pro" value={formatAppPaymentStatus(student?.appPaymentStatus)} detail="Assinatura processada pela Cartpanda" />
-        <StudentStatusCard label="Profissional" value={student?.payment === 'Pago' ? 'Em dia' : 'Pendente'} detail="Mensalidade do acompanhamento" />
+        <StudentStatusCard tone={student?.appPaymentStatus === 'active' ? 'success' : 'warning'} label="Coach Fit Pro" value={formatAppPaymentStatus(student?.appPaymentStatus)} detail="Acesso ao aplicativo" />
+        <StudentStatusCard tone={student?.payment === 'Pago' ? 'professional' : 'warning'} label={professionalLabel} value={student?.payment === 'Pago' ? 'ACOMPANHAMENTO EM DIA' : 'PAGAMENTO PENDENTE'} detail={`Mensalidade do ${professionalLabelLower}`} />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <StudentStatusCard label="Já pago" value={formatCurrency(paidTotal)} detail="Histórico confirmado" />
-        <StudentStatusCard label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
-        <StudentStatusCard label="Pix" value={coachSettings?.pixKey || '-'} detail={coachSettings?.publicName || 'Coach'} />
+        <StudentStatusCard tone="paid" label="Já pago" value={formatCurrency(paidTotal)} detail="Confirmado pelo profissional" />
+        <StudentStatusCard tone={pendingTotal > 0 ? 'warning' : 'neutral'} label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
+        <StudentStatusCard tone="pix" label="Pix" value={coachSettings?.pixKey || '-'} detail={coachSettings?.publicName || professionalLabel} />
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={() => printStudentPaymentStatement(student, visibleInvoices, coachSettings)} className="rounded-lg bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98]">
+        <button type="button" onClick={() => printStudentPaymentStatement(student, visibleInvoices, coachSettings, professionalType)} className="rounded-lg bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 transition active:scale-[0.98]">
           Gerar extrato em PDF
         </button>
         {pendingInvoices.length ? (
@@ -17216,10 +17227,10 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, onSend
         <p className="text-xs font-black uppercase text-zinc-400">{pendingInvoices.length ? 'Como a liberação funciona' : 'Assinatura em dia'}</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
           {pendingInvoices.length
-            ? 'Pague pelo Pix do coach, envie o comprovante no chat e toque em “Avisei que paguei”. O treinador confirma em Recebimentos e o acesso é liberado.'
+            ? `Pague pelo Pix do ${professionalLabelLower}, envie o comprovante no chat e toque em “Avisei que paguei”. O ${professionalLabelLower} confirma o recebimento e a fatura é atualizada.`
             : 'Nenhuma cobrança em aberto no momento. Quando houver uma nova fatura, ela aparecerá somente nesta área.'}
         </p>
-        {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">Solicitação enviada ao treinador.</p> : null}
+        {noticeSent ? <p className="mt-2 text-sm font-bold text-emerald-200">Solicitação enviada ao {professionalLabelLower}.</p> : null}
         {noticeError ? <p role="alert" className="mt-2 text-sm font-bold text-rose-400">{noticeError}</p> : null}
       </div>
 
@@ -17313,7 +17324,7 @@ function StudentReminderCard({ title, body }) {
   )
 }
 
-function printStudentPaymentStatement(student, invoices, coachSettings) {
+function printStudentPaymentStatement(student, invoices, coachSettings, professionalType = 'trainer') {
   const rows = invoices.map((invoice) => `
     <tr>
       <td>${escapeStatementHtml(invoice.description || invoice.planName || 'Mensalidade')}</td>
@@ -17344,7 +17355,7 @@ function printStudentPaymentStatement(student, invoices, coachSettings) {
       </head>
       <body>
         <h1>Extrato de pagamentos</h1>
-        <p>Aluno: ${escapeStatementHtml(student.name)} | Coach: ${escapeStatementHtml(coachSettings?.publicName || coachSettings?.brandName || 'Coach Fit Pro')}</p>
+        <p>${escapeStatementHtml(professionalType === 'nutritionist' ? 'Paciente' : 'Aluno')}: ${escapeStatementHtml(student.name)} | ${escapeStatementHtml(getProfessionalBillingLabel(professionalType))}: ${escapeStatementHtml(coachSettings?.publicName || coachSettings?.brandName || 'Coach Fit Pro')}</p>
         <div class="cards">
           <div class="card"><strong>Pago</strong><div class="value">${escapeStatementHtml(formatCurrency(paidTotal))}</div></div>
           <div class="card"><strong>Em aberto</strong><div class="value">${escapeStatementHtml(formatCurrency(pendingTotal))}</div></div>
@@ -17414,12 +17425,12 @@ function StudentChatScreen({ student, coachId, coachSettings, messages = [], onS
   )
 }
 
-function StudentStatusCard({ label, value, detail }) {
+function StudentStatusCard({ label, value, detail, tone = 'neutral' }) {
   return (
-    <div className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-3">
-      <p className="text-[11px] font-black uppercase text-zinc-500">{label}</p>
-      <p className="mt-1 truncate text-base font-black text-white">{value || '-'}</p>
-      <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">{detail || '-'}</p>
+    <div className={`student-billing-card student-billing-card--${tone} min-w-0 rounded-xl border p-3.5`}>
+      <p className="student-billing-card-label text-[11px] font-black uppercase">{label}</p>
+      <p className="student-billing-card-value mt-1 break-words text-base font-black">{value || '-'}</p>
+      <p className="student-billing-card-detail mt-1 line-clamp-2 text-xs leading-5">{detail || '-'}</p>
     </div>
   )
 }
@@ -17543,7 +17554,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     }
   })
   const subscriptionActive = professionalAffiliate || isCoachSubscriptionActive(subscription)
-  const subscriptionStatusLabel = professionalAffiliate ? 'Acesso afiliado' : getSubscriptionStatusLabel(subscription)
+  const subscriptionStatusLabel = professionalAffiliate ? 'Conta profissional ativa' : getSubscriptionStatusLabel(subscription)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan, coachPlans), 0)
   const now = new Date()
@@ -18532,6 +18543,163 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
           {compact ? 'Abrir' : alert.action}
         </button>
       </div>
+    </div>
+  )
+}
+
+export function ProfessionalCommissionsPage({ loadCommissionReport = loadRemoteProfessionalCommissionReport }) {
+  const defaultPeriod = getAffiliateFinanceDefaultPeriod()
+  const [startDate, setStartDate] = useState(defaultPeriod.startDate)
+  const [endDate, setEndDate] = useState(defaultPeriod.endDate)
+  const [appliedPeriod, setAppliedPeriod] = useState(defaultPeriod)
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadReport = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setReport(await loadCommissionReport(appliedPeriod.startDate, appliedPeriod.endDate))
+    } catch (loadError) {
+      setError(loadError?.message || 'Não foi possível carregar suas comissões.')
+    } finally {
+      setLoading(false)
+    }
+  }, [appliedPeriod, loadCommissionReport])
+
+  useEffect(() => {
+    loadReport()
+  }, [loadReport])
+
+  const totals = report?.totals || {}
+  const clients = Array.isArray(report?.clients) ? report.clients : []
+  const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
+
+  function applyPeriod() {
+    if (!startDate || !endDate) {
+      setError('Informe a data inicial e a data final.')
+      return
+    }
+    if (startDate > endDate) {
+      setError('A data inicial não pode ser maior que a data final.')
+      return
+    }
+    setError('')
+    setAppliedPeriod({ startDate, endDate })
+  }
+
+  function showLastDays(days) {
+    const end = new Date()
+    const start = new Date(end)
+    start.setDate(start.getDate() - (days - 1))
+    const nextPeriod = {
+      startDate: start.toLocaleDateString('sv-SE'),
+      endDate: end.toLocaleDateString('sv-SE'),
+    }
+    setStartDate(nextPeriod.startDate)
+    setEndDate(nextPeriod.endDate)
+    setAppliedPeriod(nextPeriod)
+  }
+
+  return (
+    <div className="grid min-w-0 gap-4 lg:gap-6">
+      <section className="overflow-hidden rounded-2xl border border-amber-300/20 bg-gradient-to-br from-amber-300/10 via-zinc-950/80 to-emerald-400/10 p-4 shadow-2xl shadow-black/20 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-amber-200">Resultados da sua carteira</p>
+            <h3 className="mt-2 text-2xl font-black text-white sm:text-3xl">Comissões</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
+              Acompanhe os pagamentos do Coach Fit Pro confirmados para seus alunos ou pacientes e o valor gerado por cada assinatura.
+            </p>
+          </div>
+          <button type="button" onClick={loadReport} disabled={loading} className="min-h-11 rounded-xl border border-amber-200/25 bg-amber-200/10 px-4 text-sm font-black text-amber-100 transition hover:bg-amber-200/15 disabled:opacity-50">
+            {loading ? 'Atualizando...' : 'Atualizar valores'}
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-5">
+        <div className="grid gap-3 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto] md:items-end">
+          <label className="grid gap-2 text-sm font-bold text-zinc-300">
+            Data inicial
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950/70 px-3 text-zinc-100 outline-none focus:border-amber-300" />
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-zinc-300">
+            Data final
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950/70 px-3 text-zinc-100 outline-none focus:border-amber-300" />
+          </label>
+          <button type="button" onClick={applyPeriod} className="min-h-11 rounded-xl bg-amber-300 px-5 text-sm font-black text-zinc-950 transition hover:bg-amber-200">Aplicar período</button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => showLastDays(30)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:border-amber-300/30 hover:text-amber-100">Últimos 30 dias</button>
+          <button type="button" onClick={() => showLastDays(90)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:border-amber-300/30 hover:text-amber-100">Últimos 90 dias</button>
+        </div>
+        {error ? <p role="alert" className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ['Comissão total', centsToCurrency(totals.commissionCents), 'somente pagamentos confirmados', 'text-amber-100'],
+          ['Clientes pagantes', Number(totals.paidClients || 0), 'alunos ou pacientes no período', 'text-emerald-100'],
+          ['Mensalidades', Number(totals.paidInstallments || 0), 'confirmações recebidas', 'text-sky-100'],
+          ['Volume confirmado', centsToCurrency(totals.revenueCents), 'mensalidades processadas', 'text-zinc-100'],
+        ].map(([label, value, detail, tone]) => (
+          <article key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
+            <p className={`mt-2 text-2xl font-black ${tone}`}>{value}</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-400">{detail}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-white">Comissão por cliente</h3>
+            <p className="mt-1 text-sm text-zinc-400">Cada linha considera apenas mensalidades confirmadas no período selecionado.</p>
+          </div>
+          <span className="text-xs font-bold text-amber-200">{clients.length} cliente(s)</span>
+        </div>
+
+        {loading && !report ? (
+          <div className="rounded-xl border border-white/10 p-5 text-sm text-zinc-400">Carregando comissões...</div>
+        ) : clients.length ? (
+          <div className="grid gap-3">
+            {clients.map((client) => (
+              <article key={client.studentId || client.clientEmail} className="grid gap-4 rounded-xl border border-white/10 bg-zinc-950/45 p-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(110px,0.45fr))] md:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="truncate font-black text-white">{client.clientName || 'Aluno/Paciente'}</h4>
+                    <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${client.appPaymentStatus === 'active' ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100' : 'border-zinc-500/25 bg-zinc-500/10 text-zinc-300'}`}>
+                      {client.appPaymentStatus === 'active' ? 'Coach Fit Pro ativo' : 'Histórico de pagamento'}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-zinc-500">{client.clientEmail || 'E-mail não informado'}</p>
+                  <p className="mt-2 text-xs text-zinc-400">Último pagamento: {client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Mensalidades</p>
+                  <p className="mt-1 font-black text-zinc-100">{Number(client.paymentCount || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Valor pago</p>
+                  <p className="mt-1 font-black text-emerald-100">{centsToCurrency(client.revenueCents)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Sua comissão</p>
+                  <p className="mt-1 text-lg font-black text-amber-100">{centsToCurrency(client.commissionCents)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-white/15 p-6 text-center">
+            <p className="font-black text-zinc-200">Nenhuma comissão confirmada neste período.</p>
+            <p className="mt-2 text-sm text-zinc-500">Quando uma mensalidade for aprovada, o cliente e o valor aparecerão aqui automaticamente.</p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

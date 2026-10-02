@@ -15463,3 +15463,69 @@ html[data-theme="dark"] body { background: #05070d; }
   color: #a7f3d0 !important;
   -webkit-text-fill-color: #a7f3d0;
 }
+/* student-billing-status-v1 */
+.student-billing-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.student-billing-card-label,
+.student-billing-card-detail {
+  color: #94a3b8;
+}
+
+.student-billing-card-value {
+  color: #f8fafc;
+}
+
+.student-billing-card--success,
+.student-billing-card--paid {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.student-billing-card--professional,
+.student-billing-card--pix {
+  border-color: rgba(56, 189, 248, 0.28);
+  background: rgba(14, 165, 233, 0.09);
+}
+
+.student-billing-card--warning {
+  border-color: rgba(251, 191, 36, 0.32);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card {
+  border-color: #dce7e4 !important;
+  background: #ffffff !important;
+  box-shadow: 0 10px 26px rgba(15, 56, 49, 0.06) !important;
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card--success,
+.student-mobile-shell.app-theme-light .student-billing-card--paid {
+  border-color: #9bd8ca !important;
+  background: #eefaf6 !important;
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card--professional,
+.student-mobile-shell.app-theme-light .student-billing-card--pix {
+  border-color: #a9d9e8 !important;
+  background: #f0f9fc !important;
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card--warning {
+  border-color: #f3cf88 !important;
+  background: #fff8e8 !important;
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card-label {
+  color: #4f6f68 !important;
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card-value {
+  color: #123c35 !important;
+}
+
+.student-mobile-shell.app-theme-light .student-billing-card-detail {
+  color: #657c77 !important;
+}
