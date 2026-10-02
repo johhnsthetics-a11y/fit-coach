@@ -102,6 +102,7 @@ import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
+import { shouldRefreshPersistedSession } from './authSession'
 
 const AssessmentChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.AssessmentChart })))
 const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.RevenueChart })))
@@ -1474,6 +1475,9 @@ function useStoredData() {
       return createInitialData()
     }
   })
+  const [sessionRestoring, setSessionRestoring] = useState(() => (
+    supabaseEnabled && shouldRefreshPersistedSession(data.session)
+  ))
   const [remoteStatus, setRemoteStatus] = useState(
     supabaseEnabled ? 'Conectando Supabase' : productionWithoutSupabase ? 'Configuração pendente' : 'Banco local',
   )
@@ -1533,12 +1537,46 @@ function useStoredData() {
   }, [])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token) return
+    if (!supabaseEnabled || !data.session?.access_token) {
+      setSessionRestoring(false)
+      return undefined
+    }
 
     setSupabaseSession(data.session.access_token)
-    if (data.session?.user?.accountType === 'student') return
-
     let active = true
+
+    if (shouldRefreshPersistedSession(data.session)) {
+      setSessionRestoring(true)
+      refreshCoachSession(data.session.refresh_token)
+        .then((nextSession) => {
+          if (!active) return
+          setData((current) => ({
+            ...current,
+            session: nextSession,
+            user: current.user ?? nextSession.user,
+          }))
+          setRemoteStatus('Sessão restaurada')
+          setRemoteError('')
+        })
+        .catch(() => {
+          if (!active) return
+          setSupabaseSession('')
+          setData(createInitialData())
+          setRemoteStatus('Sessão expirada')
+          setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+        })
+        .finally(() => {
+          if (active) setSessionRestoring(false)
+        })
+
+      return () => {
+        active = false
+      }
+    }
+
+    setSessionRestoring(false)
+    if (data.session?.user?.accountType === 'student') return undefined
+
     loadRemoteData(data.session.user.id)
       .then((remoteData) => {
         if (!active) return
@@ -1617,7 +1655,7 @@ function useStoredData() {
     }
   }, [data])
 
-  return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError]
+  return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring]
 }
 
 export default function App() {
@@ -1708,7 +1746,7 @@ function upsertWorkouts(workouts, savedWorkout) {
 }
 
 function AppContent() {
-  const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError] = useStoredData()
+  const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
@@ -1952,7 +1990,7 @@ function AppContent() {
   }, [mobileMenuOpen])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.refresh_token) return undefined
+    if (!supabaseEnabled || sessionRestoring || !data.session?.refresh_token) return undefined
 
     const expiresAt = data.session.expires_at
       ? Number(data.session.expires_at) * 1000
@@ -1963,7 +2001,7 @@ function AppContent() {
     }, refreshDelay)
 
     return () => window.clearTimeout(timer)
-  }, [data.session?.refresh_token, data.session?.expires_at])
+  }, [data.session?.refresh_token, data.session?.expires_at, sessionRestoring])
 
   const syncCoachWorkspace = useCallback(async ({ status = 'Atualizando painel', silent = false, goToOverviewOnActive = false } = {}) => {
     if (!supabaseEnabled || !data.session?.access_token) {
@@ -2157,7 +2195,7 @@ function AppContent() {
   }, [data.session?.access_token, studentAccess, studentAuthSession, professionalAccessActive, syncCoachWorkspace])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentAccess || studentFirstAccess) return undefined
+    if (!supabaseEnabled || sessionRestoring || !data.session?.access_token || !studentAuthSession || studentAccess || studentFirstAccess) return undefined
     let active = true
 
     async function bootstrapAuthenticatedStudent() {
@@ -2185,7 +2223,7 @@ function AppContent() {
 
     bootstrapAuthenticatedStudent()
     return () => { active = false }
-  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess])
+  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess, sessionRestoring])
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentFirstAccess) {
@@ -3807,6 +3845,8 @@ function AppContent() {
     return <PasswordRecovery onSave={finishPasswordRecovery} />
   }
 
+  if (sessionRestoring) return <AppLoading />
+
   if (studentFirstAccess) {
     return (
       <StudentFirstPasswordScreen
@@ -4922,7 +4962,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
           <div className="sales-header-actions flex items-center justify-end gap-2">
             <ThemeToggle theme={salesTheme} onToggle={toggleSalesTheme} className="sales-theme-toggle" />
-            <button type="button" onClick={() => openAccess('signin')} className="rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
+            <button type="button" onClick={() => openAccess('signin')} className="sales-header-login-button rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
               Entrar
             </button>
             <button type="button" onClick={() => scrollToSalesTarget('precos')} className="hidden rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 lg:inline-flex">
