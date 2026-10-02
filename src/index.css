@@ -15936,6 +15936,116 @@ html[data-theme="dark"] body { background: #05070d; }
   background: #edf9f6;
 }
 
+/* Professional mobile previews and compact floating callouts. */
+.sales-showcase-professional-v3 .sales-showcase-metric small,
+.sales-showcase-professional-v3 .sales-floating-badge small {
+  display: none;
+}
+
+.sales-showcase-professional-v3 .sales-showcase-metric.metric-3 {
+  top: 206px;
+  right: 4%;
+  bottom: auto;
+}
+
+.sales-showcase-professional-v3 .sales-professional-stat,
+.sales-showcase-professional-v3 .sales-professional-list,
+.sales-showcase-professional-v3 .sales-professional-row {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.sales-theme-light .sales-showcase-professional-v3 .sales-professional-stat,
+.sales-theme-light .sales-showcase-professional-v3 .sales-professional-list,
+.sales-theme-light .sales-showcase-professional-v3 .sales-professional-row {
+  border-color: rgba(0, 156, 134, 0.14) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055) !important;
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric {
+    display: flex !important;
+    top: 10px;
+    bottom: auto;
+    width: 31%;
+    min-width: 0;
+    max-width: 116px;
+    gap: 5px;
+    padding: 7px 6px;
+    border-radius: 13px;
+    transform: none;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric > span:first-child {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric > span:first-child svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric strong {
+    max-width: 100%;
+    font-size: 0.62rem;
+    line-height: 1.1;
+    white-space: normal;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric.metric-1 {
+    left: 2%;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric.metric-2 {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric.metric-3 {
+    top: 10px;
+    right: 2%;
+    left: auto;
+    transform: none;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-floating-badge {
+    display: flex !important;
+    min-width: 0;
+    max-width: 118px;
+    gap: 6px;
+    padding: 7px 8px;
+    border-radius: 12px;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-floating-badge strong {
+    max-width: 72px;
+    font-size: 0.68rem;
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-hero-phone-1 .sales-floating-badge.left {
+    top: 70px;
+    right: -18px;
+    left: auto;
+    transform: rotate(-2deg);
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-hero-phone-2 .sales-floating-badge.top {
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .sales-page .sales-showcase-professional-v3 .sales-hero-phone-3 .sales-floating-badge.right {
+    top: 70px;
+    right: auto;
+    left: -18px;
+    transform: rotate(2deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .professional-commissions-page :is(button, a, input) {
     transition: none !important;
