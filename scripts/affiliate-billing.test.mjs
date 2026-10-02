@@ -60,6 +60,7 @@ test('comissoes usa um unico cabecalho, branding tematico, resgate e PDF', async
   assert.match(app, /commissionWhatsappUrl:/)
   assert.match(css, /professional-commissions-page/)
   assert.match(css, /app-theme-light[\s\S]*professional-commissions-page/)
+  assert.match(css, /\.app-theme-light \.professional-commissions-primary-button,[\s\S]*\.app-theme-light \.professional-commissions-rescue-button\s*\{[^}]*background:\s*#0f8f80\s*!important;[^}]*color:\s*#ffffff\s*!important;/s)
 })
 
 test('comissoes permite cadastrar e compartilhar indicação profissional segura', async () => {

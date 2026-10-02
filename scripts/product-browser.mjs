@@ -50,7 +50,24 @@ try {
     for (const area of ['visao','agenda','alunos','avaliacoes','treinos','nutricao','checkins','pagamentos','notificacoes','mensagens','aluno-app','configuracoes','assinatura']) {
       errors = []
       await page.goto(base + '?area=' + area)
-      await page.locator('.coach-nav-item').first().waitFor()
+      if (width < 1024) {
+        const closedMenu = page.locator('.coach-mobile-menu-panel')
+        await closedMenu.waitFor({ state: 'attached' })
+        const closedState = await closedMenu.evaluate((element) => ({
+          right: element.getBoundingClientRect().right,
+          visibility: getComputedStyle(element).visibility,
+          pointerEvents: getComputedStyle(element).pointerEvents,
+        }))
+        assert.ok(closedState.right <= 0.5, 'Menu profissional fechado deve ficar totalmente fora da viewport')
+        assert.equal(closedState.visibility, 'hidden')
+        assert.equal(closedState.pointerEvents, 'none')
+        await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
+        await page.locator('.coach-nav-item').first().waitFor()
+        await closedMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
+        await closedMenu.waitFor({ state: 'hidden' })
+      } else {
+        await page.locator('.coach-nav-item').first().waitFor()
+      }
       await page.waitForTimeout(200)
       const broken = await page.getByText('Algo saiu do lugar, mas seus dados continuam seguros.', { exact: true }).count()
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)
