@@ -13,6 +13,7 @@ import {
   createRemoteStudentInvite,
   createRemoteStudentCheckoutSessionByInvite,
   completeRemoteStudentFirstPassword,
+  claimRemoteProfessionalReferral,
   generateRemoteStudentCredentials,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
@@ -73,6 +74,7 @@ import {
   uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
+import { PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
 import {
@@ -104,6 +106,7 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const AFFILIATE_ACCESS_REFRESH_MS = 10 * 1000
+const terminalProfessionalReferralErrors = new Set(['invalid_token', 'referral_unavailable', 'already_subscribed'])
 const OFFICIAL_APP_LOGIN_URL = 'https://app.coachfitpro.com.br/login?mode=signin'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
@@ -1727,6 +1730,7 @@ function AppContent() {
   }, [])
   const subscriptionCheckRef = useRef(0)
   const portalRequestRef = useRef(0)
+  const professionalReferralClaimRef = useRef('')
   const professionalAvatarInputRef = useRef(null)
   const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
   const [professionalAvatarError, setProfessionalAvatarError] = useState('')
@@ -1798,6 +1802,71 @@ function AppContent() {
         ]
       : scopedItems
   }, [masterAdmin, nutritionistUser, professionalAffiliate])
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const rawToken = url.searchParams.get('professional_ref')
+    if (!rawToken) return
+
+    const normalizedToken = normalizeProfessionalReferralToken(rawToken)
+    if (normalizedToken) {
+      try {
+        window.sessionStorage.setItem(PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizedToken)
+      } catch (error) {
+        console.warn('Não foi possível preservar o convite profissional nesta sessão.', error)
+      }
+    }
+
+    url.searchParams.delete('professional_ref')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession || !data.user?.id) return undefined
+
+    let pendingToken = ''
+    try {
+      pendingToken = normalizeProfessionalReferralToken(
+        window.sessionStorage.getItem(PROFESSIONAL_REFERRAL_STORAGE_KEY),
+      )
+    } catch (error) {
+      console.warn('Não foi possível ler o convite profissional desta sessão.', error)
+    }
+    if (!pendingToken || professionalReferralClaimRef.current === pendingToken) return undefined
+
+    professionalReferralClaimRef.current = pendingToken
+    let active = true
+    claimRemoteProfessionalReferral(pendingToken).then((result) => {
+      if (!active) return
+      if (result?.ok === true) {
+        window.sessionStorage.removeItem(PROFESSIONAL_REFERRAL_STORAGE_KEY)
+        setRemoteStatus('Convite profissional confirmado')
+        setRemoteError('')
+        if (!professionalAccessActive && !masterAdmin) setActiveView('assinatura')
+        return
+      }
+      if (result?.errorCode === 'email_mismatch') {
+        setRemoteStatus('Convite aguardando a conta correta')
+        setRemoteError('Entre com o mesmo e-mail que recebeu o convite profissional.')
+        return
+      }
+      if (terminalProfessionalReferralErrors.has(result?.errorCode)) {
+        window.sessionStorage.removeItem(PROFESSIONAL_REFERRAL_STORAGE_KEY)
+      }
+      setRemoteStatus('Não foi possível confirmar o convite')
+      setRemoteError(result?.message || 'O convite profissional não está mais disponível.')
+    }).catch((error) => {
+      if (!active) return
+      setRemoteStatus('Não foi possível confirmar o convite')
+      setRemoteError(error?.message || 'Tente entrar novamente para confirmar o convite profissional.')
+    }).finally(() => {
+      if (active) professionalReferralClaimRef.current = ''
+    })
+
+    return () => {
+      active = false
+    }
+  }, [data.session?.access_token, data.user?.id, masterAdmin, professionalAccessActive, setRemoteError, setRemoteStatus, studentAuthSession])
 
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
