@@ -13,6 +13,9 @@ import {
   createRemoteStudentInvite,
   createRemoteStudentCheckoutSessionByInvite,
   completeRemoteStudentFirstPassword,
+  claimRemoteProfessionalReferral,
+  createRemoteProfessionalReferral,
+  cancelRemoteProfessionalReferral,
   generateRemoteStudentCredentials,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
@@ -22,6 +25,7 @@ import {
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
   loadRemoteProfessionalCommissionReport,
+  loadRemoteProfessionalReferrals,
   loadRemoteProfessionalProfileByEmail,
   loadRemoteCurrentProfessionalAffiliate,
   loadRemoteCurrentStudentAccess,
@@ -73,6 +77,7 @@ import {
   uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
+import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
 import {
@@ -97,6 +102,7 @@ import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
+import { shouldRefreshPersistedSession } from './authSession'
 
 const AssessmentChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.AssessmentChart })))
 const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.RevenueChart })))
@@ -104,6 +110,7 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
 const AFFILIATE_ACCESS_REFRESH_MS = 10 * 1000
+const terminalProfessionalReferralErrors = new Set(['invalid_token', 'referral_unavailable', 'already_subscribed'])
 const OFFICIAL_APP_LOGIN_URL = 'https://app.coachfitpro.com.br/login?mode=signin'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
 const LEAD_ATTRIBUTION_KEY = 'coachfitpro-lead-attribution'
@@ -1468,6 +1475,9 @@ function useStoredData() {
       return createInitialData()
     }
   })
+  const [sessionRestoring, setSessionRestoring] = useState(() => (
+    supabaseEnabled && shouldRefreshPersistedSession(data.session)
+  ))
   const [remoteStatus, setRemoteStatus] = useState(
     supabaseEnabled ? 'Conectando Supabase' : productionWithoutSupabase ? 'Configuração pendente' : 'Banco local',
   )
@@ -1527,12 +1537,46 @@ function useStoredData() {
   }, [])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token) return
+    if (!supabaseEnabled || !data.session?.access_token) {
+      setSessionRestoring(false)
+      return undefined
+    }
 
     setSupabaseSession(data.session.access_token)
-    if (data.session?.user?.accountType === 'student') return
-
     let active = true
+
+    if (shouldRefreshPersistedSession(data.session)) {
+      setSessionRestoring(true)
+      refreshCoachSession(data.session.refresh_token)
+        .then((nextSession) => {
+          if (!active) return
+          setData((current) => ({
+            ...current,
+            session: nextSession,
+            user: current.user ?? nextSession.user,
+          }))
+          setRemoteStatus('Sessão restaurada')
+          setRemoteError('')
+        })
+        .catch(() => {
+          if (!active) return
+          setSupabaseSession('')
+          setData(createInitialData())
+          setRemoteStatus('Sessão expirada')
+          setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+        })
+        .finally(() => {
+          if (active) setSessionRestoring(false)
+        })
+
+      return () => {
+        active = false
+      }
+    }
+
+    setSessionRestoring(false)
+    if (data.session?.user?.accountType === 'student') return undefined
+
     loadRemoteData(data.session.user.id)
       .then((remoteData) => {
         if (!active) return
@@ -1611,7 +1655,7 @@ function useStoredData() {
     }
   }, [data])
 
-  return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError]
+  return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring]
 }
 
 export default function App() {
@@ -1702,7 +1746,7 @@ function upsertWorkouts(workouts, savedWorkout) {
 }
 
 function AppContent() {
-  const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError] = useStoredData()
+  const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
@@ -1727,6 +1771,7 @@ function AppContent() {
   }, [])
   const subscriptionCheckRef = useRef(0)
   const portalRequestRef = useRef(0)
+  const professionalReferralClaimRef = useRef('')
   const professionalAvatarInputRef = useRef(null)
   const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
   const [professionalAvatarError, setProfessionalAvatarError] = useState('')
@@ -1798,6 +1843,71 @@ function AppContent() {
         ]
       : scopedItems
   }, [masterAdmin, nutritionistUser, professionalAffiliate])
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const rawToken = url.searchParams.get('professional_ref')
+    if (!rawToken) return
+
+    const normalizedToken = normalizeProfessionalReferralToken(rawToken)
+    if (normalizedToken) {
+      try {
+        window.sessionStorage.setItem(PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizedToken)
+      } catch (error) {
+        console.warn('Não foi possível preservar o convite profissional nesta sessão.', error)
+      }
+    }
+
+    url.searchParams.delete('professional_ref')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession || !data.user?.id) return undefined
+
+    let pendingToken = ''
+    try {
+      pendingToken = normalizeProfessionalReferralToken(
+        window.sessionStorage.getItem(PROFESSIONAL_REFERRAL_STORAGE_KEY),
+      )
+    } catch (error) {
+      console.warn('Não foi possível ler o convite profissional desta sessão.', error)
+    }
+    if (!pendingToken || professionalReferralClaimRef.current === pendingToken) return undefined
+
+    professionalReferralClaimRef.current = pendingToken
+    let active = true
+    claimRemoteProfessionalReferral(pendingToken).then((result) => {
+      if (!active) return
+      if (result?.ok === true) {
+        window.sessionStorage.removeItem(PROFESSIONAL_REFERRAL_STORAGE_KEY)
+        setRemoteStatus('Convite profissional confirmado')
+        setRemoteError('')
+        if (!professionalAccessActive && !masterAdmin) setActiveView('assinatura')
+        return
+      }
+      if (result?.errorCode === 'email_mismatch') {
+        setRemoteStatus('Convite aguardando a conta correta')
+        setRemoteError('Entre com o mesmo e-mail que recebeu o convite profissional.')
+        return
+      }
+      if (terminalProfessionalReferralErrors.has(result?.errorCode)) {
+        window.sessionStorage.removeItem(PROFESSIONAL_REFERRAL_STORAGE_KEY)
+      }
+      setRemoteStatus('Não foi possível confirmar o convite')
+      setRemoteError(result?.message || 'O convite profissional não está mais disponível.')
+    }).catch((error) => {
+      if (!active) return
+      setRemoteStatus('Não foi possível confirmar o convite')
+      setRemoteError(error?.message || 'Tente entrar novamente para confirmar o convite profissional.')
+    }).finally(() => {
+      if (active) professionalReferralClaimRef.current = ''
+    })
+
+    return () => {
+      active = false
+    }
+  }, [data.session?.access_token, data.user?.id, masterAdmin, professionalAccessActive, setRemoteError, setRemoteStatus, studentAuthSession])
 
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
@@ -1880,7 +1990,7 @@ function AppContent() {
   }, [mobileMenuOpen])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.refresh_token) return undefined
+    if (!supabaseEnabled || sessionRestoring || !data.session?.refresh_token) return undefined
 
     const expiresAt = data.session.expires_at
       ? Number(data.session.expires_at) * 1000
@@ -1891,7 +2001,7 @@ function AppContent() {
     }, refreshDelay)
 
     return () => window.clearTimeout(timer)
-  }, [data.session?.refresh_token, data.session?.expires_at])
+  }, [data.session?.refresh_token, data.session?.expires_at, sessionRestoring])
 
   const syncCoachWorkspace = useCallback(async ({ status = 'Atualizando painel', silent = false, goToOverviewOnActive = false } = {}) => {
     if (!supabaseEnabled || !data.session?.access_token) {
@@ -2085,7 +2195,7 @@ function AppContent() {
   }, [data.session?.access_token, studentAccess, studentAuthSession, professionalAccessActive, syncCoachWorkspace])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentAccess || studentFirstAccess) return undefined
+    if (!supabaseEnabled || sessionRestoring || !data.session?.access_token || !studentAuthSession || studentAccess || studentFirstAccess) return undefined
     let active = true
 
     async function bootstrapAuthenticatedStudent() {
@@ -2113,7 +2223,7 @@ function AppContent() {
 
     bootstrapAuthenticatedStudent()
     return () => { active = false }
-  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess])
+  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess, sessionRestoring])
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentFirstAccess) {
@@ -3735,6 +3845,8 @@ function AppContent() {
     return <PasswordRecovery onSave={finishPasswordRecovery} />
   }
 
+  if (sessionRestoring) return <AppLoading />
+
   if (studentFirstAccess) {
     return (
       <StudentFirstPasswordScreen
@@ -4850,7 +4962,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
           <div className="sales-header-actions flex items-center justify-end gap-2">
             <ThemeToggle theme={salesTheme} onToggle={toggleSalesTheme} className="sales-theme-toggle" />
-            <button type="button" onClick={() => openAccess('signin')} className="rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
+            <button type="button" onClick={() => openAccess('signin')} className="sales-header-login-button rounded-xl px-3 py-2.5 text-sm font-black text-zinc-100 transition hover:bg-white/[0.07] hover:text-white sm:px-4 lg:inline-flex">
               Entrar
             </button>
             <button type="button" onClick={() => scrollToSalesTarget('precos')} className="hidden rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950 shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 lg:inline-flex">
@@ -18592,48 +18704,116 @@ function openCommissionPrintView({ title, subtitle, summary = [], headers = [], 
 }
 
 export function exportProfessionalCommissionsPdf({ report, period, audience }) {
-  const totals = report?.totals || {}
+  const totals = report?.consolidatedTotals || report?.totals || {}
   const clients = Array.isArray(report?.clients) ? report.clients : []
+  const professionalPayments = Array.isArray(report?.professionalCommissions?.payments)
+    ? report.professionalCommissions.payments
+    : []
+  const studentRows = clients.map((client) => [
+    `${audience.singular} · aplicativo`,
+    `${client.clientName || audience.singular}${client.clientEmail ? ` · ${client.clientEmail}` : ''}`,
+    audience.singular,
+    client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—',
+    formatCurrency(Number(client.revenueCents || 0) / 100),
+    '25%',
+    formatCurrency(Number(client.commissionCents || 0) / 100),
+    client.appPaymentStatus === 'active' ? 'Ativo' : 'Histórico',
+  ])
+  const professionalRows = professionalPayments.map((payment) => [
+    'Indicação profissional',
+    `${payment.referredName || 'Profissional'}${payment.referredEmail ? ` · ${payment.referredEmail}` : ''}`,
+    payment.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
+    payment.paidAt ? formatDateTime(payment.paidAt) : '—',
+    formatCurrency(Number(payment.grossAmountCents || 0) / 100),
+    '50%',
+    formatCurrency(Number(payment.commissionCents || 0) / 100),
+    payment.status === 'paid' ? 'Pago' : payment.status || '—',
+  ])
   return openCommissionPrintView({
     title: 'Relatório de comissões',
-    subtitle: `${audience.plural} com pagamentos confirmados de ${period.startDate} a ${period.endDate}.`,
+    subtitle: `Pagamentos confirmados de ${period.startDate} a ${period.endDate}, separados por origem.`,
     summary: [
       { label: 'Comissão total', value: formatCurrency(Number(totals.commissionCents || 0) / 100) },
-      { label: `${audience.plural} pagantes`, value: Number(totals.paidClients || 0) },
+      { label: 'Contas pagantes', value: Number(totals.paidAccounts ?? totals.paidClients ?? 0) },
       { label: 'Mensalidades', value: Number(totals.paidInstallments || 0) },
       { label: 'Volume confirmado', value: formatCurrency(Number(totals.revenueCents || 0) / 100) },
     ],
-    headers: [audience.singular, 'E-mail', 'Mensalidades', 'Valor pago', 'Comissão', 'Último pagamento'],
-    rows: clients.map((client) => [
-      client.clientName || audience.singular,
-      client.clientEmail || '—',
-      Number(client.paymentCount || 0),
-      formatCurrency(Number(client.revenueCents || 0) / 100),
-      formatCurrency(Number(client.commissionCents || 0) / 100),
-      client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—',
-    ]),
+    headers: ['Origem', 'Pessoa', 'Tipo', 'Data', 'Valor pago', 'Taxa', 'Comissão', 'Status'],
+    rows: [...studentRows, ...professionalRows],
   })
 }
 
+function affiliateProfessionalTypeLabel(value) {
+  return value === 'nutritionist' ? 'Nutricionista' : 'Treinador'
+}
+
+function affiliatePlanCycleLabel(value) {
+  return ({ monthly: 'Mensal', semiannual: 'Semestral', annual: 'Anual' })[value] || value || '—'
+}
+
+function getAffiliateFinanceTransactions(affiliate = {}) {
+  const studentTransactions = (Array.isArray(affiliate.sales) ? affiliate.sales : []).map((sale) => ({
+    origin: 'Aluno/Paciente',
+    affiliate,
+    personName: sale.studentName || 'Aluno/Paciente',
+    personEmail: sale.studentEmail || '',
+    personType: 'Aluno/Paciente',
+    plan: 'Mensalidade do aplicativo',
+    paidAt: sale.paidAt,
+    grossAmountCents: sale.providerAmountCents ?? sale.revenueCents,
+    commissionRate: 0.25,
+    commissionCents: sale.commissionCents,
+    status: sale.status,
+    providerOrderId: sale.providerOrderId || '',
+    providerSubscriptionId: sale.providerSubscriptionId || '',
+  }))
+  const professionalTransactions = (Array.isArray(affiliate.professionalPayments) ? affiliate.professionalPayments : []).map((payment) => ({
+    origin: 'Profissional',
+    affiliate,
+    personName: payment.referredName || payment.referredEmail || 'Profissional indicado',
+    personEmail: payment.referredEmail || '',
+    personType: affiliateProfessionalTypeLabel(payment.professionalType),
+    plan: affiliatePlanCycleLabel(payment.planCycle),
+    paidAt: payment.paidAt,
+    grossAmountCents: payment.grossAmountCents,
+    commissionRate: Number(payment.commissionRate || 0.5),
+    commissionCents: payment.commissionCents,
+    status: payment.status,
+    providerOrderId: payment.providerOrderId || '',
+    providerSubscriptionId: payment.providerSubscriptionId || '',
+  }))
+
+  return [...studentTransactions, ...professionalTransactions].sort((a, b) => (
+    new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime()
+  ))
+}
+
 export function exportAffiliateFinancePdf({ rows = [], totals = {}, period }) {
+  const transactions = rows.flatMap((affiliate) => getAffiliateFinanceTransactions(affiliate))
   return openCommissionPrintView({
     title: 'Financeiro de afiliados',
-    subtitle: `Pagamentos confirmados de ${period.startDate} a ${period.endDate}.`,
+    subtitle: `Pagamentos e reversões de ${period.startDate} a ${period.endDate}, identificados por origem.`,
     summary: [
       { label: 'Profissionais', value: Number(totals.affiliateCount || 0) },
-      { label: 'Pagantes únicos', value: Number(totals.paidStudents || 0) },
+      { label: 'Contas pagantes', value: Number(totals.paidAccounts ?? totals.paidStudents ?? 0) },
       { label: 'Receita confirmada', value: formatCurrency(Number(totals.revenueCents || 0) / 100) },
       { label: 'Comissão total', value: formatCurrency(Number(totals.commissionCents || 0) / 100) },
     ],
-    headers: ['Profissional', 'Perfil', 'E-mail', 'Pagantes', 'Mensalidades', 'Receita', 'Comissão'],
-    rows: rows.map((affiliate) => [
-      affiliate.professionalName || affiliate.email,
-      affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
-      affiliate.email,
-      Number(affiliate.paidStudents || 0),
-      Number(affiliate.paidInstallments || 0),
-      formatCurrency(Number(affiliate.revenueCents || 0) / 100),
-      formatCurrency(Number(affiliate.commissionCents || 0) / 100),
+    headers: ['Origem', 'Afiliado', 'Perfil do afiliado', 'Pessoa indicada', 'Tipo indicado', 'Plano', 'Data', 'Valor pago', 'Taxa', 'Comissão', 'Status', 'Pedido', 'Assinatura'],
+    rows: transactions.map((transaction) => [
+      transaction.origin,
+      `${transaction.affiliate.professionalName || transaction.affiliate.email} · ${transaction.affiliate.email}`,
+      affiliateProfessionalTypeLabel(transaction.affiliate.professionalType),
+      `${transaction.personName}${transaction.personEmail ? ` · ${transaction.personEmail}` : ''}`,
+      transaction.personType,
+      transaction.plan,
+      transaction.paidAt ? formatDateTime(transaction.paidAt) : '—',
+      formatCurrency(Number(transaction.grossAmountCents || 0) / 100),
+      `${Math.round(Number(transaction.commissionRate || 0) * 100)}%`,
+      formatCurrency(Number(transaction.commissionCents || 0) / 100),
+      transaction.status || '—',
+      transaction.providerOrderId || '—',
+      transaction.providerSubscriptionId || '—',
     ]),
   })
 }
@@ -18642,6 +18822,9 @@ export function ProfessionalCommissionsPage({
   professionalType = 'trainer',
   appAdminSettings = defaultAppAdminSettings,
   loadCommissionReport = loadRemoteProfessionalCommissionReport,
+  loadProfessionalReferrals = loadRemoteProfessionalReferrals,
+  createProfessionalReferral = createRemoteProfessionalReferral,
+  cancelProfessionalReferral = cancelRemoteProfessionalReferral,
 }) {
   const defaultPeriod = getAffiliateFinanceDefaultPeriod()
   const [startDate, setStartDate] = useState(defaultPeriod.startDate)
@@ -18650,18 +18833,33 @@ export function ProfessionalCommissionsPage({
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [professionalReferrals, setProfessionalReferrals] = useState([])
+  const [referralEmail, setReferralEmail] = useState('')
+  const [referralType, setReferralType] = useState('')
+  const [referralSaving, setReferralSaving] = useState(false)
+  const [referralFeedback, setReferralFeedback] = useState(null)
+  const [referralLoadError, setReferralLoadError] = useState('')
+  const [generatedReferral, setGeneratedReferral] = useState(null)
 
   const loadReport = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      setReport(await loadCommissionReport(appliedPeriod.startDate, appliedPeriod.endDate))
+      const nextReport = await loadCommissionReport(appliedPeriod.startDate, appliedPeriod.endDate)
+      setReport(nextReport)
+      try {
+        const referralPayload = await loadProfessionalReferrals()
+        setProfessionalReferrals(Array.isArray(referralPayload?.referrals) ? referralPayload.referrals : [])
+        setReferralLoadError('')
+      } catch (referralError) {
+        setReferralLoadError(referralError?.message || 'Não foi possível carregar suas indicações profissionais.')
+      }
     } catch (loadError) {
       setError(loadError?.message || 'Não foi possível carregar suas comissões.')
     } finally {
       setLoading(false)
     }
-  }, [appliedPeriod, loadCommissionReport])
+  }, [appliedPeriod, loadCommissionReport, loadProfessionalReferrals])
 
   useEffect(() => {
     loadReport()
@@ -18669,9 +18867,109 @@ export function ProfessionalCommissionsPage({
 
   const totals = report?.totals || {}
   const clients = Array.isArray(report?.clients) ? report.clients : []
+  const professionalCommissions = report?.professionalCommissions || {}
+  const professionalTotals = professionalCommissions.totals || {}
+  const professionalPayments = Array.isArray(professionalCommissions.payments) ? professionalCommissions.payments : []
+  const consolidatedTotals = report?.consolidatedTotals || {
+    paidAccounts: Number(totals.paidClients || 0) + Number(professionalTotals.paidProfessionals || 0),
+    paidInstallments: Number(totals.paidInstallments || 0) + Number(professionalTotals.paidInstallments || 0),
+    revenueCents: Number(totals.revenueCents || 0) + Number(professionalTotals.revenueCents || 0),
+    commissionCents: Number(totals.commissionCents || 0) + Number(professionalTotals.commissionCents || 0),
+  }
   const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
   const audience = getCommissionAudience(professionalType)
   const commissionWhatsappUrl = normalizeCommissionWhatsappUrl(appAdminSettings?.commissionWhatsappUrl)
+
+  function validateReferralEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+  }
+
+  function referralErrorMessage(errorCode) {
+    if (errorCode === 'referral_conflict') return 'Este e-mail já possui uma indicação ativa.'
+    if (errorCode === 'already_subscribed') return 'Este profissional já possui uma assinatura ativa.'
+    if (errorCode === 'self_referral') return 'Use o e-mail de outro profissional para criar a indicação.'
+    return 'Não foi possível gerar o convite. Confira os dados e tente novamente.'
+  }
+
+  async function createReferral() {
+    const normalizedEmail = String(referralEmail || '').trim().toLowerCase()
+    setReferralFeedback(null)
+    if (!validateReferralEmail(normalizedEmail) || !referralType) {
+      setReferralFeedback({ type: 'error', message: 'Informe um e-mail válido e selecione o tipo do profissional.' })
+      return
+    }
+
+    setReferralSaving(true)
+    try {
+      const result = await createProfessionalReferral({ email: normalizedEmail, professionalType: referralType })
+      if (result?.ok !== true || !result?.token) {
+        setReferralFeedback({ type: 'error', message: referralErrorMessage(result?.errorCode) })
+        return
+      }
+      const url = buildProfessionalReferralUrl(result.token)
+      setGeneratedReferral({
+        email: normalizedEmail,
+        professionalType: referralType,
+        url,
+      })
+      setProfessionalReferrals((current) => [
+        result.referral,
+        ...current.filter((item) => item.id !== result.referral?.id),
+      ].filter(Boolean))
+      setReferralEmail('')
+      setReferralType('')
+      setReferralFeedback({ type: 'success', message: 'Convite gerado. Envie o link ao profissional indicado.' })
+    } catch (createError) {
+      setReferralFeedback({ type: 'error', message: createError?.message || 'Não foi possível gerar o convite.' })
+    } finally {
+      setReferralSaving(false)
+    }
+  }
+
+  async function copyGeneratedReferral() {
+    if (!generatedReferral?.url) return
+    try {
+      await navigator.clipboard.writeText(generatedReferral.url)
+      setReferralFeedback({ type: 'success', message: 'Link copiado.' })
+    } catch {
+      setReferralFeedback({ type: 'error', message: 'Não foi possível copiar automaticamente. Selecione o link exibido.' })
+    }
+  }
+
+  async function shareGeneratedReferral() {
+    if (!generatedReferral?.url) return
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Convite Coach Fit Pro',
+          text: `Seu acesso profissional ao Coach Fit Pro está pronto para cadastro: ${generatedReferral.email}`,
+          url: generatedReferral.url,
+        })
+        return
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return
+      }
+    }
+    await copyGeneratedReferral()
+  }
+
+  async function cancelReferral(referral) {
+    setReferralSaving(true)
+    setReferralFeedback(null)
+    try {
+      const result = await cancelProfessionalReferral(referral.id)
+      if (result?.ok !== true) throw new Error('Este convite não pode mais ser cancelado.')
+      setProfessionalReferrals((current) => current.map((item) => (
+        item.id === referral.id ? { ...item, status: 'canceled' } : item
+      )))
+      if (generatedReferral?.email === referral.referredEmail) setGeneratedReferral(null)
+      setReferralFeedback({ type: 'success', message: 'Convite cancelado.' })
+    } catch (cancelError) {
+      setReferralFeedback({ type: 'error', message: cancelError?.message || 'Não foi possível cancelar o convite.' })
+    } finally {
+      setReferralSaving(false)
+    }
+  }
 
   function applyPeriod() {
     if (!startDate || !endDate) {
@@ -18758,12 +19056,85 @@ export function ProfessionalCommissionsPage({
         {error ? <p role="alert" className="professional-commissions-error mt-3 p-3 text-sm font-bold">{error}</p> : null}
       </section>
 
+      <section className="professional-commissions-panel p-4 sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="professional-commissions-section-title text-lg font-black">Cadastrar Treinador/Nutricionista</h2>
+            <p className="professional-commissions-muted mt-1 max-w-2xl text-sm leading-6">Indique outro profissional. Quando ele assinar o Coach Fit Pro com o mesmo e-mail, sua comissão de 50% será registrada automaticamente.</p>
+          </div>
+          <span className="professional-commissions-count text-xs font-bold">{professionalReferrals.length} indicação(ões)</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
+          <label className="professional-commissions-label grid gap-2 text-sm font-bold">
+            E-mail do profissional indicado
+            <input type="email" value={referralEmail} onChange={(event) => setReferralEmail(event.target.value)} placeholder="profissional@exemplo.com" className="professional-commissions-input h-11 min-w-0 px-3 outline-none" />
+          </label>
+          <label className="professional-commissions-label grid gap-2 text-sm font-bold">
+            Tipo do profissional indicado
+            <select value={referralType} onChange={(event) => setReferralType(event.target.value)} className="professional-commissions-input h-11 px-3 outline-none">
+              <option value="">Selecione</option>
+              <option value="trainer">Treinador</option>
+              <option value="nutritionist">Nutricionista</option>
+            </select>
+          </label>
+          <button type="button" onClick={createReferral} disabled={referralSaving || !validateReferralEmail(referralEmail) || !referralType} className="professional-commissions-primary-button min-h-11 px-5 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50">
+            {referralSaving ? 'Gerando...' : 'Gerar link de convite'}
+          </button>
+        </div>
+
+        {referralFeedback ? <div className="mt-3"><AffiliateInlineNotice type={referralFeedback.type}>{referralFeedback.message}</AffiliateInlineNotice></div> : null}
+
+        {generatedReferral ? (
+          <div className="professional-referral-generated mt-4 p-4" role="status">
+            <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Link individual pronto</p>
+            <p className="professional-commissions-muted mt-1 text-xs">Envie apenas para {generatedReferral.email}. O vínculo será confirmado pelo e-mail da conta.</p>
+            <p className="professional-referral-url mt-3 break-all text-sm font-bold">{generatedReferral.url}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={copyGeneratedReferral} className="professional-commissions-primary-button min-h-11 px-4 text-sm font-black">Copiar link</button>
+              <button type="button" onClick={shareGeneratedReferral} className="professional-commissions-secondary-button min-h-11 px-4 text-sm font-black">Compartilhar</button>
+              <button type="button" onClick={() => setGeneratedReferral(null)} className="professional-commissions-secondary-button min-h-11 px-4 text-sm font-black">Ocultar</button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 border-t border-current/10 pt-4">
+          {referralLoadError ? (
+            <div className="professional-commissions-empty p-4 text-sm">
+              <p>{referralLoadError}</p>
+              <button type="button" onClick={loadReport} className="professional-commissions-secondary-button mt-3 min-h-11 px-4 font-black">Tentar novamente</button>
+            </div>
+          ) : professionalReferrals.length ? (
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {professionalReferrals.map((referral) => (
+                <article key={referral.id || referral.referredEmail} className="professional-commissions-client p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="professional-commissions-client-name truncate text-sm font-black">{referral.referredEmail}</p>
+                      <p className="professional-commissions-muted mt-1 text-xs">{referral.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</p>
+                    </div>
+                    <span className={`professional-commissions-status px-2 py-1 text-[10px] font-black uppercase ${referral.status === 'converted' ? 'is-active' : 'is-history'}`}>
+                      {({ pending: 'Aguardando cadastro', claimed: 'Cadastro confirmado', converted: 'Assinante', canceled: 'Cancelado' })[referral.status] || referral.status}
+                    </span>
+                  </div>
+                  {referral.status === 'pending' ? (
+                    <button type="button" disabled={referralSaving} onClick={() => cancelReferral(referral)} className="professional-commissions-secondary-button mt-3 min-h-11 w-full px-3 text-xs font-black disabled:opacity-50">Cancelar convite</button>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="professional-commissions-empty p-5 text-center text-sm">Nenhuma indicação profissional cadastrada.</div>
+          )}
+        </div>
+      </section>
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Comissão total', centsToCurrency(totals.commissionCents), 'somente pagamentos confirmados', 'primary'],
-          [`${audience.plural} pagantes`, Number(totals.paidClients || 0), `${audience.pluralLower} no período`, 'success'],
-          ['Mensalidades', Number(totals.paidInstallments || 0), 'confirmações recebidas', 'info'],
-          ['Volume confirmado', centsToCurrency(totals.revenueCents), 'mensalidades processadas', 'neutral'],
+          ['Total consolidado', centsToCurrency(consolidatedTotals.commissionCents), 'duas origens, sem dupla contagem', 'primary'],
+          ['Contas pagantes', Number(consolidatedTotals.paidAccounts || 0), 'alunos, pacientes e profissionais', 'success'],
+          ['Pagamentos confirmados', Number(consolidatedTotals.paidInstallments || 0), 'eventos financeiros únicos', 'info'],
+          ['Volume confirmado', centsToCurrency(consolidatedTotals.revenueCents), 'valor processado no período', 'neutral'],
         ].map(([label, value, detail, tone]) => (
           <article key={label} className={`professional-commissions-metric professional-commissions-metric--${tone} p-4`}>
             <p className="professional-commissions-metric-label text-xs font-black uppercase">{label}</p>
@@ -18776,10 +19147,10 @@ export function ProfessionalCommissionsPage({
       <section className="professional-commissions-panel p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="professional-commissions-section-title text-lg font-black">Comissão por {audience.singularLower}</p>
+            <p className="professional-commissions-section-title text-lg font-black">Comissões de {audience.pluralLower} · 25%</p>
             <p className="professional-commissions-muted mt-1 text-sm">Cada linha considera apenas mensalidades confirmadas no período selecionado.</p>
           </div>
-          <span className="professional-commissions-count text-xs font-bold">{clients.length} {clients.length === 1 ? audience.singularLower : audience.pluralLower}</span>
+          <span className="professional-commissions-count text-xs font-bold">{clients.length} {clients.length === 1 ? audience.singularLower : audience.pluralLower} · {centsToCurrency(totals.commissionCents)}</span>
         </div>
 
         {loading && !report ? (
@@ -18820,11 +19191,55 @@ export function ProfessionalCommissionsPage({
           </div>
         )}
       </section>
+
+      <section className="professional-commissions-panel p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="professional-commissions-section-title text-lg font-black">Indicações profissionais · 50%</p>
+            <p className="professional-commissions-muted mt-1 text-sm">Pagamentos e renovações confirmados de treinadores e nutricionistas indicados.</p>
+          </div>
+          <span className="professional-commissions-count text-xs font-bold">{Number(professionalTotals.paidProfessionals || 0)} Profissionais convertidos · {Number(professionalTotals.paidInstallments || 0)} Pagamentos profissionais</span>
+        </div>
+
+        {professionalPayments.length ? (
+          <div className="grid gap-3">
+            {professionalPayments.map((payment) => (
+              <article key={payment.paymentId || `${payment.referredEmail}-${payment.paidAt}`} className="professional-commissions-client grid gap-4 p-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(110px,0.45fr))] md:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="professional-commissions-client-name truncate font-black">{payment.referredName || payment.referredEmail || 'Profissional indicado'}</h4>
+                    <span className={`professional-commissions-status px-2 py-1 text-[10px] font-black uppercase ${payment.status === 'paid' ? 'is-active' : 'is-history'}`}>{payment.status === 'paid' ? 'Pago' : payment.status}</span>
+                  </div>
+                  <p className="professional-commissions-muted mt-1 truncate text-xs">{payment.referredEmail || 'E-mail não informado'} · {payment.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</p>
+                  <p className="professional-commissions-muted mt-2 text-xs">{payment.planCycle === 'annual' ? 'Plano anual' : payment.planCycle === 'semiannual' ? 'Plano semestral' : 'Plano mensal'} · {payment.paidAt ? formatDateTime(payment.paidAt) : '—'}</p>
+                </div>
+                <div>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Pagamento</p>
+                  <p className="professional-commissions-paid mt-1 font-black">{centsToCurrency(payment.grossAmountCents)}</p>
+                </div>
+                <div>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Taxa</p>
+                  <p className="professional-commissions-client-value mt-1 font-black">50%</p>
+                </div>
+                <div>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Sua comissão</p>
+                  <p className="professional-commissions-commission mt-1 text-lg font-black">{centsToCurrency(payment.commissionCents)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="professional-commissions-empty p-6 text-center">
+            <p className="professional-commissions-section-title font-black">Nenhum pagamento profissional confirmado neste período.</p>
+            <p className="professional-commissions-muted mt-2 text-sm">Quando um profissional indicado assinar, o pagamento e a comissão aparecerão aqui.</p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
 
-function AffiliateFinancePage() {
+export function AffiliateFinancePage({ loadFinanceReport = loadRemoteAffiliateFinanceReport }) {
   const defaultPeriod = getAffiliateFinanceDefaultPeriod()
   const today = defaultPeriod.endDate
   const monthStart = `${today.slice(0, 7)}-01`
@@ -18839,13 +19254,14 @@ function AffiliateFinancePage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('commission')
   const [expandedEmail, setExpandedEmail] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('all')
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
 
   const loadReport = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const next = await loadRemoteAffiliateFinanceReport(appliedPeriod.startDate, appliedPeriod.endDate)
+      const next = await loadFinanceReport(appliedPeriod.startDate, appliedPeriod.endDate)
       setReport(next)
       setLastUpdatedAt(new Date().toISOString())
     } catch (loadError) {
@@ -18853,7 +19269,7 @@ function AffiliateFinancePage() {
     } finally {
       setLoading(false)
     }
-  }, [appliedPeriod])
+  }, [appliedPeriod, loadFinanceReport])
 
   useEffect(() => {
     loadReport()
@@ -18867,6 +19283,14 @@ function AffiliateFinancePage() {
     return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString('pt-BR')
   }
   const totals = report?.totals || {}
+  const professionalTotals = report?.professionalTotals || {}
+  const consolidatedTotals = report?.consolidatedTotals || {
+    paidAccounts: Number(totals.paidStudents || 0) + Number(professionalTotals.paidProfessionals || 0),
+    paidInstallments: Number(totals.paidInstallments || 0) + Number(professionalTotals.paidInstallments || 0),
+    revenueCents: Number(totals.revenueCents || 0) + Number(professionalTotals.revenueCents || 0),
+    commissionCents: Number(totals.commissionCents || 0) + Number(professionalTotals.commissionCents || 0),
+  }
+  const exportTotals = { ...consolidatedTotals, affiliateCount: totals.affiliateCount }
   const rows = Array.isArray(report?.affiliates) ? report.affiliates : []
 
   const filteredRows = useMemo(() => {
@@ -18881,10 +19305,10 @@ function AffiliateFinancePage() {
 
     return [...filtered].sort((a, b) => {
       if (sortBy === 'name') return String(a.professionalName || a.email).localeCompare(String(b.professionalName || b.email), 'pt-BR')
-      if (sortBy === 'revenue') return Number(b.revenueCents || 0) - Number(a.revenueCents || 0)
-      if (sortBy === 'sales') return Number(b.paidInstallments || 0) - Number(a.paidInstallments || 0)
+      if (sortBy === 'revenue') return Number(b.consolidatedRevenueCents || b.revenueCents || 0) - Number(a.consolidatedRevenueCents || a.revenueCents || 0)
+      if (sortBy === 'sales') return (Number(b.paidInstallments || 0) + Number(b.professionalPaidInstallments || 0)) - (Number(a.paidInstallments || 0) + Number(a.professionalPaidInstallments || 0))
       if (sortBy === 'students') return Number(b.studentsBrought || 0) - Number(a.studentsBrought || 0)
-      return Number(b.commissionCents || 0) - Number(a.commissionCents || 0)
+      return Number(b.consolidatedCommissionCents || b.commissionCents || 0) - Number(a.consolidatedCommissionCents || a.commissionCents || 0)
     })
   }, [rows, search, typeFilter, statusFilter, sortBy])
 
@@ -18929,12 +19353,7 @@ function AffiliateFinancePage() {
   }
 
   function exportSales(affiliateRows, filenameBase) {
-    const sales = affiliateRows.flatMap((affiliate) => (
-      (Array.isArray(affiliate.sales) ? affiliate.sales : []).map((sale) => ({
-        affiliate,
-        sale,
-      }))
-    ))
+    const sales = affiliateRows.flatMap((affiliate) => getAffiliateFinanceTransactions(affiliate))
 
     if (!sales.length) {
       setError('Não há vendas pagas para exportar neste período.')
@@ -18942,33 +19361,39 @@ function AffiliateFinancePage() {
     }
 
     const headers = [
+      'Origem',
       'Data do pagamento',
-      'Profissional',
-      'Tipo',
+      'Afiliado',
+      'Perfil do afiliado',
       'E-mail do afiliado',
-      'Aluno/Paciente',
-      'E-mail do aluno/paciente',
-      'Mensalidade paga (R$)',
-      'Comissão 25% (R$)',
-      'Valor recebido pela Cartpanda (R$)',
+      'Pessoa indicada',
+      'E-mail da pessoa indicada',
+      'Tipo indicado',
+      'Plano',
+      'Valor pago (R$)',
+      'Taxa',
+      'Comissão (R$)',
       'Status',
       'Pedido Cartpanda',
       'Assinatura Cartpanda',
     ]
 
-    const lines = sales.map(({ affiliate, sale }) => [
+    const lines = sales.map((sale) => [
+      sale.origin,
       formatSaleDate(sale.paidAt),
-      affiliate.professionalName || affiliate.email,
-      affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
-      affiliate.email,
-      sale.studentName || 'Aluno/Paciente',
-      sale.studentEmail || '',
-      centsToCsv(sale.revenueCents),
+      sale.affiliate.professionalName || sale.affiliate.email,
+      affiliateProfessionalTypeLabel(sale.affiliate.professionalType),
+      sale.affiliate.email,
+      sale.personName,
+      sale.personEmail,
+      sale.personType,
+      sale.plan,
+      centsToCsv(sale.grossAmountCents),
+      `${Math.round(Number(sale.commissionRate || 0) * 100)}%`,
       centsToCsv(sale.commissionCents),
-      sale.providerAmountCents == null ? '' : centsToCsv(sale.providerAmountCents),
       sale.status === 'paid' ? 'Pago' : sale.status,
-      sale.providerOrderId || '',
-      sale.providerSubscriptionId || '',
+      sale.providerOrderId,
+      sale.providerSubscriptionId,
     ])
 
     const csv = '\uFEFF' + [headers, ...lines]
@@ -18987,7 +19412,7 @@ function AffiliateFinancePage() {
     URL.revokeObjectURL(url)
   }
 
-  const netAfterCommissionCents = Number(totals.revenueCents || 0) - Number(totals.commissionCents || 0)
+  const netAfterCommissionCents = Number(consolidatedTotals.revenueCents || 0) - Number(consolidatedTotals.commissionCents || 0)
 
   return (
     <div className="grid gap-6">
@@ -18998,7 +19423,7 @@ function AffiliateFinancePage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-[#147D70]">Financeiro de afiliados</p>
               <h2 className="mt-2 text-[19px] font-semibold text-[#102223]">Receita e comissão sem misturar valores pendentes</h2>
               <p className="mt-2 text-sm leading-6 text-[#607273]">
-                O relatório usa somente mensalidades confirmadas pela Cartpanda. Cada mensalidade paga gera R$ 25,00 de receita e R$ 6,25 de comissão (25%). Reembolsos e chargebacks deixam de compor os totais.
+                O relatório separa as assinaturas de alunos/pacientes (25%) das assinaturas profissionais indicadas (50%). Para alunos/pacientes, cada mensalidade paga gera R$ 25,00 de receita e R$ 6,25 de comissão. Reembolsos e chargebacks deixam de compor os totais confirmados.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -19008,7 +19433,7 @@ function AffiliateFinancePage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!exportAffiliateFinancePdf({ rows: filteredRows, totals, period: appliedPeriod })) {
+                  if (!exportAffiliateFinancePdf({ rows: filteredRows, totals: exportTotals, period: appliedPeriod })) {
                     setError('O navegador bloqueou a janela do relatório. Permita pop-ups e tente novamente.')
                   }
                 }}
@@ -19068,11 +19493,11 @@ function AffiliateFinancePage() {
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             {[
               ['Afiliados no relatório', Number(totals.affiliateCount || 0), 'cadastros/histórico'],
-              ['Alunos/pacientes trazidos', Number(totals.studentsBrought || 0), `+${Number(totals.newStudentsInPeriod || 0)} no período`],
-              ['Pagantes únicos', Number(totals.paidStudents || 0), 'com pagamento confirmado'],
-              ['Mensalidades pagas', Number(totals.paidInstallments || 0), 'eventos aprovados'],
-              ['Receita confirmada', centsToCurrency(totals.revenueCents), 'R$ 25,00 por mensalidade'],
-              ['Comissão total', centsToCurrency(totals.commissionCents), `líquido: ${centsToCurrency(netAfterCommissionCents)}`],
+              ['Alunos/pacientes pagos', Number(totals.paidStudents || 0), `${Number(totals.paidInstallments || 0)} pagamento(s) · 25%`],
+              ['Profissionais pagos', Number(professionalTotals.paidProfessionals || 0), `${Number(professionalTotals.paidInstallments || 0)} pagamento(s) · 50%`],
+              ['Pagamentos confirmados', Number(consolidatedTotals.paidInstallments || 0), 'duas origens, sem dupla contagem'],
+              ['Receita confirmada', centsToCurrency(consolidatedTotals.revenueCents), 'volume total processado'],
+              ['Total consolidado', centsToCurrency(consolidatedTotals.commissionCents), `líquido: ${centsToCurrency(netAfterCommissionCents)}`],
             ].map(([label, value, detail]) => (
               <div key={label} className="rounded-[14px] border border-[#E3E8E8] bg-white p-4">
                 <p className="text-xs font-medium text-[#718182]">{label}</p>
@@ -19120,7 +19545,15 @@ function AffiliateFinancePage() {
           <section className="grid gap-3">
             {filteredRows.length ? filteredRows.map((affiliate) => {
               const sales = Array.isArray(affiliate.sales) ? affiliate.sales : []
+              const professionalPayments = Array.isArray(affiliate.professionalPayments) ? affiliate.professionalPayments : []
+              const transactions = getAffiliateFinanceTransactions(affiliate)
               const expanded = expandedEmail === affiliate.email
+              const hasBothSources = sales.length > 0 && professionalPayments.length > 0
+              const visibleTransactions = sourceFilter === 'student'
+                ? transactions.filter((transaction) => transaction.origin === 'Aluno/Paciente')
+                : sourceFilter === 'professional'
+                  ? transactions.filter((transaction) => transaction.origin === 'Profissional')
+                  : transactions
               const conversion = Number(affiliate.studentsBrought || 0) > 0
                 ? Math.round((Number(affiliate.paidStudents || 0) / Number(affiliate.studentsBrought || 0)) * 100)
                 : 0
@@ -19140,23 +19573,23 @@ function AffiliateFinancePage() {
                       </div>
                       <p className="mt-1 truncate text-xs text-[#7A8A8B]">{affiliate.email}</p>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => setExpandedEmail(expanded ? '' : affiliate.email)} className="min-h-9 rounded-lg border border-[#DDE5E5] bg-white px-3 text-xs font-semibold text-[#41595A] hover:bg-[#F7F9F9]">
-                          {expanded ? 'Ocultar vendas' : `Ver ${sales.length} venda(s)`}
+                        <button type="button" onClick={() => { setExpandedEmail(expanded ? '' : affiliate.email); setSourceFilter('all') }} className="min-h-9 rounded-lg border border-[#DDE5E5] bg-white px-3 text-xs font-semibold text-[#41595A] hover:bg-[#F7F9F9]">
+                          {expanded ? 'Ocultar histórico' : `Ver ${transactions.length} lançamento(s)`}
                         </button>
-                        <button type="button" onClick={() => exportSales([affiliate], `vendas-${affiliate.professionalName || affiliate.email}`)} className="min-h-9 rounded-lg border border-[#CFE4E1] bg-[#F2FAF9] px-3 text-xs font-semibold text-[#176B62] hover:bg-[#EAF6F4]">
-                          Exportar vendas
+                        <button type="button" onClick={() => exportSales([affiliate], `financeiro-${affiliate.professionalName || affiliate.email}`)} className="min-h-9 rounded-lg border border-[#CFE4E1] bg-[#F2FAF9] px-3 text-xs font-semibold text-[#176B62] hover:bg-[#EAF6F4]">
+                          Exportar vendas e indicações
                         </button>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                       {[
-                        ['Trazidos', Number(affiliate.studentsBrought || 0)],
-                        ['Novos no período', Number(affiliate.newStudentsInPeriod || 0)],
-                        ['Pagantes', Number(affiliate.paidStudents || 0)],
-                        ['Conversão', `${conversion}%`],
-                        ['Gerado', centsToCurrency(affiliate.revenueCents)],
-                        ['Comissão 25%', centsToCurrency(affiliate.commissionCents)],
+                        ['Alunos/pacientes pagos', Number(affiliate.paidStudents || 0)],
+                        ['Comissão de alunos/pacientes · 25%', centsToCurrency(affiliate.commissionCents)],
+                        ['Profissionais pagos', Number(affiliate.paidProfessionals || 0)],
+                        ['Comissão profissional · 50%', centsToCurrency(affiliate.professionalCommissionCents)],
+                        ['Conversão de alunos', `${conversion}%`],
+                        ['Total consolidado', centsToCurrency(affiliate.consolidatedCommissionCents ?? (Number(affiliate.commissionCents || 0) + Number(affiliate.professionalCommissionCents || 0)))],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-xl bg-[#F8FAFA] p-3">
                           <p className="text-[10px] font-medium text-[#819091]">{label}</p>
@@ -19170,40 +19603,66 @@ function AffiliateFinancePage() {
                     <div className="border-t border-[#E8EEEE] bg-[#FBFCFC] p-4 sm:p-5">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-[#183334]">Vendas confirmadas no período</p>
-                          <p className="mt-1 text-xs text-[#7A8A8B]">Somente pagamentos que entram na comissão.</p>
+                          <p className="text-sm font-semibold text-[#183334]">Histórico financeiro do afiliado</p>
+                          <p className="mt-1 text-xs text-[#7A8A8B]">Pagamentos e reversões identificados por origem, sem misturar os percentuais.</p>
                         </div>
-                        <p className="text-xs font-semibold text-[#176B62]">{sales.length} pagamento(s)</p>
+                        <p className="text-xs font-semibold text-[#176B62]">{visibleTransactions.length} lançamento(s)</p>
                       </div>
-                      {sales.length ? (
+
+                      {hasBothSources ? (
+                        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtrar origem dos lançamentos">
+                          {[
+                            ['all', 'Todos'],
+                            ['student', 'Alunos/Pacientes · 25%'],
+                            ['professional', 'Profissionais · 50%'],
+                          ].map(([value, label]) => (
+                            <button key={value} type="button" onClick={() => setSourceFilter(value)} aria-pressed={sourceFilter === value} className={`min-h-9 rounded-lg border px-3 text-xs font-semibold ${sourceFilter === value ? 'border-[#147D70] bg-[#EAF7F4] text-[#0F6B60]' : 'border-[#DDE5E5] bg-white text-[#526667]'}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {visibleTransactions.length ? (
                         <div className="overflow-x-auto rounded-xl border border-[#E3E8E8] bg-white">
-                          <table className="min-w-[900px] w-full text-left text-xs">
+                          <table className="min-w-[1180px] w-full text-left text-xs">
                             <thead className="bg-[#F8FAFA] text-[11px] font-semibold text-[#66797A]">
                               <tr>
                                 <th className="px-3 py-3">Data</th>
-                                <th className="px-3 py-3">Aluno/Paciente</th>
-                                <th className="px-3 py-3">E-mail</th>
-                                <th className="px-3 py-3">Mensalidade</th>
+                                <th className="px-3 py-3">Origem</th>
+                                <th className="px-3 py-3">Pessoa indicada</th>
+                                <th className="px-3 py-3">Tipo / plano</th>
+                                <th className="px-3 py-3">Valor pago</th>
+                                <th className="px-3 py-3">Taxa</th>
                                 <th className="px-3 py-3">Comissão</th>
+                                <th className="px-3 py-3">Status</th>
                                 <th className="px-3 py-3">Pedido</th>
+                                <th className="px-3 py-3">Assinatura</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {sales.map((sale) => (
-                                <tr key={sale.paymentId || `${sale.studentId}-${sale.paidAt}`} className="border-t border-[#EDF1F1] text-[#536869]">
-                                  <td className="px-3 py-3 whitespace-nowrap">{formatSaleDate(sale.paidAt)}</td>
-                                  <td className="px-3 py-3 font-medium text-[#183334]">{sale.studentName || 'Aluno/Paciente'}</td>
-                                  <td className="px-3 py-3">{sale.studentEmail || '—'}</td>
-                                  <td className="px-3 py-3 font-semibold text-[#176B55]">{centsToCurrency(sale.revenueCents)}</td>
-                                  <td className="px-3 py-3 font-semibold text-[#176B62]">{centsToCurrency(sale.commissionCents)}</td>
-                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{sale.providerOrderId || '—'}</td>
+                              {visibleTransactions.map((transaction) => (
+                                <tr key={`${transaction.origin}-${transaction.providerOrderId || transaction.paidAt}-${transaction.personEmail}`} className="border-t border-[#EDF1F1] text-[#536869]">
+                                  <td className="px-3 py-3 whitespace-nowrap">{formatSaleDate(transaction.paidAt)}</td>
+                                  <td className="px-3 py-3 font-medium text-[#183334]">{transaction.origin}</td>
+                                  <td className="px-3 py-3">
+                                    <span className="block font-medium text-[#183334]">{transaction.personName}</span>
+                                    <span className="mt-0.5 block text-[11px] text-[#879596]">{transaction.personEmail || '—'}</span>
+                                  </td>
+                                  <td className="px-3 py-3">{transaction.personType} · {transaction.plan}</td>
+                                  <td className="px-3 py-3 font-semibold text-[#176B55]">{centsToCurrency(transaction.grossAmountCents)}</td>
+                                  <td className="px-3 py-3 font-semibold">{Math.round(Number(transaction.commissionRate || 0) * 100)}%</td>
+                                  <td className="px-3 py-3 font-semibold text-[#176B62]">{centsToCurrency(transaction.commissionCents)}</td>
+                                  <td className="px-3 py-3">{transaction.status === 'paid' ? 'Pago' : transaction.status || '—'}</td>
+                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{transaction.providerOrderId || '—'}</td>
+                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{transaction.providerSubscriptionId || '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       ) : (
-                        <p className="rounded-xl border border-[#E3E8E8] bg-white p-4 text-sm text-[#7A8A8B]">Nenhuma mensalidade paga neste período.</p>
+                        <p className="rounded-xl border border-[#E3E8E8] bg-white p-4 text-sm text-[#7A8A8B]">Nenhum lançamento desta origem no período.</p>
                       )}
                     </div>
                   ) : null}
@@ -19315,6 +19774,7 @@ function AffiliateProfessionalsPanel() {
   const monthStart = today.slice(0, 7) + '-01'
   const [affiliates, setAffiliates] = useState([])
   const [email, setEmail] = useState('')
+  const [professionalType, setProfessionalType] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState(null)
@@ -19337,7 +19797,7 @@ function AffiliateProfessionalsPanel() {
           ...row,
           professionalFound: Boolean(profile?.coachId),
           professionalName: profile?.coachId ? profile.professionalName : '',
-          professionalType: profile?.coachId ? profile.professionalType : '',
+          professionalType: profile?.coachId ? profile.professionalType : row.professionalType,
         }
       })
       setAffiliates(merged)
@@ -19366,6 +19826,10 @@ function AffiliateProfessionalsPanel() {
       setFeedback({ type: 'error', field: 'email', message: 'Informe um e-mail válido, como nome@exemplo.com.' })
       return
     }
+    if (!professionalType) {
+      setFeedback({ type: 'error', field: 'professionalType', message: 'Selecione se o profissional é treinador ou nutricionista.' })
+      return
+    }
 
     const existing = affiliates.find((affiliate) => String(affiliate.email || '').trim().toLowerCase() === normalizedEmail)
     if (existing) {
@@ -19382,20 +19846,29 @@ function AffiliateProfessionalsPanel() {
     setSaving(true)
     try {
       const detectedProfile = await loadRemoteProfessionalProfileByEmail(normalizedEmail)
-      const savedAffiliate = await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
+      if (detectedProfile?.coachId && detectedProfile.professionalType !== professionalType) {
+        setFeedback({
+          type: 'error',
+          field: 'professionalType',
+          message: 'O tipo selecionado não corresponde à conta já cadastrada. Confira se o profissional é treinador ou nutricionista.',
+        })
+        return
+      }
+      const savedAffiliate = await saveRemoteAffiliateProfessional({ email: normalizedEmail, professionalType, active: true })
       const optimisticAffiliate = {
         ...savedAffiliate,
         email: normalizedEmail,
         active: true,
         professionalFound: Boolean(detectedProfile?.coachId),
         professionalName: detectedProfile?.name || '',
-        professionalType: detectedProfile?.professionalType || '',
+        professionalType: detectedProfile?.professionalType || professionalType,
       }
       setAffiliates((current) => [
         optimisticAffiliate,
         ...current.filter((affiliate) => String(affiliate.email || '').trim().toLowerCase() !== normalizedEmail),
       ])
       setEmail('')
+      setProfessionalType('')
       setFeedback(detectedProfile?.coachId
         ? {
             type: 'success',
@@ -19420,6 +19893,7 @@ function AffiliateProfessionalsPanel() {
       await saveRemoteAffiliateProfessional({
         id: affiliate.id,
         email: affiliate.email,
+        professionalType: affiliate.professionalType,
         active: !affiliate.active,
       })
       await refreshAffiliates()
@@ -19509,7 +19983,7 @@ function AffiliateProfessionalsPanel() {
           <p className="mt-1 text-sm text-[#718182]">Informe o e-mail para criar o vínculo de afiliado.</p>
         </div>
 
-        <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1fr)_210px_auto]">
           <label
             htmlFor="affiliate-professional-email"
             className="text-sm font-medium text-[#30494A] lg:col-start-1 lg:row-start-1"
@@ -19532,11 +20006,29 @@ function AffiliateProfessionalsPanel() {
             className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition placeholder:text-[#9AA7A8] focus:ring-2 focus:ring-[#147D70]/10 lg:col-start-1 lg:row-start-2 ' + (feedback?.field === 'email' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
           />
 
+          <label htmlFor="affiliate-professional-type" className="text-sm font-medium text-[#30494A] lg:col-start-2 lg:row-start-1">
+            Tipo profissional
+          </label>
+          <select
+            id="affiliate-professional-type"
+            value={professionalType}
+            onChange={(event) => {
+              setProfessionalType(event.target.value)
+              if (feedback?.field === 'professionalType') setFeedback(null)
+            }}
+            aria-invalid={feedback?.field === 'professionalType' && feedback?.type === 'error' ? 'true' : undefined}
+            className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition focus:ring-2 focus:ring-[#147D70]/10 lg:col-start-2 lg:row-start-2 ' + (feedback?.field === 'professionalType' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
+          >
+            <option value="">Selecione</option>
+            <option value="trainer">Treinador</option>
+            <option value="nutritionist">Nutricionista</option>
+          </select>
+
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !validateEmail(email) || !professionalType}
             onClick={addAffiliate}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#0D6C61] bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_4px_12px_rgba(15,118,110,0.18)] transition hover:-translate-y-px hover:bg-[#0B625A] hover:shadow-[0_6px_16px_rgba(15,118,110,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E]/35 focus-visible:ring-offset-2 disabled:cursor-wait disabled:translate-y-0 disabled:opacity-55 disabled:shadow-none lg:col-start-2 lg:row-start-2 lg:min-w-[205px] lg:w-auto"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#0D6C61] bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_4px_12px_rgba(15,118,110,0.18)] transition hover:-translate-y-px hover:bg-[#0B625A] hover:shadow-[0_6px_16px_rgba(15,118,110,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E]/35 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-55 disabled:shadow-none lg:col-start-3 lg:row-start-2 lg:min-w-[205px] lg:w-auto"
           >
             {saving ? (
               <>

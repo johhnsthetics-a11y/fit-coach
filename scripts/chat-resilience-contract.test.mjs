@@ -23,8 +23,8 @@ test('chat message ids are valid UUIDs for database idempotency', () => {
 test('chat combines one fallback polling loop with the private realtime synchronizer', () => {
   assert.doesNotMatch(app, /setInterval\(refreshConversation/)
   assert.match(app, /catch \(error\)[\s\S]{0,260}throw error/)
-  assert.match(app, /return \[data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError\]/)
-  assert.match(app, /const \[data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError\] = useStoredData\(\)/)
+  assert.match(app, /return \[data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring\]/)
+  assert.match(app, /const \[data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring\] = useStoredData\(\)/)
 
   const studentPolling = app.slice(
     app.indexOf("if (!supabaseEnabled || !studentAccess?.invite?.code) return undefined"),

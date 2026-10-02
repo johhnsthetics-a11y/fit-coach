@@ -1,3 +1,5 @@
+import { normalizeProfessionalReferralToken, normalizeProfessionalReferralType } from './professionalReferral'
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
@@ -607,6 +609,41 @@ export async function loadRemoteProfessionalCommissionReport(startDate = '', end
   }
 }
 
+export async function createRemoteProfessionalReferral({ email, professionalType } = {}) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedType = normalizeProfessionalReferralType(professionalType)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error('Informe um e-mail válido do treinador ou nutricionista.')
+  }
+  if (!normalizedType) {
+    throw new Error('Selecione treinador ou nutricionista.')
+  }
+
+  return rpcRequest('create_affiliate_professional_referral', {
+    p_referred_email: normalizedEmail,
+    p_professional_type: normalizedType,
+  })
+}
+
+export async function claimRemoteProfessionalReferral(token) {
+  const normalizedToken = normalizeProfessionalReferralToken(token)
+  if (!normalizedToken) return { ok: false, errorCode: 'invalid_token' }
+  return rpcRequest('claim_affiliate_professional_referral', { p_token: normalizedToken })
+}
+
+export async function cancelRemoteProfessionalReferral(referralId) {
+  referralId = String(referralId || '').trim()
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referralId)) {
+    throw new Error('Convite profissional inválido.')
+  }
+  return rpcRequest('cancel_affiliate_professional_referral', { p_referral_id: referralId })
+}
+
+export async function loadRemoteProfessionalReferrals() {
+  const result = await rpcRequest('get_my_professional_referrals', {})
+  return result && typeof result === 'object' ? result : { referrals: [] }
+}
+
 export async function loadRemoteAffiliateCommissionDashboard(month = '') {
   const normalizedMonth = /^\d{4}-\d{2}$/.test(String(month || '').trim())
     ? `${String(month).trim()}-01`
@@ -633,6 +670,7 @@ export async function loadRemoteAffiliateProfessionals() {
   return rows.map((row) => ({
     id: row.id,
     email: String(row.email || '').trim().toLowerCase(),
+    professionalType: row.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     active: row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',
@@ -655,14 +693,19 @@ export async function loadRemoteProfessionalProfileByEmail(email = '') {
   }
 }
 
-export async function saveRemoteAffiliateProfessional({ id = '', email = '', active = true } = {}) {
+export async function saveRemoteAffiliateProfessional({ id = '', email = '', professionalType = '', active = true } = {}) {
   const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedType = normalizeProfessionalReferralType(professionalType)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     throw new Error('Informe um e-mail válido do treinador ou nutricionista.')
+  }
+  if (!normalizedType) {
+    throw new Error('Selecione se o profissional é treinador ou nutricionista.')
   }
 
   const body = {
     email: normalizedEmail,
+    professional_type: normalizedType,
     active: active !== false,
     updated_at: new Date().toISOString(),
   }
@@ -682,6 +725,7 @@ export async function saveRemoteAffiliateProfessional({ id = '', email = '', act
   return row ? {
     id: row.id,
     email: String(row.email || '').trim().toLowerCase(),
+    professionalType: row.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     active: row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',

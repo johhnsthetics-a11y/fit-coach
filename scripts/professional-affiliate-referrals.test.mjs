@@ -1,0 +1,113 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { test } from 'node:test'
+
+import {
+  PROFESSIONAL_REFERRAL_STORAGE_KEY,
+  buildProfessionalReferralUrl,
+  normalizeProfessionalReferralToken,
+  normalizeProfessionalReferralType,
+} from '../src/professionalReferral.js'
+
+const VALID_TOKEN = 'a'.repeat(64)
+
+test('normaliza somente os tipos profissionais aceitos', () => {
+  assert.equal(normalizeProfessionalReferralType('trainer'), 'trainer')
+  assert.equal(normalizeProfessionalReferralType('Treinador'), 'trainer')
+  assert.equal(normalizeProfessionalReferralType('coach'), 'trainer')
+  assert.equal(normalizeProfessionalReferralType('nutritionist'), 'nutritionist')
+  assert.equal(normalizeProfessionalReferralType('Nutricionista'), 'nutritionist')
+  assert.equal(normalizeProfessionalReferralType('student'), null)
+  assert.equal(normalizeProfessionalReferralType(''), null)
+})
+
+test('aceita apenas token opaco hexadecimal de 32 bytes', () => {
+  assert.equal(normalizeProfessionalReferralToken(`  ${VALID_TOKEN.toUpperCase()}  `), VALID_TOKEN)
+  assert.equal(normalizeProfessionalReferralToken('a'.repeat(63)), null)
+  assert.equal(normalizeProfessionalReferralToken('g'.repeat(64)), null)
+  assert.equal(normalizeProfessionalReferralToken(''), null)
+})
+
+test('monta o convite no dominio oficial sem perder parametros existentes', () => {
+  assert.equal(
+    buildProfessionalReferralUrl(VALID_TOKEN),
+    `https://app.coachfitpro.com.br/login?mode=signin&professional_ref=${VALID_TOKEN}`,
+  )
+  assert.equal(
+    buildProfessionalReferralUrl(VALID_TOKEN, 'https://app.coachfitpro.com.br/login?mode=signup&campaign=partner'),
+    `https://app.coachfitpro.com.br/login?mode=signup&campaign=partner&professional_ref=${VALID_TOKEN}`,
+  )
+  assert.equal(buildProfessionalReferralUrl('invalid-token'), '')
+  assert.equal(PROFESSIONAL_REFERRAL_STORAGE_KEY, 'coachfitpro-professional-referral')
+})
+
+test('API usa somente as RPCs autenticadas do fluxo profissional', async () => {
+  const source = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+
+  assert.match(source, /export async function createRemoteProfessionalReferral\(\{ email, professionalType \} = \{\}\)/)
+  assert.match(source, /rpcRequest\('create_affiliate_professional_referral',\s*\{\s*p_referred_email: normalizedEmail,\s*p_professional_type: normalizedType/)
+  assert.match(source, /export async function claimRemoteProfessionalReferral\(token\)/)
+  assert.match(source, /rpcRequest\('claim_affiliate_professional_referral',\s*\{ p_token: normalizedToken \}\)/)
+  assert.match(source, /export async function cancelRemoteProfessionalReferral\(referralId\)/)
+  assert.match(source, /rpcRequest\('cancel_affiliate_professional_referral',\s*\{ p_referral_id: referralId \}\)/)
+  assert.match(source, /export async function loadRemoteProfessionalReferrals\(\)/)
+  assert.match(source, /rpcRequest\('get_my_professional_referrals',\s*\{\}\)/)
+  assert.doesNotMatch(source, /service_role/i)
+})
+
+test('app preserva o convite ate a reivindicacao autenticada terminar', async () => {
+  const source = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(source, /PROFESSIONAL_REFERRAL_STORAGE_KEY/)
+  assert.match(source, /searchParams\.get\('professional_ref'\)/)
+  assert.match(source, /sessionStorage\.setItem\(PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizedToken\)/)
+  assert.match(source, /searchParams\.delete\('professional_ref'\)/)
+  assert.match(source, /history\.replaceState/)
+  assert.match(source, /claimRemoteProfessionalReferral\(pendingToken\)/)
+  assert.match(source, /result\?\.ok === true[\s\S]*sessionStorage\.removeItem\(PROFESSIONAL_REFERRAL_STORAGE_KEY\)/)
+  assert.match(source, /result\?\.errorCode === 'email_mismatch'[\s\S]*return/)
+  assert.match(source, /terminalProfessionalReferralErrors[\s\S]*sessionStorage\.removeItem\(PROFESSIONAL_REFERRAL_STORAGE_KEY\)/)
+})
+
+test('webhook registra comissão profissional de 50% sem alterar o fluxo de aluno', async () => {
+  const primary = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.match(primary, /async function findCommissionableProfessionalReferral\(referredUserId: string\)/)
+  assert.match(primary, /affiliate_professional_referrals\?referred_user_id=eq\./)
+  assert.match(primary, /affiliate_professionals!inner\(id,email,active\)/)
+  assert.match(primary, /affiliate_professionals\.active=eq\.true/)
+  assert.match(primary, /async function recordAffiliateProfessionalPayment\(/)
+  assert.match(primary, /affiliate_professional_payments/)
+  assert.match(primary, /commission_rate:\s*0\.5/)
+  assert.match(primary, /commission_cents:\s*Math\.round\(input\.grossAmountCents \* 0\.5\)/)
+  assert.match(primary, /grossAmountCents:\s*amountCents/)
+  assert.match(primary, /resolveProfessionalPlanCycle\(productName, productId, payload\)/)
+  assert.match(primary, /if \(input\.grossAmountCents == null \|\| input\.grossAmountCents <= 0\)/)
+  assert.match(primary, /console\.warn\('professional_commission_skipped'/)
+  assert.match(primary, /recordAffiliateStudentPayment\(/)
+  assert.match(primary, /commission_rate:\s*0\.25/)
+})
+
+test('webhook trata renovação, duplicidade econômica e estorno profissional terminal', async () => {
+  const source = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+
+  assert.match(source, /provider_order_id:\s*input\.orderId \|\| null/)
+  assert.match(source, /resolution=ignore-duplicates/)
+  assert.match(source, /status:\s*'converted'/)
+  assert.match(source, /converted_at:/)
+  assert.match(source, /async function reverseAffiliateProfessionalPayment\(/)
+  assert.match(source, /status=eq\.paid/)
+  assert.match(source, /status:\s*input\.status/)
+  assert.match(source, /reversal_event_id:\s*input\.eventId/)
+  assert.match(source, /reversed_at:/)
+  assert.match(source, /incomingStatus === 'refunded' \|\| incomingStatus === 'chargeback'/)
+})
+
+test('webhook reconhece os três ciclos comerciais do profissional', async () => {
+  const source = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const cycleFunction = source.match(/function resolveProfessionalPlanCycle[\s\S]*?\n}/)?.[0] || ''
+
+  assert.match(cycleFunction, /annual/)
+  assert.match(cycleFunction, /semiannual/)
+  assert.match(cycleFunction, /monthly/)
+})

@@ -1056,6 +1056,9 @@ textarea {
 }
 
 .sales-page .sales-header {
+  position: sticky;
+  top: 0;
+  padding-top: env(safe-area-inset-top, 0px);
   background: color-mix(in srgb, var(--admin-header-bg, rgba(0, 0, 0, 0.62)) 86%, transparent);
   backdrop-filter: blur(18px);
 }
@@ -1280,6 +1283,15 @@ textarea {
 
 .sales-header-actions {
   min-width: max-content;
+}
+
+.sales-header-login-button {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .sales-mobile-menu {
@@ -6239,6 +6251,8 @@ textarea {
     min-height: 66px;
     grid-template-columns: minmax(0, auto) minmax(0, 1fr);
     gap: 0.75rem;
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
   }
 
   .sales-header-nav,
@@ -6255,6 +6269,7 @@ textarea {
 
   .sales-header-actions {
     justify-self: end;
+    gap: 0.35rem;
   }
 
   .sales-header-actions > button:first-child {
@@ -6262,6 +6277,11 @@ textarea {
     padding: 0.7rem 0.95rem;
     border-color: rgba(52, 211, 153, 0.24);
     background: rgba(255, 255, 255, 0.055);
+  }
+
+  .sales-header-login-button {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
   }
 
   .sales-mobile-sticky-cta {
@@ -6449,6 +6469,27 @@ textarea {
   .sales-page #precos .sales-plan-option-card details:not([open]) {
     max-height: 48px;
     overflow: hidden;
+  }
+}
+
+@media (max-width: 380px) {
+  .sales-header-inner {
+    gap: 0.35rem;
+  }
+
+  .sales-header-logo-link .fit-brand-lockup {
+    width: clamp(118px, 38vw, 144px);
+    max-width: 42vw;
+  }
+
+  .sales-header-actions {
+    gap: 0.2rem;
+  }
+
+  .sales-header-login-button {
+    padding-right: 0.55rem;
+    padding-left: 0.55rem;
+    font-size: 0.78rem;
   }
 }
 
@@ -15651,6 +15692,23 @@ html[data-theme="dark"] body { background: #05070d; }
   background: var(--commissions-surface-strong);
 }
 
+.professional-referral-generated {
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 10px;
+  background: rgba(20, 184, 166, 0.08);
+  color: var(--commissions-text);
+}
+
+.professional-referral-url {
+  border: 1px solid var(--commissions-border);
+  border-radius: 8px;
+  background: var(--commissions-surface-strong);
+  color: var(--commissions-primary);
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 .professional-commissions-status {
   border: 1px solid transparent;
   border-radius: 999px;
@@ -15727,6 +15785,11 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: #dce4e2;
   background: #f2f5f4;
   color: #5f706d;
+}
+
+.app-theme-light .professional-referral-generated {
+  border-color: #a7d9d0;
+  background: #edf9f6;
 }
 
 @media (prefers-reduced-motion: reduce) {
