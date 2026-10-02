@@ -10953,6 +10953,125 @@ html[data-theme="dark"] body { background: #05070d; }
     min-height: 376px;
   }
 }
+
+/* sales-showcase-static-v2 */
+.sales-hero-value-line {
+  position: relative;
+  padding-left: 1rem;
+  border-left: 3px solid #00d2b2;
+  color: #f2fffc !important;
+  font-size: clamp(1.05rem, 1.6vw, 1.28rem) !important;
+  font-weight: 800 !important;
+  line-height: 1.55 !important;
+  text-wrap: balance;
+  text-shadow: 0 8px 28px rgba(0, 210, 178, 0.15);
+}
+
+.sales-theme-light .sales-hero-value-line {
+  color: #123b34 !important;
+  border-left-color: #009c86;
+  text-shadow: none;
+}
+
+.sales-hero-value-line > span:first-child {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.sales-showcase-static-v2 .sales-phone-mockup {
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sales-showcase-static-v2 .sales-phone-mockup:focus-visible {
+  outline: none;
+}
+
+.sales-showcase-static-v2 .sales-phone-screen {
+  min-height: 420px;
+}
+
+.sales-showcase-static-v2 .sales-current-profile,
+.sales-showcase-static-v2 .sales-current-row,
+.sales-showcase-static-v2 .sales-current-workout > div,
+.sales-showcase-static-v2 .sales-current-nutrition > div {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.sales-theme-light .sales-showcase-static-v2 .sales-current-profile,
+.sales-theme-light .sales-showcase-static-v2 .sales-current-row,
+.sales-theme-light .sales-showcase-static-v2 .sales-current-workout > div,
+.sales-theme-light .sales-showcase-static-v2 .sales-current-nutrition > div {
+  border-color: rgba(0, 156, 134, 0.14) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055) !important;
+}
+
+@keyframes salesShowcaseFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -7px;
+  }
+}
+
+.sales-showcase-float {
+  animation: salesShowcaseFloat 4.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  pointer-events: none;
+  will-change: translate;
+}
+
+.sales-showcase-static-v2 .metric-1 {
+  animation-delay: -0.7s;
+  animation-duration: 4.6s;
+}
+
+.sales-showcase-static-v2 .metric-2 {
+  animation-delay: -2.1s;
+  animation-duration: 5.3s;
+}
+
+.sales-showcase-static-v2 .metric-3 {
+  animation-delay: -3.5s;
+  animation-duration: 4.9s;
+}
+
+.sales-showcase-static-v2 .sales-hero-phone-1 .sales-showcase-float {
+  animation-delay: -1.2s;
+  animation-duration: 5.5s;
+}
+
+.sales-showcase-static-v2 .sales-hero-phone-2 .sales-showcase-float {
+  animation-delay: -2.8s;
+  animation-duration: 4.7s;
+}
+
+.sales-showcase-static-v2 .sales-hero-phone-3 .sales-showcase-float {
+  animation-delay: -4s;
+  animation-duration: 5.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-showcase-float {
+    animation: none !important;
+    translate: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .sales-hero-value-line {
+    padding-left: 0.8rem;
+    font-size: 1.03rem !important;
+    line-height: 1.5 !important;
+  }
+
+  .sales-showcase-static-v2 .sales-phone-screen {
+    min-height: 392px;
+  }
+}
 .nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel button {
   color: var(--app-light-title, #13201d) !important;
   border-color: rgba(0, 156, 134, 0.16) !important;

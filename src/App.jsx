@@ -4980,7 +4980,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <span key={`lead-${activeHeroHeadline.id}`} className="sales-rotating-line">{activeHeroHeadline.lead}</span>
               <span key={`focus-${activeHeroHeadline.id}`} className="sales-rotating-focus mt-2 block bg-gradient-to-r from-emerald-100 via-emerald-300 to-cyan-100 bg-clip-text text-transparent">{activeHeroHeadline.focus}</span>
             </h1>
-            <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof mt-4 max-w-xl text-base font-medium leading-7 text-zinc-300 sm:text-lg">
+            <p key={`proof-${activeHeroHeadline.id}`} className="sales-rotating-proof sales-hero-value-line mt-4 max-w-xl text-base font-medium leading-7 text-zinc-300 sm:text-lg">
               <span>{activeHeroHeadline.proof}</span>
               <span className="hidden">
               Gerencie alunos, treinos, dieta e cobrança recorrente em uma plataforma com cara de app. Menos caos. Mais retenção. Mais valor percebido.
@@ -6306,54 +6306,47 @@ function SalesStat({ value, label }) {
 }
 
 function SalesPhoneShowcase() {
-  const [activeIndex, setActiveIndex] = useState(1)
   const screens = [
     {
-      kicker: 'Início do aluno',
-      title: 'Olá, Teste1',
-      subtitle: 'Treino, dieta e evolução no mesmo lugar',
-      action: 'Meta do dia',
-      rows: ['Treino Legs liberado', 'Dieta 1191 kcal', 'Água 1,8L / 2,5L'],
+      kicker: 'Sua rotina hoje',
+      title: 'Bom dia, Carlos',
+      subtitle: 'Acompanhado por João Silva • Treinador',
       floatingIcon: 'dashboard',
-      floatingTitle: 'Painel único',
-      floatingText: 'rotina guiada',
+      floatingTitle: 'Visão geral',
+      floatingText: 'rotina e acompanhamento',
       type: 'home',
     },
     {
-      kicker: 'Treino de hoje',
-      title: 'Segunda-feira',
-      subtitle: 'Peito e tríceps',
-      action: 'Registrar série realizada',
-      rows: ['Supino reto · 3 x 12 · 60s', 'Crucifixo inclinado · 3 x 12', 'Tríceps corda · 3 x 15'],
+      kicker: 'Treino em andamento',
+      title: 'Supino reto',
+      subtitle: 'Peito e tríceps • Exercício 1 de 4',
       floatingIcon: 'dumbbell',
       floatingTitle: 'Treino',
-      floatingText: 'carga e séries',
+      floatingText: 'execução, carga e séries',
       type: 'workout',
     },
     {
-      kicker: 'Dieta e progresso',
-      title: 'Plano alimentar',
-      subtitle: '1191 kcal · 127.8g proteína',
-      action: 'Macros do dia',
-      rows: ['Café da manhã · ovos e aveia', 'Almoço · frango, arroz e salada', 'Jantar · patinho e legumes'],
+      kicker: 'Nutrição',
+      title: 'Dietas prescritas',
+      subtitle: 'Fase atual • Definição',
       floatingIcon: 'nutrition',
       floatingTitle: 'Nutrição',
-      floatingText: 'macros claros',
+      floatingText: 'refeições e medidas',
       type: 'nutrition',
     },
   ]
 
   const metrics = [
-    ['nutrition', 'Dieta liberada', 'macros e refeições'],
-    ['trophy', 'Evolução', 'check-ins e ranking'],
-    ['wallet', 'Financeiro', 'cobranças visíveis'],
+    ['message', 'Mensagens', 'contato com o profissional'],
+    ['trophy', 'Evolução', 'histórico, XP e ranking'],
+    ['wallet', 'Faturas', 'pagamentos organizados'],
   ]
 
   return (
-    <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1" aria-label="Prévia do aplicativo Coach Fit Pro">
+    <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2" role="img" aria-label="Prévia atual do aplicativo Coach Fit Pro com início, treino e nutrição">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
       {metrics.map(([icon, value, label], index) => (
-        <div key={label} className={`sales-showcase-metric metric-${index + 1}`}>
+        <div key={label} className={`sales-showcase-metric sales-showcase-float metric-${index + 1}`} aria-hidden="true">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
             <NavIcon name={icon} className="h-4 w-4" />
           </span>
@@ -6363,18 +6356,13 @@ function SalesPhoneShowcase() {
           </span>
         </div>
       ))}
-      {screens.map(({ kicker, title, subtitle, action, rows, floatingIcon, floatingTitle, floatingText, type }, index) => {
-        const active = activeIndex === index
-        return (
-        <button
+      {screens.map(({ kicker, title, subtitle, floatingIcon, floatingTitle, floatingText, type }, index) => (
+        <article
           key={title}
-          type="button"
-          aria-label={`Ver mockup: ${title}`}
-          aria-pressed={active}
-          onClick={() => setActiveIndex(index)}
-          className={`sales-phone-mockup sales-hero-phone-${index + 1} ${active ? 'is-active' : ''}`}
+          className={`sales-phone-mockup sales-hero-phone-${index + 1}`}
+          aria-label={`${title}: ${subtitle}`}
         >
-          <div className={`sales-floating-badge ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`}>
+          <div className={`sales-floating-badge sales-showcase-float ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`} aria-hidden="true">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
               <NavIcon name={floatingIcon} className="h-4 w-4" />
             </span>
@@ -6395,39 +6383,95 @@ function SalesPhoneShowcase() {
             <div className="sales-phone-notch" />
             <div className="sales-app-mini-header flex items-center justify-between">
               <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{active ? 'ao vivo' : 'prévia'}</span>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{type === 'workout' ? 'ao vivo' : type === 'nutrition' ? '2 planos' : 'hoje'}</span>
             </div>
             <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
             <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
-            <div className={`sales-app-preview-card sales-app-preview-card-${type} mt-4 rounded-2xl border border-emerald-300/20 bg-gradient-to-br from-emerald-500/35 to-emerald-300/10 p-3`}>
-              <p className="text-xs font-black text-emerald-100">{action}</p>
-              {type === 'nutrition' ? (
-                <div className="sales-macro-grid mt-3 grid grid-cols-3 gap-2">
-                  {[
-                    ['Kcal', '1191'],
-                    ['Prot.', '127g'],
-                    ['Fibra', '8.3g'],
-                  ].map(([label, value]) => (
-                    <span key={label} className="rounded-xl border border-white/10 bg-white/[0.07] px-2 py-2">
-                      <small className="block text-[9px] font-black uppercase text-zinc-400">{label}</small>
-                      <strong className="mt-0.5 block text-xs font-black text-white">{value}</strong>
+            {type === 'home' ? (
+              <div className="sales-current-home mt-4 grid gap-2">
+                <div className="sales-current-profile flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-300 text-[10px] font-black text-emerald-950">JS</span>
+                  <span className="min-w-0">
+                    <small className="block text-[8px] font-black uppercase text-emerald-200">Seu treinador</small>
+                    <strong className="block truncate text-[10px] text-zinc-100">João Silva</strong>
+                  </span>
+                </div>
+                {[
+                  ['dumbbell', 'Treino de hoje', 'Peito e tríceps'],
+                  ['water', 'Meta de água', '1,8 L de 2,5 L'],
+                  ['check', 'Próximo check-in', 'Sexta-feira'],
+                ].map(([icon, label, value]) => (
+                  <div key={label} className="sales-current-row flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
+                    <NavIcon name={icon} className="h-3.5 w-3.5 shrink-0 text-emerald-200" />
+                    <span className="min-w-0 flex-1">
+                      <small className="block text-[8px] font-bold text-zinc-400">{label}</small>
+                      <strong className="block truncate text-[10px] text-zinc-100">{value}</strong>
                     </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {type === 'workout' ? (
+              <div className="sales-current-workout mt-3 grid gap-2">
+                <div className="sales-app-preview-card rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>
+                      <small className="block text-[8px] font-black uppercase text-emerald-200">Músculo alvo</small>
+                      <strong className="text-[11px] text-zinc-100">Peitoral</strong>
+                    </span>
+                    <span className="text-right">
+                      <small className="block text-[8px] font-black uppercase text-zinc-400">Tempo do treino</small>
+                      <strong className="text-[12px] text-emerald-200">00:18:42</strong>
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="text-[10px] text-zinc-100">Registrar séries</strong>
+                    <small className="text-[8px] font-bold text-emerald-200">1/3 concluída</small>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    <span className="rounded-lg border border-white/10 bg-white/[0.07] px-2 py-1.5">
+                      <small className="block text-[7px] uppercase text-zinc-400">Carga</small>
+                      <strong className="text-[10px] text-zinc-100">40 kg</strong>
+                    </span>
+                    <span className="rounded-lg border border-white/10 bg-white/[0.07] px-2 py-1.5">
+                      <small className="block text-[7px] uppercase text-zinc-400">Repetições</small>
+                      <strong className="text-[10px] text-zinc-100">12</strong>
+                    </span>
+                  </div>
+                  <span className="mt-2 block rounded-lg bg-emerald-300 px-2 py-1.5 text-center text-[9px] font-black text-emerald-950">Concluir série</span>
+                </div>
+                <span className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-[9px] font-black text-emerald-100">Orientações do coach</span>
+              </div>
+            ) : null}
+            {type === 'nutrition' ? (
+              <div className="sales-current-nutrition mt-4 grid gap-2">
+                <div className="sales-app-preview-card rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-2.5">
+                  <small className="block text-[8px] font-black uppercase text-emerald-200">Plano ativo</small>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <strong className="text-[11px] text-zinc-100">Fase 2 • Definição</strong>
+                    <span className="rounded-full bg-emerald-300 px-2 py-1 text-[8px] font-black text-emerald-950">Atual</span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.045] p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <strong className="text-[10px] text-zinc-100">Café da manhã</strong>
+                    <small className="text-[8px] text-zinc-400">08:00</small>
+                  </div>
+                  {[
+                    ['Ovos mexidos', '2 unidades'],
+                    ['Aveia', '40 g'],
+                    ['Banana', '1 unidade'],
+                  ].map(([food, amount]) => (
+                    <div key={food} className="mt-1.5 flex items-center justify-between gap-2 border-t border-white/5 pt-1.5 text-[9px]">
+                      <span className="truncate text-zinc-200">{food}</span>
+                      <strong className="shrink-0 text-emerald-200">{amount}</strong>
+                    </div>
                   ))}
                 </div>
-              ) : (
-                <div className="mt-3 h-2 rounded-full bg-zinc-800">
-                  <div className="h-2 rounded-full bg-emerald-300" style={{ width: `${68 + index * 9}%` }} />
-                </div>
-              )}
-            </div>
-            <div className="mt-4 grid gap-2">
-              {rows.map((row) => (
-                <div key={row} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2">
-                  <span className="text-[10px] font-bold text-zinc-200">{row}</span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                </div>
-              ))}
-            </div>
+              </div>
+            ) : null}
             <div className="sales-phone-bottom-nav">
               {[
                 ['dashboard', 'Início'],
@@ -6436,27 +6480,15 @@ function SalesPhoneShowcase() {
                 ['wallet', 'Fatura'],
                 ['message', 'Chat'],
               ].map(([icon, label]) => (
-                <span key={label} className="grid justify-items-center gap-1 text-[9px] font-bold text-zinc-400">
-                  <NavIcon name={icon} className="h-3.5 w-3.5 text-emerald-200" />
+                <span key={label} className={`grid justify-items-center gap-1 text-[9px] font-bold ${label === (type === 'home' ? 'Início' : type === 'workout' ? 'Treino' : 'Dieta') ? 'text-emerald-200' : 'text-zinc-400'}`}>
+                  <NavIcon name={icon} className="h-3.5 w-3.5" />
                   {label}
                 </span>
               ))}
             </div>
           </div>
-        </button>
-        )
-      })}
-      <div className="sales-showcase-tabs" aria-label="Selecionar prévia">
-        {screens.map((screen, index) => (
-          <button
-            key={screen.title}
-            type="button"
-            aria-label={`Mostrar ${screen.title}`}
-            onClick={() => setActiveIndex(index)}
-            className={`sales-showcase-tab ${activeIndex === index ? 'is-active' : ''}`}
-          />
-        ))}
-      </div>
+        </article>
+      ))}
     </div>
   )
 }
