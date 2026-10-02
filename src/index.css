@@ -15651,6 +15651,23 @@ html[data-theme="dark"] body { background: #05070d; }
   background: var(--commissions-surface-strong);
 }
 
+.professional-referral-generated {
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 10px;
+  background: rgba(20, 184, 166, 0.08);
+  color: var(--commissions-text);
+}
+
+.professional-referral-url {
+  border: 1px solid var(--commissions-border);
+  border-radius: 8px;
+  background: var(--commissions-surface-strong);
+  color: var(--commissions-primary);
+  padding: 0.75rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 .professional-commissions-status {
   border: 1px solid transparent;
   border-radius: 999px;
@@ -15727,6 +15744,11 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: #dce4e2;
   background: #f2f5f4;
   color: #5f706d;
+}
+
+.app-theme-light .professional-referral-generated {
+  border-color: #a7d9d0;
+  background: #edf9f6;
 }
 
 @media (prefers-reduced-motion: reduce) {

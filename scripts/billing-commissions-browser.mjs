@@ -24,7 +24,15 @@ const report = {
     { studentId: 'student-a', clientName: 'Carlos Almeida', clientEmail: 'carlos@example.test', appPaymentStatus: 'active', paymentCount: 1, revenueCents: 2500, commissionCents: 625, lastPaidAt: '2026-09-30T15:00:00Z' },
     { studentId: 'patient-b', clientName: 'Mariana Oliveira', clientEmail: 'mariana@example.test', appPaymentStatus: 'active', paymentCount: 1, revenueCents: 2500, commissionCents: 625, lastPaidAt: '2026-09-29T15:00:00Z' },
   ],
+  professionalCommissions: {
+    commissionRate: 0.5,
+    totals: { paidProfessionals: 1, paidInstallments: 1, revenueCents: 4990, commissionCents: 2495 },
+    payments: [{ paymentId:'pro-payment', referredName:'Paulo Treinador', referredEmail:'paulo@example.test', professionalType:'trainer', planCycle:'monthly', paidAt:'2026-10-01T15:00:00Z', grossAmountCents:4990, commissionRate:0.5, commissionCents:2495, status:'paid' }],
+    referrals: [{ id:'ref-1', referredEmail:'paulo@example.test', professionalType:'trainer', status:'converted', convertedAt:'2026-10-01T15:00:00Z' }],
+  },
+  consolidatedTotals: { paidAccounts: 3, paidInstallments: 3, revenueCents: 9990, commissionCents: 3745 },
 }
+const referralReport = { referrals: report.professionalCommissions.referrals };
 
 const fixture = `
 import React from 'react';
@@ -34,6 +42,7 @@ import '/src/index.css';
 const student=${JSON.stringify(student)};
 const invoices=${JSON.stringify(invoices)};
 const report=${JSON.stringify(report)};
+const referralReport=${JSON.stringify(referralReport)};
 function Billing(){
   React.useEffect(() => { history.replaceState(null, '', '?alunoTab=pagamentos') }, []);
   return <StudentMobileApp student={student} checkins={[]} workouts={[]} nutritionPlans={[]} workoutLogs={[]} messages={[]} appointments={[]} invoices={invoices} assessments={[]} coachSettings={{ publicName:'Dra. Ana Souza', pixKey:'pix@coachfitpro.test' }} coachId="qa-nutritionist" professionalType="nutritionist" theme="light" onExit={()=>{}} />;
@@ -44,7 +53,7 @@ function Commissions(){
   const professionalType = params.get('role') === 'nutritionist' ? 'nutritionist' : 'trainer';
   return <main className={'app-shell min-h-screen p-3 sm:p-6 app-theme-' + theme} data-theme={theme}>
     <header className="mb-5"><h1 className="text-3xl font-black">Comissões</h1></header>
-    <ProfessionalCommissionsPage professionalType={professionalType} appAdminSettings={{ commissionWhatsappUrl:'https://wa.me/5511999999999' }} loadCommissionReport={async()=>report} />
+    <ProfessionalCommissionsPage professionalType={professionalType} appAdminSettings={{ commissionWhatsappUrl:'https://wa.me/5511999999999' }} loadCommissionReport={async()=>report} loadProfessionalReferrals={async()=>referralReport} createProfessionalReferral={async()=>({ok:true,token:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',referral:{id:'ref-new',referredEmail:'novo@example.test',professionalType:'trainer',status:'pending'}})} cancelProfessionalReferral={async()=>({ok:true})} />
   </main>
 }
 createRoot(document.getElementById('root')).render(location.pathname.includes('commissions') ? <Commissions/> : <Billing/>);
@@ -104,14 +113,22 @@ try {
       await page.goto(`${base}qa-commissions?theme=${theme}&role=${role}`)
       await page.getByRole('heading', { name: 'Comissões', exact: true }).waitFor()
       assert.equal(await page.getByRole('heading', { name: 'Comissões', exact: true }).count(), 1)
-      await page.getByText('R$ 12,50', { exact: true }).waitFor()
+      await page.getByText(/R\$\s*12,50/).waitFor()
+      await page.getByText(/R\$\s*37,45/, { exact: true }).waitFor()
       await page.getByText('Carlos Almeida', { exact: true }).waitFor()
       await page.getByText('Mariana Oliveira', { exact: true }).waitFor()
+      await page.getByText('Paulo Treinador', { exact: true }).waitFor()
+      await page.getByRole('heading', { name: 'Cadastrar Treinador/Nutricionista' }).waitFor()
+      await page.getByLabel('E-mail do profissional indicado').fill('novo@example.test')
+      await page.getByLabel('Tipo do profissional indicado').selectOption('trainer')
+      await page.getByRole('button', { name: 'Gerar link de convite' }).click()
+      await page.getByText(/app\.coachfitpro\.com\.br\/login/).waitFor()
+      await page.getByRole('button', { name: 'Copiar link' }).waitFor()
       await page.getByRole('button', { name: 'Exportar PDF' }).waitFor()
       const rescue = page.getByRole('link', { name: 'Resgatar' })
       await rescue.waitFor()
       assert.equal(await rescue.getAttribute('href'), 'https://wa.me/5511999999999')
-      await page.getByText(role === 'nutritionist' ? 'Pacientes pagantes' : 'Alunos pagantes', { exact: true }).waitFor()
+      await page.getByText(role === 'nutritionist' ? 'Comissões de pacientes · 25%' : 'Comissões de alunos · 25%', { exact: true }).waitFor()
       assert.equal(await page.getByText(/afiliad/i).count(), 0)
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
       await page.screenshot({ path: resolve(output, `commissions-${theme}-${width}.png`), fullPage: true })

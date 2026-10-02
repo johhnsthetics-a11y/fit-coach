@@ -62,6 +62,46 @@ test('comissoes usa um unico cabecalho, branding tematico, resgate e PDF', async
   assert.match(css, /app-theme-light[\s\S]*professional-commissions-page/)
 })
 
+test('comissoes permite cadastrar e compartilhar indicação profissional segura', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /Cadastrar Treinador\/Nutricionista/)
+  assert.match(app, /createRemoteProfessionalReferral/)
+  assert.match(app, /loadRemoteProfessionalReferrals/)
+  assert.match(app, /cancelRemoteProfessionalReferral/)
+  assert.match(app, /buildProfessionalReferralUrl\(result\.token\)/)
+  assert.match(app, /navigator\.clipboard\.writeText\(generatedReferral\.url\)/)
+  assert.match(app, /navigator\.share/)
+  assert.match(app, /Copiar link/)
+  assert.match(app, /Compartilhar/)
+  assert.match(app, /Cancelar convite/)
+  assert.match(app, /Este e-mail já possui uma indicação ativa/)
+  assert.match(app, /Nenhuma indicação profissional cadastrada/)
+  assert.match(app, /Tentar novamente/)
+})
+
+test('comissoes separa 25%, 50% e total consolidado sem dupla contagem', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /Comissões de \{audience\.pluralLower\} · 25%/)
+  assert.match(app, /Indicações profissionais · 50%/)
+  assert.match(app, /report\?\.professionalCommissions/)
+  assert.match(app, /report\?\.consolidatedTotals/)
+  assert.match(app, /Total consolidado/)
+  assert.match(app, /Profissionais convertidos/)
+  assert.match(app, /Pagamentos profissionais/)
+})
+
+test('PDF de comissões identifica origem, pessoa, taxa e status', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /headers: \['Origem', 'Pessoa', 'Tipo', 'Data', 'Valor pago', 'Taxa', 'Comissão', 'Status'\]/)
+  assert.match(app, /`\$\{audience\.singular\} · aplicativo`/)
+  assert.match(app, /'Indicação profissional'/)
+  assert.match(app, /'50%'/)
+  assert.match(app, /payment\.professionalType === 'nutritionist'/)
+})
+
 test('perfil e cadastro de afiliado ficam isolados pela conta autenticada', async () => {
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')

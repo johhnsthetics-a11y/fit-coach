@@ -14,6 +14,8 @@ import {
   createRemoteStudentCheckoutSessionByInvite,
   completeRemoteStudentFirstPassword,
   claimRemoteProfessionalReferral,
+  createRemoteProfessionalReferral,
+  cancelRemoteProfessionalReferral,
   generateRemoteStudentCredentials,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
@@ -23,6 +25,7 @@ import {
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
   loadRemoteProfessionalCommissionReport,
+  loadRemoteProfessionalReferrals,
   loadRemoteProfessionalProfileByEmail,
   loadRemoteCurrentProfessionalAffiliate,
   loadRemoteCurrentStudentAccess,
@@ -74,7 +77,7 @@ import {
   uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
-import { PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
+import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
 import {
@@ -18661,26 +18664,42 @@ function openCommissionPrintView({ title, subtitle, summary = [], headers = [], 
 }
 
 export function exportProfessionalCommissionsPdf({ report, period, audience }) {
-  const totals = report?.totals || {}
+  const totals = report?.consolidatedTotals || report?.totals || {}
   const clients = Array.isArray(report?.clients) ? report.clients : []
+  const professionalPayments = Array.isArray(report?.professionalCommissions?.payments)
+    ? report.professionalCommissions.payments
+    : []
+  const studentRows = clients.map((client) => [
+    `${audience.singular} · aplicativo`,
+    `${client.clientName || audience.singular}${client.clientEmail ? ` · ${client.clientEmail}` : ''}`,
+    audience.singular,
+    client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—',
+    formatCurrency(Number(client.revenueCents || 0) / 100),
+    '25%',
+    formatCurrency(Number(client.commissionCents || 0) / 100),
+    client.appPaymentStatus === 'active' ? 'Ativo' : 'Histórico',
+  ])
+  const professionalRows = professionalPayments.map((payment) => [
+    'Indicação profissional',
+    `${payment.referredName || 'Profissional'}${payment.referredEmail ? ` · ${payment.referredEmail}` : ''}`,
+    payment.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
+    payment.paidAt ? formatDateTime(payment.paidAt) : '—',
+    formatCurrency(Number(payment.grossAmountCents || 0) / 100),
+    '50%',
+    formatCurrency(Number(payment.commissionCents || 0) / 100),
+    payment.status === 'paid' ? 'Pago' : payment.status || '—',
+  ])
   return openCommissionPrintView({
     title: 'Relatório de comissões',
-    subtitle: `${audience.plural} com pagamentos confirmados de ${period.startDate} a ${period.endDate}.`,
+    subtitle: `Pagamentos confirmados de ${period.startDate} a ${period.endDate}, separados por origem.`,
     summary: [
       { label: 'Comissão total', value: formatCurrency(Number(totals.commissionCents || 0) / 100) },
-      { label: `${audience.plural} pagantes`, value: Number(totals.paidClients || 0) },
+      { label: 'Contas pagantes', value: Number(totals.paidAccounts ?? totals.paidClients ?? 0) },
       { label: 'Mensalidades', value: Number(totals.paidInstallments || 0) },
       { label: 'Volume confirmado', value: formatCurrency(Number(totals.revenueCents || 0) / 100) },
     ],
-    headers: [audience.singular, 'E-mail', 'Mensalidades', 'Valor pago', 'Comissão', 'Último pagamento'],
-    rows: clients.map((client) => [
-      client.clientName || audience.singular,
-      client.clientEmail || '—',
-      Number(client.paymentCount || 0),
-      formatCurrency(Number(client.revenueCents || 0) / 100),
-      formatCurrency(Number(client.commissionCents || 0) / 100),
-      client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—',
-    ]),
+    headers: ['Origem', 'Pessoa', 'Tipo', 'Data', 'Valor pago', 'Taxa', 'Comissão', 'Status'],
+    rows: [...studentRows, ...professionalRows],
   })
 }
 
@@ -18711,6 +18730,9 @@ export function ProfessionalCommissionsPage({
   professionalType = 'trainer',
   appAdminSettings = defaultAppAdminSettings,
   loadCommissionReport = loadRemoteProfessionalCommissionReport,
+  loadProfessionalReferrals = loadRemoteProfessionalReferrals,
+  createProfessionalReferral = createRemoteProfessionalReferral,
+  cancelProfessionalReferral = cancelRemoteProfessionalReferral,
 }) {
   const defaultPeriod = getAffiliateFinanceDefaultPeriod()
   const [startDate, setStartDate] = useState(defaultPeriod.startDate)
@@ -18719,18 +18741,33 @@ export function ProfessionalCommissionsPage({
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [professionalReferrals, setProfessionalReferrals] = useState([])
+  const [referralEmail, setReferralEmail] = useState('')
+  const [referralType, setReferralType] = useState('')
+  const [referralSaving, setReferralSaving] = useState(false)
+  const [referralFeedback, setReferralFeedback] = useState(null)
+  const [referralLoadError, setReferralLoadError] = useState('')
+  const [generatedReferral, setGeneratedReferral] = useState(null)
 
   const loadReport = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      setReport(await loadCommissionReport(appliedPeriod.startDate, appliedPeriod.endDate))
+      const nextReport = await loadCommissionReport(appliedPeriod.startDate, appliedPeriod.endDate)
+      setReport(nextReport)
+      try {
+        const referralPayload = await loadProfessionalReferrals()
+        setProfessionalReferrals(Array.isArray(referralPayload?.referrals) ? referralPayload.referrals : [])
+        setReferralLoadError('')
+      } catch (referralError) {
+        setReferralLoadError(referralError?.message || 'Não foi possível carregar suas indicações profissionais.')
+      }
     } catch (loadError) {
       setError(loadError?.message || 'Não foi possível carregar suas comissões.')
     } finally {
       setLoading(false)
     }
-  }, [appliedPeriod, loadCommissionReport])
+  }, [appliedPeriod, loadCommissionReport, loadProfessionalReferrals])
 
   useEffect(() => {
     loadReport()
@@ -18738,9 +18775,109 @@ export function ProfessionalCommissionsPage({
 
   const totals = report?.totals || {}
   const clients = Array.isArray(report?.clients) ? report.clients : []
+  const professionalCommissions = report?.professionalCommissions || {}
+  const professionalTotals = professionalCommissions.totals || {}
+  const professionalPayments = Array.isArray(professionalCommissions.payments) ? professionalCommissions.payments : []
+  const consolidatedTotals = report?.consolidatedTotals || {
+    paidAccounts: Number(totals.paidClients || 0) + Number(professionalTotals.paidProfessionals || 0),
+    paidInstallments: Number(totals.paidInstallments || 0) + Number(professionalTotals.paidInstallments || 0),
+    revenueCents: Number(totals.revenueCents || 0) + Number(professionalTotals.revenueCents || 0),
+    commissionCents: Number(totals.commissionCents || 0) + Number(professionalTotals.commissionCents || 0),
+  }
   const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
   const audience = getCommissionAudience(professionalType)
   const commissionWhatsappUrl = normalizeCommissionWhatsappUrl(appAdminSettings?.commissionWhatsappUrl)
+
+  function validateReferralEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+  }
+
+  function referralErrorMessage(errorCode) {
+    if (errorCode === 'referral_conflict') return 'Este e-mail já possui uma indicação ativa.'
+    if (errorCode === 'already_subscribed') return 'Este profissional já possui uma assinatura ativa.'
+    if (errorCode === 'self_referral') return 'Use o e-mail de outro profissional para criar a indicação.'
+    return 'Não foi possível gerar o convite. Confira os dados e tente novamente.'
+  }
+
+  async function createReferral() {
+    const normalizedEmail = String(referralEmail || '').trim().toLowerCase()
+    setReferralFeedback(null)
+    if (!validateReferralEmail(normalizedEmail) || !referralType) {
+      setReferralFeedback({ type: 'error', message: 'Informe um e-mail válido e selecione o tipo do profissional.' })
+      return
+    }
+
+    setReferralSaving(true)
+    try {
+      const result = await createProfessionalReferral({ email: normalizedEmail, professionalType: referralType })
+      if (result?.ok !== true || !result?.token) {
+        setReferralFeedback({ type: 'error', message: referralErrorMessage(result?.errorCode) })
+        return
+      }
+      const url = buildProfessionalReferralUrl(result.token)
+      setGeneratedReferral({
+        email: normalizedEmail,
+        professionalType: referralType,
+        url,
+      })
+      setProfessionalReferrals((current) => [
+        result.referral,
+        ...current.filter((item) => item.id !== result.referral?.id),
+      ].filter(Boolean))
+      setReferralEmail('')
+      setReferralType('')
+      setReferralFeedback({ type: 'success', message: 'Convite gerado. Envie o link ao profissional indicado.' })
+    } catch (createError) {
+      setReferralFeedback({ type: 'error', message: createError?.message || 'Não foi possível gerar o convite.' })
+    } finally {
+      setReferralSaving(false)
+    }
+  }
+
+  async function copyGeneratedReferral() {
+    if (!generatedReferral?.url) return
+    try {
+      await navigator.clipboard.writeText(generatedReferral.url)
+      setReferralFeedback({ type: 'success', message: 'Link copiado.' })
+    } catch {
+      setReferralFeedback({ type: 'error', message: 'Não foi possível copiar automaticamente. Selecione o link exibido.' })
+    }
+  }
+
+  async function shareGeneratedReferral() {
+    if (!generatedReferral?.url) return
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Convite Coach Fit Pro',
+          text: `Seu acesso profissional ao Coach Fit Pro está pronto para cadastro: ${generatedReferral.email}`,
+          url: generatedReferral.url,
+        })
+        return
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return
+      }
+    }
+    await copyGeneratedReferral()
+  }
+
+  async function cancelReferral(referral) {
+    setReferralSaving(true)
+    setReferralFeedback(null)
+    try {
+      const result = await cancelProfessionalReferral(referral.id)
+      if (result?.ok !== true) throw new Error('Este convite não pode mais ser cancelado.')
+      setProfessionalReferrals((current) => current.map((item) => (
+        item.id === referral.id ? { ...item, status: 'canceled' } : item
+      )))
+      if (generatedReferral?.email === referral.referredEmail) setGeneratedReferral(null)
+      setReferralFeedback({ type: 'success', message: 'Convite cancelado.' })
+    } catch (cancelError) {
+      setReferralFeedback({ type: 'error', message: cancelError?.message || 'Não foi possível cancelar o convite.' })
+    } finally {
+      setReferralSaving(false)
+    }
+  }
 
   function applyPeriod() {
     if (!startDate || !endDate) {
@@ -18827,12 +18964,85 @@ export function ProfessionalCommissionsPage({
         {error ? <p role="alert" className="professional-commissions-error mt-3 p-3 text-sm font-bold">{error}</p> : null}
       </section>
 
+      <section className="professional-commissions-panel p-4 sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="professional-commissions-section-title text-lg font-black">Cadastrar Treinador/Nutricionista</h2>
+            <p className="professional-commissions-muted mt-1 max-w-2xl text-sm leading-6">Indique outro profissional. Quando ele assinar o Coach Fit Pro com o mesmo e-mail, sua comissão de 50% será registrada automaticamente.</p>
+          </div>
+          <span className="professional-commissions-count text-xs font-bold">{professionalReferrals.length} indicação(ões)</span>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
+          <label className="professional-commissions-label grid gap-2 text-sm font-bold">
+            E-mail do profissional indicado
+            <input type="email" value={referralEmail} onChange={(event) => setReferralEmail(event.target.value)} placeholder="profissional@exemplo.com" className="professional-commissions-input h-11 min-w-0 px-3 outline-none" />
+          </label>
+          <label className="professional-commissions-label grid gap-2 text-sm font-bold">
+            Tipo do profissional indicado
+            <select value={referralType} onChange={(event) => setReferralType(event.target.value)} className="professional-commissions-input h-11 px-3 outline-none">
+              <option value="">Selecione</option>
+              <option value="trainer">Treinador</option>
+              <option value="nutritionist">Nutricionista</option>
+            </select>
+          </label>
+          <button type="button" onClick={createReferral} disabled={referralSaving || !validateReferralEmail(referralEmail) || !referralType} className="professional-commissions-primary-button min-h-11 px-5 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50">
+            {referralSaving ? 'Gerando...' : 'Gerar link de convite'}
+          </button>
+        </div>
+
+        {referralFeedback ? <div className="mt-3"><AffiliateInlineNotice type={referralFeedback.type}>{referralFeedback.message}</AffiliateInlineNotice></div> : null}
+
+        {generatedReferral ? (
+          <div className="professional-referral-generated mt-4 p-4" role="status">
+            <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Link individual pronto</p>
+            <p className="professional-commissions-muted mt-1 text-xs">Envie apenas para {generatedReferral.email}. O vínculo será confirmado pelo e-mail da conta.</p>
+            <p className="professional-referral-url mt-3 break-all text-sm font-bold">{generatedReferral.url}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={copyGeneratedReferral} className="professional-commissions-primary-button min-h-11 px-4 text-sm font-black">Copiar link</button>
+              <button type="button" onClick={shareGeneratedReferral} className="professional-commissions-secondary-button min-h-11 px-4 text-sm font-black">Compartilhar</button>
+              <button type="button" onClick={() => setGeneratedReferral(null)} className="professional-commissions-secondary-button min-h-11 px-4 text-sm font-black">Ocultar</button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-5 border-t border-current/10 pt-4">
+          {referralLoadError ? (
+            <div className="professional-commissions-empty p-4 text-sm">
+              <p>{referralLoadError}</p>
+              <button type="button" onClick={loadReport} className="professional-commissions-secondary-button mt-3 min-h-11 px-4 font-black">Tentar novamente</button>
+            </div>
+          ) : professionalReferrals.length ? (
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {professionalReferrals.map((referral) => (
+                <article key={referral.id || referral.referredEmail} className="professional-commissions-client p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="professional-commissions-client-name truncate text-sm font-black">{referral.referredEmail}</p>
+                      <p className="professional-commissions-muted mt-1 text-xs">{referral.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</p>
+                    </div>
+                    <span className={`professional-commissions-status px-2 py-1 text-[10px] font-black uppercase ${referral.status === 'converted' ? 'is-active' : 'is-history'}`}>
+                      {({ pending: 'Aguardando cadastro', claimed: 'Cadastro confirmado', converted: 'Assinante', canceled: 'Cancelado' })[referral.status] || referral.status}
+                    </span>
+                  </div>
+                  {referral.status === 'pending' ? (
+                    <button type="button" disabled={referralSaving} onClick={() => cancelReferral(referral)} className="professional-commissions-secondary-button mt-3 min-h-11 w-full px-3 text-xs font-black disabled:opacity-50">Cancelar convite</button>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="professional-commissions-empty p-5 text-center text-sm">Nenhuma indicação profissional cadastrada.</div>
+          )}
+        </div>
+      </section>
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Comissão total', centsToCurrency(totals.commissionCents), 'somente pagamentos confirmados', 'primary'],
-          [`${audience.plural} pagantes`, Number(totals.paidClients || 0), `${audience.pluralLower} no período`, 'success'],
-          ['Mensalidades', Number(totals.paidInstallments || 0), 'confirmações recebidas', 'info'],
-          ['Volume confirmado', centsToCurrency(totals.revenueCents), 'mensalidades processadas', 'neutral'],
+          ['Total consolidado', centsToCurrency(consolidatedTotals.commissionCents), 'duas origens, sem dupla contagem', 'primary'],
+          ['Contas pagantes', Number(consolidatedTotals.paidAccounts || 0), 'alunos, pacientes e profissionais', 'success'],
+          ['Pagamentos confirmados', Number(consolidatedTotals.paidInstallments || 0), 'eventos financeiros únicos', 'info'],
+          ['Volume confirmado', centsToCurrency(consolidatedTotals.revenueCents), 'valor processado no período', 'neutral'],
         ].map(([label, value, detail, tone]) => (
           <article key={label} className={`professional-commissions-metric professional-commissions-metric--${tone} p-4`}>
             <p className="professional-commissions-metric-label text-xs font-black uppercase">{label}</p>
@@ -18845,10 +19055,10 @@ export function ProfessionalCommissionsPage({
       <section className="professional-commissions-panel p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="professional-commissions-section-title text-lg font-black">Comissão por {audience.singularLower}</p>
+            <p className="professional-commissions-section-title text-lg font-black">Comissões de {audience.pluralLower} · 25%</p>
             <p className="professional-commissions-muted mt-1 text-sm">Cada linha considera apenas mensalidades confirmadas no período selecionado.</p>
           </div>
-          <span className="professional-commissions-count text-xs font-bold">{clients.length} {clients.length === 1 ? audience.singularLower : audience.pluralLower}</span>
+          <span className="professional-commissions-count text-xs font-bold">{clients.length} {clients.length === 1 ? audience.singularLower : audience.pluralLower} · {centsToCurrency(totals.commissionCents)}</span>
         </div>
 
         {loading && !report ? (
@@ -18886,6 +19096,50 @@ export function ProfessionalCommissionsPage({
           <div className="professional-commissions-empty p-6 text-center">
             <p className="professional-commissions-section-title font-black">Nenhuma comissão confirmada neste período.</p>
             <p className="professional-commissions-muted mt-2 text-sm">Quando uma mensalidade for aprovada, o {audience.singularLower} e o valor aparecerão aqui automaticamente.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="professional-commissions-panel p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="professional-commissions-section-title text-lg font-black">Indicações profissionais · 50%</p>
+            <p className="professional-commissions-muted mt-1 text-sm">Pagamentos e renovações confirmados de treinadores e nutricionistas indicados.</p>
+          </div>
+          <span className="professional-commissions-count text-xs font-bold">{Number(professionalTotals.paidProfessionals || 0)} Profissionais convertidos · {Number(professionalTotals.paidInstallments || 0)} Pagamentos profissionais</span>
+        </div>
+
+        {professionalPayments.length ? (
+          <div className="grid gap-3">
+            {professionalPayments.map((payment) => (
+              <article key={payment.paymentId || `${payment.referredEmail}-${payment.paidAt}`} className="professional-commissions-client grid gap-4 p-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(110px,0.45fr))] md:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="professional-commissions-client-name truncate font-black">{payment.referredName || payment.referredEmail || 'Profissional indicado'}</h4>
+                    <span className={`professional-commissions-status px-2 py-1 text-[10px] font-black uppercase ${payment.status === 'paid' ? 'is-active' : 'is-history'}`}>{payment.status === 'paid' ? 'Pago' : payment.status}</span>
+                  </div>
+                  <p className="professional-commissions-muted mt-1 truncate text-xs">{payment.referredEmail || 'E-mail não informado'} · {payment.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</p>
+                  <p className="professional-commissions-muted mt-2 text-xs">{payment.planCycle === 'annual' ? 'Plano anual' : payment.planCycle === 'semiannual' ? 'Plano semestral' : 'Plano mensal'} · {payment.paidAt ? formatDateTime(payment.paidAt) : '—'}</p>
+                </div>
+                <div>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Pagamento</p>
+                  <p className="professional-commissions-paid mt-1 font-black">{centsToCurrency(payment.grossAmountCents)}</p>
+                </div>
+                <div>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Taxa</p>
+                  <p className="professional-commissions-client-value mt-1 font-black">50%</p>
+                </div>
+                <div>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Sua comissão</p>
+                  <p className="professional-commissions-commission mt-1 text-lg font-black">{centsToCurrency(payment.commissionCents)}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="professional-commissions-empty p-6 text-center">
+            <p className="professional-commissions-section-title font-black">Nenhum pagamento profissional confirmado neste período.</p>
+            <p className="professional-commissions-muted mt-2 text-sm">Quando um profissional indicado assinar, o pagamento e a comissão aparecerão aqui.</p>
           </div>
         )}
       </section>
