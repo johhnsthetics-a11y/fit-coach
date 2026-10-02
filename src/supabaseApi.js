@@ -670,6 +670,7 @@ export async function loadRemoteAffiliateProfessionals() {
   return rows.map((row) => ({
     id: row.id,
     email: String(row.email || '').trim().toLowerCase(),
+    professionalType: row.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     active: row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',
@@ -692,14 +693,19 @@ export async function loadRemoteProfessionalProfileByEmail(email = '') {
   }
 }
 
-export async function saveRemoteAffiliateProfessional({ id = '', email = '', active = true } = {}) {
+export async function saveRemoteAffiliateProfessional({ id = '', email = '', professionalType = '', active = true } = {}) {
   const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedType = normalizeProfessionalReferralType(professionalType)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     throw new Error('Informe um e-mail válido do treinador ou nutricionista.')
+  }
+  if (!normalizedType) {
+    throw new Error('Selecione se o profissional é treinador ou nutricionista.')
   }
 
   const body = {
     email: normalizedEmail,
+    professional_type: normalizedType,
     active: active !== false,
     updated_at: new Date().toISOString(),
   }
@@ -719,6 +725,7 @@ export async function saveRemoteAffiliateProfessional({ id = '', email = '', act
   return row ? {
     id: row.id,
     email: String(row.email || '').trim().toLowerCase(),
+    professionalType: row.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     active: row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',

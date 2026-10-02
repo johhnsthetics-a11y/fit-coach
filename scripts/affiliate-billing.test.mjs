@@ -187,6 +187,30 @@ test('profissional afiliado recebe acesso profissional sem mensalidade', async (
   assert.match(app, /funil normal de assinatura/)
 })
 
+test('Cadastro de Afiliados exige e persiste treinador ou nutricionista', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+
+  assert.match(api, /saveRemoteAffiliateProfessional\(\{ id = '', email = '', professionalType = '', active = true \} = \{\}\)/)
+  assert.match(api, /normalizeProfessionalReferralType\(professionalType\)/)
+  assert.match(api, /professional_type:\s*normalizedType/)
+  assert.match(api, /professionalType:\s*row\.professional_type === 'nutritionist' \? 'nutritionist' : 'trainer'/)
+  assert.match(app, /const \[professionalType, setProfessionalType\] = useState\(''\)/)
+  assert.match(app, /id="affiliate-professional-type"/)
+  assert.match(app, /<option value="trainer">Treinador<\/option>/)
+  assert.match(app, /<option value="nutritionist">Nutricionista<\/option>/)
+  assert.match(app, /disabled=\{saving \|\| !validateEmail\(email\) \|\| !professionalType\}/)
+  assert.match(app, /saveRemoteAffiliateProfessional\(\{ email: normalizedEmail, professionalType, active: true \}\)/)
+})
+
+test('Cadastro de Afiliados bloqueia divergência com o papel da conta existente', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /detectedProfile\?\.coachId && detectedProfile\.professionalType !== professionalType/)
+  assert.match(app, /O tipo selecionado não corresponde à conta já cadastrada/)
+  assert.match(app, /professionalType:\s*profile\?\.coachId \? profile\.professionalType : row\.professionalType/)
+})
+
 test('profissional conectado recebe liberacao automatica quando o Admin o vincula como afiliado', async () => {
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')

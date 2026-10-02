@@ -19384,6 +19384,7 @@ function AffiliateProfessionalsPanel() {
   const monthStart = today.slice(0, 7) + '-01'
   const [affiliates, setAffiliates] = useState([])
   const [email, setEmail] = useState('')
+  const [professionalType, setProfessionalType] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState(null)
@@ -19406,7 +19407,7 @@ function AffiliateProfessionalsPanel() {
           ...row,
           professionalFound: Boolean(profile?.coachId),
           professionalName: profile?.coachId ? profile.professionalName : '',
-          professionalType: profile?.coachId ? profile.professionalType : '',
+          professionalType: profile?.coachId ? profile.professionalType : row.professionalType,
         }
       })
       setAffiliates(merged)
@@ -19435,6 +19436,10 @@ function AffiliateProfessionalsPanel() {
       setFeedback({ type: 'error', field: 'email', message: 'Informe um e-mail válido, como nome@exemplo.com.' })
       return
     }
+    if (!professionalType) {
+      setFeedback({ type: 'error', field: 'professionalType', message: 'Selecione se o profissional é treinador ou nutricionista.' })
+      return
+    }
 
     const existing = affiliates.find((affiliate) => String(affiliate.email || '').trim().toLowerCase() === normalizedEmail)
     if (existing) {
@@ -19451,20 +19456,29 @@ function AffiliateProfessionalsPanel() {
     setSaving(true)
     try {
       const detectedProfile = await loadRemoteProfessionalProfileByEmail(normalizedEmail)
-      const savedAffiliate = await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
+      if (detectedProfile?.coachId && detectedProfile.professionalType !== professionalType) {
+        setFeedback({
+          type: 'error',
+          field: 'professionalType',
+          message: 'O tipo selecionado não corresponde à conta já cadastrada. Confira se o profissional é treinador ou nutricionista.',
+        })
+        return
+      }
+      const savedAffiliate = await saveRemoteAffiliateProfessional({ email: normalizedEmail, professionalType, active: true })
       const optimisticAffiliate = {
         ...savedAffiliate,
         email: normalizedEmail,
         active: true,
         professionalFound: Boolean(detectedProfile?.coachId),
         professionalName: detectedProfile?.name || '',
-        professionalType: detectedProfile?.professionalType || '',
+        professionalType: detectedProfile?.professionalType || professionalType,
       }
       setAffiliates((current) => [
         optimisticAffiliate,
         ...current.filter((affiliate) => String(affiliate.email || '').trim().toLowerCase() !== normalizedEmail),
       ])
       setEmail('')
+      setProfessionalType('')
       setFeedback(detectedProfile?.coachId
         ? {
             type: 'success',
@@ -19489,6 +19503,7 @@ function AffiliateProfessionalsPanel() {
       await saveRemoteAffiliateProfessional({
         id: affiliate.id,
         email: affiliate.email,
+        professionalType: affiliate.professionalType,
         active: !affiliate.active,
       })
       await refreshAffiliates()
@@ -19578,7 +19593,7 @@ function AffiliateProfessionalsPanel() {
           <p className="mt-1 text-sm text-[#718182]">Informe o e-mail para criar o vínculo de afiliado.</p>
         </div>
 
-        <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid gap-x-3 gap-y-2 lg:grid-cols-[minmax(0,1fr)_210px_auto]">
           <label
             htmlFor="affiliate-professional-email"
             className="text-sm font-medium text-[#30494A] lg:col-start-1 lg:row-start-1"
@@ -19601,11 +19616,29 @@ function AffiliateProfessionalsPanel() {
             className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition placeholder:text-[#9AA7A8] focus:ring-2 focus:ring-[#147D70]/10 lg:col-start-1 lg:row-start-2 ' + (feedback?.field === 'email' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
           />
 
+          <label htmlFor="affiliate-professional-type" className="text-sm font-medium text-[#30494A] lg:col-start-2 lg:row-start-1">
+            Tipo profissional
+          </label>
+          <select
+            id="affiliate-professional-type"
+            value={professionalType}
+            onChange={(event) => {
+              setProfessionalType(event.target.value)
+              if (feedback?.field === 'professionalType') setFeedback(null)
+            }}
+            aria-invalid={feedback?.field === 'professionalType' && feedback?.type === 'error' ? 'true' : undefined}
+            className={'h-11 min-w-0 rounded-xl border bg-white px-3.5 text-sm text-[#183334] outline-none transition focus:ring-2 focus:ring-[#147D70]/10 lg:col-start-2 lg:row-start-2 ' + (feedback?.field === 'professionalType' && feedback?.type === 'error' ? 'border-[#D96B6B] focus:border-[#C34F4F]' : 'border-[#DDE5E5] focus:border-[#147D70]')}
+          >
+            <option value="">Selecione</option>
+            <option value="trainer">Treinador</option>
+            <option value="nutritionist">Nutricionista</option>
+          </select>
+
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || !validateEmail(email) || !professionalType}
             onClick={addAffiliate}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#0D6C61] bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_4px_12px_rgba(15,118,110,0.18)] transition hover:-translate-y-px hover:bg-[#0B625A] hover:shadow-[0_6px_16px_rgba(15,118,110,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E]/35 focus-visible:ring-offset-2 disabled:cursor-wait disabled:translate-y-0 disabled:opacity-55 disabled:shadow-none lg:col-start-2 lg:row-start-2 lg:min-w-[205px] lg:w-auto"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#0D6C61] bg-[#0F766E] px-6 text-sm font-bold text-white shadow-[0_4px_12px_rgba(15,118,110,0.18)] transition hover:-translate-y-px hover:bg-[#0B625A] hover:shadow-[0_6px_16px_rgba(15,118,110,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F766E]/35 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-55 disabled:shadow-none lg:col-start-3 lg:row-start-2 lg:min-w-[205px] lg:w-auto"
           >
             {saving ? (
               <>
