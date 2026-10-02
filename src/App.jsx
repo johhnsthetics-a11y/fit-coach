@@ -18703,25 +18703,77 @@ export function exportProfessionalCommissionsPdf({ report, period, audience }) {
   })
 }
 
+function affiliateProfessionalTypeLabel(value) {
+  return value === 'nutritionist' ? 'Nutricionista' : 'Treinador'
+}
+
+function affiliatePlanCycleLabel(value) {
+  return ({ monthly: 'Mensal', semiannual: 'Semestral', annual: 'Anual' })[value] || value || '—'
+}
+
+function getAffiliateFinanceTransactions(affiliate = {}) {
+  const studentTransactions = (Array.isArray(affiliate.sales) ? affiliate.sales : []).map((sale) => ({
+    origin: 'Aluno/Paciente',
+    affiliate,
+    personName: sale.studentName || 'Aluno/Paciente',
+    personEmail: sale.studentEmail || '',
+    personType: 'Aluno/Paciente',
+    plan: 'Mensalidade do aplicativo',
+    paidAt: sale.paidAt,
+    grossAmountCents: sale.providerAmountCents ?? sale.revenueCents,
+    commissionRate: 0.25,
+    commissionCents: sale.commissionCents,
+    status: sale.status,
+    providerOrderId: sale.providerOrderId || '',
+    providerSubscriptionId: sale.providerSubscriptionId || '',
+  }))
+  const professionalTransactions = (Array.isArray(affiliate.professionalPayments) ? affiliate.professionalPayments : []).map((payment) => ({
+    origin: 'Profissional',
+    affiliate,
+    personName: payment.referredName || payment.referredEmail || 'Profissional indicado',
+    personEmail: payment.referredEmail || '',
+    personType: affiliateProfessionalTypeLabel(payment.professionalType),
+    plan: affiliatePlanCycleLabel(payment.planCycle),
+    paidAt: payment.paidAt,
+    grossAmountCents: payment.grossAmountCents,
+    commissionRate: Number(payment.commissionRate || 0.5),
+    commissionCents: payment.commissionCents,
+    status: payment.status,
+    providerOrderId: payment.providerOrderId || '',
+    providerSubscriptionId: payment.providerSubscriptionId || '',
+  }))
+
+  return [...studentTransactions, ...professionalTransactions].sort((a, b) => (
+    new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime()
+  ))
+}
+
 export function exportAffiliateFinancePdf({ rows = [], totals = {}, period }) {
+  const transactions = rows.flatMap((affiliate) => getAffiliateFinanceTransactions(affiliate))
   return openCommissionPrintView({
     title: 'Financeiro de afiliados',
-    subtitle: `Pagamentos confirmados de ${period.startDate} a ${period.endDate}.`,
+    subtitle: `Pagamentos e reversões de ${period.startDate} a ${period.endDate}, identificados por origem.`,
     summary: [
       { label: 'Profissionais', value: Number(totals.affiliateCount || 0) },
-      { label: 'Pagantes únicos', value: Number(totals.paidStudents || 0) },
+      { label: 'Contas pagantes', value: Number(totals.paidAccounts ?? totals.paidStudents ?? 0) },
       { label: 'Receita confirmada', value: formatCurrency(Number(totals.revenueCents || 0) / 100) },
       { label: 'Comissão total', value: formatCurrency(Number(totals.commissionCents || 0) / 100) },
     ],
-    headers: ['Profissional', 'Perfil', 'E-mail', 'Pagantes', 'Mensalidades', 'Receita', 'Comissão'],
-    rows: rows.map((affiliate) => [
-      affiliate.professionalName || affiliate.email,
-      affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
-      affiliate.email,
-      Number(affiliate.paidStudents || 0),
-      Number(affiliate.paidInstallments || 0),
-      formatCurrency(Number(affiliate.revenueCents || 0) / 100),
-      formatCurrency(Number(affiliate.commissionCents || 0) / 100),
+    headers: ['Origem', 'Afiliado', 'Perfil do afiliado', 'Pessoa indicada', 'Tipo indicado', 'Plano', 'Data', 'Valor pago', 'Taxa', 'Comissão', 'Status', 'Pedido', 'Assinatura'],
+    rows: transactions.map((transaction) => [
+      transaction.origin,
+      `${transaction.affiliate.professionalName || transaction.affiliate.email} · ${transaction.affiliate.email}`,
+      affiliateProfessionalTypeLabel(transaction.affiliate.professionalType),
+      `${transaction.personName}${transaction.personEmail ? ` · ${transaction.personEmail}` : ''}`,
+      transaction.personType,
+      transaction.plan,
+      transaction.paidAt ? formatDateTime(transaction.paidAt) : '—',
+      formatCurrency(Number(transaction.grossAmountCents || 0) / 100),
+      `${Math.round(Number(transaction.commissionRate || 0) * 100)}%`,
+      formatCurrency(Number(transaction.commissionCents || 0) / 100),
+      transaction.status || '—',
+      transaction.providerOrderId || '—',
+      transaction.providerSubscriptionId || '—',
     ]),
   })
 }
@@ -19147,7 +19199,7 @@ export function ProfessionalCommissionsPage({
   )
 }
 
-function AffiliateFinancePage() {
+export function AffiliateFinancePage({ loadFinanceReport = loadRemoteAffiliateFinanceReport }) {
   const defaultPeriod = getAffiliateFinanceDefaultPeriod()
   const today = defaultPeriod.endDate
   const monthStart = `${today.slice(0, 7)}-01`
@@ -19162,13 +19214,14 @@ function AffiliateFinancePage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('commission')
   const [expandedEmail, setExpandedEmail] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('all')
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
 
   const loadReport = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const next = await loadRemoteAffiliateFinanceReport(appliedPeriod.startDate, appliedPeriod.endDate)
+      const next = await loadFinanceReport(appliedPeriod.startDate, appliedPeriod.endDate)
       setReport(next)
       setLastUpdatedAt(new Date().toISOString())
     } catch (loadError) {
@@ -19176,7 +19229,7 @@ function AffiliateFinancePage() {
     } finally {
       setLoading(false)
     }
-  }, [appliedPeriod])
+  }, [appliedPeriod, loadFinanceReport])
 
   useEffect(() => {
     loadReport()
@@ -19190,6 +19243,14 @@ function AffiliateFinancePage() {
     return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString('pt-BR')
   }
   const totals = report?.totals || {}
+  const professionalTotals = report?.professionalTotals || {}
+  const consolidatedTotals = report?.consolidatedTotals || {
+    paidAccounts: Number(totals.paidStudents || 0) + Number(professionalTotals.paidProfessionals || 0),
+    paidInstallments: Number(totals.paidInstallments || 0) + Number(professionalTotals.paidInstallments || 0),
+    revenueCents: Number(totals.revenueCents || 0) + Number(professionalTotals.revenueCents || 0),
+    commissionCents: Number(totals.commissionCents || 0) + Number(professionalTotals.commissionCents || 0),
+  }
+  const exportTotals = { ...consolidatedTotals, affiliateCount: totals.affiliateCount }
   const rows = Array.isArray(report?.affiliates) ? report.affiliates : []
 
   const filteredRows = useMemo(() => {
@@ -19204,10 +19265,10 @@ function AffiliateFinancePage() {
 
     return [...filtered].sort((a, b) => {
       if (sortBy === 'name') return String(a.professionalName || a.email).localeCompare(String(b.professionalName || b.email), 'pt-BR')
-      if (sortBy === 'revenue') return Number(b.revenueCents || 0) - Number(a.revenueCents || 0)
-      if (sortBy === 'sales') return Number(b.paidInstallments || 0) - Number(a.paidInstallments || 0)
+      if (sortBy === 'revenue') return Number(b.consolidatedRevenueCents || b.revenueCents || 0) - Number(a.consolidatedRevenueCents || a.revenueCents || 0)
+      if (sortBy === 'sales') return (Number(b.paidInstallments || 0) + Number(b.professionalPaidInstallments || 0)) - (Number(a.paidInstallments || 0) + Number(a.professionalPaidInstallments || 0))
       if (sortBy === 'students') return Number(b.studentsBrought || 0) - Number(a.studentsBrought || 0)
-      return Number(b.commissionCents || 0) - Number(a.commissionCents || 0)
+      return Number(b.consolidatedCommissionCents || b.commissionCents || 0) - Number(a.consolidatedCommissionCents || a.commissionCents || 0)
     })
   }, [rows, search, typeFilter, statusFilter, sortBy])
 
@@ -19252,12 +19313,7 @@ function AffiliateFinancePage() {
   }
 
   function exportSales(affiliateRows, filenameBase) {
-    const sales = affiliateRows.flatMap((affiliate) => (
-      (Array.isArray(affiliate.sales) ? affiliate.sales : []).map((sale) => ({
-        affiliate,
-        sale,
-      }))
-    ))
+    const sales = affiliateRows.flatMap((affiliate) => getAffiliateFinanceTransactions(affiliate))
 
     if (!sales.length) {
       setError('Não há vendas pagas para exportar neste período.')
@@ -19265,33 +19321,39 @@ function AffiliateFinancePage() {
     }
 
     const headers = [
+      'Origem',
       'Data do pagamento',
-      'Profissional',
-      'Tipo',
+      'Afiliado',
+      'Perfil do afiliado',
       'E-mail do afiliado',
-      'Aluno/Paciente',
-      'E-mail do aluno/paciente',
-      'Mensalidade paga (R$)',
-      'Comissão 25% (R$)',
-      'Valor recebido pela Cartpanda (R$)',
+      'Pessoa indicada',
+      'E-mail da pessoa indicada',
+      'Tipo indicado',
+      'Plano',
+      'Valor pago (R$)',
+      'Taxa',
+      'Comissão (R$)',
       'Status',
       'Pedido Cartpanda',
       'Assinatura Cartpanda',
     ]
 
-    const lines = sales.map(({ affiliate, sale }) => [
+    const lines = sales.map((sale) => [
+      sale.origin,
       formatSaleDate(sale.paidAt),
-      affiliate.professionalName || affiliate.email,
-      affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
-      affiliate.email,
-      sale.studentName || 'Aluno/Paciente',
-      sale.studentEmail || '',
-      centsToCsv(sale.revenueCents),
+      sale.affiliate.professionalName || sale.affiliate.email,
+      affiliateProfessionalTypeLabel(sale.affiliate.professionalType),
+      sale.affiliate.email,
+      sale.personName,
+      sale.personEmail,
+      sale.personType,
+      sale.plan,
+      centsToCsv(sale.grossAmountCents),
+      `${Math.round(Number(sale.commissionRate || 0) * 100)}%`,
       centsToCsv(sale.commissionCents),
-      sale.providerAmountCents == null ? '' : centsToCsv(sale.providerAmountCents),
       sale.status === 'paid' ? 'Pago' : sale.status,
-      sale.providerOrderId || '',
-      sale.providerSubscriptionId || '',
+      sale.providerOrderId,
+      sale.providerSubscriptionId,
     ])
 
     const csv = '\uFEFF' + [headers, ...lines]
@@ -19310,7 +19372,7 @@ function AffiliateFinancePage() {
     URL.revokeObjectURL(url)
   }
 
-  const netAfterCommissionCents = Number(totals.revenueCents || 0) - Number(totals.commissionCents || 0)
+  const netAfterCommissionCents = Number(consolidatedTotals.revenueCents || 0) - Number(consolidatedTotals.commissionCents || 0)
 
   return (
     <div className="grid gap-6">
@@ -19321,7 +19383,7 @@ function AffiliateFinancePage() {
               <p className="text-xs font-semibold uppercase tracking-wide text-[#147D70]">Financeiro de afiliados</p>
               <h2 className="mt-2 text-[19px] font-semibold text-[#102223]">Receita e comissão sem misturar valores pendentes</h2>
               <p className="mt-2 text-sm leading-6 text-[#607273]">
-                O relatório usa somente mensalidades confirmadas pela Cartpanda. Cada mensalidade paga gera R$ 25,00 de receita e R$ 6,25 de comissão (25%). Reembolsos e chargebacks deixam de compor os totais.
+                O relatório separa as assinaturas de alunos/pacientes (25%) das assinaturas profissionais indicadas (50%). Para alunos/pacientes, cada mensalidade paga gera R$ 25,00 de receita e R$ 6,25 de comissão. Reembolsos e chargebacks deixam de compor os totais confirmados.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -19331,7 +19393,7 @@ function AffiliateFinancePage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!exportAffiliateFinancePdf({ rows: filteredRows, totals, period: appliedPeriod })) {
+                  if (!exportAffiliateFinancePdf({ rows: filteredRows, totals: exportTotals, period: appliedPeriod })) {
                     setError('O navegador bloqueou a janela do relatório. Permita pop-ups e tente novamente.')
                   }
                 }}
@@ -19391,11 +19453,11 @@ function AffiliateFinancePage() {
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             {[
               ['Afiliados no relatório', Number(totals.affiliateCount || 0), 'cadastros/histórico'],
-              ['Alunos/pacientes trazidos', Number(totals.studentsBrought || 0), `+${Number(totals.newStudentsInPeriod || 0)} no período`],
-              ['Pagantes únicos', Number(totals.paidStudents || 0), 'com pagamento confirmado'],
-              ['Mensalidades pagas', Number(totals.paidInstallments || 0), 'eventos aprovados'],
-              ['Receita confirmada', centsToCurrency(totals.revenueCents), 'R$ 25,00 por mensalidade'],
-              ['Comissão total', centsToCurrency(totals.commissionCents), `líquido: ${centsToCurrency(netAfterCommissionCents)}`],
+              ['Alunos/pacientes pagos', Number(totals.paidStudents || 0), `${Number(totals.paidInstallments || 0)} pagamento(s) · 25%`],
+              ['Profissionais pagos', Number(professionalTotals.paidProfessionals || 0), `${Number(professionalTotals.paidInstallments || 0)} pagamento(s) · 50%`],
+              ['Pagamentos confirmados', Number(consolidatedTotals.paidInstallments || 0), 'duas origens, sem dupla contagem'],
+              ['Receita confirmada', centsToCurrency(consolidatedTotals.revenueCents), 'volume total processado'],
+              ['Total consolidado', centsToCurrency(consolidatedTotals.commissionCents), `líquido: ${centsToCurrency(netAfterCommissionCents)}`],
             ].map(([label, value, detail]) => (
               <div key={label} className="rounded-[14px] border border-[#E3E8E8] bg-white p-4">
                 <p className="text-xs font-medium text-[#718182]">{label}</p>
@@ -19443,7 +19505,15 @@ function AffiliateFinancePage() {
           <section className="grid gap-3">
             {filteredRows.length ? filteredRows.map((affiliate) => {
               const sales = Array.isArray(affiliate.sales) ? affiliate.sales : []
+              const professionalPayments = Array.isArray(affiliate.professionalPayments) ? affiliate.professionalPayments : []
+              const transactions = getAffiliateFinanceTransactions(affiliate)
               const expanded = expandedEmail === affiliate.email
+              const hasBothSources = sales.length > 0 && professionalPayments.length > 0
+              const visibleTransactions = sourceFilter === 'student'
+                ? transactions.filter((transaction) => transaction.origin === 'Aluno/Paciente')
+                : sourceFilter === 'professional'
+                  ? transactions.filter((transaction) => transaction.origin === 'Profissional')
+                  : transactions
               const conversion = Number(affiliate.studentsBrought || 0) > 0
                 ? Math.round((Number(affiliate.paidStudents || 0) / Number(affiliate.studentsBrought || 0)) * 100)
                 : 0
@@ -19463,23 +19533,23 @@ function AffiliateFinancePage() {
                       </div>
                       <p className="mt-1 truncate text-xs text-[#7A8A8B]">{affiliate.email}</p>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => setExpandedEmail(expanded ? '' : affiliate.email)} className="min-h-9 rounded-lg border border-[#DDE5E5] bg-white px-3 text-xs font-semibold text-[#41595A] hover:bg-[#F7F9F9]">
-                          {expanded ? 'Ocultar vendas' : `Ver ${sales.length} venda(s)`}
+                        <button type="button" onClick={() => { setExpandedEmail(expanded ? '' : affiliate.email); setSourceFilter('all') }} className="min-h-9 rounded-lg border border-[#DDE5E5] bg-white px-3 text-xs font-semibold text-[#41595A] hover:bg-[#F7F9F9]">
+                          {expanded ? 'Ocultar histórico' : `Ver ${transactions.length} lançamento(s)`}
                         </button>
-                        <button type="button" onClick={() => exportSales([affiliate], `vendas-${affiliate.professionalName || affiliate.email}`)} className="min-h-9 rounded-lg border border-[#CFE4E1] bg-[#F2FAF9] px-3 text-xs font-semibold text-[#176B62] hover:bg-[#EAF6F4]">
-                          Exportar vendas
+                        <button type="button" onClick={() => exportSales([affiliate], `financeiro-${affiliate.professionalName || affiliate.email}`)} className="min-h-9 rounded-lg border border-[#CFE4E1] bg-[#F2FAF9] px-3 text-xs font-semibold text-[#176B62] hover:bg-[#EAF6F4]">
+                          Exportar vendas e indicações
                         </button>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                       {[
-                        ['Trazidos', Number(affiliate.studentsBrought || 0)],
-                        ['Novos no período', Number(affiliate.newStudentsInPeriod || 0)],
-                        ['Pagantes', Number(affiliate.paidStudents || 0)],
-                        ['Conversão', `${conversion}%`],
-                        ['Gerado', centsToCurrency(affiliate.revenueCents)],
-                        ['Comissão 25%', centsToCurrency(affiliate.commissionCents)],
+                        ['Alunos/pacientes pagos', Number(affiliate.paidStudents || 0)],
+                        ['Comissão de alunos/pacientes · 25%', centsToCurrency(affiliate.commissionCents)],
+                        ['Profissionais pagos', Number(affiliate.paidProfessionals || 0)],
+                        ['Comissão profissional · 50%', centsToCurrency(affiliate.professionalCommissionCents)],
+                        ['Conversão de alunos', `${conversion}%`],
+                        ['Total consolidado', centsToCurrency(affiliate.consolidatedCommissionCents ?? (Number(affiliate.commissionCents || 0) + Number(affiliate.professionalCommissionCents || 0)))],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-xl bg-[#F8FAFA] p-3">
                           <p className="text-[10px] font-medium text-[#819091]">{label}</p>
@@ -19493,40 +19563,66 @@ function AffiliateFinancePage() {
                     <div className="border-t border-[#E8EEEE] bg-[#FBFCFC] p-4 sm:p-5">
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-[#183334]">Vendas confirmadas no período</p>
-                          <p className="mt-1 text-xs text-[#7A8A8B]">Somente pagamentos que entram na comissão.</p>
+                          <p className="text-sm font-semibold text-[#183334]">Histórico financeiro do afiliado</p>
+                          <p className="mt-1 text-xs text-[#7A8A8B]">Pagamentos e reversões identificados por origem, sem misturar os percentuais.</p>
                         </div>
-                        <p className="text-xs font-semibold text-[#176B62]">{sales.length} pagamento(s)</p>
+                        <p className="text-xs font-semibold text-[#176B62]">{visibleTransactions.length} lançamento(s)</p>
                       </div>
-                      {sales.length ? (
+
+                      {hasBothSources ? (
+                        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filtrar origem dos lançamentos">
+                          {[
+                            ['all', 'Todos'],
+                            ['student', 'Alunos/Pacientes · 25%'],
+                            ['professional', 'Profissionais · 50%'],
+                          ].map(([value, label]) => (
+                            <button key={value} type="button" onClick={() => setSourceFilter(value)} aria-pressed={sourceFilter === value} className={`min-h-9 rounded-lg border px-3 text-xs font-semibold ${sourceFilter === value ? 'border-[#147D70] bg-[#EAF7F4] text-[#0F6B60]' : 'border-[#DDE5E5] bg-white text-[#526667]'}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {visibleTransactions.length ? (
                         <div className="overflow-x-auto rounded-xl border border-[#E3E8E8] bg-white">
-                          <table className="min-w-[900px] w-full text-left text-xs">
+                          <table className="min-w-[1180px] w-full text-left text-xs">
                             <thead className="bg-[#F8FAFA] text-[11px] font-semibold text-[#66797A]">
                               <tr>
                                 <th className="px-3 py-3">Data</th>
-                                <th className="px-3 py-3">Aluno/Paciente</th>
-                                <th className="px-3 py-3">E-mail</th>
-                                <th className="px-3 py-3">Mensalidade</th>
+                                <th className="px-3 py-3">Origem</th>
+                                <th className="px-3 py-3">Pessoa indicada</th>
+                                <th className="px-3 py-3">Tipo / plano</th>
+                                <th className="px-3 py-3">Valor pago</th>
+                                <th className="px-3 py-3">Taxa</th>
                                 <th className="px-3 py-3">Comissão</th>
+                                <th className="px-3 py-3">Status</th>
                                 <th className="px-3 py-3">Pedido</th>
+                                <th className="px-3 py-3">Assinatura</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {sales.map((sale) => (
-                                <tr key={sale.paymentId || `${sale.studentId}-${sale.paidAt}`} className="border-t border-[#EDF1F1] text-[#536869]">
-                                  <td className="px-3 py-3 whitespace-nowrap">{formatSaleDate(sale.paidAt)}</td>
-                                  <td className="px-3 py-3 font-medium text-[#183334]">{sale.studentName || 'Aluno/Paciente'}</td>
-                                  <td className="px-3 py-3">{sale.studentEmail || '—'}</td>
-                                  <td className="px-3 py-3 font-semibold text-[#176B55]">{centsToCurrency(sale.revenueCents)}</td>
-                                  <td className="px-3 py-3 font-semibold text-[#176B62]">{centsToCurrency(sale.commissionCents)}</td>
-                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{sale.providerOrderId || '—'}</td>
+                              {visibleTransactions.map((transaction) => (
+                                <tr key={`${transaction.origin}-${transaction.providerOrderId || transaction.paidAt}-${transaction.personEmail}`} className="border-t border-[#EDF1F1] text-[#536869]">
+                                  <td className="px-3 py-3 whitespace-nowrap">{formatSaleDate(transaction.paidAt)}</td>
+                                  <td className="px-3 py-3 font-medium text-[#183334]">{transaction.origin}</td>
+                                  <td className="px-3 py-3">
+                                    <span className="block font-medium text-[#183334]">{transaction.personName}</span>
+                                    <span className="mt-0.5 block text-[11px] text-[#879596]">{transaction.personEmail || '—'}</span>
+                                  </td>
+                                  <td className="px-3 py-3">{transaction.personType} · {transaction.plan}</td>
+                                  <td className="px-3 py-3 font-semibold text-[#176B55]">{centsToCurrency(transaction.grossAmountCents)}</td>
+                                  <td className="px-3 py-3 font-semibold">{Math.round(Number(transaction.commissionRate || 0) * 100)}%</td>
+                                  <td className="px-3 py-3 font-semibold text-[#176B62]">{centsToCurrency(transaction.commissionCents)}</td>
+                                  <td className="px-3 py-3">{transaction.status === 'paid' ? 'Pago' : transaction.status || '—'}</td>
+                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{transaction.providerOrderId || '—'}</td>
+                                  <td className="px-3 py-3 font-mono text-[11px] text-[#879596]">{transaction.providerSubscriptionId || '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                       ) : (
-                        <p className="rounded-xl border border-[#E3E8E8] bg-white p-4 text-sm text-[#7A8A8B]">Nenhuma mensalidade paga neste período.</p>
+                        <p className="rounded-xl border border-[#E3E8E8] bg-white p-4 text-sm text-[#7A8A8B]">Nenhum lançamento desta origem no período.</p>
                       )}
                     </div>
                   ) : null}

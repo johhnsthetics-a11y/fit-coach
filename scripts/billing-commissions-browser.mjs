@@ -33,16 +33,30 @@ const report = {
   consolidatedTotals: { paidAccounts: 3, paidInstallments: 3, revenueCents: 9990, commissionCents: 3745 },
 }
 const referralReport = { referrals: report.professionalCommissions.referrals };
+const adminReport = {
+  totals: { affiliateCount:1, studentsBrought:2, newStudentsInPeriod:1, paidStudents:1, paidInstallments:1, revenueCents:2500, commissionCents:625 },
+  professionalTotals: { referrals:1, convertedProfessionals:1, paidProfessionals:1, paidInstallments:1, revenueCents:4990, commissionCents:2495 },
+  consolidatedTotals: { paidAccounts:2, paidInstallments:2, revenueCents:7490, commissionCents:3120 },
+  affiliates: [{
+    email:'ana@example.test', active:true, professionalName:'Ana Afiliada', professionalType:'nutritionist', studentsBrought:2, newStudentsInPeriod:1,
+    paidStudents:1, paidInstallments:1, revenueCents:2500, commissionCents:625,
+    professionalReferralsCount:1, convertedProfessionals:1, paidProfessionals:1, professionalPaidInstallments:1, professionalRevenueCents:4990, professionalCommissionCents:2495,
+    consolidatedRevenueCents:7490, consolidatedCommissionCents:3120,
+    sales:[{paymentId:'student-payment',studentId:'student-a',studentName:'Carlos Almeida',studentEmail:'carlos@example.test',paidAt:'2026-09-30T15:00:00Z',revenueCents:2500,commissionCents:625,providerAmountCents:2500,providerOrderId:'student-order',providerSubscriptionId:'student-subscription',status:'paid'}],
+    professionalPayments:[{paymentId:'professional-payment',referredName:'Paulo Treinador',referredEmail:'paulo@example.test',professionalType:'trainer',planCycle:'monthly',paidAt:'2026-10-01T15:00:00Z',grossAmountCents:4990,commissionRate:0.5,commissionCents:2495,providerOrderId:'professional-order',providerSubscriptionId:'professional-subscription',status:'paid'}],
+  }],
+};
 
 const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { StudentMobileApp, ProfessionalCommissionsPage } from '/src/App.jsx';
+import { StudentMobileApp, ProfessionalCommissionsPage, AffiliateFinancePage } from '/src/App.jsx';
 import '/src/index.css';
 const student=${JSON.stringify(student)};
 const invoices=${JSON.stringify(invoices)};
 const report=${JSON.stringify(report)};
 const referralReport=${JSON.stringify(referralReport)};
+const adminReport=${JSON.stringify(adminReport)};
 function Billing(){
   React.useEffect(() => { history.replaceState(null, '', '?alunoTab=pagamentos') }, []);
   return <StudentMobileApp student={student} checkins={[]} workouts={[]} nutritionPlans={[]} workoutLogs={[]} messages={[]} appointments={[]} invoices={invoices} assessments={[]} coachSettings={{ publicName:'Dra. Ana Souza', pixKey:'pix@coachfitpro.test' }} coachId="qa-nutritionist" professionalType="nutritionist" theme="light" onExit={()=>{}} />;
@@ -56,7 +70,10 @@ function Commissions(){
     <ProfessionalCommissionsPage professionalType={professionalType} appAdminSettings={{ commissionWhatsappUrl:'https://wa.me/5511999999999' }} loadCommissionReport={async()=>report} loadProfessionalReferrals={async()=>referralReport} createProfessionalReferral={async()=>({ok:true,token:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',referral:{id:'ref-new',referredEmail:'novo@example.test',professionalType:'trainer',status:'pending'}})} cancelProfessionalReferral={async()=>({ok:true})} />
   </main>
 }
-createRoot(document.getElementById('root')).render(location.pathname.includes('commissions') ? <Commissions/> : <Billing/>);
+function AdminFinance(){
+  return <main className="min-h-screen bg-[#F8FAFA] p-3 sm:p-6"><AffiliateFinancePage loadFinanceReport={async()=>adminReport} /></main>;
+}
+createRoot(document.getElementById('root')).render(location.pathname.includes('affiliate-finance') ? <AdminFinance/> : location.pathname.includes('commissions') ? <Commissions/> : <Billing/>);
 `
 
 const server = await createServer({
@@ -74,7 +91,7 @@ const server = await createServer({
     },
     configureServer(vite) {
       vite.middlewares.use(async (request, response, next) => {
-        if (!request.url?.startsWith('/qa-billing') && !request.url?.startsWith('/qa-commissions')) return next()
+        if (!request.url?.startsWith('/qa-billing') && !request.url?.startsWith('/qa-commissions') && !request.url?.startsWith('/qa-affiliate-finance')) return next()
         response.setHeader('Content-Type', 'text/html')
         response.end(await vite.transformIndexHtml(request.url, '<div id="root"></div><script type="module" src="/__qa-billing-commissions.jsx"></script>'))
       })
@@ -134,6 +151,21 @@ try {
       await page.screenshot({ path: resolve(output, `commissions-${theme}-${width}.png`), fullPage: true })
       results.push(`commissions ${theme} ${role} ${width}px`)
     }
+
+    await page.goto(`${base}qa-affiliate-finance`)
+    await page.getByText('Receita e comissão sem misturar valores pendentes', { exact: true }).waitFor()
+    await page.getByText(/R\$\s*31,20/, { exact: true }).first().waitFor()
+    await page.getByText('Comissão de alunos/pacientes · 25%', { exact: true }).waitFor()
+    await page.getByText('Comissão profissional · 50%', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Ver 2 lançamento(s)' }).click()
+    await page.getByText('Histórico financeiro do afiliado', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Alunos/Pacientes · 25%' }).waitFor()
+    await page.getByRole('button', { name: 'Profissionais · 50%' }).click()
+    await page.getByText('Paulo Treinador', { exact: true }).waitFor()
+    await page.getByText('professional-order', { exact: true }).waitFor()
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+    await page.screenshot({ path: resolve(output, `affiliate-finance-${width}.png`), fullPage: true })
+    results.push(`affiliate finance ${width}px`)
 
     assert.deepEqual(errors, [])
     await context.close()

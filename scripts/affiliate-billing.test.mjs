@@ -343,6 +343,41 @@ test('financeiro de afiliados fica em página separada com período livre e expo
   assert.doesNotMatch(app, /Financeiro separado do cadastro/)
 })
 
+test('Financeiro de Afiliados separa 25%, 50% e total consolidado por afiliado', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /report\?\.professionalTotals/)
+  assert.match(app, /report\?\.consolidatedTotals/)
+  assert.match(app, /Alunos\/pacientes pagos/)
+  assert.match(app, /Profissionais pagos/)
+  assert.match(app, /Comissão de alunos\/pacientes · 25%/)
+  assert.match(app, /Comissão profissional · 50%/)
+  assert.match(app, /Total consolidado/)
+  assert.match(app, /affiliate\.professionalPayments/)
+  assert.match(app, /affiliate\.consolidatedCommissionCents/)
+})
+
+test('Financeiro de Afiliados expõe histórico profissional e exporta origem, taxa e identificadores', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /Histórico financeiro do afiliado/)
+  assert.match(app, /Alunos\/Pacientes · 25%/)
+  assert.match(app, /Profissionais · 50%/)
+  assert.match(app, /payment\.referredEmail/)
+  assert.match(app, /payment\.professionalType/)
+  assert.match(app, /payment\.planCycle/)
+  assert.match(app, /payment\.providerOrderId/)
+  assert.match(app, /payment\.providerSubscriptionId/)
+  assert.match(app, /payment\.grossAmountCents/)
+  assert.match(app, /payment\.commissionRate/)
+  assert.match(app, /payment\.status/)
+  assert.match(app, /\['Origem', 'Afiliado', 'Perfil do afiliado', 'Pessoa indicada', 'Tipo indicado', 'Plano', 'Data', 'Valor pago', 'Taxa', 'Comissão', 'Status', 'Pedido', 'Assinatura'\]/)
+  assert.match(app, /'Origem'/)
+  assert.match(app, /'Taxa'/)
+  assert.match(app, /'Pedido Cartpanda'/)
+  assert.match(app, /'Assinatura Cartpanda'/)
+})
+
 
 test('Financeiro e Cadastro de Afiliados alternam como abas na mesma página', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
