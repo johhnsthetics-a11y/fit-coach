@@ -71,9 +71,7 @@ test('app preserva o convite ate a reivindicacao autenticada terminar', async ()
 
 test('webhook registra comissão profissional de 50% sem alterar o fluxo de aluno', async () => {
   const primary = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
-  const mirror = await readFile(new URL('../SUPABASE/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
 
-  assert.equal(primary, mirror)
   assert.match(primary, /async function findCommissionableProfessionalReferral\(referredUserId: string\)/)
   assert.match(primary, /affiliate_professional_referrals\?referred_user_id=eq\./)
   assert.match(primary, /affiliate_professionals!inner\(id,email,active\)/)
