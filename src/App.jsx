@@ -22,6 +22,7 @@ import {
   loadRemoteAffiliateProfessionals,
   loadRemoteAffiliateFinanceReport,
   loadRemoteProfessionalCommissionReport,
+  loadRemoteProfessionalProfileByEmail,
   loadRemoteCurrentProfessionalAffiliate,
   loadRemoteCurrentStudentAccess,
   loadRemoteLeadEvents,
@@ -75,8 +76,10 @@ import {
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
 import {
+  getCommissionAudience,
   getProfessionalBillingLabel,
   getStudentAppPaymentLabel,
+  normalizeCommissionWhatsappUrl,
   summarizeStudentInvoices,
 } from './studentBillingView'
 import {
@@ -249,6 +252,7 @@ const defaultAppAdminSettings = {
   ctaColor: '#00d2b2',
   ctaTextColor: '#020617',
   headerBackgroundColor: 'rgba(0, 0, 0, 0.62)',
+  commissionWhatsappUrl: '',
   landingVisual: defaultLandingVisualSettings,
   landingTextOverrides: defaultLandingTextOverrides,
   publishedAt: '',
@@ -394,6 +398,7 @@ function normalizeAdminSettings(settings = {}) {
     ctaColor: safeSettings.ctaColor || defaultAppAdminSettings.ctaColor,
     ctaTextColor: safeSettings.ctaTextColor || defaultAppAdminSettings.ctaTextColor,
     headerBackgroundColor: safeSettings.headerBackgroundColor || defaultAppAdminSettings.headerBackgroundColor,
+    commissionWhatsappUrl: safeSettings.commissionWhatsappUrl || '',
     publishedAt: safeSettings.publishedAt || defaultAppAdminSettings.publishedAt,
     landingVisual,
     landingTextOverrides,
@@ -1528,7 +1533,7 @@ function useStoredData() {
     if (data.session?.user?.accountType === 'student') return
 
     let active = true
-    loadRemoteData()
+    loadRemoteData(data.session.user.id)
       .then((remoteData) => {
         if (!active) return
         setData((current) => ({
@@ -1595,7 +1600,7 @@ function useStoredData() {
     return () => {
       active = false
     }
-  }, [data.session?.access_token, data.session?.refresh_token])
+  }, [data.session?.access_token, data.session?.refresh_token, data.session?.user?.id])
 
   useEffect(() => {
     try {
@@ -1897,12 +1902,12 @@ function AppContent() {
 
     let remoteData
     try {
-      remoteData = await loadRemoteData()
+      remoteData = await loadRemoteData(data.session.user.id)
     } catch (error) {
       const message = error?.message || ''
       if (/jwt expired|PGRST303/i.test(message) && data.session?.refresh_token) {
-        await refreshStoredSession('Sessão renovada')
-        remoteData = await loadRemoteData()
+        const nextSession = await refreshStoredSession('Sessão renovada')
+        remoteData = await loadRemoteData(nextSession.user.id)
       } else {
         if (!silent) handleRemoteError(error, 'Erro ao atualizar painel')
         return { active: false, refreshed: false, error }
@@ -1959,7 +1964,7 @@ function AppContent() {
     }
 
     return { active: activeProfessionalAccess, refreshed: true, remoteData }
-  }, [data.session?.access_token, data.session?.refresh_token])
+  }, [data.session?.access_token, data.session?.refresh_token, data.session?.user?.id])
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession || professionalAccessActive || masterAdmin) return undefined
@@ -2445,7 +2450,7 @@ function AppContent() {
           setRemoteError('')
           return true
         }
-        const remoteData = await loadRemoteData()
+        const remoteData = await loadRemoteData(session.user.id)
         savedUser = mode === 'signup'
           ? await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || role })
           : remoteData.user || await upsertRemoteUser({ ...session.user, name: session.user.name || name, role: session.user.role || undefined })
@@ -4219,7 +4224,10 @@ function AppContent() {
               />
             )}
             {activeView === 'comissoes' && professionalAffiliate && (
-              <ProfessionalCommissionsPage />
+              <ProfessionalCommissionsPage
+                professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
+                appAdminSettings={appAdminSettings}
+              />
             )}
             {activeView === 'assinatura' && (
               <CoachSubscription
@@ -18547,7 +18555,94 @@ function SmartAlertCard({ alert, compact = false, onOpen }) {
   )
 }
 
-export function ProfessionalCommissionsPage({ loadCommissionReport = loadRemoteProfessionalCommissionReport }) {
+function openCommissionPrintView({ title, subtitle, summary = [], headers = [], rows = [] }) {
+  const popup = window.open('', '_blank', 'width=1040,height=780')
+  if (!popup) return false
+
+  const summaryHtml = summary.map((item) => `
+    <div class="metric">
+      <span>${escapeStatementHtml(item.label)}</span>
+      <strong>${escapeStatementHtml(item.value)}</strong>
+    </div>
+  `).join('')
+  const headersHtml = headers.map((header) => `<th>${escapeStatementHtml(header)}</th>`).join('')
+  const rowsHtml = rows.map((row) => `<tr>${row.map((value) => `<td>${escapeStatementHtml(value)}</td>`).join('')}</tr>`).join('')
+
+  popup.document.write(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeStatementHtml(title)}</title>
+        <style>
+          *{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#102223;margin:32px}header{border-bottom:3px solid #0f766e;padding-bottom:16px}h1{margin:0;font-size:28px}p{margin:8px 0 0;color:#607273;font-size:13px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0}.metric{border:1px solid #dce8e6;border-radius:8px;padding:12px;background:#f4faf9}.metric span{display:block;color:#607273;font-size:11px;text-transform:uppercase}.metric strong{display:block;margin-top:6px;color:#0f766e;font-size:18px}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border-bottom:1px solid #e3e8e8;padding:10px;text-align:left;font-size:12px;vertical-align:top}th{background:#edf8f5;color:#234344;text-transform:uppercase;font-size:10px}@media print{body{margin:18px}.summary{break-inside:avoid}tr{break-inside:avoid}}
+        </style>
+      </head>
+      <body>
+        <header><h1>${escapeStatementHtml(title)}</h1><p>${escapeStatementHtml(subtitle)}</p></header>
+        <section class="summary">${summaryHtml}</section>
+        <table><thead><tr>${headersHtml}</tr></thead><tbody>${rowsHtml || `<tr><td colspan="${Math.max(headers.length, 1)}">Nenhum registro no período.</td></tr>`}</tbody></table>
+      </body>
+    </html>
+  `)
+  popup.document.close()
+  popup.focus()
+  setTimeout(() => popup.print(), 300)
+  return true
+}
+
+export function exportProfessionalCommissionsPdf({ report, period, audience }) {
+  const totals = report?.totals || {}
+  const clients = Array.isArray(report?.clients) ? report.clients : []
+  return openCommissionPrintView({
+    title: 'Relatório de comissões',
+    subtitle: `${audience.plural} com pagamentos confirmados de ${period.startDate} a ${period.endDate}.`,
+    summary: [
+      { label: 'Comissão total', value: formatCurrency(Number(totals.commissionCents || 0) / 100) },
+      { label: `${audience.plural} pagantes`, value: Number(totals.paidClients || 0) },
+      { label: 'Mensalidades', value: Number(totals.paidInstallments || 0) },
+      { label: 'Volume confirmado', value: formatCurrency(Number(totals.revenueCents || 0) / 100) },
+    ],
+    headers: [audience.singular, 'E-mail', 'Mensalidades', 'Valor pago', 'Comissão', 'Último pagamento'],
+    rows: clients.map((client) => [
+      client.clientName || audience.singular,
+      client.clientEmail || '—',
+      Number(client.paymentCount || 0),
+      formatCurrency(Number(client.revenueCents || 0) / 100),
+      formatCurrency(Number(client.commissionCents || 0) / 100),
+      client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—',
+    ]),
+  })
+}
+
+export function exportAffiliateFinancePdf({ rows = [], totals = {}, period }) {
+  return openCommissionPrintView({
+    title: 'Financeiro de afiliados',
+    subtitle: `Pagamentos confirmados de ${period.startDate} a ${period.endDate}.`,
+    summary: [
+      { label: 'Profissionais', value: Number(totals.affiliateCount || 0) },
+      { label: 'Pagantes únicos', value: Number(totals.paidStudents || 0) },
+      { label: 'Receita confirmada', value: formatCurrency(Number(totals.revenueCents || 0) / 100) },
+      { label: 'Comissão total', value: formatCurrency(Number(totals.commissionCents || 0) / 100) },
+    ],
+    headers: ['Profissional', 'Perfil', 'E-mail', 'Pagantes', 'Mensalidades', 'Receita', 'Comissão'],
+    rows: rows.map((affiliate) => [
+      affiliate.professionalName || affiliate.email,
+      affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador',
+      affiliate.email,
+      Number(affiliate.paidStudents || 0),
+      Number(affiliate.paidInstallments || 0),
+      formatCurrency(Number(affiliate.revenueCents || 0) / 100),
+      formatCurrency(Number(affiliate.commissionCents || 0) / 100),
+    ]),
+  })
+}
+
+export function ProfessionalCommissionsPage({
+  professionalType = 'trainer',
+  appAdminSettings = defaultAppAdminSettings,
+  loadCommissionReport = loadRemoteProfessionalCommissionReport,
+}) {
   const defaultPeriod = getAffiliateFinanceDefaultPeriod()
   const [startDate, setStartDate] = useState(defaultPeriod.startDate)
   const [endDate, setEndDate] = useState(defaultPeriod.endDate)
@@ -18575,6 +18670,8 @@ export function ProfessionalCommissionsPage({ loadCommissionReport = loadRemoteP
   const totals = report?.totals || {}
   const clients = Array.isArray(report?.clients) ? report.clients : []
   const centsToCurrency = (value) => formatCurrency(Number(value || 0) / 100)
+  const audience = getCommissionAudience(professionalType)
+  const commissionWhatsappUrl = normalizeCommissionWhatsappUrl(appAdminSettings?.commissionWhatsappUrl)
 
   function applyPeriod() {
     if (!startDate || !endDate) {
@@ -18602,101 +18699,124 @@ export function ProfessionalCommissionsPage({ loadCommissionReport = loadRemoteP
     setAppliedPeriod(nextPeriod)
   }
 
+  function exportPdf() {
+    if (!report) {
+      setError('Aguarde o carregamento dos valores para exportar o relatório.')
+      return
+    }
+    if (!exportProfessionalCommissionsPdf({ report, period: appliedPeriod, audience })) {
+      setError('O navegador bloqueou a janela do relatório. Permita pop-ups e tente novamente.')
+    }
+  }
+
   return (
-    <div className="grid min-w-0 gap-4 lg:gap-6">
-      <section className="overflow-hidden rounded-2xl border border-amber-300/20 bg-gradient-to-br from-amber-300/10 via-zinc-950/80 to-emerald-400/10 p-4 shadow-2xl shadow-black/20 sm:p-6">
+    <div className="professional-commissions-page grid min-w-0 gap-4 lg:gap-6">
+      <section className="professional-commissions-summary overflow-hidden p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-amber-200">Resultados da sua carteira</p>
-            <h3 className="mt-2 text-2xl font-black text-white sm:text-3xl">Comissões</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-300">
-              Acompanhe os pagamentos do Coach Fit Pro confirmados para seus alunos ou pacientes e o valor gerado por cada assinatura.
+            <p className="professional-commissions-kicker text-xs font-black uppercase">Resultados da sua carteira</p>
+            <p className="professional-commissions-intro mt-2 max-w-2xl text-sm leading-6">
+              Acompanhe os pagamentos do Coach Fit Pro confirmados para seus {audience.pluralLower} e o valor gerado por cada assinatura.
             </p>
           </div>
-          <button type="button" onClick={loadReport} disabled={loading} className="min-h-11 rounded-xl border border-amber-200/25 bg-amber-200/10 px-4 text-sm font-black text-amber-100 transition hover:bg-amber-200/15 disabled:opacity-50">
-            {loading ? 'Atualizando...' : 'Atualizar valores'}
-          </button>
+          <div className="professional-commissions-actions flex flex-wrap gap-2">
+            <button type="button" onClick={loadReport} disabled={loading} className="professional-commissions-secondary-button min-h-11 px-4 text-sm font-black disabled:opacity-50">
+              {loading ? 'Atualizando...' : 'Atualizar'}
+            </button>
+            <button type="button" onClick={exportPdf} disabled={loading || !report} className="professional-commissions-secondary-button min-h-11 px-4 text-sm font-black disabled:opacity-50">
+              Exportar PDF
+            </button>
+            {commissionWhatsappUrl ? (
+              <a href={commissionWhatsappUrl} target="_blank" rel="noreferrer" className="professional-commissions-rescue-button inline-flex min-h-11 items-center justify-center px-5 text-sm font-black">
+                Resgatar
+              </a>
+            ) : (
+              <button type="button" disabled title="Configure o WhatsApp no Admin Master" className="professional-commissions-rescue-button min-h-11 px-5 text-sm font-black opacity-55">
+                Resgatar
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-5">
+      <section className="professional-commissions-panel p-4 sm:p-5">
         <div className="grid gap-3 md:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_auto] md:items-end">
-          <label className="grid gap-2 text-sm font-bold text-zinc-300">
+          <label className="professional-commissions-label grid gap-2 text-sm font-bold">
             Data inicial
-            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950/70 px-3 text-zinc-100 outline-none focus:border-amber-300" />
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="professional-commissions-input h-11 px-3 outline-none" />
           </label>
-          <label className="grid gap-2 text-sm font-bold text-zinc-300">
+          <label className="professional-commissions-label grid gap-2 text-sm font-bold">
             Data final
-            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="h-11 rounded-xl border border-white/10 bg-zinc-950/70 px-3 text-zinc-100 outline-none focus:border-amber-300" />
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="professional-commissions-input h-11 px-3 outline-none" />
           </label>
-          <button type="button" onClick={applyPeriod} className="min-h-11 rounded-xl bg-amber-300 px-5 text-sm font-black text-zinc-950 transition hover:bg-amber-200">Aplicar período</button>
+          <button type="button" onClick={applyPeriod} className="professional-commissions-primary-button min-h-11 px-5 text-sm font-black">Aplicar período</button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={() => showLastDays(30)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:border-amber-300/30 hover:text-amber-100">Últimos 30 dias</button>
-          <button type="button" onClick={() => showLastDays(90)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-300 hover:border-amber-300/30 hover:text-amber-100">Últimos 90 dias</button>
+          <button type="button" onClick={() => showLastDays(30)} className="professional-commissions-filter px-3 py-2 text-xs font-bold">Últimos 30 dias</button>
+          <button type="button" onClick={() => showLastDays(90)} className="professional-commissions-filter px-3 py-2 text-xs font-bold">Últimos 90 dias</button>
         </div>
-        {error ? <p role="alert" className="mt-3 rounded-xl border border-rose-300/25 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+        {error ? <p role="alert" className="professional-commissions-error mt-3 p-3 text-sm font-bold">{error}</p> : null}
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ['Comissão total', centsToCurrency(totals.commissionCents), 'somente pagamentos confirmados', 'text-amber-100'],
-          ['Clientes pagantes', Number(totals.paidClients || 0), 'alunos ou pacientes no período', 'text-emerald-100'],
-          ['Mensalidades', Number(totals.paidInstallments || 0), 'confirmações recebidas', 'text-sky-100'],
-          ['Volume confirmado', centsToCurrency(totals.revenueCents), 'mensalidades processadas', 'text-zinc-100'],
+          ['Comissão total', centsToCurrency(totals.commissionCents), 'somente pagamentos confirmados', 'primary'],
+          [`${audience.plural} pagantes`, Number(totals.paidClients || 0), `${audience.pluralLower} no período`, 'success'],
+          ['Mensalidades', Number(totals.paidInstallments || 0), 'confirmações recebidas', 'info'],
+          ['Volume confirmado', centsToCurrency(totals.revenueCents), 'mensalidades processadas', 'neutral'],
         ].map(([label, value, detail, tone]) => (
-          <article key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
-            <p className={`mt-2 text-2xl font-black ${tone}`}>{value}</p>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">{detail}</p>
+          <article key={label} className={`professional-commissions-metric professional-commissions-metric--${tone} p-4`}>
+            <p className="professional-commissions-metric-label text-xs font-black uppercase">{label}</p>
+            <p className="professional-commissions-metric-value mt-2 text-2xl font-black">{value}</p>
+            <p className="professional-commissions-metric-detail mt-1 text-xs leading-5">{detail}</p>
           </article>
         ))}
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-5">
+      <section className="professional-commissions-panel p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="text-lg font-black text-white">Comissão por cliente</h3>
-            <p className="mt-1 text-sm text-zinc-400">Cada linha considera apenas mensalidades confirmadas no período selecionado.</p>
+            <p className="professional-commissions-section-title text-lg font-black">Comissão por {audience.singularLower}</p>
+            <p className="professional-commissions-muted mt-1 text-sm">Cada linha considera apenas mensalidades confirmadas no período selecionado.</p>
           </div>
-          <span className="text-xs font-bold text-amber-200">{clients.length} cliente(s)</span>
+          <span className="professional-commissions-count text-xs font-bold">{clients.length} {clients.length === 1 ? audience.singularLower : audience.pluralLower}</span>
         </div>
 
         {loading && !report ? (
-          <div className="rounded-xl border border-white/10 p-5 text-sm text-zinc-400">Carregando comissões...</div>
+          <div className="professional-commissions-empty p-5 text-sm">Carregando comissões...</div>
         ) : clients.length ? (
           <div className="grid gap-3">
             {clients.map((client) => (
-              <article key={client.studentId || client.clientEmail} className="grid gap-4 rounded-xl border border-white/10 bg-zinc-950/45 p-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(110px,0.45fr))] md:items-center">
+              <article key={client.studentId || client.clientEmail} className="professional-commissions-client grid gap-4 p-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(110px,0.45fr))] md:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="truncate font-black text-white">{client.clientName || 'Aluno/Paciente'}</h4>
-                    <span className={`rounded-full border px-2 py-1 text-[10px] font-black uppercase ${client.appPaymentStatus === 'active' ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100' : 'border-zinc-500/25 bg-zinc-500/10 text-zinc-300'}`}>
+                    <h4 className="professional-commissions-client-name truncate font-black">{client.clientName || audience.singular}</h4>
+                    <span className={`professional-commissions-status px-2 py-1 text-[10px] font-black uppercase ${client.appPaymentStatus === 'active' ? 'is-active' : 'is-history'}`}>
                       {client.appPaymentStatus === 'active' ? 'Coach Fit Pro ativo' : 'Histórico de pagamento'}
                     </span>
                   </div>
-                  <p className="mt-1 truncate text-xs text-zinc-500">{client.clientEmail || 'E-mail não informado'}</p>
-                  <p className="mt-2 text-xs text-zinc-400">Último pagamento: {client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—'}</p>
+                  <p className="professional-commissions-muted mt-1 truncate text-xs">{client.clientEmail || 'E-mail não informado'}</p>
+                  <p className="professional-commissions-muted mt-2 text-xs">Último pagamento: {client.lastPaidAt ? formatDateTime(client.lastPaidAt) : '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-zinc-500">Mensalidades</p>
-                  <p className="mt-1 font-black text-zinc-100">{Number(client.paymentCount || 0)}</p>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Mensalidades</p>
+                  <p className="professional-commissions-client-value mt-1 font-black">{Number(client.paymentCount || 0)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-zinc-500">Valor pago</p>
-                  <p className="mt-1 font-black text-emerald-100">{centsToCurrency(client.revenueCents)}</p>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Valor pago</p>
+                  <p className="professional-commissions-paid mt-1 font-black">{centsToCurrency(client.revenueCents)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase text-zinc-500">Sua comissão</p>
-                  <p className="mt-1 text-lg font-black text-amber-100">{centsToCurrency(client.commissionCents)}</p>
+                  <p className="professional-commissions-metric-label text-[10px] font-black uppercase">Sua comissão</p>
+                  <p className="professional-commissions-commission mt-1 text-lg font-black">{centsToCurrency(client.commissionCents)}</p>
                 </div>
               </article>
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-white/15 p-6 text-center">
-            <p className="font-black text-zinc-200">Nenhuma comissão confirmada neste período.</p>
-            <p className="mt-2 text-sm text-zinc-500">Quando uma mensalidade for aprovada, o cliente e o valor aparecerão aqui automaticamente.</p>
+          <div className="professional-commissions-empty p-6 text-center">
+            <p className="professional-commissions-section-title font-black">Nenhuma comissão confirmada neste período.</p>
+            <p className="professional-commissions-muted mt-2 text-sm">Quando uma mensalidade for aprovada, o {audience.singularLower} e o valor aparecerão aqui automaticamente.</p>
           </div>
         )}
       </section>
@@ -18885,8 +19005,20 @@ function AffiliateFinancePage() {
               <button type="button" onClick={loadReport} disabled={loading} className="min-h-11 rounded-xl border border-[#DDE5E5] bg-white px-4 text-sm font-semibold text-[#405859] transition hover:bg-[#F7F9F9] disabled:opacity-50">
                 {loading ? 'Atualizando...' : 'Atualizar dados'}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!exportAffiliateFinancePdf({ rows: filteredRows, totals, period: appliedPeriod })) {
+                    setError('O navegador bloqueou a janela do relatório. Permita pop-ups e tente novamente.')
+                  }
+                }}
+                disabled={loading || !report}
+                className="min-h-11 rounded-xl border border-[#B9DDD7] bg-[#EDF8F5] px-4 text-sm font-semibold text-[#0F6B60] transition hover:bg-[#E2F3EF] disabled:opacity-50"
+              >
+                Exportar PDF
+              </button>
               <button type="button" onClick={() => exportSales(filteredRows, 'financeiro-afiliados')} className="min-h-11 rounded-xl bg-[#147D70] px-4 text-sm font-semibold text-white transition hover:bg-[#0F6B60]">
-                Exportar período
+                Exportar CSV
               </button>
             </div>
           </div>
@@ -19249,16 +19381,31 @@ function AffiliateProfessionalsPanel() {
 
     setSaving(true)
     try {
-      await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
+      const detectedProfile = await loadRemoteProfessionalProfileByEmail(normalizedEmail)
+      const savedAffiliate = await saveRemoteAffiliateProfessional({ email: normalizedEmail, active: true })
+      const optimisticAffiliate = {
+        ...savedAffiliate,
+        email: normalizedEmail,
+        active: true,
+        professionalFound: Boolean(detectedProfile?.coachId),
+        professionalName: detectedProfile?.name || '',
+        professionalType: detectedProfile?.professionalType || '',
+      }
+      setAffiliates((current) => [
+        optimisticAffiliate,
+        ...current.filter((affiliate) => String(affiliate.email || '').trim().toLowerCase() !== normalizedEmail),
+      ])
       setEmail('')
-      const refreshed = await refreshAffiliates()
-      const linked = refreshed.find((affiliate) => String(affiliate.email || '').trim().toLowerCase() === normalizedEmail)
-      setFeedback(linked?.professionalFound
-        ? { type: 'success', message: 'Vínculo realizado com sucesso. O profissional já foi reconhecido pela conta Coach Fit Pro.' }
+      setFeedback(detectedProfile?.coachId
+        ? {
+            type: 'success',
+            message: `Vínculo realizado com sucesso. ${detectedProfile.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'} ${detectedProfile.name || normalizedEmail} reconhecido pela conta Coach Fit Pro.`,
+          }
         : {
             type: 'warning',
             message: 'Vínculo criado. O profissional ainda não foi encontrado com este e-mail; o cadastro ficará pendente até que ele crie a conta usando exatamente este endereço.',
           })
+      refreshAffiliates()
     } catch (saveError) {
       setFeedback({ type: 'error', message: saveError?.message || 'Ocorreu um erro inesperado ao vincular o profissional. Tente novamente.' })
     } finally {
@@ -19588,6 +19735,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
     visualEditor: true,
     salesTexts: false,
     plans: false,
+    commissions: false,
     branding: false,
     modules: false,
   })
@@ -19931,6 +20079,20 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
                 </div>
               </div>
             ))}
+          </div>
+        </AdminAccordionSection>
+
+        <AdminAccordionSection title="Comissões e resgates" action="Canal de atendimento" open={openSections.commissions} onToggle={() => toggleSection('commissions')}>
+          <div className="grid gap-4">
+            <AdminTextInput
+              label="WhatsApp para resgate de comissões"
+              value={draft.commissionWhatsappUrl}
+              onChange={(value) => updateField('commissionWhatsappUrl', value)}
+              hint="Cole o link completo do WhatsApp da empresa, por exemplo https://wa.me/5511999999999. O botão Resgatar só será ativado para um endereço seguro do WhatsApp."
+            />
+            <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4 text-xs leading-5 text-zinc-300">
+              O profissional verá este canal na página Comissões. Alterações salvas aqui são publicadas sem precisar atualizar o GitHub.
+            </div>
           </div>
         </AdminAccordionSection>
 

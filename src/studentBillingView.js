@@ -15,6 +15,22 @@ export function getProfessionalBillingLabel(professionalType) {
   return professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'
 }
 
+export function getCommissionAudience(professionalType) {
+  return professionalType === 'nutritionist'
+    ? { singular: 'Paciente', plural: 'Pacientes', singularLower: 'paciente', pluralLower: 'pacientes' }
+    : { singular: 'Aluno', plural: 'Alunos', singularLower: 'aluno', pluralLower: 'alunos' }
+}
+
+export function normalizeCommissionWhatsappUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim())
+    const allowedHosts = new Set(['wa.me', 'api.whatsapp.com', 'www.whatsapp.com'])
+    return url.protocol === 'https:' && allowedHosts.has(url.hostname.toLowerCase()) ? url.toString() : ''
+  } catch {
+    return ''
+  }
+}
+
 export function summarizeStudentInvoices(invoices = []) {
   return invoices.reduce((summary, invoice) => {
     const amount = Number(invoice?.amount || 0)

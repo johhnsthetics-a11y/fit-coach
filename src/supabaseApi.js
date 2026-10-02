@@ -460,10 +460,13 @@ export async function refreshCoachSession(refreshToken) {
   return toSession(payload)
 }
 
-export async function loadRemoteData() {
+export async function loadRemoteData(currentUserId = '') {
+  if (!isUuid(currentUserId)) {
+    throw new Error('Sessão profissional não identificada. Entre novamente para continuar.')
+  }
   const revision = sessionRevision
   const [users, students, checkins, notifications, workouts, nutritionPlans, workoutLogs, messages, appointments, invoices, assessments, coachSettings, invites, anamneses, coachSubscriptions, exerciseLibrary, workoutProgressionDecisions, appAdminSettings, professionalAffiliate] = await Promise.all([
-    request('users?select=*&order=created_at.desc&limit=1'),
+    request(`users?select=*&id=eq.${encodeURIComponent(currentUserId)}&limit=1`),
     request('students?select=*&order=created_at.desc'),
     request('checkins?select=*,checkin_photos(*)&order=created_at.desc'),
     request('notifications?select=*&order=created_at.desc'),
@@ -634,6 +637,22 @@ export async function loadRemoteAffiliateProfessionals() {
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? '',
   }))
+}
+
+export async function loadRemoteProfessionalProfileByEmail(email = '') {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return null
+
+  const rows = await request(`users?select=id,name,email,role&email=eq.${encodeURIComponent(normalizedEmail)}&limit=1`)
+  const row = rows?.[0]
+  if (!row?.id) return null
+
+  return {
+    coachId: row.id,
+    name: row.name || normalizedEmail,
+    email: String(row.email || normalizedEmail).trim().toLowerCase(),
+    professionalType: /nutri/i.test(String(row.role || '')) ? 'nutritionist' : 'trainer',
+  }
 }
 
 export async function saveRemoteAffiliateProfessional({ id = '', email = '', active = true } = {}) {

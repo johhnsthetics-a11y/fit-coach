@@ -38,7 +38,15 @@ function Billing(){
   React.useEffect(() => { history.replaceState(null, '', '?alunoTab=pagamentos') }, []);
   return <StudentMobileApp student={student} checkins={[]} workouts={[]} nutritionPlans={[]} workoutLogs={[]} messages={[]} appointments={[]} invoices={invoices} assessments={[]} coachSettings={{ publicName:'Dra. Ana Souza', pixKey:'pix@coachfitpro.test' }} coachId="qa-nutritionist" professionalType="nutritionist" theme="light" onExit={()=>{}} />;
 }
-function Commissions(){ return <main className="min-h-screen bg-zinc-950 p-3 text-zinc-100 sm:p-6"><ProfessionalCommissionsPage loadCommissionReport={async()=>report} /></main> }
+function Commissions(){
+  const params = new URLSearchParams(location.search);
+  const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+  const professionalType = params.get('role') === 'nutritionist' ? 'nutritionist' : 'trainer';
+  return <main className={'app-shell min-h-screen p-3 sm:p-6 app-theme-' + theme} data-theme={theme}>
+    <header className="mb-5"><h1 className="text-3xl font-black">Comissões</h1></header>
+    <ProfessionalCommissionsPage professionalType={professionalType} appAdminSettings={{ commissionWhatsappUrl:'https://wa.me/5511999999999' }} loadCommissionReport={async()=>report} />
+  </main>
+}
 createRoot(document.getElementById('root')).render(location.pathname.includes('commissions') ? <Commissions/> : <Billing/>);
 `
 
@@ -91,15 +99,24 @@ try {
     await page.screenshot({ path: resolve(output, `billing-${width}.png`), fullPage: true })
     results.push(`billing ${width}px`)
 
-    await page.goto(`${base}qa-commissions`)
-    await page.getByRole('heading', { name: 'Comissões', exact: true }).waitFor()
-    await page.getByText('R$ 12,50', { exact: true }).waitFor()
-    await page.getByText('Carlos Almeida', { exact: true }).waitFor()
-    await page.getByText('Mariana Oliveira', { exact: true }).waitFor()
-    assert.equal(await page.getByText(/afiliad/i).count(), 0)
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
-    await page.screenshot({ path: resolve(output, `commissions-${width}.png`), fullPage: true })
-    results.push(`commissions ${width}px`)
+    for (const theme of ['light', 'dark']) {
+      const role = width === 390 ? 'nutritionist' : 'trainer'
+      await page.goto(`${base}qa-commissions?theme=${theme}&role=${role}`)
+      await page.getByRole('heading', { name: 'Comissões', exact: true }).waitFor()
+      assert.equal(await page.getByRole('heading', { name: 'Comissões', exact: true }).count(), 1)
+      await page.getByText('R$ 12,50', { exact: true }).waitFor()
+      await page.getByText('Carlos Almeida', { exact: true }).waitFor()
+      await page.getByText('Mariana Oliveira', { exact: true }).waitFor()
+      await page.getByRole('button', { name: 'Exportar PDF' }).waitFor()
+      const rescue = page.getByRole('link', { name: 'Resgatar' })
+      await rescue.waitFor()
+      assert.equal(await rescue.getAttribute('href'), 'https://wa.me/5511999999999')
+      await page.getByText(role === 'nutritionist' ? 'Pacientes pagantes' : 'Alunos pagantes', { exact: true }).waitFor()
+      assert.equal(await page.getByText(/afiliad/i).count(), 0)
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
+      await page.screenshot({ path: resolve(output, `commissions-${theme}-${width}.png`), fullPage: true })
+      results.push(`commissions ${theme} ${role} ${width}px`)
+    }
 
     assert.deepEqual(errors, [])
     await context.close()

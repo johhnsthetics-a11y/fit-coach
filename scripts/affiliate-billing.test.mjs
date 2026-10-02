@@ -27,6 +27,54 @@ test('fatura do aluno usa status profissional e totais sincronizados', () => {
   })
 })
 
+test('comissoes adapta audiencia e valida o WhatsApp de resgate', async () => {
+  const helpers = await import('../src/studentBillingView.js')
+
+  assert.deepEqual(helpers.getCommissionAudience('trainer'), {
+    singular: 'Aluno',
+    plural: 'Alunos',
+    singularLower: 'aluno',
+    pluralLower: 'alunos',
+  })
+  assert.equal(helpers.getCommissionAudience('nutritionist').singular, 'Paciente')
+  assert.equal(helpers.normalizeCommissionWhatsappUrl('https://wa.me/5511999999999'), 'https://wa.me/5511999999999')
+  assert.equal(helpers.normalizeCommissionWhatsappUrl('https://api.whatsapp.com/send?phone=5511999999999'), 'https://api.whatsapp.com/send?phone=5511999999999')
+  assert.equal(helpers.normalizeCommissionWhatsappUrl('https://example.com/resgate'), '')
+  assert.equal(helpers.normalizeCommissionWhatsappUrl('javascript:alert(1)'), '')
+})
+
+test('comissoes usa um unico cabecalho, branding tematico, resgate e PDF', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const start = app.indexOf('export function ProfessionalCommissionsPage')
+  const end = app.indexOf('function AffiliateFinancePage', start)
+  const page = app.slice(start, end)
+
+  assert.ok(start > 0 && end > start)
+  assert.doesNotMatch(page, /<h[1-6][^>]*>Comissões<\/h[1-6]>/)
+  assert.match(page, /getCommissionAudience\(professionalType\)/)
+  assert.match(page, /Resgatar/)
+  assert.match(page, /commissionWhatsappUrl/)
+  assert.match(page, /exportProfessionalCommissionsPdf/)
+  assert.match(app, /exportAffiliateFinancePdf/)
+  assert.match(app, /commissionWhatsappUrl:/)
+  assert.match(css, /professional-commissions-page/)
+  assert.match(css, /app-theme-light[\s\S]*professional-commissions-page/)
+})
+
+test('perfil e cadastro de afiliado ficam isolados pela conta autenticada', async () => {
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(api, /export async function loadRemoteData\(currentUserId/)
+  assert.match(api, /users\?select=\*&id=eq\.\$\{encodeURIComponent\(currentUserId\)\}/)
+  assert.match(api, /export async function loadRemoteProfessionalProfileByEmail/)
+  assert.match(api, /users\?select=id,name,email,role&email=eq\./)
+  assert.match(app, /loadRemoteProfessionalProfileByEmail\(normalizedEmail\)/)
+  assert.match(app, /professionalType: detectedProfile\?\.professionalType/)
+  assert.match(app, /setAffiliates\(\(current\)/)
+})
+
 test('profissional consulta somente as proprias comissoes confirmadas', async () => {
   const sql = await readFile(new URL('../SUPABASE/migrations/20261001160000_professional_commission_report.sql', import.meta.url), 'utf8')
   const hardeningSql = await readFile(new URL('../SUPABASE/migrations/20261001163000_harden_professional_commission_report.sql', import.meta.url), 'utf8')
@@ -45,7 +93,7 @@ test('profissional consulta somente as proprias comissoes confirmadas', async ()
   assert.match(api, /loadRemoteProfessionalCommissionReport/)
   assert.match(api, /get_my_commission_report/)
   assert.match(app, /id: 'comissoes', label: 'Comissões'/)
-  assert.match(app, /export function ProfessionalCommissionsPage\(\{ loadCommissionReport = loadRemoteProfessionalCommissionReport \}\)/)
+  assert.match(app, /export function ProfessionalCommissionsPage\(\{[\s\S]*loadCommissionReport = loadRemoteProfessionalCommissionReport/)
   assert.match(app, /activeView === 'comissoes' && professionalAffiliate/)
   assert.doesNotMatch(app, /professionalAffiliate \? 'Afiliado'/)
   assert.doesNotMatch(app, /Seu vínculo de afiliado foi confirmado/)
@@ -173,7 +221,8 @@ test('dashboard de comissões usa somente mensalidades confirmadas', async () =>
   assert.match(app, /Financeiro de afiliados/)
   assert.match(app, /Receita e comissão sem misturar valores pendentes/)
   assert.match(app, /R\$ 25,00 de receita e R\$ 6,25 de comissão/)
-  assert.match(app, /Exportar período/)
+  assert.match(app, /Exportar PDF/)
+  assert.match(app, /Exportar CSV/)
   assert.match(app, /Exportar vendas/)
 })
 
@@ -216,7 +265,8 @@ test('financeiro de afiliados fica em página separada com período livre e expo
   assert.match(app, /Últimos 30 dias/)
   assert.match(app, /Últimos 90 dias/)
   assert.match(app, /Ano atual/)
-  assert.match(app, /Exportar período/)
+  assert.match(app, /Exportar PDF/)
+  assert.match(app, /Exportar CSV/)
   assert.match(app, /Exportar vendas/)
   assert.match(app, /text\/csv;charset=utf-8/)
   assert.match(app, /Gestão de Afiliados/)

@@ -15529,3 +15529,208 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-light .student-billing-card-detail {
   color: #657c77 !important;
 }
+
+/* professional-commissions-brand-v2 */
+.professional-commissions-page {
+  --commissions-surface: rgba(8, 20, 18, 0.88);
+  --commissions-surface-strong: #07110f;
+  --commissions-surface-soft: rgba(255, 255, 255, 0.035);
+  --commissions-border: rgba(94, 234, 212, 0.18);
+  --commissions-text: #f1f7f5;
+  --commissions-muted: #98aaa6;
+  --commissions-primary: #2dd4bf;
+  --commissions-primary-strong: #14b8a6;
+  --commissions-success: #6ee7b7;
+  --commissions-info: #7dd3fc;
+}
+
+.professional-commissions-summary,
+.professional-commissions-panel,
+.professional-commissions-metric,
+.professional-commissions-client,
+.professional-commissions-empty {
+  border: 1px solid var(--commissions-border);
+  border-radius: 12px;
+  background: var(--commissions-surface);
+  color: var(--commissions-text);
+}
+
+.professional-commissions-summary {
+  background:
+    linear-gradient(120deg, rgba(20, 184, 166, 0.13), transparent 55%),
+    var(--commissions-surface);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+}
+
+.professional-commissions-kicker,
+.professional-commissions-count,
+.professional-commissions-commission {
+  color: var(--commissions-primary);
+}
+
+.professional-commissions-intro,
+.professional-commissions-muted,
+.professional-commissions-metric-detail,
+.professional-commissions-empty {
+  color: var(--commissions-muted);
+}
+
+.professional-commissions-section-title,
+.professional-commissions-client-name,
+.professional-commissions-client-value {
+  color: var(--commissions-text);
+}
+
+.professional-commissions-label,
+.professional-commissions-metric-label {
+  color: #a9bbb7;
+}
+
+.professional-commissions-input,
+.professional-commissions-filter,
+.professional-commissions-secondary-button {
+  border: 1px solid var(--commissions-border);
+  border-radius: 8px;
+  background: var(--commissions-surface-strong);
+  color: var(--commissions-text);
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.professional-commissions-input:focus,
+.professional-commissions-filter:hover,
+.professional-commissions-secondary-button:hover {
+  border-color: rgba(45, 212, 191, 0.52);
+  background: rgba(20, 184, 166, 0.09);
+}
+
+.professional-commissions-primary-button,
+.professional-commissions-rescue-button {
+  border: 1px solid #0f8f80;
+  border-radius: 8px;
+  background: var(--commissions-primary-strong);
+  color: #021b17;
+  box-shadow: 0 8px 20px rgba(20, 184, 166, 0.18);
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.professional-commissions-primary-button:hover,
+.professional-commissions-rescue-button:not(:disabled):hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.professional-commissions-error {
+  border: 1px solid rgba(251, 113, 133, 0.28);
+  border-radius: 8px;
+  background: rgba(244, 63, 94, 0.1);
+  color: #fecdd3;
+}
+
+.professional-commissions-metric {
+  background: var(--commissions-surface-soft);
+}
+
+.professional-commissions-metric-value {
+  color: var(--commissions-text);
+}
+
+.professional-commissions-metric--primary .professional-commissions-metric-value {
+  color: var(--commissions-primary);
+}
+
+.professional-commissions-metric--success .professional-commissions-metric-value,
+.professional-commissions-paid {
+  color: var(--commissions-success);
+}
+
+.professional-commissions-metric--info .professional-commissions-metric-value {
+  color: var(--commissions-info);
+}
+
+.professional-commissions-client {
+  background: var(--commissions-surface-strong);
+}
+
+.professional-commissions-status {
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.professional-commissions-status.is-active {
+  border-color: rgba(110, 231, 183, 0.24);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--commissions-success);
+}
+
+.professional-commissions-status.is-history {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(148, 163, 184, 0.09);
+  color: #cbd5e1;
+}
+
+.app-theme-light .professional-commissions-page {
+  --commissions-surface: #ffffff;
+  --commissions-surface-strong: #f7fbfa;
+  --commissions-surface-soft: #ffffff;
+  --commissions-border: #d6e7e3;
+  --commissions-text: #102b26;
+  --commissions-muted: #617a74;
+  --commissions-primary: #087d6c;
+  --commissions-primary-strong: #0f8f80;
+  --commissions-success: #16724e;
+  --commissions-info: #19769a;
+}
+
+.app-theme-light .professional-commissions-summary {
+  background:
+    linear-gradient(120deg, rgba(20, 184, 166, 0.12), rgba(255, 255, 255, 0.96) 62%),
+    #ffffff;
+  box-shadow: 0 14px 34px rgba(15, 75, 65, 0.08);
+}
+
+.app-theme-light .professional-commissions-label,
+.app-theme-light .professional-commissions-metric-label {
+  color: #4f6b65;
+}
+
+.app-theme-light .professional-commissions-input,
+.app-theme-light .professional-commissions-filter,
+.app-theme-light .professional-commissions-secondary-button {
+  background: #ffffff;
+  color: #163b34;
+}
+
+.app-theme-light .professional-commissions-input:focus,
+.app-theme-light .professional-commissions-filter:hover,
+.app-theme-light .professional-commissions-secondary-button:hover {
+  border-color: #73bdb1;
+  background: #edf8f5;
+}
+
+.app-theme-light .professional-commissions-primary-button,
+.app-theme-light .professional-commissions-rescue-button {
+  color: #ffffff;
+}
+
+.app-theme-light .professional-commissions-error {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.app-theme-light .professional-commissions-status.is-active {
+  border-color: #a7ddc8;
+  background: #eefaf5;
+}
+
+.app-theme-light .professional-commissions-status.is-history {
+  border-color: #dce4e2;
+  background: #f2f5f4;
+  color: #5f706d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .professional-commissions-page :is(button, a, input) {
+    transition: none !important;
+  }
+}
