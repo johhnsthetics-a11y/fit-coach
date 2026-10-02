@@ -85,6 +85,18 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  .coach-mobile-menu-panel.is-closed {
+    transform: translateX(calc(-100% - max(0.55rem, env(safe-area-inset-left, 0px)))) !important;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .coach-mobile-menu-panel.is-open {
+    transform: translateX(0) !important;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
   .student-mobile-menu-panel {
     position: absolute !important;
     width: min(320px, calc(100vw - 1.1rem)) !important;
@@ -15767,7 +15779,20 @@ html[data-theme="dark"] body { background: #05070d; }
 
 .app-theme-light .professional-commissions-primary-button,
 .app-theme-light .professional-commissions-rescue-button {
-  color: #ffffff;
+  border-color: #0b766a !important;
+  background: #0f8f80 !important;
+  color: #ffffff !important;
+  box-shadow: 0 9px 22px rgba(15, 143, 128, 0.24) !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.app-theme-light .professional-commissions-primary-button:disabled,
+.app-theme-light .professional-commissions-rescue-button:disabled {
+  border-color: #bad7d1 !important;
+  background: #dcece9 !important;
+  color: #52716b !important;
+  box-shadow: none !important;
+  -webkit-text-fill-color: #52716b !important;
 }
 
 .app-theme-light .professional-commissions-error {

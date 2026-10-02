@@ -4036,7 +4036,7 @@ function AppContent() {
       ) : null}
 
       <aside className={`coach-mobile-menu-panel fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
-        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        mobileMenuOpen ? 'is-open translate-x-0' : 'is-closed -translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
             <BrandLockup

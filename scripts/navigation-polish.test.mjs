@@ -23,6 +23,12 @@ test('navigation polish styles cover floating shells and module colors', () => {
   assert.match(cssSource, /\.coach-mobile-bottom-button\.is-active/)
 })
 
+test('menu profissional fechado fica totalmente fora da viewport mobile', () => {
+  assert.match(appSource, /mobileMenuOpen \? 'is-open translate-x-0' : 'is-closed -translate-x-full'/)
+  assert.match(cssSource, /\.coach-mobile-menu-panel\.is-closed\s*\{[^}]*translateX\(calc\(-100% - max\(0\.55rem, env\(safe-area-inset-left, 0px\)\)\)\)[^}]*visibility:\s*hidden[^}]*pointer-events:\s*none/s)
+  assert.match(cssSource, /\.coach-mobile-menu-panel\.is-open\s*\{[^}]*visibility:\s*visible[^}]*pointer-events:\s*auto/s)
+})
+
 test('menu inferior do aluno usa safe area sem criar espaco interno duplicado', () => {
   assert.match(cssSource, /\.student-mobile-shell \.student-bottom-nav\s*\{[^}]*padding-bottom:\s*0\.5rem\s*!important;/s)
 })
