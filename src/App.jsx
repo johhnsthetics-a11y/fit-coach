@@ -5386,14 +5386,14 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 </div>
                 <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">ao vivo</span>
               </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+              <div className="sales-dashboard-metrics mt-5 grid gap-3 sm:grid-cols-4">
                 {[
                   ['Recebido no mês', 'R$ 8.940', '+18%'],
                   ['Renovações próximas', '32', '7 dias'],
                   ['A receber', 'R$ 2.310', 'pendente'],
                   ['Alunos liberados', '94%', 'pagos'],
                 ].map(([label, value, detail]) => (
-                  <div key={label} className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+                  <div key={label} className="floating-card rounded-lg border border-white/10 bg-white/[0.04] p-4">
                     <p className="text-xs font-black uppercase text-zinc-500">{label}</p>
                     <p className="sales-dashboard-money mt-2 font-black text-white">{value}</p>
                     <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
@@ -6309,7 +6309,7 @@ function SalesPhoneShowcase() {
   const screens = [
     {
       kicker: 'Central profissional',
-      title: 'Bom dia, João',
+      title: 'Bom dia, Marina',
       subtitle: 'Visão geral do acompanhamento',
       floatingIcon: 'dashboard',
       floatingTitle: 'Visão geral',
@@ -6382,8 +6382,10 @@ function SalesPhoneShowcase() {
               <div className="sales-current-home mt-3 grid gap-2">
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
-                    ['users', 'Alunos ativos', '24'],
-                    ['bell', 'Check-ins', '3 pendentes'],
+                    ['users', type === 'nutrition' ? 'Pacientes ativos' : 'Alunos ativos', '24'],
+                    ['chart', 'Constância média', '82%'],
+                    ['calendar', 'Agenda', '3 próximas'],
+                    ['bell', 'Notificações', '2 alertas'],
                   ].map(([icon, label, value]) => (
                     <div key={label} className="sales-professional-stat rounded-xl border border-white/10 bg-white/[0.045] p-2">
                       <div className="flex items-center gap-1.5 text-emerald-200">
@@ -6394,22 +6396,11 @@ function SalesPhoneShowcase() {
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    ['dumbbell', 'Criar treino'],
-                    ['nutrition', 'Criar dieta'],
-                  ].map(([icon, label]) => (
-                    <span key={label} className="flex min-w-0 items-center justify-center gap-1 rounded-lg bg-emerald-300 px-1.5 py-2 text-[8px] font-black text-emerald-950">
-                      <NavIcon name={icon} className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{label}</span>
-                    </span>
-                  ))}
-                </div>
                 <div className="sales-professional-list rounded-xl border border-white/10 bg-white/[0.045] p-2">
-                  <strong className="block text-[9px] text-zinc-100">Acompanhar hoje</strong>
+                  <strong className="block text-[9px] text-zinc-100">Prioridades do dia</strong>
                   {[
-                    ['Marina Lopes', 'Treino A • atualizado'],
-                    ['Carlos Mendes', 'Check-in recebido'],
+                    ['Rafael Costa', 'Treino atualizado'],
+                    ['Camila Alves', 'Check-in recebido'],
                   ].map(([name, status]) => (
                     <div key={name} className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2">
                       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-300/20 text-[7px] font-black text-emerald-200">{name.split(' ').map((part) => part[0]).join('')}</span>
@@ -6429,9 +6420,9 @@ function SalesPhoneShowcase() {
                   <strong className="text-[11px] text-emerald-200">18</strong>
                 </div>
                 {[
-                  ['John pagamento', 'Treino A • Peito e tríceps', '5 exercícios'],
-                  ['Marina Lopes', 'Treino B • Inferiores', '6 exercícios'],
-                  ['Carlos Mendes', 'Treino C • Costas', '4 exercícios'],
+                  ['Rafael Costa', 'Treino A • Peito e tríceps', '5 exercícios'],
+                  ['Camila Alves', 'Treino B • Inferiores', '6 exercícios'],
+                  ['Bruno Lima', 'Treino C • Costas', '4 exercícios'],
                 ].map(([name, focus, count]) => (
                   <div key={name} className="sales-professional-row flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.045] p-2">
                     <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-emerald-300/15 text-emerald-200"><NavIcon name="dumbbell" className="h-3.5 w-3.5" /></span>
@@ -6457,9 +6448,9 @@ function SalesPhoneShowcase() {
                     <small className="text-[7px] font-bold text-emerald-200">Ver todas</small>
                   </div>
                   {[
-                    ['Ana Souza', 'Fase 2 • Definição'],
-                    ['Lucas Martins', 'Plano alimentar • Atual'],
-                    ['Beatriz Lima', 'Revisão pendente'],
+                    ['Ana Ribeiro', 'Fase 2 • Definição'],
+                    ['Lucas Nunes', 'Plano alimentar • Atual'],
+                    ['Beatriz Costa', 'Revisão pendente'],
                   ].map(([name, status]) => (
                     <div key={name} className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2">
                       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-orange-300/20 text-[7px] font-black text-orange-200">{name.split(' ').map((part) => part[0]).join('')}</span>
@@ -6473,15 +6464,15 @@ function SalesPhoneShowcase() {
                 <span className="block rounded-lg bg-emerald-300 px-2 py-2 text-center text-[9px] font-black text-emerald-950">Nova dieta</span>
               </div>
             ) : null}
-            <div className="sales-phone-bottom-nav">
+            <div className={`sales-phone-bottom-nav ${type === 'nutrition' ? 'is-nutritionist' : ''}`}>
               {[
-                ['dashboard', 'Início'],
-                ['users', type === 'nutrition' ? 'Pacientes' : 'Alunos'],
-                ['dumbbell', 'Treino'],
-                ['nutrition', 'Dieta'],
-                ['menu', 'Menu'],
-              ].map(([icon, label]) => (
-                <span key={label} className={`grid justify-items-center gap-1 text-[9px] font-bold ${label === (type === 'home' ? 'Início' : type === 'workout' ? 'Treino' : type === 'nutrition' ? 'Dieta' : '') ? 'text-emerald-200' : 'text-zinc-400'}`}>
+                ['dashboard', 'Início', 'emerald'],
+                ['users', type === 'nutrition' ? 'Pacientes' : 'Alunos', 'cyan'],
+                ...(type === 'nutrition' ? [] : [['dumbbell', 'Treino', 'lime']]),
+                ['nutrition', 'Dieta', 'emerald'],
+                ['menu', 'Menu', 'emerald'],
+              ].map(([icon, label, tone]) => (
+                <span key={label} className={`sales-phone-nav-item tone-${tone} ${label === (type === 'home' ? 'Início' : type === 'workout' ? 'Treino' : type === 'nutrition' ? 'Dieta' : '') ? 'is-active' : ''}`}>
                   <NavIcon name={icon} className="h-3.5 w-3.5" />
                   {label}
                 </span>
@@ -18016,7 +18007,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
           </div>
         </div>
 
-        <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
+        <div className="subscription-kpi-grid grid gap-3 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
           <SubscriptionMetric label="Alunos ativos" value={activeStudents.length} detail="incluídos no cálculo" tone="cyan" />
           <SubscriptionMetric label="Receita estimada" value={formatCurrency(estimatedRevenue)} detail="valor mensal da carteira" tone="emerald" />
           <SubscriptionMetric label="Recebido no mês" value={formatCurrency(receivedThisMonth)} detail="cobranças marcadas como pagas" tone="amber" />
@@ -18173,7 +18164,7 @@ function SubscriptionMetric({ label, value, detail, tone }) {
   }[tone] || 'border-white/10 bg-white/[0.03] text-zinc-200'
 
   return (
-    <div className={`min-w-0 rounded-md border p-4 ${toneClass}`}>
+    <div className={`floating-card min-w-0 rounded-md border p-4 ${toneClass}`}>
       <p className="text-xs font-black uppercase">{label}</p>
       <p className="mt-2 break-words text-2xl font-black text-white">{value}</p>
       <p className="mt-2 text-xs leading-5 text-zinc-500">{detail}</p>
@@ -21875,7 +21866,7 @@ function NavIcon({ name, className = '' }) {
 
 function Metric({ label, value, detail }) {
   return (
-    <div className="coach-metric-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+    <div className="coach-metric-card floating-card min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-4 sm:p-5">
       <p className="text-sm text-zinc-400">{label}</p>
       <h3 className="metric-money-value mt-2 font-black sm:mt-3">{value}</h3>
       <p className="mt-2 text-xs font-semibold text-blue-300">{detail}</p>
