@@ -16,8 +16,15 @@ test('portal pendente nao solicita dados premium protegidos', () => {
 
 test('saudacao usa primeiro nome e horario local', () => {
   assert.equal(getFirstName('  Carlos Eduardo Silva '), 'Carlos')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 2, 0)), 'Boa noite')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 4, 59)), 'Boa noite')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 5, 0)), 'Bom dia')
   assert.equal(getLocalGreeting(new Date(2026, 8, 21, 8, 0)), 'Bom dia')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 11, 59)), 'Bom dia')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 12, 0)), 'Boa tarde')
   assert.equal(getLocalGreeting(new Date(2026, 8, 21, 15, 0)), 'Boa tarde')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 17, 59)), 'Boa tarde')
+  assert.equal(getLocalGreeting(new Date(2026, 8, 21, 18, 0)), 'Boa noite')
   assert.equal(getLocalGreeting(new Date(2026, 8, 21, 21, 0)), 'Boa noite')
 })
 
