@@ -5006,9 +5006,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
               <span>Experiência profissional para o aluno</span>
             </div>
-            <div className="mt-7 inline-flex max-w-full items-center gap-3 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-4 py-3 text-sm font-black text-emerald-50">
-              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(0,210,178,0.8)]" />
-              + organização, + percepção de valor, + rotina profissional
+            <div className="sales-hero-benefit-line mt-7" aria-label="+ organização, + percepção de valor, + rotina profissional">
+              <span><b aria-hidden="true">+</b> organização,</span>
+              <span><b aria-hidden="true">+</b> percepção de valor,</span>
+              <span><b aria-hidden="true">+</b> rotina profissional</span>
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
               {[
@@ -6313,53 +6314,33 @@ function SalesPhoneShowcase() {
       kicker: 'Central profissional',
       title: 'Bom dia, Marina',
       subtitle: 'Visão geral do acompanhamento',
-      floatingIcon: 'dashboard',
-      floatingTitle: 'Visão geral',
       type: 'home',
     },
     {
       kicker: 'Prescrição de treinos',
       title: 'Treinos dos alunos',
       subtitle: 'Organize e acompanhe as rotinas',
-      floatingIcon: 'dumbbell',
-      floatingTitle: 'Treinos',
       type: 'workout',
     },
     {
       kicker: 'Acompanhamento nutricional',
       title: 'Pacientes',
       subtitle: 'Dietas e evolução organizadas',
-      floatingIcon: 'nutrition',
-      floatingTitle: 'Nutrição',
       type: 'nutrition',
     },
-  ]
-
-  const metrics = [
-    ['message', 'Mensagens'],
-    ['trophy', 'Evolução'],
-    ['wallet', 'Faturas'],
   ]
 
   return (
     <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2 sales-showcase-professional-v3 sales-showcase-interactive" role="group" aria-label="Prévia mobile das áreas profissionais de visão geral, treinos e nutrição do Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
-      {metrics.map(([icon, label], index) => (
-        <div key={label} className={`sales-showcase-metric sales-showcase-float metric-${index + 1}`} aria-hidden="true">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
-            <NavIcon name={icon} className="h-4 w-4" />
-          </span>
-          <strong>{label}</strong>
-        </div>
-      ))}
-      {screens.map(({ kicker, title, subtitle, floatingIcon, floatingTitle, type }, index) => {
+      {screens.map(({ kicker, title, subtitle, type }, index) => {
         const position = screenPositions[index]
         const isActive = position === 'center'
         const selectScreen = () => setScreenPositions((current) => swapShowcasePositions(current, index))
         return (
         <article
           key={title}
-          className={`sales-phone-mockup sales-showcase-float sales-hero-phone-${index + 1} position-${position} ${isActive ? 'is-active' : ''}`}
+          className={`sales-phone-mockup sales-hero-phone-${index + 1} position-${position} ${isActive ? 'is-active' : ''}`}
           role="button"
           tabIndex={0}
           aria-pressed={isActive}
@@ -6372,12 +6353,6 @@ function SalesPhoneShowcase() {
             }
           }}
         >
-          <div className={`sales-floating-badge sales-showcase-float ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`} aria-hidden="true">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
-              <NavIcon name={floatingIcon} className="h-4 w-4" />
-            </span>
-            <strong>{floatingTitle}</strong>
-          </div>
           <div className="sales-phone-screen">
             <div className="sales-phone-statusbar" aria-hidden="true">
               <span>09:30</span>

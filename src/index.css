@@ -1855,127 +1855,6 @@ textarea {
   background: currentColor;
 }
 
-.sales-floating-badge {
-  position: absolute;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: max-content;
-  min-width: 168px;
-  max-width: min(230px, 58vw);
-  border: 1px solid rgba(0, 210, 178, 0.34);
-  border-radius: 14px;
-  padding: 9px 12px;
-  background: rgba(1, 17, 14, 0.94);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(14px);
-}
-
-.sales-floating-badge.left {
-  top: 18px;
-  left: -34px;
-  transform: rotate(-5deg);
-}
-
-.sales-floating-badge.top {
-  top: -28px;
-  left: 24px;
-  transform: rotate(3deg);
-}
-
-.sales-floating-badge.right {
-  right: -8px;
-  top: 72px;
-  transform: rotate(4deg);
-}
-
-.sales-floating-badge strong,
-.sales-floating-badge small {
-  display: block;
-  line-height: 1.05;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sales-floating-badge strong {
-  max-width: 150px;
-  white-space: nowrap;
-  font-size: clamp(0.78rem, 1.2vw, 0.95rem);
-  font-variant-numeric: tabular-nums;
-  color: #fff;
-}
-
-.sales-floating-badge small {
-  margin-top: 2px;
-  max-width: 150px;
-  white-space: nowrap;
-  font-size: 0.68rem;
-  font-weight: 800;
-  color: #94a3b8;
-}
-
-.sales-showcase-metric {
-  position: absolute;
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: max-content;
-  min-width: 182px;
-  max-width: 240px;
-  border: 1px solid rgba(0, 210, 178, 0.28);
-  border-radius: 18px;
-  padding: 10px 13px;
-  background:
-    linear-gradient(145deg, rgba(0, 210, 178, 0.12), rgba(1, 17, 14, 0.92)),
-    rgba(1, 17, 14, 0.88);
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.36);
-  backdrop-filter: blur(16px);
-}
-
-.sales-showcase-metric strong,
-.sales-showcase-metric small {
-  display: block;
-  overflow: hidden;
-  max-width: 162px;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sales-showcase-metric strong {
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.sales-showcase-metric small {
-  margin-top: 3px;
-  color: #9ca3af;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.sales-showcase-metric.metric-1 {
-  top: 46px;
-  left: 4%;
-  transform: rotate(-4deg);
-}
-
-.sales-showcase-metric.metric-2 {
-  right: 2%;
-  top: 118px;
-  transform: rotate(4deg);
-}
-
-.sales-showcase-metric.metric-3 {
-  right: 8%;
-  bottom: 62px;
-  transform: rotate(-3deg);
-}
-
 .sales-phone-bottom-nav {
   position: absolute;
   right: 10px;
@@ -2443,56 +2322,8 @@ textarea {
     opacity: 1;
   }
 
-  .sales-hero-phone-1 .sales-floating-badge,
-  .sales-hero-phone-3 .sales-floating-badge {
-    display: none;
-  }
-
-  .sales-hero-phone-wrap .sales-phone-mockup.is-active .sales-floating-badge {
-    display: flex;
-  }
-
   .sales-showcase-tabs {
     bottom: 18px;
-  }
-
-  .sales-floating-badge.top {
-    left: 50%;
-    right: auto;
-    top: -20px;
-    min-width: 158px;
-    max-width: 178px;
-    transform: none;
-    transform: translateX(-50%);
-  }
-
-  .sales-floating-badge strong,
-  .sales-floating-badge small {
-    max-width: 120px;
-  }
-
-  .sales-showcase-metric {
-    min-width: 152px;
-    max-width: 178px;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 15px;
-  }
-
-  .sales-showcase-metric strong,
-  .sales-showcase-metric small {
-    max-width: 112px;
-  }
-
-  .sales-showcase-metric.metric-1 {
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%) rotate(-2deg);
-  }
-
-  .sales-showcase-metric.metric-2,
-  .sales-showcase-metric.metric-3 {
-    display: none;
   }
 
   .interactive-surface,
@@ -5801,36 +5632,6 @@ textarea {
     transform: translateX(-50%) translateY(-2px) scale(1.04) rotate(0deg);
   }
 
-  .sales-page .sales-showcase-metric {
-    min-width: 144px;
-    max-width: 168px;
-    gap: 7px;
-    padding: 8px 10px;
-    border-radius: 14px;
-  }
-
-  .sales-page .sales-showcase-metric strong {
-    font-size: 0.8rem;
-  }
-
-  .sales-page .sales-showcase-metric small {
-    font-size: 0.62rem;
-  }
-
-  .sales-page .sales-showcase-metric.metric-1 {
-    top: 18px;
-    left: 0;
-  }
-
-  .sales-page .sales-showcase-metric.metric-2 {
-    top: 74px;
-    right: 0;
-  }
-
-  .sales-page .sales-showcase-metric.metric-3 {
-    right: 4%;
-    bottom: 38px;
-  }
 }
 
 @media (max-width: 360px) {
@@ -5849,8 +5650,6 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .sales-page .sales-phone-mockup,
-  .sales-page .sales-showcase-metric,
-  .sales-page .sales-floating-badge,
   .sales-page .sales-showcase-tab {
     transition: none !important;
     animation: none !important;
@@ -6718,12 +6517,6 @@ textarea {
       linear-gradient(180deg, rgba(0, 210, 178, 0.13), rgba(3, 7, 18, 0.16) 26%, rgba(3, 7, 18, 0.96)),
       radial-gradient(circle at 50% 0%, rgba(0, 210, 178, 0.2), transparent 42%),
       #050807 !important;
-  }
-
-  .sales-page .sales-floating-badge.left,
-  .sales-page .sales-floating-badge.right,
-  .sales-page .sales-showcase-metric {
-    display: none !important;
   }
 
   .sales-page .sales-showcase-tabs {
@@ -8118,8 +7911,6 @@ textarea {
 .sales-theme-light .sales-plan-strategy,
 .sales-theme-light .sales-plan-option-card,
 .sales-theme-light .sales-showcase-tab,
-.sales-theme-light .sales-showcase-metric,
-.sales-theme-light .sales-floating-badge,
 .sales-theme-light .sales-dashboard-money,
 .sales-theme-light .sales-journey-console,
 .sales-theme-light .sales-journey-board-main,
@@ -8176,8 +7967,6 @@ textarea {
 
 .sales-theme-light .text-xs,
 .sales-theme-light .sales-mini-card p:last-child,
-.sales-theme-light .sales-floating-badge small,
-.sales-theme-light .sales-showcase-metric small,
 .sales-theme-light .sales-plan-card .line-through,
 .sales-theme-light .sales-plan-description {
   color: var(--sales-light-muted) !important;
@@ -8303,19 +8092,6 @@ textarea {
 .sales-theme-light .sales-phone-notch,
 .sales-theme-light .sales-phone-notch::after {
   background: #07110F !important;
-}
-
-.sales-theme-light .sales-floating-badge,
-.sales-theme-light .sales-showcase-metric {
-  background: rgba(255, 255, 255, 0.94) !important;
-  color: var(--sales-light-title) !important;
-  border-color: rgba(0, 156, 134, 0.18) !important;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12) !important;
-}
-
-.sales-theme-light .sales-floating-badge strong,
-.sales-theme-light .sales-showcase-metric strong {
-  color: var(--sales-light-brand-deep) !important;
 }
 
 .sales-theme-light .sales-objection-warning,
@@ -10905,11 +10681,6 @@ html[data-theme="dark"] body { background: #05070d; }
   backdrop-filter: blur(8px);
 }
 
-.sales-app-modern-showcase-v1 .sales-floating-badge,
-.sales-app-modern-showcase-v1 .sales-showcase-metric {
-  max-width: min(224px, 52vw);
-}
-
 .sales-theme-light .sales-app-modern-showcase-v1::before {
   background:
     radial-gradient(circle at 50% 22%, rgba(0, 210, 178, 0.16), transparent 42%),
@@ -10985,17 +10756,38 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 @media (max-width: 720px) {
-  .sales-app-modern-showcase-v1 .sales-floating-badge,
-  .sales-app-modern-showcase-v1 .sales-showcase-metric {
-    max-width: min(194px, 62vw);
-  }
-
   .sales-app-modern-showcase-v1 .sales-phone-screen {
     min-height: 376px;
   }
 }
 
 /* sales-showcase-static-v2 */
+.sales-hero-benefit-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  border-left: 3px solid #00d2b2;
+  padding: 0.45rem 0 0.45rem 1rem;
+  color: #e8fffa;
+  font-size: clamp(1.05rem, 1.55vw, 1.3rem);
+  font-weight: 850;
+  line-height: 1.45;
+  text-wrap: balance;
+}
+
+.sales-hero-benefit-line b {
+  color: #00d2b2;
+}
+
+.sales-theme-light .sales-hero-benefit-line {
+  border-left-color: #009c86;
+  color: #123b34;
+}
+
+.sales-theme-light .sales-hero-benefit-line b {
+  color: #008b78;
+}
+
 .sales-hero-value-line {
   position: relative;
   padding-left: 1rem;
@@ -11047,59 +10839,6 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: rgba(0, 156, 134, 0.14) !important;
   background: rgba(255, 255, 255, 0.9) !important;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055) !important;
-}
-
-@keyframes salesShowcaseFloat {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -7px;
-  }
-}
-
-.sales-showcase-float {
-  animation: salesShowcaseFloat 4.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  pointer-events: none;
-  will-change: translate;
-}
-
-.sales-showcase-static-v2 .metric-1 {
-  animation-delay: -0.7s;
-  animation-duration: 4.6s;
-}
-
-.sales-showcase-static-v2 .metric-2 {
-  animation-delay: -2.1s;
-  animation-duration: 5.3s;
-}
-
-.sales-showcase-static-v2 .metric-3 {
-  animation-delay: -3.5s;
-  animation-duration: 4.9s;
-}
-
-.sales-showcase-static-v2 .sales-hero-phone-1 .sales-showcase-float {
-  animation-delay: -1.2s;
-  animation-duration: 5.5s;
-}
-
-.sales-showcase-static-v2 .sales-hero-phone-2 .sales-showcase-float {
-  animation-delay: -2.8s;
-  animation-duration: 4.7s;
-}
-
-.sales-showcase-static-v2 .sales-hero-phone-3 .sales-showcase-float {
-  animation-delay: -4s;
-  animation-duration: 5.1s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sales-showcase-float {
-    animation: none !important;
-    translate: none !important;
-  }
 }
 
 @media (max-width: 720px) {
@@ -15977,18 +15716,7 @@ html[data-theme="dark"] body { background: #05070d; }
   background: #edf9f6;
 }
 
-/* Professional mobile previews and compact floating callouts. */
-.sales-showcase-professional-v3 .sales-showcase-metric small,
-.sales-showcase-professional-v3 .sales-floating-badge small {
-  display: none;
-}
-
-.sales-showcase-professional-v3 .sales-showcase-metric.metric-3 {
-  top: 206px;
-  right: 4%;
-  bottom: auto;
-}
-
+/* Professional mobile previews. */
 .sales-showcase-professional-v3 .sales-professional-stat,
 .sales-showcase-professional-v3 .sales-professional-list,
 .sales-showcase-professional-v3 .sales-professional-row {
@@ -16001,90 +15729,6 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: rgba(0, 156, 134, 0.14) !important;
   background: rgba(255, 255, 255, 0.9) !important;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055) !important;
-}
-
-@media (max-width: 767px) {
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric {
-    display: flex !important;
-    top: 10px;
-    bottom: auto;
-    width: 31%;
-    min-width: 0;
-    max-width: 116px;
-    gap: 5px;
-    padding: 7px 6px;
-    border-radius: 13px;
-    transform: none;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric > span:first-child {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric > span:first-child svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric strong {
-    max-width: 100%;
-    font-size: 0.62rem;
-    line-height: 1.1;
-    white-space: normal;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric.metric-1 {
-    left: 2%;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric.metric-2 {
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-showcase-metric.metric-3 {
-    top: 10px;
-    right: 2%;
-    left: auto;
-    transform: none;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-floating-badge {
-    display: flex !important;
-    min-width: 0;
-    max-width: 118px;
-    gap: 6px;
-    padding: 7px 8px;
-    border-radius: 12px;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-floating-badge strong {
-    max-width: 72px;
-    font-size: 0.68rem;
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-hero-phone-1 .sales-floating-badge.left {
-    top: 70px;
-    right: -18px;
-    left: auto;
-    transform: rotate(-2deg);
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-hero-phone-2 .sales-floating-badge.top {
-    top: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .sales-page .sales-showcase-professional-v3 .sales-hero-phone-3 .sales-floating-badge.right {
-    top: 70px;
-    right: auto;
-    left: -18px;
-    transform: rotate(2deg);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -16140,53 +15784,59 @@ html[data-theme="dark"] body { background: #05070d; }
   animation-delay: -3.1s;
 }
 
-/* Interactive phone positions reuse the existing showcase float animation. */
+@keyframes salesShowcaseFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -5px;
+  }
+}
+
+/* Keep layout anchors fixed; the separate translate motion does not compete with swaps. */
 .sales-page .sales-showcase-interactive .sales-phone-mockup {
+  left: 50% !important;
   pointer-events: auto !important;
   cursor: pointer !important;
   transition:
-    left 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 420ms ease,
-    box-shadow 420ms ease,
-    border-color 420ms ease !important;
-  animation-duration: 4.8s;
+    transform 550ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 350ms ease,
+    box-shadow 350ms ease,
+    border-color 350ms ease !important;
+  animation: salesShowcaseFloat 4.8s ease-in-out infinite;
   will-change: transform, translate;
 }
 
-.sales-page .sales-showcase-interactive .sales-hero-phone-1.sales-showcase-float {
-  animation-delay: -1.2s;
+.sales-page .sales-showcase-interactive .sales-phone-mockup:nth-of-type(2) {
+  animation-delay: -1.6s;
 }
 
-.sales-page .sales-showcase-interactive .sales-hero-phone-2.sales-showcase-float {
-  animation-delay: -2.8s;
-}
-
-.sales-page .sales-showcase-interactive .sales-hero-phone-3.sales-showcase-float {
-  animation-delay: -4s;
+.sales-page .sales-showcase-interactive .sales-phone-mockup:nth-of-type(3) {
+  animation-delay: -3.2s;
 }
 
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
-  left: 13% !important;
-  transform: translateX(-50%) translateY(24px) scale(0.52) rotateY(7deg) rotateZ(-4deg) !important;
-  opacity: 0.82 !important;
+  left: 50% !important;
+  transform: translate3d(calc(-50% - min(30vw, 200px)), 24px, 0) scale(0.72) rotateY(7deg) rotateZ(-4deg) !important;
+  opacity: 0.9 !important;
   z-index: 2 !important;
 }
 
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center:hover {
   left: 50% !important;
-  transform: translateX(-50%) translateY(0) scale(1.08) !important;
+  transform: translate3d(-50%, 0, 0) scale(1.08) !important;
   opacity: 1 !important;
   z-index: 8 !important;
 }
 
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right:hover {
-  left: 87% !important;
-  transform: translateX(-50%) translateY(24px) scale(0.52) rotateY(-7deg) rotateZ(4deg) !important;
-  opacity: 0.82 !important;
+  left: 50% !important;
+  transform: translate3d(calc(-50% + min(30vw, 200px)), 24px, 0) scale(0.72) rotateY(-7deg) rotateZ(4deg) !important;
+  opacity: 0.9 !important;
   z-index: 2 !important;
 }
 
@@ -16198,19 +15848,27 @@ html[data-theme="dark"] body { background: #05070d; }
 @media (max-width: 767px) {
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
-    left: 12% !important;
-    transform: translateX(-50%) translateY(18px) scale(0.32) rotateY(5deg) rotateZ(-3deg) !important;
+    left: 50% !important;
+    transform: translate3d(calc(-50% - min(28vw, 120px)), 18px, 0) scale(0.68) rotateY(5deg) rotateZ(-3deg) !important;
   }
 
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center,
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center:hover {
     left: 50% !important;
-    transform: translateX(-50%) scale(0.72) !important;
+    transform: translate3d(-50%, 0, 0) scale(0.96) !important;
   }
 
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right,
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right:hover {
-    left: 88% !important;
-    transform: translateX(-50%) translateY(18px) scale(0.32) rotateY(-5deg) rotateZ(3deg) !important;
+    left: 50% !important;
+    transform: translate3d(calc(-50% + min(28vw, 120px)), 18px, 0) scale(0.68) rotateY(-5deg) rotateZ(3deg) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page .sales-showcase-interactive .sales-phone-mockup {
+    transition: none !important;
+    animation: none !important;
+    will-change: auto;
   }
 }
