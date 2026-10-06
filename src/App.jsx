@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { swapShowcasePositions } from './showcaseCarousel'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   buildNutritionPlanNotesWithMetadata,
@@ -6306,6 +6307,7 @@ function SalesStat({ value, label }) {
 }
 
 function SalesPhoneShowcase() {
+  const [screenPositions, setScreenPositions] = useState(['left', 'center', 'right'])
   const screens = [
     {
       kicker: 'Central profissional',
@@ -6340,7 +6342,7 @@ function SalesPhoneShowcase() {
   ]
 
   return (
-    <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2 sales-showcase-professional-v3" role="img" aria-label="Prévia mobile das áreas profissionais de visão geral, treinos e nutrição do Coach Fit Pro">
+    <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2 sales-showcase-professional-v3 sales-showcase-interactive" role="group" aria-label="Prévia mobile das áreas profissionais de visão geral, treinos e nutrição do Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
       {metrics.map(([icon, label], index) => (
         <div key={label} className={`sales-showcase-metric sales-showcase-float metric-${index + 1}`} aria-hidden="true">
@@ -6350,11 +6352,25 @@ function SalesPhoneShowcase() {
           <strong>{label}</strong>
         </div>
       ))}
-      {screens.map(({ kicker, title, subtitle, floatingIcon, floatingTitle, type }, index) => (
+      {screens.map(({ kicker, title, subtitle, floatingIcon, floatingTitle, type }, index) => {
+        const position = screenPositions[index]
+        const isActive = position === 'center'
+        const selectScreen = () => setScreenPositions((current) => swapShowcasePositions(current, index))
+        return (
         <article
           key={title}
-          className={`sales-phone-mockup sales-hero-phone-${index + 1}`}
-          aria-label={`${title}: ${subtitle}`}
+          className={`sales-phone-mockup sales-showcase-float sales-hero-phone-${index + 1} position-${position} ${isActive ? 'is-active' : ''}`}
+          role="button"
+          tabIndex={0}
+          aria-pressed={isActive}
+          aria-label={`Exibir prévia: ${title}`}
+          onClick={selectScreen}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              selectScreen()
+            }
+          }}
         >
           <div className={`sales-floating-badge sales-showcase-float ${index === 0 ? 'left' : index === 1 ? 'top' : 'right'}`} aria-hidden="true">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-500/10 text-emerald-200">
@@ -6480,7 +6496,8 @@ function SalesPhoneShowcase() {
             </div>
           </div>
         </article>
-      ))}
+        )
+      })}
     </div>
   )
 }
