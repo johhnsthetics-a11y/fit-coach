@@ -24,8 +24,10 @@ test('interactive phones stay keyboard-clickable and keep the separate float mot
   assert.match(app, /sales-phone-mockup[^\n]*position-\$\{position\}/)
   assert.match(app, /role="button"[\s\S]*onClick=\{selectScreen\}[\s\S]*onKeyDown=/)
   assert.doesNotMatch(app, /sales-phone-mockup sales-showcase-float/)
-  assert.match(css, /@keyframes salesShowcaseFloat[\s\S]*?translate:\s*0 -5px/)
+  assert.match(css, /@keyframes salesShowcaseFloat[\s\S]*?translate:\s*0 -6px/)
   assert.match(css, /\.sales-showcase-interactive\s+\.sales-phone-mockup[^}]*pointer-events:\s*auto/)
+  assert.match(css, /\.sales-phone-mockup:nth-of-type\(2\)\s*\{[^}]*animation-delay:\s*-1\.6s/s)
+  assert.match(css, /\.sales-phone-mockup:nth-of-type\(3\)\s*\{[^}]*animation-delay:\s*-3\.2s/s)
 })
 
 test('showcase keeps only the three floating phones without auxiliary cards', async () => {
@@ -49,17 +51,19 @@ test('desktop showcase fills its column with balanced phone proportions', async 
   assert.match(css, /\.sales-page \.sales-showcase-interactive\s*\{[^}]*min-height:\s*clamp\(35rem, 46vw, 42rem\)/s)
 })
 
-test('phone previews use the real dark mobile navigation shell and role-aware items', async () => {
+test('phone previews restore the original theme-aware mobile navigation', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
   assert.match(app, /\['dashboard', 'Início', 'emerald'\]/)
   assert.match(app, /type === 'nutrition' \? 'Pacientes' : 'Alunos'/)
   assert.match(app, /\['dumbbell', 'Treino', 'lime'\]/)
-  assert.match(css, /\.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{[^}]*border-radius:\s*999px[^}]*background:\s*#07110f/s)
-  assert.match(css, /\.sales-theme-light \.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{[^}]*background:\s*#07110f !important/s)
-  assert.match(css, /\.sales-phone-nav-item\.tone-cyan\s*\{\s*--phone-nav-color:\s*#179fc1/)
-  assert.match(css, /\.sales-phone-nav-item\.tone-lime\s*\{\s*--phone-nav-color:\s*#78b82a/)
+  assert.match(css, /\.sales-phone-bottom-nav\s*\{[^}]*border-radius:\s*18px[^}]*background:\s*rgba\(2, 6, 10, 0\.9\)/s)
+  assert.match(css, /\.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{\s*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\);\s*\}/s)
+  assert.doesNotMatch(css, /\.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{[^}]*border-radius:\s*999px/s)
+  assert.match(css, /\.sales-theme-light \.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{[^}]*background:\s*rgba\(255, 255, 255, 0\.92\) !important/s)
+  assert.match(css, /\.sales-phone-nav-item\.tone-cyan\s*\{\s*--phone-nav-color:\s*#80e7f2/)
+  assert.match(css, /\.sales-phone-nav-item\.tone-lime\s*\{\s*--phone-nav-color:\s*#c1e879/)
 })
 
 test('mobile side phones remain inside narrow viewports', async () => {

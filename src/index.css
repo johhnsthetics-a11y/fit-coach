@@ -1874,13 +1874,6 @@ textarea {
 
 .sales-app-modern-showcase-v1 .sales-phone-bottom-nav {
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  border-color: rgba(0, 210, 178, 0.34);
-  border-radius: 999px;
-  padding: 6px 4px;
-  background: #07110f;
-  box-shadow:
-    0 -8px 24px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .sales-app-modern-showcase-v1 .sales-phone-bottom-nav.is-nutritionist {
@@ -1902,28 +1895,14 @@ textarea {
   white-space: nowrap;
 }
 
-.sales-phone-nav-item.tone-emerald { --phone-nav-color: #16cdb1; }
-.sales-phone-nav-item.tone-cyan { --phone-nav-color: #179fc1; }
-.sales-phone-nav-item.tone-lime { --phone-nav-color: #78b82a; }
-
-.sales-app-modern-showcase-v1 .sales-phone-nav-item {
-  min-height: 42px;
-  align-content: center;
-  border-radius: 999px;
-  padding: 4px 1px;
-  color: var(--phone-nav-color);
-}
-
-.sales-app-modern-showcase-v1 .sales-phone-nav-item svg {
-  width: 17px;
-  height: 17px;
-  stroke-width: 2.35;
-}
+.sales-phone-nav-item.tone-emerald { --phone-nav-color: #65e8d2; }
+.sales-phone-nav-item.tone-cyan { --phone-nav-color: #80e7f2; }
+.sales-phone-nav-item.tone-lime { --phone-nav-color: #c1e879; }
 
 .sales-phone-nav-item.is-active {
-  border-color: rgba(0, 210, 178, 0.52);
-  background: rgba(0, 210, 178, 0.11);
-  color: #20dfc1;
+  border-color: rgba(0, 210, 178, 0.24);
+  background: rgba(0, 210, 178, 0.12);
+  color: #9af5e5;
 }
 
 .sales-dashboard-money {
@@ -10756,19 +10735,19 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 .sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-bottom-nav {
-  background: #07110f !important;
-  border-color: rgba(0, 210, 178, 0.34) !important;
-  box-shadow: 0 -10px 28px rgba(3, 13, 11, 0.3) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(0, 156, 134, 0.16) !important;
+  box-shadow: 0 -10px 26px rgba(15, 23, 42, 0.08) !important;
 }
 
-.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-emerald { --phone-nav-color: #16cdb1; }
-.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-cyan { --phone-nav-color: #179fc1; }
-.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-lime { --phone-nav-color: #78b82a; }
+.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-emerald { --phone-nav-color: #07816f; }
+.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-cyan { --phone-nav-color: #087e91; }
+.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-lime { --phone-nav-color: #5f8417; }
 
 .sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.is-active {
-  border-color: rgba(0, 210, 178, 0.52);
-  background: rgba(0, 210, 178, 0.11);
-  color: #20dfc1;
+  border-color: rgba(0, 156, 134, 0.2);
+  background: rgba(0, 156, 134, 0.1);
+  color: #007d6c;
 }
 
 .sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-notch,
@@ -15811,7 +15790,7 @@ html[data-theme="dark"] body { background: #05070d; }
     translate: 0 0;
   }
   50% {
-    translate: 0 -5px;
+    translate: 0 -6px;
   }
 }
 
