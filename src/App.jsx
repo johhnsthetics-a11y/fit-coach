@@ -6329,12 +6329,6 @@ function SalesPhoneShowcase() {
       type: 'nutrition',
     },
   ]
-  const pulseCards = [
-    ['message', 'Mensagens'],
-    ['trophy', 'Evolução'],
-    ['wallet', 'Faturas'],
-  ]
-
   return (
     <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2 sales-showcase-professional-v3 sales-showcase-interactive" role="group" aria-label="Prévia mobile das áreas profissionais de visão geral, treinos e nutrição do Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
@@ -6477,16 +6471,6 @@ function SalesPhoneShowcase() {
         </article>
         )
       })}
-      <div className="sales-showcase-pulse-row" aria-hidden="true">
-        {pulseCards.map(([icon, label], index) => (
-          <div key={label} className={`sales-showcase-pulse-card pulse-${index + 1}`}>
-            <span className="sales-showcase-pulse-icon">
-              <NavIcon name={icon} className="h-4 w-4" />
-            </span>
-            <strong>{label}</strong>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }

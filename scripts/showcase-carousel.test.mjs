@@ -28,26 +28,46 @@ test('interactive phones stay keyboard-clickable and keep the separate float mot
   assert.match(css, /\.sales-showcase-interactive\s+\.sales-phone-mockup[^}]*pointer-events:\s*auto/)
 })
 
-test('showcase keeps the three pulse cards below the phones without the old floating callouts', async () => {
+test('showcase keeps only the three floating phones without auxiliary cards', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
   const start = app.indexOf('function SalesPhoneShowcase()')
   const end = app.indexOf('\nfunction ', start + 1)
   const showcase = app.slice(start, end)
 
-  assert.doesNotMatch(showcase, /sales-showcase-metric|sales-floating-badge|sales-showcase-float/)
-  assert.match(showcase, /\['message', 'Mensagens'\][\s\S]*\['trophy', 'Evolução'\][\s\S]*\['wallet', 'Faturas'\]/)
-  assert.match(showcase, /sales-showcase-pulse-row[\s\S]*sales-showcase-pulse-card/)
-  assert.match(css, /@keyframes salesShowcasePulse[\s\S]*?transform:\s*translateY\(-5px\) scale\(1\.02\)/)
+  assert.doesNotMatch(showcase, /sales-showcase-metric|sales-floating-badge|sales-showcase-float|sales-showcase-pulse/)
+  assert.doesNotMatch(css, /@keyframes salesShowcasePulse|\.sales-showcase-pulse-/)
   assert.match(app, /className="sales-hero-benefit-line[^"]*"/)
   assert.match(css, /\.sales-hero-benefit-line\s*\{[^}]*font-size:\s*clamp\(/)
+})
+
+test('desktop showcase fills its column with balanced phone proportions', async () => {
+  const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(css, /\.sales-page \.sales-showcase-interactive\s*\{[^}]*--showcase-phone-offset:\s*min\(26vw, 190px\)/s)
+  assert.match(css, /\.sales-page \.sales-showcase-interactive\s*\{[^}]*--showcase-side-scale:\s*0\.78/s)
+  assert.match(css, /\.sales-page \.sales-showcase-interactive\s*\{[^}]*min-height:\s*clamp\(35rem, 46vw, 42rem\)/s)
+})
+
+test('phone previews use the real dark mobile navigation shell and role-aware items', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(app, /\['dashboard', 'Início', 'emerald'\]/)
+  assert.match(app, /type === 'nutrition' \? 'Pacientes' : 'Alunos'/)
+  assert.match(app, /\['dumbbell', 'Treino', 'lime'\]/)
+  assert.match(css, /\.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{[^}]*border-radius:\s*999px[^}]*background:\s*#07110f/s)
+  assert.match(css, /\.sales-theme-light \.sales-app-modern-showcase-v1 \.sales-phone-bottom-nav\s*\{[^}]*background:\s*#07110f !important/s)
+  assert.match(css, /\.sales-phone-nav-item\.tone-cyan\s*\{\s*--phone-nav-color:\s*#179fc1/)
+  assert.match(css, /\.sales-phone-nav-item\.tone-lime\s*\{\s*--phone-nav-color:\s*#78b82a/)
 })
 
 test('mobile side phones remain inside narrow viewports', async () => {
   const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
-  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?position-left[\s\S]*?min\(24vw, 96px\)[\s\S]*?scale\(0\.64\)/)
-  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?position-right[\s\S]*?min\(24vw, 96px\)[\s\S]*?scale\(0\.64\)/)
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?--showcase-phone-offset:\s*min\(24vw, 96px\)[\s\S]*?--showcase-side-scale:\s*0\.64/)
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?position-left[\s\S]*?var\(--showcase-phone-offset\)[\s\S]*?var\(--showcase-side-scale\)/)
+  assert.match(css, /@media \(max-width: 767px\)[\s\S]*?position-right[\s\S]*?var\(--showcase-phone-offset\)[\s\S]*?var\(--showcase-side-scale\)/)
 })
 
 test('phone previews omit temporary status pills', async () => {

@@ -1874,6 +1874,13 @@ textarea {
 
 .sales-app-modern-showcase-v1 .sales-phone-bottom-nav {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-color: rgba(0, 210, 178, 0.34);
+  border-radius: 999px;
+  padding: 6px 4px;
+  background: #07110f;
+  box-shadow:
+    0 -8px 24px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .sales-app-modern-showcase-v1 .sales-phone-bottom-nav.is-nutritionist {
@@ -1895,14 +1902,28 @@ textarea {
   white-space: nowrap;
 }
 
-.sales-phone-nav-item.tone-emerald { --phone-nav-color: #65e8d2; }
-.sales-phone-nav-item.tone-cyan { --phone-nav-color: #80e7f2; }
-.sales-phone-nav-item.tone-lime { --phone-nav-color: #c1e879; }
+.sales-phone-nav-item.tone-emerald { --phone-nav-color: #16cdb1; }
+.sales-phone-nav-item.tone-cyan { --phone-nav-color: #179fc1; }
+.sales-phone-nav-item.tone-lime { --phone-nav-color: #78b82a; }
+
+.sales-app-modern-showcase-v1 .sales-phone-nav-item {
+  min-height: 42px;
+  align-content: center;
+  border-radius: 999px;
+  padding: 4px 1px;
+  color: var(--phone-nav-color);
+}
+
+.sales-app-modern-showcase-v1 .sales-phone-nav-item svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.35;
+}
 
 .sales-phone-nav-item.is-active {
-  border-color: rgba(0, 210, 178, 0.24);
-  background: rgba(0, 210, 178, 0.12);
-  color: #9af5e5;
+  border-color: rgba(0, 210, 178, 0.52);
+  background: rgba(0, 210, 178, 0.11);
+  color: #20dfc1;
 }
 
 .sales-dashboard-money {
@@ -10735,19 +10756,19 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 .sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-bottom-nav {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-color: rgba(0, 156, 134, 0.16) !important;
-  box-shadow: 0 -10px 26px rgba(15, 23, 42, 0.08) !important;
+  background: #07110f !important;
+  border-color: rgba(0, 210, 178, 0.34) !important;
+  box-shadow: 0 -10px 28px rgba(3, 13, 11, 0.3) !important;
 }
 
-.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-emerald { --phone-nav-color: #07816f; }
-.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-cyan { --phone-nav-color: #087e91; }
-.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-lime { --phone-nav-color: #5f8417; }
+.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-emerald { --phone-nav-color: #16cdb1; }
+.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-cyan { --phone-nav-color: #179fc1; }
+.sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.tone-lime { --phone-nav-color: #78b82a; }
 
 .sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-nav-item.is-active {
-  border-color: rgba(0, 156, 134, 0.2);
-  background: rgba(0, 156, 134, 0.1);
-  color: #007d6c;
+  border-color: rgba(0, 210, 178, 0.52);
+  background: rgba(0, 210, 178, 0.11);
+  color: #20dfc1;
 }
 
 .sales-theme-light .sales-app-modern-showcase-v1 .sales-phone-notch,
@@ -15794,88 +15815,15 @@ html[data-theme="dark"] body { background: #05070d; }
   }
 }
 
-@keyframes salesShowcasePulse {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
-  }
-  50% {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 18px 38px rgba(0, 210, 178, 0.2);
-  }
-}
-
-.sales-showcase-pulse-row {
-  position: absolute;
-  right: 0;
-  bottom: 12px;
-  left: 50%;
-  z-index: 12;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  width: min(88%, 520px);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.sales-showcase-pulse-card {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid rgba(0, 210, 178, 0.28);
-  border-radius: 8px;
-  padding: 9px 10px;
-  background: rgba(7, 20, 18, 0.9);
-  color: #e8fffa;
-  backdrop-filter: blur(12px);
-  animation: salesShowcasePulse 4.6s ease-in-out infinite;
-  will-change: transform;
-}
-
-.sales-showcase-pulse-card.pulse-2 {
-  animation-delay: -1.5s;
-}
-
-.sales-showcase-pulse-card.pulse-3 {
-  animation-delay: -3s;
-}
-
-.sales-showcase-pulse-card strong {
-  overflow: hidden;
-  font-size: 0.78rem;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sales-showcase-pulse-icon {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid rgba(0, 210, 178, 0.24);
-  border-radius: 7px;
-  background: rgba(0, 210, 178, 0.12);
-  color: #5eead4;
-}
-
-.sales-theme-light .sales-showcase-pulse-card {
-  border-color: rgba(0, 156, 134, 0.2);
-  background: rgba(255, 255, 255, 0.94);
-  color: #123b34;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
-}
-
-.sales-theme-light .sales-showcase-pulse-icon {
-  color: #007d6c;
-}
-
 /* Keep layout anchors fixed; the separate translate motion does not compete with swaps. */
+.sales-page .sales-showcase-interactive {
+  --showcase-phone-offset: min(26vw, 190px);
+  --showcase-side-scale: 0.78;
+  --showcase-center-scale: 1.08;
+  min-height: clamp(35rem, 46vw, 42rem);
+  overflow: clip;
+}
+
 .sales-page .sales-showcase-interactive .sales-phone-mockup {
   left: 50% !important;
   pointer-events: auto !important;
@@ -15900,15 +15848,15 @@ html[data-theme="dark"] body { background: #05070d; }
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
   left: 50% !important;
-  transform: translate3d(calc(-50% - min(30vw, 200px)), 24px, 0) scale(0.72) rotateY(7deg) rotateZ(-4deg) !important;
-  opacity: 0.9 !important;
+  transform: translate3d(calc(-50% - var(--showcase-phone-offset)), 20px, 0) scale(var(--showcase-side-scale)) rotateY(5deg) rotateZ(-2.5deg) !important;
+  opacity: 0.92 !important;
   z-index: 2 !important;
 }
 
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center:hover {
   left: 50% !important;
-  transform: translate3d(-50%, 0, 0) scale(1.08) !important;
+  transform: translate3d(-50%, 0, 0) scale(var(--showcase-center-scale)) !important;
   opacity: 1 !important;
   z-index: 8 !important;
 }
@@ -15916,8 +15864,8 @@ html[data-theme="dark"] body { background: #05070d; }
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right:hover {
   left: 50% !important;
-  transform: translate3d(calc(-50% + min(30vw, 200px)), 24px, 0) scale(0.72) rotateY(-7deg) rotateZ(4deg) !important;
-  opacity: 0.9 !important;
+  transform: translate3d(calc(-50% + var(--showcase-phone-offset)), 20px, 0) scale(var(--showcase-side-scale)) rotateY(-5deg) rotateZ(2.5deg) !important;
+  opacity: 0.92 !important;
   z-index: 2 !important;
 }
 
@@ -15928,47 +15876,28 @@ html[data-theme="dark"] body { background: #05070d; }
 
 @media (max-width: 767px) {
   .sales-page .sales-showcase-interactive {
-    min-height: clamp(31rem, 132vw, 35rem);
-    overflow: clip;
+    --showcase-phone-offset: min(24vw, 96px);
+    --showcase-side-scale: 0.64;
+    --showcase-center-scale: 0.96;
+    min-height: clamp(28.5rem, 122vw, 32rem);
   }
 
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
     left: 50% !important;
-    transform: translate3d(calc(-50% - min(24vw, 96px)), 18px, 0) scale(0.64) rotateY(5deg) rotateZ(-3deg) !important;
+    transform: translate3d(calc(-50% - var(--showcase-phone-offset)), 18px, 0) scale(var(--showcase-side-scale)) rotateY(5deg) rotateZ(-3deg) !important;
   }
 
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center,
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center:hover {
     left: 50% !important;
-    transform: translate3d(-50%, 0, 0) scale(0.96) !important;
+    transform: translate3d(-50%, 0, 0) scale(var(--showcase-center-scale)) !important;
   }
 
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right,
   .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right:hover {
     left: 50% !important;
-    transform: translate3d(calc(-50% + min(24vw, 96px)), 18px, 0) scale(0.64) rotateY(-5deg) rotateZ(3deg) !important;
-  }
-
-  .sales-showcase-pulse-row {
-    bottom: 10px;
-    gap: 6px;
-    width: calc(100% - 24px);
-  }
-
-  .sales-showcase-pulse-card {
-    gap: 5px;
-    padding: 7px 6px;
-  }
-
-  .sales-showcase-pulse-card strong {
-    font-size: 0.66rem;
-  }
-
-  .sales-showcase-pulse-icon {
-    width: 25px;
-    height: 25px;
-    border-radius: 6px;
+    transform: translate3d(calc(-50% + var(--showcase-phone-offset)), 18px, 0) scale(var(--showcase-side-scale)) rotateY(-5deg) rotateZ(3deg) !important;
   }
 }
 
@@ -15979,8 +15908,4 @@ html[data-theme="dark"] body { background: #05070d; }
     will-change: auto;
   }
 
-  .sales-showcase-pulse-card {
-    animation: none !important;
-    will-change: auto;
-  }
 }
