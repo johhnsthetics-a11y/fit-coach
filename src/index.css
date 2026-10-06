@@ -16137,3 +16137,78 @@ html[data-theme="dark"] body { background: #05070d; }
 .sales-dashboard-metrics > .floating-card:nth-child(4) {
   animation-delay: -3.1s;
 }
+
+/* Interactive phone positions reuse the existing showcase float animation. */
+.sales-page .sales-showcase-interactive .sales-phone-mockup {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  transition:
+    left 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 420ms ease,
+    box-shadow 420ms ease,
+    border-color 420ms ease !important;
+  animation-duration: 4.8s;
+  will-change: transform, translate;
+}
+
+.sales-page .sales-showcase-interactive .sales-hero-phone-1.sales-showcase-float {
+  animation-delay: -1.2s;
+}
+
+.sales-page .sales-showcase-interactive .sales-hero-phone-2.sales-showcase-float {
+  animation-delay: -2.8s;
+}
+
+.sales-page .sales-showcase-interactive .sales-hero-phone-3.sales-showcase-float {
+  animation-delay: -4s;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
+.sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
+  left: 13% !important;
+  transform: translateX(-50%) translateY(24px) scale(0.52) rotateY(7deg) rotateZ(-4deg) !important;
+  opacity: 0.82 !important;
+  z-index: 2 !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-mockup.position-center,
+.sales-page .sales-showcase-interactive .sales-phone-mockup.position-center:hover {
+  left: 50% !important;
+  transform: translateX(-50%) translateY(0) scale(1.08) !important;
+  opacity: 1 !important;
+  z-index: 8 !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-mockup.position-right,
+.sales-page .sales-showcase-interactive .sales-phone-mockup.position-right:hover {
+  left: 87% !important;
+  transform: translateX(-50%) translateY(24px) scale(0.52) rotateY(-7deg) rotateZ(4deg) !important;
+  opacity: 0.82 !important;
+  z-index: 2 !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-mockup:focus-visible {
+  outline: 3px solid #00d2b2;
+  outline-offset: 7px;
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
+  .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
+    left: 12% !important;
+    transform: translateX(-50%) translateY(18px) scale(0.32) rotateY(5deg) rotateZ(-3deg) !important;
+  }
+
+  .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center,
+  .sales-page .sales-showcase-interactive .sales-phone-mockup.position-center:hover {
+    left: 50% !important;
+    transform: translateX(-50%) scale(0.72) !important;
+  }
+
+  .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right,
+  .sales-page .sales-showcase-interactive .sales-phone-mockup.position-right:hover {
+    left: 88% !important;
+    transform: translateX(-50%) translateY(18px) scale(0.32) rotateY(-5deg) rotateZ(3deg) !important;
+  }
+}
