@@ -6329,6 +6329,11 @@ function SalesPhoneShowcase() {
       type: 'nutrition',
     },
   ]
+  const pulseCards = [
+    ['message', 'Mensagens'],
+    ['trophy', 'Evolução'],
+    ['wallet', 'Faturas'],
+  ]
 
   return (
     <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2 sales-showcase-professional-v3 sales-showcase-interactive" role="group" aria-label="Prévia mobile das áreas profissionais de visão geral, treinos e nutrição do Coach Fit Pro">
@@ -6363,9 +6368,8 @@ function SalesPhoneShowcase() {
               </span>
             </div>
             <div className="sales-phone-notch" />
-            <div className="sales-app-mini-header flex items-center justify-between">
+            <div className="sales-app-mini-header flex items-center">
               <span className="text-[10px] font-black uppercase text-emerald-200">{kicker}</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-black text-emerald-100">{type === 'workout' ? 'ao vivo' : type === 'nutrition' ? '2 planos' : 'hoje'}</span>
             </div>
             <h3 className="mt-4 text-lg font-black text-white">{title}</h3>
             <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
@@ -6473,6 +6477,16 @@ function SalesPhoneShowcase() {
         </article>
         )
       })}
+      <div className="sales-showcase-pulse-row" aria-hidden="true">
+        {pulseCards.map(([icon, label], index) => (
+          <div key={label} className={`sales-showcase-pulse-card pulse-${index + 1}`}>
+            <span className="sales-showcase-pulse-icon">
+              <NavIcon name={icon} className="h-4 w-4" />
+            </span>
+            <strong>{label}</strong>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
