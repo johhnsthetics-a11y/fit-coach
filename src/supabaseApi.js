@@ -1053,6 +1053,7 @@ export async function loadRemoteStudentByInvite(code) {
     anamnesis: anamnesis?.id ? fromAnamnesisRow(anamnesis) : null,
     anamnesisRequired: payload.student.require_anamnesis !== false,
     anamnesisCompleted: Boolean(anamnesis?.id),
+    anamnesisNeedsUpdate: Boolean(anamnesis?.student_update_requested_at),
     financialAccessOpen: payload.financial_access_open === true,
     appPaymentRequired: payload.app_payment_required === true,
     professionalType: payload.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
@@ -2109,6 +2110,7 @@ function fromAnamnesisRow(row) {
     emergencyContact: row.emergency_contact || answers.emergencyContact || '',
     source: row.source || 'student',
     authoredBy: row.authored_by ?? '',
+    studentUpdateRequestedAt: row.student_update_requested_at ?? '',
     submittedAt: row.submitted_at ?? row.created_at,
     updatedAt: row.updated_at ?? row.submitted_at ?? row.created_at,
   }
