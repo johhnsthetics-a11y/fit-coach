@@ -39,6 +39,12 @@ test('bootstrap aguarda a restauracao antes de carregar os portais', () => {
   assert.match(appSource, /if \(sessionRestoring\) return <AppLoading \/>/)
 })
 
+test('carteira profissional nao renderiza vazia antes da hidratacao remota', () => {
+  assert.match(appSource, /const \[professionalWorkspaceLoading, setProfessionalWorkspaceLoading\] = useState/)
+  assert.match(appSource, /setProfessionalWorkspaceLoading\(true\)[\s\S]*?loadRemoteData\(data\.session\.user\.id\)/)
+  assert.match(appSource, /if \(professionalWorkspaceLoading && data\.session\?\.access_token && data\.session\?\.user\?\.accountType !== 'student'\) return <AppLoading \/>/)
+})
+
 test('cabecalho de vendas respeita safe area e mantem Entrar visivel no mobile', () => {
   assert.match(appSource, /sales-header-login-button/)
   assert.match(cssSource, /\.sales-page \.sales-header\s*\{[^}]*padding-top:\s*env\(safe-area-inset-top/s)

@@ -1480,6 +1480,9 @@ function useStoredData() {
   const [sessionRestoring, setSessionRestoring] = useState(() => (
     supabaseEnabled && shouldRefreshPersistedSession(data.session)
   ))
+  const [professionalWorkspaceLoading, setProfessionalWorkspaceLoading] = useState(() => (
+    supabaseEnabled && Boolean(data.session?.access_token) && data.session?.user?.accountType !== 'student'
+  ))
   const [remoteStatus, setRemoteStatus] = useState(
     supabaseEnabled ? 'Conectando Supabase' : productionWithoutSupabase ? 'Configuração pendente' : 'Banco local',
   )
@@ -1487,6 +1490,12 @@ function useStoredData() {
     productionWithoutSupabase ? 'As variáveis do Supabase ainda não foram configuradas nesta publicação.' : '',
   )
   const [chatSyncError, setChatSyncError] = useState('')
+
+  useEffect(() => {
+    if (!data.session?.access_token || data.session?.user?.accountType === 'student') {
+      setProfessionalWorkspaceLoading(false)
+    }
+  }, [data.session?.access_token, data.session?.user?.accountType])
 
   useEffect(() => {
     if (!supabaseEnabled) return undefined
@@ -1540,6 +1549,7 @@ function useStoredData() {
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token) {
+      setProfessionalWorkspaceLoading(false)
       setSessionRestoring(false)
       return undefined
     }
@@ -1548,6 +1558,7 @@ function useStoredData() {
     let active = true
 
     if (shouldRefreshPersistedSession(data.session)) {
+      if (data.session?.user?.accountType !== 'student') setProfessionalWorkspaceLoading(true)
       setSessionRestoring(true)
       refreshCoachSession(data.session.refresh_token)
         .then((nextSession) => {
@@ -1579,6 +1590,7 @@ function useStoredData() {
     setSessionRestoring(false)
     if (data.session?.user?.accountType === 'student') return undefined
 
+    setProfessionalWorkspaceLoading(true)
     loadRemoteData(data.session.user.id)
       .then((remoteData) => {
         if (!active) return
@@ -1642,6 +1654,9 @@ function useStoredData() {
         setRemoteStatus('Supabase indisponível')
         setRemoteError(message)
       })
+      .finally(() => {
+        if (active) setProfessionalWorkspaceLoading(false)
+      })
 
     return () => {
       active = false
@@ -1657,7 +1672,7 @@ function useStoredData() {
     }
   }, [data])
 
-  return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring]
+  return [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring, professionalWorkspaceLoading]
 }
 
 export default function App() {
@@ -1748,7 +1763,7 @@ function upsertWorkouts(workouts, savedWorkout) {
 }
 
 function AppContent() {
-  const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring] = useStoredData()
+  const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring, professionalWorkspaceLoading] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
   const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
@@ -3887,6 +3902,7 @@ function AppContent() {
   }
 
   if (sessionRestoring) return <AppLoading />
+  if (professionalWorkspaceLoading && data.session?.access_token && data.session?.user?.accountType !== 'student') return <AppLoading />
 
   if (studentFirstAccess) {
     return (
