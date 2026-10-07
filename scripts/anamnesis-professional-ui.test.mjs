@@ -8,9 +8,11 @@ const nutritionForm = app.slice(app.indexOf('function NutritionForm('), app.inde
 const studentPage = app.slice(app.indexOf('function Students('), app.indexOf('function StudentSnapshot('))
 const anamnesisForm = app.slice(app.indexOf('function ProfessionalAnamnesisForm('), app.indexOf('function ProfessionalAnamnesisSummary('))
 
-test('dieta mostra anamnese vinculada ao paciente em edição e oferece leitura expansível', () => {
+test('dieta mostra anamnese vinculada ao paciente em um painel flutuante recolhível', () => {
   assert.match(nutritionForm, /const formAnamnesis = anamneses\.find\(\(item\) => String\(item\.studentId\) === String\(formStudent\?\.id\)\) \|\| null/)
-  assert.match(nutritionForm, /<details[^>]*open=\{Boolean\(formAnamnesis\)\}/)
+  assert.match(nutritionForm, /const \[anamnesisOpen, setAnamnesisOpen\] = useState\(false\)/)
+  assert.match(nutritionForm, /aria-controls="nutrition-anamnesis-panel"/)
+  assert.match(nutritionForm, /id="nutrition-anamnesis-panel"/)
   assert.match(nutritionForm, /<ProfessionalAnamnesisSummary[\s\S]*?anamnesis=\{formAnamnesis\}[\s\S]*?student=\{formStudent\}/)
 })
 
