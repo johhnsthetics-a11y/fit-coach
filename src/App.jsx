@@ -2780,12 +2780,12 @@ function AppContent() {
     return { student: savedStudent, invite: createdInvite }
   }
 
-  async function saveProfessionalStudentAnamnesis(studentId, answers) {
+  async function saveProfessionalStudentAnamnesis(studentId, answers, requestStudentUpdate = false) {
     let savedAnamnesis
     if (supabaseEnabled) {
       try {
-        savedAnamnesis = await saveRemoteProfessionalAnamnesis(studentId, answers)
-        setRemoteStatus('Anamnese atualizada')
+        savedAnamnesis = await saveRemoteProfessionalAnamnesis(studentId, { ...answers, requestStudentUpdate })
+        setRemoteStatus(requestStudentUpdate ? 'Atualização da anamnese solicitada' : 'Anamnese atualizada')
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar anamnese')
@@ -2795,12 +2795,16 @@ function AppContent() {
       const timestamp = new Date().toISOString()
       savedAnamnesis = {
         ...answers,
+        answers,
         studentId,
         coachId: data.user?.id,
         source: 'professional',
         authoredBy: data.user?.id,
         submittedAt: timestamp,
         updatedAt: timestamp,
+        studentUpdateRequestedAt: requestStudentUpdate
+          ? timestamp
+          : data.anamneses?.find((item) => String(item.studentId) === String(studentId))?.studentUpdateRequestedAt || '',
       }
     }
 
@@ -3939,7 +3943,7 @@ function AppContent() {
       )
     }
 
-    if (studentAccess.financialAccessOpen === true && studentAccess.anamnesisRequired !== false && !studentAccess.anamnesisCompleted) {
+    if (studentAccess.financialAccessOpen === true && (studentAccess.anamnesisNeedsUpdate || (studentAccess.anamnesisRequired !== false && !studentAccess.anamnesisCompleted))) {
       return (
         <StudentAnamnesis
           access={studentAccess}
@@ -6993,6 +6997,13 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     setAnamnesisEditorOpen(false)
   }, [selectedStudent?.id])
 
+  useEffect(() => {
+    if (!anamnesisEditorOpen) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [anamnesisEditorOpen])
+
   async function generateCredentials() {
     if (!selectedStudent?.email || !onGenerateCredentials) return
     setCredentialsSaving(true)
@@ -7146,15 +7157,6 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                 </button>
               </div>
               <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} clientLabel={clientLabel} nutritionist={nutritionist} />
-              {anamnesisEditorOpen ? (
-                <ProfessionalAnamnesisForm
-                  key={selectedStudent.id}
-                  student={selectedStudent}
-                  anamnesis={selectedAnamnesis}
-                  nutritionist={nutritionist}
-                  onSave={onSaveAnamnesis}
-                />
-              ) : null}
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -7187,6 +7189,33 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
         )}
       </Panel>
       </div>
+      {anamnesisEditorOpen && selectedStudent ? createPortal(
+        <div
+          className="fixed inset-0 z-[130] grid place-items-center bg-black/75 p-3 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Anamnese do ${clientLabel} ${selectedStudent.name}`}
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setAnamnesisEditorOpen(false) }}
+        >
+          <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-emerald-300/25 bg-zinc-950 p-4 shadow-2xl shadow-black/50 sm:p-6">
+            <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-center justify-between gap-4 border-b border-white/10 bg-zinc-950/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:-mt-6 sm:px-6">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Ficha de saúde</p>
+                <h3 className="mt-1 truncate text-lg font-black text-white">Anamnese · {selectedStudent.name}</h3>
+              </div>
+              <button type="button" onClick={() => setAnamnesisEditorOpen(false)} className="min-h-10 shrink-0 rounded-lg border border-white/15 px-3 text-sm font-bold text-zinc-200 hover:bg-white/5">Fechar</button>
+            </div>
+            <ProfessionalAnamnesisForm
+              key={selectedStudent.id}
+              student={selectedStudent}
+              anamnesis={selectedAnamnesis}
+              nutritionist={nutritionist}
+              onSave={onSaveAnamnesis}
+            />
+          </div>
+        </div>,
+        document.body,
+      ) : null}
       {generatedCredentials ? createPortal(
         <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
           <div className="credential-access-modal w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 text-zinc-100 shadow-2xl">
@@ -13463,6 +13492,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], editing
   const [notesDraft, setNotesDraft] = useState(stripNutritionPlanMetadata(editingPlan?.notes) || 'Manter água e fibras. Reportar fome, sono e digestão no check-in.')
   const [allowPatientPdfDownload, setAllowPatientPdfDownload] = useState(() => canPatientDownloadNutritionPdf(editingPlan))
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [anamnesisOpen, setAnamnesisOpen] = useState(false)
   const savingRef = useRef(false)
   const clientRequestIdRef = useRef(createNutritionDraftId('nutrition-save'))
   const [favoriteFoodNames, setFavoriteFoodNames] = useState(() => {
@@ -13478,6 +13508,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], editing
     setAllowPatientPdfDownload(canPatientDownloadNutritionPdf(editingPlan))
     setMessage('')
     setError('')
+    setAnamnesisOpen(false)
     savingRef.current = false
     clientRequestIdRef.current = createNutritionDraftId('nutrition-save')
     onDirtyChange?.(false)
@@ -13733,22 +13764,43 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], editing
         <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este aluno selecionado no painel.</p>
       </div>
 
-      <details className="nutrition-anamnesis-context rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.045] p-4" open={Boolean(formAnamnesis)}>
-        <summary className="cursor-pointer list-none text-sm font-black text-emerald-100 marker:hidden">
-          <span className="flex flex-wrap items-center justify-between gap-2">
-            <span>Anamnese do {isNutritionistUser(professional) ? 'paciente' : 'aluno'}</span>
-            <span className="text-xs font-bold text-zinc-400">{formAnamnesis ? 'Abrir ou recolher respostas' : 'Ainda não preenchida'}</span>
-          </span>
-        </summary>
-        <div className="mt-4 border-t border-emerald-300/15 pt-4">
-          <ProfessionalAnamnesisSummary
-            anamnesis={formAnamnesis}
-            student={formStudent}
-            clientLabel={isNutritionistUser(professional) ? 'paciente' : 'aluno'}
-            nutritionist={isNutritionistUser(professional)}
-          />
-        </div>
-      </details>
+      {createPortal((
+        <>
+          <button
+            type="button"
+            onClick={() => setAnamnesisOpen((open) => !open)}
+            className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-[80] inline-flex min-h-12 items-center gap-2 rounded-full border border-emerald-300/35 bg-zinc-950 px-5 text-sm font-black text-emerald-100 shadow-xl shadow-black/30 transition hover:bg-emerald-300/10 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 md:bottom-5"
+            aria-expanded={anamnesisOpen}
+            aria-controls="nutrition-anamnesis-panel"
+          >
+            Anamnese
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-zinc-300">{formAnamnesis ? 'Disponível' : 'Pendente'}</span>
+          </button>
+          {anamnesisOpen ? (
+            <section
+              id="nutrition-anamnesis-panel"
+              className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] right-3 z-[80] flex max-h-[68vh] w-[min(92vw,30rem)] flex-col overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950 text-zinc-100 shadow-2xl shadow-black/50 md:bottom-20"
+              aria-label={`Anamnese do ${isNutritionistUser(professional) ? 'paciente' : 'aluno'}`}
+            >
+              <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-300">Contexto de saúde</p>
+                  <h3 className="mt-1 truncate font-black text-white">Anamnese · {formStudent?.name || 'Cliente'}</h3>
+                </div>
+                <button type="button" onClick={() => setAnamnesisOpen(false)} className="min-h-10 shrink-0 rounded-lg border border-white/15 px-3 text-sm font-bold text-zinc-200 hover:bg-white/5">Recolher</button>
+              </header>
+              <div className="scrollbar-soft min-h-0 overflow-y-auto p-4">
+                <ProfessionalAnamnesisSummary
+                  anamnesis={formAnamnesis}
+                  student={formStudent}
+                  clientLabel={isNutritionistUser(professional) ? 'paciente' : 'aluno'}
+                  nutritionist={isNutritionistUser(professional)}
+                />
+              </div>
+            </section>
+          ) : null}
+        </>
+      ), document.body)}
 
       <div className="nutrition-plan-meta-grid-v2 grid gap-4 lg:grid-cols-[minmax(18rem,0.72fr)_minmax(16rem,0.58fr)_minmax(28rem,1.28fr)] lg:items-end">
         <Field label="Nome da dieta" name="title" defaultValue={titleDraft} onChange={(event) => { setTitleDraft(event.target.value); markNutritionDraftDirty() }} />
@@ -15707,6 +15759,8 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
   const [saving, setSaving] = useState(false)
   const nutritionist = access.professionalType === 'nutritionist'
   const professionalLabel = nutritionist ? 'nutricionista' : 'treinador'
+  const priorAnswers = access.anamnesis || {}
+  const updating = Boolean(access.anamnesisNeedsUpdate)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -15753,9 +15807,9 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
       <form onSubmit={handleSubmit} className="student-access-card mx-auto grid max-w-4xl gap-5 rounded-md border border-white/10 bg-zinc-950/85 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
         <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-300">Primeiro acesso</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-300">{updating ? 'Atualização prioritária' : 'Primeiro acesso'}</p>
             <h1 className="mt-2 text-2xl font-black sm:text-3xl">Anamnese de {access.student.name}</h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">Estas informações serão enviadas com segurança ao seu {professionalLabel} para personalizar o acompanhamento.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">{updating ? 'Seu profissional atualizou esta ficha. Revise as respostas anteriores, ajuste o que mudou e envie a versão atualizada para continuar.' : `Estas informações serão enviadas com segurança ao seu ${professionalLabel} para personalizar o acompanhamento.`}</p>
           </div>
           <BrandLockup subtitle="Coach Fit Pro" />
         </div>
@@ -15763,47 +15817,47 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
         <section className="grid gap-4">
           <h2 className="font-black text-blue-200">Perfil e objetivo</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Data de nascimento" name="birthDate" type="date" />
-            <Select label="Sexo biológico para cálculo metabólico" name="biologicalSex" defaultValue="" options={['Masculino', 'Feminino']} />
-            <Field label="Altura (cm)" name="heightCm" type="number" />
-            <Field label="Peso atual (kg)" name="weightKg" type="number" />
-            <Field label="Profissão" name="occupation" />
-            <Select label={nutritionist ? 'Experiência com atividade física' : 'Experiência com treino'} name="trainingExperience" defaultValue="Iniciante" options={['Nunca treinei', 'Iniciante', 'Intermediário', 'Avançado']} />
-            <Select label={nutritionist ? 'Frequência de atividade disponível' : 'Frequência disponível'} name="trainingFrequency" defaultValue="3 vezes por semana" options={['1 vez por semana', '2 vezes por semana', '3 vezes por semana', '4 vezes por semana', '5 vezes por semana', '6 ou mais vezes']} />
-            <Select label="Nível de atividade atual" name="activityLevel" defaultValue="Moderado" options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
+            <Field label="Data de nascimento" name="birthDate" type="date" defaultValue={priorAnswers.birthDate || ''} />
+            <Select label="Sexo biológico para cálculo metabólico" name="biologicalSex" defaultValue={priorAnswers.biologicalSex || ''} options={['Masculino', 'Feminino']} />
+            <Field label="Altura (cm)" name="heightCm" type="number" defaultValue={priorAnswers.heightCm || ''} />
+            <Field label="Peso atual (kg)" name="weightKg" type="number" defaultValue={priorAnswers.weightKg || ''} />
+            <Field label="Profissão" name="occupation" defaultValue={priorAnswers.occupation || ''} />
+            <Select label={nutritionist ? 'Experiência com atividade física' : 'Experiência com treino'} name="trainingExperience" defaultValue={priorAnswers.trainingExperience || 'Iniciante'} options={['Nunca treinei', 'Iniciante', 'Intermediário', 'Avançado']} />
+            <Select label={nutritionist ? 'Frequência de atividade disponível' : 'Frequência disponível'} name="trainingFrequency" defaultValue={priorAnswers.trainingFrequency || '3 vezes por semana'} options={['1 vez por semana', '2 vezes por semana', '3 vezes por semana', '4 vezes por semana', '5 vezes por semana', '6 ou mais vezes']} />
+            <Select label="Nível de atividade atual" name="activityLevel" defaultValue={priorAnswers.activityLevel || 'Moderado'} options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
           </div>
-          <TextArea label="Objetivo principal e resultado esperado" name="primaryGoal" defaultValue="" />
+          <TextArea label="Objetivo principal e resultado esperado" name="primaryGoal" defaultValue={priorAnswers.primaryGoal || ''} />
         </section>
 
         <section className="grid gap-4 border-t border-white/10 pt-5">
           <h2 className="font-black text-red-200">Saúde e segurança</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextArea label="Lesões atuais ou anteriores" name="injuries" defaultValue="Nenhuma" />
-            <TextArea label="Doenças ou condições de saúde" name="healthConditions" defaultValue="Nenhuma" />
-            <TextArea label="Medicamentos em uso" name="medications" defaultValue="Nenhum" />
-            <TextArea label="Cirurgias realizadas" name="surgeries" defaultValue="Nenhuma" />
+            <TextArea label="Lesões atuais ou anteriores" name="injuries" defaultValue={priorAnswers.injuries || 'Nenhuma'} />
+            <TextArea label="Doenças ou condições de saúde" name="healthConditions" defaultValue={priorAnswers.healthConditions || 'Nenhuma'} />
+            <TextArea label="Medicamentos em uso" name="medications" defaultValue={priorAnswers.medications || 'Nenhum'} />
+            <TextArea label="Cirurgias realizadas" name="surgeries" defaultValue={priorAnswers.surgeries || 'Nenhuma'} />
           </div>
-          <TextArea label="Dores, limitações ou exercícios que causam desconforto" name="pain" defaultValue="Nenhuma" />
-          <Field label="Contato de emergência" name="emergencyContact" />
+          <TextArea label="Dores, limitações ou exercícios que causam desconforto" name="pain" defaultValue={priorAnswers.pain || 'Nenhuma'} />
+          <Field label="Contato de emergência" name="emergencyContact" defaultValue={priorAnswers.emergencyContact || ''} />
         </section>
 
         <section className="grid gap-4 border-t border-white/10 pt-5">
           <h2 className="font-black text-emerald-200">Rotina e hábitos</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Horas de sono" name="sleepHours" />
-            <Select label="Qualidade do sono" name="sleepQuality" defaultValue="Regular" options={['Ruim', 'Regular', 'Boa', 'Excelente']} />
-            <Select label="Nível de estresse" name="stressLevel" defaultValue="Moderado" options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
-            <Field label="Água por dia" name="waterIntake" defaultValue="2 litros" />
+            <Field label="Horas de sono" name="sleepHours" defaultValue={priorAnswers.sleepHours || ''} />
+            <Select label="Qualidade do sono" name="sleepQuality" defaultValue={priorAnswers.sleepQuality || 'Regular'} options={['Ruim', 'Regular', 'Boa', 'Excelente']} />
+            <Select label="Nível de estresse" name="stressLevel" defaultValue={priorAnswers.stressLevel || 'Moderado'} options={['Baixo', 'Moderado', 'Alto', 'Muito alto']} />
+            <Field label="Água por dia" name="waterIntake" defaultValue={priorAnswers.waterIntake || '2 litros'} />
           </div>
-          <TextArea label="Restrições, alergias ou preferências alimentares" name="foodRestrictions" defaultValue="Nenhuma" />
-          <TextArea label="Como é sua rotina diária?" name="routine" defaultValue="" />
-          <TextArea label="Outras informações importantes" name="observations" defaultValue="" />
+          <TextArea label="Restrições, alergias ou preferências alimentares" name="foodRestrictions" defaultValue={priorAnswers.foodRestrictions || 'Nenhuma'} />
+          <TextArea label="Como é sua rotina diária?" name="routine" defaultValue={priorAnswers.routine || ''} />
+          <TextArea label="Outras informações importantes" name="observations" defaultValue={priorAnswers.observations || ''} />
         </section>
 
         {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
         <div className="flex flex-col gap-3 sm:flex-row">
           <button disabled={saving} className="flex-1 rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-            {saving ? 'Enviando anamnese...' : `Enviar anamnese ao ${professionalLabel}`}
+            {saving ? 'Enviando anamnese...' : updating ? 'Enviar anamnese atualizada' : `Enviar anamnese ao ${professionalLabel}`}
           </button>
           <button type="button" onClick={onExit} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">Sair</button>
         </div>
@@ -15832,10 +15886,13 @@ function ProfessionalAnamnesisForm({ student, anamnesis = null, nutritionist = f
       'sleepHours', 'sleepQuality', 'stressLevel', 'waterIntake',
       'foodRestrictions', 'routine', 'observations', 'emergencyContact',
     ].map((field) => [field, form.get(field)?.toString() || '']))
+    const requestStudentUpdate = event.nativeEvent.submitter?.value === 'request-update'
 
     try {
-      await onSave(student.id, answers)
-      setMessage('Anamnese salva. Os dados já estão disponíveis na prescrição da dieta.')
+      await onSave(student.id, answers, requestStudentUpdate)
+      setMessage(requestStudentUpdate
+        ? `Anamnese salva. O ${clientLabel} receberá uma solicitação prioritária para revisar e reenviar as respostas.`
+        : 'Anamnese salva. Os dados já estão disponíveis na prescrição da dieta.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar a anamnese. Tente novamente.')
     } finally {
@@ -15892,9 +15949,16 @@ function ProfessionalAnamnesisForm({ student, anamnesis = null, nutritionist = f
 
       {error ? <p role="alert" className="rounded-lg border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
       {message ? <p role="status" className="rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
       <button disabled={saving} className="min-h-11 rounded-lg bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando anamnese...' : 'Salvar anamnese'}
       </button>
+      {anamnesis ? (
+        <button type="submit" value="request-update" disabled={saving} className="min-h-11 rounded-lg border border-amber-300/35 bg-amber-300/10 px-5 py-3 text-sm font-black text-amber-100 transition hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-60">
+          {saving ? 'Salvando...' : 'Salvar e solicitar atualização'}
+        </button>
+      ) : null}
+      </div>
     </form>
   )
 }
@@ -16100,11 +16164,12 @@ function StudentAnamnesisSummary({ anamnesis, student }) {
     <div className="rounded-md border border-emerald-300/30 bg-emerald-300/10 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="font-black text-emerald-100">Anamnese recebida</p>
+          <p className="font-black text-emerald-100">{anamnesis.studentUpdateRequestedAt ? 'Atualização solicitada' : 'Anamnese recebida'}</p>
           <p className="mt-1 text-xs text-zinc-400">{formatDateTime(anamnesis.submittedAt)}</p>
         </div>
-        <Badge tone="Baixo">Completa</Badge>
+        <Badge tone={anamnesis.studentUpdateRequestedAt ? 'Medio' : 'Baixo'}>{anamnesis.studentUpdateRequestedAt ? 'Aguardando aluno' : 'Completa'}</Badge>
       </div>
+      {anamnesis.studentUpdateRequestedAt ? <p className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">Uma atualização foi solicitada. O {clientLabel} verá a anamnese como prioridade ao entrar e poderá revisar as respostas antes de reenviar.</p> : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Info label="Objetivo" value={anamnesis.primaryGoal || '-'} />
         <Info label="Experiência" value={`${anamnesis.trainingExperience || '-'} · ${anamnesis.trainingFrequency || '-'}`} />
