@@ -10443,6 +10443,26 @@ button.coach-notification-popover-item:hover {
 .coach-notification-popover-list { flex: 1 1 auto; min-height: 0; max-height: min(52dvh, 390px) !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; }
 @media (max-width: 639px) { .coach-notification-popover-list { max-height: calc(100dvh - 15rem - env(safe-area-inset-bottom, 0px)) !important; } }
 
+.coach-notification-overlay { position: fixed; inset: 0; z-index: 100; pointer-events: none; background: transparent !important; }
+.coach-notification-overlay .coach-notification-popover-backdrop,
+.coach-notification-overlay .coach-notification-popover { pointer-events: auto; }
+.coach-notification-overlay .coach-notification-popover {
+  top: var(--notification-top, 5.4rem) !important;
+  right: var(--notification-right, 1rem) !important;
+  max-height: min(560px, calc(100dvh - var(--notification-top, 5.4rem) - 12px)) !important;
+}
+@media (min-width: 1024px) { .coach-notification-overlay.is-mobile { display: none; } }
+@media (max-width: 1023px) { .coach-notification-overlay.is-desktop { display: none; } }
+@media (max-width: 639px) {
+  .coach-notification-overlay.is-mobile .coach-notification-popover {
+    right: 0.75rem !important;
+    left: 0.75rem !important;
+    inline-size: auto !important;
+    min-inline-size: 0 !important;
+    max-inline-size: none !important;
+  }
+}
+
 
 /* loading-theme-sync-v1 */
 .app-loading-shell.app-theme-light { background: radial-gradient(circle at top, rgba(0, 210, 178, 0.10), transparent 34%), #ffffff !important; color: var(--app-light-title, #13201d) !important; }
@@ -15350,6 +15370,185 @@ html[data-theme="dark"] body { background: #05070d; }
   box-shadow: 0 13px 28px rgb(var(--nav-tone, 0 156 134) / 0.1) !important;
 }
 
+/* workout-muscle-map-and-preview-v7 */
+.workout-exercise-preview-portal-v2 .mobile-workout-review-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.35rem;
+}
+
+.workout-exercise-preview-portal-v2 .mobile-workout-review-card :is(span, small) {
+  display: block;
+  position: static;
+  width: auto;
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.app-theme-light.workout-exercise-preview-portal-v2 .mobile-workout-review-card :is(span, small) {
+  color: #314640 !important;
+  -webkit-text-fill-color: #314640 !important;
+}
+
+.muscle-map-card {
+  border-radius: 10px !important;
+  background: linear-gradient(160deg, #142321 0%, #101719 55%, #1c2529 100%) !important;
+}
+
+.muscle-map-view-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  border: 1px solid rgba(110, 188, 174, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 3px;
+}
+
+.muscle-map-view-switch button {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 0 7px;
+  color: #b7cbc5;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.muscle-map-view-switch button[aria-pressed="true"] {
+  background: #29c8ad;
+  color: #09201b;
+}
+
+.muscle-map-view-switch button:focus-visible,
+.mobile-workout-picker-scroll-cue:focus-visible {
+  outline: 2px solid #29c8ad;
+  outline-offset: 2px;
+}
+
+.muscle-map-anatomy-lines {
+  filter: drop-shadow(0 1px 1px rgba(20, 20, 20, 0.42));
+}
+
+.app-theme-light .muscle-map-card {
+  border-color: #b6d5cd !important;
+  background: linear-gradient(160deg, #ffffff, #eaf6f3) !important;
+}
+
+.app-theme-light .muscle-map-view-switch {
+  border-color: #a9ccc2;
+  background: #e8f4f0;
+}
+
+.app-theme-light .muscle-map-view-switch button {
+  color: #21594e;
+}
+
+.app-theme-light .muscle-map-view-switch button[aria-pressed="true"] {
+  background: #087d6c;
+  color: #ffffff;
+}
+
+.mobile-workout-picker-scroll-cue {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid rgba(41, 200, 173, 0.42);
+  border-radius: 8px;
+  background: #113c34;
+  color: #dffcf4;
+  font-size: 0.78rem;
+  font-weight: 850;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.mobile-workout-picker-scroll-cue svg {
+  animation: workout-scroll-cue 1.8s ease-in-out infinite;
+}
+
+.app-theme-light .mobile-workout-picker-scroll-cue {
+  border-color: #0c8d79;
+  background: #087d6c;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+@keyframes workout-scroll-cue {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(3px); }
+}
+
+.mobile-workout-day-preview-panel,
+.mobile-workout-student-preview-panel {
+  width: min(100%, 500px) !important;
+}
+
+.mobile-workout-day-preview-student-shell,
+.mobile-workout-student-preview-device {
+  width: min(100%, 430px);
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.mobile-workout-student-preview-device {
+  padding: 0 0.65rem 1rem;
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-student-current-exercise-v2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) :is(.mobile-workout-student-metrics-v2, .mobile-workout-summary-grid-v4) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-execution-head-v4 {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-end-trigger-v5 {
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-current-heading-v5 h4 {
+  font-size: 1.75rem;
+  word-break: normal;
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-session-timer-v5 > strong {
+  width: auto;
+  min-width: 0;
+  font-size: 1.55rem;
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-student-navigation-v3 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-student-series-v2 > div:not(.mobile-workout-student-series-head-v2) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+:is(.mobile-workout-student-preview-device, .mobile-workout-day-preview-student-shell) .mobile-workout-student-series-v2 > div:not(.mobile-workout-student-series-head-v2) > :is(.mobile-workout-set-label-v4, button) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .mobile-workout-day-preview-panel,
+  .mobile-workout-student-preview-panel {
+    width: 100% !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-workout-picker-scroll-cue svg { animation: none; }
+}
+
 .app-theme-light .coach-nav-item.app-nav-toned-button:is(.is-active, [aria-current="page"]) .coach-menu-icon-shell {
   border-color: rgb(var(--nav-tone, 0 156 134) / 0.5) !important;
   background: rgb(var(--nav-tone, 0 156 134) / 0.22) !important;
@@ -15824,6 +16023,38 @@ html[data-theme="dark"] body { background: #05070d; }
   animation-delay: -3.2s;
 }
 
+@keyframes salesShowcaseFloatDesktop {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1;
+    box-shadow: 0 24px 48px rgba(10, 24, 22, 0.12);
+  }
+  50% {
+    translate: 0 -14px;
+    scale: 1.025;
+    box-shadow: 0 32px 64px rgba(10, 24, 22, 0.2);
+  }
+}
+
+@media (min-width: 768px) {
+  .sales-page .sales-showcase-interactive .sales-phone-mockup {
+    animation-name: salesShowcaseFloatDesktop;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page .sales-showcase-interactive .sales-phone-mockup {
+    animation: salesShowcaseFloat 4.8s ease-in-out infinite !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 768px) {
+  .sales-page .sales-showcase-interactive .sales-phone-mockup {
+    animation-name: salesShowcaseFloatDesktop !important;
+  }
+}
+
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left,
 .sales-page .sales-showcase-interactive .sales-phone-mockup.position-left:hover {
   left: 50% !important;
@@ -15880,11 +16111,91 @@ html[data-theme="dark"] body { background: #05070d; }
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sales-page .sales-showcase-interactive .sales-phone-mockup {
-    transition: none !important;
-    animation: none !important;
-    will-change: auto;
+/* Focus the showcase on the phones and reveal the hero benefits as typed copy. */
+.sales-page .sales-app-modern-showcase-v1::before {
+  content: none !important;
+}
+
+.sales-page .sales-hero-benefit-line {
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.45rem 1rem;
+  border: 1px solid rgba(0, 210, 178, 0.2);
+  border-left: 3px solid #00d2b2;
+  border-radius: 0 14px 14px 0;
+  padding: 0.7rem 1rem;
+  background: linear-gradient(110deg, rgba(0, 210, 178, 0.1), rgba(0, 210, 178, 0.025));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  font-size: clamp(0.92rem, 1.4vw, 1.15rem);
+  line-height: 1.5;
+}
+
+.sales-page .sales-hero-benefit-line > span {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  clip-path: inset(0 100% 0 0);
+  white-space: nowrap;
+  animation: salesBenefitTypewriter 0.78s steps(16, end) both;
+  animation-play-state: paused;
+}
+
+.sales-page .sales-hero-benefit-line.is-visible > span {
+  animation-play-state: running;
+}
+
+.sales-page .sales-hero-benefit-line > span:nth-child(2) {
+  animation-delay: 0.65s;
+  animation-duration: 1s;
+  animation-timing-function: steps(22, end);
+}
+
+.sales-page .sales-hero-benefit-line > span:nth-child(3) {
+  animation-delay: 1.5s;
+  animation-duration: 1s;
+  animation-timing-function: steps(22, end);
+}
+
+.sales-page .sales-hero-benefit-line b {
+  color: #00d2b2;
+}
+
+.sales-page.sales-theme-light .sales-hero-benefit-line {
+  border-color: rgba(0, 156, 134, 0.2);
+  border-left-color: #009c86;
+  background: linear-gradient(110deg, rgba(0, 156, 134, 0.09), rgba(0, 156, 134, 0.025));
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+  color: #123b34;
+}
+
+.sales-page.sales-theme-light .sales-hero-benefit-line b {
+  color: #008b78;
+}
+
+@keyframes salesBenefitTypewriter {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes salesBenefitMobileReveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-hero-benefit-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
   }
 
+  .sales-page .sales-hero-benefit-line > span {
+    width: 100%;
+    overflow: visible;
+    white-space: normal;
+    clip-path: none;
+    animation-name: salesBenefitMobileReveal;
+    animation-duration: 0.5s;
+    animation-timing-function: ease-out;
+  }
 }
