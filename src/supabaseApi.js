@@ -1116,6 +1116,17 @@ export async function submitRemoteStudentAnamnesis(code, answers) {
   return loadRemoteStudentByInvite(code)
 }
 
+export async function saveRemoteProfessionalAnamnesis(studentId, answers) {
+  if (!isUuid(studentId)) throw new Error('Aluno não identificado para salvar a anamnese.')
+  const result = await rpcRequest('save_professional_student_anamnesis', {
+    p_student_id: studentId,
+    p_answers: answers,
+  })
+  const row = Array.isArray(result) ? result[0] : result
+  if (!row?.student_id) throw new Error('O Supabase não confirmou a anamnese salva.')
+  return fromAnamnesisRow(row)
+}
+
 export async function saveRemoteWorkout(workout, coachId) {
   requireCoachId(coachId)
   const sourceExercises = Array.isArray(workout.exercises) ? workout.exercises : []
@@ -2073,30 +2084,33 @@ function fromAnamnesisRow(row) {
     studentId: row.student_id,
     inviteId: row.invite_id,
     answers,
-    birthDate: row.birth_date ?? '',
+    birthDate: row.birth_date ?? answers.birthDate ?? '',
     biologicalSex: row.biological_sex ?? answers.biologicalSex ?? answers.gender ?? '',
     gender: row.gender ?? row.sex ?? row.biological_sex ?? answers.biologicalSex ?? answers.gender ?? '',
     heightCm: row.height_cm ?? answers.heightCm ?? '',
     weightKg: row.weight_kg ?? answers.weightKg ?? '',
     activityLevel: row.activity_level ?? answers.activityLevel ?? '',
-    occupation: row.occupation ?? '',
-    trainingExperience: row.training_experience ?? '',
-    trainingFrequency: row.training_frequency ?? '',
-    primaryGoal: row.primary_goal ?? '',
-    injuries: row.injuries ?? '',
-    healthConditions: row.health_conditions ?? '',
-    medications: row.medications ?? '',
-    surgeries: row.surgeries ?? '',
-    pain: row.pain ?? '',
-    sleepHours: row.sleep_hours ?? '',
-    sleepQuality: row.sleep_quality ?? '',
-    stressLevel: row.stress_level ?? '',
-    waterIntake: row.water_intake ?? '',
-    foodRestrictions: row.food_restrictions ?? '',
-    routine: row.routine ?? '',
-    observations: row.observations ?? '',
-    emergencyContact: row.emergency_contact ?? '',
+    occupation: row.occupation || answers.occupation || '',
+    trainingExperience: row.training_experience || answers.trainingExperience || '',
+    trainingFrequency: row.training_frequency || answers.trainingFrequency || '',
+    primaryGoal: row.primary_goal || answers.primaryGoal || '',
+    injuries: row.injuries || answers.injuries || '',
+    healthConditions: row.health_conditions || answers.healthConditions || '',
+    medications: row.medications || answers.medications || '',
+    surgeries: row.surgeries || answers.surgeries || '',
+    pain: row.pain || answers.pain || '',
+    sleepHours: row.sleep_hours || answers.sleepHours || '',
+    sleepQuality: row.sleep_quality || answers.sleepQuality || '',
+    stressLevel: row.stress_level || answers.stressLevel || '',
+    waterIntake: row.water_intake || answers.waterIntake || '',
+    foodRestrictions: row.food_restrictions || answers.foodRestrictions || '',
+    routine: row.routine || answers.routine || '',
+    observations: row.observations || answers.observations || '',
+    emergencyContact: row.emergency_contact || answers.emergencyContact || '',
+    source: row.source || 'student',
+    authoredBy: row.authored_by ?? '',
     submittedAt: row.submitted_at ?? row.created_at,
+    updatedAt: row.updated_at ?? row.submitted_at ?? row.created_at,
   }
 }
 
