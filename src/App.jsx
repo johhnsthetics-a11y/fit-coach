@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
 import fitCoachLogo from './fit-coach-logo.png'
@@ -128,7 +128,7 @@ const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediá
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
 const COACH_FIT_PRO_BUILD_MARKER = 'webapp-workout-20260925'
-const DEFAULT_UI_THEME = 'light'
+const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
 const cartpandaCheckoutPlans = [
@@ -600,7 +600,7 @@ function getStoredUiTheme() {
 
   try {
     const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-    return savedTheme === 'dark' ? 'dark' : DEFAULT_UI_THEME
+    return savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : DEFAULT_UI_THEME
   } catch (error) {
     return DEFAULT_UI_THEME
   }
@@ -1784,9 +1784,10 @@ function AppContent() {
   )
 
   const unreadCount = data.notifications.filter((item) => !item.read).length
-  const paidStudents = data.students.filter((student) => student.payment === 'Pago').length
+  const activeStudents = data.students.filter((student) => student.status !== 'Inativo')
+  const paidStudents = activeStudents.filter((student) => student.payment === 'Pago').length
   const averageAdherence = Math.round(
-    data.students.reduce((sum, student) => sum + Number(student.adherence || 0), 0) / Math.max(data.students.length, 1),
+    activeStudents.reduce((sum, student) => sum + Number(student.adherence || 0), 0) / Math.max(activeStudents.length, 1),
   )
   const openCheckins = data.checkins.filter((item) => item.state !== 'Recebido').length
   const upcomingAppointments = (data.appointments ?? []).filter((appointment) => (
@@ -4015,6 +4016,7 @@ function AppContent() {
             setNotificationPopoverOpen(false)
           }}
           className="coach-mobile-notification-shortcut"
+          theme={uiTheme}
         />
         <button
           type="button"
@@ -4166,6 +4168,7 @@ function AppContent() {
                   setNotificationPopoverOpen(false)
                 }}
                 className="coach-page-notification-shortcut"
+                theme={uiTheme}
               />
               {masterAdmin ? (
                 <button
@@ -4232,7 +4235,7 @@ function AppContent() {
 
           {activeView === 'visao' ? (
             <section className="coach-dashboard-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric label={nutritionistUser ? 'Pacientes ativos' : 'Alunos ativos'} value={data.students.length} detail={`${paidStudents} com plano pago`} />
+              <Metric label={nutritionistUser ? 'Pacientes ativos' : 'Alunos ativos'} value={activeStudents.length} detail={`${paidStudents} com plano pago`} />
               <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
               <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
               <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
@@ -4791,6 +4794,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
     page.classList.add('sales-motion-ready')
     const revealItems = [...page.querySelectorAll('[data-reveal]')]
+    const benefitLine = page.querySelector('.sales-hero-benefit-line')
     const interactiveItems = [...page.querySelectorAll('.sales-feature-card, .sales-interactive, .sales-faq')]
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -4801,7 +4805,16 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       })
     }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' })
 
-    revealItems.forEach((item) => observer.observe(item))
+    const benefitObserver = benefitLine ? new IntersectionObserver((entries) => {
+      if (!entries[0]?.isIntersecting) return
+      benefitLine.classList.add('is-visible')
+      benefitObserver.disconnect()
+    }, { threshold: 0.1, rootMargin: window.matchMedia('(min-width: 1024px)').matches ? '0px 0px -8% 0px' : '0px 0px -35% 0px' }) : null
+
+    revealItems.forEach((item) => {
+      if (item !== benefitLine) observer.observe(item)
+    })
+    if (benefitLine) benefitObserver.observe(benefitLine)
 
     function moveSurface(event) {
       if (window.matchMedia('(pointer: coarse)').matches) return
@@ -4853,6 +4866,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
 
     return () => {
       observer.disconnect()
+      benefitObserver?.disconnect()
       interactiveItems.forEach((item) => {
         item.removeEventListener('pointermove', moveSurface)
         item.removeEventListener('pointerleave', resetSurface)
@@ -5006,10 +5020,10 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
               <span className="hidden h-1 w-1 rounded-full bg-zinc-600 sm:block" />
               <span>Experiência profissional para o aluno</span>
             </div>
-            <div className="sales-hero-benefit-line mt-7" aria-label="+ organização, + percepção de valor, + rotina profissional">
-              <span><b aria-hidden="true">+</b> organização,</span>
-              <span><b aria-hidden="true">+</b> percepção de valor,</span>
-              <span><b aria-hidden="true">+</b> rotina profissional</span>
+            <div className="sales-hero-benefit-line mt-7" data-reveal aria-label="+ Organização, + Percepção de Valor, + Rotina Profissional">
+              <span><b aria-hidden="true">+</b> Organização,</span>
+              <span><b aria-hidden="true">+</b> Percepção de Valor,</span>
+              <span><b aria-hidden="true">+</b> Rotina Profissional</span>
             </div>
             <div className="sales-hero-proof mt-7 grid max-w-3xl gap-3 sm:grid-cols-3">
               {[
@@ -8225,6 +8239,7 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       selectedStudent={selectedStudent}
       students={students}
       workouts={workouts}
+      workoutLogs={workoutLogs}
       studentWorkouts={studentWorkouts}
       exerciseLibraryItems={availableExerciseLibrary}
       onSaveWorkout={onSaveWorkout}
@@ -8420,7 +8435,7 @@ function getSupportedWorkoutSelectValue(value, options) {
   return options.find((item) => normalizeText(item) === normalized) || ''
 }
 
-function MobileWorkoutManager({ selectedStudent, students, workouts = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
+function MobileWorkoutManager({ selectedStudent, students, workouts = [], workoutLogs = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
     try {
@@ -8451,6 +8466,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
   const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
   const [exercisePickerObjectiveFilter, setExercisePickerObjectiveFilter] = useState('todos')
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
+  const exercisePickerResultsRef = useRef(null)
+  const [exercisePickerHasMore, setExercisePickerHasMore] = useState(false)
   const [dayEditor, setDayEditor] = useState(null)
   const [workoutStudentPreviewOpen, setWorkoutStudentPreviewOpen] = useState(false)
   const [addingExerciseKey, setAddingExerciseKey] = useState('')
@@ -8579,6 +8596,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
       recent: recentExerciseNames,
     })
   }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
+  useEffect(() => {
+    if (exercisePickerDayIndex === null) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const list = exercisePickerResultsRef.current
+      setExercisePickerHasMore(Boolean(list && list.scrollHeight - list.scrollTop - list.clientHeight > 12))
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [exercisePickerDayIndex, exercisePickerResults])
   const exercisePickerCurrentDay = exercisePickerDayIndex === null ? null : draft.days[exercisePickerDayIndex]
   const exercisePickerSummaryExercises = getWorkoutExercisesArray(exercisePickerCurrentDay?.exercises)
     .map((exercise) => normalizeWorkoutExerciseInput(exercise).name)
@@ -9360,6 +9385,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
         <MobileWorkoutStudentPreview
           student={selectedWorkoutStudent}
           workout={selectedWorkout}
+          workoutLogs={workoutLogs.filter((log) => String(log.studentId) === String(selectedWorkoutStudent?.id))}
+          exerciseLibraryItems={availableExerciseLibrary}
           days={selectedWorkoutDays}
           exerciseCount={selectedWorkoutExerciseCount}
           expandedExerciseKey={expandedExerciseKey}
@@ -9549,6 +9576,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
                   updateDraftExerciseVideoFile={updateDraftExerciseVideoFile}
                   openExercisePicker={openExercisePicker}
                   library={availableExerciseLibrary}
+                  workoutLogs={workoutLogs.filter((log) => String(log.studentId) === String(selectedDraftStudent?.id))}
                   theme={uiTheme}
                   onBack={() => {
                     setActiveDayIndex(null)
@@ -9688,7 +9716,17 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             </details>
             <div className="mobile-workout-picker-layout">
             <div className="mobile-workout-picker-catalog">
-            <div className="mobile-workout-picker-results">
+            {exercisePickerHasMore ? (
+              <button type="button" className="mobile-workout-picker-scroll-cue" onClick={() => exercisePickerResultsRef.current?.scrollBy({ top: Math.max(240, exercisePickerResultsRef.current.clientHeight * 0.8), behavior: 'smooth' })}>
+                <NavIcon name="chevronDown" className="h-4 w-4" />
+                Ver mais exercícios abaixo
+              </button>
+            ) : null}
+            <div
+              ref={exercisePickerResultsRef}
+              className="mobile-workout-picker-results"
+              onScroll={(event) => setExercisePickerHasMore(event.currentTarget.scrollHeight - event.currentTarget.scrollTop - event.currentTarget.clientHeight > 12)}
+            >
               {exercisePickerResults.map((exercise) => {
                 const isFavorite = favoriteExerciseNames.some((item) => normalizeText(item) === normalizeText(exercise.name))
                 const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
@@ -9778,14 +9816,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], studen
             <ExerciseMedia exercise={exercisePickerPreview} compact />
             <ExerciseMuscleSummary exercise={exercisePickerPreview} compact />
             <div className="mobile-workout-review-card">
-              <p>Músculo e equipamento</p>
-              <span>{exercisePickerPreview.group || exercisePickerPreview.muscleGroup || 'Grupo muscular'} · {exercisePickerPreview.equipment || 'Equipamento livre'}</span>
+              <p>Equipamento e perfil</p>
+              <span>{exercisePickerPreview.equipment || 'Equipamento livre'}</span>
               <small>{[exercisePickerPreview.level, exercisePickerPreview.mechanic || exercisePickerPreview.composition, exercisePickerPreview.laterality, exercisePickerPreview.movementType].filter(Boolean).join(' · ')}</small>
-            </div>
-            <div className="mobile-workout-review-card">
-              <p>Dica de execução</p>
-              <small>{exercisePickerPreview.cues || exercisePickerPreview.instructions || 'Confira a demonstração antes de adicionar ao treino.'}</small>
-              <small>{getExerciseCommonMistake(exercisePickerPreview)}</small>
             </div>
             <button type="button" className="mobile-workout-primary" disabled={isExerciseAlreadyInDraftDay(exercisePickerCurrentDay, exercisePickerPreview.name)} onClick={async () => {
               await addExercisesToCurrentDay([exercisePickerPreview.name])
@@ -9894,6 +9927,7 @@ function MobileWorkoutEditableDay({
   updateDraftExerciseVideoFile,
   openExercisePicker,
   library = exerciseLibrary,
+  workoutLogs = [],
   theme = DEFAULT_UI_THEME,
   onBack,
   onEditDay,
@@ -10003,6 +10037,7 @@ function MobileWorkoutEditableDay({
               student={student}
               workout={workout}
               exerciseLibraryItems={library}
+              workoutLogs={workoutLogs}
               dayIndex={dayIndex}
               preview
             />
@@ -10191,7 +10226,7 @@ function formatCount(total, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`
 }
 
-function MobileWorkoutStudentPreview({ student, workout, theme = DEFAULT_UI_THEME, onBack }) {
+function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, theme = DEFAULT_UI_THEME, onBack }) {
   const canStudentDownloadPdf = Boolean(workout?.allowStudentPdfDownload)
   return createPortal((
     <div className={`workout-student-preview-portal-v1 mobile-workout-student-preview-portal app-theme-${theme}`} role="presentation" onClick={onBack}>
@@ -10209,7 +10244,9 @@ function MobileWorkoutStudentPreview({ student, workout, theme = DEFAULT_UI_THEM
           </button>
         ) : null}
       </div>
-      <StudentWorkoutExecution student={student} workout={workout} preview />
+      <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
+        <StudentWorkoutExecution student={student} workout={workout} preview workoutLogs={workoutLogs} exerciseLibraryItems={exerciseLibraryItems} />
+      </div>
     </section>
     </div>
   ), document.body)
@@ -11878,59 +11915,63 @@ function MuscleMapMini({ exercise, className = 'h-5 w-5' }) {
 function MuscleMap({ exercise, compact = false, className = '' }) {
   const [hovered, setHovered] = useState('')
   const profile = useMemo(() => getExerciseMuscleProfile(exercise), [exercise])
+  const [selectedView, setSelectedView] = useState('')
+  const mapId = useId().replace(/:/g, '')
   const activeMuscles = useMemo(() => {
     const map = new Map()
     if (profile.primaryMuscle) map.set(profile.primaryMuscle, 'primary')
     profile.secondaryMuscles.forEach((muscle) => map.set(muscle, 'secondary'))
     return map
   }, [profile.primaryMuscle, profile.secondaryMuscles])
-  const view = profile.view === 'back' ? 'back' : 'front'
+  const view = selectedView || (profile.view === 'back' ? 'back' : 'front')
   const hoveredConfig = hovered ? muscleConfig[hovered] : null
 
   return (
-    <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.16),transparent_55%),rgba(4,8,10,0.78)] ${compact ? 'p-3' : 'p-4'} ${className}`}>
+    <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 ${compact ? 'p-3' : 'p-4'} ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Músculo alvo</p>
+          <p className="text-[10px] font-black uppercase text-emerald-200">Músculo alvo</p>
           <p className="mt-1 text-sm font-black text-white">{profile.primaryLabel}</p>
         </div>
-        <span className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-black uppercase text-zinc-300">{view === 'back' ? 'traseira' : 'frontal'}</span>
+        <div className="muscle-map-view-switch" role="group" aria-label="Vista do corpo">
+          <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered('') }}>Frente</button>
+          <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered('') }}>Costas</button>
+        </div>
       </div>
       <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-52' : 'h-64'} w-full max-w-64`}>
         <defs>
-          <filter id="muscleGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <filter id={`${mapId}-glow`} x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="2.1" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <linearGradient id="muscleBodySkin" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#f6faf9" />
-            <stop offset="0.42" stopColor="#9fb5b9" />
-            <stop offset="1" stopColor="#526a73" />
+          <linearGradient id={`${mapId}-skin`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#efcfb9" />
+            <stop offset="0.48" stopColor="#bc927e" />
+            <stop offset="1" stopColor="#745b55" />
           </linearGradient>
-          <linearGradient id="muscleBodyShade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#718a91" />
-            <stop offset="1" stopColor="#304a53" />
+          <linearGradient id={`${mapId}-shade`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#c29b86" />
+            <stop offset="1" stopColor="#705852" />
           </linearGradient>
         </defs>
-        <BodySilhouette view={view} />
-        <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} />
+        <BodySilhouette view={view} skinId={`${mapId}-skin`} shadeId={`${mapId}-shade`} />
+        <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} glowId={`${mapId}-glow`} />
+        <BodyAnatomyLines view={view} />
       </svg>
       <div className="mt-3 grid gap-2">
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/35 bg-red-400/12 px-2.5 py-1 text-[11px] font-black text-red-100">
-            <span className="h-2 w-2 rounded-full bg-red-400" /> Músculo trabalhado
+            <span className="h-2 w-2 rounded-full bg-red-400" /> Principal
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300/20 bg-slate-300/10 px-2.5 py-1 text-[11px] font-black text-slate-200">
-            <span className="h-2 w-2 rounded-full bg-slate-400/80" /> Neutro
-          </span>
+          {profile.secondaryLabels.length ? <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[11px] font-black text-amber-100"><span className="h-2 w-2 rounded-full bg-amber-300" /> Auxiliares</span> : null}
         </div>
         {profile.secondaryLabels.length ? (
           <p className="text-xs leading-5 text-zinc-400">Auxiliares: {profile.secondaryLabels.join(', ')}</p>
         ) : (
-          <p className="text-xs leading-5 text-zinc-500">Sem músculos auxiliares definidos para este exercício.</p>
+          null
         )}
         <p className="min-h-5 text-xs leading-5 text-emerald-100">
           {hoveredConfig ? `${hoveredConfig.label}: ${hoveredConfig.description}` : 'Toque ou passe o mouse no mapa para ver detalhes.'}
@@ -11940,22 +11981,22 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
   )
 }
 
-function BodySilhouette({ view }) {
+function BodySilhouette({ view, skinId, shadeId }) {
   // muscle-map-human-anatomy-v3
   const outline = '#d7e5e7'
   return (
     <g className="muscle-map-silhouette" opacity="0.98">
-      <ellipse className="muscle-map-body-skin" cx="50" cy="10.5" rx="6.1" ry="7.3" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.75" />
-      <path className="muscle-map-body-contour" d="M46.2 17c.1 2.7-1.1 4.8-3.5 6.4l7.3 4.4 7.3-4.4c-2.4-1.6-3.6-3.7-3.5-6.4Z" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.65" />
-      <path className="muscle-map-body-skin" d="M42.7 22.8c-5.6.8-10.1 3.1-12.3 7.5-2.1 4.2-.8 10.3.8 16.7l4.5 25.3c.9 5 4.4 8.8 9.1 10.3l5.2 1.7 5.2-1.7c4.7-1.5 8.2-5.3 9.1-10.3L68.8 47c1.6-6.4 2.9-12.5.8-16.7-2.2-4.4-6.7-6.7-12.3-7.5-2.2 3-4.6 4.8-7.3 5-2.7-.2-5.1-2-7.3-5Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.85" />
-      <path className="muscle-map-body-contour" d="M31.8 29.2c-4.4 1.7-7.8 5.2-9.6 10.1l-5.6 21.4c-.8 3.2-2.4 8.9-3.1 12.1-.7 3.4.4 5.7 2.8 6.3 2.5.6 4.5-.8 5.4-4l6.2-20.3c1.2-3.8 2.7-7.3 5.4-10.4l3.4-4.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.75" />
-      <path className="muscle-map-body-contour" d="M68.2 29.2c4.4 1.7 7.8 5.2 9.6 10.1l5.6 21.4c.8 3.2 2.4 8.9 3.1 12.1.7 3.4-.4 5.7-2.8 6.3-2.5.6-4.5-.8-5.4-4l-6.2-20.3c-1.2-3.8-2.7-7.3-5.4-10.4l-3.4-4.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.75" />
-      <ellipse className="muscle-map-body-skin" cx="15.7" cy="81.8" rx="3.1" ry="4.4" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
-      <ellipse className="muscle-map-body-skin" cx="84.3" cy="81.8" rx="3.1" ry="4.4" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
-      <path className="muscle-map-body-skin" d="M38.2 78.2c-2.8 5.8-4.9 12.2-5.4 19.2l-.4 21.7c-.1 3.9 1.7 6.1 4.4 6.2 2.7.1 4.7-1.8 5.1-5.7l2.7-20.4L50 84.3l-5.2-3.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.78" />
-      <path className="muscle-map-body-skin" d="M61.8 78.2c2.8 5.8 4.9 12.2 5.4 19.2l.4 21.7c.1 3.9-1.7 6.1-4.4 6.2-2.7.1-4.7-1.8-5.1-5.7l-2.7-20.4L50 84.3l5.2-3.1Z" fill="url(#muscleBodyShade)" stroke={outline} strokeWidth="0.78" />
-      <path className="muscle-map-body-skin" d="M32.4 119.2c-1.6 3.5-2.4 6.2-.9 7.5 1.1 1 8.9 1 11.2.3 1.7-.5 1.2-2.5-.9-7.3Z" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
-      <path className="muscle-map-body-skin" d="M67.6 119.2c1.6 3.5 2.4 6.2.9 7.5-1.1 1-8.9 1-11.2.3-1.7-.5-1.2-2.5.9-7.3Z" fill="url(#muscleBodySkin)" stroke={outline} strokeWidth="0.55" />
+      <ellipse className="muscle-map-body-skin" cx="50" cy="10.5" rx="6.1" ry="7.3" fill={`url(#${skinId})`} stroke={outline} strokeWidth="0.75" />
+      <path className="muscle-map-body-contour" d="M46.2 17c.1 2.7-1.1 4.8-3.5 6.4l7.3 4.4 7.3-4.4c-2.4-1.6-3.6-3.7-3.5-6.4Z" fill={`url(#${skinId})`} stroke={outline} strokeWidth="0.65" />
+      <path className="muscle-map-body-skin" d="M42.7 22.8c-5.6.8-10.1 3.1-12.3 7.5-2.1 4.2-.8 10.3.8 16.7l4.5 25.3c.9 5 4.4 8.8 9.1 10.3l5.2 1.7 5.2-1.7c4.7-1.5 8.2-5.3 9.1-10.3L68.8 47c1.6-6.4 2.9-12.5.8-16.7-2.2-4.4-6.7-6.7-12.3-7.5-2.2 3-4.6 4.8-7.3 5-2.7-.2-5.1-2-7.3-5Z" fill={`url(#${shadeId})`} stroke={outline} strokeWidth="0.85" />
+      <path className="muscle-map-body-contour" d="M31.8 29.2c-4.4 1.7-7.8 5.2-9.6 10.1l-5.6 21.4c-.8 3.2-2.4 8.9-3.1 12.1-.7 3.4.4 5.7 2.8 6.3 2.5.6 4.5-.8 5.4-4l6.2-20.3c1.2-3.8 2.7-7.3 5.4-10.4l3.4-4.1Z" fill={`url(#${shadeId})`} stroke={outline} strokeWidth="0.75" />
+      <path className="muscle-map-body-contour" d="M68.2 29.2c4.4 1.7 7.8 5.2 9.6 10.1l5.6 21.4c.8 3.2 2.4 8.9 3.1 12.1.7 3.4-.4 5.7-2.8 6.3-2.5.6-4.5-.8-5.4-4l-6.2-20.3c-1.2-3.8-2.7-7.3-5.4-10.4l-3.4-4.1Z" fill={`url(#${shadeId})`} stroke={outline} strokeWidth="0.75" />
+      <ellipse className="muscle-map-body-skin" cx="15.7" cy="81.8" rx="3.1" ry="4.4" fill={`url(#${skinId})`} stroke={outline} strokeWidth="0.55" />
+      <ellipse className="muscle-map-body-skin" cx="84.3" cy="81.8" rx="3.1" ry="4.4" fill={`url(#${skinId})`} stroke={outline} strokeWidth="0.55" />
+      <path className="muscle-map-body-skin" d="M38.2 78.2c-2.8 5.8-4.9 12.2-5.4 19.2l-.4 21.7c-.1 3.9 1.7 6.1 4.4 6.2 2.7.1 4.7-1.8 5.1-5.7l2.7-20.4L50 84.3l-5.2-3.1Z" fill={`url(#${shadeId})`} stroke={outline} strokeWidth="0.78" />
+      <path className="muscle-map-body-skin" d="M61.8 78.2c2.8 5.8 4.9 12.2 5.4 19.2l.4 21.7c.1 3.9-1.7 6.1-4.4 6.2-2.7.1-4.7-1.8-5.1-5.7l-2.7-20.4L50 84.3l5.2-3.1Z" fill={`url(#${shadeId})`} stroke={outline} strokeWidth="0.78" />
+      <path className="muscle-map-body-skin" d="M32.4 119.2c-1.6 3.5-2.4 6.2-.9 7.5 1.1 1 8.9 1 11.2.3 1.7-.5 1.2-2.5-.9-7.3Z" fill={`url(#${skinId})`} stroke={outline} strokeWidth="0.55" />
+      <path className="muscle-map-body-skin" d="M67.6 119.2c1.6 3.5 2.4 6.2.9 7.5-1.1 1-8.9 1-11.2.3-1.7-.5-1.2-2.5.9-7.3Z" fill={`url(#${skinId})`} stroke={outline} strokeWidth="0.55" />
       <path className="muscle-map-midline" d="M50 29c-.8 12-.8 36 0 52" fill="none" stroke="#e7f0f1" strokeWidth="0.7" opacity="0.3" />
       <path className="muscle-map-guide" d="M38 42c7 2.3 17 2.3 24 0M39 58c7 1.8 15 1.8 22 0M40 72c6 1.2 14 1.2 20 0M35 96c4 1.8 7 2.3 10 2.1M65 96c-4 1.8-7 2.3-10 2.1" fill="none" stroke="#e7f0f1" strokeWidth="0.62" opacity="0.2" />
       {view === 'back'
@@ -11965,9 +12006,29 @@ function BodySilhouette({ view }) {
   )
 }
 
-function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
+function BodyAnatomyLines({ view }) {
+  return (
+    <g className="muscle-map-anatomy-lines" fill="none" stroke="#fff6ed" strokeWidth="0.55" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" pointerEvents="none">
+      {view === 'back' ? (
+        <>
+          <path d="M43 24c3 4 5 5 7 6 2-1 4-2 7-6M34 34c5 4 8 8 10 13m22-13c-5 4-8 8-10 13M50 30v43M39 51c4 4 7 7 11 8 4-1 7-4 11-8M39 69c5 3 8 4 11 4s6-1 11-4" />
+          <path d="M35 80c4 6 9 9 15 10 6-1 11-4 15-10M38 98c-1 6-2 11-2 16m26-16c1 6 2 11 2 16M34 119l5 3m27-3-5 3" />
+          <path d="M24 48l5 3m47-3-5 3M19 72l6 2m56-2-6 2" />
+        </>
+      ) : (
+        <>
+          <path d="M42 24c2 3 5 5 8 6 3-1 6-3 8-6M34 32c3 0 6 2 9 5 2 2 4 3 7 3s5-1 7-3c3-3 6-5 9-5M50 29v11" />
+          <path d="M41 46c3 2 6 2 9 2s6 0 9-2M42 53c3 2 5 2 8 2s5 0 8-2M42 60c3 2 5 2 8 2s5 0 8-2M50 42v31M36 48l3 15m25-15-3 15" />
+          <path d="M24 49l5 2m47-2-5 2M20 70l6 2m54-2-6 2M38 90c1 7 2 13 1 20m23-20c-1 7-2 13-1 20M34 119l5 3m27-3-5 3" />
+        </>
+      )}
+    </g>
+  )
+}
+
+function MuscleRegions({ view, activeMuscles, hovered, onHover, glowId }) {
   const primary = '#ef4444'
-  const secondary = 'rgba(239, 68, 68, 0.72)'
+  const secondary = '#e9ae69'
   const idle = 'rgba(255,255,255,0.10)'
 
   function regionProps(key) {
@@ -11986,7 +12047,7 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
       stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.22)',
       strokeWidth: state === 'primary' ? 1.35 : 0.75,
       opacity: active ? 1 : 0.42,
-      filter: state === 'primary' ? 'url(#muscleGlow)' : undefined,
+      filter: state === 'primary' ? `url(#${glowId})` : undefined,
       style: { cursor: 'pointer', transition: 'fill 180ms ease, opacity 180ms ease, stroke 180ms ease, transform 180ms ease', transformOrigin: 'center' },
     }
   }
@@ -12042,29 +12103,10 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover }) {
 }
 
 function ExerciseMuscleSummary({ exercise, compact = false }) {
-  const profile = getExerciseMuscleProfile(exercise)
   return (
     <div className={`grid gap-3 ${compact ? '' : 'lg:grid-cols-[0.82fr_1fr] lg:items-stretch'}`}>
       <MuscleMap exercise={exercise} compact={compact} />
-      <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
-            <NavIcon name="muscle" className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Principal</p>
-            <p className="mt-1 text-base font-black text-white">{profile.primaryLabel}</p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-teal-300/20 bg-teal-300/10 text-teal-100">
-            <NavIcon name="layers" className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-xs font-black uppercase text-zinc-500">Auxiliares</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{profile.secondaryLabels.length ? profile.secondaryLabels.join(', ') : 'Não definidos'}</p>
-          </div>
-        </div>
+      <div className="grid content-start gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
             <NavIcon name="bulb" className="h-5 w-5" />
@@ -12197,29 +12239,13 @@ function ExerciseMedia({ exercise, compact = false }) {
 }
 
 function ExerciseTechniqueCard({ exercise, compact = false }) {
-  const profile = getExerciseMuscleProfile(exercise)
-  const target = profile.primaryLabel !== 'Músculo alvo não identificado'
-    ? profile.primaryLabel
-    : exercise.muscleGroup || exercise.group || exercise.primaryMuscle || 'Movimento'
-
   return (
-    <div className={`grid gap-3 rounded-2xl border border-white/10 bg-zinc-950/55 ${compact ? 'p-3' : 'p-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch'}`}>
-      <MuscleMap exercise={exercise} compact />
-      <div className="flex min-w-0 flex-col justify-center rounded-xl border border-white/10 bg-white/[0.035] p-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">Guia muscular do exercício</p>
-        <p className="mt-1 text-sm font-black text-white">{target}</p>
-        <p className="mt-3 text-sm leading-6 text-zinc-300">
-          {exercise.instructions || 'Siga a execução prescrita pelo treinador e registre a carga usada no final da série.'}
-        </p>
-        <a
-          href={getExerciseVideoUrl(exercise)}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100"
-        >
-          Buscar execução no YouTube
-        </a>
-      </div>
+    <div className={`grid gap-2 rounded-md border border-white/10 bg-white/[0.035] ${compact ? 'p-3' : 'p-4'}`}>
+      <p className="text-xs font-black uppercase text-emerald-200">Execução do movimento</p>
+      <p className="text-sm leading-6 text-zinc-300">{exercise.instructions || 'Sem vídeo cadastrado. Confira a técnica com o treinador antes de aumentar a carga.'}</p>
+      <a href={getExerciseVideoUrl(exercise)} target="_blank" rel="noreferrer" className="w-fit text-xs font-black text-emerald-200 underline underline-offset-4">
+        Buscar execução no YouTube
+      </a>
     </div>
   )
 }
@@ -12972,7 +12998,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <div>
               <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
               <h4>{exercise.name}</h4>
-              <span>{getExerciseMuscleProfile(exercise).primaryLabel + (exercise.equipment ? ' · ' + exercise.equipment : '')}</span>
+              {exercise.equipment ? <span>{exercise.equipment}</span> : null}
             </div>
             <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
           </div>
@@ -14357,6 +14383,14 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
     }))
   }
 
+  function removeQuestion(questionId) {
+    setDraft((current) => ({
+      ...current,
+      questions: current.questions.filter((question) => !sameId(question.id, questionId)),
+    }))
+    setMessage('')
+  }
+
   function duplicateQuestionnaire(questionnaire) {
     setDraft(createNutritionQuestionnaireDraft({
       ...questionnaire,
@@ -14398,6 +14432,11 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
         <InlineInput label="Descrição" value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} />
         {draft.questions.map((question, index) => (
           <div key={question.id} className="rounded-2xl border border-white/10 bg-zinc-950/45 p-3">
+            <div className="mb-2 flex justify-end">
+              <button type="button" onClick={() => removeQuestion(question.id)} aria-label={`Remover pergunta ${index + 1}`} title="Remover pergunta" className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:border-rose-300/40 hover:bg-rose-400/10 hover:text-rose-200">
+                <NavIcon name="close" className="h-4 w-4" />
+              </button>
+            </div>
             <div className="grid gap-3 sm:grid-cols-[1fr_160px_auto]">
               <InlineInput label={`Pergunta ${index + 1}`} value={question.label} onChange={(value) => updateQuestion(question.id, 'label', value)} />
               <InlineSelect label="Tipo" value={question.type} options={[{ value: 'text', label: 'Texto' }, { value: 'single', label: 'Única escolha' }, { value: 'multiple', label: 'Múltipla escolha' }]} onChange={(value) => updateQuestion(question.id, 'type', value)} />
@@ -21568,7 +21607,7 @@ function ChartLoading() {
   )
 }
 
-function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [], open = false, onToggle, onClose, onOpenAll, onOpenView, className = '' }) {
+function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [], open = false, onToggle, onClose, onOpenAll, onOpenView, className = '', theme = DEFAULT_UI_THEME }) {
   const numericCount = Number(count || 0)
   const visibleCount = numericCount > 99 ? '99+' : numericCount
   const recentNotifications = notifications || []
@@ -21576,6 +21615,26 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
   const hasItems = recentAlerts.length > 0 || recentNotifications.length > 0
   const notificationRef = useRef(null)
   const notificationPanelRef = useRef(null)
+  const [panelAnchor, setPanelAnchor] = useState(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const updateAnchor = () => {
+      const rect = notificationRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setPanelAnchor({
+        '--notification-top': `${Math.min(Math.round(rect.bottom + 10), Math.max(12, window.innerHeight - 120))}px`,
+        '--notification-right': `${Math.max(12, Math.round(window.innerWidth - rect.right))}px`,
+      })
+    }
+    updateAnchor()
+    window.addEventListener('scroll', updateAnchor, true)
+    window.addEventListener('resize', updateAnchor)
+    return () => {
+      window.removeEventListener('scroll', updateAnchor, true)
+      window.removeEventListener('resize', updateAnchor)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -21623,8 +21682,8 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
         {visibleCount ? <span className="coach-notification-shortcut-badge">{visibleCount}</span> : null}
       </button>
 
-      {open ? (
-        <>
+      {open ? createPortal((
+        <div className={`coach-notification-overlay app-theme-${theme} ${className.includes('mobile') ? 'is-mobile' : 'is-desktop'}`} style={panelAnchor || undefined}>
           <button type="button" className="coach-notification-popover-backdrop" aria-label="Fechar notificações" onClick={onClose} />
           <section ref={notificationPanelRef} className="coach-notification-popover" role="dialog" aria-label="Notificações rápidas" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
             <div className="coach-notification-popover-head">
@@ -21665,8 +21724,8 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
               Ver todas as notificações
             </button>
           </section>
-        </>
-      ) : null}
+        </div>
+      ), document.body) : null}
     </div>
   )
 }
@@ -22093,7 +22152,7 @@ function DailyIntelligenceSummary({ dashboard, onOpenView }) {
 
   return (
     <Panel title="Resumo inteligente do dia" action="Prioridades reais">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
         <PrioritySummaryMetric label="Alunos em risco" value={summary.riskStudents || 0} detail="abandono médio, alto ou crítico" tone="rose" />
         <PrioritySummaryMetric label="Sem treino ativo" value={summary.withoutWorkout || 0} detail="precisam de prescrição" tone="amber" />
         <PrioritySummaryMetric label="Check-ins pendentes" value={summary.pendingCheckins || 0} detail="retornos a revisar" tone="cyan" />
@@ -22136,18 +22195,17 @@ function PrioritySummaryMetric({ label, value, detail, tone = 'emerald' }) {
   }[tone] || 'border-emerald-300/25 bg-emerald-300/[0.07] text-emerald-100'
 
   return (
-    <div className={`rounded-xl border p-4 ${toneClass}`}>
-      <p className="text-xs font-black uppercase opacity-80">{label}</p>
-      <p className="mt-2 text-3xl font-black text-white">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-zinc-400">{detail}</p>
+    <div className={`min-w-0 rounded-md border p-3 sm:p-4 ${toneClass}`}>
+      <p className="text-xs font-bold leading-4 opacity-80">{label}</p>
+      <p className="mt-2 text-2xl font-black text-white sm:text-3xl">{value}</p>
+      <p className="mt-1 text-xs leading-4 text-zinc-400">{detail}</p>
     </div>
   )
 }
 
 function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
   const [filter, setFilter] = useState('todos')
-  const [loading, setLoading] = useState(true)
-  const items = dashboard?.items || []
+  const items = (dashboard?.items || []).filter((item) => item.priority !== 'Regular')
   const filters = [
     ['todos', 'Todos'],
     ['urgente', 'Urgente'],
@@ -22159,16 +22217,10 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
     ['sem-resposta', 'Sem resposta'],
   ]
 
-  useEffect(() => {
-    setLoading(true)
-    const timer = window.setTimeout(() => setLoading(false), 180)
-    return () => window.clearTimeout(timer)
-  }, [dashboard?.generatedAt, filter])
-
   const filteredItems = items.filter((item) => filter === 'todos' || item.filterTags.includes(filter))
 
   return (
-    <Panel title="Alunos que precisam de atenção" action={`${filteredItems.length} no filtro`}>
+    <Panel title="Alunos que precisam de atenção" action={formatCount(filteredItems.length, 'aluno')}>
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-soft">
         {filters.map(([id, label]) => (
           <button
@@ -22181,19 +22233,13 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
                 : 'border-white/10 bg-white/[0.035] text-zinc-300 hover:border-emerald-300/35 hover:text-white'
             }`}
           >
-            {label}
+            {label} <span className="ml-1 opacity-65">{items.filter((item) => id === 'todos' || item.filterTags.includes(id)).length}</span>
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {[1, 2].map((item) => (
-            <div key={item} className="h-48 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />
-          ))}
-        </div>
-      ) : filteredItems.length ? (
-        <div className="mt-4 grid gap-3 xl:grid-cols-2">
+      {filteredItems.length ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {filteredItems.map((item) => (
             <PriorityStudentCard
               key={item.student.id}
@@ -22205,7 +22251,7 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
         </div>
       ) : (
         <div className="mt-4">
-          <Empty text="Nenhum aluno encontrado neste filtro. Use Todos para enxergar a carteira completa." />
+          <Empty text={filter === 'todos' ? 'Nenhum aluno precisa de atenção agora.' : 'Nenhum aluno com esta pendência. Selecione Todos para ver as demais prioridades.'} />
         </div>
       )}
     </Panel>
@@ -22216,50 +22262,45 @@ function PriorityStudentCard({ item, onOpenStudent, onMessageStudent }) {
   const tone = getPriorityTone(item.priority)
 
   return (
-    <article className={`rounded-2xl border p-4 ${tone.card}`}>
+    <article className={`min-w-0 rounded-md border p-3 sm:p-4 ${tone.card}`}>
       <div className="flex items-start gap-3">
         <StudentPriorityAvatar student={item.student} />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <h4 className="truncate text-lg font-black text-white">{item.student.name}</h4>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">{item.lastActivity}</p>
-            </div>
-            <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${tone.badge}`}>{formatUiText(item.priority)}</span>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h4 className="min-w-0 break-words text-base font-black text-white">{item.student.name}</h4>
+            <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold ${tone.badge}`}>{formatUiText(item.priority)}</span>
           </div>
-          <p className="mt-3 text-sm font-black text-zinc-100">{item.reason}</p>
-          <p className="mt-1 text-sm leading-6 text-zinc-400">{item.recommendedAction}</p>
+          <p className="mt-1 text-xs text-zinc-400">{item.lastActivity}</p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <ScoreBox label="Adesão" value={item.adherence.score} detail={item.adherence.classification} tone={item.adherence.score < 55 ? 'rose' : item.adherence.score < 75 ? 'amber' : 'emerald'} />
-        <ScoreBox label="Risco" value={item.risk.score} detail={item.risk.classification} tone={item.risk.classification === 'critico' || item.risk.classification === 'alto' ? 'rose' : item.risk.classification === 'medio' ? 'amber' : 'emerald'} />
+      <div className="mt-3 grid gap-1 text-sm leading-5">
+        <p className="font-bold text-zinc-100"><span className="font-medium text-zinc-400">Motivo: </span>{item.reason}</p>
+        <p className="text-zinc-300"><span className="font-semibold text-emerald-200">Próxima ação: </span>{item.recommendedAction}</p>
       </div>
 
-      <div className="mt-4 grid gap-2">
-        <p className="text-xs font-black uppercase text-zinc-500">Fatores detectados</p>
-        <div className="flex flex-wrap gap-2">
-          {item.factors.slice(0, 5).map((factor) => (
-            <span key={factor} className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-bold text-zinc-300">{factor}</span>
-          ))}
-        </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-white/10 pt-3 text-xs text-zinc-300">
+        <span>Adesão <strong className="text-zinc-100">{item.adherence.score}%</strong></span>
+        <span>Risco <strong className="text-zinc-100">{formatUiText(item.risk.classification)} ({item.risk.score}/100)</strong></span>
       </div>
 
-      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-        <p className="text-xs font-black uppercase text-zinc-500">Por que este score?</p>
-        <p className="mt-1 text-xs leading-5 text-zinc-300">{item.adherence.reason}</p>
-        <p className="mt-1 text-xs leading-5 text-zinc-400">{item.risk.reason}</p>
-      </div>
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={onOpenStudent} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 transition hover:border-emerald-300/40 hover:bg-emerald-300/10">
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={onOpenStudent} className="min-h-10 rounded-md border border-white/15 px-3 py-2 text-xs font-bold text-zinc-100 transition hover:border-emerald-300/40 hover:bg-emerald-300/10">
           Abrir perfil
         </button>
-        <button type="button" onClick={onMessageStudent} className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-300">
+        <button type="button" onClick={onMessageStudent} className="min-h-10 rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950 transition hover:bg-emerald-300">
           Enviar mensagem
         </button>
       </div>
+
+      <details className="mt-3 border-t border-white/10 pt-3 text-xs text-zinc-400">
+        <summary className="w-fit cursor-pointer font-semibold text-emerald-200">Ver critérios ({item.factors.length})</summary>
+        <div className="mt-2 space-y-2 leading-5">
+          <p>{item.factors.join(' · ')}</p>
+          <p>{item.adherence.reason}</p>
+          <p>{item.risk.reason}</p>
+        </div>
+      </details>
     </article>
   )
 }
@@ -22280,27 +22321,6 @@ function StudentPriorityAvatar({ student }) {
   return (
     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
       {initials || 'A'}
-    </div>
-  )
-}
-
-function ScoreBox({ label, value, detail, tone = 'emerald' }) {
-  const toneClass = {
-    rose: 'border-rose-300/25 bg-rose-300/[0.075] text-rose-100',
-    amber: 'border-amber-300/25 bg-amber-300/[0.075] text-amber-100',
-    emerald: 'border-emerald-300/25 bg-emerald-300/[0.075] text-emerald-100',
-  }[tone] || 'border-emerald-300/25 bg-emerald-300/[0.075] text-emerald-100'
-
-  return (
-    <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase opacity-80">{label}</p>
-        <p className="text-xl font-black text-white">{value}</p>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/30">
-        <div className="h-full rounded-full bg-current" style={{ width: `${clampPercent(value)}%` }} />
-      </div>
-      <p className="mt-2 text-xs font-bold">{formatUiText(detail)}</p>
     </div>
   )
 }
@@ -22485,7 +22505,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     student,
     priority: mainReason?.level || 'Regular',
     priorityRank: { Urgente: 0, Atencao: 1, Acompanhar: 2, Regular: 3 }[mainReason?.level || 'Regular'],
-    reason: mainReason ? `Motivo principal: ${mainReason.text}.` : 'Operação em dia para este aluno.',
+    reason: mainReason?.text || 'Acompanhamento em dia.',
     recommendedAction: mainReason?.action || 'Mantenha contato proativo e acompanhe a próxima evolução.',
     primaryView,
     factors: [...new Set(factors)],

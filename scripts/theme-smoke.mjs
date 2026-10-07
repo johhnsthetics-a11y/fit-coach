@@ -14,7 +14,7 @@ const nutritionRlsMigration = existsSync(nutritionRlsMigrationPath)
 
 const checks = [
   ['App uses a build marker', app.includes('COACH_FIT_PRO_BUILD_MARKER')],
-  ['App defaults to light theme', app.includes("DEFAULT_UI_THEME = 'light'")],
+  ['App defaults to dark theme while preserving an explicit light choice', app.includes("DEFAULT_UI_THEME = 'dark'") && app.includes("savedTheme === 'dark' || savedTheme === 'light'")],
   ['Authenticated app receives theme class', app.includes('app-theme-${uiTheme}')],
   ['Sales page receives theme class', app.includes('sales-theme-${salesTheme}')],
   ['Theme toggle component exists', app.includes('function ThemeToggle')],
@@ -129,7 +129,7 @@ const checks = [
   ['Nutrition prescribed list is collapsed by default and identifies patient', app.includes('expandedPlanId') && app.includes('nutrition-plan-summary-button-v1') && app.includes("Paciente: {planStudent?.name || 'Aluno'}")],
   ['Sales hero phone showcase reflects current professional mobile screens', app.includes('sales-showcase-professional-v3') && app.includes('Central profissional') && app.includes('Treinos dos alunos') && app.includes('Pacientes ativos') && app.includes('Dietas prescritas')],
   ['Sales hero phone mockups are keyboard-clickable and swap positions', app.includes('role="button"') && app.includes('onClick={selectScreen}') && app.includes('position-${position}')],
-  ['Sales showcase phones float subtly and respect reduced motion', css.includes('@keyframes salesShowcaseFloat') && css.includes('translate: 0 -6px') && css.includes('animation: salesShowcaseFloat 4.8s ease-in-out infinite') && /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.sales-page \.sales-showcase-interactive \.sales-phone-mockup/.test(css)],
+  ['Sales showcase phones float in both motion settings', css.includes('@keyframes salesShowcaseFloat') && css.includes('translate: 0 -6px') && css.includes('animation: salesShowcaseFloat 4.8s ease-in-out infinite') && css.includes('animation: salesShowcaseFloat 4.8s ease-in-out infinite !important')],
   ['Sales showcase keeps only floating phones without auxiliary cards', !app.includes('sales-showcase-pulse-row') && !app.includes('sales-showcase-pulse-card') && !css.includes('@keyframes salesShowcasePulse') && !app.includes('sales-showcase-metric sales-showcase-float metric-') && !app.includes('sales-floating-badge sales-showcase-float')],
   ['Sales phone previews use the original theme-aware mobile navigation', css.includes('border-radius: 18px') && css.includes('background: rgba(2, 6, 10, 0.9)') && css.includes('background: rgba(255, 255, 255, 0.92) !important')],
   ['Sales hero value line has dedicated emphasis in both themes', app.includes('sales-hero-value-line') && css.includes('.sales-hero-value-line') && css.includes('.sales-theme-light .sales-hero-value-line') && css.includes('.sales-hero-value-line > span:first-child')],
@@ -171,7 +171,12 @@ const checks = [
   ['Workout progression undo safely handles legacy exercise payloads', app.includes('getWorkoutExercisesArray(workout.exercises).some((exercise) => normalizeText(normalizeWorkoutExerciseInput(exercise).name)') && !app.includes('(workout.exercises || []).some((exercise)')],
   ['Core app pages tolerate temporarily missing collection props', app.includes('function Workouts({ selectedStudent, students = [], workouts = []') && app.includes('function Payments({ students = [], invoices = []') && app.includes('function Messages({ students = [], messages = []') && app.includes('function Notifications({ notifications = []')],
   ['Nutrition questionnaires award XP once per assignment', app.includes('QUESTIONNAIRE_XP_REWARD') && app.includes('xpAwarded') && app.includes('Questionário concluído! Você ganhou')],
-  ['Nutrition questionnaires persist through protected assignments and submission RPCs', api.includes("rpcRequest('assign_nutrition_questionnaire'") && api.includes("rpcRequest('submit_nutrition_questionnaire'")]
+  ['Nutrition questionnaires persist through protected assignments and submission RPCs', api.includes("rpcRequest('assign_nutrition_questionnaire'") && api.includes("rpcRequest('submit_nutrition_questionnaire'")],
+  ['Sales hero mockups do not render the decorative backdrop panel', css.includes('.sales-page .sales-app-modern-showcase-v1::before') && css.includes('content: none !important')],
+  ['Sales hero benefit line uses polished title-case copy', app.includes('Organização,</span>') && app.includes('Percepção de Valor,</span>') && app.includes('Rotina Profissional</span>')],
+  ['Sales hero benefit line types only after entering the viewport', /className="sales-hero-benefit-line[^\"]*"[^>]*data-reveal/.test(app) && css.includes('.sales-hero-benefit-line.is-visible > span') && css.includes('animation-play-state: paused') && css.includes('animation-play-state: running')],
+  ['Sales hero benefit line types on desktop and reveals full phrases on mobile', css.includes('@keyframes salesBenefitTypewriter') && css.includes('@keyframes salesBenefitMobileReveal') && css.includes('.sales-hero-benefit-line > span:nth-child(2)') && css.includes('.sales-hero-benefit-line > span:nth-child(3)') && css.includes('animation-name: salesBenefitMobileReveal')],
+  ['Sales showcase desktop phones pulse in both motion settings', css.includes('@keyframes salesShowcaseFloatDesktop') && css.includes('translate: 0 -14px') && css.includes('scale: 1.025') && /@media \(min-width:\s*768px\)[\s\S]*?animation-name: salesShowcaseFloatDesktop/.test(css) && css.includes('animation-name: salesShowcaseFloatDesktop !important')]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)

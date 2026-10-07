@@ -46,6 +46,7 @@ try {
         return url.hostname === '127.0.0.1' ? route.continue() : route.fulfill({ status: 204, body: '' })
       })
       await context.addInitScript((data) => {
+        localStorage.setItem('coachfitpro-ui-theme-20260831', 'light')
         if (sessionStorage.getItem('regression-seeded')) return
         localStorage.setItem('fitcoach-ai-pro-v2', JSON.stringify(data))
         sessionStorage.setItem('regression-seeded', '1')
@@ -117,6 +118,11 @@ try {
           await picker.waitFor({ state: 'visible' })
           const exerciseCards = picker.locator('.mobile-workout-picker-card-v2')
           assert.ok(await exerciseCards.count() >= 300)
+          const scrollCue = picker.getByRole('button', { name: 'Ver mais exercícios abaixo', exact: true })
+          await scrollCue.waitFor({ state: 'visible' })
+          await scrollCue.click()
+          await page.waitForFunction(() => document.querySelector('.mobile-workout-picker-results')?.scrollTop > 20)
+          await picker.locator('.mobile-workout-picker-results').evaluate((list) => { list.scrollTop = 0 })
           assert.equal(await picker.locator('.exercise-thumb').count(), 0, 'O catálogo não deve exibir ícones provisórios de exercício')
           assert.equal(await picker.locator('.mobile-workout-picker-check').count(), 0, 'Não deve existir um segundo botão de adicionar')
           assert.equal(
@@ -131,6 +137,10 @@ try {
           await exerciseCards.first().getByRole('button', { name: 'Ver', exact: true }).click()
           const detail = page.getByRole('dialog', { name: 'Prévia do exercício', exact: true })
           await detail.waitFor()
+          assert.equal(await detail.getByText('Músculo alvo', { exact: true }).count(), 1)
+          await detail.getByRole('button', { name: 'Costas', exact: true }).click()
+          assert.equal(await detail.getByRole('button', { name: 'Costas', exact: true }).getAttribute('aria-pressed'), 'true')
+          await detail.screenshot({ path: resolve(output, `exercise-preview-${viewport.width}.png`) })
           await detail.getByRole('button', { name: 'Fechar', exact: true }).click()
           await exerciseCards.first().getByRole('button', { name: 'Remover dos favoritos', exact: true }).click()
           assert.equal(await exerciseCards.count(), 0)
