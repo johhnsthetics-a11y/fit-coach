@@ -4381,6 +4381,7 @@ function AppContent() {
                 students={data.students}
                 messages={data.messages ?? []}
                 selectedStudent={selectedStudent}
+                professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
                 onSendMessage={sendMessage}
                 onEditMessage={editMessage}
                 onDeleteMessage={deleteMessage}
@@ -21445,7 +21446,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
   )
 }
 
-function Messages({ students = [], messages = [], selectedStudent: selectedStudentFromDashboard, onSendMessage, onEditMessage, onDeleteMessage, onMarkRead, onRefreshMessages, chatSyncError = '' }) {
+function Messages({ students = [], messages = [], selectedStudent: selectedStudentFromDashboard, professionalType = 'trainer', onSendMessage, onEditMessage, onDeleteMessage, onMarkRead, onRefreshMessages, chatSyncError = '' }) {
   const [selectedStudentId, setSelectedStudentId] = useState(selectedStudentFromDashboard?.id ?? students[0]?.id ?? '')
   const [mobileConversationOpen, setMobileConversationOpen] = useState(false)
   const [syncError, setSyncError] = useState('')
@@ -21454,7 +21455,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
   const selectedRow = conversationRows.find((row) => String(row.student.id) === String(selectedStudentId)) ?? conversationRows[0]
   const selectedStudent = selectedRow?.student
   const studentMessages = selectedRow?.messages ?? []
-  const suggestion = buildMessageSuggestion(selectedStudent)
+  const suggestion = buildMessageSuggestion(selectedStudent, professionalType)
 
   useEffect(() => {
     refreshHandlerRef.current = onRefreshMessages
@@ -22762,10 +22763,15 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
     .slice(0, 12)
 }
 
-function buildMessageSuggestion(student) {
-  if (!student) return 'Me envie seu retorno de hoje com treino, dieta, sono e fome para eu ajustar seu plano.'
+function buildMessageSuggestion(student, professionalType = 'trainer') {
+  const firstName = String(student?.name || '').trim().split(/\s+/)[0]
+  const greeting = firstName ? `Olá, ${firstName}!` : 'Olá!'
 
-  return `Recebi, ${student.name}. Continue seguindo o plano combinado, registre treino e alimentação no app e me envie qualquer dificuldade no check-in para eu ajustar o acompanhamento com precisão.`
+  if (professionalType === 'nutritionist') {
+    return `${greeting} Siga as orientações combinadas e registre sua alimentação no aplicativo. Se surgir alguma dúvida ou dificuldade, fale comigo por aqui para que eu acompanhe sua evolução e ajuste o planejamento quando necessário.`
+  }
+
+  return `${greeting} Siga o planejamento combinado e registre seus treinos no aplicativo. Se surgir alguma dificuldade, conte para mim por aqui para que eu acompanhe sua evolução e ajuste o treino quando necessário.`
 }
 
 function Empty({ text }) {
