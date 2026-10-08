@@ -26,6 +26,7 @@ let buildWorkoutExecutionSummary
 let getStudentWorkoutExecutionStorageKey
 let buildStudentRewardStats
 let buildCoachStudentRanking
+let buildStudentWeekProgress
 let reconcileMessageDelivery
 const originalWindow = globalThis.window
 
@@ -36,7 +37,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 test('XP acumulado preserva meses anteriores e ignora duplicatas e outros pacientes', () => {
@@ -85,6 +86,20 @@ test('desafios usam os mesmos periodos e sessoes unicas do historico de XP', () 
   assert.equal(stats.completedThisMonth, 3)
   assert.equal(stats.xp, 240)
   assert.equal(stats.badges.find(badge => badge.label === 'Treino').done, false)
+  const calendar = buildStudentWeekProgress(stats.history, new Date('2026-09-23T20:00:00Z'))
+  assert.equal(calendar.filter(day => day.completed).length, 2)
+  assert.equal(calendar.find(day => day.isToday)?.key, '2026-09-23')
+})
+
+test('calendario ignora encerramentos parciais e usa o horario do produto', () => {
+  const logs = [
+    { id: 'done', studentId: student.id, completedAt: '2026-10-05T02:00:00Z' },
+    { id: 'partial', studentId: student.id, completedAt: '2026-10-06T12:00:00Z', endedEarly: true },
+  ]
+  const stats = buildStudentRewardStats({ studentId: student.id, workoutLogs: logs, now: new Date('2026-10-05T18:00:00Z') })
+  const calendar = buildStudentWeekProgress(stats.history, new Date('2026-10-05T18:00:00Z'))
+  assert.equal(stats.completedThisWeek, 0, '02:00 UTC ainda era domingo no Brasil')
+  assert.equal(calendar.filter(day => day.completed).length, 0)
 })
 
 after(async () => {

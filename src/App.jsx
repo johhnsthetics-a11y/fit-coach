@@ -8667,6 +8667,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     () => students.find((student) => String(student.id) === String(selectedWorkout?.studentId || selectedStudentId)) || selectedStudent || students[0] || null,
     [selectedStudent, selectedStudentId, selectedWorkout?.studentId, students],
   )
+  const selectedStudentReward = buildStudentRewardStats({ studentId: selectedWorkoutStudent?.id, workoutLogs })
+  const selectedStudentCompletedCount = selectedStudentReward.history.filter((event) => event.kind === 'workout').length
   const selectedWorkoutExerciseCount = useMemo(
     () => selectedWorkoutDays.reduce((total, day) => total + (day.exercises?.length || 0), 0),
     [selectedWorkoutDays],
@@ -9426,6 +9428,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
               <strong>{selectedWorkout.title || 'Treino selecionado'}</strong>
               <span>{formatCount(selectedWorkoutDays.length || 0, 'dia')} • {formatCount(selectedWorkoutExerciseCount, 'exercício')}</span>
             </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/[0.06] p-3 text-center" aria-label={`Evolução de ${selectedWorkoutStudent?.name || 'aluno'}`}>
+            <div><span className="block text-xs text-zinc-400">Concluídos</span><strong className="text-base font-black text-white">{selectedStudentCompletedCount}</strong></div>
+            <div><span className="block text-xs text-zinc-400">Semana</span><strong className="text-base font-black text-white">{selectedStudentReward.completedThisWeek}/3</strong></div>
+            <div><span className="block text-xs text-zinc-400">Evolução</span><strong className="text-base font-black text-emerald-200">{selectedStudentReward.xp} XP</strong></div>
           </div>
           <div className="mobile-workout-action-bar" aria-label="Ações do treino do aluno">
             <button type="button" className="is-primary" onClick={() => setWorkoutStudentPreviewOpen(true)}>
@@ -12897,15 +12904,21 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setMessage('')
     setError('')
     try {
+      let savedLog
       if (!preview) {
         if (!onCompleteWorkout) throw new Error('Não foi possível acessar o histórico do treino.')
-        const savedLog = await onCompleteWorkout(payload)
-        setCompletedLog({ ...(savedLog || { id: completionToken, completedAt: new Date().toISOString() }), durationSeconds: payload.durationSeconds })
+        savedLog = await onCompleteWorkout(payload)
       } else {
-        setCompletedLog({ id: completionToken, completedAt: new Date().toISOString(), durationSeconds: payload.durationSeconds })
+        savedLog = { ...payload, id: completionToken, completedAt: new Date().toISOString() }
       }
+      const rewardInput = { studentId: student?.id, workoutLogs }
+      const previousXp = buildStudentRewardStats(rewardInput).xp
+      const xpAwarded = Math.max(0, buildStudentRewardStats({ ...rewardInput, workoutLogs: [...workoutLogs, savedLog] }).xp - previousXp)
+      setCompletedLog({ ...savedLog, durationSeconds: payload.durationSeconds, xpAwarded })
       if (timerStartedAt && onToggleTimer) onToggleTimer()
-      setMessage(preview ? 'Simulação concluída. Na conta do aluno, este treino adicionará +80 XP.' : 'Treino finalizado! +80 XP adicionados ao ranking e ao histórico.')
+      setMessage(preview
+        ? `Simulação concluída. Este treino renderia ${xpAwarded} XP na conta do aluno.`
+        : xpAwarded ? `Treino salvo. ${xpAwarded} XP registrados no histórico.` : 'Treino salvo. A pontuação desta sessão já estava registrada.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
     } finally {
@@ -12971,7 +12984,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <h3>{activeDay?.focus || activeDay?.day || workout.title || 'Sessão finalizada'}</h3>
             <span>{(activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
           </div>
-          <strong>{completedLog?.endedEarly ? 'Progresso salvo' : '+80 XP'}</strong>
+          <strong>{completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded == null ? 'XP registrado' : completedLog.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'XP já registrado'}</strong>
         </header>
         <div className="mobile-workout-summary-grid-v4">
           <div><span>Duração</span><strong>{formatWorkoutTimer(completedLog?.durationSeconds ?? durationSeconds)}</strong></div>
@@ -16452,7 +16465,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   ].filter(Boolean)
   const bottomNavItems = primaryStudentNavItems
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
-  const weekProgress = useMemo(() => buildStudentWeekProgress(studentWorkoutLogs), [studentWorkoutLogs])
+  const weekProgress = buildStudentWeekProgress(studentReward.history)
   const completedThisWeek = studentReward.completedThisWeek
   const completedThisMonth = studentReward.completedThisMonth
   const weeklyChallengeTarget = 3
@@ -16581,22 +16594,24 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
   async function completeWorkoutFromStudent(log) {
     const savedLog = await onCompleteWorkout(log)
-    const alreadyRegistered = studentWorkoutLogs.some((item) => sameId(item.id, savedLog?.id))
-    const completedCount = studentWorkoutLogs.length + (alreadyRegistered ? 0 : 1)
-    if (!alreadyRegistered) setXpGain(80)
-    sendLocalNotification('Treino finalizado', `${student.name} concluiu o treino.`)
-    await onSendMessage?.({
-      studentId: student.id,
-      sender: 'student',
-      body: `${student.name} concluiu o treino ${log.title}. Esforço: ${log.effort}.${log.notes ? ` Observação: ${log.notes}` : ''}`,
-    }).catch(() => {})
+    const completedBefore = studentReward.history.filter((event) => event.kind === 'workout').length
+    const completedAfter = buildStudentRewardStats({ studentId: student?.id, workoutLogs: [...studentWorkoutLogs, savedLog] })
+      .history.filter((event) => event.kind === 'workout').length
+    if (completedAfter > completedBefore) {
+      sendLocalNotification('Treino finalizado', `${student.name} concluiu o treino.`)
+      await onSendMessage?.({
+        studentId: student.id,
+        sender: 'student',
+        body: `${student.name} concluiu o treino ${log.title}. Esforço: ${log.effort}.${log.notes ? ` Observação: ${log.notes}` : ''}`,
+      }).catch(() => {})
+    }
     setWorkoutStartedAt(null)
     setWorkoutElapsedSeconds(0)
     setWorkoutStartNotified(false)
-    if (completedCount > 0 && (completedCount % 20 === 0 || completedCount % 5 === 0)) {
+    if (completedAfter > completedBefore && (completedAfter % 20 === 0 || completedAfter % 5 === 0)) {
       setFeedbackPrompt({
-        type: completedCount % 20 === 0 ? 'mensal' : 'semanal',
-        count: completedCount,
+        type: completedAfter % 20 === 0 ? 'mensal' : 'semanal',
+        count: completedAfter,
       })
     }
     return savedLog
@@ -17286,15 +17301,20 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
   )
 }
 
+const PRODUCT_DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
+function getProductDateKey(date) {
+  const parts = Object.fromEntries(PRODUCT_DATE_FORMATTER.formatToParts(date).map((part) => [part.type, part.value]))
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
+
 export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPercent = 0, questionnaireAssignments = [], now = new Date() }) {
   // Rebuild the ledger from persisted completions, never from local progress or calendar totals.
   const history = []
   const seen = new Set()
   const weeks = new Map()
   const months = new Map()
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
   const periods = (date) => {
-    const dayKey = formatter.format(date)
+    const dayKey = getProductDateKey(date)
     const day = new Date(`${dayKey}T12:00:00Z`)
     day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7))
     return { week: day.toISOString().slice(0, 10), month: dayKey.slice(0, 7) }
@@ -17415,22 +17435,25 @@ function StudentChallengeCard({ title, value, percent, detail, tone = 'emerald' 
   )
 }
 
-function buildStudentWeekProgress(logs = []) {
-  const today = new Date()
-  const monday = getWeekStart(today)
-  const completedKeys = new Set(logs.filter((log) => !log?.endedEarly).map((log) => toLocalDateKey(log.completedAt)).filter(Boolean))
+export function buildStudentWeekProgress(rewardHistory = [], now = new Date()) {
+  const todayKey = getProductDateKey(now)
+  const monday = new Date(`${todayKey}T12:00:00Z`)
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7))
+  const completedKeys = new Set(rewardHistory
+    .filter((event) => event.kind === 'workout')
+    .map((event) => getProductDateKey(new Date(event.at))))
   const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
   return labels.map((label, index) => {
     const date = new Date(monday)
-    date.setDate(monday.getDate() + index)
-    const key = toLocalDateKey(date)
+    date.setUTCDate(monday.getUTCDate() + index)
+    const key = date.toISOString().slice(0, 10)
     return {
       key,
       label,
-      dayNumber: date.getDate(),
+      dayNumber: date.getUTCDate(),
       completed: completedKeys.has(key),
-      isToday: key === toLocalDateKey(today),
+      isToday: key === todayKey,
     }
   })
 }
