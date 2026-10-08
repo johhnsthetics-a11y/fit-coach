@@ -3,19 +3,15 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { exerciseLibrary } from '../../src/exerciseCatalog.js'
-import { buildExerciseMediaPlan, validatePlannedSourceFiles } from './freeExerciseDbImporter.mjs'
+import {
+  buildExerciseMediaPlan,
+  buildWranglerUploadCommand,
+  parseExerciseMediaArgs,
+  resolveUploadSourceFile,
+  validatePlannedSourceFiles,
+} from './freeExerciseDbImporter.mjs'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-
-function parseArgs(values) {
-  const options = { upload: false }
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index]
-    if (value === '--upload') options.upload = true
-    else if (value.startsWith('--')) options[value.slice(2)] = values[index += 1]
-  }
-  return options
-}
 
 async function findDatasetJson(datasetRoot) {
   const candidates = [
@@ -38,19 +34,18 @@ function formatManifest(manifest) {
 }
 
 function runWranglerUpload({ bucket, datasetRoot, upload }) {
-  const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-  const sourceFile = path.join(datasetRoot, upload.sourcePath)
-  const result = spawnSync(pnpm, [
-    'dlx', 'wrangler@4', 'r2', 'object', 'put', `${bucket}/${upload.key}`,
-    '--file', sourceFile,
-    '--content-type', upload.contentType,
-    '--remote',
-  ], { cwd: projectRoot, stdio: 'inherit' })
+  const sourceFile = resolveUploadSourceFile(projectRoot, path.join(datasetRoot, upload.sourcePath))
+  const command = buildWranglerUploadCommand({ bucket, sourceFile, upload })
+  const result = spawnSync(command.executable, command.args, {
+    cwd: projectRoot,
+    shell: command.shell,
+    stdio: 'inherit',
+  })
   if (result.status !== 0) throw new Error(`Falha ao enviar ${upload.key} para o R2`)
 }
 
 async function main() {
-  const options = parseArgs(process.argv.slice(2))
+  const options = parseExerciseMediaArgs(process.argv.slice(2))
   if (!options.dataset) throw new Error('Informe --dataset <diretório do free-exercise-db>')
   if (options.upload && !options.bucket) throw new Error('Informe --bucket <nome> no modo de upload')
 

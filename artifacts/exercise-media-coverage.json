@@ -1,0 +1,1310 @@
+{
+  "generatedAt": "2026-10-08T21:16:55.267Z",
+  "datasetJson": "dist/exercises.json",
+  "totals": {
+    "catalog": 317,
+    "matched": 26,
+    "unmatched": 291,
+    "ambiguous": 0,
+    "uploads": 50
+  },
+  "matched": [
+    {
+      "name": "Abdominal crunch",
+      "sourceId": "Crunches",
+      "matchType": "exact"
+    },
+    {
+      "name": "Afundo com halteres",
+      "sourceId": "Dumbbell_Lunges",
+      "matchType": "exact"
+    },
+    {
+      "name": "Agachamento livre",
+      "sourceId": "Barbell_Squat",
+      "matchType": "exact"
+    },
+    {
+      "name": "Barra fixa",
+      "sourceId": "Pullups",
+      "matchType": "exact"
+    },
+    {
+      "name": "Cadeira extensora",
+      "sourceId": "Leg_Extensions",
+      "matchType": "exact"
+    },
+    {
+      "name": "Crucifixo com halteres",
+      "sourceId": "Dumbbell_Flyes",
+      "matchType": "exact"
+    },
+    {
+      "name": "Desenvolvimento com halteres",
+      "sourceId": "Dumbbell_Shoulder_Press",
+      "matchType": "exact"
+    },
+    {
+      "name": "Elevação lateral",
+      "sourceId": "Side_Lateral_Raise",
+      "matchType": "exact"
+    },
+    {
+      "name": "Elevação pélvica",
+      "sourceId": "Barbell_Hip_Thrust",
+      "matchType": "exact"
+    },
+    {
+      "name": "Flexão de braços",
+      "sourceId": "Pushups",
+      "matchType": "exact"
+    },
+    {
+      "name": "Leg press 45°",
+      "sourceId": "Leg_Press",
+      "matchType": "exact"
+    },
+    {
+      "name": "Levantamento terra",
+      "sourceId": "Barbell_Deadlift",
+      "matchType": "exact"
+    },
+    {
+      "name": "Mesa flexora",
+      "sourceId": "Lying_Leg_Curls",
+      "matchType": "exact"
+    },
+    {
+      "name": "Panturrilha em pé",
+      "sourceId": "Standing_Calf_Raises",
+      "matchType": "exact"
+    },
+    {
+      "name": "Prancha abdominal",
+      "sourceId": "Plank",
+      "matchType": "exact"
+    },
+    {
+      "name": "Puxada frontal",
+      "sourceId": "Wide-Grip_Lat_Pulldown",
+      "matchType": "exact"
+    },
+    {
+      "name": "Remada baixa",
+      "sourceId": "Seated_Cable_Rows",
+      "matchType": "exact"
+    },
+    {
+      "name": "Remada curvada com barra",
+      "sourceId": "Bent_Over_Barbell_Row",
+      "matchType": "exact"
+    },
+    {
+      "name": "Rosca alternada",
+      "sourceId": "Dumbbell_Alternate_Bicep_Curl",
+      "matchType": "exact"
+    },
+    {
+      "name": "Rosca direta",
+      "sourceId": "Barbell_Curl",
+      "matchType": "exact"
+    },
+    {
+      "name": "Rosca direta com barra",
+      "sourceId": "Barbell_Curl",
+      "matchType": "exact"
+    },
+    {
+      "name": "Stiff com barra",
+      "sourceId": "Romanian_Deadlift",
+      "matchType": "exact"
+    },
+    {
+      "name": "Supino inclinado com halteres",
+      "sourceId": "Incline_Dumbbell_Press",
+      "matchType": "exact"
+    },
+    {
+      "name": "Supino reto com barra",
+      "sourceId": "Barbell_Bench_Press_-_Medium_Grip",
+      "matchType": "exact"
+    },
+    {
+      "name": "Tríceps francês",
+      "sourceId": "Standing_Dumbbell_Triceps_Extension",
+      "matchType": "exact"
+    },
+    {
+      "name": "Tríceps na polia",
+      "sourceId": "Triceps_Pushdown",
+      "matchType": "exact"
+    }
+  ],
+  "unmatched": [
+    {
+      "name": "Abdominal bicicleta",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Abdominal bicicleta com bola suíça",
+      "equipment": "Bola suíça"
+    },
+    {
+      "name": "Abdominal bicicleta com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Abdominal bicicleta com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Abdominal canivete",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Abdominal canivete com bola suíça",
+      "equipment": "Bola suíça"
+    },
+    {
+      "name": "Abdominal canivete com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Abdominal canivete com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Abdominal crunch com bola suíça",
+      "equipment": "Bola suíça"
+    },
+    {
+      "name": "Abdominal crunch com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Abdominal crunch com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Abdominal infra",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Abdominal infra com bola suíça",
+      "equipment": "Bola suíça"
+    },
+    {
+      "name": "Abdominal infra com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Abdominal infra com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Abdominal na polia",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Abdominal na polia com bola suíça",
+      "equipment": "Bola suíça"
+    },
+    {
+      "name": "Abdominal na polia com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Abdominal na polia com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Abdominal prancha",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Abdominal prancha com bola suíça",
+      "equipment": "Bola suíça"
+    },
+    {
+      "name": "Abdominal prancha com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Abdominal prancha com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Agachamento búlgaro",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Agachamento búlgaro com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Agachamento búlgaro com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Agachamento búlgaro com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Agachamento búlgaro com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Agachamento búlgaro com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Agachamento frontal",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Agachamento frontal com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Agachamento frontal com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Agachamento frontal com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Agachamento frontal com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Agachamento frontal com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Agachamento goblet",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Agachamento goblet com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Agachamento goblet com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Agachamento goblet com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Agachamento goblet com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Agachamento goblet com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Agachamento hack",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Agachamento hack com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Agachamento hack com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Agachamento hack com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Agachamento hack com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Agachamento hack com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Agachamento livre com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Agachamento livre com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Agachamento livre com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Agachamento livre com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Agachamento livre com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Agachamento sumô",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Agachamento sumô com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Agachamento sumô com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Agachamento sumô com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Agachamento sumô com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Agachamento sumô com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Cadeira extensora com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Cadeira extensora unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Crucifixo declinado com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Crucifixo declinado com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Crucifixo declinado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Crucifixo inclinado com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Crucifixo inclinado com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Crucifixo inclinado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Crucifixo reto com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Crucifixo reto com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Crucifixo reto com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Desenvolvimento arnold com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Desenvolvimento arnold com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Desenvolvimento arnold com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Desenvolvimento arnold com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Desenvolvimento arnold com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Desenvolvimento em pé com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Desenvolvimento em pé com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Desenvolvimento em pé com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Desenvolvimento em pé com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Desenvolvimento em pé com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Desenvolvimento sentado com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Desenvolvimento sentado com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Desenvolvimento sentado com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Desenvolvimento sentado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Desenvolvimento sentado com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Desenvolvimento unilateral com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Desenvolvimento unilateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Desenvolvimento unilateral com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Desenvolvimento unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Desenvolvimento unilateral com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Elevação frontal com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Elevação frontal com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação frontal com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação frontal com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação lateral com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Elevação lateral com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação lateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação lateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação pélvica com barra",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Elevação pélvica com barra com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Elevação pélvica com barra com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação pélvica com barra com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação pélvica com barra com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação pélvica com pausa",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Elevação pélvica com pausa com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Elevação pélvica com pausa com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação pélvica com pausa com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação pélvica com pausa com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação pélvica no banco",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Elevação pélvica no banco com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Elevação pélvica no banco com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação pélvica no banco com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação pélvica no banco com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação pélvica no solo",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Elevação pélvica no solo com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Elevação pélvica no solo com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação pélvica no solo com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação pélvica no solo com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação pélvica unilateral",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Elevação pélvica unilateral com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Elevação pélvica unilateral com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação pélvica unilateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação pélvica unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação posterior com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Elevação posterior com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação posterior com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação posterior com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Elevação unilateral com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Elevação unilateral com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Elevação unilateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Elevação unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Flexora deitada com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Flexora deitada com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Flexora em pé com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Flexora em pé com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Flexora sentada com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Flexora sentada com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Flexora unilateral com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Flexora unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Leg press 45° com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Leg press 45° com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Leg press horizontal com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Leg press horizontal com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Leg press pés altos com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Leg press pés altos com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Leg press pés baixos com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Leg press pés baixos com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Leg press unilateral com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Leg press unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Panturrilha em pé com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Panturrilha em pé com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Panturrilha em pé com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Panturrilha em pé com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Panturrilha no leg press",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Panturrilha no leg press com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Panturrilha no leg press com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Panturrilha no leg press com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Panturrilha no leg press com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Panturrilha sentado",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Panturrilha sentado com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Panturrilha sentado com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Panturrilha sentado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Panturrilha sentado com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Panturrilha unilateral",
+      "equipment": "Peso corporal"
+    },
+    {
+      "name": "Panturrilha unilateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Panturrilha unilateral com leg press",
+      "equipment": "Leg press"
+    },
+    {
+      "name": "Panturrilha unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Panturrilha unilateral com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Puxada frontal com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Puxada frontal com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Puxada frontal com polia alta",
+      "equipment": "Polia alta"
+    },
+    {
+      "name": "Puxada pegada aberta com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Puxada pegada aberta com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Puxada pegada aberta com polia alta",
+      "equipment": "Polia alta"
+    },
+    {
+      "name": "Puxada pegada neutra com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Puxada pegada neutra com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Puxada pegada neutra com polia alta",
+      "equipment": "Polia alta"
+    },
+    {
+      "name": "Puxada unilateral com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Puxada unilateral com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Puxada unilateral com polia alta",
+      "equipment": "Polia alta"
+    },
+    {
+      "name": "Remada alta com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Remada alta com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Remada alta com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Remada alta com polia baixa",
+      "equipment": "Polia baixa"
+    },
+    {
+      "name": "Remada alta com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Remada alta com trx",
+      "equipment": "TRX"
+    },
+    {
+      "name": "Remada baixa com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Remada baixa com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Remada baixa com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Remada baixa com polia baixa",
+      "equipment": "Polia baixa"
+    },
+    {
+      "name": "Remada baixa com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Remada baixa com trx",
+      "equipment": "TRX"
+    },
+    {
+      "name": "Remada cavalinho com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Remada cavalinho com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Remada cavalinho com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Remada cavalinho com polia baixa",
+      "equipment": "Polia baixa"
+    },
+    {
+      "name": "Remada cavalinho com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Remada cavalinho com trx",
+      "equipment": "TRX"
+    },
+    {
+      "name": "Remada curvada com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Remada curvada com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Remada curvada com polia baixa",
+      "equipment": "Polia baixa"
+    },
+    {
+      "name": "Remada curvada com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Remada curvada com trx",
+      "equipment": "TRX"
+    },
+    {
+      "name": "Remada serrote com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Remada serrote com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Remada serrote com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Remada serrote com polia baixa",
+      "equipment": "Polia baixa"
+    },
+    {
+      "name": "Remada serrote com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Remada serrote com trx",
+      "equipment": "TRX"
+    },
+    {
+      "name": "Rosca alternada com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Rosca alternada com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Rosca alternada com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Rosca alternada com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Rosca alternada com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Rosca concentrada com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Rosca concentrada com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Rosca concentrada com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Rosca concentrada com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Rosca concentrada com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Rosca direta com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Rosca direta com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Rosca direta com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Rosca direta com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Rosca inclinada com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Rosca inclinada com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Rosca inclinada com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Rosca inclinada com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Rosca inclinada com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Rosca martelo com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Rosca martelo com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Rosca martelo com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Rosca martelo com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Rosca martelo com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Rosca scott com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Rosca scott com cabos",
+      "equipment": "Cabos"
+    },
+    {
+      "name": "Rosca scott com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Rosca scott com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Rosca scott com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Stiff romeno com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Stiff romeno com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Stiff romeno com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Stiff romeno com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Stiff sumô com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Stiff sumô com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Stiff sumô com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Stiff sumô com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Stiff tradicional com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Stiff tradicional com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Stiff tradicional com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Stiff tradicional com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Stiff unilateral com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Stiff unilateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Stiff unilateral com kettlebell",
+      "equipment": "Kettlebell"
+    },
+    {
+      "name": "Stiff unilateral com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Supino declinado com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Supino declinado com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Supino declinado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Supino declinado com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Supino fechado com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Supino fechado com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Supino fechado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Supino fechado com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Supino inclinado com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Supino inclinado com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Supino inclinado com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Supino reto com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Supino reto com máquina",
+      "equipment": "Máquina"
+    },
+    {
+      "name": "Supino reto com smith",
+      "equipment": "Smith"
+    },
+    {
+      "name": "Tríceps barra reta com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Tríceps barra reta com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Tríceps barra reta com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Tríceps barra reta com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Tríceps coice com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Tríceps coice com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Tríceps coice com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Tríceps coice com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Tríceps corda com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Tríceps corda com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Tríceps corda com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Tríceps corda com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Tríceps francês com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Tríceps francês com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Tríceps francês com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Tríceps francês com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Tríceps testa com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Tríceps testa com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Tríceps testa com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Tríceps testa com polia",
+      "equipment": "Polia"
+    },
+    {
+      "name": "Tríceps unilateral com barra",
+      "equipment": "Barra"
+    },
+    {
+      "name": "Tríceps unilateral com elástico",
+      "equipment": "Elástico"
+    },
+    {
+      "name": "Tríceps unilateral com halteres",
+      "equipment": "Halteres"
+    },
+    {
+      "name": "Tríceps unilateral com polia",
+      "equipment": "Polia"
+    }
+  ],
+  "ambiguous": []
+}

@@ -6,16 +6,59 @@ import { coachfitMediaAliases } from './coachfitMediaAliases.mjs'
 const genericTerms = new Set(['press', 'row', 'curl', 'raise', 'squat', 'abs'])
 
 const equipmentMatchers = [
-  ['barbell', /\b(barra|barbell)\b/],
+  ['barbell', /\b(barra(?! fixa)|barbell)\b/],
   ['dumbbell', /\b(halter|halteres|dumbbell|dumbbells)\b/],
   ['cable', /\b(polia|cabo|cabos|cable|cables)\b/],
   ['machine', /\b(maquina|machine)\b/],
-  ['bodyweight', /\b(peso corporal|body only|bodyweight)\b/],
+  ['bodyweight', /\b(peso corporal|barra fixa|body only|bodyweight)\b/],
   ['band', /\b(elastico|band|bands)\b/],
   ['smith', /\bsmith\b/],
   ['kettlebell', /\bkettlebell\b/],
   ['trx', /\btrx\b/],
 ]
+
+export function parseExerciseMediaArgs(values) {
+  const options = { upload: false }
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index]
+    if (value === '--') continue
+    if (value === '--upload') options.upload = true
+    else if (value.startsWith('--')) options[value.slice(2)] = values[index += 1]
+  }
+  return options
+}
+
+export function buildWranglerUploadCommand({
+  bucket,
+  sourceFile,
+  upload,
+  platform = process.platform,
+  comspec = process.env.ComSpec || 'cmd.exe',
+}) {
+  const args = [
+    'dlx', 'wrangler@4', 'r2', 'object', 'put', `${bucket}/${upload.key}`,
+    '--file', sourceFile,
+    '--content-type', upload.contentType,
+    '--remote',
+  ]
+  if (platform !== 'win32') return { executable: 'pnpm', args, shell: false }
+
+  const commandLine = ['pnpm', ...args]
+    .map((value) => /\s/.test(value) ? `"${String(value).replaceAll('"', '""')}"` : value)
+    .join(' ')
+  return {
+    executable: comspec,
+    args: ['/d', '/s', '/c', commandLine],
+    shell: false,
+  }
+}
+
+export function resolveUploadSourceFile(projectRoot, sourceFile) {
+  const relative = path.relative(projectRoot, sourceFile)
+  return relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+    ? relative
+    : sourceFile
+}
 
 function getEquipmentKeys(value) {
   const normalized = normalizeExerciseMediaKey(value)
@@ -45,14 +88,16 @@ function normalizeDatasetExercise(exercise) {
 
 function buildCandidateTerms(exercise) {
   const key = normalizeExerciseMediaKey(exercise.name)
-  return [
-    exercise.name,
-    ...(Array.isArray(exercise.aliases) ? exercise.aliases : []),
-    ...(coachfitMediaAliases[key] || []),
-  ]
+  const curated = (coachfitMediaAliases[key] || [])
     .map(normalizeExerciseMediaKey)
     .filter(Boolean)
     .filter((term, index, terms) => terms.indexOf(term) === index)
+  return {
+    exact: [normalizeExerciseMediaKey(exercise.name), ...curated]
+      .filter(Boolean)
+      .filter((term, index, terms) => terms.indexOf(term) === index),
+    compatible: curated,
+  }
 }
 
 function isUsefulCompatibleTerm(term) {
@@ -72,14 +117,14 @@ function getSourcePath(imagePath) {
 function chooseDatasetExercise(coachExercise, datasetExercises) {
   const terms = buildCandidateTerms(coachExercise)
   const compatible = datasetExercises.filter((exercise) => equipmentIsCompatible(coachExercise, exercise))
-  const exact = compatible.filter((exercise) => terms.includes(exercise.normalizedName))
+  const exact = compatible.filter((exercise) => terms.exact.includes(exercise.normalizedName))
 
   if (exact.length === 1) return { exercise: exact[0], matchType: 'exact' }
   if (exact.length > 1) return { ambiguous: exact }
 
   const candidates = compatible
     .map((exercise) => {
-      const matchingTerms = terms.filter((term) => (
+      const matchingTerms = terms.compatible.filter((term) => (
         isUsefulCompatibleTerm(term)
         && (exercise.normalizedName.includes(term) || term.includes(exercise.normalizedName))
       ))

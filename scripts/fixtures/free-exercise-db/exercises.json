@@ -6,8 +6,8 @@
     "images": ["sample-bench/0.jpg", "sample-bench/1.jpg"]
   },
   {
-    "id": "Dumbbell_Bench_Press",
-    "name": "Dumbbell Bench Press",
+    "id": "Incline_Dumbbell_Press",
+    "name": "Incline Dumbbell Press",
     "equipment": "dumbbell",
     "images": ["sample-dumbbell/0.jpg", "sample-dumbbell/1.jpg"]
   },
