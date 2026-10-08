@@ -625,6 +625,28 @@ test('vídeo do coach permanece acima das imagens do catálogo', () => {
   assert.doesNotMatch(html, /Posição inicial|start\.jpg/)
 })
 
+test('mídia incorporada inválida cai no fallback técnico', () => {
+  const html = renderToString(React.createElement(ExerciseMedia, {
+    exercise: {
+      name: 'Movimento exclusivo',
+      equipment: 'Barra',
+      catalogMedia: {
+        source: 'free-exercise-db',
+        sourceId: 'unsafe',
+        matchType: 'exact',
+        equipment: ['barbell'],
+        images: [
+          { role: 'start', url: 'https://example.com/start.jpg' },
+          { role: 'finish', url: 'https://example.com/finish.jpg' },
+        ],
+      },
+    },
+  }))
+
+  assert.match(html, /Execução do movimento/)
+  assert.doesNotMatch(html, /example\.com|Posição inicial/)
+})
+
 test('encerramento antecipado usa RPC dedicado e mantém validação da conclusão normal', async () => {
   const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   const migrationSource = await readFile(new URL('../supabase/migrations/20260926_workout_early_end_history.sql', import.meta.url), 'utf8')

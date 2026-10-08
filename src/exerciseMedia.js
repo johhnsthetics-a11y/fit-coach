@@ -3,11 +3,11 @@ import { exerciseMediaManifest } from './data/exerciseMediaManifest.js'
 const MEDIA_HOST = 'media.coachfitpro.com.br'
 
 const equipmentMatchers = [
-  ['barbell', /\b(barra|barbell)\b/],
+  ['barbell', /\b(barra(?! fixa)|barbell)\b/],
   ['dumbbell', /\b(halter|halteres|dumbbell|dumbbells)\b/],
   ['cable', /\b(polia|cabo|cabos|cable|cables)\b/],
   ['machine', /\b(maquina|machine)\b/],
-  ['bodyweight', /\b(peso corporal|bodyweight)\b/],
+  ['bodyweight', /\b(peso corporal|barra fixa|bodyweight)\b/],
   ['band', /\b(elastico|band|bands)\b/],
   ['smith', /\bsmith\b/],
   ['kettlebell', /\b(kettlebell)\b/],
@@ -59,6 +59,10 @@ function equipmentIsCompatible(exercise, record) {
 
 export function resolveExerciseMedia(exercise = {}, manifest = exerciseMediaManifest) {
   if (exercise.videoPreviewUrl || exercise.videoUrl || exercise.video_url) return null
+
+  if (isValidMediaRecord(exercise.catalogMedia) && equipmentIsCompatible(exercise, exercise.catalogMedia)) {
+    return exercise.catalogMedia
+  }
 
   const candidateKeys = [exercise.name, ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])]
     .map(normalizeExerciseMediaKey)

@@ -35,6 +35,24 @@ test('rejeita mídia com conflito de equipamento conhecido', () => {
   assert.equal(resolveExerciseMedia({ name: 'Supino reto com barra', equipment: 'Halteres' }, manifest), null)
 })
 
+test('trata barra fixa como peso corporal no navegador', () => {
+  const pullupsMedia = { ...benchMedia, sourceId: 'Pullups', equipment: ['bodyweight'] }
+  assert.equal(
+    resolveExerciseMedia({ name: 'Barra fixa', equipment: 'Barra fixa' }, { 'barra fixa': pullupsMedia }),
+    pullupsMedia,
+  )
+})
+
+test('valida mídia incorporada antes de renderizar', () => {
+  const external = {
+    ...benchMedia,
+    images: benchMedia.images.map((image) => ({ ...image, url: image.url.replace('media.coachfitpro.com.br', 'example.com') })),
+  }
+
+  assert.equal(resolveExerciseMedia({ name: 'Movimento exclusivo', equipment: 'Barra', catalogMedia: benchMedia }, {}), benchMedia)
+  assert.equal(resolveExerciseMedia({ name: 'Movimento exclusivo', equipment: 'Barra', catalogMedia: external }, {}), null)
+})
+
 test('rejeita mídia incompleta, domínio externo e protocolo inseguro', () => {
   const incomplete = { ...benchMedia, images: benchMedia.images.slice(0, 1) }
   const external = {

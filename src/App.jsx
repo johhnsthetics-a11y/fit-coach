@@ -11396,7 +11396,7 @@ function enrichExercise(exercise, library = exerciseLibrary) {
   }
   return {
     ...enrichedExercise,
-    catalogMedia: safeExercise.catalogMedia || resolveExerciseMedia(enrichedExercise),
+    catalogMedia: resolveExerciseMedia(enrichedExercise),
   }
 }
 
@@ -11518,7 +11518,7 @@ export function ExerciseThumbnail({ exercise = {}, compact = false }) {
   const videoPreviewUrl = exercise.videoPreviewUrl || ''
   const videoUrl = safeExternalUrl(exercise.videoUrl)
   const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
-  const catalogMedia = exercise.catalogMedia || resolveExerciseMedia(exercise)
+  const catalogMedia = resolveExerciseMedia(exercise)
   const startImage = catalogMedia?.images?.find((image) => image.role === 'start')?.url || ''
   const profile = getExerciseMuscleProfile(exercise)
   const target = profile.primaryLabel !== 'Músculo alvo não identificado'
@@ -11936,7 +11936,7 @@ function getExerciseCommonMistake(exercise = {}) {
 }
 
 function ExerciseImageFrames({ exercise, compact = false }) {
-  const catalogMedia = exercise.catalogMedia || resolveExerciseMedia(exercise)
+  const catalogMedia = resolveExerciseMedia(exercise)
   const start = catalogMedia?.images?.find((image) => image.role === 'start')
   const finish = catalogMedia?.images?.find((image) => image.role === 'finish')
   if (!start || !finish) return null
@@ -12035,7 +12035,7 @@ export function ExerciseMedia({ exercise, compact = false }) {
   }
 
   const imageFrames = <ExerciseImageFrames exercise={exercise} compact={compact} />
-  if (exercise.catalogMedia || resolveExerciseMedia(exercise)) return imageFrames
+  if (resolveExerciseMedia(exercise)) return imageFrames
 
   return <ExerciseTechniqueCard exercise={exercise} compact={compact} />
 }
