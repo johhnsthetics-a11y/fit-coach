@@ -4,17 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="impact-site-verification" value="6e8b57f2-de6e-486e-ada4-99db4db4c1a6" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#05070d" />
     <meta name="color-scheme" content="light dark" />
     <script>
       try {
-        var storedTheme = window.localStorage.getItem('coachfitpro-ui-theme-20260831') || 'light'
-        if (storedTheme !== 'dark' && storedTheme !== 'light') storedTheme = 'light'
+        var storedTheme = window.localStorage.getItem('coachfitpro-ui-theme-20260831') || 'dark'
+        if (storedTheme !== 'dark' && storedTheme !== 'light') storedTheme = 'dark'
         document.documentElement.dataset.theme = storedTheme
         document.documentElement.style.colorScheme = storedTheme
+        document.querySelector('meta[name="theme-color"]').content = storedTheme === 'dark' ? '#05070d' : '#ffffff'
       } catch (_) {
-        document.documentElement.dataset.theme = 'light'
-        document.documentElement.style.colorScheme = 'light'
+        document.documentElement.dataset.theme = 'dark'
+        document.documentElement.style.colorScheme = 'dark'
       }
     </script>
     <meta name="description" content="Coach Fit Pro - gestão profissional para treinadores e alunos." />
