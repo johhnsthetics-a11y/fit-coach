@@ -21,6 +21,8 @@ let getStudentWorkoutExercises
 let buildWorkoutStudentPreviewState
 let StudentWorkoutExecution
 let StudentMobileApp
+let ExerciseThumbnail
+let ExerciseMedia
 let getExerciseFallbackImage
 let buildWorkoutCompletionPayload
 let buildWorkoutExecutionSummary
@@ -38,7 +40,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, ExerciseThumbnail, ExerciseMedia, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 test('XP acumulado preserva meses anteriores e ignora duplicatas e outros pacientes', () => {
@@ -282,7 +284,7 @@ test('montagem mantém seletor contextual, remove prévia lateral e não mostra 
   assert.match(managerSource, /selectedDraftStudent/)
   assert.doesNotMatch(managerSource, /<WorkoutStudentLivePreview/)
   assert.doesNotMatch(managerSource, /has-student-preview/)
-  assert.doesNotMatch(managerSource, /mobile-workout-picker-card-v2[^]{0,500}<ExerciseThumbnail/)
+  assert.match(managerSource, /mobile-workout-picker-card-v2[^]{0,500}<ExerciseThumbnail exercise=\{exercise\} compact/)
   assert.doesNotMatch(editableDaySource, /<ExerciseThumbnail/)
   assert.doesNotMatch(dayScreenSource, /<ExerciseThumbnail/)
 })
@@ -576,6 +578,51 @@ test('executor destaca timer, encerramento e músculo alvo anatômico no topo', 
   assert.match(html, /muscle-map-region is-active is-primary/)
   assert.doesNotMatch(html, /mobile-workout-muscle-target-compact-v5/)
   assert.match(html, /Músculo alvo/)
+})
+
+test('mídia real usa miniatura preguiçosa e duas posições no detalhe', () => {
+  const exercise = {
+    name: 'Supino reto com barra',
+    group: 'Peitoral',
+    catalogMedia: {
+      source: 'free-exercise-db',
+      sourceId: 'bench',
+      matchType: 'exact',
+      images: [
+        { role: 'start', url: 'https://media.coachfitpro.com.br/free-exercise-db/v1/bench/start.jpg' },
+        { role: 'finish', url: 'https://media.coachfitpro.com.br/free-exercise-db/v1/bench/finish.jpg' },
+      ],
+    },
+  }
+
+  const thumbnail = renderToString(React.createElement(ExerciseThumbnail, { exercise, compact: true }))
+  const detail = renderToString(React.createElement(ExerciseMedia, { exercise }))
+
+  assert.match(thumbnail, /loading="lazy"/)
+  assert.match(thumbnail, /decoding="async"/)
+  assert.match(thumbnail, /start\.jpg/)
+  assert.match(detail, /Posição inicial/)
+  assert.match(detail, /Posição final/)
+  assert.match(detail, /start\.jpg/)
+  assert.match(detail, /finish\.jpg/)
+})
+
+test('vídeo do coach permanece acima das imagens do catálogo', () => {
+  const html = renderToString(React.createElement(ExerciseMedia, {
+    exercise: {
+      name: 'Supino reto com barra',
+      videoUrl: 'https://media.coachfitpro.com.br/coach/supino.mp4',
+      catalogMedia: {
+        images: [
+          { role: 'start', url: 'https://media.coachfitpro.com.br/free-exercise-db/v1/bench/start.jpg' },
+          { role: 'finish', url: 'https://media.coachfitpro.com.br/free-exercise-db/v1/bench/finish.jpg' },
+        ],
+      },
+    },
+  }))
+
+  assert.match(html, /<video/)
+  assert.doesNotMatch(html, /Posição inicial|start\.jpg/)
 })
 
 test('encerramento antecipado usa RPC dedicado e mantém validação da conclusão normal', async () => {

@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useR
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
 import { exerciseLibrary } from './exerciseCatalog'
+import { resolveExerciseMedia } from './exerciseMedia'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   buildNutritionPlanNotesWithMetadata,
@@ -112,7 +113,7 @@ const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ defa
 
 const STORAGE_KEY = 'fitcoach-ai-pro-v2'
 const STUDENT_ACCESS_KEY = 'fitcoach-student-access-code'
-const AFFILIATE_ACCESS_REFRESH_MS = 10 * 1000
+const AFFILIATE_ACCESS_REFRESH_MS = 30 * 1000
 const terminalProfessionalReferralErrors = new Set(['invalid_token', 'referral_unavailable', 'already_subscribed'])
 const OFFICIAL_APP_LOGIN_URL = 'https://app.coachfitpro.com.br/login?mode=signin'
 const SELECTED_CHECKOUT_PLAN_KEY = 'fitcoach-selected-checkout-plan'
@@ -1805,7 +1806,7 @@ function AppContent() {
     setRemoteError('Recebemos seu retorno do checkout. O sistema está verificando a confirmação da compra automaticamente.')
 
     async function verifyPaymentReturn() {
-      if (stopped) return
+      if (stopped || document.visibilityState === 'hidden') return
       attempts += 1
       const result = await syncCoachWorkspace({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
       if (stopped) return
@@ -1815,7 +1816,7 @@ function AppContent() {
         window.history.replaceState({}, '', window.location.pathname)
         setRemoteStatus('Assinatura liberada')
         setRemoteError('')
-      } else if (attempts >= 120) {
+      } else if (attempts >= 40) {
         stopped = true
         setRemoteStatus('Aguardando confirmação do pagamento')
         setRemoteError('O checkout foi concluído, mas a confirmação ainda não chegou. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
@@ -1823,7 +1824,7 @@ function AppContent() {
     }
 
     verifyPaymentReturn()
-    const timer = window.setInterval(verifyPaymentReturn, 5000)
+    const timer = window.setInterval(verifyPaymentReturn, 15000)
 
     return () => {
       stopped = true
@@ -1896,7 +1897,7 @@ function AppContent() {
     }
 
     async function verifyStudentPaymentReturn() {
-      if (stopped || inFlight) return
+      if (stopped || inFlight || document.visibilityState === 'hidden') return
       if (studentAccess?.financialAccessOpen === true) {
         confirmPayment(studentAccess)
         return
@@ -1919,7 +1920,7 @@ function AppContent() {
         inFlight = false
       }
 
-      if (!stopped && attempts >= 120) {
+      if (!stopped && attempts >= 40) {
         stopped = true
         if (timer) window.clearInterval(timer)
         setStudentPaymentReturnPending(false)
@@ -1928,7 +1929,7 @@ function AppContent() {
     }
 
     verifyStudentPaymentReturn()
-    if (!stopped) timer = window.setInterval(verifyStudentPaymentReturn, 5000)
+    if (!stopped) timer = window.setInterval(verifyStudentPaymentReturn, 15000)
     const verifyWhenVisible = () => {
       if (document.visibilityState === 'visible') verifyStudentPaymentReturn()
     }
@@ -1978,7 +1979,7 @@ function AppContent() {
       } finally { pending = false }
     }
     sync()
-    const timer = window.setInterval(sync, 15000)
+    const timer = window.setInterval(sync, 60000)
     window.addEventListener('focus', sync)
     return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', sync) }
   }, [data.session?.access_token, studentAccess?.invite?.code, studentAuthSession])
@@ -2033,7 +2034,7 @@ function AppContent() {
     }
 
     syncCoachMessages()
-    const timer = window.setInterval(syncCoachMessages, 4000)
+    const timer = window.setInterval(syncCoachMessages, 60000)
 
     return () => {
       active = false
@@ -2073,7 +2074,7 @@ function AppContent() {
       }
     }
 
-    const timer = window.setInterval(syncStudentPortalAccess, 5000)
+    const timer = window.setInterval(syncStudentPortalAccess, 30000)
 
     return () => {
       active = false
@@ -9473,6 +9474,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
                 const isAddingExercise = addingExerciseKey === exerciseAddKey
                 return (
                   <article key={exercise.name} className={`mobile-workout-picker-card-v2 ${exerciseAlreadyAdded ? 'is-added' : ''}`}>
+                    <ExerciseThumbnail exercise={exercise} compact />
                     <span className="mobile-workout-picker-card-copy">
                       <strong>{exercise.name}</strong>
                       <small>{exercise.group || exercise.muscleGroup || 'Grupo muscular'}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</small>
@@ -11362,7 +11364,7 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     ...safeExercise,
     muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
   })
-  return {
+  const enrichedExercise = {
     ...safeExercise,
     muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
     primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
@@ -11391,6 +11393,10 @@ function enrichExercise(exercise, library = exerciseLibrary) {
     rir: safeExercise.rir || '',
     rpe: safeExercise.rpe || '',
     notes: safeExercise.notes || '',
+  }
+  return {
+    ...enrichedExercise,
+    catalogMedia: safeExercise.catalogMedia || resolveExerciseMedia(enrichedExercise),
   }
 }
 
@@ -11491,10 +11497,29 @@ function ExerciseMetric({ label, value }) {
   )
 }
 
-function ExerciseThumbnail({ exercise = {}, compact = false }) {
+function ExerciseCatalogImage({ src, fallbackSrc, alt, className }) {
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => setFailed(false), [src])
+
+  return (
+    <img
+      src={failed ? fallbackSrc : src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+export function ExerciseThumbnail({ exercise = {}, compact = false }) {
   const videoPreviewUrl = exercise.videoPreviewUrl || ''
   const videoUrl = safeExternalUrl(exercise.videoUrl)
   const canUseVideo = videoPreviewUrl || (videoUrl && isDirectVideoUrl(videoUrl))
+  const catalogMedia = exercise.catalogMedia || resolveExerciseMedia(exercise)
+  const startImage = catalogMedia?.images?.find((image) => image.role === 'start')?.url || ''
   const profile = getExerciseMuscleProfile(exercise)
   const target = profile.primaryLabel !== 'Músculo alvo não identificado'
     ? profile.primaryLabel
@@ -11510,6 +11535,13 @@ function ExerciseThumbnail({ exercise = {}, compact = false }) {
           playsInline
           preload="metadata"
           className="exercise-thumb-media"
+        />
+      ) : startImage ? (
+        <ExerciseCatalogImage
+          src={startImage}
+          fallbackSrc={getExerciseFallbackImage(exercise)}
+          alt={`Posição inicial de ${exercise.name || 'exercício'}`}
+          className="exercise-thumb-media object-contain"
         />
       ) : (
         <span className="exercise-thumb-placeholder" aria-hidden="true">
@@ -11903,7 +11935,37 @@ function getExerciseCommonMistake(exercise = {}) {
   return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execução prescrita.'
 }
 
-function ExerciseMedia({ exercise, compact = false }) {
+function ExerciseImageFrames({ exercise, compact = false }) {
+  const catalogMedia = exercise.catalogMedia || resolveExerciseMedia(exercise)
+  const start = catalogMedia?.images?.find((image) => image.role === 'start')
+  const finish = catalogMedia?.images?.find((image) => image.role === 'finish')
+  if (!start || !finish) return null
+
+  return (
+    <section className={`rounded-md border border-emerald-300/20 bg-emerald-400/[0.04] ${compact ? 'p-3' : 'p-4'}`} aria-label={`Demonstração de ${exercise.name}`}>
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        {[
+          ['Posição inicial', start],
+          ['Posição final', finish],
+        ].map(([label, image]) => (
+          <figure key={label} className="min-w-0 overflow-hidden rounded border border-white/10 bg-black/20">
+            <div className="aspect-[4/3] w-full bg-black/25">
+              <ExerciseCatalogImage
+                src={image.url}
+                fallbackSrc={getExerciseFallbackImage(exercise)}
+                alt={`${label} de ${exercise.name || 'exercício'}`}
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <figcaption className="border-t border-white/10 px-2 py-2 text-center text-[11px] font-black uppercase text-emerald-100">{label}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+export function ExerciseMedia({ exercise, compact = false }) {
   if (exercise.videoPreviewUrl) {
     return (
       <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open>
@@ -11971,6 +12033,9 @@ function ExerciseMedia({ exercise, compact = false }) {
       </a>
     )
   }
+
+  const imageFrames = <ExerciseImageFrames exercise={exercise} compact={compact} />
+  if (exercise.catalogMedia || resolveExerciseMedia(exercise)) return imageFrames
 
   return <ExerciseTechniqueCard exercise={exercise} compact={compact} />
 }
@@ -17679,7 +17744,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     let busy = false
 
     async function verify() {
-      if (stopped || busy) return
+      if (stopped || busy || document.visibilityState === 'hidden') return
       busy = true
       attempts += 1
       const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
@@ -17688,7 +17753,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
         setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
         recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
         stopped = true
-      } else if (attempts >= 120) {
+      } else if (attempts >= 40) {
         setPaymentMessage('Ainda aguardando a confirmação do checkout. Assim que a Cartpanda enviar o postback válido, o painel será liberado automaticamente.')
         stopped = true
       } else {
@@ -17697,7 +17762,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       busy = false
     }
 
-    const timer = window.setInterval(verify, 5000)
+    const timer = window.setInterval(verify, 15000)
     verify()
 
     return () => {
@@ -20720,7 +20785,7 @@ function AdminTrafficPanel() {
     }
 
     refresh()
-    const timer = window.setInterval(refresh, 8000)
+    const timer = window.setInterval(refresh, 60000)
     return () => {
       active = false
       window.clearInterval(timer)
