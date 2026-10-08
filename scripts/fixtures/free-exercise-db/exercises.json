@@ -1,0 +1,26 @@
+[
+  {
+    "id": "Barbell_Bench_Press_-_Medium_Grip",
+    "name": "Barbell Bench Press - Medium Grip",
+    "equipment": "barbell",
+    "images": ["sample-bench/0.jpg", "sample-bench/1.jpg"]
+  },
+  {
+    "id": "Dumbbell_Bench_Press",
+    "name": "Dumbbell Bench Press",
+    "equipment": "dumbbell",
+    "images": ["sample-dumbbell/0.jpg", "sample-dumbbell/1.jpg"]
+  },
+  {
+    "id": "Barbell_Curl",
+    "name": "Barbell Curl",
+    "equipment": "barbell",
+    "images": ["sample-curl/0.jpg", "sample-curl/1.jpg"]
+  },
+  {
+    "id": "Wide-grip_barbell_curl",
+    "name": "Barbell Curl",
+    "equipment": "barbell",
+    "images": ["sample-wide-curl/0.jpg", "sample-wide-curl/1.jpg"]
+  }
+]
