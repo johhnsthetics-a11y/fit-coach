@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { createServer } from 'vite'
+import { buildExpandedExerciseCatalog, exerciseLibrary as sharedExerciseLibrary } from '../src/exerciseCatalog.js'
 
 // Render the actual route and all its children. A source-string check/build
 // cannot detect undeclared identifiers evaluated only when students exist.
@@ -284,6 +285,18 @@ test('montagem mantém seletor contextual, remove prévia lateral e não mostra 
   assert.doesNotMatch(managerSource, /mobile-workout-picker-card-v2[^]{0,500}<ExerciseThumbnail/)
   assert.doesNotMatch(editableDaySource, /<ExerciseThumbnail/)
   assert.doesNotMatch(dayScreenSource, /<ExerciseThumbnail/)
+})
+
+test('catálogo compartilhado preserva quantidade, nomes e aliases atuais', () => {
+  const expanded = buildExpandedExerciseCatalog()
+  assert.ok(sharedExerciseLibrary.length >= 300)
+  assert.ok(expanded.length >= 275)
+  assert.equal(new Set(sharedExerciseLibrary.map((exercise) => exercise.name)).size, sharedExerciseLibrary.length)
+  assert.ok(sharedExerciseLibrary.some((exercise) => (
+    exercise.name === 'Supino reto com barra'
+    && exercise.aliases.includes('bench press')
+  )))
+  assert.ok(sharedExerciseLibrary.some((exercise) => exercise.name === 'Agachamento livre'))
 })
 
 test('prévia única usa em tempo real o mesmo executor, tema e biblioteca do aluno', async () => {
