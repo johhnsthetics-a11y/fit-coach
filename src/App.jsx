@@ -1775,6 +1775,11 @@ function AppContent() {
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [billingClock, setBillingClock] = useState(Date.now())
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
+  useEffect(() => {
+    document.documentElement.dataset.theme = uiTheme
+    document.documentElement.style.colorScheme = uiTheme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', uiTheme === 'dark' ? '#05070d' : '#ffffff')
+  }, [uiTheme])
   const toggleUiTheme = useCallback(() => {
     setUiTheme((currentTheme) => {
       const nextTheme = currentTheme === 'dark' ? 'light' : 'dark'
@@ -6608,15 +6613,12 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
               </div>
               <span className="w-fit rounded-full border border-emerald-300/25 bg-zinc-950/60 px-3 py-1 text-xs font-black text-emerald-100">4 etapas</span>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-900">
-              <div className="h-full w-1/4 rounded-full bg-gradient-to-r from-emerald-300 to-emerald-600" />
-            </div>
           </div>
 
           <div className="mb-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3">
-            <p className="text-xs font-black uppercase text-emerald-200">Validação manual</p>
+            <p className="text-xs font-black uppercase text-emerald-200">Acesso e cobranças</p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">
-              Quando o aluno solicitar validação, confira o Pix/comprovante e clique em confirmar. O sistema marca como pago e libera o acesso do aluno.
+              O Coach Fit Pro confirma automaticamente os pagamentos do aplicativo. As cobranças do seu acompanhamento são organizadas separadamente em Recebimentos.
             </p>
           </div>
 
@@ -6649,15 +6651,21 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
           <div className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-4">
             <p className="font-black text-blue-200">Nenhum dado demonstrativo</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">
-              Sua conta está vazia e preparada para receber somente alunos reais da sua operação.
+              Sua conta está vazia e preparada para receber {nutritionist ? 'pacientes' : 'alunos'} reais do seu acompanhamento.
             </p>
           </div>
           <div className="mt-4 grid gap-3">
-            {[
-              ['Treino', 'publique o primeiro treino antes de convidar'],
-              ['Dieta', 'cadastre pelo menos uma rotina alimentar'],
-              ['Cobrança', 'configure Pix e mensagem padrão'],
-            ].map(([title, text]) => (
+            {(nutritionist
+              ? [
+                ['Anamnese', 'prepare as perguntas para conhecer o paciente'],
+                ['Dieta', 'cadastre o primeiro plano alimentar'],
+                ['Recebimentos', 'organize as cobranças do seu acompanhamento'],
+              ]
+              : [
+                ['Treino', 'publique o primeiro treino antes de convidar'],
+                ['Dieta', 'cadastre pelo menos uma rotina alimentar'],
+                ['Recebimentos', 'organize as cobranças do seu acompanhamento'],
+              ]).map(([title, text]) => (
               <div key={title} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
                 <p className="text-sm font-black text-white">{title}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">{text}</p>
@@ -6665,7 +6673,7 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
             ))}
           </div>
           <button onClick={() => setActiveView('alunos')} className="mt-4 w-full rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">
-            Cadastrar primeiro aluno
+            {nutritionist ? 'Cadastrar primeiro paciente' : 'Cadastrar primeiro aluno'}
           </button>
         </Panel>
       </div>

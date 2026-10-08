@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 const normalizeNewlines = (value) => value.replace(/\r\n/g, '\n')
 const app = normalizeNewlines(readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8'))
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const nutritionPlanAccess = readFileSync(new URL('../src/nutritionPlanAccess.js', import.meta.url), 'utf8')
 const sw = readFileSync(new URL('../public/service-worker.js', import.meta.url), 'utf8')
@@ -15,6 +16,7 @@ const nutritionRlsMigration = existsSync(nutritionRlsMigrationPath)
 const checks = [
   ['App uses a build marker', app.includes('COACH_FIT_PRO_BUILD_MARKER')],
   ['App defaults to dark theme while preserving an explicit light choice', app.includes("DEFAULT_UI_THEME = 'dark'") && app.includes("savedTheme === 'dark' || savedTheme === 'light'")],
+  ['Initial document and Safari status bar follow the selected theme', html.includes("|| 'dark'") && html.includes('content="#05070d"') && app.includes('meta[name="theme-color"]')],
   ['Authenticated app receives theme class', app.includes('app-theme-${uiTheme}')],
   ['Sales page receives theme class', app.includes('sales-theme-${salesTheme}')],
   ['Theme toggle component exists', app.includes('function ThemeToggle')],
@@ -129,7 +131,7 @@ const checks = [
   ['Nutrition prescribed list is collapsed by default and identifies patient', app.includes('expandedPlanId') && app.includes('nutrition-plan-summary-button-v1') && app.includes("Paciente: {planStudent?.name || 'Aluno'}")],
   ['Sales hero phone showcase reflects current professional mobile screens', app.includes('sales-showcase-professional-v3') && app.includes('Central profissional') && app.includes('Treinos dos alunos') && app.includes('Pacientes ativos') && app.includes('Dietas prescritas')],
   ['Sales hero phone mockups are keyboard-clickable and swap positions', app.includes('role="button"') && app.includes('onClick={selectScreen}') && app.includes('position-${position}')],
-  ['Sales showcase phones float in both motion settings', css.includes('@keyframes salesShowcaseFloat') && css.includes('translate: 0 -6px') && css.includes('animation: salesShowcaseFloat 4.8s ease-in-out infinite') && css.includes('animation: salesShowcaseFloat 4.8s ease-in-out infinite !important')],
+  ['Sales showcase phones float normally and stop for reduced motion', css.includes('@keyframes salesShowcaseFloat') && css.includes('translate: 0 -6px') && css.includes('animation: salesShowcaseFloat 4.8s ease-in-out infinite') && /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.sales-page \.sales-showcase-interactive \.sales-phone-mockup\s*\{\s*animation: none !important/.test(css)],
   ['Sales showcase keeps only floating phones without auxiliary cards', !app.includes('sales-showcase-pulse-row') && !app.includes('sales-showcase-pulse-card') && !css.includes('@keyframes salesShowcasePulse') && !app.includes('sales-showcase-metric sales-showcase-float metric-') && !app.includes('sales-floating-badge sales-showcase-float')],
   ['Sales phone previews use the original theme-aware mobile navigation', css.includes('border-radius: 18px') && css.includes('background: rgba(2, 6, 10, 0.9)') && css.includes('background: rgba(255, 255, 255, 0.92) !important')],
   ['Sales hero value line has dedicated emphasis in both themes', app.includes('sales-hero-value-line') && css.includes('.sales-hero-value-line') && css.includes('.sales-theme-light .sales-hero-value-line') && css.includes('.sales-hero-value-line > span:first-child')],
@@ -176,7 +178,7 @@ const checks = [
   ['Sales hero benefit line uses polished title-case copy', app.includes('Organização,</span>') && app.includes('Percepção de Valor,</span>') && app.includes('Rotina Profissional</span>')],
   ['Sales hero benefit line types only after entering the viewport', /className="sales-hero-benefit-line[^\"]*"[^>]*data-reveal/.test(app) && css.includes('.sales-hero-benefit-line.is-visible > span') && css.includes('animation-play-state: paused') && css.includes('animation-play-state: running')],
   ['Sales hero benefit line types on desktop and reveals full phrases on mobile', css.includes('@keyframes salesBenefitTypewriter') && css.includes('@keyframes salesBenefitMobileReveal') && css.includes('.sales-hero-benefit-line > span:nth-child(2)') && css.includes('.sales-hero-benefit-line > span:nth-child(3)') && css.includes('animation-name: salesBenefitMobileReveal')],
-  ['Sales showcase desktop phones pulse in both motion settings', css.includes('@keyframes salesShowcaseFloatDesktop') && css.includes('translate: 0 -14px') && css.includes('scale: 1.025') && /@media \(min-width:\s*768px\)[\s\S]*?animation-name: salesShowcaseFloatDesktop/.test(css) && css.includes('animation-name: salesShowcaseFloatDesktop !important')]
+  ['Sales showcase desktop phones pulse with motion enabled', css.includes('@keyframes salesShowcaseFloatDesktop') && css.includes('translate: 0 -14px') && css.includes('scale: 1.025') && /@media \(min-width:\s*768px\)[\s\S]*?animation-name: salesShowcaseFloatDesktop/.test(css)]
 ]
 
 const failed = checks.filter(([, passed]) => !passed)
