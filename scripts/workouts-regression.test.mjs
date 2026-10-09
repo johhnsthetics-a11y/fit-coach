@@ -538,6 +538,78 @@ test('mapa muscular usa silhueta humana orgânica e mantém regiões interativas
   assert.doesNotMatch(appSource, /M39 24h22l7 28-6 29H38l-6-29 7-28Z/)
 })
 
+test('biblioteca e editor oferecem cardio com campos condicionais', async () => {
+  const library = getExerciseLibrary([])
+  const treadmill = library.find((exercise) => exercise.name === 'Esteira')
+  const bike = library.find((exercise) => exercise.name === 'Bike ergométrica')
+  assert.equal(treadmill?.exerciseType, 'cardio')
+  assert.equal(treadmill?.cardioMode, 'treadmill')
+  assert.equal(bike?.cardioMode, 'bike')
+
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const editorSource = appSource.match(/function MobileWorkoutEditableDay[\s\S]*?\r?\n}\r?\n\r?\nfunction createMobileWorkoutDraft/)?.[0] || ''
+  const classicEditorSource = appSource.match(/function WorkoutForm[\s\S]*?\r?\n}\r?\n\r?\nfunction WorkoutList/)?.[0] || ''
+  assert.match(editorSource, /Tipo de exercício/)
+  assert.match(editorSource, /getCardioFieldDefinitions\(exercise\.cardioMode\)/)
+  assert.match(editorSource, /formatCardioPrescription\(exercise\)/)
+  assert.match(classicEditorSource, /buildWorkoutNotesWithMetadata\(\{ guidance, days \}\)/)
+  assert.match(classicEditorSource, /getCardioFieldDefinitions\(exercise\.cardioMode\)/)
+})
+
+test('execução cardiovascular possui cronômetro, métricas e finalização própria', () => {
+  const html = renderToString(React.createElement(StudentWorkoutExecution, {
+    student,
+    preview: true,
+    workout: {
+      title: 'Cardio',
+      days: [{
+        day: 'Terça-feira',
+        focus: 'Condicionamento',
+        exercises: [{
+          name: 'Esteira', exerciseType: 'cardio', cardioMode: 'treadmill',
+          durationMinutes: '30', distanceKm: '5', speedKmh: '10', inclinePercent: '2', intensity: 'Moderada',
+        }],
+      }],
+    },
+  }))
+
+  assert.match(html, /Controle cardiovascular/)
+  assert.match(html, /Iniciar cardio/)
+  assert.match(html, /Distância realizada/)
+  assert.match(html, /Finalizar cardio/)
+  assert.doesNotMatch(html, /Registrar séries/)
+})
+
+test('progresso e histórico contabilizam cardio como uma atividade concluível', () => {
+  const cardioWorkout = {
+    id: 'cardio-a', coachId: 'coach-a', title: 'Cardio',
+    days: [{ day: 'Dia 1', exercises: [{ name: 'Bike ergométrica', exerciseType: 'cardio', cardioMode: 'bike', durationMinutes: '20' }] }],
+  }
+  const summary = buildWorkoutExecutionSummary(cardioWorkout, {}, [], {
+    '0-0': { completed: true, status: 'completed', elapsedSeconds: 1210 },
+  })
+  assert.equal(summary.totalSets, 1)
+  assert.equal(summary.completedSets, 1)
+  assert.equal(summary.canFinish, true)
+
+  const payload = buildWorkoutCompletionPayload({
+    student,
+    workout: cardioWorkout,
+    exerciseEntries: [{
+      exercise: cardioWorkout.days[0].exercises[0],
+      cardioLog: { completed: true, elapsedSeconds: 1210, distanceKm: '8.4', calories: '210' },
+    }],
+  })
+  assert.match(payload.notes, /Bike ergométrica — 20:10 · 8,4 km · 210 kcal/)
+})
+
+test('mapa muscular diferencia músculos primários e secundários com tons de vermelho', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const regionsSource = appSource.match(/function MuscleRegions[\s\S]*?const back =/)?.[0] || ''
+  assert.match(regionsSource, /const primary = '#ef4444'/)
+  assert.match(regionsSource, /const secondary = '#fb7185'/)
+})
+
 test('adutores usam a referência anatômica dedicada enviada para o treino', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const image = await readFile(new URL('../public/assets/exercises/muscle-adutores.png', import.meta.url))
