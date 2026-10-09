@@ -689,6 +689,22 @@ const exerciseLibrary = [
   { name: 'Panturrilha em pé', group: 'Panturrilhas', equipment: 'Máquina ou peso corporal', cues: 'Use amplitude completa, pause no topo e controle a descida sem quicar.', aliases: ['panturrilha'] },
   { name: 'Prancha abdominal', group: 'Core', equipment: 'Peso corporal', cues: 'Contraia glúteos e abdômen, mantendo cabeça, tronco e quadril alinhados.', aliases: ['prancha'] },
   { name: 'Abdominal crunch', group: 'Core', equipment: 'Peso corporal', cues: 'Aproxime costelas e pelve sem puxar a cabeça e retorne de forma controlada.', aliases: ['abdominal'] },
+  { name: 'Remada unilateral com halter', group: 'Costas', equipment: 'Halter e banco', cues: 'Apoie uma das mãos no banco, mantenha o tronco estável e conduza o cotovelo em direção ao quadril.', aliases: ['remada serrote', 'remada curvada unilateral'] },
+  { name: 'Face pull na polia', group: 'Ombros e costas', equipment: 'Polia com corda', cues: 'Puxe a corda em direção ao rosto com cotovelos abertos e controle o retorno.', aliases: ['face pull', 'puxada para o rosto'] },
+  { name: 'Crossover na polia', group: 'Peitoral', equipment: 'Polias', cues: 'Mantenha o tronco firme e aproxime as mãos à frente do peito sem perder o controle dos ombros.', aliases: ['cross over', 'crucifixo na polia'] },
+  { name: 'Supino máquina', group: 'Peitoral', equipment: 'Máquina', cues: 'Ajuste o banco para as manoplas ficarem na linha média do peito e empurre sem travar os cotovelos.', aliases: ['chest press', 'supino articulado'] },
+  { name: 'Agachamento goblet', group: 'Quadríceps e glúteos', equipment: 'Halter ou kettlebell', cues: 'Segure a carga junto ao peito, mantenha os pés firmes e desça com os joelhos alinhados aos pés.', aliases: ['goblet squat'] },
+  { name: 'Agachamento búlgaro', group: 'Quadríceps e glúteos', equipment: 'Banco e halteres', cues: 'Apoie o pé de trás no banco e desça mantendo equilíbrio, tronco firme e joelho alinhado.', aliases: ['bulgarian split squat', 'afundo búlgaro'] },
+  { name: 'Cadeira flexora sentada', group: 'Posteriores de coxa', equipment: 'Máquina', cues: 'Alinhe o eixo ao joelho, mantenha o quadril apoiado e controle a volta da flexão.', aliases: ['flexora sentada'] },
+  { name: 'Máquina adutora sentada', group: 'Adutores', primaryMuscle: 'adutores', equipment: 'Máquina adutora', cues: 'Ajuste os apoios à parte interna das coxas e aproxime as pernas com controle, sem usar impulso.', aliases: ['adutora sentada', 'cadeira adutora', 'hip adduction machine'] },
+  { name: 'Cadeira abdutora', group: 'Abdutores', primaryMuscle: 'abdutores', equipment: 'Máquina', cues: 'Mantenha o tronco estável e afaste as pernas sem deixar a carga retornar de uma vez.', aliases: ['máquina abdutora', 'abdução de quadril sentada'] },
+  { name: 'Abdução de quadril na polia', group: 'Glúteos', primaryMuscle: 'gluteos', equipment: 'Polia baixa e tornozeleira', cues: 'Segure no apoio, mantenha a pelve nivelada e afaste a perna sem inclinar o tronco.', aliases: ['abdução de quadril em pé'] },
+  { name: 'Elevação lateral na polia', group: 'Ombros', primaryMuscle: 'deltoide-lateral', equipment: 'Polia baixa', cues: 'Eleve o braço pelo cotovelo até a linha do ombro, mantendo o tronco imóvel.', aliases: ['elevação lateral cabo'] },
+  { name: 'Rosca martelo', group: 'Bíceps e antebraço', primaryMuscle: 'biceps', equipment: 'Halteres', cues: 'Mantenha as palmas voltadas uma para a outra e os cotovelos próximos ao tronco.', aliases: ['hammer curl'] },
+  { name: 'Rosca Scott', group: 'Bíceps', primaryMuscle: 'biceps', equipment: 'Banco Scott e barra', cues: 'Apoie os braços no banco e faça a flexão sem tirar os cotovelos do apoio.', aliases: ['rosca no banco scott'] },
+  { name: 'Tríceps corda na polia', group: 'Tríceps', primaryMuscle: 'triceps', equipment: 'Polia com corda', cues: 'Mantenha os cotovelos junto ao tronco e afaste as pontas da corda ao estender os braços.', aliases: ['tríceps com corda', 'pushdown com corda'] },
+  { name: 'Prancha lateral', group: 'Core', primaryMuscle: 'obliquos', equipment: 'Peso corporal', cues: 'Alinhe ombro, quadril e tornozelos e mantenha o quadril elevado sem girar o tronco.', aliases: ['side plank'] },
+  { name: 'Abdominal infra', group: 'Core', primaryMuscle: 'abdomen', equipment: 'Peso corporal', cues: 'Mantenha a lombar apoiada e eleve a pelve com controle, sem embalar as pernas.', aliases: ['elevação de pernas deitado'] },
 ]
 
 const exerciseCatalogBlueprints = [
@@ -744,7 +760,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['frontal', 'pegada aberta', 'pegada neutra', 'unilateral'],
-    equipments: ['Polia alta', 'Máquina', 'Elástico'],
+    equipments: ['Polia alta', 'Polia alta', 'Polia alta', 'Polia baixa'],
     instruction: 'Inicie com as escápulas baixas e puxe os cotovelos em direção ao tronco.',
     tip: 'Pense em puxar com os cotovelos, não com as mãos.',
     mistake: 'Inclinar demais o tronco e perder tensão nas dorsais.',
@@ -763,7 +779,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Média',
     laterality: 'Bilateral',
     variants: ['baixa', 'curvada', 'serrote', 'cavalinho', 'alta'],
-    equipments: ['Barra', 'Halteres', 'Polia baixa', 'Máquina', 'Smith', 'TRX'],
+    equipments: ['Polia baixa', 'Barra', 'Halteres', 'Barra T', 'Polia baixa'],
     instruction: 'Mantenha tronco firme, peito aberto e conduza o movimento pelos cotovelos.',
     tip: 'Pause brevemente com escápulas contraídas.',
     mistake: 'Usar balanço de tronco para completar a repetição.',
@@ -782,7 +798,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Média',
     laterality: 'Bilateral',
     variants: ['sentado', 'em pé', 'unilateral', 'arnold'],
-    equipments: ['Halteres', 'Barra', 'Máquina', 'Smith', 'Kettlebell'],
+    equipments: ['Halteres', 'Barra', 'Halteres', 'Halteres'],
     instruction: 'Suba a carga acima da cabeça mantendo abdômen firme e punhos alinhados.',
     tip: 'Evite arquear a lombar no final da subida.',
     mistake: 'Compensar com tronco ou perder alinhamento dos cotovelos.',
@@ -801,7 +817,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['lateral', 'frontal', 'posterior', 'unilateral'],
-    equipments: ['Halteres', 'Cabos', 'Máquina', 'Elástico'],
+    equipments: ['Halteres', 'Halteres', 'Cabos', 'Cabos'],
     instruction: 'Eleve com controle até a linha dos ombros sem usar impulso.',
     tip: 'Conduza o movimento pelos cotovelos.',
     mistake: 'Subir a carga com trapézio ou balançar o corpo.',
@@ -820,7 +836,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['direta', 'alternada', 'martelo', 'scott', 'concentrada', 'inclinada'],
-    equipments: ['Barra', 'Halteres', 'Cabos', 'Máquina', 'Elástico'],
+    equipments: ['Barra', 'Halteres', 'Halteres', 'Máquina', 'Halteres', 'Halteres'],
     instruction: 'Flexione o cotovelo sem projetar o ombro para frente e controle a descida.',
     tip: 'Mantenha cotovelos estáveis e punhos neutros.',
     mistake: 'Usar balanço do tronco para levantar a carga.',
@@ -839,7 +855,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['corda', 'barra reta', 'francês', 'testa', 'coice', 'unilateral'],
-    equipments: ['Polia', 'Halteres', 'Barra', 'Elástico'],
+    equipments: ['Polia', 'Polia', 'Halteres', 'Barra', 'Halteres', 'Polia'],
     instruction: 'Fixe os cotovelos e estenda completamente sem movimentar o tronco.',
     tip: 'Controle o retorno para manter tensão no tríceps.',
     mistake: 'Abrir cotovelos ou usar ombros para ajudar.',
@@ -858,7 +874,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Média',
     laterality: 'Bilateral',
     variants: ['livre', 'frontal', 'sumô', 'goblet', 'búlgaro', 'hack'],
-    equipments: ['Barra', 'Halteres', 'Smith', 'Máquina', 'Kettlebell', 'Peso corporal'],
+    equipments: ['Barra', 'Barra', 'Halteres', 'Kettlebell', 'Banco e halteres', 'Máquina'],
     instruction: 'Desça com controle, joelhos alinhados aos pés e tronco firme.',
     tip: 'Mantenha pressão no pé inteiro durante a subida.',
     mistake: 'Fechar os joelhos para dentro ou perder a coluna neutra.',
@@ -877,7 +893,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['45°', 'horizontal', 'unilateral', 'pés altos', 'pés baixos'],
-    equipments: ['Máquina', 'Leg press'],
+    equipments: ['Máquina', 'Máquina', 'Máquina', 'Máquina', 'Máquina'],
     instruction: 'Mantenha quadril apoiado e desça até onde a lombar permanece estável.',
     tip: 'Ajuste a posição dos pés conforme o foco do treino.',
     mistake: 'Descer demais e arredondar a lombar.',
@@ -896,7 +912,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['extensora', 'extensora unilateral'],
-    equipments: ['Máquina'],
+    equipments: ['Máquina', 'Máquina'],
     instruction: 'Ajuste o eixo ao joelho e controle a fase de descida.',
     tip: 'Segure um segundo no topo para melhorar a contração.',
     mistake: 'Usar impulso e perder controle do joelho.',
@@ -915,7 +931,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['deitada', 'sentada', 'em pé', 'unilateral'],
-    equipments: ['Máquina', 'Elástico'],
+    equipments: ['Máquina', 'Máquina', 'Máquina', 'Máquina'],
     instruction: 'Flexione o joelho sem tirar o quadril do apoio e controle o retorno.',
     tip: 'Evite acelerar a descida.',
     mistake: 'Levantar o quadril ou reduzir a amplitude.',
@@ -934,7 +950,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Média',
     laterality: 'Bilateral',
     variants: ['tradicional', 'romeno', 'unilateral', 'sumô'],
-    equipments: ['Barra', 'Halteres', 'Smith', 'Kettlebell'],
+    equipments: ['Barra', 'Barra', 'Halteres', 'Kettlebell'],
     instruction: 'Empurre o quadril para trás e mantenha a carga próxima às pernas.',
     tip: 'Sinta alongar posterior sem arredondar a coluna.',
     mistake: 'Buscar amplitude sacrificando a lombar.',
@@ -953,7 +969,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['com barra', 'unilateral', 'no banco', 'no solo', 'com pausa'],
-    equipments: ['Barra', 'Halteres', 'Máquina', 'Elástico', 'Peso corporal'],
+    equipments: ['Barra', 'Halteres', 'Banco', 'Peso corporal', 'Máquina'],
     instruction: 'Suba o quadril contraindo glúteos e evitando hiperextensão lombar.',
     tip: 'Faça retroversão pélvica leve no topo.',
     mistake: 'Finalizar com lombar em vez de glúteos.',
@@ -972,7 +988,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['em pé', 'sentado', 'no leg press', 'unilateral'],
-    equipments: ['Máquina', 'Leg press', 'Halteres', 'Smith', 'Peso corporal'],
+    equipments: ['Máquina', 'Máquina', 'Leg press', 'Halteres'],
     instruction: 'Use amplitude completa, pause no topo e controle a descida.',
     tip: 'Evite quicar no final da repetição.',
     mistake: 'Fazer repetições curtas e rápidas demais.',
@@ -991,7 +1007,7 @@ const exerciseCatalogBlueprints = [
     difficulty: 'Baixa',
     laterality: 'Bilateral',
     variants: ['crunch', 'infra', 'bicicleta', 'na polia', 'canivete', 'prancha'],
-    equipments: ['Peso corporal', 'Polia', 'Máquina', 'Bola suíça'],
+    equipments: ['Peso corporal', 'Peso corporal', 'Peso corporal', 'Polia', 'Peso corporal', 'Peso corporal'],
     instruction: 'Controle tronco e respiração sem puxar o pescoço.',
     tip: 'Aproxime costelas e pelve com controle.',
     mistake: 'Compensar com pescoço ou lombar.',
@@ -1003,46 +1019,47 @@ function buildExpandedExerciseCatalog() {
   const existingNames = new Set(exerciseLibrary.map((exercise) => normalizeText(exercise.name)))
 
   exerciseCatalogBlueprints.forEach((blueprint) => {
-    blueprint.variants.forEach((variant) => {
-      blueprint.equipments.forEach((equipment) => {
-        const lowerVariant = normalizeText(variant)
-        const lowerEquipment = normalizeText(equipment)
-        const suffix = lowerEquipment.includes('peso corporal') ? '' : ` com ${equipment.toLowerCase()}`
-        const name = `${blueprint.base} ${variant}${suffix}`.replace(/\s+/g, ' ').trim()
-        const key = normalizeText(name)
-        if (existingNames.has(key)) return
-        existingNames.add(key)
-        records.push({
-          name,
-          group: blueprint.group,
-          muscleGroup: blueprint.group,
-          primaryMuscle: blueprint.primaryMuscle,
-          secondaryMuscles: blueprint.secondaryMuscles,
+    blueprint.variants.forEach((variant, variantIndex) => {
+      const equipment = blueprint.equipments[variantIndex]
+      const lowerVariant = normalizeText(variant)
+      const lowerEquipment = normalizeText(equipment)
+      const suffix = lowerEquipment.includes('peso corporal') || lowerEquipment === 'maquina'
+        ? ''
+        : ` com ${equipment.toLowerCase()}`
+      const name = `${blueprint.base} ${variant}${suffix}`.replace(/\s+/g, ' ').trim()
+      const key = normalizeText(name)
+      if (existingNames.has(key)) return
+      existingNames.add(key)
+      records.push({
+        name,
+        group: blueprint.group,
+        muscleGroup: blueprint.group,
+        primaryMuscle: blueprint.primaryMuscle,
+        secondaryMuscles: blueprint.secondaryMuscles,
+        equipment,
+        category: blueprint.objective,
+        movementType: blueprint.movementType,
+        movement: blueprint.movementType,
+        objective: blueprint.objective,
+        level: blueprint.level,
+        mechanic: blueprint.mechanic,
+        mechanics: blueprint.mechanic,
+        laterality: lowerVariant.includes('unilateral') ? 'Unilateral' : blueprint.laterality,
+        composition: blueprint.composition,
+        difficulty: blueprint.difficulty,
+        cues: blueprint.instruction,
+        instructions: blueprint.instruction,
+        tips: blueprint.tip,
+        commonMistakes: blueprint.mistake,
+        source: 'coachfit_catalog',
+        aliases: [
+          blueprint.base,
+          variant,
           equipment,
-          category: blueprint.objective,
-          movementType: blueprint.movementType,
-          movement: blueprint.movementType,
-          objective: blueprint.objective,
-          level: blueprint.level,
-          mechanic: blueprint.mechanic,
-          mechanics: blueprint.mechanic,
-          laterality: lowerVariant.includes('unilateral') ? 'Unilateral' : blueprint.laterality,
-          composition: blueprint.composition,
-          difficulty: blueprint.difficulty,
-          cues: blueprint.instruction,
-          instructions: blueprint.instruction,
-          tips: blueprint.tip,
-          commonMistakes: blueprint.mistake,
-          source: 'coachfit_catalog',
-          aliases: [
-            blueprint.base,
-            variant,
-            equipment,
-            `${blueprint.base} ${variant}`,
-            ...blueprint.english,
-            ...blueprint.english.map((item) => `${item} ${variant}`),
-          ],
-        })
+          `${blueprint.base} ${variant}`,
+          ...blueprint.english,
+          ...blueprint.english.map((item) => `${item} ${variant}`),
+        ],
       })
     })
   })
@@ -8733,6 +8750,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   const [workoutStudentPreviewOpen, setWorkoutStudentPreviewOpen] = useState(false)
   const [addingExerciseKey, setAddingExerciseKey] = useState('')
   const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
+  const [isCreatingCustomExercise, setIsCreatingCustomExercise] = useState(false)
   const [favoriteExerciseNames, setFavoriteExerciseNames] = useState(() => {
     try {
       return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-exercises') || '[]')
@@ -9088,12 +9106,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     setExercisePickerMuscleFilter('todos')
     setExercisePickerObjectiveFilter('todos')
     setCustomExerciseDraft(createExerciseDraft(''))
+    setIsCreatingCustomExercise(false)
   }
 
   function closeExercisePicker() {
     setExercisePickerDayIndex(null)
     setExercisePickerSearch('')
     setExercisePickerPreview(null)
+    setIsCreatingCustomExercise(false)
   }
 
   function rememberRecentExercises(names = []) {
@@ -9130,6 +9150,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       source: 'coach_custom',
     })
     setExercisePickerTab('mine')
+    setIsCreatingCustomExercise(true)
     setMessage('Edite o exercício personalizado e salve novamente.')
   }
 
@@ -9938,7 +9959,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             </div>
             <div className="mobile-workout-search">
               <NavIcon name="chart" className="h-4 w-4" />
-              <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar: supino, bench, peito, barra..." autoFocus />
+              <input value={exercisePickerSearch} onChange={(event) => setExercisePickerSearch(event.target.value)} placeholder="Buscar: supino, bench, peito, barra..." autoFocus={!isCreatingCustomExercise} />
             </div>
             <div className="mobile-workout-picker-filters">
               <button type="button" className={exercisePickerTab === 'favorites' ? 'is-active' : ''} onClick={() => setExercisePickerTab(exercisePickerTab === 'favorites' ? 'coachfit' : 'favorites')}>
@@ -9957,11 +9978,19 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
               </button>
               <button type="button" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
             </div>
-            <details className="mobile-workout-custom-exercise">
+            <details
+              className="mobile-workout-custom-exercise"
+              open={isCreatingCustomExercise}
+              onToggle={(event) => setIsCreatingCustomExercise(event.currentTarget.open)}
+            >
               <summary>Criar exercício</summary>
               <div>
+                <button type="button" className="mobile-workout-back-link mobile-workout-custom-back" onClick={() => setIsCreatingCustomExercise(false)}>
+                  <NavIcon name="arrowLeft" className="h-4 w-4" />
+                  Voltar aos exercícios
+                </button>
                 <div className="mobile-workout-form-grid">
-                  <label>Nome<input value={customExerciseDraft.name || ''} onChange={(event) => updateCustomExerciseDraft('name', event.target.value)} placeholder="Ex.: Supino com pausa" /></label>
+                  <label>Nome<input value={customExerciseDraft.name || ''} onChange={(event) => updateCustomExerciseDraft('name', event.target.value)} placeholder="Ex.: Supino com pausa" autoFocus={isCreatingCustomExercise} /></label>
                   <label>Grupo muscular<input value={customExerciseDraft.muscleGroup || ''} onChange={(event) => updateCustomExerciseDraft('muscleGroup', event.target.value)} placeholder="Peitoral" /></label>
                   <label>Equipamento<input value={customExerciseDraft.equipment || ''} onChange={(event) => updateCustomExerciseDraft('equipment', event.target.value)} placeholder="Barra, halter..." /></label>
                   <label>Categoria<input value={customExerciseDraft.category || ''} onChange={(event) => updateCustomExerciseDraft('category', event.target.value)} placeholder="Força, máquina..." /></label>
@@ -12088,6 +12117,8 @@ const muscleAliasMap = Object.entries(muscleConfig).reduce((map, [key, config]) 
 }, new Map())
 
 const exerciseNameMuscleRules = [
+  { match: ['adutora', 'adutor'], primary: 'adutores', secondary: ['gluteos'] },
+  { match: ['abdutora', 'abdutor', 'abducao de quadril'], primary: 'abdutores', secondary: ['gluteos'] },
   { match: ['supino inclinado'], primary: 'peitoral-superior', secondary: ['peitoral', 'deltoide-anterior', 'triceps'] },
   { match: ['supino', 'crucifixo', 'flexao', 'flexão'], primary: 'peitoral', secondary: ['deltoide-anterior', 'triceps'] },
   { match: ['puxada', 'barra fixa', 'pulley'], primary: 'dorsal', secondary: ['costas', 'biceps'] },
