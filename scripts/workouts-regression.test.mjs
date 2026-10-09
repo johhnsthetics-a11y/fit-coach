@@ -290,6 +290,20 @@ test('montagem mantém seletor contextual, remove prévia lateral e não mostra 
   assert.doesNotMatch(dayScreenSource, /<ExerciseThumbnail/)
 })
 
+test('biblioteca no tema escuro mantém contraste e a prévia permite voltar à lista', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const managerSource = appSource.match(/function MobileWorkoutManager[\s\S]*?\r?\n}\r?\n\r?\nfunction createExerciseDraft/)?.[0] || ''
+  const muscleSource = appSource.match(/function MuscleMap\([\s\S]*?\r?\n}\r?\n\r?\nfunction BodySilhouette/)?.[0] || ''
+
+  assert.match(managerSource, /Voltar para lista/)
+  assert.match(managerSource, /setExercisePickerPreview\(null\)/)
+  assert.match(cssSource, /\.app-theme-dark \.mobile-workout-sheet\.is-exercise-picker \.mobile-workout-picker-card-v2[\s\S]*?background:/)
+  assert.match(cssSource, /\.app-theme-dark \.mobile-workout-sheet\.is-exercise-picker \.mobile-workout-picker-card-copy strong[\s\S]*?color:/)
+  assert.match(muscleSource, /onSelect=\{setSelectedMuscle\}/)
+  assert.match(appSource, /role: 'button',[\s\S]*?'aria-pressed': selected,[\s\S]*?onClick: \(\) => onSelect\(key\)/)
+})
+
 test('prévia única usa em tempo real o mesmo executor, tema e biblioteca do aluno', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
