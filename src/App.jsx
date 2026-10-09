@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
+import OrganizationProtocols from './OrganizationProtocols'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   buildNutritionPlanNotesWithMetadata,
@@ -4321,6 +4322,10 @@ function AppContent() {
                 appointments={data.appointments ?? []}
                 onSaveAppointment={saveAppointment}
                 onUpdateStatus={updateAppointmentStatus}
+                coachId={data.user?.id}
+                professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
+                professional={data.user ?? {}}
+                uiTheme={uiTheme}
               />
             )}
             {activeView === 'alunos' && (
@@ -6803,7 +6808,8 @@ function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
   )
 }
 
-function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateStatus }) {
+function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateStatus, coachId, professionalType = 'trainer', professional = {}, uiTheme = DEFAULT_UI_THEME }) {
+  const [activeTab, setActiveTab] = useState('appointments')
   const [filter, setFilter] = useState('Proximos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -6868,7 +6874,17 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   }
 
   return (
-    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+    <div className="grid gap-4">
+      <div className={`protocol-agenda-tabs app-theme-${uiTheme}`} role="tablist" aria-label="Seções da agenda">
+        <button type="button" role="tab" aria-selected={activeTab === 'appointments'} onClick={() => setActiveTab('appointments')} className={`protocol-agenda-tab ${activeTab === 'appointments' ? 'is-active' : ''}`}>
+          Compromissos
+        </button>
+        <button type="button" role="tab" aria-selected={activeTab === 'protocols'} onClick={() => setActiveTab('protocols')} className={`protocol-agenda-tab ${activeTab === 'protocols' ? 'is-active' : ''}`}>
+          Organização de Protocolos
+        </button>
+      </div>
+      {activeTab === 'appointments' ? (
+      <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <section className="xl:col-span-2 rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500/10 via-zinc-950/90 to-emerald-300/8 p-5 shadow-2xl shadow-black/20">
         <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
@@ -6996,6 +7012,10 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
           )}
         </div>
       </Panel>
+      </div>
+      ) : (
+        <OrganizationProtocols coachId={coachId} students={students} professionalType={professionalType} professional={professional} uiTheme={uiTheme} />
+      )}
     </div>
   )
 }
