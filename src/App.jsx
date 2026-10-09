@@ -10108,7 +10108,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
                 <p>Visualização</p>
                 <h4>{exercisePickerPreview.name}</h4>
               </div>
-              <button type="button" onClick={() => setExercisePickerPreview(null)}>Fechar</button>
+              <div className="mobile-workout-preview-actions">
+                <button type="button" className="mobile-workout-back-link" onClick={() => setExercisePickerPreview(null)}>
+                  <NavIcon name="arrowLeft" className="h-4 w-4" /> Voltar para lista
+                </button>
+                <button type="button" onClick={() => setExercisePickerPreview(null)}>Fechar</button>
+              </div>
             </div>
             <ExerciseMedia exercise={exercisePickerPreview} compact />
             <ExerciseMuscleSummary exercise={exercisePickerPreview} compact />
@@ -12213,6 +12218,7 @@ function MuscleMapMini({ exercise, className = 'h-5 w-5' }) {
 
 function MuscleMap({ exercise, compact = false, className = '' }) {
   const [hovered, setHovered] = useState('')
+  const [selectedMuscle, setSelectedMuscle] = useState('')
   const profile = useMemo(() => getExerciseMuscleProfile(exercise), [exercise])
   const [selectedView, setSelectedView] = useState('')
   const mapId = useId().replace(/:/g, '')
@@ -12235,8 +12241,8 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
         </div>
         {!usesAdductorReference ? (
           <div className="muscle-map-view-switch" role="group" aria-label="Vista do corpo">
-            <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered('') }}>Frente</button>
-            <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered('') }}>Costas</button>
+            <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered(''); setSelectedMuscle('') }}>Frente</button>
+            <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered(''); setSelectedMuscle('') }}>Costas</button>
           </div>
         ) : null}
       </div>
@@ -12271,7 +12277,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
           </linearGradient>
         </defs>
         <BodySilhouette view={view} skinId={`${mapId}-skin`} shadeId={`${mapId}-shade`} />
-        <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} glowId={`${mapId}-glow`} />
+        <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} selectedMuscle={selectedMuscle} onHover={setHovered} onSelect={setSelectedMuscle} glowId={`${mapId}-glow`} />
         <BodyAnatomyLines view={view} />
       </svg>
       )}
@@ -12288,7 +12294,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
           null
         )}
         <p className="min-h-5 text-xs leading-5 text-emerald-100">
-          {hoveredConfig ? `${hoveredConfig.label}: ${hoveredConfig.description}` : 'Toque ou passe o mouse no mapa para ver detalhes.'}
+          {hoveredConfig ? `${hoveredConfig.label}: ${hoveredConfig.description}` : selectedMuscle && muscleConfig[selectedMuscle] ? `${muscleConfig[selectedMuscle].label}: ${muscleConfig[selectedMuscle].description}` : 'Toque em uma região do mapa para identificar o grupo muscular.'}
         </p>
       </div>
     </div>
@@ -12328,19 +12334,31 @@ function BodyAnatomyLines({ view }) {
           <path d="M43 24c3 4 5 5 7 6 2-1 4-2 7-6M34 34c5 4 8 8 10 13m22-13c-5 4-8 8-10 13M50 30v43M39 51c4 4 7 7 11 8 4-1 7-4 11-8M39 69c5 3 8 4 11 4s6-1 11-4" />
           <path d="M35 80c4 6 9 9 15 10 6-1 11-4 15-10M38 98c-1 6-2 11-2 16m26-16c1 6 2 11 2 16M34 119l5 3m27-3-5 3" />
           <path d="M24 48l5 3m47-3-5 3M19 72l6 2m56-2-6 2" />
+          <path d="M37 30c4 1 8 3.8 11 8m15-8c-4 1-8 3.8-11 8M37 35c-1.5 4.5-1.5 9 0 13m26-13c1.5 4.5 1.5 9 0 13" />
+          <path d="M40 47c2.5 3.2 5.8 5 10 5s7.5-1.8 10-5M41 54c2 2.9 5 4.4 9 4.7 4-.3 7-1.8 9-4.7M42 61c2 2 4.7 3.1 8 3.3 3.3-.2 6-1.3 8-3.3M43 69c2 1.2 4.3 1.8 7 1.8s5-.6 7-1.8" />
+          <path d="M39 82c2.6 3.6 6.3 5.5 11 5.7 4.7-.2 8.4-2.1 11-5.7M38 87c3.5 4 7.5 6 12 6s8.5-2 12-6M38 94c3 1.7 7 2.6 12 2.7 5-.1 9-.9 12-2.7" />
+          <path d="M37 98c2 3.7 4.6 5.6 7.5 5.8 2.2-.2 4-1.4 5.5-3.8 1.5 2.4 3.3 3.6 5.5 3.8 2.9-.2 5.5-2.1 7.5-5.8M36 105c2 2.8 4.5 4.1 7.5 4 2.5-.1 4.7-1.3 6.5-3.7 1.8 2.4 4 3.6 6.5 3.7 3 .1 5.5-1.2 7.5-4" />
+          <path d="M36 112c2.3 1.9 4.6 1.9 7 0m21 0c-2.4 1.9-4.7 1.9-7 0M31 40l4 2m34-2-4 2M27 55l4 2m42-2-4 2" />
         </>
       ) : (
         <>
           <path d="M42 24c2 3 5 5 8 6 3-1 6-3 8-6M34 32c3 0 6 2 9 5 2 2 4 3 7 3s5-1 7-3c3-3 6-5 9-5M50 29v11" />
           <path d="M41 46c3 2 6 2 9 2s6 0 9-2M42 53c3 2 5 2 8 2s5 0 8-2M42 60c3 2 5 2 8 2s5 0 8-2M50 42v31M36 48l3 15m25-15-3 15" />
           <path d="M24 49l5 2m47-2-5 2M20 70l6 2m54-2-6 2M38 90c1 7 2 13 1 20m23-20c-1 7-2 13-1 20M34 119l5 3m27-3-5 3" />
+          <path d="M39 28c3.5.4 7.2 2.1 11 5 3.8-2.9 7.5-4.6 11-5M35 34c3.5.2 6.5 1.7 9.5 4.7 1.8 1.8 3.6 2.7 5.5 2.9 1.9-.2 3.7-1.1 5.5-2.9 3-3 6-4.5 9.5-4.7" />
+          <path d="M40 37c-2 3.8-2.8 7.7-2.3 11.7M60 37c2 3.8 2.8 7.7 2.3 11.7M38 43c2 3 4.4 4.5 7.3 4.5m9.4 0c2.9 0 5.3-1.5 7.3-4.5" />
+          <path d="M41 47c2.4 1.9 5.4 2.9 9 2.9s6.6-1 9-2.9M41.5 54c2.5 1.6 5.3 2.4 8.5 2.4s6-.8 8.5-2.4M42 61c2.4 1.4 5.1 2.1 8 2.1s5.6-.7 8-2.1M42.5 68c2.3 1.2 4.8 1.8 7.5 1.8s5.2-.6 7.5-1.8" />
+          <path d="M35 36c-2.1 4.5-2.6 9.3-1.5 14.3m32-14.3c2.1 4.5 2.6 9.3 1.5 14.3M33 51c2.2 3.8 3.1 7.8 2.8 12m31.2-12c-2.2 3.8-3.1 7.8-2.8 12" />
+          <path d="M37 82c2.5 4.2 5.2 6.3 8 6.3 1.8 0 3.5-1.1 5-3.3 1.5 2.2 3.2 3.3 5 3.3 2.8 0 5.5-2.1 8-6.3M37 89c3.5 3.4 7.8 5.1 13 5.1s9.5-1.7 13-5.1M38 96c3.4 2.1 7.4 3.2 12 3.2s8.6-1.1 12-3.2" />
+          <path d="M35 101c2 2.3 4.2 3.5 6.7 3.5 3 0 5.8-1.4 8.3-4.2 2.5 2.8 5.3 4.2 8.3 4.2 2.5 0 4.7-1.2 6.7-3.5M35 109c2.2 1.4 4.6 2 7 1.7 3-.3 5.7-1.6 8-3.9 2.3 2.3 5 3.6 8 3.9 2.4.3 4.8-.3 7-1.7" />
+          <path d="M34 115c2.4 2.4 4.8 2.4 7.2 0m24.8 0c-2.4 2.4-4.8 2.4-7.2 0M27 42l4 2m42-2-4 2M22 62l5 2m51-2-5 2" />
         </>
       )}
     </g>
   )
 }
 
-function MuscleRegions({ view, activeMuscles, hovered, onHover, glowId }) {
+function MuscleRegions({ view, activeMuscles, hovered, selectedMuscle, onHover, onSelect, glowId }) {
   const primary = '#ef4444'
   const secondary = '#e9ae69'
   const idle = 'rgba(255,255,255,0.10)'
@@ -12348,20 +12366,29 @@ function MuscleRegions({ view, activeMuscles, hovered, onHover, glowId }) {
   function regionProps(key) {
     const state = activeMuscles.get(key)
     const active = Boolean(state)
+    const selected = selectedMuscle === key
     return {
-      className: `muscle-map-region ${active ? 'is-active' : 'is-idle'} ${state ? `is-${state}` : ''}`,
-      role: 'img',
+      className: `muscle-map-region ${active ? 'is-active' : 'is-idle'} ${state ? `is-${state}` : ''} ${selected ? 'is-selected' : ''}`,
+      role: 'button',
       tabIndex: 0,
       'aria-label': `${muscleConfig[key]?.label || key}${state === 'primary' ? ', músculo principal' : state === 'secondary' ? ', músculo auxiliar' : ''}`,
+      'aria-pressed': selected,
       onMouseEnter: () => onHover(key),
       onMouseLeave: () => onHover(''),
       onFocus: () => onHover(key),
       onBlur: () => onHover(''),
+      onClick: () => onSelect(key),
+      onKeyDown: (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onSelect(key)
+        }
+      },
       fill: state === 'primary' ? primary : state === 'secondary' ? secondary : idle,
-      stroke: state === 'primary' || state === 'secondary' || hovered === key ? '#fecaca' : 'rgba(255,255,255,0.22)',
-      strokeWidth: state === 'primary' ? 1.35 : 0.75,
-      opacity: active ? 1 : 0.42,
-      filter: state === 'primary' ? `url(#${glowId})` : undefined,
+      stroke: selected || state === 'primary' || state === 'secondary' || hovered === key ? '#fff1d6' : 'rgba(255,255,255,0.35)',
+      strokeWidth: selected ? 1.8 : state === 'primary' ? 1.35 : 0.75,
+      opacity: active || selected ? 1 : 0.6,
+      filter: state === 'primary' || selected ? `url(#${glowId})` : undefined,
       style: { cursor: 'pointer', transition: 'fill 180ms ease, opacity 180ms ease, stroke 180ms ease, transform 180ms ease', transformOrigin: 'center' },
     }
   }

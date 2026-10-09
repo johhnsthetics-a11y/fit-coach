@@ -560,6 +560,9 @@
 
 .workout-exercise-preview-portal-v2 { z-index: 230 !important; }
 .workout-exercise-preview-portal-v2 .mobile-workout-sheet.is-preview { width: min(94vw, 720px); max-height: 92dvh; overflow-y: auto; }
+.mobile-workout-preview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .45rem; }
+.mobile-workout-preview-actions .mobile-workout-back-link { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; }
+.mobile-workout-preview-actions .mobile-workout-back-link svg { flex: 0 0 auto; }
 .mobile-workout-day-preview-portal { z-index: 220 !important; }
 .mobile-workout-day-preview-panel { width: min(96vw, 980px) !important; max-height: 94dvh; overflow-y: auto; }
 .mobile-workout-day-preview-head-v2 { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid rgba(0,210,178,.18); background: rgba(7,17,15,.96); padding: .8rem 1rem; color: #fff; backdrop-filter: blur(12px); }
@@ -12353,6 +12356,9 @@ html[data-theme="dark"] body { background: #05070d; }
   vector-effect: non-scaling-stroke;
 }
 
+.muscle-map-region { cursor: pointer; }
+.muscle-map-region.is-selected { stroke: #fff1d6 !important; stroke-width: 1.8 !important; }
+
 .muscle-map-region.is-primary {
   filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.8));
 }
@@ -15469,6 +15475,63 @@ html[data-theme="dark"] body { background: #05070d; }
 .app-theme-light .muscle-map-view-switch button[aria-pressed="true"] {
   background: #087d6c;
   color: #ffffff;
+}
+
+/* workout-picker-dark-contrast-v2 */
+.app-theme-dark .mobile-workout-sheet.is-exercise-picker .mobile-workout-picker-card-v2 {
+  border-color: rgba(78, 199, 177, 0.28) !important;
+  background: linear-gradient(145deg, #142421 0%, #101a18 100%) !important;
+  color: #eff8f5 !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22) !important;
+}
+
+.app-theme-dark .mobile-workout-sheet.is-exercise-picker .mobile-workout-picker-card-copy strong {
+  color: #f3fbf8 !important;
+  -webkit-text-fill-color: #f3fbf8 !important;
+}
+
+.app-theme-dark .mobile-workout-sheet.is-exercise-picker .mobile-workout-picker-card-copy small {
+  color: #a9bdb7 !important;
+  -webkit-text-fill-color: #a9bdb7 !important;
+}
+
+.app-theme-dark .mobile-workout-sheet.is-exercise-picker .mobile-workout-picker-card-v2 .mobile-workout-picker-actions button:not(.mobile-workout-add-state) {
+  border-color: rgba(112, 189, 174, 0.24) !important;
+  background: #172824 !important;
+  color: #d8eee8 !important;
+  -webkit-text-fill-color: #d8eee8 !important;
+}
+
+.app-theme-dark .mobile-workout-sheet.is-exercise-picker .mobile-workout-picker-card-v2 .mobile-workout-picker-actions .mobile-workout-add-state {
+  border-color: #16b99f !important;
+  background: #00c9aa !important;
+  color: #06221c !important;
+  -webkit-text-fill-color: #06221c !important;
+}
+
+.app-theme-dark .workout-exercise-preview-portal-v2 .mobile-workout-review-card {
+  border-color: rgba(94, 173, 158, 0.22) !important;
+  background: #14211f !important;
+  color: #e5f2ee !important;
+}
+
+.app-theme-dark .mobile-workout-preview-actions .mobile-workout-back-link {
+  border-color: rgba(91, 206, 184, 0.35) !important;
+  background: #142b26 !important;
+  color: #cffff3 !important;
+}
+
+.muscle-map-region:focus-visible {
+  outline: none;
+  stroke: #fff1d6 !important;
+  stroke-width: 2 !important;
+  filter: drop-shadow(0 0 3px rgba(255, 241, 214, 0.85));
+}
+
+@media (max-width: 480px) {
+  .mobile-workout-preview-actions { gap: .3rem; }
+  .mobile-workout-preview-actions .mobile-workout-back-link,
+  .mobile-workout-preview-actions > button:last-child { min-height: 38px; padding-inline: .55rem; font-size: .68rem; }
 }
 
 .mobile-workout-picker-scroll-cue {
