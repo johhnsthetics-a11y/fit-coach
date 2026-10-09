@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useR
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
 import OrganizationProtocols from './OrganizationProtocols'
+import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
 import { filterStudents } from './studentDirectory'
 import {
   QUESTIONNAIRE_TYPES,
@@ -58,6 +59,7 @@ import {
   saveRemoteNutritionPlan,
   saveRemoteNutritionQuestionnaire,
   assignRemoteNutritionQuestionnaire,
+  assignRemoteStudentAnamnesis,
   submitRemoteNutritionQuestionnaire,
   loadRemoteQuestionnaires,
   saveRemoteProfessionalAnamnesis,
@@ -3190,6 +3192,48 @@ function AppContent() {
     return assignment
   }
 
+  async function assignStudentAnamnesis({ questionnaireId, studentId, scheduledFor, priorityRequired }) {
+    if (supabaseEnabled) {
+      const assignment = await assignRemoteStudentAnamnesis({ questionnaireId, studentId, scheduledFor, priorityRequired })
+      setData((current) => ({
+        ...current,
+        studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments || [], assignment),
+      }))
+      return assignment
+    }
+
+    const template = (data.nutritionQuestionnaires || []).find((item) => sameId(item.id, questionnaireId))
+    if (!template || template.questionnaireType !== QUESTIONNAIRE_TYPES.ANAMNESIS) {
+      throw new Error('Salve um modelo de anamnese antes de enviar.')
+    }
+    const now = new Date().toISOString()
+    const existingPending = (data.studentQuestionnaireAssignments || []).find((item) => (
+      sameId(item.studentId, studentId)
+      && sameId(item.questionnaireId, questionnaireId)
+      && item.status !== 'Respondido'
+    ))
+    const assignment = {
+      ...(existingPending || {}),
+      id: existingPending?.id || createNutritionDraftId('student-anamnesis'),
+      questionnaireId,
+      studentId,
+      coachId: data.user?.id || '',
+      status: 'Pendente',
+      questionSnapshot: template,
+      answers: {},
+      scheduledFor: scheduledFor || now,
+      priorityRequired: Boolean(priorityRequired),
+      xpAwarded: false,
+      sentAt: now,
+      updatedAt: now,
+    }
+    setData((current) => ({
+      ...current,
+      studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments || [], assignment),
+    }))
+    return assignment
+  }
+
   async function submitStudentQuestionnaire(assignmentId, answers = {}) {
     if (supabaseEnabled) {
       if (!studentAccess?.invite?.code) throw new Error('Abra o questionário pelo acesso do aluno para responder.')
@@ -4339,6 +4383,7 @@ function AppContent() {
               <Students
                 nutritionist={nutritionistUser}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
+                questionnaires={data.nutritionQuestionnaires ?? []}
                 students={data.students}
                 workoutLogs={data.workoutLogs ?? []}
                 anamneses={data.anamneses ?? []}
@@ -4348,9 +4393,12 @@ function AppContent() {
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateCredentials={generateStudentCredentials}
                 onSaveAnamnesis={saveProfessionalStudentAnamnesis}
+                onSaveQuestionnaire={saveNutritionQuestionnaire}
+                onAssignAnamnesis={assignStudentAnamnesis}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
                 professionalAffiliate={professionalAffiliate}
+                uiTheme={uiTheme}
               />
             )}
             {activeView === 'avaliacoes' && (
@@ -7027,7 +7075,8 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
+  const [studentSection, setStudentSection] = useState('wallet')
   const [editing, setEditing] = useState(null)
   const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -7110,6 +7159,41 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
 
   return (
     <div className="grid gap-4 lg:gap-6">
+      <div className="inline-flex w-fit max-w-full gap-1 rounded-lg border border-white/10 bg-black/20 p-1" role="tablist" aria-label="Áreas de alunos">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={studentSection === 'wallet'}
+          onClick={() => setStudentSection('wallet')}
+          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'wallet' ? 'bg-emerald-300 text-zinc-950' : 'text-zinc-300 hover:bg-white/5'}`}
+        >
+          Carteira
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={studentSection === 'anamnesis'}
+          onClick={() => setStudentSection('anamnesis')}
+          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'anamnesis' ? 'bg-emerald-300 text-zinc-950' : 'text-zinc-300 hover:bg-white/5'}`}
+        >
+          Anamnese
+        </button>
+      </div>
+
+      <div hidden={studentSection !== 'anamnesis'}>
+        <StudentAnamnesisWorkspace
+          nutritionist={nutritionist}
+          students={students}
+          templates={questionnaires}
+          assignments={questionnaireAssignments}
+          selectedStudent={selectedStudent}
+          onSelectStudent={setSelectedStudentId}
+          onSaveTemplate={onSaveQuestionnaire}
+          onAssignTemplate={onAssignAnamnesis}
+          uiTheme={uiTheme}
+        />
+      </div>
+      <div hidden={studentSection !== 'wallet'} className="grid gap-4 lg:gap-6">
       <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
@@ -7260,6 +7344,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           <Empty text={nutritionist ? 'Nenhum paciente selecionado.' : 'Nenhum aluno selecionado.'} />
         )}
       </Panel>
+      </div>
       </div>
       {anamnesisEditorOpen && selectedStudent ? createPortal(
         <div
