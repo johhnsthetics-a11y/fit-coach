@@ -2,6 +2,19 @@ import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useR
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
 import OrganizationProtocols from './OrganizationProtocols'
+import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
+import { filterStudents } from './studentDirectory'
+import {
+  QUESTIONNAIRE_TYPES,
+  buildAnamnesisCustomAnswers,
+  buildStudentQuestionnaireQueue,
+  createQuestionnaireDraft,
+  getStudentQuestionnairePriority,
+  isAnamnesisAssignment,
+  isGamifiedQuestionnaireAssignment,
+  removeQuestion as removeQuestionFromDraft,
+  validateQuestionnaireDraft,
+} from './questionnaireModel'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   buildNutritionPlanNotesWithMetadata,
@@ -51,6 +64,7 @@ import {
   saveRemoteNutritionPlan,
   saveRemoteNutritionQuestionnaire,
   assignRemoteNutritionQuestionnaire,
+  assignRemoteStudentAnamnesis,
   submitRemoteNutritionQuestionnaire,
   loadRemoteQuestionnaires,
   saveRemoteProfessionalAnamnesis,
@@ -2460,11 +2474,18 @@ function AppContent() {
       }
     }
 
+    function refreshStudentPortalWhenVisible() {
+      if (document.visibilityState !== 'visible') return
+      syncStudentPortalAccess()
+    }
+
     const timer = window.setInterval(syncStudentPortalAccess, 5000)
+    document.addEventListener('visibilitychange', refreshStudentPortalWhenVisible)
 
     return () => {
       active = false
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refreshStudentPortalWhenVisible)
     }
   }, [studentAccess?.invite?.code])
 
@@ -3179,6 +3200,48 @@ function AppContent() {
         { id: notificationKey, title: 'Questionário enviado', body: `Questionário nutricional liberado para ${current.students.find((student) => String(student.id) === String(studentId))?.name || 'o aluno'}.`, read: false },
         ...current.notifications.filter((notification) => notification.id !== notificationKey),
       ],
+    }))
+    return assignment
+  }
+
+  async function assignStudentAnamnesis({ questionnaireId, studentId, scheduledFor, priorityRequired }) {
+    if (supabaseEnabled) {
+      const assignment = await assignRemoteStudentAnamnesis({ questionnaireId, studentId, scheduledFor, priorityRequired })
+      setData((current) => ({
+        ...current,
+        studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments || [], assignment),
+      }))
+      return assignment
+    }
+
+    const template = (data.nutritionQuestionnaires || []).find((item) => sameId(item.id, questionnaireId))
+    if (!template || template.questionnaireType !== QUESTIONNAIRE_TYPES.ANAMNESIS) {
+      throw new Error('Salve um modelo de anamnese antes de enviar.')
+    }
+    const now = new Date().toISOString()
+    const existingPending = (data.studentQuestionnaireAssignments || []).find((item) => (
+      sameId(item.studentId, studentId)
+      && sameId(item.questionnaireId, questionnaireId)
+      && item.status !== 'Respondido'
+    ))
+    const assignment = {
+      ...(existingPending || {}),
+      id: existingPending?.id || createNutritionDraftId('student-anamnesis'),
+      questionnaireId,
+      studentId,
+      coachId: data.user?.id || '',
+      status: 'Pendente',
+      questionSnapshot: template,
+      answers: {},
+      scheduledFor: scheduledFor || now,
+      priorityRequired: Boolean(priorityRequired),
+      xpAwarded: false,
+      sentAt: now,
+      updatedAt: now,
+    }
+    setData((current) => ({
+      ...current,
+      studentQuestionnaireAssignments: upsertById(current.studentQuestionnaireAssignments || [], assignment),
     }))
     return assignment
   }
@@ -4332,6 +4395,7 @@ function AppContent() {
               <Students
                 nutritionist={nutritionistUser}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
+                questionnaires={data.nutritionQuestionnaires ?? []}
                 students={data.students}
                 workoutLogs={data.workoutLogs ?? []}
                 anamneses={data.anamneses ?? []}
@@ -4341,9 +4405,12 @@ function AppContent() {
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateCredentials={generateStudentCredentials}
                 onSaveAnamnesis={saveProfessionalStudentAnamnesis}
+                onSaveQuestionnaire={saveNutritionQuestionnaire}
+                onAssignAnamnesis={assignStudentAnamnesis}
                 onDelete={deleteStudent}
                 coachPlans={coachPlans}
                 professionalAffiliate={professionalAffiliate}
+                uiTheme={uiTheme}
               />
             )}
             {activeView === 'avaliacoes' && (
@@ -7020,8 +7087,10 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
+  const [studentSection, setStudentSection] = useState('wallet')
   const [editing, setEditing] = useState(null)
+  const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
   const [accessError, setAccessError] = useState('')
@@ -7031,6 +7100,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const appLoginUrl = OFFICIAL_APP_LOGIN_URL
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
+  const visibleStudents = useMemo(() => filterStudents(students, studentSearch), [students, studentSearch])
   const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
@@ -7101,15 +7171,66 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
 
   return (
     <div className="grid gap-4 lg:gap-6">
+      <div className="inline-flex w-fit max-w-full gap-1 rounded-lg border border-white/10 bg-black/20 p-1" role="tablist" aria-label="Áreas de alunos">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={studentSection === 'wallet'}
+          onClick={() => setStudentSection('wallet')}
+          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'wallet' ? 'bg-emerald-300 text-zinc-950' : 'text-zinc-300 hover:bg-white/5'}`}
+        >
+          Carteira
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={studentSection === 'anamnesis'}
+          onClick={() => setStudentSection('anamnesis')}
+          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'anamnesis' ? 'bg-emerald-300 text-zinc-950' : 'text-zinc-300 hover:bg-white/5'}`}
+        >
+          Anamnese
+        </button>
+      </div>
+
+      <div hidden={studentSection !== 'anamnesis'}>
+        <StudentAnamnesisWorkspace
+          nutritionist={nutritionist}
+          students={students}
+          templates={questionnaires}
+          assignments={questionnaireAssignments}
+          selectedStudent={selectedStudent}
+          onSelectStudent={setSelectedStudentId}
+          onSaveTemplate={onSaveQuestionnaire}
+          onAssignTemplate={onAssignAnamnesis}
+          uiTheme={uiTheme}
+        />
+      </div>
+      <div hidden={studentSection !== 'wallet'} className="grid gap-4 lg:gap-6">
       <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
-      <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${students.length} perfis`}>
+      <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
         <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           {nutritionist ? 'Novo paciente' : 'Novo aluno'}
         </button>
+        <label className="mb-4 block">
+          <span className="mb-2 block text-xs font-black uppercase tracking-[0.1em] text-zinc-500">
+            Buscar {nutritionist ? 'paciente' : 'aluno'}
+          </span>
+          <span className="flex min-h-12 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 focus-within:border-cyan-300/50 focus-within:bg-cyan-300/[0.05]">
+            <NavIcon name="search" className="h-5 w-5 shrink-0 text-cyan-300" />
+            <input
+              type="search"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="Nome, e-mail ou CPF"
+              autoComplete="off"
+              className="min-w-0 flex-1 bg-transparent py-3 text-sm font-bold text-zinc-100 outline-none placeholder:text-zinc-600"
+            />
+          </span>
+        </label>
         <div className="space-y-3">
-          {students.map((student) => (
+          {visibleStudents.map((student) => (
             <button
               key={student.id}
               onClick={() => setSelectedStudentId(student.id)}
@@ -7132,6 +7253,9 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               </div>
             </button>
           ))}
+          {!visibleStudents.length ? (
+            <Empty text={studentSearch.trim() ? `Nenhum ${clientLabel} encontrado por nome, e-mail ou CPF.` : `Nenhum ${clientLabel} cadastrado.`} />
+          ) : null}
         </div>
       </Panel>
 
@@ -7200,7 +7324,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                   {anamnesisEditorOpen ? 'Fechar formulário' : selectedAnamnesis ? 'Editar anamnese' : 'Preencher anamnese'}
                 </button>
               </div>
-              <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} clientLabel={clientLabel} nutritionist={nutritionist} />
+              <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} questionnaireAssignments={questionnaireAssignments} clientLabel={clientLabel} nutritionist={nutritionist} />
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
@@ -7232,6 +7356,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           <Empty text={nutritionist ? 'Nenhum paciente selecionado.' : 'Nenhum aluno selecionado.'} />
         )}
       </Panel>
+      </div>
       </div>
       {anamnesisEditorOpen && selectedStudent ? createPortal(
         <div
@@ -11950,7 +12075,7 @@ const muscleConfig = {
   gluteos: { label: 'Glúteos', view: 'back', aliases: ['glúteos', 'gluteos', 'glutes', 'glute', 'gluteus'], description: 'Extensão de quadril e potência de membros inferiores.' },
   quadriceps: { label: 'Quadríceps', view: 'front', aliases: ['quadríceps', 'quadriceps', 'quads', 'coxa anterior'], description: 'Extensão de joelho e base de agachamentos.' },
   'posterior-coxa': { label: 'Posterior de coxa', view: 'back', aliases: ['posterior de coxa', 'posteriores', 'hamstrings', 'isquiotibiais', 'coxa posterior'], description: 'Flexão de joelho e extensão de quadril.' },
-  adutores: { label: 'Adutores', view: 'front', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
+  adutores: { label: 'Adutores', view: 'front', image: '/assets/exercises/muscle-adutores.png', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
   abdutores: { label: 'Abdutores', view: 'front', aliases: ['abdutor', 'abdutores', 'abductors', 'outer thigh'], description: 'Estabilidade lateral do quadril.' },
   panturrilhas: { label: 'Panturrilhas', view: 'back', aliases: ['panturrilha', 'calves', 'calf', 'gastrocnemius', 'soleus'], description: 'Elevação do calcanhar e estabilidade do tornozelo.' },
 }
@@ -12068,6 +12193,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
   }, [profile.primaryMuscle, profile.secondaryMuscles])
   const view = selectedView || (profile.view === 'back' ? 'back' : 'front')
   const hoveredConfig = hovered ? muscleConfig[hovered] : null
+  const usesAdductorReference = profile.primaryMuscle === 'adutores'
 
   return (
     <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 ${compact ? 'p-3' : 'p-4'} ${className}`}>
@@ -12076,11 +12202,24 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
           <p className="text-[10px] font-black uppercase text-emerald-200">Músculo alvo</p>
           <p className="mt-1 text-sm font-black text-white">{profile.primaryLabel}</p>
         </div>
-        <div className="muscle-map-view-switch" role="group" aria-label="Vista do corpo">
-          <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered('') }}>Frente</button>
-          <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered('') }}>Costas</button>
-        </div>
+        {!usesAdductorReference ? (
+          <div className="muscle-map-view-switch" role="group" aria-label="Vista do corpo">
+            <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered('') }}>Frente</button>
+            <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered('') }}>Costas</button>
+          </div>
+        ) : null}
       </div>
+      {usesAdductorReference ? (
+        <div className={`mx-auto mt-2 grid ${compact ? 'h-52' : 'h-64'} w-full max-w-64 place-items-center overflow-hidden rounded-xl border border-white/10 bg-[#181818]`}>
+          <img
+            src={muscleConfig.adutores.image}
+            alt="Mapa anatômico dos adutores"
+            className="block max-h-full w-full object-contain"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ) : (
       <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-52' : 'h-64'} w-full max-w-64`}>
         <defs>
           <filter id={`${mapId}-glow`} x="-40%" y="-40%" width="180%" height="180%">
@@ -12104,6 +12243,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
         <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} glowId={`${mapId}-glow`} />
         <BodyAnatomyLines view={view} />
       </svg>
+      )}
       <div className="mt-3 grid gap-2">
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/35 bg-red-400/12 px-2.5 py-1 text-[11px] font-black text-red-100">
@@ -13449,7 +13589,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${editorStudent?.name ?? 'Paciente'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
+              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -13540,7 +13680,7 @@ function NutritionBmrStrip({ student, anamnesis = null, compact = false }) {
   )
 }
 
-function NutritionForm({ students = [], selectedStudent, anamneses = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionForm({ students = [], selectedStudent, anamneses = [], questionnaireAssignments = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -13850,6 +13990,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], editing
                 <ProfessionalAnamnesisSummary
                   anamnesis={formAnamnesis}
                   student={formStudent}
+                  questionnaireAssignments={questionnaireAssignments}
                   clientLabel={isNutritionistUser(professional) ? 'paciente' : 'aluno'}
                   nutritionist={isNutritionistUser(professional)}
                 />
@@ -14509,24 +14650,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
 }
 
 function createNutritionQuestionnaireDraft(base = {}) {
-  return {
-    id: base.id || '',
-    title: base.title || 'Questionário nutricional',
-    description: base.description || 'Preferências, rotina e restrições para ajustar o plano alimentar.',
-    status: base.status || 'Rascunho',
-    questions: (base.questions?.length ? base.questions : [
-      { id: createNutritionDraftId('question'), type: 'text', label: 'Quais alimentos você não gosta ou evita?', required: false, options: [] },
-      { id: createNutritionDraftId('question'), type: 'multiple', label: 'Quais refeições costuma fazer no dia?', required: true, options: ['Café da manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'] },
-      { id: createNutritionDraftId('question'), type: 'single', label: 'Você possui alguma restrição alimentar?', required: true, options: ['Não', 'Lactose', 'Glúten', 'Vegetariano', 'Outra'] },
-    ]).map((question, index) => ({
-      ...question,
-      id: question.id || createNutritionDraftId('question'),
-      type: question.type || 'text',
-      label: question.label || `Pergunta ${index + 1}`,
-      required: Boolean(question.required),
-      options: Array.isArray(question.options) ? question.options : String(question.options || '').split(',').map((item) => item.trim()).filter(Boolean),
-    })),
-  }
+  return createQuestionnaireDraft(base, QUESTIONNAIRE_TYPES.NUTRITION)
 }
 
 function NutritionQuestionnaires({ selectedStudent, students = [], questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
@@ -14538,8 +14662,9 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
 
   async function persistQuestionnaire(send) {
     if (savingRef.current) return
-    if (!draft.title.trim() || !draft.questions.length || draft.questions.some((q) => !q.label.trim() || (['single', 'multiple'].includes(q.type) && !q.options?.length))) {
-      setMessage('Informe o título, as perguntas e as opções de seleção.'); return
+    const validation = validateQuestionnaireDraft(draft)
+    if (!validation.valid) {
+      setMessage(validation.message); return
     }
     savingRef.current = true
     setSaving(true)
@@ -14574,7 +14699,7 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
   function removeQuestion(questionId) {
     setDraft((current) => ({
       ...current,
-      questions: current.questions.filter((question) => !sameId(question.id, questionId)),
+      questions: removeQuestionFromDraft(current.questions, questionId),
     }))
     setMessage('')
   }
@@ -16020,7 +16145,7 @@ function ProfessionalAnamnesisForm({ student, anamnesis = null, nutritionist = f
   )
 }
 
-function ProfessionalAnamnesisSummary({ anamnesis, student, clientLabel = 'aluno', nutritionist = false }) {
+function ProfessionalAnamnesisSummary({ anamnesis, student, questionnaireAssignments = [], clientLabel = 'aluno', nutritionist = false }) {
   if (!anamnesis) {
     if (student?.requireAnamnesis === false) {
       return (
@@ -16053,6 +16178,7 @@ function ProfessionalAnamnesisSummary({ anamnesis, student, clientLabel = 'aluno
     ['Ruim', 'Regular'].includes(anamnesis.sleepQuality) ? 'Sono exige atenção' : '',
   ].filter(Boolean)
   const readinessScore = Math.max(0, 100 - riskFlags.length * 12)
+  const customAnswers = buildAnamnesisCustomAnswers(anamnesis, questionnaireAssignments)
   const sections = [
     {
       title: 'Perfil e objetivo',
@@ -16143,6 +16269,19 @@ function ProfessionalAnamnesisSummary({ anamnesis, student, clientLabel = 'aluno
         <div className="grid gap-4 xl:grid-cols-2">
           {sections.map((section) => <AnamnesisSection key={section.title} {...section} />)}
         </div>
+        {customAnswers.length ? (
+          <section className="rounded-lg border border-violet-300/20 bg-violet-300/[0.07] p-4">
+            <p className="text-xs font-black uppercase tracking-[0.1em] text-violet-200">Perguntas personalizadas</p>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+              {customAnswers.map((answer) => (
+                <div key={answer.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <dt className="text-xs font-bold leading-5 text-zinc-400">{answer.label}</dt>
+                  <dd className="mt-1 break-words text-sm font-black leading-6 text-white">{answer.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
       </div>
     </div>
   )
@@ -17066,7 +17205,9 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
   const reward = buildStudentRewardStats({ studentId: student?.id, workoutLogs, completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments })
-  const priorityQuestionnaire = questionnaireAssignments.find((assignment) => assignment.status !== 'Respondido' && !dismissedQuestionnairePriorityIds.includes(assignment.id))
+  const priorityQuestionnaire = getStudentQuestionnairePriority(questionnaireAssignments, dismissedQuestionnairePriorityIds)
+  const priorityIsAnamnesis = isAnamnesisAssignment(priorityQuestionnaire)
+  const priorityIsRequired = Boolean(priorityQuestionnaire && priorityQuestionnaire.priorityRequired)
   const nextAction = nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextNutritionPlan
@@ -17079,12 +17220,16 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
     <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
       <div className="grid gap-4">
         {priorityQuestionnaire ? (
-          <div className="student-questionnaire-priority-v1 rounded-xl border border-emerald-300/30 bg-emerald-300/12 p-4">
+          <div className={`student-questionnaire-priority-v1 ${priorityIsAnamnesis && priorityIsRequired ? 'student-anamnesis-priority-card' : ''} rounded-xl border border-emerald-300/30 bg-emerald-300/12 p-4`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase text-emerald-200">Você possui um questionário pendente</p>
-                <h3 className="mt-1 break-words text-lg font-black text-white">{priorityQuestionnaire.questionSnapshot?.title || 'Questionário nutricional'}</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-400">Suas respostas ajudam o profissional a ajustar dieta, rotina e preferências com mais precisão.</p>
+                <p className="text-xs font-black uppercase text-emerald-200">{priorityIsAnamnesis ? (priorityIsRequired ? 'Anamnese prioritária' : 'Anamnese solicitada') : 'Você possui um questionário pendente'}</p>
+                <h3 className="mt-1 break-words text-lg font-black text-white">{priorityQuestionnaire.questionSnapshot?.title || (priorityIsAnamnesis ? 'Atualização da anamnese' : 'Questionário nutricional')}</h3>
+                <p className="mt-1 text-sm leading-6 text-zinc-400">
+                  {priorityIsAnamnesis
+                    ? 'Seu profissional solicitou estas informações. Responda assim que puder; isso não bloqueia nenhuma ferramenta do aplicativo.'
+                    : 'Suas respostas ajudam o profissional a ajustar dieta, rotina e preferências com mais precisão.'}
+                </p>
               </div>
               <div className="grid gap-2 sm:min-w-40">
                 <button type="button" onClick={() => onOpenTab('dieta')} className="rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950">
@@ -17214,12 +17359,12 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
 function StudentQuestionnaireCenter({ student, questionnaires = [], assignments = [], onSubmitQuestionnaire }) {
   const [submitting, setSubmitting] = useState(false)
   const submittingRef = useRef(false)
-  const activeAssignments = assignments
-    .filter((assignment) => assignment.status !== 'Respondido')
+  const activeAssignments = buildStudentQuestionnaireQueue(assignments)
     .concat(assignments.filter((assignment) => assignment.status === 'Respondido').slice(0, 2))
   const [openAssignmentId, setOpenAssignmentId] = useState(activeAssignments[0]?.id || '')
   const currentAssignment = activeAssignments.find((assignment) => sameId(assignment.id, openAssignmentId)) || activeAssignments[0]
   const questionnaire = currentAssignment?.questionSnapshot || questionnaires.find((item) => sameId(item.id, currentAssignment?.questionnaireId))
+  const currentIsAnamnesis = isAnamnesisAssignment(currentAssignment)
   const draftKey = `coachfitpro-student-questionnaire-draft-${student?.id || 'student'}-${currentAssignment?.id || 'none'}`
   const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey)
   const [answers, setAnswers] = useState(() => {
@@ -17284,7 +17429,9 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
       if (!onSubmitQuestionnaire) throw new Error('O envio não está disponível neste acesso.')
       await onSubmitQuestionnaire(currentAssignment.id, answers)
       try { window.localStorage.removeItem(draftKey) } catch {}
-      setMessage(`Questionário concluído! Você ganhou ${QUESTIONNAIRE_XP_REWARD} XP.`)
+      setMessage(currentIsAnamnesis
+        ? 'Anamnese concluída e enviada ao seu profissional.'
+        : `Questionário concluído! Você ganhou ${QUESTIONNAIRE_XP_REWARD} XP.`)
     } catch (error) { setMessage(error.message || 'Não foi possível enviar. Suas respostas foram mantidas.') }
     finally { submittingRef.current = false; setSubmitting(false) }
   }
@@ -17293,7 +17440,7 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
     <div className="student-questionnaire-center rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-emerald-200">Questionário nutricional</p>
+          <p className="text-xs font-black uppercase text-emerald-200">{currentIsAnamnesis ? 'Anamnese solicitada' : 'Questionário nutricional'}</p>
           <h3 className="mt-1 text-lg font-black text-white">{questionnaire.title}</h3>
           <p className="mt-1 text-sm leading-6 text-zinc-400">{questionnaire.description}</p>
         </div>
@@ -17314,7 +17461,7 @@ function StudentQuestionnaireCenter({ student, questionnaires = [], assignments 
       </div>
       <StudentQuestionnaireRenderer questions={questions} answers={answers} onAnswer={updateAnswer} missingQuestionId={missingQuestionId} readOnly={currentAssignment.status === 'Respondido'} />
       <button type="button" onClick={submitAnswers} disabled={submitting || currentAssignment.status === 'Respondido'} className="student-questionnaire-submit-v1">
-        {submitting ? 'Enviando...' : currentAssignment.status === 'Respondido' ? 'Questionário respondido' : 'Concluir questionário'}
+        {submitting ? 'Enviando...' : currentAssignment.status === 'Respondido' ? (currentIsAnamnesis ? 'Anamnese respondida' : 'Questionário respondido') : (currentIsAnamnesis ? 'Concluir anamnese' : 'Concluir questionário')}
       </button>
       {message ? <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
     </div>
@@ -17363,6 +17510,7 @@ export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPerc
     }
   }
   for (const assignment of (Array.isArray(questionnaireAssignments) ? questionnaireAssignments : []).filter(belongsToStudent)) {
+    if (!isGamifiedQuestionnaireAssignment(assignment)) continue
     const at = assignment.completedAt ?? assignment.completed_at
     const id = `questionnaire:${studentId}:${assignment.id}`
     if (!assignment.id || assignment.status !== 'Respondido' || !at || !Number.isFinite(new Date(at).getTime()) || seen.has(id)) continue

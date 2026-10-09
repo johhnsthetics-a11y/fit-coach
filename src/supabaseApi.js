@@ -1420,14 +1420,27 @@ export async function saveRemoteNutritionPlan(plan, coachId) {
 }
 
 function fromQuestionnaireRow(row) {
-  return { ...row, coachId: row.coach_id, createdAt: row.created_at, updatedAt: row.updated_at }
+  return {
+    ...row,
+    coachId: row.coach_id,
+    questionnaireType: row.questionnaire_type || 'nutrition',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
 }
 
 function fromQuestionnaireAssignmentRow(row) {
+  const snapshot = row.question_snapshot || {}
   return {
     id: row.id, coachId: row.coach_id, studentId: row.student_id,
-    questionnaireId: row.questionnaire_id, questionSnapshot: row.question_snapshot,
+    questionnaireId: row.questionnaire_id,
+    questionSnapshot: {
+      ...snapshot,
+      questionnaireType: snapshot.questionnaireType || snapshot.questionnaire_type || 'nutrition',
+    },
     answers: row.answers || {}, status: row.status, sentAt: row.sent_at,
+    scheduledFor: row.scheduled_for || row.sent_at,
+    priorityRequired: Boolean(row.priority_required),
     completedAt: row.completed_at, updatedAt: row.updated_at,
     xpAwarded: row.status === 'Respondido',
   }
@@ -1448,6 +1461,7 @@ export async function saveRemoteNutritionQuestionnaire(questionnaire, coachId) {
     body: JSON.stringify({
       id: questionnaire.id, coach_id: requireCoachId(coachId), title: questionnaire.title,
       description: questionnaire.description || '', questions: questionnaire.questions,
+      questionnaire_type: questionnaire.questionnaireType || 'nutrition',
       status: questionnaire.status || 'Rascunho', updated_at: new Date().toISOString(),
     }),
   })
@@ -1669,6 +1683,15 @@ async function uploadMessageAttachment(file, studentId, inviteCode = '', clientM
   const payload = await functionFormRequest('message-attachment', formData)
   if (!payload?.path) throw new Error('O servidor não confirmou o envio do anexo.')
   return payload.path
+}
+
+export async function assignRemoteStudentAnamnesis({ questionnaireId, studentId, scheduledFor, priorityRequired }) {
+  return fromQuestionnaireAssignmentRow(await rpcRequest('assign_student_anamnesis', {
+    selected_questionnaire_id: questionnaireId,
+    selected_student_id: studentId,
+    scheduled_for_value: scheduledFor ? new Date(scheduledFor).toISOString() : new Date().toISOString(),
+    priority_required_value: Boolean(priorityRequired),
+  }))
 }
 
 export async function markRemoteStudentMessagesRead(studentId) {
