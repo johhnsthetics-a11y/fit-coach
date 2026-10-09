@@ -13,6 +13,7 @@ const base = {
   activeDayIndex: 0,
   activeExerciseIndex: 1,
   setLogs: { '0-0-1': { completed: true, load: '20', reps: '10' } },
+  cardioLogs: { '0-1': { status: 'paused', elapsedSeconds: 320, distanceKm: '2.1' } },
   effort: 'Moderado',
   sessionNotes: '',
   durationSeconds: 42,
@@ -38,6 +39,8 @@ test('normaliza sessão válida sem compartilhar referências mutáveis', () => 
   assert.equal(normalized.durationSeconds, 42)
   assert.deepEqual(normalized.setLogs, base.setLogs)
   assert.notEqual(normalized.setLogs, base.setLogs)
+  assert.deepEqual(normalized.cardioLogs, base.cardioLogs)
+  assert.notEqual(normalized.cardioLogs, base.cardioLogs)
 })
 
 test('rejeita sessão vazia ou token inválido', () => {
@@ -62,6 +65,7 @@ test('serialização envia somente o contrato persistível', () => {
     activeDayIndex: 0,
     activeExerciseIndex: 1,
     setLogs: base.setLogs,
+    cardioLogs: base.cardioLogs,
     effort: 'Moderado',
     sessionNotes: '',
     durationSeconds: 42,

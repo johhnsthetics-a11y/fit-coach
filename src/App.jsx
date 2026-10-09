@@ -96,6 +96,15 @@ import {
 } from './supabaseApi'
 import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
+import {
+  CARDIO_EXERCISES,
+  buildCardioHistoryLine,
+  createCardioLog,
+  formatCardioPrescription,
+  getCardioFieldDefinitions,
+  isCardioExercise,
+  normalizeCardioExercise,
+} from './workoutCardio'
 import { getAffiliateFinanceDefaultPeriod } from './affiliateFinance'
 import {
   getCommissionAudience,
@@ -664,6 +673,7 @@ const workoutPlan = [
 ]
 
 const exerciseLibrary = [
+  ...CARDIO_EXERCISES,
   { name: 'Supino reto com barra', group: 'Peitoral', equipment: 'Barra e banco', cues: 'Pés firmes, escápulas apoiadas e barra descendo com controle até a linha média do peito.', aliases: ['supino reto', 'bench press'] },
   { name: 'Supino inclinado com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Mantenha o peito aberto, antebraços alinhados e evite perder a posição dos ombros.', aliases: ['supino inclinado'] },
   { name: 'Crucifixo com halteres', group: 'Peitoral', equipment: 'Halteres e banco', cues: 'Cotovelos levemente flexionados e amplitude controlada sem forçar a articulação do ombro.', aliases: ['crucifixo'] },
@@ -8688,10 +8698,10 @@ function normalizeWorkoutExerciseInput(exercise = {}) {
       || '',
   ).trim()
 
-  return {
+  return normalizeCardioExercise({
     ...exercise,
     name: name || 'Exercício',
-  }
+  })
 }
 
 function getWorkoutExercisesArray(value) {
@@ -9023,7 +9033,26 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
           exercises: getWorkoutExercisesArray(day.exercises).map((exercise, currentExerciseIndex) => {
             if (currentExerciseIndex !== exerciseIndex) return exercise
             if (field === 'name') {
-              return enrichExercise({ ...normalizeWorkoutExerciseInput(exercise), name: value }, availableExerciseLibrary)
+              const profile = findExerciseProfile(value, availableExerciseLibrary)
+              return enrichExercise({
+                ...normalizeWorkoutExerciseInput(exercise),
+                name: value,
+                exerciseType: profile?.exerciseType || 'strength',
+                cardioMode: profile?.cardioMode || '',
+                primaryMuscle: profile?.primaryMuscle || '',
+                secondaryMuscles: profile?.secondaryMuscles || [],
+              }, availableExerciseLibrary)
+            }
+            if (field === 'exerciseType') {
+              return value === 'cardio'
+                ? normalizeCardioExercise({
+                    ...normalizeWorkoutExerciseInput(exercise),
+                    exerciseType: 'cardio',
+                    cardioMode: exercise.cardioMode || 'treadmill',
+                    durationMinutes: exercise.durationMinutes || '30',
+                    intensity: exercise.intensity || 'Moderada',
+                  })
+                : { ...normalizeWorkoutExerciseInput(exercise), exerciseType: 'strength', cardioMode: '' }
             }
             return { ...normalizeWorkoutExerciseInput(exercise), [field]: value }
           }),
@@ -10187,7 +10216,7 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
               <button type="button" className="mobile-workout-exercise-accordion" onClick={() => setExpandedExerciseKey(isOpen ? '' : key)}>
                 <span>
                   <strong>{exercise.name}</strong>
-                  <small>{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</small>
+                  <small>{isCardioExercise(exercise) ? formatCardioPrescription(exercise) : `${exercise.sets || '-'} séries · ${exercise.reps || '-'} reps · ${exercise.rest || 'descanso livre'}`}</small>
                   {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
                 </span>
                 <NavIcon name={isOpen ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
@@ -10196,12 +10225,20 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
                 <div className="mobile-workout-exercise-open">
                   <ExerciseMedia exercise={exercise} compact />
                   <ExerciseMuscleSummary exercise={exercise} compact />
-                  <div className="mobile-workout-exercise-metrics">
-                    <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-                    <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
-                    <ExerciseMetric label="Carga" value={exercise.load || '-'} />
-                    <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
-                  </div>
+                  {isCardioExercise(exercise) ? (
+                    <div className="mobile-workout-exercise-metrics">
+                      {getCardioFieldDefinitions(exercise.cardioMode).slice(0, 4).map((field) => (
+                        <ExerciseMetric key={field.key} label={field.label} value={exercise[field.key] || '-'} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mobile-workout-exercise-metrics">
+                      <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+                      <ExerciseMetric label="Reps" value={exercise.reps || '-'} />
+                      <ExerciseMetric label="Carga" value={exercise.load || '-'} />
+                      <ExerciseMetric label="Pausa" value={exercise.rest || '-'} />
+                    </div>
+                  )}
                   <p>{exercise.instructions || exercise.notes || 'Oriente execução, amplitude e controle de carga antes de publicar alterações.'}</p>
                   <ExerciseYouTubeLink exercise={exercise} compact />
                 </div>
@@ -10275,7 +10312,7 @@ function MobileWorkoutEditableDay({
             >
               <span>
                 <strong>{exercise.name || 'Novo exercício'}</strong>
-                <small>{exercise.sets || '-'} × {exercise.reps || '-'} · {exercise.rest || 'descanso livre'}</small>
+                <small>{isCardioExercise(exercise) ? formatCardioPrescription(exercise) : `${exercise.sets || '-'} × ${exercise.reps || '-'} · ${exercise.rest || 'descanso livre'}`}</small>
                 {exercise.muscleGroup || exercise.group ? <em>{exercise.muscleGroup || exercise.group}</em> : null}
               </span>
               <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
@@ -10285,29 +10322,65 @@ function MobileWorkoutEditableDay({
                 <ExerciseMedia exercise={exercise} compact />
                 <ExerciseMuscleSummary exercise={exercise} compact />
                 <input list="mobile-exercise-library" value={exercise.name || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
-                <div>
-                  <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
-                  <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
-                  <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
-                  <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
-                </div>
-                <div>
-                  <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
-                  <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
-                  <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
-                  <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
-                </div>
-                <div className="mobile-workout-preset-row">
-                  {[
-                    ['padrao', '3 × 12'],
-                    ['piramideCrescente', 'Pirâmide +'],
-                    ['piramideDecrescente', 'Pirâmide -'],
-                    ['dropSet', 'Drop set'],
-                    ['falhaUltima', 'Falha final'],
-                  ].map(([preset, label]) => (
-                    <button key={preset} type="button" onClick={() => applyExercisePreset(dayIndex, exerciseIndex, preset)}>{label}</button>
-                  ))}
-                </div>
+                <label className="mobile-workout-field-label">
+                  <span>Tipo de exercício</span>
+                  <select value={isCardioExercise(exercise) ? 'cardio' : 'strength'} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'exerciseType', event.target.value)}>
+                    <option value="strength">Força</option>
+                    <option value="cardio">Cardiovascular</option>
+                  </select>
+                </label>
+                {isCardioExercise(exercise) ? (
+                  <div className="mobile-workout-cardio-prescription">
+                    <label className="mobile-workout-field-label">
+                      <span>Modalidade</span>
+                      <select value={exercise.cardioMode || 'treadmill'} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cardioMode', event.target.value)}>
+                        {CARDIO_EXERCISES.map((item) => <option key={item.cardioMode} value={item.cardioMode}>{item.name}</option>)}
+                      </select>
+                    </label>
+                    <div>
+                      {getCardioFieldDefinitions(exercise.cardioMode).map((field) => (
+                        <label key={field.key} className="mobile-workout-field-label">
+                          <span>{field.label}</span>
+                          {field.type === 'select' ? (
+                            <select value={exercise[field.key] || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, field.key, event.target.value)}>
+                              <option value="">Livre</option>
+                              {field.options.map((option) => <option key={option}>{option}</option>)}
+                            </select>
+                          ) : (
+                            <input inputMode={field.inputMode} value={exercise[field.key] || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, field.key, event.target.value)} placeholder={field.placeholder} />
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
+                      <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
+                      <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
+                      <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
+                    </div>
+                    <div>
+                      <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
+                      <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
+                      <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
+                      <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
+                    </div>
+                    <div className="mobile-workout-preset-row">
+                      {[
+                        ['padrao', '3 × 12'],
+                        ['piramideCrescente', 'Pirâmide +'],
+                        ['piramideDecrescente', 'Pirâmide -'],
+                        ['dropSet', 'Drop set'],
+                        ['falhaUltima', 'Falha final'],
+                      ].map(([preset, label]) => (
+                        <button key={preset} type="button" onClick={() => applyExercisePreset(dayIndex, exerciseIndex, preset)}>{label}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <label className="mobile-workout-file-label">
                   Vídeo próprio
                   <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateDraftExerciseVideoFile(dayIndex, exerciseIndex, event.target.files?.[0] || null)} />
@@ -11127,7 +11200,13 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
   function updateExercise(index, field, value) {
     markWorkoutDirty()
     setExercises((current) => current.map((exercise, itemIndex) => (
-      itemIndex === index ? { ...exercise, [field]: value } : exercise
+      itemIndex === index
+        ? field === 'exerciseType'
+          ? value === 'cardio'
+            ? normalizeCardioExercise({ ...exercise, exerciseType: 'cardio', cardioMode: exercise.cardioMode || 'treadmill', durationMinutes: exercise.durationMinutes || '30', intensity: exercise.intensity || 'Moderada' })
+            : { ...exercise, exerciseType: 'strength', cardioMode: '' }
+          : { ...exercise, [field]: value }
+        : exercise
     )))
   }
 
@@ -11139,6 +11218,10 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
       return {
         ...exercise,
         name: value,
+        exerciseType: profile?.exerciseType || 'strength',
+        cardioMode: profile?.cardioMode || '',
+        durationMinutes: profile?.exerciseType === 'cardio' ? (exercise.durationMinutes || '30') : exercise.durationMinutes,
+        intensity: profile?.exerciseType === 'cardio' ? (exercise.intensity || 'Moderada') : exercise.intensity,
         muscleGroup: profile?.group ?? exercise.muscleGroup,
         primaryMuscle: profile?.primaryMuscle ?? exercise.primaryMuscle,
         secondaryMuscles: profile?.secondaryMuscles ?? exercise.secondaryMuscles,
@@ -11286,12 +11369,19 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
     setMessage('')
     setError('')
     try {
+      const title = form.get('title')?.toString() || 'Treino'
+      const focus = form.get('focus')?.toString() || ''
+      const guidance = form.get('notes')?.toString() || ''
+      const enrichedExercises = filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
+      const days = [{ id: 'treino-principal', day: 'Treino principal', focus, guidance, exercises: enrichedExercises }]
       await onSaveWorkout({
         studentId,
-        title: form.get('title')?.toString() || 'Treino',
-        focus: form.get('focus')?.toString() || '',
-        notes: form.get('notes')?.toString() || '',
-        exercises: filledExercises.map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
+        title,
+        focus,
+        guidance,
+        days,
+        notes: buildWorkoutNotesWithMetadata({ guidance, days }),
+        exercises: enrichedExercises,
       })
       setMessage('Treino salvo e liberado para o aluno.')
       setHasUnsavedChanges(false)
@@ -11470,7 +11560,7 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase text-emerald-300">Exercício {String(index + 1).padStart(2, '0')}</p>
                   <h4 className="mt-1 truncate text-lg font-black text-white">{exercise.name || 'Novo exercício'}</h4>
-                  <p className="mt-1 text-xs text-zinc-400">{exercise.sets || '-'} séries · {exercise.reps || '-'} reps · {exercise.rest || 'descanso livre'}</p>
+                  <p className="mt-1 text-xs text-zinc-400">{isCardioExercise(exercise) ? formatCardioPrescription(exercise) : `${exercise.sets || '-'} séries · ${exercise.reps || '-'} reps · ${exercise.rest || 'descanso livre'}`}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -11503,20 +11593,49 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
               <InlineInput label="Grupo muscular" value={exercise.muscleGroup ?? ''} onChange={(value) => updateExercise(index, 'muscleGroup', value)} />
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
-              <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
-              <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
-              <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-2 text-xs font-bold uppercase text-zinc-500">
+                Tipo de exercício
+                <select value={isCardioExercise(exercise) ? 'cardio' : 'strength'} onChange={(event) => updateExercise(index, 'exerciseType', event.target.value)} className="min-h-11 rounded-md border border-white/10 bg-zinc-950 px-3 text-sm text-zinc-100">
+                  <option value="strength">Força</option>
+                  <option value="cardio">Cardiovascular</option>
+                </select>
+              </label>
               <InlineInput label="Equipamento" value={exercise.equipment ?? ''} onChange={(value) => updateExercise(index, 'equipment', value)} />
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
-              <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
-              <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
-              <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
-            </div>
+            {isCardioExercise(exercise) ? (
+              <div className="mobile-workout-cardio-prescription mt-3">
+                <label className="mobile-workout-field-label">
+                  <span>Modalidade</span>
+                  <select value={exercise.cardioMode || 'treadmill'} onChange={(event) => updateExercise(index, 'cardioMode', event.target.value)}>
+                    {CARDIO_EXERCISES.map((item) => <option key={item.cardioMode} value={item.cardioMode}>{item.name}</option>)}
+                  </select>
+                </label>
+                <div>
+                  {getCardioFieldDefinitions(exercise.cardioMode).map((field) => field.type === 'select' ? (
+                    <label key={field.key} className="mobile-workout-field-label"><span>{field.label}</span><select value={exercise[field.key] || ''} onChange={(event) => updateExercise(index, field.key, event.target.value)}><option value="">Livre</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select></label>
+                  ) : (
+                    <InlineInput key={field.key} label={field.label} value={exercise[field.key] || ''} onChange={(value) => updateExercise(index, field.key, value)} />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <InlineInput label="Séries" value={exercise.sets} onChange={(value) => updateExercise(index, 'sets', value)} />
+                  <InlineInput label="Repetições" value={exercise.reps} onChange={(value) => updateExercise(index, 'reps', value)} />
+                  <InlineInput label="Carga / esforço" value={exercise.load} onChange={(value) => updateExercise(index, 'load', value)} />
+                  <InlineInput label="Descanso" value={exercise.rest} onChange={(value) => updateExercise(index, 'rest', value)} />
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <InlineInput label="Cadência" value={exercise.cadence ?? ''} onChange={(value) => updateExercise(index, 'cadence', value)} />
+                  <InlineInput label="RIR" value={exercise.rir ?? ''} onChange={(value) => updateExercise(index, 'rir', value)} />
+                  <InlineInput label="RPE" value={exercise.rpe ?? ''} onChange={(value) => updateExercise(index, 'rpe', value)} />
+                  <InlineInput label="Nota rápida" value={exercise.notes ?? ''} onChange={(value) => updateExercise(index, 'notes', value)} />
+                </div>
+              </>
+            )}
 
             <details className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/55">
               <summary className="cursor-pointer p-3 text-sm font-black text-emerald-200">Orientação, vídeo e mídia de execução</summary>
@@ -11657,10 +11776,16 @@ function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exer
                         <p className="mt-1 text-sm text-zinc-400">{enriched.muscleGroup || 'Movimento personalizado'}{enriched.equipment ? ` · ${enriched.equipment}` : ''}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                        <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
-                        <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
-                        <ExerciseMetric label="Carga" value={enriched.load || '-'} />
-                        <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
+                        {isCardioExercise(enriched) ? getCardioFieldDefinitions(enriched.cardioMode).slice(0, 4).map((field) => (
+                          <ExerciseMetric key={field.key} label={field.label} value={enriched[field.key] || '-'} />
+                        )) : (
+                          <>
+                            <ExerciseMetric label="Séries" value={enriched.sets || '-'} />
+                            <ExerciseMetric label="Reps" value={enriched.reps || '-'} />
+                            <ExerciseMetric label="Carga" value={enriched.load || '-'} />
+                            <ExerciseMetric label="Pausa" value={enriched.rest || '-'} />
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="mt-4">
@@ -11720,6 +11845,15 @@ export function getExerciseLibrary(remoteItems = []) {
       thumbnailUrl: exercise.thumbnailUrl || exercise.thumbnail_url || local.thumbnailUrl || '',
       imageUrl: exercise.imageUrl || exercise.image_url || exercise.thumbnailUrl || local.imageUrl || local.thumbnailUrl || '',
       aliases: [...new Set([...(local.aliases || []), ...(Array.isArray(exercise.aliases) ? exercise.aliases : [])])],
+      exerciseType: exercise.exerciseType || exercise.exercise_type || local.exerciseType || 'strength',
+      cardioMode: exercise.cardioMode || exercise.cardio_mode || local.cardioMode || '',
+      durationMinutes: exercise.durationMinutes || exercise.duration_minutes || local.durationMinutes || '',
+      distanceKm: exercise.distanceKm || exercise.distance_km || local.distanceKm || '',
+      speedKmh: exercise.speedKmh || exercise.speed_kmh || local.speedKmh || '',
+      inclinePercent: exercise.inclinePercent || exercise.incline_percent || local.inclinePercent || '',
+      resistanceLevel: exercise.resistanceLevel || exercise.resistance_level || local.resistanceLevel || '',
+      caloriesTarget: exercise.caloriesTarget || exercise.calories_target || local.caloriesTarget || '',
+      intensity: exercise.intensity || local.intensity || '',
     })
   })
 
@@ -11886,8 +12020,11 @@ function HighlightedMatch({ text, query }) {
 
 function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrary) {
   const profile = findExerciseProfile(name, library)
-  return {
+  const exerciseType = overrides.exerciseType || profile?.exerciseType || 'strength'
+  return normalizeCardioExercise({
     name,
+    exerciseType,
+    cardioMode: overrides.cardioMode || profile?.cardioMode || '',
     sets: '3',
     reps: '10',
     load: '',
@@ -11915,8 +12052,15 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     rir: '',
     rpe: '',
     notes: '',
+    durationMinutes: exerciseType === 'cardio' ? '30' : '',
+    distanceKm: '',
+    speedKmh: '',
+    inclinePercent: '',
+    resistanceLevel: '',
+    caloriesTarget: '',
+    intensity: exerciseType === 'cardio' ? 'Moderada' : '',
     ...overrides,
-  }
+  })
 }
 
 function enrichExercise(exercise, library = exerciseLibrary) {
@@ -11929,6 +12073,15 @@ function enrichExercise(exercise, library = exerciseLibrary) {
   })
   return {
     ...safeExercise,
+    exerciseType: safeExercise.exerciseType || profile?.exerciseType || 'strength',
+    cardioMode: safeExercise.cardioMode || safeExercise.cardio_mode || profile?.cardioMode || '',
+    durationMinutes: safeExercise.durationMinutes || safeExercise.duration_minutes || profile?.durationMinutes || '',
+    distanceKm: safeExercise.distanceKm || safeExercise.distance_km || profile?.distanceKm || '',
+    speedKmh: safeExercise.speedKmh || safeExercise.speed_kmh || profile?.speedKmh || '',
+    inclinePercent: safeExercise.inclinePercent || safeExercise.incline_percent || profile?.inclinePercent || '',
+    resistanceLevel: safeExercise.resistanceLevel || safeExercise.resistance_level || profile?.resistanceLevel || '',
+    caloriesTarget: safeExercise.caloriesTarget || safeExercise.calories_target || profile?.caloriesTarget || '',
+    intensity: safeExercise.intensity || profile?.intensity || '',
     muscleGroup: safeExercise.muscleGroup || safeExercise.muscle_group || profile?.group || '',
     primaryMuscle: safeExercise.primaryMuscle || safeExercise.primary_muscle || profile?.primaryMuscle || muscleProfile.primaryMuscle || '',
     secondaryMuscles: Array.isArray(safeExercise.secondaryMuscles)
@@ -12360,7 +12513,7 @@ function BodyAnatomyLines({ view }) {
 
 function MuscleRegions({ view, activeMuscles, hovered, selectedMuscle, onHover, onSelect, glowId }) {
   const primary = '#ef4444'
-  const secondary = '#e9ae69'
+  const secondary = '#fb7185'
   const idle = 'rgba(255,255,255,0.10)'
 
   function regionProps(key) {
@@ -12700,13 +12853,18 @@ function persistStudentWorkoutExecution(studentId, workoutId, execution) {
   }
 }
 
-export function buildWorkoutExecutionSummary(workout, setLogs = {}, library = exerciseLibrary) {
+export function buildWorkoutExecutionSummary(workout, setLogs = {}, library = exerciseLibrary, cardioLogs = {}) {
   const days = buildMobileWorkoutDays(workout || {}, library)
   let totalSets = 0
   let completedSets = 0
 
   days.forEach((day, currentDayIndex) => {
     getWorkoutExercisesArray(day.exercises).forEach((exercise, currentExerciseIndex) => {
+      if (isCardioExercise(exercise)) {
+        totalSets += 1
+        if (cardioLogs[`${currentDayIndex}-${currentExerciseIndex}`]?.completed) completedSets += 1
+        return
+      }
       const setCount = Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
       totalSets += setCount
       for (let setIndex = 1; setIndex <= setCount; setIndex += 1) {
@@ -12725,7 +12883,10 @@ export function buildWorkoutExecutionSummary(workout, setLogs = {}, library = ex
 }
 
 export function buildWorkoutCompletionPayload({ student, workout, effort = 'Moderado', durationSeconds = 0, exerciseEntries = [], notes = '' }) {
-  const exerciseLines = exerciseEntries.flatMap(({ exercise = {}, sets = [] }) => {
+  const exerciseLines = exerciseEntries.flatMap(({ exercise = {}, sets = [], cardioLog = null }) => {
+    if (isCardioExercise(exercise)) {
+      return cardioLog?.completed ? [buildCardioHistoryLine(exercise, cardioLog)] : []
+    }
     const completedSets = sets.filter((setItem) => setItem.completed)
     if (!completedSets.length) return []
     const series = completedSets.map((setItem) => {
@@ -12736,7 +12897,7 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
     return `${exercise.name || 'Exercício'} — ${series}`
   })
   const noteParts = [
-    exerciseLines.length ? `Séries registradas pelo aluno:\n${exerciseLines.join('\n')}` : 'Treino concluído pelo aluno no app.',
+    exerciseLines.length ? `Atividades registradas pelo aluno:\n${exerciseLines.join('\n')}` : 'Treino concluído pelo aluno no app.',
     String(notes || '').trim(),
   ].filter(Boolean)
 
@@ -12807,6 +12968,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [activeDayIndex, setActiveDayIndex] = useState(initialExecution?.activeDayIndex ?? (preview ? Math.max(0, Number(dayIndex) || 0) : -1))
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(initialExecution?.activeExerciseIndex ?? 0)
   const [setLogs, setSetLogs] = useState(initialExecution?.setLogs || {})
+  const [cardioLogs, setCardioLogs] = useState(initialExecution?.cardioLogs || {})
+  const [cardioTick, setCardioTick] = useState(0)
   const [effort, setEffort] = useState(initialExecution?.effort || 'Moderado')
   const [sessionNotes, setSessionNotes] = useState(initialExecution?.sessionNotes || '')
   const [completionToken, setCompletionToken] = useState(initialExecution?.completionToken || createWorkoutCompletionToken)
@@ -12831,6 +12994,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveDayIndex(saved?.activeDayIndex ?? (preview ? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)) : -1))
     setActiveExerciseIndex(saved?.activeExerciseIndex ?? 0)
     setSetLogs(saved?.setLogs || {})
+    setCardioLogs(saved?.cardioLogs || {})
     setEffort(saved?.effort || 'Moderado')
     setSessionNotes(saved?.sessionNotes || '')
     setCompletionToken(saved?.completionToken || createWorkoutCompletionToken())
@@ -12854,6 +13018,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           setActiveDayIndex(merged.activeDayIndex)
           setActiveExerciseIndex(merged.activeExerciseIndex)
           setSetLogs(merged.setLogs)
+          setCardioLogs(merged.cardioLogs)
           setEffort(merged.effort)
           setSessionNotes(merged.sessionNotes)
           setCompletionToken(merged.completionToken)
@@ -12885,6 +13050,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       activeDayIndex,
       activeExerciseIndex,
       setLogs,
+      cardioLogs,
       effort,
       sessionNotes,
       completionToken,
@@ -12908,13 +13074,19 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         })
     }, 450)
     return () => { active = false; window.clearTimeout(syncTimer) }
-  }, [activeDayIndex, activeExerciseIndex, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
+  }, [activeDayIndex, activeExerciseIndex, cardioLogs, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
 
   useEffect(() => {
     if (!restRemaining || restPaused) return undefined
     const timer = window.setInterval(() => setRestRemaining((current) => Math.max(0, current - 1)), 1000)
     return () => window.clearInterval(timer)
   }, [restPaused, restRemaining > 0])
+
+  useEffect(() => {
+    if (!Object.values(cardioLogs).some((log) => log?.status === 'running')) return undefined
+    const timer = window.setInterval(() => setCardioTick((current) => current + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [cardioLogs])
 
   if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
 
@@ -12929,7 +13101,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const currentPositionIndex = exercisePositions.findIndex((position) => position.dayIndex === safeDayIndex && position.exerciseIndex === safeExerciseIndex)
   const hasPreviousExercise = currentPositionIndex > 0
   const hasNextExercise = currentPositionIndex >= 0 && currentPositionIndex < exercisePositions.length - 1
-  const exerciseSetCount = Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
+  const currentExerciseIsCardio = isCardioExercise(exercise)
+  const currentCardioKey = safeDayIndex + '-' + safeExerciseIndex
+  const currentCardioLog = createCardioLog(cardioLogs[currentCardioKey])
+  const exerciseSetCount = currentExerciseIsCardio ? 0 : Math.max(1, Number.parseInt(exercise?.sets, 10) || 1)
   const currentSets = Array.from({ length: exerciseSetCount }, (_, index) => {
     const number = index + 1
     const key = safeDayIndex + '-' + safeExerciseIndex + '-' + number
@@ -12944,6 +13119,14 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   })
 
   const exerciseStates = exercises.map((currentExercise, currentExerciseIndex) => {
+    if (isCardioExercise(currentExercise)) {
+      const cardioLog = createCardioLog(cardioLogs[safeDayIndex + '-' + currentExerciseIndex])
+      return {
+        setCount: 1,
+        completedSets: cardioLog.completed ? 1 : 0,
+        status: cardioLog.completed ? 'completed' : cardioLog.status === 'running' || cardioLog.status === 'paused' ? 'in-progress' : 'not-started',
+      }
+    }
     const setCount = Math.max(1, Number.parseInt(currentExercise?.sets, 10) || 1)
     let completed = 0
     for (let setNumber = 1; setNumber <= setCount; setNumber += 1) {
@@ -12970,12 +13153,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       ? 'Em andamento'
       : 'Não iniciado'
 
-  const sessionStarted = preview || Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0
+  const sessionStarted = preview || Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
   const dayCanFinish = dayTotalSets > 0 && dayCompletedSets === dayTotalSets
   const dayRemainingSets = Math.max(0, dayTotalSets - dayCompletedSets)
   const previousExerciseSession = exercise ? getPreviousExerciseSession(workoutLogs, workout?.id, exercise.name) : null
   const previousSetRecords = previousExerciseSession?.sets || new Map()
   const dayVolume = exercises.reduce((sum, currentExercise, currentExerciseIndex) => {
+    if (isCardioExercise(currentExercise)) return sum
     const setCount = Math.max(1, Number.parseInt(currentExercise?.sets, 10) || 1)
     for (let setNumber = 1; setNumber <= setCount; setNumber += 1) {
       const item = setLogs[safeDayIndex + '-' + currentExerciseIndex + '-' + setNumber]
@@ -13022,6 +13206,40 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     }
   }
 
+  function getCardioElapsed(log = currentCardioLog) {
+    const startedAt = Date.parse(log.startedAt || '')
+    const runningSeconds = log.status === 'running' && Number.isFinite(startedAt)
+      ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+      : 0
+    return Math.max(0, Number(log.elapsedSeconds) || 0) + runningSeconds
+  }
+
+  function updateCardioLog(changes) {
+    setCardioLogs((current) => ({
+      ...current,
+      [currentCardioKey]: createCardioLog({ ...current[currentCardioKey], ...changes }),
+    }))
+  }
+
+  function startOrResumeCardio() {
+    setError('')
+    updateCardioLog({ status: 'running', startedAt: new Date().toISOString(), completed: false })
+  }
+
+  function pauseCardio() {
+    updateCardioLog({ status: 'paused', elapsedSeconds: getCardioElapsed(), startedAt: '' })
+  }
+
+  function finishCardio() {
+    const elapsedSeconds = getCardioElapsed()
+    if (elapsedSeconds < 1) {
+      setError('Inicie o cardio antes de finalizar a atividade.')
+      return
+    }
+    setError('')
+    updateCardioLog({ status: 'completed', completed: true, elapsedSeconds, startedAt: '' })
+  }
+
   function selectDay(nextDayIndex) {
     if (nextDayIndex !== activeDayIndex) onSelectDay?.(nextDayIndex)
     setActiveDayIndex(nextDayIndex)
@@ -13050,7 +13268,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function completeExerciseAndAdvance() {
     if (!currentExerciseCompleted) {
-      setError('Conclua todas as séries deste exercício antes de avançar.')
+      setError(currentExerciseIsCardio ? 'Finalize esta atividade cardiovascular antes de avançar.' : 'Conclua todas as séries deste exercício antes de avançar.')
       return
     }
     setError('')
@@ -13077,6 +13295,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   function buildCurrentWorkoutPayload() {
     const exerciseEntries = exercises.map((currentExercise, currentExerciseIndex) => ({
       exercise: { ...currentExercise, day: activeDay?.day },
+      cardioLog: isCardioExercise(currentExercise) ? createCardioLog(cardioLogs[safeDayIndex + '-' + currentExerciseIndex]) : null,
       sets: Array.from({ length: Math.max(1, Number.parseInt(currentExercise.sets, 10) || 1) }, (_, setIndex) => {
         const number = setIndex + 1
         const key = safeDayIndex + '-' + currentExerciseIndex + '-' + number
@@ -13099,6 +13318,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         activeDayIndex: safeDayIndex,
         activeExerciseIndex: safeExerciseIndex,
         setLogs,
+        cardioLogs,
         effort,
         sessionNotes,
         durationSeconds,
@@ -13111,7 +13331,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   async function finishWorkout() {
     if (submissionLockRef.current || saving || completedLog) return
     if (!dayCanFinish) {
-      setError(`Existem ${dayRemainingSets} ${dayRemainingSets === 1 ? 'série ainda não concluída' : 'séries ainda não concluídas'}. Conclua todas ou use "Encerrar treino".`)
+      setError(`Existem ${dayRemainingSets} ${dayRemainingSets === 1 ? 'etapa ainda não concluída' : 'etapas ainda não concluídas'}. Conclua todas ou use "Encerrar treino".`)
       return
     }
 
@@ -13182,6 +13402,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     onSelectDay?.(preview ? 0 : -1)
     setActiveExerciseIndex(0)
     setSetLogs({})
+    setCardioLogs({})
     setEffort('Moderado')
     setSessionNotes('')
     setCompletionToken(createWorkoutCompletionToken())
@@ -13295,7 +13516,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                 <div>
                   <small>{'Exercício ' + (index + 1)}</small>
                   <h4>{currentExercise.name}</h4>
-                  <p>{(currentExercise.sets || '-') + ' séries · ' + (currentExercise.reps || '-') + ' reps · descanso ' + (currentExercise.rest || 'livre')}</p>
+                  <p>{isCardioExercise(currentExercise) ? formatCardioPrescription(currentExercise) : (currentExercise.sets || '-') + ' séries · ' + (currentExercise.reps || '-') + ' reps · descanso ' + (currentExercise.rest || 'livre')}</p>
                   <span>{'Músculo-alvo: ' + profile.primaryLabel}</span>
                   {currentExercise.cues || currentExercise.instructions ? <em>{currentExercise.cues || currentExercise.instructions}</em> : null}
                 </div>
@@ -13360,41 +13581,82 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
 
-          <div className="mobile-workout-student-metrics-v2">
-            <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-            <ExerciseMetric label="Meta de reps" value={exercise.reps || '-'} />
-            <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
-            <ExerciseMetric label="Status" value={currentExerciseStatusLabel} />
-          </div>
-
-          <div className="mobile-workout-student-series-v2">
-            <div className="mobile-workout-student-series-head-v2">
-              <strong>Registrar séries</strong>
-              <span>{dayCompletedSets + '/' + dayTotalSets + ' concluídas no dia'}</span>
-            </div>
-            {currentSets.map((setItem) => {
-              const previous = previousSetRecords.get(setItem.number)
-              return (
-                <div key={setItem.key} className={setItem.completed ? 'is-complete' : ''}>
-                  <div className="mobile-workout-set-label-v4">
-                    <strong>{'Série ' + setItem.number}</strong>
-                    <small>{'Meta: ' + (setItem.targetReps || 'livre') + ' reps'}</small>
-                    {previous ? <em>{'Último: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : <em>Sem histórico anterior</em>}
-                  </div>
-                  <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
-                  <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
-                  <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+          {currentExerciseIsCardio ? (
+            <>
+              <div className="mobile-workout-student-metrics-v2">
+                {getCardioFieldDefinitions(exercise.cardioMode).slice(0, 3).map((field) => (
+                  <ExerciseMetric key={field.key} label={field.label} value={exercise[field.key] || '-'} />
+                ))}
+                <ExerciseMetric label="Status" value={currentExerciseStatusLabel} />
+              </div>
+              <div className={`mobile-workout-cardio-execution-v1 is-${currentCardioLog.status}`}>
+                <div className="mobile-workout-cardio-head-v1">
+                  <div><span>Controle cardiovascular</span><strong>{formatWorkoutTimer(getCardioElapsed(currentCardioLog))}</strong></div>
+                  <small>{currentCardioLog.completed ? 'Atividade finalizada' : currentCardioLog.status === 'running' ? 'Cronômetro em andamento' : currentCardioLog.status === 'paused' ? 'Atividade pausada' : 'Pronto para iniciar'}</small>
                 </div>
-              )
-            })}
-          </div>
+                <p>{formatCardioPrescription(exercise)}</p>
+                <div className="mobile-workout-cardio-results-v1">
+                  {getCardioFieldDefinitions(exercise.cardioMode).some((field) => field.key === 'distanceKm') ? (
+                    <label>Distância realizada<input inputMode="decimal" value={currentCardioLog.distanceKm} onChange={(event) => updateCardioLog({ distanceKm: event.target.value })} placeholder="km" /></label>
+                  ) : null}
+                  {getCardioFieldDefinitions(exercise.cardioMode).some((field) => field.key === 'speedKmh') ? (
+                    <label>Velocidade média<input inputMode="decimal" value={currentCardioLog.speedKmh} onChange={(event) => updateCardioLog({ speedKmh: event.target.value })} placeholder="km/h" /></label>
+                  ) : null}
+                  {getCardioFieldDefinitions(exercise.cardioMode).some((field) => field.key === 'caloriesTarget') ? (
+                    <label>Calorias realizadas<input inputMode="numeric" value={currentCardioLog.calories} onChange={(event) => updateCardioLog({ calories: event.target.value })} placeholder="kcal" /></label>
+                  ) : null}
+                  <label>Intensidade percebida<select value={currentCardioLog.intensity} onChange={(event) => updateCardioLog({ intensity: event.target.value })}><option value="">Selecionar</option>{['Leve', 'Moderada', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
+                </div>
+                <div className="mobile-workout-cardio-actions-v1">
+                  {currentCardioLog.status === 'running' ? (
+                    <button type="button" className="is-secondary" onClick={pauseCardio}>Pausar</button>
+                  ) : currentCardioLog.completed ? (
+                    <button type="button" disabled>Cardio concluído</button>
+                  ) : (
+                    <button type="button" onClick={startOrResumeCardio}>{currentCardioLog.status === 'paused' ? 'Retomar cardio' : 'Iniciar cardio'}</button>
+                  )}
+                  <button type="button" className="is-finish" disabled={currentCardioLog.completed} onClick={finishCardio}>Finalizar cardio</button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mobile-workout-student-metrics-v2">
+                <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
+                <ExerciseMetric label="Meta de reps" value={exercise.reps || '-'} />
+                <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
+                <ExerciseMetric label="Status" value={currentExerciseStatusLabel} />
+              </div>
+              <div className="mobile-workout-student-series-v2">
+                <div className="mobile-workout-student-series-head-v2">
+                  <strong>Registrar séries</strong>
+                  <span>{dayCompletedSets + '/' + dayTotalSets + ' concluídas no dia'}</span>
+                </div>
+                {currentSets.map((setItem) => {
+                  const previous = previousSetRecords.get(setItem.number)
+                  return (
+                    <div key={setItem.key} className={setItem.completed ? 'is-complete' : ''}>
+                      <div className="mobile-workout-set-label-v4">
+                        <strong>{'Série ' + setItem.number}</strong>
+                        <small>{'Meta: ' + (setItem.targetReps || 'livre') + ' reps'}</small>
+                        {previous ? <em>{'Último: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : <em>Sem histórico anterior</em>}
+                      </div>
+                      <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
+                      <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
+                      <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
 
           <div className="mobile-workout-student-navigation-v3">
             <button type="button" className="is-secondary" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }} disabled={!hasPreviousExercise}>← Exercício anterior</button>
             <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>{hasNextExercise ? 'Concluir exercício e ir para o próximo →' : 'Ir para finalização do treino ↓'}</button>
           </div>
-          {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">Conclua todas as séries deste exercício para liberar o avanço rápido. Você também pode abrir outro exercício acima.</small> : null}
+          {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">{currentExerciseIsCardio ? 'Finalize esta atividade cardiovascular para liberar o avanço rápido.' : 'Conclua todas as séries deste exercício para liberar o avanço rápido. Você também pode abrir outro exercício acima.'}</small> : null}
 
           <div className="mobile-workout-supplementary-v5">
             {(exercise.cues || exercise.instructions || exercise.notes) ? (
@@ -13436,7 +13698,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
           <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
           <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
-          {!dayCanFinish ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'série ainda não concluída' : 'séries ainda não concluídas') + '. Você pode concluir as séries ou encerrar a sessão atual.'}</small> : null}
+          {!dayCanFinish ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'etapa ainda não concluída' : 'etapas ainda não concluídas') + '. Você pode concluir as atividades ou encerrar a sessão atual.'}</small> : null}
           <button type="button" className="mobile-workout-end-secondary-v5" disabled={saving || Boolean(completedLog)} onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button>
           {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
         </footer>

@@ -16411,3 +16411,182 @@ html[data-theme="dark"] body { background: #05070d; }
 .app-theme-dark .workout-exercise-card :focus-visible {
   outline-color: rgba(69, 222, 195, 0.82) !important;
 }
+
+/* workout-cardio-flow-v1 */
+.mobile-workout-field-label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.mobile-workout-field-label > span {
+  color: #91a7a1;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.mobile-workout-cardio-prescription {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: 8px;
+  background: rgba(13, 148, 136, 0.08);
+}
+
+.mobile-workout-cardio-prescription > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-workout-cardio-execution-v1 {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(20, 184, 166, 0.1), rgba(15, 23, 42, 0.16));
+  box-shadow: 0 16px 34px rgba(2, 8, 23, 0.14);
+}
+
+.mobile-workout-cardio-execution-v1.is-running {
+  border-color: rgba(45, 212, 191, 0.62);
+  box-shadow: 0 18px 38px rgba(13, 148, 136, 0.18);
+}
+
+.mobile-workout-cardio-execution-v1.is-completed {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.mobile-workout-cardio-head-v1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.mobile-workout-cardio-head-v1 > div {
+  display: grid;
+  gap: 3px;
+}
+
+.mobile-workout-cardio-head-v1 span,
+.mobile-workout-cardio-head-v1 small {
+  color: #9fb6b0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mobile-workout-cardio-head-v1 strong {
+  color: #f2fffb;
+  font-size: clamp(28px, 8vw, 42px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.mobile-workout-cardio-execution-v1 > p {
+  margin: 0;
+  color: #c6d8d3;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.mobile-workout-cardio-results-v1 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-workout-cardio-results-v1 label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #b9cbc6;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.mobile-workout-cardio-results-v1 :is(input, select) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 7px;
+  background: rgba(3, 12, 11, 0.7);
+  color: #f3fbf8;
+  padding: 0 11px;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.mobile-workout-cardio-actions-v1 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-workout-cardio-actions-v1 button {
+  min-height: 46px;
+  border: 1px solid rgba(45, 212, 191, 0.34);
+  border-radius: 7px;
+  background: #14b8a6;
+  color: #052e2b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.mobile-workout-cardio-actions-v1 button.is-secondary {
+  background: rgba(20, 184, 166, 0.1);
+  color: #bff7ed;
+}
+
+.mobile-workout-cardio-actions-v1 button.is-finish {
+  background: #0f766e;
+  color: #f0fdfa;
+}
+
+.mobile-workout-cardio-actions-v1 button:disabled {
+  cursor: default;
+  opacity: 0.64;
+}
+
+.app-theme-light .mobile-workout-cardio-prescription,
+.app-theme-light .mobile-workout-cardio-execution-v1 {
+  border-color: rgba(13, 148, 136, 0.24);
+  background: #f4fbf9;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.07);
+}
+
+.app-theme-light .mobile-workout-cardio-head-v1 strong {
+  color: #102a26;
+}
+
+.app-theme-light .mobile-workout-cardio-head-v1 span,
+.app-theme-light .mobile-workout-cardio-head-v1 small,
+.app-theme-light .mobile-workout-cardio-execution-v1 > p,
+.app-theme-light .mobile-workout-cardio-results-v1 label {
+  color: #42635c;
+}
+
+.app-theme-light .mobile-workout-cardio-results-v1 :is(input, select) {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: #fff;
+  color: #122b27;
+}
+
+@media (max-width: 520px) {
+  .mobile-workout-cardio-prescription > div,
+  .mobile-workout-cardio-results-v1,
+  .mobile-workout-cardio-actions-v1 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-workout-cardio-head-v1 {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
