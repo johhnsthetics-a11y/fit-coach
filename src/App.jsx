@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useR
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
 import OrganizationProtocols from './OrganizationProtocols'
+import { filterStudents } from './studentDirectory'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   buildNutritionPlanNotesWithMetadata,
@@ -7022,6 +7023,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
 
 function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false }) {
   const [editing, setEditing] = useState(null)
+  const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
   const [accessError, setAccessError] = useState('')
@@ -7031,6 +7033,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const appLoginUrl = OFFICIAL_APP_LOGIN_URL
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
+  const visibleStudents = useMemo(() => filterStudents(students, studentSearch), [students, studentSearch])
   const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
@@ -7104,12 +7107,28 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
-      <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${students.length} perfis`}>
+      <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
         <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
           {nutritionist ? 'Novo paciente' : 'Novo aluno'}
         </button>
+        <label className="mb-4 block">
+          <span className="mb-2 block text-xs font-black uppercase tracking-[0.1em] text-zinc-500">
+            Buscar {nutritionist ? 'paciente' : 'aluno'}
+          </span>
+          <span className="flex min-h-12 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 focus-within:border-cyan-300/50 focus-within:bg-cyan-300/[0.05]">
+            <NavIcon name="search" className="h-5 w-5 shrink-0 text-cyan-300" />
+            <input
+              type="search"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="Nome, e-mail ou CPF"
+              autoComplete="off"
+              className="min-w-0 flex-1 bg-transparent py-3 text-sm font-bold text-zinc-100 outline-none placeholder:text-zinc-600"
+            />
+          </span>
+        </label>
         <div className="space-y-3">
-          {students.map((student) => (
+          {visibleStudents.map((student) => (
             <button
               key={student.id}
               onClick={() => setSelectedStudentId(student.id)}
@@ -7132,6 +7151,9 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
               </div>
             </button>
           ))}
+          {!visibleStudents.length ? (
+            <Empty text={studentSearch.trim() ? `Nenhum ${clientLabel} encontrado por nome, e-mail ou CPF.` : `Nenhum ${clientLabel} cadastrado.`} />
+          ) : null}
         </div>
       </Panel>
 
