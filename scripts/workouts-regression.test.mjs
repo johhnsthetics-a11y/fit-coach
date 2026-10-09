@@ -520,6 +520,16 @@ test('mapa muscular usa silhueta humana orgânica e mantém regiões interativas
   assert.doesNotMatch(appSource, /M39 24h22l7 28-6 29H38l-6-29 7-28Z/)
 })
 
+test('adutores usam a referência anatômica dedicada enviada para o treino', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const image = await readFile(new URL('../public/assets/exercises/muscle-adutores.png', import.meta.url))
+
+  assert.match(appSource, /adutores:\s*\{[^}]*image:\s*'\/assets\/exercises\/muscle-adutores\.png'/)
+  assert.match(appSource, /profile\.primaryMuscle\s*===\s*'adutores'/)
+  assert.match(appSource, /Mapa anatômico dos adutores/)
+  assert.deepEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10])
+})
+
 
 test('encerramento antecipado preserva histórico sem conceder XP de conclusão', () => {
   const partial = {

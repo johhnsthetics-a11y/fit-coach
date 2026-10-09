@@ -12075,7 +12075,7 @@ const muscleConfig = {
   gluteos: { label: 'Glúteos', view: 'back', aliases: ['glúteos', 'gluteos', 'glutes', 'glute', 'gluteus'], description: 'Extensão de quadril e potência de membros inferiores.' },
   quadriceps: { label: 'Quadríceps', view: 'front', aliases: ['quadríceps', 'quadriceps', 'quads', 'coxa anterior'], description: 'Extensão de joelho e base de agachamentos.' },
   'posterior-coxa': { label: 'Posterior de coxa', view: 'back', aliases: ['posterior de coxa', 'posteriores', 'hamstrings', 'isquiotibiais', 'coxa posterior'], description: 'Flexão de joelho e extensão de quadril.' },
-  adutores: { label: 'Adutores', view: 'front', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
+  adutores: { label: 'Adutores', view: 'front', image: '/assets/exercises/muscle-adutores.png', aliases: ['adutor', 'adutores', 'adductors', 'inner thigh'], description: 'Controle interno da coxa e estabilidade do quadril.' },
   abdutores: { label: 'Abdutores', view: 'front', aliases: ['abdutor', 'abdutores', 'abductors', 'outer thigh'], description: 'Estabilidade lateral do quadril.' },
   panturrilhas: { label: 'Panturrilhas', view: 'back', aliases: ['panturrilha', 'calves', 'calf', 'gastrocnemius', 'soleus'], description: 'Elevação do calcanhar e estabilidade do tornozelo.' },
 }
@@ -12193,6 +12193,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
   }, [profile.primaryMuscle, profile.secondaryMuscles])
   const view = selectedView || (profile.view === 'back' ? 'back' : 'front')
   const hoveredConfig = hovered ? muscleConfig[hovered] : null
+  const usesAdductorReference = profile.primaryMuscle === 'adutores'
 
   return (
     <div className={`muscle-map-card rounded-2xl border border-emerald-300/18 ${compact ? 'p-3' : 'p-4'} ${className}`}>
@@ -12201,11 +12202,24 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
           <p className="text-[10px] font-black uppercase text-emerald-200">Músculo alvo</p>
           <p className="mt-1 text-sm font-black text-white">{profile.primaryLabel}</p>
         </div>
-        <div className="muscle-map-view-switch" role="group" aria-label="Vista do corpo">
-          <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered('') }}>Frente</button>
-          <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered('') }}>Costas</button>
-        </div>
+        {!usesAdductorReference ? (
+          <div className="muscle-map-view-switch" role="group" aria-label="Vista do corpo">
+            <button type="button" aria-pressed={view === 'front'} onClick={() => { setSelectedView('front'); setHovered('') }}>Frente</button>
+            <button type="button" aria-pressed={view === 'back'} onClick={() => { setSelectedView('back'); setHovered('') }}>Costas</button>
+          </div>
+        ) : null}
       </div>
+      {usesAdductorReference ? (
+        <div className={`mx-auto mt-2 grid ${compact ? 'h-52' : 'h-64'} w-full max-w-64 place-items-center overflow-hidden rounded-xl border border-white/10 bg-[#181818]`}>
+          <img
+            src={muscleConfig.adutores.image}
+            alt="Mapa anatômico dos adutores"
+            className="block max-h-full w-full object-contain"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ) : (
       <svg viewBox="0 0 100 132" role="img" aria-label={`Mapa muscular: ${profile.primaryLabel}`} className={`mx-auto mt-2 block ${compact ? 'h-52' : 'h-64'} w-full max-w-64`}>
         <defs>
           <filter id={`${mapId}-glow`} x="-40%" y="-40%" width="180%" height="180%">
@@ -12229,6 +12243,7 @@ function MuscleMap({ exercise, compact = false, className = '' }) {
         <MuscleRegions view={view} activeMuscles={activeMuscles} hovered={hovered} onHover={setHovered} glowId={`${mapId}-glow`} />
         <BodyAnatomyLines view={view} />
       </svg>
+      )}
       <div className="mt-3 grid gap-2">
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-red-400/35 bg-red-400/12 px-2.5 py-1 text-[11px] font-black text-red-100">
