@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
 import OrganizationProtocols from './OrganizationProtocols'
 import { filterStudents } from './studentDirectory'
+import {
+  QUESTIONNAIRE_TYPES,
+  createQuestionnaireDraft,
+  removeQuestion as removeQuestionFromDraft,
+  validateQuestionnaireDraft,
+} from './questionnaireModel'
 import fitCoachLogo from './fit-coach-logo.png'
 import {
   buildNutritionPlanNotesWithMetadata,
@@ -14531,24 +14537,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
 }
 
 function createNutritionQuestionnaireDraft(base = {}) {
-  return {
-    id: base.id || '',
-    title: base.title || 'Questionário nutricional',
-    description: base.description || 'Preferências, rotina e restrições para ajustar o plano alimentar.',
-    status: base.status || 'Rascunho',
-    questions: (base.questions?.length ? base.questions : [
-      { id: createNutritionDraftId('question'), type: 'text', label: 'Quais alimentos você não gosta ou evita?', required: false, options: [] },
-      { id: createNutritionDraftId('question'), type: 'multiple', label: 'Quais refeições costuma fazer no dia?', required: true, options: ['Café da manhã', 'Almoço', 'Lanche', 'Jantar', 'Ceia'] },
-      { id: createNutritionDraftId('question'), type: 'single', label: 'Você possui alguma restrição alimentar?', required: true, options: ['Não', 'Lactose', 'Glúten', 'Vegetariano', 'Outra'] },
-    ]).map((question, index) => ({
-      ...question,
-      id: question.id || createNutritionDraftId('question'),
-      type: question.type || 'text',
-      label: question.label || `Pergunta ${index + 1}`,
-      required: Boolean(question.required),
-      options: Array.isArray(question.options) ? question.options : String(question.options || '').split(',').map((item) => item.trim()).filter(Boolean),
-    })),
-  }
+  return createQuestionnaireDraft(base, QUESTIONNAIRE_TYPES.NUTRITION)
 }
 
 function NutritionQuestionnaires({ selectedStudent, students = [], questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
@@ -14560,8 +14549,9 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
 
   async function persistQuestionnaire(send) {
     if (savingRef.current) return
-    if (!draft.title.trim() || !draft.questions.length || draft.questions.some((q) => !q.label.trim() || (['single', 'multiple'].includes(q.type) && !q.options?.length))) {
-      setMessage('Informe o título, as perguntas e as opções de seleção.'); return
+    const validation = validateQuestionnaireDraft(draft)
+    if (!validation.valid) {
+      setMessage(validation.message); return
     }
     savingRef.current = true
     setSaving(true)
@@ -14596,7 +14586,7 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
   function removeQuestion(questionId) {
     setDraft((current) => ({
       ...current,
-      questions: current.questions.filter((question) => !sameId(question.id, questionId)),
+      questions: removeQuestionFromDraft(current.questions, questionId),
     }))
     setMessage('')
   }
