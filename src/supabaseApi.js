@@ -1,4 +1,10 @@
 import { normalizeProfessionalReferralToken, normalizeProfessionalReferralType } from './professionalReferral'
+import {
+  formatProtocolDateKey,
+  normalizeProtocolTaskDraft,
+  protocolTaskFromRow,
+  protocolTaskToRow,
+} from './protocolTasks'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -520,6 +526,49 @@ export async function loadRemoteData(currentUserId = '') {
     appAdminSettings,
     professionalAffiliate,
   }
+}
+
+export async function loadRemoteProtocolTasks(coachId, { fromDate = '', toDate = '' } = {}) {
+  if (!isUuid(coachId)) throw new Error('Profissional não identificado para carregar as tarefas.')
+  if ((fromDate && !formatProtocolDateKey(fromDate)) || (toDate && !formatProtocolDateKey(toDate))) {
+    throw new Error('O período selecionado contém uma data inválida.')
+  }
+  if (fromDate && toDate && fromDate > toDate) throw new Error('A data inicial deve ser anterior à data final.')
+
+  const params = [
+    'select=*',
+    `coach_id=eq.${encodeURIComponent(coachId)}`,
+    ...(fromDate ? [`planned_date=gte.${encodeURIComponent(fromDate)}`] : []),
+    ...(toDate ? [`planned_date=lte.${encodeURIComponent(toDate)}`] : []),
+    'order=planned_date.asc,created_at.asc',
+  ]
+  const rows = await request(`coach_protocol_tasks?${params.join('&')}`)
+  return rows.map(protocolTaskFromRow)
+}
+
+export async function saveRemoteProtocolTask(task, coachId) {
+  if (!isUuid(coachId)) throw new Error('Profissional não identificado para salvar a tarefa.')
+  const payload = protocolTaskToRow(task, coachId)
+  const isUpdating = Boolean(task?.id)
+  const path = isUpdating
+    ? `coach_protocol_tasks?id=eq.${encodeURIComponent(payload.id)}&coach_id=eq.${encodeURIComponent(coachId)}`
+    : 'coach_protocol_tasks'
+  const rows = await request(path, {
+    method: isUpdating ? 'PATCH' : 'POST',
+    body: JSON.stringify(payload),
+  })
+  if (!rows?.[0]) throw new Error('A tarefa não foi encontrada ou não pôde ser salva. Atualize a lista e tente novamente.')
+  return protocolTaskFromRow(rows[0])
+}
+
+export async function deleteRemoteProtocolTask(taskId, coachId) {
+  if (!isUuid(taskId) || !isUuid(coachId)) throw new Error('Tarefa ou profissional inválido para exclusão.')
+  const rows = await request(
+    `coach_protocol_tasks?id=eq.${encodeURIComponent(taskId)}&coach_id=eq.${encodeURIComponent(coachId)}`,
+    { method: 'DELETE' },
+  )
+  if (!rows?.length) throw new Error('A tarefa não foi encontrada ou não pôde ser excluída.')
+  return true
 }
 
 export async function loadRemoteCurrentProfessionalAffiliate() {

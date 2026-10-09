@@ -10,9 +10,12 @@ test('resposta de uma sessão encerrada não retorna dados para a próxima conta
   globalThis.window = { setTimeout, clearTimeout }
   const referralSource = await readFile(new URL('../src/professionalReferral.js', import.meta.url), 'utf8')
   const referralModuleUrl = 'data:text/javascript;base64,' + Buffer.from(referralSource).toString('base64')
+  const protocolTasksSource = await readFile(new URL('../src/protocolTasks.js', import.meta.url), 'utf8')
+  const protocolTasksModuleUrl = 'data:text/javascript;base64,' + Buffer.from(protocolTasksSource).toString('base64')
   const source = (await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8'))
     .replaceAll('import.meta.env.', '({VITE_SUPABASE_URL:"https://qa.invalid",VITE_SUPABASE_ANON_KEY:"qa-public-key"}).')
     .replace("'./professionalReferral'", `'${referralModuleUrl}'`)
+    .replace("'./protocolTasks'", `'${protocolTasksModuleUrl}'`)
   const api = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
   let respond
   globalThis.fetch = () => new Promise(resolve => { respond = resolve })
