@@ -100,3 +100,84 @@ export function moveQuestion(questions = [], questionId, direction) {
   ;[next[index], next[targetIndex]] = [next[targetIndex], next[index]]
   return next
 }
+
+export function isAnamnesisAssignment(assignment) {
+  return assignment?.questionSnapshot?.questionnaireType === QUESTIONNAIRE_TYPES.ANAMNESIS
+}
+
+export function isGamifiedQuestionnaireAssignment(assignment) {
+  return !isAnamnesisAssignment(assignment)
+}
+
+function assignmentAvailableAt(assignment) {
+  const value = assignment?.scheduledFor || assignment?.sentAt || assignment?.updatedAt || ''
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+export function buildStudentQuestionnaireQueue(assignments = [], now = new Date()) {
+  const nowTimestamp = new Date(now).getTime()
+  return (Array.isArray(assignments) ? assignments : [])
+    .filter((assignment) => {
+      if (!assignment || assignment.status === 'Respondido') return false
+      const availableAt = assignmentAvailableAt(assignment)
+      return !availableAt || availableAt <= nowTimestamp
+    })
+    .slice()
+    .sort((left, right) => {
+      const typeDifference = Number(isAnamnesisAssignment(right)) - Number(isAnamnesisAssignment(left))
+      if (typeDifference) return typeDifference
+      const priorityDifference = Number(Boolean(right.priorityRequired)) - Number(Boolean(left.priorityRequired))
+      if (priorityDifference) return priorityDifference
+      return assignmentAvailableAt(left) - assignmentAvailableAt(right)
+    })
+}
+
+export function getStudentQuestionnairePriority(assignments = [], dismissedIds = [], now = new Date()) {
+  const dismissed = new Set((Array.isArray(dismissedIds) ? dismissedIds : []).map(String))
+  return buildStudentQuestionnaireQueue(assignments, now).find((assignment) => !dismissed.has(String(assignment.id))) || null
+}
+
+const STANDARD_ANAMNESIS_ANSWER_KEYS = new Set([
+  'birthDate', 'biologicalSex', 'gender', 'heightCm', 'weightKg', 'activityLevel',
+  'occupation', 'trainingExperience', 'trainingFrequency', 'primaryGoal', 'injuries',
+  'healthConditions', 'medications', 'surgeries', 'pain', 'sleepHours', 'sleepQuality',
+  'stressLevel', 'waterIntake', 'foodRestrictions', 'routine', 'observations',
+  'emergencyContact',
+])
+
+function readableAnswerLabel(key) {
+  const label = String(key || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-zá-ú])([A-Z])/g, '$1 $2')
+    .trim()
+  return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : 'Pergunta personalizada'
+}
+
+function readableAnswerValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(', ')
+  if (typeof value === 'boolean') return value ? 'Sim' : 'Não'
+  if (value && typeof value === 'object') return Object.values(value).filter(Boolean).join(', ')
+  return String(value ?? '').trim()
+}
+
+export function buildAnamnesisCustomAnswers(anamnesis, assignments = []) {
+  if (!anamnesis?.answers || typeof anamnesis.answers !== 'object') return []
+  const latestCompleted = (Array.isArray(assignments) ? assignments : [])
+    .filter((assignment) => (
+      assignment?.status === 'Respondido'
+      && isAnamnesisAssignment(assignment)
+      && String(assignment.studentId) === String(anamnesis.studentId)
+    ))
+    .slice()
+    .sort((left, right) => new Date(right.completedAt || 0) - new Date(left.completedAt || 0))[0]
+  const labels = new Map((latestCompleted?.questionSnapshot?.questions || []).map((question) => [String(question.id), question.label]))
+
+  return Object.entries(anamnesis.answers)
+    .filter(([key, value]) => !STANDARD_ANAMNESIS_ANSWER_KEYS.has(key) && readableAnswerValue(value))
+    .map(([id, value]) => ({
+      id,
+      label: labels.get(String(id)) || readableAnswerLabel(id),
+      value: readableAnswerValue(value),
+    }))
+}
