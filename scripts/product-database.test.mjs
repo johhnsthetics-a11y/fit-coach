@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 process.on('uncaughtException', error => { console.error({message:error.message, code:error.code, context:error.where, position:error.position}); process.exit(1) })
 const db = new PGlite()
 const coach='11111111-1111-4111-8111-111111111111', other='22222222-2222-4222-8222-222222222222', student='33333333-3333-4333-8333-333333333333', studentB='44444444-4444-4444-8444-444444444444'
+const foreignWorkout='55555555-5555-4555-8555-555555555555', legacyDraft='66666666-6666-4666-8666-666666666666', legacyArchived='77777777-7777-4777-8777-777777777777'
 await db.exec(`create role anon; create role authenticated; create schema auth;
 create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
@@ -17,13 +18,20 @@ create table nutrition_plans(id uuid primary key default gen_random_uuid(),coach
 create table nutrition_meals(id uuid primary key default gen_random_uuid(),nutrition_plan_id uuid references nutrition_plans(id) on delete cascade,name text,foods text,macros text,time_label text,order_index integer default 0);
 insert into auth.users values('${coach}'),('${other}');
 insert into students values('${student}','${coach}'),('${studentB}','${other}');
-insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');`)
+insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');
+insert into workouts(id,coach_id,student_id,title,active) values
+  ('${foreignWorkout}','${other}','${studentB}','Treino externo',true),
+  ('${legacyDraft}','${coach}','${student}','Rascunho legado',false),
+  ('${legacyArchived}','${coach}','${student}','Treino arquivado legado',false);
+insert into workout_logs(coach_id,student_id,workout_id,title) values('${coach}','${student}','${legacyArchived}','Treino arquivado legado');`)
 const migrationFiles = await readdir(new URL('../supabase/migrations/', import.meta.url))
 const workoutLifecycleMigration = migrationFiles.find((file) => /_workout_publication_lifecycle\.sql$/.test(file))
 assert.ok(workoutLifecycleMigration, 'workout publication lifecycle migration must exist')
 for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql',workoutLifecycleMigration,'20260916_questionnaire_sync.sql']) {
   await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))
 }
+const legacyStates=(await db.query('select id, publication_status from workouts where id in ($1,$2) order by id',[legacyDraft,legacyArchived])).rows
+assert.deepEqual(legacyStates.map(({id,publication_status})=>[id,publication_status]),[[legacyDraft,'draft'],[legacyArchived,'archived']])
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
 await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${coach}',false);`)
@@ -47,6 +55,7 @@ const republished=(await db.query('select save_coach_workout($1::jsonb) as value
 assert.equal(republished.publication_status,'published')
 assert.equal(republished.active,true)
 await assert.rejects(db.query('select save_coach_workout($1::jsonb)',[JSON.stringify({...payload,student_id:studentB})]),/nao pertence/)
+await assert.rejects(db.query('select save_coach_workout($1::jsonb)',[JSON.stringify({...payload,id:foreignWorkout,student_id:student})]),/Treino nao encontrado/)
 await db.exec(`insert into nutrition_questionnaires(id,coach_id,title,questions) values('qa-form','${coach}','Preferencias','[{"id":"q1","type":"single","label":"Restricoes?","required":true,"options":["Nao","Outra"]}]');`)
 const assigned=(await db.query('select assign_nutrition_questionnaire($1,$2) as value',['qa-form',student])).rows[0].value
 assert.equal((await db.query('select assign_nutrition_questionnaire($1,$2) as value',['qa-form',student])).rows[0].value.id,assigned.id)
@@ -54,6 +63,7 @@ await assert.rejects(db.query('select assign_nutrition_questionnaire($1,$2)',['q
 await db.exec(`select set_config('request.jwt.claim.sub','${other}',false)`)
 assert.equal((await db.query('select * from nutrition_questionnaire_assignments')).rows.length,0)
 await db.exec(`reset role; set role anon;`)
+await assert.rejects(db.query('select save_coach_workout($1::jsonb)',[JSON.stringify(payload)]),/permission denied/i)
 await assert.rejects(db.query('select submit_nutrition_questionnaire($1,$2,$3::jsonb)',['qa-invite-b',assigned.id,'{}']),/nao pertence/)
 await assert.rejects(db.query('select submit_nutrition_questionnaire($1,$2,$3::jsonb)',['qa-invite-a',assigned.id,'{}']),/obrigatorias/)
 await assert.rejects(db.query('select submit_nutrition_questionnaire($1,$2,$3::jsonb)',['qa-invite-a',assigned.id,'{"q1":{"value":"Outra"}}']),/Outra/)
@@ -74,7 +84,7 @@ try {
   await db.query('select complete_student_workout_session($1,$2,$3,$4,$5,$6,$7,$8::jsonb)',['qa-invite-a',workout,'Treino QA','Moderado','','qa-session-123456',120,'{}'])
   await db.query('select complete_student_workout_session($1,$2,$3,$4,$5,$6,$7,$8::jsonb)',['qa-invite-a',workout,'Treino QA','Moderado','','qa-session-123456',120,JSON.stringify(execution)])
   await db.exec('reset role')
-  assert.equal((await db.query('select count(*)::int as n from workout_logs')).rows[0].n,1)
+  assert.equal((await db.query('select count(*)::int as n from workout_logs where workout_id = $1',[workout])).rows[0].n,1)
   console.log('Workout: partial progress, complete and duplicate retry PASS')
 } catch(e) { console.error('WORKOUT ORIGINAL ERROR:', e.message, 'CONTEXT:',e.where); throw e }
 await db.close()

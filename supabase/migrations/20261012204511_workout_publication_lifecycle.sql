@@ -3,9 +3,19 @@ begin;
 alter table public.workouts
 add column if not exists publication_status text;
 
-update public.workouts
-set publication_status = case when active is false then 'archived' else 'published' end
-where publication_status is null;
+-- Legacy rows only stored active=false for both drafts and archived workouts.
+-- Preserve recoverability unless a completed execution proves the workout was published.
+update public.workouts as workout
+set publication_status = case
+  when workout.active is not false then 'published'
+  when exists (
+    select 1
+    from public.workout_logs as workout_log
+    where workout_log.workout_id = workout.id
+  ) then 'archived'
+  else 'draft'
+end
+where workout.publication_status is null;
 
 alter table public.workouts
 alter column publication_status set default 'published';
