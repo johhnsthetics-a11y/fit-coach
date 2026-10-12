@@ -111,6 +111,7 @@ after(async () => {
 for (const scenario of [
   { name: 'aluno cadastrado sem treinos', students: [student], workouts: [] },
   { name: 'aluno cadastrado com treino', students: [student], workouts: [workout] },
+  { name: 'rascunho remoto recuperável', students: [student], workouts: [{ ...workout, active: false }] },
   { name: 'conta nova sem alunos', students: [], workouts: [] },
   { name: 'treino legado com exercícios nulos', students: [student], workouts: [{ ...workout, exercises: null }] },
 ]) {
@@ -148,6 +149,24 @@ test('Treinos mostra filtros com capitalização profissional sem alterar os val
   for (const label of ['Todos', 'Hipertrofia', 'Emagrecimento', 'Força', 'Publicado']) {
     assert.match(html, new RegExp(`>${label}<`))
   }
+})
+
+test('rascunho persistido fica visível e pode ser retomado pelo treinador', () => {
+  const draftWorkout = { ...workout, active: false, title: 'Rascunho Recuperável' }
+  const storage = new Map([['fitcoach-ai-pro-v2', JSON.stringify({
+    user: { id: 'coach-drafts', name: 'Treinador de rascunhos' },
+    students: [student],
+    workouts: [draftWorkout],
+  })]])
+  globalThis.window = {
+    localStorage: { getItem: (key) => storage.get(key) ?? null },
+    location: new URL('http://localhost/?area=treinos'),
+  }
+
+  const html = renderToString(React.createElement(App))
+  assert.match(html, /Rascunhos salvos/)
+  assert.match(html, /Rascunho Recuperável/)
+  assert.match(html, /Continuar rascunho/)
 })
 
 test('aluno escolhe entre vários treinos publicados na tela real', () => {
