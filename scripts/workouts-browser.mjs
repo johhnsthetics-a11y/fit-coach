@@ -29,6 +29,7 @@ try {
   const scenarios = [
     { name: 'sem-treinos', students: [student], workouts: [] },
     { name: 'com-treinos', students: [student], workouts: [workout] },
+    { name: 'rascunho-salvo', students: [student], workouts: [{ ...workout, active: false }] },
     { name: 'sem-alunos', students: [], workouts: [] },
     { name: 'exercicios-nulos', students: [student], workouts: [{ ...workout, exercises: null }] },
   ]
@@ -82,6 +83,7 @@ try {
           assert.equal(clippedFilters, 0, `Todos os filtros devem ficar visíveis em ${viewport.width}px`)
           if (scenario.students.length) assert.equal(await page.locator('select[name="studentId"]').last().inputValue(), student.id)
           if (scenario.workouts.length) assert.ok(await page.getByText('Rotina Regressão', { exact: true }).count())
+          if (scenario.name === 'rascunho-salvo') assert.ok(await page.getByRole('button', { name: 'Continuar rascunho', exact: true }).count())
           results.push(`${viewport.width} / ${scenario.name} / ${action}: PASS`)
         }
         if (scenario.name === 'com-treinos') {

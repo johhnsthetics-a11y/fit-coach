@@ -8833,7 +8833,15 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     () => (workouts || []).filter((workout) => workout.active !== false),
     [workouts],
   )
+  const draftWorkouts = useMemo(
+    () => (workouts || []).filter((workout) => workout.active === false),
+    [workouts],
+  )
   const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
+  const filteredDraftWorkouts = useMemo(
+    () => (filter === 'publicado' ? [] : filterMobileWorkouts(draftWorkouts, search, filter)),
+    [draftWorkouts, search, filter],
+  )
   const selectedWorkout = activeWorkouts.find((workout) => String(workout.id) === String(selectedWorkoutId)) || studentWorkouts[0] || filteredWorkouts[0] || activeWorkouts[0] || null
   const selectedWorkoutDays = useMemo(() => buildMobileWorkoutDays(selectedWorkout, availableExerciseLibrary), [selectedWorkout, availableExerciseLibrary])
   const selectedWorkoutStudent = useMemo(
@@ -9537,6 +9545,34 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
 
       {tab === 'library' ? (
         <div className="mobile-workout-stack">
+          {filteredDraftWorkouts.length ? (
+            <>
+              <div className="mobile-workout-section-title">
+                <span>Rascunhos salvos</span>
+                <small>{formatCount(filteredDraftWorkouts.length, 'rascunho')}</small>
+              </div>
+              {filteredDraftWorkouts.slice(0, 10).map((workout) => {
+                const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+                const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
+                const workoutStudent = students.find((student) => String(student.id) === String(workout.studentId))
+                return (
+                  <article key={workout.id} className="mobile-workout-card is-draft">
+                    <div className="mobile-workout-card-main">
+                      <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
+                      <span>
+                        <strong>{workout.title || 'Treino sem nome'}</strong>
+                        <small>Rascunho privado{workoutStudent?.name ? ` · ${workoutStudent.name}` : ''}</small>
+                        <small>{formatCount(days.length || 1, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => resetDraftFromWorkout(workout, { mode: 'edit' })} className="mobile-workout-mini-action">
+                      Continuar rascunho
+                    </button>
+                  </article>
+                )
+              })}
+            </>
+          ) : null}
           <div className="mobile-workout-section-title">
             <span>Modelos e treinos recentes</span>
             <small>{filteredWorkouts.length} encontrados</small>
@@ -9568,8 +9604,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             )
           }) : (
             <div className="mobile-workout-empty">
-              <strong>Nenhum treino encontrado.</strong>
-              <span>Crie um novo treino ou limpe os filtros para ver todos.</span>
+              <strong>Nenhum treino publicado encontrado.</strong>
+              <span>{filteredDraftWorkouts.length ? 'Seus rascunhos continuam disponíveis acima.' : 'Crie um novo treino ou limpe os filtros para ver todos.'}</span>
             </div>
           )}
         </div>

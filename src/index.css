@@ -3032,6 +3032,11 @@ textarea {
     background: rgba(0, 210, 178, 0.1);
   }
 
+  .mobile-workout-card.is-draft {
+    border-color: rgba(250, 204, 21, 0.3);
+    background: rgba(250, 204, 21, 0.055);
+  }
+
   .mobile-workout-card-main {
     display: grid;
     min-width: 0;
@@ -5121,6 +5126,11 @@ textarea {
     background:
       radial-gradient(circle at 0% 0%, rgba(0, 210, 178, 0.15), transparent 34%),
       rgba(0, 210, 178, 0.07);
+  }
+
+  .mobile-workout-card.is-draft {
+    border-color: rgba(250, 204, 21, 0.3);
+    background: rgba(250, 204, 21, 0.055);
   }
 
   .mobile-workout-card-main,
@@ -9427,6 +9437,11 @@ button.coach-notification-popover-item:hover {
   box-shadow: 0 16px 34px rgba(0, 105, 88, 0.09) !important;
 }
 
+.app-theme-light .mobile-workout-card.is-draft {
+  background: linear-gradient(135deg, rgba(250, 204, 21, 0.09), #ffffff 62%) !important;
+  border-color: rgba(202, 138, 4, 0.3) !important;
+}
+
 .app-theme-light .workout-exercise-picker input,
 .app-theme-light .workout-exercise-picker select,
 .app-theme-light .workout-exercise-card input,
@@ -12227,6 +12242,15 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 @media (max-width: 430px) {
+  .mobile-workout-card.is-draft {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mobile-workout-card.is-draft .mobile-workout-mini-action {
+    width: 100%;
+    min-height: 44px;
+  }
+
   .mobile-workout-hero,
   .mobile-workout-detail,
   .mobile-workout-creator,
