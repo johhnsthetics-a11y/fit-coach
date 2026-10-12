@@ -1,6 +1,11 @@
 begin;
 
 update public.workouts
+set publication_status = 'archived'
+where active is false
+  and publication_status = 'published';
+
+update public.workouts
 set active = (publication_status = 'published')
 where active is distinct from (publication_status = 'published');
 

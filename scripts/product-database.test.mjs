@@ -29,11 +29,16 @@ const workoutLifecycleMigration = migrationFiles.find((file) => /_workout_public
 assert.ok(workoutLifecycleMigration, 'workout publication lifecycle migration must exist')
 const workoutConsistencyMigration = migrationFiles.find((file) => /_workout_publication_consistency\.sql$/.test(file))
 assert.ok(workoutConsistencyMigration, 'workout publication consistency migration must exist')
-for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql',workoutLifecycleMigration,workoutConsistencyMigration,'20260916_questionnaire_sync.sql']) {
+for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql',workoutLifecycleMigration]) {
   await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))
 }
 const legacyStates=(await db.query('select id, publication_status from workouts where id in ($1,$2) order by id',[legacyDraft,legacyArchived])).rows
 assert.deepEqual(legacyStates.map(({id,publication_status})=>[id,publication_status]),[[legacyDraft,'draft'],[legacyArchived,'archived']])
+await db.exec(`update workouts set active=false where id='${foreignWorkout}'`)
+assert.deepEqual((await db.query('select publication_status,active from workouts where id=$1',[foreignWorkout])).rows[0],{publication_status:'published',active:false})
+await db.exec(await readFile(new URL('../supabase/migrations/'+workoutConsistencyMigration,import.meta.url),'utf8'))
+assert.deepEqual((await db.query('select publication_status,active from workouts where id=$1',[foreignWorkout])).rows[0],{publication_status:'archived',active:false})
+await db.exec(await readFile(new URL('../supabase/migrations/20260916_questionnaire_sync.sql',import.meta.url),'utf8'))
 await db.exec(`update workouts set active=false where id='${foreignWorkout}'`)
 assert.deepEqual((await db.query('select publication_status,active from workouts where id=$1',[foreignWorkout])).rows[0],{publication_status:'archived',active:false})
 await db.exec(`update workouts set publication_status='draft',active=true where id='${foreignWorkout}'`)
