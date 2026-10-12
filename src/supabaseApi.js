@@ -1181,6 +1181,7 @@ export async function saveRemoteWorkout(workout, coachId) {
   requireCoachId(coachId)
   const sourceExercises = Array.isArray(workout.exercises) ? workout.exercises : []
   const uploadWarnings = []
+  const publicationStatus = workout.status === 'Rascunho' || workout.publicationStatus === 'draft' ? 'draft' : 'published'
 
   const buildPayload = (exercises, workoutId = workout.id) => ({
     ...(isUuid(workoutId) ? { id: workoutId } : {}),
@@ -1188,7 +1189,7 @@ export async function saveRemoteWorkout(workout, coachId) {
     student_id: workout.studentId,
     title: workout.title,
     focus: workout.focus,
-    publication_status: workout.status === 'Rascunho' ? 'draft' : 'published',
+    publication_status: publicationStatus,
     notes: workout.notes,
     exercises: exercises.map((exercise, index) => ({
       name: exercise.name,
@@ -1274,7 +1275,7 @@ export async function archiveRemoteWorkout(workoutId) {
   if (!isUuid(workoutId)) return null
   const rows = await request(`workouts?id=eq.${workoutId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ active: false }),
+    body: JSON.stringify({ active: false, publication_status: 'archived' }),
   })
   return rows[0] ? fromWorkoutRow(rows[0]) : null
 }
@@ -2190,6 +2191,10 @@ function fromAnamnesisRow(row) {
 
 function fromWorkoutRow(row) {
   const workoutMetadata = parseWorkoutMetadata(row.notes)
+  const explicitPublicationStatus = String(row.publication_status || '').trim().toLowerCase()
+  const publicationStatus = ['draft', 'published', 'archived'].includes(explicitPublicationStatus)
+    ? explicitPublicationStatus
+    : row.active === false ? 'archived' : 'published'
   return {
     id: row.id,
     coachId: row.coach_id,
@@ -2204,7 +2209,9 @@ function fromWorkoutRow(row) {
     guidance: workoutMetadata.guidance ?? '',
     allowStudentPdfDownload: Boolean(workoutMetadata.allowStudentPdfDownload),
     days: Array.isArray(workoutMetadata.days) ? workoutMetadata.days : undefined,
-    active: row.active !== false,
+    publicationStatus,
+    status: publicationStatus === 'draft' ? 'Rascunho' : publicationStatus === 'archived' ? 'Arquivado' : 'Publicado',
+    active: publicationStatus === 'published' && row.active !== false,
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? row.created_at ?? '',
     exercises: (row.workout_exercises ?? [])

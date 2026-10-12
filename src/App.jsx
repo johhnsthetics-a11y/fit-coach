@@ -32,6 +32,7 @@ import {
   createRemoteProfessionalReferral,
   cancelRemoteProfessionalReferral,
   generateRemoteStudentCredentials,
+  deleteRemoteCoachAccount,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
   fetchRemoteExerciseMedia,
@@ -1804,6 +1805,25 @@ function upsertWorkouts(workouts, savedWorkout) {
   return [savedWorkout, ...withoutSameWorkout]
 }
 
+export function getWorkoutPublicationStatus(workout = {}, workoutLogs = []) {
+  const explicitStatus = normalizeText(workout.publicationStatus || workout.publication_status || '')
+  if (explicitStatus === 'draft') return 'draft'
+  if (explicitStatus === 'published') return 'published'
+  if (explicitStatus === 'archived') return 'archived'
+
+  const displayStatus = normalizeText(workout.status || '')
+  if (displayStatus.includes('rascunho')) return 'draft'
+  if (displayStatus.includes('arquivado')) return 'archived'
+  if (displayStatus.includes('publicado')) return 'published'
+
+  if (workout.active !== false) return 'published'
+
+  const hasCompletedExecution = (Array.isArray(workoutLogs) ? workoutLogs : []).some((log) => (
+    String(log?.workoutId || log?.workout_id || '') === String(workout.id || '')
+  ))
+  return hasCompletedExecution ? 'archived' : 'draft'
+}
+
 function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring, professionalWorkspaceLoading] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
@@ -2705,12 +2725,7 @@ function AppContent() {
       throw new Error('Nenhum e-mail de treinador foi encontrado nesta sessao.')
     }
 
-    const api = await import('./supabaseApi')
-    if (typeof api.deleteRemoteCoachAccount !== 'function') {
-      throw new Error('A função de exclusão de conta ainda não foi publicada no arquivo de integração. Atualize o supabaseApi.js antes de usar esta ação.')
-    }
-
-    await api.deleteRemoteCoachAccount({
+    await deleteRemoteCoachAccount({
       email: data.user.email,
       confirmation,
     })
@@ -2997,7 +3012,15 @@ function AppContent() {
   }
 
   async function saveWorkout(workout) {
-    let savedWorkout = { ...workout, id: workout.id || Date.now(), notes: stripWorkoutMetadata(workout.notes), active: workout.status !== 'Rascunho' }
+    const publicationStatus = workout.status === 'Rascunho' || workout.publicationStatus === 'draft' ? 'draft' : 'published'
+    let savedWorkout = {
+      ...workout,
+      id: workout.id || Date.now(),
+      notes: stripWorkoutMetadata(workout.notes),
+      publicationStatus,
+      status: publicationStatus === 'draft' ? 'Rascunho' : 'Publicado',
+      active: publicationStatus === 'published',
+    }
     const isFirstWorkout = !(data.workouts ?? []).length
 
     if (supabaseEnabled) {
@@ -3039,7 +3062,9 @@ function AppContent() {
     setData((current) => ({
       ...current,
       workouts: current.workouts.map((workout) => (
-        String(workout.id) === String(workoutId) ? { ...workout, active: false } : workout
+        String(workout.id) === String(workoutId)
+          ? { ...workout, active: false, publicationStatus: 'archived', status: 'Arquivado' }
+          : workout
       )),
     }))
     return true
@@ -8830,12 +8855,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   }, [draft, selectedStudent?.id, selectedStudentId, showCreator])
 
   const activeWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => workout.active !== false),
-    [workouts],
+    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'published' && workout.active !== false),
+    [workoutLogs, workouts],
   )
   const draftWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => workout.active === false),
-    [workouts],
+    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'draft'),
+    [workoutLogs, workouts],
   )
   const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
   const filteredDraftWorkouts = useMemo(
@@ -10595,7 +10620,7 @@ function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
     const matchesSearch = !normalizedSearch || text.includes(normalizedSearch)
     if (!matchesSearch) return false
     if (filter === 'todos') return true
-    if (filter === 'publicado') return normalizeText(workout.status || 'publicado').includes('publicado') || workout.active !== false
+    if (filter === 'publicado') return getWorkoutPublicationStatus(workout) === 'published' && workout.active !== false
     return text.includes(normalizeText(filter))
   })
 }
@@ -22427,7 +22452,14 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
   const hasItems = recentAlerts.length > 0 || recentNotifications.length > 0
   const notificationRef = useRef(null)
   const notificationPanelRef = useRef(null)
+  const notificationCloseRef = useRef(null)
+  const managedNotificationFocusRef = useRef(false)
+  const notificationCloseHandlerRef = useRef(onClose)
   const [panelAnchor, setPanelAnchor] = useState(null)
+
+  useEffect(() => {
+    notificationCloseHandlerRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return undefined
@@ -22451,8 +22483,43 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
   useEffect(() => {
     if (!open) return undefined
 
+    const triggerButton = notificationRef.current?.querySelector('.coach-notification-shortcut')
+    const focusFrame = window.requestAnimationFrame(() => {
+      const panel = notificationPanelRef.current
+      if (!panel || !panel.getClientRects().length) return
+      managedNotificationFocusRef.current = true
+      ;(notificationCloseRef.current || panel).focus()
+    })
+
     const handleNotificationKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.()
+      const panel = notificationPanelRef.current
+      if (!panel || !panel.getClientRects().length) return
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        notificationCloseHandlerRef.current?.()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+      const focusable = [...panel.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => element.getClientRects().length)
+      if (!focusable.length) {
+        event.preventDefault()
+        panel.focus()
+        return
+      }
+
+      const firstElement = focusable[0]
+      const lastElement = focusable[focusable.length - 1]
+      const activeElement = document.activeElement
+      if (event.shiftKey && (activeElement === firstElement || !panel.contains(activeElement))) {
+        event.preventDefault()
+        lastElement.focus()
+      } else if (!event.shiftKey && (activeElement === lastElement || !panel.contains(activeElement))) {
+        event.preventDefault()
+        firstElement.focus()
+      }
     }
     const handlePointerDown = (event) => {
       const eventPath = typeof event.composedPath === 'function' ? event.composedPath() : []
@@ -22467,17 +22534,22 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
         if (pointerInsidePanelBox) return
       }
 
-      onClose?.()
+      notificationCloseHandlerRef.current?.()
     }
 
     document.addEventListener('keydown', handleNotificationKeyDown)
     document.addEventListener('pointerdown', handlePointerDown)
 
     return () => {
+      window.cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', handleNotificationKeyDown)
       document.removeEventListener('pointerdown', handlePointerDown)
+      if (managedNotificationFocusRef.current) {
+        managedNotificationFocusRef.current = false
+        triggerButton?.focus()
+      }
     }
-  }, [open, onClose])
+  }, [open])
 
   return (
     <div className={`coach-notification-wrap ${className}`} ref={notificationRef}>
@@ -22497,13 +22569,13 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
       {open ? createPortal((
         <div className={`coach-notification-overlay app-theme-${theme} ${className.includes('mobile') ? 'is-mobile' : 'is-desktop'}`} style={panelAnchor || undefined}>
           <button type="button" className="coach-notification-popover-backdrop" aria-label="Fechar notificações" onClick={onClose} />
-          <section ref={notificationPanelRef} className="coach-notification-popover" role="dialog" aria-label="Notificações rápidas" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+          <section ref={notificationPanelRef} className="coach-notification-popover" role="dialog" aria-modal="true" aria-label="Notificações rápidas" tabIndex={-1} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
             <div className="coach-notification-popover-head">
               <div>
                 <p>Notificações</p>
                 <h4>Atualizações recentes</h4>
               </div>
-              <button type="button" onClick={onClose} aria-label="Fechar notificações">
+              <button ref={notificationCloseRef} type="button" onClick={onClose} aria-label="Fechar notificações">
                 <NavIcon name="close" className="h-4 w-4" />
               </button>
             </div>

@@ -111,7 +111,7 @@ after(async () => {
 for (const scenario of [
   { name: 'aluno cadastrado sem treinos', students: [student], workouts: [] },
   { name: 'aluno cadastrado com treino', students: [student], workouts: [workout] },
-  { name: 'rascunho remoto recuperável', students: [student], workouts: [{ ...workout, active: false }] },
+  { name: 'rascunho remoto recuperável', students: [student], workouts: [{ ...workout, active: false, publicationStatus: 'draft', status: 'Rascunho' }] },
   { name: 'conta nova sem alunos', students: [], workouts: [] },
   { name: 'treino legado com exercícios nulos', students: [student], workouts: [{ ...workout, exercises: null }] },
 ]) {
@@ -151,12 +151,14 @@ test('Treinos mostra filtros com capitalização profissional sem alterar os val
   }
 })
 
-test('rascunho persistido fica visível e pode ser retomado pelo treinador', () => {
+test('rascunho persistido pode ser retomado sem ressuscitar treino arquivado', () => {
   const draftWorkout = { ...workout, active: false, title: 'Rascunho Recuperável' }
+  const archivedWorkout = { ...workout, id: 'workout-archived', active: false, title: 'Treino Arquivado' }
   const storage = new Map([['fitcoach-ai-pro-v2', JSON.stringify({
     user: { id: 'coach-drafts', name: 'Treinador de rascunhos' },
     students: [student],
-    workouts: [draftWorkout],
+    workouts: [draftWorkout, archivedWorkout],
+    workoutLogs: [{ id: 'archived-log', workoutId: archivedWorkout.id, studentId: student.id, completedAt: '2026-10-01T12:00:00.000Z' }],
   })]])
   globalThis.window = {
     localStorage: { getItem: (key) => storage.get(key) ?? null },
@@ -167,6 +169,9 @@ test('rascunho persistido fica visível e pode ser retomado pelo treinador', () 
   assert.match(html, /Rascunhos salvos/)
   assert.match(html, /Rascunho Recuperável/)
   assert.match(html, /Continuar rascunho/)
+  const draftCards = html.match(/<article class="mobile-workout-card is-draft">[\s\S]*?<\/article>/g) || []
+  assert.equal(draftCards.length, 1)
+  assert.doesNotMatch(draftCards.join(''), /Treino Arquivado/)
 })
 
 test('aluno escolhe entre vários treinos publicados na tela real', () => {
@@ -484,11 +489,15 @@ test('publicação de treino usa RPC transacional protegida por ownership', asyn
 test('rascunho permanece privado e publicação fica disponível ao aluno', async () => {
   const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
   const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8').catch(() => '')
+  const lifecycleMigrationSource = await readFile(new URL('../supabase/migrations/20261012204511_workout_publication_lifecycle.sql', import.meta.url), 'utf8')
 
-  assert.match(apiSource, /publication_status:\s*workout\.status === 'Rascunho' \? 'draft' : 'published'/)
+  assert.match(apiSource, /const publicationStatus = workout\.status === 'Rascunho'[\s\S]*?\? 'draft' : 'published'/)
+  assert.match(apiSource, /publication_status:\s*publicationStatus/)
   assert.match(migrationSource, /workout_payload ->> 'publication_status'/i)
   assert.match(migrationSource, /active\s*=\s*v_is_published/i)
   assert.match(migrationSource, /workouts\.active is true/i)
+  assert.match(lifecycleMigrationSource, /publication_status\s*=\s*v_publication_status/i)
+  assert.match(lifecycleMigrationSource, /'draft',\s*'published',\s*'archived'/i)
 })
 
 test('portal de treinos valida convite e retorna somente treinos do aluno vinculado', async () => {

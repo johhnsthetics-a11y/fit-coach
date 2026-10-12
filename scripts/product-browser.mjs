@@ -75,6 +75,21 @@ try {
       results.push(`coach ${width} ${area}`)
       if (width === 390 && ['agenda','alunos','nutricao','configuracoes'].includes(area)) await page.screenshot({ path: resolve(output, `${area}-${width}.png`), fullPage:true })
     }
+    if ([320, 1440].includes(width)) {
+      await page.goto(base + '?area=visao')
+      const notificationButton = page.locator('.coach-notification-shortcut:visible').first()
+      await notificationButton.click()
+      const notificationDialog = page.getByRole('dialog', { name: 'Notificações rápidas' })
+      await notificationDialog.waitFor()
+      assert.equal(await notificationDialog.getAttribute('aria-modal'), 'true', 'Notificações devem anunciar um diálogo modal')
+      assert.equal(await notificationDialog.evaluate((element) => element.contains(document.activeElement)), true, 'Foco deve entrar nas notificações ao abrir')
+      await page.keyboard.press('Shift+Tab')
+      assert.equal(await notificationDialog.evaluate((element) => element.contains(document.activeElement)), true, 'Tab deve permanecer dentro das notificações')
+      await page.keyboard.press('Escape')
+      await notificationDialog.waitFor({ state: 'detached' })
+      assert.equal(await notificationButton.evaluate((element) => element === document.activeElement), true, 'Foco deve voltar ao botão de notificações ao fechar')
+      results.push(`coach ${width} notification focus`)
+    }
     if (width === 390) {
       const shortMobileHeight = 568
       await page.setViewportSize({ width, height: shortMobileHeight })
