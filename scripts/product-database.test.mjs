@@ -1,5 +1,5 @@
 const { PGlite } = await import(process.env.PGLITE_MODULE_PATH || '@electric-sql/pglite')
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 process.on('uncaughtException', error => { console.error({message:error.message, code:error.code, context:error.where, position:error.position}); process.exit(1) })
 const db = new PGlite()
@@ -18,7 +18,10 @@ create table nutrition_meals(id uuid primary key default gen_random_uuid(),nutri
 insert into auth.users values('${coach}'),('${other}');
 insert into students values('${student}','${coach}'),('${studentB}','${other}');
 insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');`)
-for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql','20260916_questionnaire_sync.sql']) {
+const migrationFiles = await readdir(new URL('../supabase/migrations/', import.meta.url))
+const workoutLifecycleMigration = migrationFiles.find((file) => /_workout_publication_lifecycle\.sql$/.test(file))
+assert.ok(workoutLifecycleMigration, 'workout publication lifecycle migration must exist')
+for (const file of ['20260917_repair_nutrition_rls_42501.sql','20260911_secure_workout_publish.sql','20260915_workout_flow_readiness.sql',workoutLifecycleMigration,'20260916_questionnaire_sync.sql']) {
   await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))
 }
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
@@ -34,6 +37,15 @@ console.log('Nutrition: authenticated coach can save own student plan and cannot
 const payload={student_id:student,title:'Treino QA',publication_status:'published',request_id:'qa-publish-123456',exercises:[{name:'Supino',sets:'2',reps:'10'}]}
 const result=await db.query('select save_coach_workout($1::jsonb) as value',[JSON.stringify(payload)])
 const workout=result.rows[0].value.id
+assert.equal(result.rows[0].value.publication_status,'published')
+assert.equal(result.rows[0].value.active,true)
+const draftPayload={...payload,title:'Rascunho QA',publication_status:'draft',request_id:'qa-draft-123456'}
+const draft=(await db.query('select save_coach_workout($1::jsonb) as value',[JSON.stringify(draftPayload)])).rows[0].value
+assert.equal(draft.publication_status,'draft')
+assert.equal(draft.active,false)
+const republished=(await db.query('select save_coach_workout($1::jsonb) as value',[JSON.stringify({...draftPayload,id:draft.id,publication_status:'published'})])).rows[0].value
+assert.equal(republished.publication_status,'published')
+assert.equal(republished.active,true)
 await assert.rejects(db.query('select save_coach_workout($1::jsonb)',[JSON.stringify({...payload,student_id:studentB})]),/nao pertence/)
 await db.exec(`insert into nutrition_questionnaires(id,coach_id,title,questions) values('qa-form','${coach}','Preferencias','[{"id":"q1","type":"single","label":"Restricoes?","required":true,"options":["Nao","Outra"]}]');`)
 const assigned=(await db.query('select assign_nutrition_questionnaire($1,$2) as value',['qa-form',student])).rows[0].value

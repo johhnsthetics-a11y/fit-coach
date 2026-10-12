@@ -5,14 +5,17 @@ import { readFile } from 'node:fs/promises'
 const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8').catch(() => '')
+const lifecycleMigrationSource = await readFile(new URL('../supabase/migrations/20261012204511_workout_publication_lifecycle.sql', import.meta.url), 'utf8')
 const renamedReferenceFixSource = await readFile(new URL('../supabase/migrations/20260925_fix_workout_session_renamed_refs.sql', import.meta.url), 'utf8').catch(() => '')
 const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
 test('rascunho permanece privado e publicação fica disponível ao aluno', () => {
-  assert.match(apiSource, /publication_status:\s*workout\.status === 'Rascunho' \? 'draft' : 'published'/)
+  assert.match(apiSource, /publication_status:\s*publicationStatus/)
   assert.match(migrationSource, /workout_payload ->> 'publication_status'/i)
   assert.match(migrationSource, /active\s*=\s*v_is_published/i)
   assert.match(migrationSource, /workouts\.active is true/i)
+  assert.match(lifecycleMigrationSource, /publication_status\s*=\s*v_publication_status/i)
+  assert.match(lifecycleMigrationSource, /workouts_publication_status_check/i)
 })
 
 test('portal de treinos valida convite e vínculo antes de retornar dados', () => {
