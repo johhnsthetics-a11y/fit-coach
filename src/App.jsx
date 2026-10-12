@@ -1805,7 +1805,7 @@ function upsertWorkouts(workouts, savedWorkout) {
   return [savedWorkout, ...withoutSameWorkout]
 }
 
-export function getWorkoutPublicationStatus(workout = {}) {
+export function getWorkoutPublicationStatus(workout = {}, workoutLogs = []) {
   const explicitStatus = normalizeText(workout.publicationStatus || workout.publication_status || '')
   if (explicitStatus === 'draft') return 'draft'
   if (explicitStatus === 'published') return 'published'
@@ -1816,7 +1816,12 @@ export function getWorkoutPublicationStatus(workout = {}) {
   if (displayStatus.includes('arquivado')) return 'archived'
   if (displayStatus.includes('publicado')) return 'published'
 
-  return workout.active === false ? 'archived' : 'published'
+  if (workout.active !== false) return 'published'
+
+  const hasCompletedExecution = (Array.isArray(workoutLogs) ? workoutLogs : []).some((log) => (
+    String(log?.workoutId || log?.workout_id || '') === String(workout.id || '')
+  ))
+  return hasCompletedExecution ? 'archived' : 'draft'
 }
 
 function AppContent() {
@@ -8850,12 +8855,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   }, [draft, selectedStudent?.id, selectedStudentId, showCreator])
 
   const activeWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout) === 'published' && workout.active !== false),
-    [workouts],
+    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'published' && workout.active !== false),
+    [workoutLogs, workouts],
   )
   const draftWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout) === 'draft'),
-    [workouts],
+    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'draft'),
+    [workoutLogs, workouts],
   )
   const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
   const filteredDraftWorkouts = useMemo(

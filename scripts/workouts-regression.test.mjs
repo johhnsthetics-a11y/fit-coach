@@ -152,12 +152,13 @@ test('Treinos mostra filtros com capitalização profissional sem alterar os val
 })
 
 test('rascunho persistido pode ser retomado sem ressuscitar treino arquivado', () => {
-  const draftWorkout = { ...workout, active: false, publicationStatus: 'draft', status: 'Rascunho', title: 'Rascunho Recuperável' }
-  const archivedWorkout = { ...workout, id: 'workout-archived', active: false, publicationStatus: 'archived', status: 'Arquivado', title: 'Treino Arquivado' }
+  const draftWorkout = { ...workout, active: false, title: 'Rascunho Recuperável' }
+  const archivedWorkout = { ...workout, id: 'workout-archived', active: false, title: 'Treino Arquivado' }
   const storage = new Map([['fitcoach-ai-pro-v2', JSON.stringify({
     user: { id: 'coach-drafts', name: 'Treinador de rascunhos' },
     students: [student],
     workouts: [draftWorkout, archivedWorkout],
+    workoutLogs: [{ id: 'archived-log', workoutId: archivedWorkout.id, studentId: student.id, completedAt: '2026-10-01T12:00:00.000Z' }],
   })]])
   globalThis.window = {
     localStorage: { getItem: (key) => storage.get(key) ?? null },
