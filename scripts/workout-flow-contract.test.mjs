@@ -7,6 +7,7 @@ const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'ut
 const migrationSource = await readFile(new URL('../supabase/migrations/20260915_workout_flow_readiness.sql', import.meta.url), 'utf8').catch(() => '')
 const lifecycleMigrationSource = await readFile(new URL('../supabase/migrations/20261012204511_workout_publication_lifecycle.sql', import.meta.url), 'utf8')
 const lifecycleConsistencySource = await readFile(new URL('../supabase/migrations/20261012212459_workout_publication_consistency.sql', import.meta.url), 'utf8')
+const lifecyclePrivilegesSource = await readFile(new URL('../supabase/migrations/20261012230712_workout_publication_trigger_privileges.sql', import.meta.url), 'utf8')
 const renamedReferenceFixSource = await readFile(new URL('../supabase/migrations/20260925_fix_workout_session_renamed_refs.sql', import.meta.url), 'utf8').catch(() => '')
 const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
@@ -20,6 +21,11 @@ test('rascunho permanece privado e publicação fica disponível ao aluno', () =
   assert.match(lifecycleConsistencySource, /create trigger sync_workout_publication_lifecycle/i)
   assert.match(lifecycleConsistencySource, /workouts_publication_active_check/i)
   assert.match(lifecycleConsistencySource, /new\.publication_status := case when new\.active is true then 'published' else 'archived' end/i)
+})
+
+test('trigger de ciclo do treino não fica exposto como RPC', () => {
+  assert.match(lifecyclePrivilegesSource, /revoke all on function public\.sync_workout_publication_lifecycle\(\) from public/i)
+  assert.match(lifecyclePrivilegesSource, /from anon, authenticated, service_role/i)
 })
 
 test('portal de treinos valida convite e vínculo antes de retornar dados', () => {
