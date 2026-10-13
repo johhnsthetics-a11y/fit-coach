@@ -36,6 +36,40 @@ test('Edge Function autentica, limpa arquivos e remove a conta no servidor', asy
   assert.doesNotMatch(source, /status\s*=\s*501|},\s*501\)/)
 })
 
+test('aluno autenticado pode excluir a propria conta e os dados vinculados', async () => {
+  const edgeFunction = await readFile(new URL('../supabase/functions/delete-coach-account/index.ts', import.meta.url), 'utf8')
+  const migration = await readFile(new URL('../supabase/migrations/20261013201523_app_store_account_deletion_hardening.sql', import.meta.url), 'utf8')
+  const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(edgeFunction, /\.eq\('auth_user_id', user\.id\)/)
+  assert.match(migration, /profile-avatars/)
+  assert.match(migration, /students\.auth_user_id = auth\.uid\(\)/)
+  assert.match(edgeFunction, /coach_protocol_tasks/)
+  assert.match(edgeFunction, /student_free_access_grants/)
+  assert.match(edgeFunction, /\.from\('students'\)[\s\S]*?\.delete\(\)/)
+  assert.match(api, /export async function deleteRemoteStudentAccount/)
+  assert.match(app, /studentPortalTabIds[^\n]*'conta'/)
+  assert.match(app, /Conta e privacidade/)
+  assert.match(app, /Excluir minha conta definitivamente/)
+})
+
+test('funcoes internas de trigger nao ficam expostas como RPC', async () => {
+  const migration = await readFile(new URL('../supabase/migrations/20261013201523_app_store_account_deletion_hardening.sql', import.meta.url), 'utf8')
+
+  assert.match(migration, /revoke all on function public\.coachfit_protect_user_role\(\) from public, anon, authenticated/i)
+  assert.match(migration, /revoke all on function public\.create_coach_subscription\(\) from public, anon, authenticated/i)
+  assert.match(migration, /revoke all on function public\.coachfit_prepare_student_billing\(\) from public, anon, authenticated/i)
+})
+
+test('politica publica explica tratamento, retencao e exclusao dentro do aplicativo', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(app, /Finalidades e uso dos dados/)
+  assert.match(app, /Retenção e exclusão/)
+  assert.match(app, /Conta e privacidade/)
+})
+
 test('migração conecta a exclusão autenticada aos dados do aplicativo', async () => {
   const source = await readFile(new URL('../supabase/migrations/20260921_secure_account_deletion.sql', import.meta.url), 'utf8')
 

@@ -240,6 +240,7 @@ async function rpcRequest(functionName, body) {
 }
 
 async function functionRequest(functionName, body) {
+  const revision = sessionRevision
   if (!supabaseEnabled) {
     throw new Error('Supabase não configurado')
   }
@@ -257,6 +258,7 @@ async function functionRequest(functionName, body) {
   } catch {
     payload = { message: text }
   }
+  assertCurrentSession(revision)
 
   if (!response.ok) {
     throw new Error(payload.error || payload.message || `Erro na função ${functionName}`)
@@ -266,6 +268,7 @@ async function functionRequest(functionName, body) {
 }
 
 async function functionFormRequest(functionName, formData) {
+  const revision = sessionRevision
   if (!supabaseEnabled) throw new Error('Supabase não configurado')
 
   const response = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/${functionName}`, {
@@ -280,6 +283,7 @@ async function functionFormRequest(functionName, formData) {
   } catch {
     payload = { message: text }
   }
+  assertCurrentSession(revision)
   if (!response.ok) throw new Error(payload.error || payload.message || `Erro na função ${functionName}`)
   return payload
 }
@@ -452,6 +456,21 @@ export async function verifyRecoveredPasswordChange(email, password) {
 }
 
 export async function deleteRemoteCoachAccount({ email, confirmation }) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  const normalizedConfirmation = String(confirmation || '').trim().toLowerCase()
+
+  if (!normalizedEmail || normalizedConfirmation !== normalizedEmail) {
+    throw new Error('Confirme a exclusao digitando exatamente o e-mail da conta.')
+  }
+
+  return functionRequest('delete-coach-account', {
+    email: normalizedEmail,
+    confirmation: normalizedConfirmation,
+    requestedAt: new Date().toISOString(),
+  })
+}
+
+export async function deleteRemoteStudentAccount({ email, confirmation }) {
   const normalizedEmail = String(email || '').trim().toLowerCase()
   const normalizedConfirmation = String(confirmation || '').trim().toLowerCase()
 

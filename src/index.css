@@ -610,7 +610,7 @@ html {
   -webkit-text-size-adjust: 100%;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -618,7 +618,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
   font-family: "Plus Jakarta Sans", "Inter", "Aptos", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   letter-spacing: 0;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
@@ -736,7 +736,7 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 button {
@@ -6363,7 +6363,7 @@ textarea {
   .sales-page {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
   }
 
   .sales-page *,
@@ -13381,7 +13381,7 @@ html[data-theme="dark"] body { background: #05070d; }
 
 .student-mobile-shell {
   min-height: 100dvh;
-  overflow-x: clip;
+  overflow-x: visible;
   overflow-y: visible;
 }
 
