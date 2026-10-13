@@ -5,6 +5,7 @@ import {
   protocolTaskFromRow,
   protocolTaskToRow,
 } from './protocolTasks'
+import { establishStudentPersonalPassword } from './studentFirstPassword'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -356,12 +357,15 @@ export async function loadRemoteCurrentStudentAccess() {
   }
 }
 
-export async function completeRemoteStudentFirstPassword(password) {
-  password = String(password || '')
-  if (password.length < 8) throw new Error('A nova senha deve ter pelo menos 8 caracteres.')
-  return functionRequest('student-credentials', {
-    action: 'complete-first-password',
+export async function completeRemoteStudentFirstPassword(password, currentEmail = '') {
+  return establishStudentPersonalPassword({
     password,
+    currentEmail,
+    updateAuthenticatedPassword: (nextPassword) => updatePasswordWithAccessToken(sessionToken, nextPassword),
+    signInWithPassword: ({ email, password: nextPassword }) => signInCoach({ email, password: nextPassword }),
+    finalizeFirstAccess: () => functionRequest('student-credentials', {
+      action: 'complete-first-password',
+    }),
   })
 }
 
@@ -386,9 +390,12 @@ export async function requestCoachPasswordReset(email) {
   await authRequest(`recover?redirect_to=${encodeURIComponent(redirectUrl.toString())}`, { email })
 }
 
-export async function updateRecoveredPassword(accessToken, password) {
+async function updatePasswordWithAccessToken(accessToken, password) {
   if (!supabaseEnabled) {
     throw new Error('Supabase não configurado')
+  }
+  if (!accessToken) {
+    throw new Error('Sua sessão expirou. Entre novamente para alterar a senha.')
   }
 
   const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
@@ -419,6 +426,10 @@ export async function updateRecoveredPassword(accessToken, password) {
   }
 
   return { email }
+}
+
+export async function updateRecoveredPassword(accessToken, password) {
+  return updatePasswordWithAccessToken(accessToken, password)
 }
 
 export async function verifyRecoveredPasswordChange(email, password) {
