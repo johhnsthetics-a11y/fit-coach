@@ -3994,7 +3994,16 @@ function AppContent() {
   }
 
   async function finishStudentFirstPassword(password) {
-    await completeRemoteStudentFirstPassword(password)
+    const nextSession = await completeRemoteStudentFirstPassword(password, studentFirstAccess?.email)
+    const studentSession = {
+      ...nextSession,
+      user: {
+        ...nextSession.user,
+        accountType: 'student',
+        role: studentFirstAccess?.professionalType === 'nutritionist' ? 'Paciente' : 'Aluno',
+      },
+    }
+    setData((current) => ({ ...current, session: studentSession, user: studentSession.user }))
     const studentBootstrap = await loadRemoteCurrentStudentAccess()
     if (!studentBootstrap || studentBootstrap.mustChangePassword) {
       throw new Error('Não foi possível concluir a ativação da senha. Tente novamente.')

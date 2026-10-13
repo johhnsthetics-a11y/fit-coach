@@ -56,11 +56,15 @@ test('edge function enforces owner lookup, authenticated user and compensation c
   assert.match(source, /admin\.auth\.admin\.deleteUser/)
   assert.match(source, /account_type:\s*'student'/)
   assert.match(source, /temporaryPassword/)
+  assert.match(source, /if \(password && password\.length < 8\)/)
+  assert.match(source, /if \(password\) \{[\s\S]*admin\.auth\.admin\.updateUserById/)
+  assert.match(source, /\.update\(\{ must_change_password: false \}\)/)
   assert.doesNotMatch(source, /console\.log\([^\n]*(password|token)/i)
 })
 
 test('frontend adapters use authenticated contracts without persisting credentials', async () => {
   const source = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const firstPasswordFlow = await readFile(new URL('../src/studentFirstPassword.js', import.meta.url), 'utf8')
 
   assert.match(source, /export async function generateRemoteStudentCredentials\(studentId\)/)
   assert.match(source, /if \(!isUuid\(studentId\)\)/)
@@ -69,8 +73,10 @@ test('frontend adapters use authenticated contracts without persisting credentia
   assert.match(source, /rpcRequest\('get_current_student_access',\s*\{\}\)/)
   assert.match(source, /inviteCode:\s*row\.invite_code/)
   assert.match(source, /professionalType:\s*row\.professional_type/)
-  assert.match(source, /export async function completeRemoteStudentFirstPassword\(password\)/)
-  assert.match(source, /password\.length\s*<\s*8/)
+  assert.match(source, /export async function completeRemoteStudentFirstPassword\(password,\s*currentEmail\s*=\s*''\)/)
+  assert.match(source, /establishStudentPersonalPassword/)
+  assert.match(source, /updatePasswordWithAccessToken\(sessionToken,\s*nextPassword\)/)
+  assert.match(firstPasswordFlow, /nextPassword\.length\s*<\s*8/)
   assert.match(source, /action:\s*'complete-first-password'/)
   assert.doesNotMatch(source, /localStorage[^\n]*(temporaryPassword|password)/i)
 })

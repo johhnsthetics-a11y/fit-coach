@@ -32,6 +32,7 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({}))
   if (body?.action === 'generate') return generateCredentials(admin, caller, String(body?.studentId || ''))
   if (body?.action === 'complete-first-password') {
+    // Cached clients still send the password; current clients update it through Auth first.
     return completeFirstPassword(admin, caller, String(body?.password || ''))
   }
   return jsonResponse({ error: 'Operação inválida.' }, 400)
@@ -151,7 +152,9 @@ async function completeFirstPassword(
   caller: { id: string },
   password: string,
 ) {
-  if (password.length < 8) return jsonResponse({ error: 'A nova senha deve ter pelo menos 8 caracteres.' }, 400)
+  if (password && password.length < 8) {
+    return jsonResponse({ error: 'A nova senha deve ter pelo menos 8 caracteres.' }, 400)
+  }
 
   const { data: student, error: studentError } = await admin
     .from('students')
@@ -163,8 +166,10 @@ async function completeFirstPassword(
   if (studentError) return jsonResponse({ error: 'Não foi possível validar o primeiro acesso.' }, 502)
   if (!student) return jsonResponse({ error: 'A troca inicial de senha não está pendente.' }, 409)
 
-  const { error: passwordError } = await admin.auth.admin.updateUserById(caller.id, { password })
-  if (passwordError) return jsonResponse({ error: 'Não foi possível atualizar a senha.' }, 502)
+  if (password) {
+    const { error: passwordError } = await admin.auth.admin.updateUserById(caller.id, { password })
+    if (passwordError) return jsonResponse({ error: 'Não foi possível atualizar a senha.' }, 502)
+  }
 
   const { data: updated, error: updateError } = await admin
     .from('students')
