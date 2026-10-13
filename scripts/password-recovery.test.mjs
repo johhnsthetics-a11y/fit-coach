@@ -29,8 +29,7 @@ test('retorno de recuperacao remove token da URL e exige senha forte confirmada'
 
   assert.match(flow, /hashType === 'recovery'/)
   assert.match(flow, /cleanUrl\.hash = ''/)
-  assert.match(flow, /newPassword\.length < 8/)
-  assert.match(flow, /newPassword !== confirmPassword/)
+  assert.match(flow, /validateNewPasswordConfirmation\(newPassword, confirmPassword\)/)
   assert.match(flow, /updateRecoveredPassword\(recoveryToken, newPassword\)/)
   assert.match(flow, /Senha alterada com sucesso/)
 })

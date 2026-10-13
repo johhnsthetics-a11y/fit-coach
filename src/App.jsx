@@ -132,6 +132,7 @@ import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
 import { shouldRefreshPersistedSession } from './authSession'
+import { PASSWORD_POLICY_HINT, getNewPasswordError, validateNewPasswordConfirmation } from './passwordPolicy'
 import {
   ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
   STUDENT_PORTAL_REFRESH_INTERVAL_MS,
@@ -2611,6 +2612,15 @@ function AppContent() {
     const role = mode === 'signup' ? (formData.get('role')?.toString() || 'Coach principal') : 'Coach principal'
     const user = { name, email, role }
 
+    if (mode === 'signup') {
+      const passwordError = getNewPasswordError(password)
+      if (passwordError) {
+        setRemoteStatus('Revise sua senha')
+        setRemoteError(passwordError)
+        return false
+      }
+    }
+
     if (productionWithoutSupabase) {
       setRemoteStatus('Configuração pendente')
       setRemoteError('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Cloudflare antes de liberar o acesso.')
@@ -4723,12 +4733,9 @@ function PasswordRecovery({ onSave }) {
     const password = form.get('password')?.toString() || ''
     const confirmation = form.get('confirmation')?.toString() || ''
 
-    if (password.length < 6) {
-      setError('A senha precisa ter pelo menos 6 caracteres.')
-      return
-    }
-    if (password !== confirmation) {
-      setError('As senhas informadas não são iguais.')
+    const passwordError = validateNewPasswordConfirmation(password, confirmation)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
 
@@ -4751,7 +4758,7 @@ function PasswordRecovery({ onSave }) {
         </div>
         <p className="mt-6 text-xs font-black uppercase text-emerald-300">Recuperação de acesso</p>
         <h1 className="mt-2 text-2xl font-black">Cadastre sua nova senha</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Use pelo menos 6 caracteres e evite senhas utilizadas em outros serviços.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">{PASSWORD_POLICY_HINT}</p>
         <div className="mt-5 grid gap-4">
           <Field label="Nova senha" name="password" type="password" defaultValue="" />
           <Field label="Confirmar nova senha" name="confirmation" type="password" defaultValue="" />
@@ -4775,12 +4782,9 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
     const form = new FormData(event.currentTarget)
     const password = form.get('password')?.toString() || ''
     const confirmation = form.get('confirmation')?.toString() || ''
-    if (password.length < 8) {
-      setError('A senha precisa ter pelo menos 8 caracteres.')
-      return
-    }
-    if (password !== confirmation) {
-      setError('As senhas informadas não são iguais.')
+    const passwordError = validateNewPasswordConfirmation(password, confirmation)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
 
@@ -4802,7 +4806,7 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
         <div className="flex justify-center"><BrandLockup subtitle="Coach Fit Pro" /></div>
         <p className="mt-6 text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Primeiro acesso do {profileLabel}</p>
         <h1 className="mt-2 text-2xl font-black text-white">Crie sua senha pessoal</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Use uma senha só sua. Depois desta etapa, seu acompanhamento será carregado automaticamente.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">{PASSWORD_POLICY_HINT} Depois desta etapa, seu acompanhamento será carregado automaticamente.</p>
         <label className="mt-5 grid gap-2 text-sm font-bold text-zinc-300">
           E-mail
           <input value={email || ''} readOnly className="min-h-11 rounded-md border border-white/10 bg-white/[0.04] px-3 text-zinc-400 outline-none" />

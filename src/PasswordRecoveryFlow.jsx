@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import fitCoachLogo from './fit-coach-logo.png'
 import { requestCoachPasswordReset, updateRecoveredPassword, verifyRecoveredPasswordChange } from './supabaseApi'
+import { PASSWORD_POLICY_HINT, validateNewPasswordConfirmation } from './passwordPolicy'
 
 export function isPasswordRecoveryRoute() {
   const url = new URL(window.location.href)
@@ -171,12 +172,9 @@ export default function PasswordRecoveryFlow() {
       setError('Este link de recuperação é inválido ou expirou. Solicite um novo e-mail.')
       return
     }
-    if (newPassword.length < 8) {
-      setError('A nova senha deve ter pelo menos 8 caracteres.')
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setError('As senhas não coincidem.')
+    const passwordError = validateNewPasswordConfirmation(newPassword, confirmPassword)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
 
@@ -261,7 +259,7 @@ export default function PasswordRecoveryFlow() {
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               autoComplete="new-password"
-              placeholder="Mínimo de 8 caracteres"
+              placeholder="Mínimo de 10 caracteres"
               allowVisibilityToggle
             />
             <Field
@@ -273,7 +271,7 @@ export default function PasswordRecoveryFlow() {
               allowVisibilityToggle
             />
 
-            <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">Use pelo menos 8 caracteres e confirme a mesma senha nos dois campos.</p>
+            <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400">{PASSWORD_POLICY_HINT}</p>
 
             {error && <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold leading-5 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
 
