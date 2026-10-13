@@ -24,7 +24,7 @@ try {
       await page.addInitScript(user => localStorage.setItem('fitcoach-ai-pro-v2', JSON.stringify({ user, students: [], workouts: [] })), { ...profile, id: 'qa-professional', name: 'Profissional QA' })
       const base = server.resolvedUrls.local[0]
       await page.goto(base + '?area=treinos')
-      await page.locator('.coach-nav-item').first().waitFor()
+      await page.locator('.coach-nav-item').first().waitFor({ state: 'attached' })
       const nav = page.locator('.coach-nav-item')
       assert.equal(await nav.filter({ hasText: /^Treinos$/ }).count(), profile.nutritionist ? 0 : 1)
       assert.equal(await nav.filter({ hasText: /^Admin Master$/ }).count(), profile.master ? 1 : 0)
@@ -39,6 +39,13 @@ try {
       await page.goto(base + '?area=alunos')
       await page.getByRole('button', { name: profile.nutritionist ? 'Novo paciente' : 'Novo aluno', exact: true }).click()
       await page.getByRole('button', { name: profile.nutritionist ? 'Salvar paciente' : 'Salvar aluno', exact: true }).waitFor()
+      if (profile.master) {
+        await page.goto(base + '?area=admin-master')
+        await page.getByRole('button', { name: 'Acessos gratuitos', exact: true }).click()
+        await page.getByRole('heading', { name: 'Liberações gratuitas', exact: true }).waitFor()
+        await page.getByLabel('E-mail do aluno ou paciente', { exact: true }).waitFor()
+        await page.getByRole('button', { name: 'Liberar acesso gratuito', exact: true }).waitFor()
+      }
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false)
       assert.deepEqual(errors, [])
       console.log(`PASS ${width}px ${profile.master ? 'master + nutrition role' : profile.role}: routes, refresh, navigation, form, overflow`)

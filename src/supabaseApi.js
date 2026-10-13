@@ -594,6 +594,45 @@ export async function saveRemoteAppAdminSettings(settings) {
   return rows[0]?.settings || settings
 }
 
+function fromStudentFreeAccessGrant(row = {}) {
+  return {
+    id: row.id ?? '',
+    email: row.email ?? '',
+    beneficiaryType: row.beneficiary_type ?? row.beneficiaryType ?? 'student',
+    reason: row.reason ?? '',
+    active: row.active === true,
+    createdByEmail: row.created_by_email ?? row.createdByEmail ?? '',
+    createdAt: row.created_at ?? row.createdAt ?? '',
+    updatedAt: row.updated_at ?? row.updatedAt ?? '',
+    revokedAt: row.revoked_at ?? row.revokedAt ?? '',
+    revokedByEmail: row.revoked_by_email ?? row.revokedByEmail ?? '',
+    matchedProfiles: Number(row.matched_profiles ?? row.matchedProfiles ?? 0),
+  }
+}
+
+export async function loadRemoteStudentFreeAccessGrants() {
+  const result = await rpcRequest('coachfit_list_student_free_access_grants', {})
+  return (Array.isArray(result) ? result : []).map(fromStudentFreeAccessGrant)
+}
+
+export async function grantRemoteStudentFreeAccess({ email, beneficiaryType = 'student', reason = '' }) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!normalizedEmail) throw new Error('Informe o e-mail do aluno ou paciente.')
+  const result = await rpcRequest('coachfit_grant_student_free_access', {
+    p_email: normalizedEmail,
+    p_beneficiary_type: beneficiaryType,
+    p_reason: String(reason || '').trim(),
+  })
+  return fromStudentFreeAccessGrant(Array.isArray(result) ? result[0] : result)
+}
+
+export async function revokeRemoteStudentFreeAccess(email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase()
+  if (!normalizedEmail) throw new Error('Selecione uma liberação válida para revogar.')
+  const result = await rpcRequest('coachfit_revoke_student_free_access', { p_email: normalizedEmail })
+  return fromStudentFreeAccessGrant(Array.isArray(result) ? result[0] : result)
+}
+
 export async function loadRemoteAffiliateFinanceReport(startDate = '', endDate = '') {
   const today = new Date().toLocaleDateString('sv-SE')
   const currentMonthStart = `${today.slice(0, 7)}-01`
@@ -1104,6 +1143,7 @@ export async function loadRemoteStudentByInvite(code) {
     anamnesisCompleted: Boolean(anamnesis?.id),
     anamnesisNeedsUpdate: Boolean(anamnesis?.student_update_requested_at),
     financialAccessOpen: payload.financial_access_open === true,
+    freeAccessGranted: payload.free_access_granted === true,
     appPaymentRequired: payload.app_payment_required === true,
     professionalType: payload.professional_type === 'nutritionist' ? 'nutritionist' : 'trainer',
     professionalName: payload.professional_name ?? '',

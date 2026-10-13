@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { swapShowcasePositions } from './showcaseCarousel'
+import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
 import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
 import { filterStudents } from './studentDirectory'
@@ -16878,6 +16879,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
       }}
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
+      freeAccessGranted={access.freeAccessGranted}
       paymentReturnPending={paymentReturnPending}
       professionalType={access.professionalType}
       questionnaireError={access.questionnaireError || ''}
@@ -16901,7 +16903,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -17325,6 +17327,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           invoices={studentInvoices}
           coachSettings={coachSettings}
           professionalType={professionalType}
+          freeAccessGranted={freeAccessGranted}
           onSendMessage={onSendMessage}
         />
       )
@@ -18180,13 +18183,14 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   )
 }
 
-function StudentPaymentStatement({ student, invoices = [], coachSettings, professionalType = 'trainer', onSendMessage }) {
+function StudentPaymentStatement({ student, invoices = [], coachSettings, professionalType = 'trainer', freeAccessGranted = false, onSendMessage }) {
   const [noticeSending, setNoticeSending] = useState(false)
   const [noticeSent, setNoticeSent] = useState(false)
   const [noticeError, setNoticeError] = useState('')
   const visibleInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) }))
-  const { paidTotal, pendingTotal } = summarizeStudentInvoices(visibleInvoices)
-  const pendingInvoices = visibleInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
+  const chargeableInvoices = freeAccessGranted ? [] : visibleInvoices
+  const { paidTotal, pendingTotal } = summarizeStudentInvoices(chargeableInvoices)
+  const pendingInvoices = chargeableInvoices.filter((invoice) => ['Pendente', 'Atrasado'].includes(invoice.status))
   const nextPendingInvoice = pendingInvoices[0]
   const professionalLabel = getProfessionalBillingLabel(professionalType)
   const professionalLabelLower = professionalLabel.toLowerCase()
@@ -18212,15 +18216,22 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, profes
   }
 
   return (
-    <StudentAppSection title="Fatura" action={`${visibleInvoices.length} registros`}>
+    <StudentAppSection title="Fatura" action={freeAccessGranted ? 'Acesso de teste' : `${visibleInvoices.length} registros`}>
+      {freeAccessGranted ? (
+        <div className="mb-4 rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-200">Acesso gratuito para testes</p>
+          <h3 className="mt-2 text-xl font-black text-white">Isento pelo Admin Master</h3>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">Nenhuma cobrança do Coach Fit Pro ou do profissional é exigida enquanto esta liberação estiver ativa. Registros anteriores permanecem visíveis apenas como histórico.</p>
+        </div>
+      ) : null}
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <StudentStatusCard tone={student?.appPaymentStatus === 'active' ? 'success' : 'warning'} label="Coach Fit Pro" value={formatAppPaymentStatus(student?.appPaymentStatus)} detail="Acesso ao aplicativo" />
-        <StudentStatusCard tone={student?.payment === 'Pago' ? 'professional' : 'warning'} label={professionalLabel} value={student?.payment === 'Pago' ? 'ACOMPANHAMENTO EM DIA' : 'PAGAMENTO PENDENTE'} detail={`Mensalidade do ${professionalLabelLower}`} />
+        <StudentStatusCard tone={freeAccessGranted || student?.appPaymentStatus === 'active' ? 'success' : 'warning'} label="Coach Fit Pro" value={freeAccessGranted ? 'ACESSO GRATUITO' : formatAppPaymentStatus(student?.appPaymentStatus)} detail={freeAccessGranted ? 'Liberado para validação' : 'Acesso ao aplicativo'} />
+        <StudentStatusCard tone={freeAccessGranted || student?.payment === 'Pago' ? 'professional' : 'warning'} label={professionalLabel} value={freeAccessGranted ? 'ISENTO PARA TESTES' : student?.payment === 'Pago' ? 'ACOMPANHAMENTO EM DIA' : 'PAGAMENTO PENDENTE'} detail={freeAccessGranted ? 'Sem cobrança profissional' : `Mensalidade do ${professionalLabelLower}`} />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <StudentStatusCard tone="paid" label="Já pago" value={formatCurrency(paidTotal)} detail="Confirmado pelo profissional" />
-        <StudentStatusCard tone={pendingTotal > 0 ? 'warning' : 'neutral'} label="Em aberto" value={formatCurrency(pendingTotal)} detail="Pendentes e atrasados" />
-        <StudentStatusCard tone="pix" label="Pix" value={coachSettings?.pixKey || '-'} detail={coachSettings?.publicName || professionalLabel} />
+        <StudentStatusCard tone={pendingTotal > 0 ? 'warning' : 'neutral'} label="Em aberto" value={formatCurrency(pendingTotal)} detail={freeAccessGranted ? 'Nenhuma cobrança aplicável' : 'Pendentes e atrasados'} />
+        <StudentStatusCard tone="pix" label={freeAccessGranted ? 'Liberação' : 'Pix'} value={freeAccessGranted ? 'ADMIN MASTER' : coachSettings?.pixKey || '-'} detail={freeAccessGranted ? 'Revogável a qualquer momento' : coachSettings?.publicName || professionalLabel} />
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -18234,9 +18245,11 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, profes
         ) : null}
       </div>
       <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.035] p-3">
-        <p className="text-xs font-black uppercase text-zinc-400">{pendingInvoices.length ? 'Como a liberação funciona' : 'Assinatura em dia'}</p>
+        <p className="text-xs font-black uppercase text-zinc-400">{freeAccessGranted ? 'Conta de validação' : pendingInvoices.length ? 'Como a liberação funciona' : 'Assinatura em dia'}</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">
-          {pendingInvoices.length
+          {freeAccessGranted
+            ? 'Você pode validar todas as ferramentas do aplicativo. A liberação é sincronizada automaticamente com o acesso desta conta.'
+            : pendingInvoices.length
             ? `Pague pelo Pix do ${professionalLabelLower}, envie o comprovante no chat e toque em “Avisei que paguei”. O ${professionalLabelLower} confirma o recebimento e a fatura é atualizada.`
             : 'Nenhuma cobrança em aberto no momento. Quando houver uma nova fatura, ela aparecerá somente nesta área.'}
         </p>
@@ -18254,6 +18267,7 @@ function StudentPaymentStatement({ student, invoices = [], coachSettings, profes
                   <h4 className="mt-3 break-words font-black">{invoice.description || invoice.planName}</h4>
                   <p className="mt-1 text-sm text-zinc-400">Vencimento: {formatDate(invoice.dueDate)}</p>
                   {invoice.paidAt ? <p className="mt-1 text-xs text-zinc-500">Pago em {formatDateTime(invoice.paidAt)}</p> : null}
+                  {freeAccessGranted ? <p className="mt-2 text-xs font-bold text-emerald-200">Registro histórico, sem cobrança durante a liberação de teste.</p> : null}
                 </div>
                 <p className="text-xl font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
               </div>
@@ -21105,6 +21119,7 @@ function AffiliateAdminPage() {
 }
 
 function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
+  const [activePage, setActivePage] = useState('settings')
   const [draft, setDraft] = useState(() => normalizeAdminSettings(settings))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -21268,6 +21283,28 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         </div>
       </section>
 
+      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-2" aria-label="Páginas do Admin Master">
+        <button
+          type="button"
+          onClick={() => setActivePage('settings')}
+          aria-current={activePage === 'settings' ? 'page' : undefined}
+          className={`min-h-12 rounded-xl px-4 text-sm font-black transition ${activePage === 'settings' ? 'bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'text-zinc-300 hover:bg-white/[0.05]'}`}
+        >
+          Configurações gerais
+        </button>
+        <button
+          type="button"
+          onClick={() => setActivePage('free-access')}
+          aria-current={activePage === 'free-access' ? 'page' : undefined}
+          className={`min-h-12 rounded-xl px-4 text-sm font-black transition ${activePage === 'free-access' ? 'bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'text-zinc-300 hover:bg-white/[0.05]'}`}
+        >
+          Acessos gratuitos
+        </button>
+      </nav>
+
+      {activePage === 'free-access' ? (
+        <AdminStudentFreeAccess />
+      ) : (
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
         <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
           <AdminSystemHealthPanel remoteStatus={remoteStatus} remoteError={remoteError} settings={draft} />
@@ -21555,6 +21592,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
 
         {message ? <p className="rounded-xl border border-emerald-300/25 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">{message}</p> : null}
       </form>
+      )}
     </div>
   )
 }
