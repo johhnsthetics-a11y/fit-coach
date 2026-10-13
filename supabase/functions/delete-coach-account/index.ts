@@ -53,6 +53,33 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: false, error: 'A conta master nao pode ser excluida por esta tela.' }, 403)
   }
 
+  const { data: studentRows, error: studentLookupError } = await admin
+    .from('students')
+    .select('id, coach_id, email, auth_user_id')
+    .eq('auth_user_id', user.id)
+    .limit(1)
+  if (studentLookupError) {
+    return jsonResponse({ ok: false, error: 'Nao foi possivel identificar os dados vinculados a conta.' }, 503)
+  }
+  const studentAccount = studentRows?.[0] ?? null
+
+  let linkedStudentAuthIds: string[] = []
+  if (!studentAccount) {
+    const { data: linkedStudents, error: linkedStudentsError } = await admin
+      .from('students')
+      .select('auth_user_id')
+      .eq('coach_id', user.id)
+      .not('auth_user_id', 'is', null)
+    if (linkedStudentsError) {
+      return jsonResponse({ ok: false, error: 'Nao foi possivel preparar a exclusao dos acessos vinculados.' }, 503)
+    }
+    linkedStudentAuthIds = [...new Set(
+      (linkedStudents ?? [])
+        .map((row) => String(row.auth_user_id ?? '').trim())
+        .filter((id) => id && id !== user.id),
+    )]
+  }
+
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { autoRefreshToken: false, persistSession: false },
@@ -62,8 +89,52 @@ Deno.serve(async (request) => {
     return jsonResponse({ ok: false, error: 'Nao foi possivel preparar a remocao dos arquivos da conta.' }, 503)
   }
 
+  const storageRemovalError = await removeStorageObjects(admin, storageRows)
+  if (storageRemovalError) return jsonResponse({ ok: false, error: storageRemovalError }, 502)
+
+  if (studentAccount) {
+    const { error: protocolDeletionError } = await admin
+      .from('coach_protocol_tasks')
+      .delete()
+      .eq('student_id', studentAccount.id)
+    if (protocolDeletionError) {
+      return jsonResponse({ ok: false, error: 'Nao foi possivel remover as organizacoes vinculadas a conta.' }, 502)
+    }
+
+    const { error: grantDeletionError } = await admin
+      .from('student_free_access_grants')
+      .delete()
+      .eq('email', accountEmail)
+    if (grantDeletionError) {
+      return jsonResponse({ ok: false, error: 'Nao foi possivel remover a liberacao vinculada a conta.' }, 502)
+    }
+
+    const { error: studentDeletionError } = await admin
+      .from('students')
+      .delete()
+      .eq('id', studentAccount.id)
+      .eq('auth_user_id', user.id)
+    if (studentDeletionError) {
+      return jsonResponse({ ok: false, error: 'Nao foi possivel remover os dados do aluno ou paciente.' }, 502)
+    }
+  } else {
+    for (const studentAuthId of linkedStudentAuthIds) {
+      const { error: linkedAuthDeletionError } = await admin.auth.admin.deleteUser(studentAuthId)
+      if (linkedAuthDeletionError) {
+        return jsonResponse({ ok: false, error: 'Nao foi possivel remover todos os acessos de alunos vinculados.' }, 502)
+      }
+    }
+  }
+
+  const { error: deletionError } = await admin.auth.admin.deleteUser(user.id)
+  if (deletionError) return jsonResponse({ ok: false, error: 'Nao foi possivel concluir a exclusao da conta.' }, 502)
+
+  return jsonResponse({ ok: true, accountType: studentAccount ? 'student' : 'professional' }, 200)
+})
+
+async function removeStorageObjects(admin: ReturnType<typeof createClient>, rows: unknown) {
   const pathsByBucket = new Map<string, string[]>()
-  for (const object of collectStorageObjects(storageRows)) {
+  for (const object of collectStorageObjects(Array.isArray(rows) ? rows : [])) {
     const paths = pathsByBucket.get(object.bucket) ?? []
     paths.push(object.path)
     pathsByBucket.set(object.bucket, paths)
@@ -72,19 +143,16 @@ Deno.serve(async (request) => {
   for (const [bucket, paths] of pathsByBucket) {
     for (let index = 0; index < paths.length; index += 100) {
       const { error } = await admin.storage.from(bucket).remove(paths.slice(index, index + 100))
-      if (error) return jsonResponse({ ok: false, error: 'Nao foi possivel remover todos os arquivos da conta.' }, 502)
+      if (error) return 'Nao foi possivel remover todos os arquivos da conta.'
     }
   }
 
-  const { error: deletionError } = await admin.auth.admin.deleteUser(user.id)
-  if (deletionError) return jsonResponse({ ok: false, error: 'Nao foi possivel concluir a exclusao da conta.' }, 502)
-
-  return jsonResponse({ ok: true }, 200)
-})
+  return ''
+}
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   })
 }

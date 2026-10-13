@@ -17,6 +17,8 @@ function Harness(){
  const [forms,setForms]=React.useState(()=>JSON.parse(localStorage.getItem('qa-forms')||'null')||${JSON.stringify(assignments)});
  const [theme,setTheme]=React.useState('light');
  return <StudentMobileApp student={student} checkins={[{id:'other',studentId:'qa-student-b',note:'PRIVATE_OTHER_STUDENT'}]} workouts={[${JSON.stringify(workout)}]} nutritionPlans={[]} workoutLogs={logs} messages={[]} appointments={[]} invoices={[]} assessments={[]} questionnaireAssignments={forms} coachId="qa-coach" theme={theme} toggleUiTheme={()=>setTheme(v=>v==='light'?'dark':'light')} onExit={()=>location.assign('/login?mode=signin')}
+ accountEmail="aluno.qa@example.test" onDeleteAccount={async()=>({ok:true})}
+ onAddCheckin={async checkin=>{window.qaLastCheckin=checkin;return checkin}}
  onSubmitQuestionnaire={async(id,answers)=>{
   if(window.qaFailSubmit) throw new Error('Falha de conexão de teste');
   const saved={...forms.find(f=>f.id===id),answers,status:'Respondido',completedAt:new Date().toISOString(),xpAwarded:true};
@@ -117,7 +119,7 @@ try {
       results.push('coach 390 menu: rounded panel, module tones and no overflow')
     }
     await page.goto(base + 'qa-student')
-    for (const tab of ['inicio','treino','dieta','checkin','mensagens','pagamentos','agenda','progresso','historico']) {
+    for (const tab of ['inicio','treino','dieta','checkin','mensagens','pagamentos','agenda','progresso','historico','conta']) {
       errors=[]
       await page.goto(base + 'qa-student?alunoTab=' + tab)
       try { await page.locator('.student-mobile-shell').waitFor() } catch(error) { console.log({errors,body:await page.locator('body').innerText()}); throw error }
@@ -126,12 +128,31 @@ try {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)
       if(broken || errors.length || overflow) problems.push({role:'student',width,tab,errors:[...errors],overflow,broken})
       results.push(`student ${width} ${tab}`)
-      if(width===390 && ['inicio','treino'].includes(tab)) await page.screenshot({path:resolve(output,`student-${tab}-${width}.png`),fullPage:true})
+      if(width===390 && ['inicio','treino','conta'].includes(tab)) await page.screenshot({path:resolve(output,`student-${tab}-${width}.png`),fullPage:true})
     }
     if (width === 390) {
       const shortMobileHeight = 568
       await page.setViewportSize({ width, height: shortMobileHeight })
       await page.goto(base + 'qa-student?alunoTab=inicio')
+      await page.evaluate(() => window.scrollTo(0, 700))
+      await page.waitForTimeout(100)
+      const headerLayer = await page.evaluate(() => {
+        const header = document.querySelector('.student-header-nav')
+        if (!header) return { matches: false, reason: 'missing header' }
+        const box = header.getBoundingClientRect()
+        const point = document.elementFromPoint(window.innerWidth / 2, Math.max(1, box.top + (box.height / 2)))
+        return {
+          matches: Boolean(point && header.contains(point)),
+          box: { top: box.top, bottom: box.bottom, height: box.height },
+          point: point?.className || point?.tagName || '',
+          position: getComputedStyle(header).position,
+          computedTop: getComputedStyle(header).top,
+          scrollY: window.scrollY,
+          shellOverflowX: getComputedStyle(document.querySelector('.student-mobile-shell')).overflowX,
+        }
+      })
+      assert.equal(headerLayer.matches, true, `Cabeçalho mobile deve continuar visível e acima do conteúdo durante a rolagem: ${JSON.stringify(headerLayer)}`)
+      await page.evaluate(() => window.scrollTo(0, 0))
       const waterActionColors = await Promise.all([
         page.getByRole('button', { name: '+250 ml', exact: true }),
         page.getByRole('button', { name: '+500 ml', exact: true }),
@@ -154,8 +175,36 @@ try {
       await studentMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
       const studentBottomNavBox = await page.locator('.student-bottom-nav').boundingBox()
       assert.ok(shortMobileHeight - (studentBottomNavBox.y + studentBottomNavBox.height) <= 4, 'Menu inferior do aluno deve permanecer próximo da borda segura')
+      await page.goto(base + 'qa-student?alunoTab=checkin')
+      assert.equal(await page.getByLabel('Peso informado', { exact: true }).inputValue(), '')
+      assert.equal(await page.getByLabel('Observações', { exact: true }).inputValue(), '')
+      await page.getByRole('button', { name: 'Salvar check-in', exact: true }).click()
+      await page.getByText('Informe o peso, uma observação ou uma foto antes de salvar.', { exact: true }).waitFor()
       await page.setViewportSize({ width, height: 900 })
       results.push('student 390 menu: rounded panel, module tones and no overflow')
+    }
+    if (width === 390) {
+      const storagePage = await context.newPage()
+      const storageErrors = []
+      storagePage.on('pageerror', (error) => storageErrors.push(error.message))
+      await storagePage.addInitScript(() => {
+        const nativeGet = Storage.prototype.getItem
+        const nativeSet = Storage.prototype.setItem
+        Storage.prototype.getItem = function getItem(key) {
+          if (String(key).startsWith('fitcoach-water-')) throw new DOMException('Storage blocked', 'SecurityError')
+          return nativeGet.call(this, key)
+        }
+        Storage.prototype.setItem = function setItem(key, value) {
+          if (String(key).startsWith('fitcoach-water-')) throw new DOMException('Storage blocked', 'SecurityError')
+          return nativeSet.call(this, key, value)
+        }
+      })
+      await storagePage.goto(base + 'qa-student?alunoTab=inicio')
+      await storagePage.locator('.student-mobile-shell').waitFor()
+      await storagePage.waitForTimeout(200)
+      assert.deepEqual(storageErrors, [], 'Bloqueio do armazenamento local não deve derrubar a área do aluno')
+      await storagePage.close()
+      results.push('student 390 storage resilience')
     }
     if ([390,1440].includes(width)) {
       errors=[]

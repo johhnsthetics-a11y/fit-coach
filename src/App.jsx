@@ -34,6 +34,7 @@ import {
   cancelRemoteProfessionalReferral,
   generateRemoteStudentCredentials,
   deleteRemoteCoachAccount,
+  deleteRemoteStudentAccount,
   deleteRemoteStudent,
   deleteRemoteAffiliateProfessional,
   fetchRemoteExerciseMedia,
@@ -131,6 +132,14 @@ import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
 import { shouldRefreshPersistedSession } from './authSession'
+import {
+  ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
+  STUDENT_PORTAL_REFRESH_INTERVAL_MS,
+  readLocalStorage,
+  removeLocalStorage,
+  shouldRunVisibleRefresh,
+  writeLocalStorage,
+} from './studentPortalRuntime'
 
 const AssessmentChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.AssessmentChart })))
 const RevenueChart = lazy(() => import('./CoachCharts').then((module) => ({ default: module.RevenueChart })))
@@ -610,7 +619,7 @@ const navItems = [
 
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
-const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico'])
+const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
 const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
 
 function getProfessionalRole(user = {}) {
@@ -1544,26 +1553,21 @@ function useStoredData() {
   useEffect(() => {
     if (!supabaseEnabled) return undefined
     let active = true
-    loadRemoteAppAdminSettings()
-      .then((settings) => {
-        if (!active || !settings) return
-        const normalized = normalizeAdminSettings(settings)
-        saveLocalAdminSettings(normalized)
-        setData((current) => ({ ...current, appAdminSettings: normalized }))
-      })
-      .catch(() => {
-        // O app continua usando as configurações padrão até o SQL do Admin Master ser aplicado.
-      })
-    return () => {
-      active = false
-    }
-  }, [])
+    let pending = false
+    let lastStartedAt = 0
 
-  useEffect(() => {
-    if (!supabaseEnabled) return undefined
-    let active = true
+    async function refreshAdminSettings({ force = false } = {}) {
+      const now = Date.now()
+      if (!force && !shouldRunVisibleRefresh({
+        pending,
+        visibilityState: document.visibilityState,
+        lastStartedAt,
+        now,
+        minimumGapMs: 15_000,
+      })) return
 
-    async function refreshAdminSettings() {
+      pending = true
+      lastStartedAt = now
       try {
         const settings = await loadRemoteAppAdminSettings()
         if (!active || !settings) return
@@ -1572,21 +1576,24 @@ function useStoredData() {
         setData((current) => ({ ...current, appAdminSettings: normalized }))
       } catch {
         // Mantém a versão local se o celular estiver offline ou o Supabase ainda não responder.
+      } finally {
+        pending = false
       }
     }
 
     function refreshWhenVisible() {
-      if (document.visibilityState !== 'hidden') refreshAdminSettings()
+      refreshAdminSettings()
     }
 
-    const timer = window.setInterval(refreshAdminSettings, 45000)
-    window.addEventListener('focus', refreshAdminSettings)
+    refreshAdminSettings({ force: true })
+    const timer = window.setInterval(refreshWhenVisible, ADMIN_SETTINGS_REFRESH_INTERVAL_MS)
+    window.addEventListener('focus', refreshWhenVisible)
     document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       active = false
       window.clearInterval(timer)
-      window.removeEventListener('focus', refreshAdminSettings)
+      window.removeEventListener('focus', refreshWhenVisible)
       document.removeEventListener('visibilitychange', refreshWhenVisible)
     }
   }, [])
@@ -2297,7 +2304,7 @@ function AppContent() {
         const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
         if (!active) return
         setStudentAccess(portal)
-        window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+        removeLocalStorage(STUDENT_ACCESS_KEY)
         setRemoteStatus('Acesso carregado')
         setRemoteError('')
       } catch (error) {
@@ -2405,7 +2412,7 @@ function AppContent() {
   useEffect(() => {
     if (studentAccess || studentAuthSession || !supabaseEnabled) return
 
-    const savedCode = window.localStorage.getItem(STUDENT_ACCESS_KEY)
+    const savedCode = readLocalStorage(STUDENT_ACCESS_KEY)
     if (!savedCode) return
 
     enterStudentByInvite(savedCode, { silent: true })
@@ -2495,10 +2502,14 @@ function AppContent() {
 
     let active = true
     let pending = false
+    let lastStartedAt = 0
 
     async function syncStudentPortalAccess() {
-      if (pending || document.visibilityState === 'hidden') return
+      if (pending) return
+      const now = Date.now()
+      if (!shouldRunVisibleRefresh({ visibilityState: document.visibilityState, lastStartedAt, now })) return
       pending = true
+      lastStartedAt = now
       try {
         const latestAccess = await loadRemoteStudentByInvite(studentAccess.invite.code)
         if (!active) return
@@ -2527,12 +2538,14 @@ function AppContent() {
       syncStudentPortalAccess()
     }
 
-    const timer = window.setInterval(syncStudentPortalAccess, 5000)
+    const timer = window.setInterval(syncStudentPortalAccess, STUDENT_PORTAL_REFRESH_INTERVAL_MS)
+    window.addEventListener('focus', refreshStudentPortalWhenVisible)
     document.addEventListener('visibilitychange', refreshStudentPortalWhenVisible)
 
     return () => {
       active = false
       window.clearInterval(timer)
+      window.removeEventListener('focus', refreshStudentPortalWhenVisible)
       document.removeEventListener('visibilitychange', refreshStudentPortalWhenVisible)
     }
   }, [studentAccess?.invite?.code])
@@ -2640,7 +2653,7 @@ function AppContent() {
             session: studentSession,
             user: studentSession.user,
           }))
-          window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+          removeLocalStorage(STUDENT_ACCESS_KEY)
           if (studentBootstrap.mustChangePassword) {
             setStudentFirstAccess(studentBootstrap)
             setRemoteStatus('Primeiro acesso')
@@ -2717,7 +2730,7 @@ function AppContent() {
     setStudentAccess(null)
     setStudentFirstAccess(null)
     setSelectedStudentId(null)
-    window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+    removeLocalStorage(STUDENT_ACCESS_KEY)
     setData(createInitialData())
   }
 
@@ -2727,6 +2740,21 @@ function AppContent() {
     }
 
     await deleteRemoteCoachAccount({
+      email: data.user.email,
+      confirmation,
+    })
+
+    logout()
+    setRemoteStatus('Conta removida')
+    setRemoteError('')
+  }
+
+  async function requestStudentAccountDeletion(confirmation) {
+    if (!studentAuthSession || !data.user?.email) {
+      throw new Error('Entre com o e-mail e a senha do aluno ou paciente para excluir esta conta.')
+    }
+
+    await deleteRemoteStudentAccount({
       email: data.user.email,
       confirmation,
     })
@@ -3917,13 +3945,13 @@ function AppContent() {
       const access = await loadRemoteStudentByInvite(cleanCode)
       if (requestId !== portalRequestRef.current) return false
       setStudentAccess(access)
-      window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || cleanCode)
+      writeLocalStorage(STUDENT_ACCESS_KEY, access.invite?.code || cleanCode)
       setRemoteStatus('Convite carregado')
       setRemoteError('')
       return true
     } catch (error) {
       if (requestId !== portalRequestRef.current) return false
-      window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+      removeLocalStorage(STUDENT_ACCESS_KEY)
       if (options.silent) return false
       handleRemoteError(error, 'Erro no convite')
       return false
@@ -3958,7 +3986,7 @@ function AppContent() {
       const access = await acceptRemoteStudentConsent(studentAccess.invite.code)
       if (requestId !== portalRequestRef.current) return
       setStudentAccess(access)
-      window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
+      writeLocalStorage(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
       setRemoteStatus('Consentimento registrado')
       setRemoteError('')
     } catch (error) {
@@ -3974,7 +4002,7 @@ function AppContent() {
       const access = await submitRemoteStudentAnamnesis(studentAccess.invite.code, answers)
       if (requestId !== portalRequestRef.current) return
       setStudentAccess(access)
-      window.localStorage.setItem(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
+      writeLocalStorage(STUDENT_ACCESS_KEY, access.invite?.code || studentAccess.invite.code)
       setRemoteStatus(`Anamnese enviada ao ${studentAccess.professionalType === 'nutritionist' ? 'nutricionista' : 'treinador'}`)
       setRemoteError('')
     } catch (error) {
@@ -3990,7 +4018,7 @@ function AppContent() {
     }
     portalRequestRef.current += 1
     setStudentAccess(null)
-    window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+    removeLocalStorage(STUDENT_ACCESS_KEY)
   }
 
   async function finishStudentFirstPassword(password) {
@@ -4011,7 +4039,7 @@ function AppContent() {
     const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
     setStudentAccess(portal)
     setStudentFirstAccess(null)
-    window.localStorage.removeItem(STUDENT_ACCESS_KEY)
+    removeLocalStorage(STUDENT_ACCESS_KEY)
     setRemoteStatus('Senha criada e acesso carregado')
     setRemoteError('')
   }
@@ -4134,6 +4162,8 @@ function AppContent() {
         appAdminSettings={appAdminSettings}
         uiTheme={uiTheme}
         toggleUiTheme={toggleUiTheme}
+        accountEmail={studentAuthSession ? data.user?.email || studentAccess.student.email : ''}
+        onDeleteAccount={studentAuthSession ? requestStudentAccountDeletion : null}
         onExit={exitStudentAccess}
       />
     )
@@ -6281,17 +6311,18 @@ function getLegalContent(type) {
   const isPrivacy = type === 'privacy'
   return {
     title: isPrivacy ? 'Política de Privacidade' : 'Termos de Uso',
-    updatedAt: 'Atualizado em 13 de julho de 2026',
+    updatedAt: 'Atualizado em 13 de outubro de 2026',
     intro: isPrivacy
-      ? 'O Coach Fit Pro trata dados de cadastro, acompanhamento, fotos, mensagens, treinos, nutrição, check-ins, anamnese e pagamentos para operar o painel do treinador e o portal do aluno.'
+      ? 'O Coach Fit Pro trata dados pessoais e dados sensíveis necessários para operar o acompanhamento entre profissionais, alunos e pacientes, sempre conforme o perfil e as funcionalidades utilizadas.'
       : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional, relação com o aluno e validação técnica continuam sob responsabilidade do treinador.',
     items: isPrivacy
       ? [
-        'Dados sensíveis de saúde, treino, nutrição, fotos, anamnese e check-ins devem ser coletados pelo treinador somente com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, mensagens, treinos, dietas, cargas e históricos ficam vinculados ao treinador responsável e ao aluno cadastrado, com controle de acesso por conta.',
-        'Arquivos privados devem permanecer em buckets privados do Supabase Storage e serem exibidos por links temporários assinados.',
-        'A exclusão definitiva da conta remove dados operacionais vinculados. Registros financeiros, segurança e auditoria podem ser retidos pelo prazo legal necessário.',
-        'Solicitações de acesso, correção, portabilidade ou exclusão de dados podem ser enviadas para sac@coachfitpro.com.br.',
+        'Dados tratados: cadastro e contato, credenciais de acesso, treinos, nutrição, anamnese, avaliações, check-ins, fotos, mensagens, áudios, agenda, pagamentos e registros técnicos de segurança.',
+        'Finalidades e uso dos dados: autenticar contas, entregar o acompanhamento contratado, sincronizar informações entre profissional e aluno ou paciente, processar pagamentos, prestar suporte, prevenir fraude e manter a segurança do serviço.',
+        'Compartilhamento e operadores: os dados necessários podem ser processados pelo Supabase, responsável por autenticação, banco e armazenamento, e pela Cartpanda e seus provedores quando houver checkout. O Coach Fit Pro não vende dados pessoais nem os utiliza para publicidade comportamental.',
+        'Segurança e controle de acesso: dados privados são protegidos por autenticação, políticas de acesso por usuário e links temporários para arquivos. Cada profissional acessa somente os registros vinculados à sua própria conta.',
+        'Retenção e exclusão: dados são mantidos enquanto a conta e o acompanhamento estiverem ativos. A exclusão pode ser iniciada dentro do aplicativo em Conta e privacidade e remove a conta e os dados operacionais vinculados; registros financeiros, antifraude ou de auditoria podem ser preservados somente pelo prazo exigido por lei.',
+        'Direitos do titular: solicitações de acesso, correção, portabilidade, oposição ou esclarecimentos podem ser enviadas para sac@coachfitpro.com.br. A exclusão da conta também está disponível diretamente no aplicativo.',
       ]
       : [
         'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
@@ -16820,7 +16851,7 @@ function ProfileAvatar({ name, src = '', size = 'md', className = '' }) {
   )
 }
 
-function StudentAccessApp({ access, paymentReturnPending = false, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, chatSyncError = '', onExit }) {
+function StudentAccessApp({ access, paymentReturnPending = false, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
   const student = access.student
   const freshCheckins = checkins.filter((item) => String(item.studentId) === String(student.id))
   const studentCheckins = mergeRecords(freshCheckins, access.checkins)
@@ -16907,12 +16938,14 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
       onRefreshMessages={onRefreshMessages}
       onUpdateAvatar={onUpdateAvatar}
       onActivateAccess={createStudentActivationCheckout}
+      accountEmail={accountEmail}
+      onDeleteAccount={onDeleteAccount}
       chatSyncError={chatSyncError}
       onExit={onExit}
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
@@ -17000,6 +17033,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     { id: 'agenda', label: 'Agenda', icon: 'calendar', tone: 'sky' },
     { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
     { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
+    { id: 'conta', label: 'Conta e privacidade', icon: 'settings', tone: 'slate' },
   ]
   const primaryStudentNavItems = [
     navItems.find((item) => item.id === 'inicio'),
@@ -17013,6 +17047,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     navItems.find((item) => item.id === 'agenda'),
     navItems.find((item) => item.id === 'pagamentos'),
     navItems.find((item) => item.id === 'historico'),
+    navItems.find((item) => item.id === 'conta'),
   ].filter(Boolean)
   const bottomNavItems = primaryStudentNavItems
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
@@ -17062,12 +17097,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }, [dismissedQuestionnairePriorityIds, dismissedQuestionnaireStorageKey])
 
   useEffect(() => {
-    const savedWater = Number(window.localStorage?.getItem(waterStorageKey) || 0)
+    const savedWater = Number(readLocalStorage(waterStorageKey, '0'))
     setWaterMl(Number.isFinite(savedWater) ? Math.min(savedWater, waterGoalMl) : 0)
   }, [waterStorageKey, waterGoalMl])
 
   useEffect(() => {
-    window.localStorage?.setItem(waterStorageKey, String(Math.min(waterMl, waterGoalMl)))
+    writeLocalStorage(waterStorageKey, String(Math.min(waterMl, waterGoalMl)))
   }, [waterMl, waterGoalMl, waterStorageKey])
 
   useEffect(() => {
@@ -17354,6 +17389,16 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       return <StudentAppSection title="Progresso" action={`${studentCheckins.length} check-ins`}><AssessmentProgress assessments={studentAssessments} student={student} checkins={studentCheckins} /></StudentAppSection>
     }
 
+    if (activeTab === 'conta') {
+      return (
+        <StudentAccountPrivacy
+          accountEmail={accountEmail}
+          professionalType={professionalType}
+          onDeleteAccount={onDeleteAccount}
+        />
+      )
+    }
+
     return (
       <StudentAppSection title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
         <WorkoutLogList logs={studentWorkoutLogs} />
@@ -17363,7 +17408,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }
 
   return (
-    <div className={`app-shell student-mobile-shell ${activeTab === 'mensagens' ? 'student-chat-active' : ''} student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
+    <div className={`app-shell student-mobile-shell ${activeTab === 'mensagens' ? 'student-chat-active' : ''} student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
       {xpGain > 0 && <div className="student-xp-gain" role="status" aria-live="polite"><strong>+{xpGain} XP</strong><span>Progresso registrado</span></div>}
       <header className="student-header-nav sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-2.5 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
@@ -17526,8 +17571,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         </aside>
 
         <main className="min-w-0">
+          {chatSyncError && activeTab !== 'mensagens' ? (
+            <p role="status" aria-live="polite" className="mb-4 rounded-md border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm font-bold leading-5 text-amber-100">
+              Conexão instável. Exibindo os últimos dados sincronizados; uma nova tentativa será feita automaticamente.
+            </p>
+          ) : null}
           {activeTab !== 'mensagens' && <>
-            <section className="sticky top-0 z-30 mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/94 shadow-2xl shadow-black/35 backdrop-blur-xl">
+            <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/94 shadow-2xl shadow-black/35 backdrop-blur-xl lg:sticky lg:top-5 lg:z-20">
               <div className="p-3.5 sm:p-4">
               <WelcomeHeader
                 className="mb-0 border-0 bg-transparent p-0 shadow-none sm:p-0"
@@ -18055,7 +18105,7 @@ function toLocalDateKey(value) {
 
 function StudentAppSection({ id, title, action, children }) {
   return (
-    <section id={`student-${id}`} className="student-app-section scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
+    <section id={id ? `student-${id}` : undefined} className="student-app-section scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="text-lg font-black">{title}</h2>
         <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
@@ -18069,7 +18119,7 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
   const safeGoal = Math.max(500, Number(goalMl || 2500))
   const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
   const percent = Math.round((safeCurrent / safeGoal) * 100)
-  const fillHeight = `${Math.min(100, Math.max(4, percent))}%`
+  const fillHeight = `${Math.min(100, Math.max(0, percent))}%`
   const remainingMl = Math.max(0, safeGoal - safeCurrent)
   const currentLiters = (safeCurrent / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const goalLiters = (safeGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
@@ -18188,6 +18238,85 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
       {paymentReturnPending ? <p role="status" className="mt-3 text-xs leading-5 text-emerald-100">Retorno do checkout identificado. Estamos confirmando a liberação segura do seu acesso.</p> : null}
       {lockState?.canOpenCheckout ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+    </StudentAppSection>
+  )
+}
+
+function StudentAccountPrivacy({ accountEmail = '', professionalType = 'trainer', onDeleteAccount = null }) {
+  const [confirmation, setConfirmation] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+  const normalizedAccountEmail = String(accountEmail || '').trim().toLowerCase()
+  const confirmationMatches = String(confirmation || '').trim().toLowerCase() === normalizedAccountEmail
+  const profileLabel = professionalType === 'nutritionist' ? 'paciente' : 'aluno'
+
+  async function handleDeleteAccount() {
+    if (!onDeleteAccount || !normalizedAccountEmail) {
+      setError('Para excluir a conta, saia e entre novamente com seu e-mail e senha.')
+      return
+    }
+    if (!confirmationMatches) {
+      setError('Digite exatamente o e-mail da conta para confirmar a exclusão definitiva.')
+      return
+    }
+    const confirmed = window.confirm('Esta ação excluirá definitivamente sua conta, seus dados de acompanhamento, mensagens, fotos e históricos. Deseja continuar?')
+    if (!confirmed) return
+
+    setDeleting(true)
+    setError('')
+    try {
+      await onDeleteAccount(confirmation)
+    } catch (deleteError) {
+      setError(deleteError?.message || 'Não foi possível excluir sua conta agora.')
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <StudentAppSection title="Conta e privacidade" action="Seus dados">
+      <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
+        <section className="rounded-md border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+          <p className="text-xs font-black uppercase text-emerald-300">Privacidade e transparência</p>
+          <h3 className="mt-2 text-xl font-black text-white">Controle seus dados no Coach Fit Pro</h3>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">
+            Consulte como os dados do seu acompanhamento são tratados e os termos aplicáveis à sua conta de {profileLabel}.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <a href="/politica-de-privacidade" className="min-h-11 rounded-md border border-emerald-300/25 bg-emerald-300/10 px-4 py-3 text-center text-sm font-black text-emerald-100 transition hover:border-emerald-300/45">Política de privacidade</a>
+            <a href="/termos-de-uso" className="min-h-11 rounded-md border border-white/10 px-4 py-3 text-center text-sm font-black text-zinc-200 transition hover:border-white/25">Termos de uso</a>
+          </div>
+        </section>
+
+        <section className="rounded-md border border-rose-300/20 bg-rose-400/[0.06] p-4 sm:p-5">
+          <p className="text-xs font-black uppercase text-rose-200">Exclusão definitiva</p>
+          <h3 className="mt-2 text-lg font-black text-white">Excluir conta e dados vinculados</h3>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">
+            A exclusão remove sua conta, acesso, fotos, mensagens, anamnese, check-ins e históricos vinculados. Registros que precisem ser mantidos por obrigação legal poderão ser preservados somente pelo prazo necessário.
+          </p>
+          {onDeleteAccount && normalizedAccountEmail ? (
+            <>
+              <label className="mt-4 block text-xs font-black uppercase text-zinc-400" htmlFor="student-account-delete-confirmation">Digite seu e-mail para confirmar</label>
+              <input
+                id="student-account-delete-confirmation"
+                type="email"
+                autoComplete="email"
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                placeholder={normalizedAccountEmail}
+                className="mt-2 min-h-11 w-full rounded-md border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-white outline-none transition focus:border-rose-300/50"
+              />
+              <button type="button" disabled={deleting || !confirmationMatches} onClick={handleDeleteAccount} className="mt-3 min-h-11 w-full rounded-md border border-rose-300/40 bg-rose-400/15 px-4 py-3 text-sm font-black text-rose-100 transition hover:bg-rose-400/25 disabled:cursor-not-allowed disabled:opacity-50">
+                {deleting ? 'Excluindo conta...' : 'Excluir minha conta definitivamente'}
+              </button>
+            </>
+          ) : (
+            <p className="mt-4 rounded-md border border-amber-300/25 bg-amber-300/10 p-3 text-xs leading-5 text-amber-100">
+              Você entrou por um convite temporário. Para excluir a conta completa, saia e entre com seu e-mail e senha.
+            </p>
+          )}
+          {error ? <p role="alert" className="mt-3 text-xs font-bold leading-5 text-rose-200">{error}</p> : null}
+        </section>
+      </div>
     </StudentAppSection>
   )
 }
@@ -18500,18 +18629,25 @@ function CheckinForm({ students = [], onAddCheckin }) {
     event.preventDefault()
     const formElement = event.currentTarget
     const form = new FormData(formElement)
-    setSaving(true)
     setMessage('')
     setWarning('')
     setError('')
+    const weight = form.get('weight')?.toString().trim() || ''
+    const note = form.get('note')?.toString().trim() || ''
+    if (!weight && !note && !photoFile) {
+      setError('Informe o peso, uma observação ou uma foto antes de salvar.')
+      return
+    }
+
+    setSaving(true)
     try {
       const savedCheckin = await onAddCheckin({
         studentId: form.get('studentId')?.toString() || '',
         type: form.get('type')?.toString() || 'Check-in',
         due: form.get('due')?.toString() || 'Hoje',
         state: form.get('state')?.toString() || 'Recebido',
-        weight: form.get('weight')?.toString() || '',
-        note: form.get('note')?.toString() || '',
+        weight,
+        note,
         photo,
         photoFile,
       })
@@ -18540,8 +18676,8 @@ function CheckinForm({ students = [], onAddCheckin }) {
       <Field label="Tipo" name="type" defaultValue="Check-in do dia" />
       <Field label="Prazo" name="due" defaultValue="Hoje" />
       <Select label="Status" name="state" defaultValue="Recebido" options={['Recebido', 'Pendente', 'Critico']} />
-      <Field label="Peso informado" name="weight" defaultValue="84,0 kg" />
-      <TextArea label="Observações" name="note" defaultValue="Registrar avaliação do coach." />
+      <Field label="Peso informado" name="weight" required={false} inputMode="decimal" placeholder="Ex.: 84,0 kg" />
+      <TextArea label="Observações" name="note" placeholder="Conte como foi sua rotina, evolução ou dificuldade." />
       <label className="grid gap-2 text-sm font-bold text-zinc-300">
         Foto do check-in
         <input type="file" accept="image/*" onChange={handlePhoto} className="rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-300" />
@@ -18550,9 +18686,9 @@ function CheckinForm({ students = [], onAddCheckin }) {
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
         {saving ? 'Salvando...' : 'Salvar check-in'}
       </button>
-      {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
-      {warning ? <p className="text-sm font-bold text-amber-200">{warning}</p> : null}
-      {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
+      {message ? <p role="status" aria-live="polite" className="text-sm font-bold text-blue-200">{message}</p> : null}
+      {warning ? <p role="status" aria-live="polite" className="text-sm font-bold text-amber-200">{warning}</p> : null}
+      {error ? <p role="alert" className="text-sm font-bold text-rose-200">{error}</p> : null}
     </form>
   )
 }
@@ -22999,13 +23135,15 @@ function Select({ label, name, defaultValue, value, onChange, options }) {
   )
 }
 
-function TextArea({ label, name, defaultValue = '', onChange }) {
+function TextArea({ label, name, defaultValue = '', placeholder, required = false, onChange }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
       {label}
       <textarea
         name={name}
         defaultValue={defaultValue}
+        placeholder={placeholder}
+        required={required}
         onChange={onChange}
         rows={4}
         className="min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
