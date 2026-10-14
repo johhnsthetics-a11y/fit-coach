@@ -10,9 +10,14 @@ export function getChatViewportMetrics({ visualViewport, innerHeight = 0 } = {})
   const resolvedOffsetTop = Number.isFinite(rawOffsetTop) && rawOffsetTop > 0
     ? rawOffsetTop
     : 0
+  const keyboardHeight = Number.isFinite(fallbackHeight) && fallbackHeight > 0
+    ? Math.max(Math.round(fallbackHeight - resolvedHeight - resolvedOffsetTop), 0)
+    : 0
 
   return {
     height: Math.round(resolvedHeight),
     offsetTop: Math.round(resolvedOffsetTop),
+    keyboardHeight,
+    keyboardOpen: keyboardHeight >= 120,
   }
 }

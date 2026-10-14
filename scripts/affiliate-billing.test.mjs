@@ -203,7 +203,7 @@ test('Cadastro de Afiliados gerencia afiliados por e-mail sem conceder privilég
   assert.match(app, /Vincular profissional/)
   assert.match(app, /loadRemoteAffiliateProfessionals/)
   assert.match(app, /saveRemoteAffiliateProfessional/)
-  assert.match(app, /deleteRemoteAffiliateProfessional/)
+  assert.doesNotMatch(app, /deleteRemoteAffiliateProfessional/)
   assert.match(api, /affiliate_professionals\?select=\*/)
   assert.match(api, /affiliate_professionals\?on_conflict=email/)
   assert.match(api, /affiliate_professionals\?id=eq\./)
@@ -424,7 +424,7 @@ test('Cadastro de Afiliados mantém validações inline e fluxo pré-cadastro', 
   assert.match(app, /Aguardando cadastro/)
 })
 
-test('Cadastro de Afiliados prepara tabela desktop e cards mobile sem alterar ações existentes', async () => {
+test('Cadastro de Afiliados prepara tabela desktop e cards mobile com revogação preservando histórico', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
   assert.match(app, /Nome do profissional/)
@@ -432,12 +432,29 @@ test('Cadastro de Afiliados prepara tabela desktop e cards mobile sem alterar a�
   assert.match(app, /Data do vínculo/)
   assert.match(app, /Status/)
   assert.match(app, /Visualizar detalhes/)
-  assert.match(app, /Desativar afiliado/)
+  assert.match(app, /Revogar afiliado/)
   assert.match(app, /Reativar afiliado/)
-  assert.match(app, /Desvincular/)
-  assert.match(app, /hidden overflow-visible md:block/)
-  assert.match(app, /md:hidden/)
-  assert.match(app, /Pendente/)
+  assert.doesNotMatch(app, />Desvincular</)
+  assert.match(app, /hidden overflow-visible lg:block/)
+  assert.match(app, /lg:hidden/)
+  assert.match(app, /Aguardando cadastro/)
+})
+
+test('Cadastro de Afiliados resume registro, atividade e revogação com tema escuro real', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  for (const label of ['Total de afiliados', 'Contas registradas', 'Aguardando cadastro', 'Ativos', 'Revogados']) {
+    assert.match(app, new RegExp(label))
+  }
+  assert.match(app, /id="affiliate-registry-search"/)
+  assert.match(app, /id="affiliate-registry-status"/)
+  assert.match(app, /filteredAffiliates/)
+  assert.match(app, /Revogar afiliado/)
+  assert.match(app, /Conta registrada/)
+  assert.match(app, /affiliate-admin-page/)
+  assert.match(css, /\.app-theme-dark \.affiliate-admin-page/)
+  assert.match(css, /--affiliate-surface:/)
 })
 
 

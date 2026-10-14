@@ -69,6 +69,7 @@ export default function OrganizationProtocols({ coachId, students = [], professi
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [busyTaskId, setBusyTaskId] = useState('')
+  const [taskFeedback, setTaskFeedback] = useState(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [formOpen, setFormOpen] = useState(false)
@@ -164,14 +165,24 @@ export default function OrganizationProtocols({ coachId, students = [], professi
   }
 
   async function updateTaskStatus(task, status) {
-    setBusyTaskId(String(task.id))
+    const taskId = String(task.id)
+    const previousTask = task
+    const optimisticTask = { ...task, status: status }
+    setBusyTaskId(taskId)
+    setTaskFeedback({ id: taskId, type: 'saving', message: 'Sincronizando…' })
     setError('')
     setNotice('')
+    setTasks(current => current.map(item => String(item.id) === taskId ? optimisticTask : item))
     try {
-      const saved = await saveRemoteProtocolTask({ ...task, status }, coachId)
+      const saved = await saveRemoteProtocolTask(optimisticTask, coachId)
+      if (saved.status !== status) throw new Error('O servidor não confirmou o novo status da tarefa.')
       setTasks(current => current.map(item => String(item.id) === String(saved.id) ? saved : item))
+      const successMessage = status === 'done' ? 'Concluída e sincronizada.' : status === 'in_progress' ? 'Iniciada e sincronizada.' : 'Reaberta e sincronizada.'
+      setTaskFeedback({ id: taskId, type: 'success', message: successMessage })
       setNotice(status === 'done' ? 'Tarefa concluída.' : status === 'in_progress' ? 'Tarefa iniciada.' : 'Tarefa reaberta.')
     } catch (saveError) {
+      setTasks(current => current.map(item => String(item.id) === taskId ? previousTask : item))
+      setTaskFeedback({ id: taskId, type: 'error', message: 'Alteração desfeita. Tente novamente.' })
       setError(saveError?.message || 'Não foi possível atualizar a tarefa.')
     } finally {
       setBusyTaskId('')
@@ -301,7 +312,7 @@ export default function OrganizationProtocols({ coachId, students = [], professi
                 const student = students.find(item => String(item.id) === String(task.studentId))
                 const isBusy = busyTaskId === String(task.id)
                 return (
-                  <article className={`protocol-task protocol-task--${task.status}`} key={task.id}>
+                  <article className={`protocol-task protocol-task--${task.status}`} key={task.id} aria-busy={isBusy}>
                     <div className="protocol-task__main">
                       <div className="protocol-task__meta">
                         <span className={`protocol-tag protocol-tag--${task.category}`}>{optionLabel(categories, task.category)}</span>
@@ -311,6 +322,11 @@ export default function OrganizationProtocols({ coachId, students = [], professi
                       <h3>{task.title}</h3>
                       <p className="protocol-task__person">{student ? `${personLabel}: ${student.name}` : 'Sem vínculo com aluno/paciente'}</p>
                       {task.notes ? <p className="protocol-task__notes">{task.notes}</p> : null}
+                      {taskFeedback?.id === String(task.id) ? (
+                        <p className={`protocol-task__sync protocol-task__sync--${taskFeedback.type}`} role={taskFeedback.type === 'error' ? 'alert' : 'status'}>
+                          {taskFeedback.message}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="protocol-task__actions">
                       {task.status === 'pending' ? <button type="button" className="protocol-button" disabled={isBusy} onClick={() => updateTaskStatus(task, 'in_progress')}>Iniciar</button> : null}

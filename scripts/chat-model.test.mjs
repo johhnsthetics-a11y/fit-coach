@@ -58,6 +58,8 @@ test('tracks the visible mobile viewport while the virtual keyboard is open', ()
   }), {
     height: 518,
     offsetTop: 127,
+    keyboardHeight: 199,
+    keyboardOpen: true,
   })
 })
 
@@ -68,5 +70,7 @@ test('falls back safely when visual viewport metrics are unavailable', () => {
   }), {
     height: 640,
     offsetTop: 0,
+    keyboardHeight: 0,
+    keyboardOpen: false,
   })
 })
