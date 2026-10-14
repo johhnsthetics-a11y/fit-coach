@@ -14,13 +14,15 @@ function useChatVisualViewport() {
 
     const applyMetrics = () => {
       frameId = 0
-      const { height, offsetTop } = getChatViewportMetrics({
+      const { height, offsetTop, keyboardHeight, keyboardOpen } = getChatViewportMetrics({
         visualViewport: viewport,
         innerHeight: window.innerHeight,
       })
 
       if (height > 0) root.style.setProperty('--chat-pro-visual-height', `${height}px`)
       root.style.setProperty('--chat-pro-visual-offset-top', `${offsetTop}px`)
+      root.style.setProperty('--chat-pro-keyboard-height', `${keyboardHeight}px`)
+      root.classList.toggle('chat-keyboard-open', keyboardOpen)
     }
 
     const updateMetrics = () => {
@@ -39,6 +41,8 @@ function useChatVisualViewport() {
       window.removeEventListener('resize', updateMetrics)
       root.style.removeProperty('--chat-pro-visual-height')
       root.style.removeProperty('--chat-pro-visual-offset-top')
+      root.style.removeProperty('--chat-pro-keyboard-height')
+      root.classList.remove('chat-keyboard-open')
     }
   }, [])
 }

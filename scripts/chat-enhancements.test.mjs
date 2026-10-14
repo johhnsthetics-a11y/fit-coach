@@ -26,6 +26,7 @@ const legacyMain = readFileSync(new URL('../main.jsx', import.meta.url), 'utf8')
 const chatCss = readFileSync(new URL('../src/chat/chat.css', import.meta.url), 'utf8')
 const chatSource = readFileSync(new URL('../chatEnhancements.js', import.meta.url), 'utf8')
 const conversationSource = readFileSync(new URL('../src/chat/ChatConversation.jsx', import.meta.url), 'utf8')
+const composerSource = readFileSync(new URL('../src/chat/ChatComposer.jsx', import.meta.url), 'utf8')
 const wallpaperSource = readFileSync(new URL('../chatWallpaperEnhancements.js', import.meta.url), 'utf8')
 const wallpaperCss = readFileSync(new URL('../chat-wallpaper.css', import.meta.url), 'utf8')
 const wallpaperThemeCss = readFileSync(new URL('../chat-wallpaper-theme.css', import.meta.url), 'utf8')
@@ -191,6 +192,15 @@ test('layout mobile do chat usa uma única coluna flexível estável com visualV
   assert.match(chatCss, /\.chat-message-list[\s\S]*?min-height:\s*0/)
   assert.match(chatCss, /\.chat-compose[\s\S]*?flex:\s*0 0 auto/)
   assert.match(conversationSource, /visualViewport/)
+})
+
+test('chat mobile mantém o compositor acima do teclado e remove a navegação concorrente', () => {
+  assert.match(conversationSource, /chat-keyboard-open/)
+  assert.match(conversationSource, /keyboardOpen/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.coach-mobile-bottom-nav[\s\S]*?display:\s*none/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.chat-pro-mobile-conversation-open/)
+  assert.match(composerSource, /onFocus=\{handleComposerFocus\}/)
+  assert.match(composerSource, /scrollIntoView/)
 })
 
 test('chat do aluno recebe shell dedicado para a mesma responsividade do coach', () => {

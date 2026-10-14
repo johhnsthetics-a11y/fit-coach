@@ -36,7 +36,6 @@ import {
   deleteRemoteCoachAccount,
   deleteRemoteStudentAccount,
   deleteRemoteStudent,
-  deleteRemoteAffiliateProfessional,
   fetchRemoteExerciseMedia,
   loadRemoteData,
   loadRemoteAppAdminSettings,
@@ -132,6 +131,7 @@ import { ConversationList } from './chat/ConversationList'
 import { buildConversationRows } from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
 import { shouldRefreshPersistedSession } from './authSession'
+import { PASSWORD_POLICY_HINT, getNewPasswordError, validateNewPasswordConfirmation } from './passwordPolicy'
 import {
   ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
   STUDENT_PORTAL_REFRESH_INTERVAL_MS,
@@ -2611,6 +2611,15 @@ function AppContent() {
     const role = mode === 'signup' ? (formData.get('role')?.toString() || 'Coach principal') : 'Coach principal'
     const user = { name, email, role }
 
+    if (mode === 'signup') {
+      const passwordError = getNewPasswordError(password)
+      if (passwordError) {
+        setRemoteStatus('Revise sua senha')
+        setRemoteError(passwordError)
+        return false
+      }
+    }
+
     if (productionWithoutSupabase) {
       setRemoteStatus('Configuração pendente')
       setRemoteError('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Cloudflare antes de liberar o acesso.')
@@ -4723,12 +4732,9 @@ function PasswordRecovery({ onSave }) {
     const password = form.get('password')?.toString() || ''
     const confirmation = form.get('confirmation')?.toString() || ''
 
-    if (password.length < 6) {
-      setError('A senha precisa ter pelo menos 6 caracteres.')
-      return
-    }
-    if (password !== confirmation) {
-      setError('As senhas informadas não são iguais.')
+    const passwordError = validateNewPasswordConfirmation(password, confirmation)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
 
@@ -4751,7 +4757,7 @@ function PasswordRecovery({ onSave }) {
         </div>
         <p className="mt-6 text-xs font-black uppercase text-emerald-300">Recuperação de acesso</p>
         <h1 className="mt-2 text-2xl font-black">Cadastre sua nova senha</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Use pelo menos 6 caracteres e evite senhas utilizadas em outros serviços.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">{PASSWORD_POLICY_HINT}</p>
         <div className="mt-5 grid gap-4">
           <Field label="Nova senha" name="password" type="password" defaultValue="" />
           <Field label="Confirmar nova senha" name="confirmation" type="password" defaultValue="" />
@@ -4775,12 +4781,9 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
     const form = new FormData(event.currentTarget)
     const password = form.get('password')?.toString() || ''
     const confirmation = form.get('confirmation')?.toString() || ''
-    if (password.length < 8) {
-      setError('A senha precisa ter pelo menos 8 caracteres.')
-      return
-    }
-    if (password !== confirmation) {
-      setError('As senhas informadas não são iguais.')
+    const passwordError = validateNewPasswordConfirmation(password, confirmation)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
 
@@ -4802,7 +4805,7 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
         <div className="flex justify-center"><BrandLockup subtitle="Coach Fit Pro" /></div>
         <p className="mt-6 text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Primeiro acesso do {profileLabel}</p>
         <h1 className="mt-2 text-2xl font-black text-white">Crie sua senha pessoal</h1>
-        <p className="mt-2 text-sm leading-6 text-zinc-400">Use uma senha só sua. Depois desta etapa, seu acompanhamento será carregado automaticamente.</p>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">{PASSWORD_POLICY_HINT} Depois desta etapa, seu acompanhamento será carregado automaticamente.</p>
         <label className="mt-5 grid gap-2 text-sm font-bold text-zinc-300">
           E-mail
           <input value={email || ''} readOnly className="min-h-11 rounded-md border border-white/10 bg-white/[0.04] px-3 text-zinc-400 outline-none" />
@@ -20828,6 +20831,8 @@ function AffiliateProfessionalsPanel() {
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [detailAffiliateId, setDetailAffiliateId] = useState('')
+  const [registrySearch, setRegistrySearch] = useState('')
+  const [registryStatus, setRegistryStatus] = useState('all')
 
   const refreshAffiliates = useCallback(async () => {
     setLoading(true)
@@ -20936,6 +20941,7 @@ function AffiliateProfessionalsPanel() {
   }
 
   async function toggleAffiliate(affiliate) {
+    if (affiliate.active && !window.confirm(`Revogar o acesso de afiliado de ${affiliate.email}? O histórico financeiro será preservado.`)) return
     setSaving(true)
     setFeedback(null)
     try {
@@ -20949,29 +20955,11 @@ function AffiliateProfessionalsPanel() {
       setFeedback({
         type: 'success',
         message: affiliate.active
-          ? 'Afiliado desativado. O profissional volta ao funil normal de assinatura.'
+          ? 'Afiliado revogado. O histórico foi preservado e o profissional voltou ao funil normal de assinatura.'
           : 'Afiliado reativado com sucesso.',
       })
     } catch (saveError) {
       setFeedback({ type: 'error', message: saveError?.message || 'Não foi possível atualizar este profissional.' })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function removeAffiliate(affiliate) {
-    const confirmed = window.confirm('Desvincular ' + affiliate.email + '? O histórico financeiro já confirmado será preservado.')
-    if (!confirmed) return
-
-    setSaving(true)
-    setFeedback(null)
-    try {
-      await deleteRemoteAffiliateProfessional(affiliate.id)
-      await refreshAffiliates()
-      setDetailAffiliateId('')
-      setFeedback({ type: 'success', message: 'Profissional desvinculado. O histórico financeiro confirmado foi preservado.' })
-    } catch (deleteError) {
-      setFeedback({ type: 'error', message: deleteError?.message || 'Não foi possível desvincular este profissional.' })
     } finally {
       setSaving(false)
     }
@@ -20984,10 +20972,29 @@ function AffiliateProfessionalsPanel() {
   }
 
   function getAffiliateStatus(affiliate) {
-    if (!affiliate.active) return { label: 'Inativo', className: 'bg-[#F1F3F3] text-[#667677]' }
-    if (!affiliate.professionalFound) return { label: 'Pendente', className: 'bg-[#FFF6E4] text-[#8A5B12]' }
+    if (!affiliate.active) return { label: 'Revogado', className: 'bg-[#F1F3F3] text-[#667677]' }
+    if (!affiliate.professionalFound) return { label: 'Aguardando cadastro', className: 'bg-[#FFF6E4] text-[#8A5B12]' }
     return { label: 'Ativo', className: 'bg-[#EAF7F3] text-[#176B55]' }
   }
+
+  const registrySummary = useMemo(() => ({
+    total: affiliates.length,
+    registered: affiliates.filter(affiliate => affiliate.professionalFound).length,
+    waiting: affiliates.filter(affiliate => affiliate.active && !affiliate.professionalFound).length,
+    active: affiliates.filter(affiliate => affiliate.active && affiliate.professionalFound).length,
+    revoked: affiliates.filter(affiliate => !affiliate.active).length,
+  }), [affiliates])
+
+  const filteredAffiliates = useMemo(() => {
+    const query = registrySearch.trim().toLowerCase()
+    return affiliates.filter((affiliate) => {
+      const status = !affiliate.active ? 'revoked' : affiliate.professionalFound ? 'active' : 'waiting'
+      const matchesStatus = registryStatus === 'all' || registryStatus === status
+      const matchesQuery = !query || [affiliate.email, affiliate.professionalName, affiliate.professionalType]
+        .some(value => String(value || '').toLowerCase().includes(query))
+      return matchesStatus && matchesQuery
+    })
+  }, [affiliates, registrySearch, registryStatus])
 
   const detailAffiliate = affiliates.find((affiliate) => affiliate.id === detailAffiliateId)
 
@@ -21002,10 +21009,7 @@ function AffiliateProfessionalsPanel() {
             Visualizar detalhes
           </button>
           <button type="button" disabled={saving} onClick={() => toggleAffiliate(affiliate)} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-[#30494A] hover:bg-[#F6F9F9] disabled:opacity-50">
-            {affiliate.active ? 'Desativar afiliado' : 'Reativar afiliado'}
-          </button>
-          <button type="button" disabled={saving} onClick={() => removeAffiliate(affiliate)} className="flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-[#A33A3A] hover:bg-[#FFF6F6] disabled:opacity-50">
-            Desvincular
+            {affiliate.active ? 'Revogar afiliado' : 'Reativar afiliado'}
           </button>
         </div>
       </details>
@@ -21025,6 +21029,21 @@ function AffiliateProfessionalsPanel() {
           </p>
         </div>
       </div>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo dos afiliados cadastrados">
+        {[
+          ['Total de afiliados', registrySummary.total],
+          ['Contas registradas', registrySummary.registered],
+          ['Aguardando cadastro', registrySummary.waiting],
+          ['Ativos', registrySummary.active],
+          ['Revogados', registrySummary.revoked],
+        ].map(([label, value]) => (
+          <article key={label} className="affiliate-registry-metric rounded-xl border border-[#E3E8E8] bg-white p-4">
+            <p className="text-xs font-semibold text-[#718182]">{label}</p>
+            <strong className="mt-2 block text-2xl font-bold text-[#102223]">{value}</strong>
+          </article>
+        ))}
+      </section>
 
       <section className="rounded-[14px] border border-[#E3E8E8] bg-white p-5 sm:p-6">
         <div className="mb-5">
@@ -21105,34 +21124,65 @@ function AffiliateProfessionalsPanel() {
 
       <section className="rounded-[14px] border border-[#E3E8E8] bg-white">
         <div className="border-b border-[#EDF1F1] px-5 py-5 sm:px-6">
-          <h2 className="text-[19px] font-semibold text-[#102223]">Profissionais afiliados</h2>
-          <p className="mt-1 text-sm text-[#718182]">Acompanhe os vínculos existentes e o status de cada profissional.</p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-[19px] font-semibold text-[#102223]">Profissionais afiliados</h2>
+              <p className="mt-1 text-sm text-[#718182]">Acompanhe todos os e-mails, o registro da conta e o acesso de cada profissional.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_190px_auto]">
+              <label className="sr-only" htmlFor="affiliate-registry-search">Pesquisar afiliado</label>
+              <input
+                id="affiliate-registry-search"
+                type="search"
+                value={registrySearch}
+                onChange={event => setRegistrySearch(event.target.value)}
+                placeholder="Nome ou e-mail"
+                className="h-10 min-w-0 rounded-lg border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none placeholder:text-[#9AA7A8] focus:border-[#147D70]"
+              />
+              <label className="sr-only" htmlFor="affiliate-registry-status">Filtrar por status</label>
+              <select
+                id="affiliate-registry-status"
+                value={registryStatus}
+                onChange={event => setRegistryStatus(event.target.value)}
+                className="h-10 rounded-lg border border-[#DDE5E5] bg-white px-3 text-sm text-[#183334] outline-none focus:border-[#147D70]"
+              >
+                <option value="all">Todos os status</option>
+                <option value="active">Ativos</option>
+                <option value="waiting">Aguardando cadastro</option>
+                <option value="revoked">Revogados</option>
+              </select>
+              <button type="button" disabled={loading} onClick={refreshAffiliates} className="min-h-10 rounded-lg border border-[#DDE5E5] bg-white px-3 text-sm font-semibold text-[#405859] hover:bg-[#F7F9F9] disabled:opacity-50">Atualizar</button>
+            </div>
+          </div>
         </div>
 
         {loading ? (
           <div className="p-6 text-sm font-medium text-[#718182]">Carregando profissionais afiliados...</div>
         ) : affiliates.length ? (
           <>
-            <div className="hidden overflow-visible md:block">
+            {filteredAffiliates.length ? <>
+            <div className="hidden overflow-visible lg:block">
               <table className="w-full table-fixed text-left">
                 <thead className="bg-[#F8FAFA] text-xs font-semibold text-[#66797A]">
                   <tr>
-                    <th className="w-[24%] px-5 py-3.5 sm:px-6">Nome do profissional</th>
-                    <th className="w-[27%] px-5 py-3.5">E-mail</th>
-                    <th className="w-[16%] px-5 py-3.5">Categoria</th>
-                    <th className="w-[14%] px-5 py-3.5">Data do vínculo</th>
-                    <th className="w-[11%] px-5 py-3.5">Status</th>
-                    <th className="w-[8%] px-5 py-3.5 text-right">Ações</th>
+                    <th className="w-[20%] px-5 py-3.5 sm:px-6">Nome do profissional</th>
+                    <th className="w-[22%] px-5 py-3.5">E-mail</th>
+                    <th className="w-[13%] px-5 py-3.5">Categoria</th>
+                    <th className="w-[15%] px-5 py-3.5">Conta registrada</th>
+                    <th className="w-[13%] px-5 py-3.5">Data do vínculo</th>
+                    <th className="w-[10%] px-5 py-3.5">Status</th>
+                    <th className="w-[7%] px-5 py-3.5 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {affiliates.map((affiliate) => {
+                  {filteredAffiliates.map((affiliate) => {
                     const status = getAffiliateStatus(affiliate)
                     return (
                       <tr key={affiliate.id || affiliate.email} className="border-t border-[#EDF1F1] align-middle">
                         <td className="px-5 py-4 sm:px-6"><p className="truncate text-sm font-medium text-[#183334]">{affiliate.professionalFound ? (affiliate.professionalName || 'Profissional') : 'Aguardando cadastro'}</p></td>
                         <td className="px-5 py-4"><p className="truncate text-sm text-[#526667]">{affiliate.email}</p></td>
-                        <td className="px-5 py-4 text-sm text-[#526667]">{affiliate.professionalFound ? (affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador') : '—'}</td>
+                        <td className="px-5 py-4 text-sm text-[#526667]">{affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</td>
+                        <td className="px-5 py-4 text-sm font-medium text-[#526667]">{affiliate.professionalFound ? 'Sim' : 'Não'}</td>
                         <td className="px-5 py-4 text-sm text-[#607273]">{formatLinkedDate(affiliate.createdAt)}</td>
                         <td className="px-5 py-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + status.className}>{status.label}</span></td>
                         <td className="px-5 py-4"><div className="flex justify-end"><AffiliateActions affiliate={affiliate} /></div></td>
@@ -21143,8 +21193,8 @@ function AffiliateProfessionalsPanel() {
               </table>
             </div>
 
-            <div className="grid gap-3 p-4 md:hidden">
-              {affiliates.map((affiliate) => {
+            <div className="grid gap-3 p-4 lg:hidden">
+              {filteredAffiliates.map((affiliate) => {
                 const status = getAffiliateStatus(affiliate)
                 return (
                   <article key={affiliate.id || affiliate.email} className="rounded-xl border border-[#E3E8E8] bg-white p-4">
@@ -21156,7 +21206,8 @@ function AffiliateProfessionalsPanel() {
                       <AffiliateActions affiliate={affiliate} />
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-                      <div><p className="text-[#8A9899]">Categoria</p><p className="mt-1 font-medium text-[#405859]">{affiliate.professionalFound ? (affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador') : '—'}</p></div>
+                      <div><p className="text-[#8A9899]">Categoria</p><p className="mt-1 font-medium text-[#405859]">{affiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</p></div>
+                      <div><p className="text-[#8A9899]">Conta registrada</p><p className="mt-1 font-medium text-[#405859]">{affiliate.professionalFound ? 'Sim' : 'Não'}</p></div>
                       <div><p className="text-[#8A9899]">Vinculado em</p><p className="mt-1 font-medium text-[#405859]">{formatLinkedDate(affiliate.createdAt)}</p></div>
                     </div>
                     <div className="mt-4"><span className={'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ' + status.className}>{status.label}</span></div>
@@ -21164,6 +21215,12 @@ function AffiliateProfessionalsPanel() {
                 )
               })}
             </div>
+            </> : (
+              <div className="grid place-items-center px-5 py-10 text-center sm:px-6">
+                <p className="text-sm font-semibold text-[#405859]">Nenhum afiliado corresponde à busca ou ao filtro selecionado.</p>
+                <button type="button" onClick={() => { setRegistrySearch(''); setRegistryStatus('all') }} className="mt-3 min-h-10 rounded-lg border border-[#DDE5E5] bg-white px-3 text-sm font-semibold text-[#405859] hover:bg-[#F7F9F9]">Limpar filtros</button>
+              </div>
+            )}
 
             {detailAffiliate ? (
               <div className="border-t border-[#EDF1F1] bg-[#FBFCFC] px-5 py-5 sm:px-6">
@@ -21173,6 +21230,7 @@ function AffiliateProfessionalsPanel() {
                     <dl className="mt-3 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
                       <div><dt className="text-xs text-[#829192]">E-mail</dt><dd className="mt-1 font-medium text-[#405859]">{detailAffiliate.email}</dd></div>
                       <div><dt className="text-xs text-[#829192]">Conta profissional</dt><dd className="mt-1 font-medium text-[#405859]">{detailAffiliate.professionalFound ? 'Reconhecida' : 'Ainda não encontrada'}</dd></div>
+                      <div><dt className="text-xs text-[#829192]">Categoria</dt><dd className="mt-1 font-medium text-[#405859]">{detailAffiliate.professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador'}</dd></div>
                       <div><dt className="text-xs text-[#829192]">Data do vínculo</dt><dd className="mt-1 font-medium text-[#405859]">{formatLinkedDate(detailAffiliate.createdAt)}</dd></div>
                       <div><dt className="text-xs text-[#829192]">Situação</dt><dd className="mt-1 font-medium text-[#405859]">{getAffiliateStatus(detailAffiliate).label}</dd></div>
                     </dl>
@@ -21204,7 +21262,7 @@ function AffiliateAdminPage() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] rounded-[14px] bg-[#F8FAFA] p-4 text-[#102223] sm:p-6 lg:p-8">
+    <div className="affiliate-admin-page mx-auto w-full max-w-[1200px] rounded-[14px] bg-[#F8FAFA] p-4 text-[#102223] sm:p-6 lg:p-8">
       <header>
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#7A8A8B]">
           <span>Admin Master</span>

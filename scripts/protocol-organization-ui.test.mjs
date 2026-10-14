@@ -32,4 +32,17 @@ test('planner adapts to narrow screens and light/dark application themes', () =>
   assert.match(source, /@media\s*\(max-width:\s*640px\)/)
   assert.match(source, /app-theme-light/)
   assert.match(source, /prefers-reduced-motion/)
+  assert.match(source, /@media\s*\(max-width:\s*520px\)/)
+  assert.match(source, /touch-action:\s*manipulation/)
+})
+
+test('mobile completion is optimistic, confirmed by the saved row, and rolls back on failure', () => {
+  const source = readFileSync(componentPath, 'utf8')
+
+  assert.match(source, /const previousTask = task/)
+  assert.match(source, /status:\s*status/)
+  assert.match(source, /saved\.status !== status/)
+  assert.match(source, /previousTask/)
+  assert.match(source, /protocol-task__sync/)
+  assert.match(source, /aria-busy=\{isBusy\}/)
 })

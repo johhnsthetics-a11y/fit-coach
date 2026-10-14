@@ -1,3 +1,5 @@
+import { getNewPasswordError } from './passwordPolicy.js'
+
 export async function establishStudentPersonalPassword({
   password,
   currentEmail = '',
@@ -6,9 +8,8 @@ export async function establishStudentPersonalPassword({
   finalizeFirstAccess,
 }) {
   const nextPassword = String(password || '')
-  if (nextPassword.length < 8) {
-    throw new Error('A nova senha deve ter pelo menos 8 caracteres.')
-  }
+  const passwordError = getNewPasswordError(nextPassword)
+  if (passwordError) throw new Error(passwordError)
 
   const updatedAccount = await updateAuthenticatedPassword(nextPassword)
   const email = String(updatedAccount?.email || currentEmail || '').trim().toLowerCase()

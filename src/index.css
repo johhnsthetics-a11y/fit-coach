@@ -16614,3 +16614,99 @@ html[data-theme="dark"] body { background: #05070d; }
     flex-direction: column;
   }
 }
+
+/* Affiliate administration keeps the same semantic surfaces in both themes. */
+.affiliate-admin-page {
+  --affiliate-page: #f8fafa;
+  --affiliate-surface: #ffffff;
+  --affiliate-surface-soft: #f4faf9;
+  --affiliate-border: #e1e8e7;
+  --affiliate-text: #102223;
+  --affiliate-muted: #607273;
+  background: var(--affiliate-page) !important;
+  color: var(--affiliate-text) !important;
+}
+
+.app-theme-dark .affiliate-admin-page {
+  --affiliate-page: #07110f;
+  --affiliate-surface: #0f1b18;
+  --affiliate-surface-soft: #13231f;
+  --affiliate-border: #29433d;
+  --affiliate-text: #e9f5f1;
+  --affiliate-muted: #9fb3ad;
+  color-scheme: dark;
+  box-shadow: inset 0 0 0 1px rgba(80, 132, 119, 0.16);
+}
+
+.app-theme-dark .affiliate-admin-page [class~="bg-white"] {
+  background-color: var(--affiliate-surface) !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="bg-[#F4FAF9]"],
+.app-theme-dark .affiliate-admin-page [class*="bg-[#F8FAFA]"],
+.app-theme-dark .affiliate-admin-page [class*="bg-[#FBFCFC]"],
+.app-theme-dark .affiliate-admin-page [class*="bg-[#F7F9F9]"],
+.app-theme-dark .affiliate-admin-page [class*="bg-[#F6F9F9]"] {
+  background-color: var(--affiliate-surface-soft) !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="border-[#D"],
+.app-theme-dark .affiliate-admin-page [class*="border-[#E"] {
+  border-color: var(--affiliate-border) !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="text-[#102223]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#183334]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#234344]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#30494A]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#3E5A5B]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#405859]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#526667]"] {
+  color: var(--affiliate-text) !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="text-[#607273]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#66797A]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#718182]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#7A8A8B]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#829192]"],
+.app-theme-dark .affiliate-admin-page [class*="text-[#8A9899]"] {
+  color: var(--affiliate-muted) !important;
+}
+
+.app-theme-dark .affiliate-admin-page :is(input, select) {
+  border-color: var(--affiliate-border) !important;
+  background: #0a1512 !important;
+  color: var(--affiliate-text) !important;
+}
+
+.app-theme-dark .affiliate-admin-page :is(input, select)::placeholder {
+  color: #789089 !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="bg-[#EAF7F3]"],
+.app-theme-dark .affiliate-admin-page [class*="bg-[#EAF7F4]"] {
+  background-color: rgba(19, 198, 164, 0.16) !important;
+  color: #7ce4cf !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="bg-[#FFF6E4]"] {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  color: #f7c86d !important;
+}
+
+.app-theme-dark .affiliate-admin-page [class*="bg-[#F1F3F3]"] {
+  background-color: rgba(148, 163, 184, 0.14) !important;
+  color: #c0cbc7 !important;
+}
+
+@media (max-width: 640px) {
+  .affiliate-admin-page {
+    border-radius: 0 !important;
+    padding-inline: 0.75rem !important;
+  }
+
+  .affiliate-registry-metric {
+    min-width: 0;
+  }
+}
