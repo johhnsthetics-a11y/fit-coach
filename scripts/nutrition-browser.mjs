@@ -127,7 +127,7 @@ try {
       localStorage.setItem('fitcoach-ai-pro-v2', JSON.stringify(data))
     })
     await page.goto(base + 'qa-nutrition?alunoTab=dieta')
-    await page.getByText('Sua dieta ainda não foi liberada pelo coach.', { exact: true }).waitFor()
+    await page.getByText('Sua dieta ainda não foi liberada pelo treinador.', { exact: true }).waitFor()
     assert.equal(await cards.count(), 0, 'Sem dietas disponíveis, nenhum plano oculto deve ser exibido')
     assert.deepEqual(errors, [])
     results.push({ width, multiplePatientPlans: true, search: true, hideRestoreReload: true, editPatientB: true, createSecondPhase: true, previewsBothThemes: true })

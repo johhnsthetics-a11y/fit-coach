@@ -54,6 +54,17 @@ test('XP de questionario usa conclusao persistida, nao o progresso de agua local
   assert.equal(stats.history.length, 1)
 })
 
+test('gamificacao do paciente nao exibe nem pontua treinos do perfil nutricional', () => {
+  const log = { id: 'workout-hidden', studentId: student.id, completedAt: '2025-02-01T10:00:00Z' }
+  const form = { id: 'nutrition-form', studentId: student.id, status: 'Respondido', completedAt: '2025-02-01T12:00:00Z', xpAwarded: true }
+  const stats = buildStudentRewardStats({ studentId: student.id, profileType: 'patient', workoutLogs: [log], questionnaireAssignments: [form] })
+
+  assert.equal(stats.xp, 60)
+  assert.equal(stats.history.some((event) => event.kind === 'workout'), false)
+  assert.equal(stats.badges.some((badge) => /treino/i.test(`${badge.label} ${badge.detail}`)), false)
+  assert.equal(stats.sources.some((source) => /treino/i.test(`${source.label} ${source.detail}`)), false)
+})
+
 test('ranking e aluno exibem mesmo total e nivel sem bonus artificial de adesao', () => {
   const logs = Array.from({ length: 12 }, (_, i) => ({ id: `log-${i}`, studentId: student.id, completedAt: `2025-01-${String(i + 1).padStart(2, '0')}T12:00:00Z` }))
   const forms = [{ id: 'q', studentId: student.id, status: 'Respondido', completedAt: '2025-02-01T12:00:00Z', xpAwarded: true }]
