@@ -162,11 +162,21 @@ test('pagamento Cartpanda nao sobrescreve a mensalidade do profissional', async 
   const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const studentPatch = webhook.match(/const studentPatch\s*=\s*\{([\s\S]*?)\n\s*\}/)?.[1] || ''
 
-  assert.doesNotMatch(webhook, /\/rest\/v1\/students\?[^`]*[\s\S]*?payment:/)
+  assert.ok(studentPatch, 'O webhook deve manter um patch explicito para a assinatura do aplicativo')
+  assert.doesNotMatch(studentPatch, /\bpayment\s*:/, 'A assinatura do aplicativo nao pode quitar a mensalidade do profissional')
   assert.match(api, /appPaymentStatus:\s*row\.app_payment_status/)
   assert.match(app, /student\.payment\s*===\s*'Pago'/)
   assert.match(app, /student\.appPaymentStatus\s*===\s*'active'/)
+})
+
+test('encerramento antecipado respeita a mesma barreira financeira do treino concluido', async () => {
+  const migration = await readFile(new URL('../supabase/migrations/20261020120500_guard_workout_early_end_financial_access.sql', import.meta.url), 'utf8')
+
+  assert.match(migration, /end_student_workout_session_unchecked/i)
+  assert.match(migration, /coachfit_student_financial_access_by_invite\(invite_code\)/i)
+  assert.match(migration, /Acesso financeiro pendente/i)
 })
 
 test('banco vincula cada token ao aluno pertencente ao profissional autenticado', async () => {

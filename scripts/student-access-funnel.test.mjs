@@ -87,10 +87,12 @@ test('isencao do CoachFit nunca ignora pendencia com o profissional', async () =
 })
 
 
-test('webhook sincroniza pagamento legado, bloqueia regressao de estado e nao persiste segredo', async () => {
+test('webhook separa a assinatura do app, bloqueia regressao de estado e nao persiste segredo', async () => {
   const webhook = await readFile(new URL('../supabase/functions/cartpanda-webhook/index.ts', import.meta.url), 'utf8')
+  const studentPatch = webhook.match(/const studentPatch\s*=\s*\{([\s\S]*?)\n\s*\}/)?.[1] || ''
 
-  assert.match(webhook, /payment:\s*'Pago'/)
+  assert.ok(studentPatch)
+  assert.doesNotMatch(studentPatch, /\bpayment\s*:/)
   assert.match(webhook, /resolveSubscriptionStatusTransition/)
   assert.match(webhook, /stale_pending_event/)
   assert.match(webhook, /terminal_state/)

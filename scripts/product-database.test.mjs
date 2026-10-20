@@ -9,21 +9,34 @@ await db.exec(`create role anon; create role authenticated; create schema auth;
 create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
 grant usage on schema public,auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;
-create table students(id uuid primary key, coach_id uuid references auth.users(id));
+create table students(id uuid primary key, coach_id uuid references auth.users(id), name text default '');
 create table workouts(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid references students(id),title text,focus text,notes text,active boolean,created_at timestamptz default now());
 create table workout_exercises(id uuid primary key default gen_random_uuid(),workout_id uuid references workouts(id),name text,sets text,reps text,load text,rest text,muscle_group text,equipment text,instructions text,video_url text,image_url text,external_id text,order_index integer);
 create table workout_logs(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid,workout_id uuid,title text,effort text,notes text,completed_at timestamptz default now());
 create table student_invites(id uuid default gen_random_uuid(),coach_id uuid,student_id uuid,code text,status text,expires_at timestamptz,created_at timestamptz default now());
+create table checkins(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid,type text,due_label text,state text,weight text,note text,created_at timestamptz default now());
+create table notifications(id uuid primary key default gen_random_uuid(),user_id uuid,title text,body text,read boolean default false);
 create table nutrition_plans(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid references students(id),title text,calories text,protein text,notes text,active boolean default true,created_at timestamptz default now());
 create table nutrition_meals(id uuid primary key default gen_random_uuid(),nutrition_plan_id uuid references nutrition_plans(id) on delete cascade,name text,foods text,macros text,time_label text,order_index integer default 0);
 insert into auth.users values('${coach}'),('${other}');
-insert into students values('${student}','${coach}'),('${studentB}','${other}');
+insert into students(id,coach_id,name) values('${student}','${coach}','Aluno QA'),('${studentB}','${other}','Aluno externo');
 insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');
 insert into workouts(id,coach_id,student_id,title,active) values
   ('${foreignWorkout}','${other}','${studentB}','Treino externo',true),
   ('${legacyDraft}','${coach}','${student}','Rascunho legado',false),
   ('${legacyArchived}','${coach}','${student}','Treino arquivado legado',false);
 insert into workout_logs(coach_id,student_id,workout_id,title) values('${coach}','${student}','${legacyArchived}','Treino arquivado legado');`)
+await db.exec(`create function public.submit_student_checkin(invite_code text,checkin_type text,due_label text,checkin_state text,weight_value text,note_value text)
+returns public.checkins language plpgsql security definer set search_path='' as $$
+declare saved public.checkins%rowtype;
+begin
+  insert into public.checkins(coach_id,student_id,type,due_label,state,weight,note)
+  select coach_id,student_id,checkin_type,due_label,checkin_state,weight_value,note_value
+  from public.student_invites where code=invite_code and status='active' limit 1
+  returning * into saved;
+  return saved;
+end; $$;
+grant execute on function public.submit_student_checkin(text,text,text,text,text,text) to anon,authenticated;`)
 const migrationFiles = await readdir(new URL('../supabase/migrations/', import.meta.url))
 const workoutLifecycleMigration = migrationFiles.find((file) => /_workout_publication_lifecycle\.sql$/.test(file))
 assert.ok(workoutLifecycleMigration, 'workout publication lifecycle migration must exist')
@@ -45,6 +58,32 @@ await db.exec(`update workouts set publication_status='draft',active=true where 
 assert.deepEqual((await db.query('select publication_status,active from workouts where id=$1',[foreignWorkout])).rows[0],{publication_status:'draft',active:false})
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260916_workout_session_integrity.sql',import.meta.url),'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20261020120000_fix_workout_day_cardio_validation.sql',import.meta.url),'utf8'))
+const multiDayWorkout='88888888-8888-4888-8888-888888888888', cardioWorkout='99999999-9999-4999-8999-999999999999'
+const multiDayMeta=JSON.stringify({days:[
+  {day:'Dia A',exercises:[{name:'Supino',sets:'2'}]},
+  {day:'Dia B',exercises:[{name:'Agachamento',sets:'3'}]},
+]})
+const cardioMeta=JSON.stringify({days:[
+  {day:'Cardio',exercises:[{name:'Esteira',exerciseType:'cardio',cardioMode:'treadmill'}]},
+]})
+await db.query(`insert into workouts(id,coach_id,student_id,title,notes,active,publication_status) values
+  ($1,$2,$3,'Treino multi-dia',$4,true,'published'),
+  ($5,$2,$3,'Treino cardio',$6,true,'published')`, [multiDayWorkout,coach,student,'[coachfitpro-workout-meta]'+multiDayMeta,cardioWorkout,'[coachfitpro-workout-meta]'+cardioMeta])
+await db.query('select validate_workout_execution($1,$2::jsonb)', [multiDayWorkout,JSON.stringify({activeDayIndex:0,setLogs:{'0-0-1':{completed:true},'0-0-2':{completed:true}}})])
+await db.query('select validate_workout_execution($1,$2::jsonb)', [cardioWorkout,JSON.stringify({activeDayIndex:0,cardioLogs:{'0-0':{status:'completed',completed:true}}})])
+await assert.rejects(
+  db.query('select validate_workout_execution($1,$2::jsonb)', [cardioWorkout,JSON.stringify({activeDayIndex:0,cardioLogs:{'0-0':{status:'paused',completed:false}}})]),
+  /cardiovascular|cardio/i,
+)
+await db.exec(await readFile(new URL('../supabase/migrations/20261020121500_notify_coach_on_student_checkin.sql',import.meta.url),'utf8'))
+await db.exec('set role anon')
+await db.query('select submit_student_checkin($1,$2,$3,$4,$5,$6)',['qa-invite-a','Semanal','Hoje','Concluido','80','Tudo certo'])
+await db.exec('reset role')
+assert.deepEqual(
+  (await db.query('select user_id,title,body,read from notifications')).rows,
+  [{user_id:coach,title:'Novo check-in recebido',body:'Aluno QA enviou um novo check-in.',read:false}],
+)
 await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${coach}',false);`)
 const nutritionPayload={student_id:student,title:'Dieta QA',calories:'2200',protein:'160',notes:'QA',meals:[{name:'Almoco',foods:'Arroz e frango',macros:'P 45 C 70 G 12',time:'12:00',order_index:0}]}
 const savedNutrition=(await db.query('select save_nutrition_plan($1::jsonb) as value',[JSON.stringify(nutritionPayload)])).rows[0].value

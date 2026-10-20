@@ -70,6 +70,11 @@ await db.exec(await readFile(new URL('../supabase/migrations/20260917_repair_mes
 await db.exec(await readFile(new URL('../supabase/migrations/20260917_secure_message_edit_delete.sql', import.meta.url), 'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260918_soft_delete_messages.sql', import.meta.url), 'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20260920_idempotent_chat_messages.sql', import.meta.url), 'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20261020121000_harden_coach_message_sender.sql', import.meta.url), 'utf8'))
+await db.exec(`
+  insert into public.messages (coach_id, student_id, sender, body, read, attachment_url, attachment_type, attachment_name)
+  values ('${coach}', '${student}', 'student', 'Original do aluno', false, 'private/original.jpg', 'image/jpeg', 'original.jpg');
+`)
 await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${coach}',false);`)
 
 const normalized = await db.query(`
@@ -90,11 +95,15 @@ await assert.rejects(
   /nao pertence|row-level security|42501/i,
 )
 
-const studentMessage = await db.query(`
-  insert into public.messages (coach_id, student_id, sender, body, read, attachment_url, attachment_type, attachment_name)
-  values ($1, $2, 'student', 'Original do aluno', false, 'private/original.jpg', 'image/jpeg', 'original.jpg')
-  returning id
-`, [coach, student])
+await assert.rejects(
+  db.query(`insert into public.messages (coach_id, student_id, sender, body, read) values ($1, $2, 'student', 'Falsa mensagem do aluno', false)`, [coach, student]),
+  /row-level security|42501/i,
+)
+const studentMessage = await db.query(`select id from public.messages where sender = 'student' and student_id = $1 limit 1`, [student])
+const forbiddenUpdate = await db.query(`update public.messages set body = 'Alterada pelo treinador' where id = $1 returning id`, [studentMessage.rows[0].id])
+assert.equal(forbiddenUpdate.rows.length, 0)
+const forbiddenDelete = await db.query(`delete from public.messages where id = $1 returning id`, [studentMessage.rows[0].id])
+assert.equal(forbiddenDelete.rows.length, 0)
 
 await db.exec('reset role;')
 await db.exec(`select set_config('request.jwt.claim.sub','',false);`)

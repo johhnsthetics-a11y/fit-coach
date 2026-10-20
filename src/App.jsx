@@ -3108,7 +3108,7 @@ function AppContent() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao arquivar treino')
-        return false
+        throw error
       }
     }
     setData((current) => ({
@@ -7766,7 +7766,8 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome completo" name="name" defaultValue={student.name} autoComplete="name" />
-        <Field label="E-mail" name="email" type="email" defaultValue={student.email} autoComplete="email" />
+        <Field label={student.authUserId ? 'E-mail vinculado ao acesso' : 'E-mail'} name="email" type="email" defaultValue={student.email} autoComplete="email" readOnly={Boolean(student.authUserId)} />
+        {student.authUserId ? <p className="self-center text-xs font-semibold leading-5 text-zinc-400 sm:col-span-2">Para proteger o login já ativado, este e-mail não pode ser alterado pelo cadastro. Use o suporte administrativo quando precisar transferir o acesso.</p> : null}
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
         <Field label="Meta de água por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
@@ -8828,6 +8829,56 @@ function getSupportedWorkoutSelectValue(value, options) {
   return options.find((item) => normalizeText(item) === normalized) || ''
 }
 
+function useModalFocusTrap(isOpen, onClose) {
+  const dialogRef = useRef(null)
+  const closeRef = useRef(onClose)
+
+  useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    const dialog = dialogRef.current
+    const selector = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+    const getFocusable = () => Array.from(dialog?.querySelectorAll(selector) || []).filter((element) => element.getClientRects().length)
+
+    document.body.style.overflow = 'hidden'
+    window.requestAnimationFrame(() => getFocusable()[0]?.focus())
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeRef.current?.()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = getFocusable()
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
+  }, [isOpen])
+
+  return dialogRef
+}
+
 function MobileWorkoutManager({ selectedStudent, students, workouts = [], workoutLogs = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
@@ -8880,6 +8931,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       return []
     }
   })
+  const dayEditorDialogRef = useModalFocusTrap(Boolean(dayEditor), () => setDayEditor(null))
 
   useEffect(() => {
     try {
@@ -9595,7 +9647,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     setSaving(true)
     setError('')
     try {
-      await onArchiveWorkout(workout.id)
+      const archived = await onArchiveWorkout(workout.id)
+      if (!archived) throw new Error('O banco não confirmou o arquivamento do treino.')
       setMessage('Treino arquivado.')
     } catch (archiveError) {
       setError(archiveError?.message || 'Não foi possível arquivar o treino.')
@@ -10083,9 +10136,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
         </div>
       ) : null}
 
-      {dayEditor ? (
-        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setDayEditor(null)}>
-          <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Editar dia do treino" onClick={(event) => event.stopPropagation()}>
+      {dayEditor ? createPortal((
+        <div className={`mobile-workout-sheet-backdrop app-theme-${uiTheme}`} role="presentation" onClick={() => setDayEditor(null)}>
+          <section ref={dayEditorDialogRef} className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Editar dia do treino" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
             <div className="mobile-workout-creator-head">
               <div>
@@ -10114,7 +10167,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             <button type="button" className="mobile-workout-primary mobile-workout-save-day-action" onClick={saveDayEditor}>Salvar dia</button>
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
 
       {exercisePickerDayIndex !== null ? createPortal((
         <div className={`mobile-workout-sheet-backdrop app-theme-${uiTheme}`} role="presentation" onClick={closeExercisePicker}>
@@ -11097,7 +11150,8 @@ function summarizeExerciseSessions(sessions = []) {
 
 function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
   const targetName = normalizeText(recommendation.exercise.name)
-  const exercises = (workout.exercises || []).map((exercise) => {
+  const progressionSummary = `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`
+  const updateExercise = (exercise) => {
     if (normalizeText(exercise.name) !== targetName) return exercise
     const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
     return {
@@ -11107,14 +11161,34 @@ function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
       load: nextTarget.load || exercise.load,
       instructions: [exercise.instructions, progressionNote].filter(Boolean).join('\n'),
     }
-  })
+  }
+  const days = Array.isArray(workout.days)
+    ? workout.days.map((day) => ({
+      ...day,
+      exercises: getWorkoutExercisesArray(day.exercises).map(updateExercise),
+    }))
+    : undefined
+  const exercises = days?.length
+    ? days.flatMap((day) => getWorkoutExercisesArray(day.exercises))
+    : getWorkoutExercisesArray(workout.exercises).map(updateExercise)
+  const nextWorkout = {
+    ...workout,
+    id: undefined,
+    clientRequestId: createWorkoutCompletionToken(),
+    publicationStatus: 'published',
+    status: 'Publicado',
+    active: true,
+    title: `${workout.title} · progressão`,
+    guidance: [workout.guidance || stripWorkoutMetadata(workout.notes), progressionSummary].filter(Boolean).join('\n'),
+    days,
+    exercises,
+  }
 
   return {
-    studentId: workout.studentId,
-    title: `${workout.title} · progressão`,
-    focus: workout.focus,
-    notes: [workout.notes, `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`].filter(Boolean).join('\n'),
-    exercises,
+    ...nextWorkout,
+    notes: days?.length
+      ? buildWorkoutNotesWithMetadata(nextWorkout)
+      : [stripWorkoutMetadata(workout.notes), progressionSummary].filter(Boolean).join('\n'),
   }
 }
 
@@ -13101,7 +13175,7 @@ function getWorkoutSetNumeric(value) {
   return Number.isFinite(number) ? number : 0
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -13121,11 +13195,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
   const [syncState, setSyncState] = useState(preview ? 'preview' : 'local')
+  const [hydrationAttempt, setHydrationAttempt] = useState(0)
   const [message, setMessage] = useState(initialExecution?.completedLog ? (initialExecution.completedLog.endedEarly ? 'Treino encerrado. Seu progresso foi mantido.' : 'Treino já concluído. O XP foi registrado uma única vez.') : '')
   const [error, setError] = useState('')
   const previousExecutionKeyRef = useRef(executionStorageKey)
   const skipNextPersistRef = useRef(false)
   const submissionLockRef = useRef(false)
+  const endDialogRef = useModalFocusTrap(endConfirmOpen, () => setEndConfirmOpen(false))
 
   useEffect(() => {
     const executionChanged = previousExecutionKeyRef.current !== executionStorageKey
@@ -13178,7 +13254,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         setError(loadError?.message || 'Não foi possível recuperar o progresso salvo na nuvem.')
       })
     return () => { active = false }
-  }, [dayIndex, days.length, executionStorageKey, onLoadWorkoutSession, preview, student?.id, workout?.id])
+  }, [dayIndex, days.length, executionStorageKey, hydrationAttempt, onLoadWorkoutSession, preview, student?.id, workout?.id])
 
   useEffect(() => {
     if (preview || !student?.id || !workout?.id) return
@@ -13230,6 +13306,21 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }, [cardioLogs])
 
   if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
+
+  const sessionSyncFeedback = !preview && syncState === 'loading' ? (
+    <div className="mobile-workout-sync-v8 is-loading" role="status" aria-live="polite">
+      <span aria-hidden="true" />
+      <div><strong>Recuperando seu progresso</strong><small>Aguarde enquanto sincronizamos este treino.</small></div>
+    </div>
+  ) : !preview && syncState === 'error' ? (
+    <div className="mobile-workout-sync-v8 is-error" role="alert">
+      <div><strong>Progresso salvo neste aparelho</strong><small>{error || 'Não foi possível sincronizar com a nuvem.'}</small></div>
+      <button type="button" onClick={() => {
+        setError('')
+        setHydrationAttempt((current) => current + 1)
+      }}>Tentar sincronizar novamente</button>
+    </div>
+  ) : null
 
   const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length)
 
@@ -13422,6 +13513,28 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }
 
   function returnToDaySelection() {
+    const pausedExecution = serializeWorkoutSession({
+      completionToken,
+      activeDayIndex: safeDayIndex,
+      activeExerciseIndex: safeExerciseIndex,
+      setLogs,
+      cardioLogs,
+      effort,
+      sessionNotes,
+      durationSeconds,
+      timerStartedAt: '',
+      updatedAt: new Date().toISOString(),
+    })
+    if (!preview && pausedExecution) {
+      persistStudentWorkoutExecution(student?.id, workout?.id, { ...pausedExecution, completionToken })
+      if (remoteHydrated && onSaveWorkoutSession) {
+        Promise.resolve(onSaveWorkoutSession(workout.id, { ...pausedExecution, completionToken }))
+          .catch((saveError) => {
+            setSyncState('error')
+            setError(saveError?.message || 'Seu progresso está neste aparelho e será sincronizado quando a conexão voltar.')
+          })
+      }
+    }
     if (timerStartedAt && onToggleTimer) onToggleTimer()
     onSelectDay?.(-1)
     setActiveDayIndex(-1)
@@ -13540,7 +13653,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function startNewWorkoutSession() {
     setActiveDayIndex(preview ? 0 : -1)
-    onSelectDay?.(preview ? 0 : -1)
+    onSelectDay?.(preview ? 0 : -1, { reset: true })
     setActiveExerciseIndex(0)
     setSetLogs({})
     setCardioLogs({})
@@ -13558,6 +13671,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   if (completedLog && daySelected) {
     return (
       <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 ' + (compact ? 'is-compact' : '')}>
+        {sessionSyncFeedback}
         <header className="mobile-workout-student-experience-head-v2">
           <div>
             <p>{completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído'}</p>
@@ -13592,7 +13706,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} aria-busy={syncState === 'loading'}>
+        {sessionSyncFeedback}
         <header className="mobile-workout-student-experience-head-v2">
           <div>
             <p>Programa atual</p>
@@ -13622,7 +13737,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                 </div>
                 <div className="mobile-workout-day-card-actions-v4">
                   {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Evolução</button> : null}
-                  <button type="button" onClick={() => selectDay(index)}>Ver treino</button>
+                  <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Ver treino</button>
                 </div>
               </article>
             )
@@ -13635,6 +13750,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   if (!sessionStarted) {
     return (
       <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+        {sessionSyncFeedback}
         <div className="mobile-workout-day-detail-head-v4">
           <button type="button" onClick={returnToDaySelection}>← Voltar</button>
           <div>
@@ -13647,7 +13763,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <strong>Modo de visualização</strong>
           <p>Revise os exercícios abaixo. Inicie o treino para registrar sua sessão.</p>
         </div>
-        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" onClick={onToggleTimer}>▶ Iniciar treino</button> : null}
+        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" disabled={syncState === 'loading'} onClick={onToggleTimer}>▶ Iniciar treino</button> : null}
         <div className="mobile-workout-day-exercise-list-v4">
           {exercises.map((currentExercise, index) => {
             const profile = getExerciseMuscleProfile(currentExercise)
@@ -13678,6 +13794,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   return (
     <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      {sessionSyncFeedback}
       <div className="mobile-workout-execution-head-v4">
         <button type="button" onClick={returnToDaySelection}>← Voltar</button>
         <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
@@ -13844,9 +13961,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
         </footer>
       ) : null}
-      {endConfirmOpen ? (
-        <div className="mobile-workout-end-overlay-v5" role="presentation">
-          <div className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
+      {endConfirmOpen ? createPortal((
+        <div className={`mobile-workout-end-overlay-v5 app-theme-${uiTheme}`} role="presentation">
+          <div ref={endDialogRef} className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
             <strong id="workout-end-title">Deseja encerrar o treino agora?</strong>
             <p id="workout-end-description">Seu progresso realizado até aqui será mantido.</p>
             <div>
@@ -13855,7 +13972,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         </div>
-      ) : null}
+      ), document.body) : null}
     </section>
   )
 }
@@ -17346,12 +17463,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 durationSeconds={workoutSeconds}
                 sessionDurationSeconds={workoutElapsedSeconds}
                 timerStartedAt={workoutStartedAt ? new Date(workoutStartedAt).toISOString() : ''}
+                uiTheme={theme}
                 onToggleTimer={toggleWorkoutTimer}
                 onOpenProgress={() => openTab('progresso')}
-                onSelectDay={() => {
+                onSelectDay={(_nextDayIndex, options = {}) => {
                   setWorkoutStartedAt(null)
-                  setWorkoutElapsedSeconds(0)
-                  setWorkoutStartNotified(false)
+                  if (options.reset) {
+                    setWorkoutElapsedSeconds(0)
+                    setWorkoutStartNotified(false)
+                  }
                   setWorkoutClock(Date.now())
                 }}
                 onCompleteWorkout={completeWorkoutFromStudent}
@@ -23198,6 +23318,7 @@ function Field({
   maxLength,
   placeholder,
   onChange,
+  readOnly = false,
 }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -23213,7 +23334,9 @@ function Field({
         maxLength={maxLength}
         placeholder={placeholder}
         onChange={onChange}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        readOnly={readOnly}
+        aria-readonly={readOnly || undefined}
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 read-only:cursor-not-allowed read-only:bg-zinc-900 read-only:text-zinc-400 sm:text-sm"
       />
     </label>
   )

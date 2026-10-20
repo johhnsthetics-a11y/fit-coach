@@ -154,6 +154,17 @@ test('student registration normalizes and validates the required email', async (
   assert.match(formScreen, /email,/)
 })
 
+test('linked authentication email cannot drift from the student profile', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const formStart = app.indexOf('function StudentForm(')
+  const formEnd = app.indexOf('\nfunction StudentSnapshot', formStart)
+  const formScreen = app.slice(formStart, formEnd)
+
+  assert.match(formScreen, /E-mail vinculado ao acesso/)
+  assert.match(formScreen, /readOnly=\{Boolean\(student\.authUserId\)\}/)
+  assert.match(formScreen, /este e-mail não pode ser alterado pelo cadastro/i)
+})
+
 test('credential modal stays in the professional students screen', async () => {
   const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const studentsStart = app.indexOf('function Students(')
