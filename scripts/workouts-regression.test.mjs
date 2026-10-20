@@ -540,6 +540,64 @@ test('conclusão do aluno fecha a sessão com token idempotente e vínculo valid
   assert.match(migrationSource, /grant execute on function public\.complete_student_workout_session/i)
 })
 
+test('sincronizacao remota do treino informa carregamento, falha e permite tentar novamente', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(appSource, /mobile-workout-sync-v8/)
+  assert.match(appSource, /Recuperando seu progresso/)
+  assert.match(appSource, /Tentar sincronizar novamente/)
+  assert.match(appSource, /setHydrationAttempt\(\(current\) => current \+ 1\)/)
+})
+
+test('modais de treino usam portal e controle de foco fora do container principal', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(appSource, /function useModalFocusTrap/)
+  assert.match(appSource, /dayEditor \? createPortal/)
+  assert.match(appSource, /ref=\{dayEditorDialogRef\}/)
+  assert.match(appSource, /ref=\{endDialogRef\}/)
+})
+
+test('falha de arquivamento nao e mascarada como sucesso', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /Não foi possível confirmar o arquivamento do treino no banco/)
+  assert.match(appSource, /const archived = await onArchiveWorkout\(workout\.id\)[\s\S]*if \(!archived\) throw/)
+})
+
+test('progressao preserva dias, cardio e metadados do treino original', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const progressionStart = appSource.indexOf('function buildWorkoutFromProgression')
+  const progressionEnd = appSource.indexOf('function targetWasHit', progressionStart)
+  const progressionSource = appSource.slice(progressionStart, progressionEnd)
+
+  assert.match(progressionSource, /\.\.\.workout/)
+  assert.match(progressionSource, /workout\.days\.map/)
+  assert.match(progressionSource, /days\.flatMap/)
+  assert.match(progressionSource, /buildWorkoutNotesWithMetadata\(nextWorkout\)/)
+})
+
+test('video enviado permanece referenciado nos metadados de dias', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+
+  assert.match(apiSource, /mergeWorkoutExerciseMediaIntoMetadata\(workout\.notes, exercisesWithUploads\)/)
+  assert.match(apiSource, /videoUrl:\s*uploaded\.videoUrl \|\| exercise\.videoUrl/)
+  assert.match(apiSource, /imageUrl:\s*uploaded\.imageUrl \|\| uploaded\.thumbnailUrl \|\| exercise\.imageUrl/)
+})
+
+test('voltar aos dias pausa e persiste a duracao atual da sessao', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const returnStart = appSource.indexOf('function returnToDaySelection()')
+  const returnEnd = appSource.indexOf('function buildCurrentWorkoutPayload()', returnStart)
+  const returnSource = appSource.slice(returnStart, returnEnd)
+
+  assert.match(returnSource, /durationSeconds/)
+  assert.match(returnSource, /timerStartedAt:\s*''/)
+  assert.match(returnSource, /persistStudentWorkoutExecution/)
+  assert.match(returnSource, /onSaveWorkoutSession/)
+})
+
 test('falha de rede mantém a execução pendente para retry sem conceder XP local', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const completeWorkoutSource = appSource.match(/async function completeWorkout\(log\)[\s\S]*?\r?\n  }\r?\n\r?\n  async function endWorkout/)?.[0] || ''

@@ -24,7 +24,7 @@ export const PROFILE_PRESETS = {
   },
   patient: {
     id: 'patient',
-    eyebrow: 'Sua área de acompanhamento',
+    eyebrow: 'Seu acompanhamento',
     audienceSingular: 'plano',
     audiencePlural: 'planos',
     subtitle: 'Acompanhe seu plano alimentar e sua evolução de forma simples.',

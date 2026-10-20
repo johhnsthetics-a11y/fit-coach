@@ -916,17 +916,23 @@ export async function saveRemoteStudent(student, coachId) {
     body: JSON.stringify(row),
   })
 
-  return fromStudentRow(rows[0])
+  const saved = rows?.[0]
+  if (!saved?.id) throw new Error('O Supabase não confirmou o cadastro do aluno.')
+  return fromStudentRow(saved)
 }
 
 export async function deleteRemoteStudent(studentId) {
-  if (!isUuid(studentId)) return
+  if (!isUuid(studentId)) throw new Error('Aluno inválido para exclusão.')
   const checkins = await request(
     `checkins?student_id=eq.${studentId}&select=checkin_photos(storage_url)`,
   )
   const photoPaths = checkins.flatMap((checkin) => (
     (checkin.checkin_photos ?? []).map((photo) => photo.storage_url).filter(Boolean)
   ))
+
+  const rows = await request(`students?id=eq.${studentId}`, { method: 'DELETE' })
+  const deleted = rows?.[0]
+  if (!deleted?.id) throw new Error('O Supabase não confirmou a exclusão do aluno.')
 
   if (photoPaths.length) {
     const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
@@ -940,7 +946,7 @@ export async function deleteRemoteStudent(studentId) {
     }
   }
 
-  await request(`students?id=eq.${studentId}`, { method: 'DELETE' })
+  return fromStudentRow(deleted)
 }
 
 export async function saveRemoteCheckin(checkin) {
@@ -1253,14 +1259,14 @@ export async function saveRemoteWorkout(workout, coachId) {
   const uploadWarnings = []
   const publicationStatus = workout.status === 'Rascunho' || workout.publicationStatus === 'draft' ? 'draft' : 'published'
 
-  const buildPayload = (exercises, workoutId = workout.id) => ({
+  const buildPayload = (exercises, workoutId = workout.id, notes = workout.notes) => ({
     ...(isUuid(workoutId) ? { id: workoutId } : {}),
     request_id: workout.clientRequestId || null,
     student_id: workout.studentId,
     title: workout.title,
     focus: workout.focus,
     publication_status: publicationStatus,
-    notes: workout.notes,
+    notes,
     exercises: exercises.map((exercise, index) => ({
       name: exercise.name,
       sets: exercise.sets,
@@ -1302,8 +1308,9 @@ export async function saveRemoteWorkout(workout, coachId) {
     }))
 
   if (hasUploadedVideo) {
+    const notesWithUploadedMedia = mergeWorkoutExerciseMediaIntoMetadata(workout.notes, exercisesWithUploads)
     savedRow = await rpcRequest('save_coach_workout', {
-      workout_payload: buildPayload(exercisesWithUploads, savedRow.id),
+      workout_payload: buildPayload(exercisesWithUploads, savedRow.id, notesWithUploadedMedia),
     })
     savedRow = Array.isArray(savedRow) ? savedRow[0] : savedRow
   }
@@ -1341,13 +1348,34 @@ function stripWorkoutMetadata(notes = '') {
     .trim()
 }
 
+function mergeWorkoutExerciseMediaIntoMetadata(notes = '', exercises = []) {
+  const metadata = parseWorkoutMetadata(notes)
+  if (!Array.isArray(metadata.days) || !metadata.days.length) return notes
+  let exerciseIndex = 0
+  const days = metadata.days.map((day) => ({
+    ...day,
+    exercises: (Array.isArray(day.exercises) ? day.exercises : []).map((exercise) => {
+      const uploaded = exercises[exerciseIndex] || {}
+      exerciseIndex += 1
+      return {
+        ...exercise,
+        videoUrl: uploaded.videoUrl || exercise.videoUrl || '',
+        imageUrl: uploaded.imageUrl || uploaded.thumbnailUrl || exercise.imageUrl || '',
+      }
+    }),
+  }))
+  const humanNotes = stripWorkoutMetadata(notes)
+  return [humanNotes, `${WORKOUT_METADATA_PREFIX}${JSON.stringify({ ...metadata, days })}`].filter(Boolean).join('\n')
+}
+
 export async function archiveRemoteWorkout(workoutId) {
-  if (!isUuid(workoutId)) return null
+  if (!isUuid(workoutId)) throw new Error('Treino inválido para arquivamento.')
   const rows = await request(`workouts?id=eq.${workoutId}`, {
     method: 'PATCH',
     body: JSON.stringify({ active: false, publication_status: 'archived' }),
   })
-  return rows[0] ? fromWorkoutRow(rows[0]) : null
+  if (!rows?.[0]) throw new Error('Não foi possível confirmar o arquivamento do treino no banco.')
+  return fromWorkoutRow(rows[0])
 }
 
 export async function saveRemoteWorkoutProgressionDecision(decision, coachId) {
@@ -2066,6 +2094,7 @@ function fromCheckinRow(row) {
     state: row.state ?? 'Pendente',
     weight: row.weight ?? '',
     note: row.note ?? '',
+    createdAt: row.created_at ?? '',
     photo: photo?.signed_url ?? photo?.storage_url ?? '',
     photoPath: photo?.storage_url ? extractStoragePath(photo.storage_url) : '',
   }

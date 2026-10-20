@@ -55,3 +55,29 @@ test('check-in nao preenche dados ficticios nem aceita envio vazio', () => {
   assert.match(checkin, /Informe o peso, uma observação ou uma foto antes de salvar/)
   assert.match(checkin, /placeholder="Ex.: 84,0 kg"/)
 })
+
+test('check-in remoto preserva o horario real para ordenacao e prioridades', () => {
+  const mapper = api.slice(api.indexOf('function fromCheckinRow('), api.indexOf('async function hydrateCheckinRow('))
+  assert.match(mapper, /createdAt:\s*row\.created_at/)
+})
+
+test('novo check-in cria notificacao duravel para o profissional', async () => {
+  const migration = await readFile(new URL('../supabase/migrations/20261020121500_notify_coach_on_student_checkin.sql', import.meta.url), 'utf8')
+
+  assert.match(migration, /submit_student_checkin_with_financial_access/i)
+  assert.match(migration, /insert into public\.notifications/i)
+  assert.match(migration, /Novo check-in recebido/i)
+})
+
+test('cadastro e exclusao do aluno exigem confirmacao do Supabase', () => {
+  const saveStudentSource = api.slice(api.indexOf('export async function saveRemoteStudent('), api.indexOf('export async function deleteRemoteStudent('))
+  const deleteStudentSource = api.slice(api.indexOf('export async function deleteRemoteStudent('), api.indexOf('export async function saveRemoteCheckin('))
+
+  assert.match(saveStudentSource, /if \(!saved\?\.id\) throw/)
+  assert.match(deleteStudentSource, /if \(!isUuid\(studentId\)\) throw/)
+  assert.match(deleteStudentSource, /if \(!deleted\?\.id\) throw/)
+  assert.ok(
+    deleteStudentSource.indexOf("request(`students?id=eq.${studentId}`") < deleteStudentSource.indexOf('/storage/v1/object/'),
+    'As fotos só podem ser removidas depois que o banco confirmar a exclusão do aluno',
+  )
+})

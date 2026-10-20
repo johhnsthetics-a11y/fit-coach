@@ -678,7 +678,6 @@ async function updateStudentCheckoutSession(input: {
     app_subscription_started_at: input.status === 'active' ? studentState?.app_subscription_started_at || now : studentState?.app_subscription_started_at || null,
     app_subscription_expires_at: periodEndsAt,
     updated_at: now,
-    ...(input.status === 'active' ? { payment: 'Pago' } : {}),
   }
 
   await supabaseFetch(`/rest/v1/students?id=eq.${encodeURIComponent(input.session.student_id)}&coach_id=eq.${encodeURIComponent(input.session.coach_id)}`, {

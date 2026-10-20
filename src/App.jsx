@@ -5,6 +5,7 @@ import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
 import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
 import { filterStudents } from './studentDirectory'
+import { loadStudentPortalWithRetry, requireStudentBootstrapForSession } from './studentFirstPassword'
 import {
   QUESTIONNAIRE_TYPES,
   buildAnamnesisCustomAnswers,
@@ -620,7 +621,13 @@ const navItems = [
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
 const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
-const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+const patientPortalTabIds = new Set(['inicio', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
+const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'checkins', 'pagamentos', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+
+function resolveStudentPortalTab(professionalType, tab) {
+  const allowedTabs = professionalType === 'nutritionist' ? patientPortalTabIds : studentPortalTabIds
+  return allowedTabs.has(tab) ? tab : 'inicio'
+}
 
 function getProfessionalRole(user = {}) {
   const role = normalizeText(user?.role || user?.profession || user?.profile || '')
@@ -1839,6 +1846,7 @@ function AppContent() {
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
   const [studentAccess, setStudentAccess] = useState(null)
   const [studentFirstAccess, setStudentFirstAccess] = useState(null)
+  const [studentBootstrapAttempt, setStudentBootstrapAttempt] = useState(0)
   const [studentPaymentReturnPending, setStudentPaymentReturnPending] = useState(false)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -1885,6 +1893,8 @@ function AppContent() {
     new Date(appointment.startsAt) >= new Date()
     && !['Concluido', 'Cancelado'].includes(appointment.status)
   ))
+  const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
+  const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
   const smartAlerts = useMemo(
     () => buildSmartAlerts(
       data.students,
@@ -1894,8 +1904,9 @@ function AppContent() {
       data.appointments ?? [],
       data.invoices ?? [],
       data.assessments ?? [],
+      { nutritionist: nutritionistUser },
     ),
-    [data.students, data.checkins, data.workouts, data.nutritionPlans, data.appointments, data.invoices, data.assessments],
+    [data.students, data.checkins, data.workouts, data.nutritionPlans, data.appointments, data.invoices, data.assessments, nutritionistUser],
   )
   const priorityDashboard = useMemo(
     () => buildPriorityDashboard({
@@ -1906,8 +1917,10 @@ function AppContent() {
       messages: data.messages ?? [],
       invoices: data.invoices ?? [],
       assessments: data.assessments ?? [],
+      nutritionPlans: data.nutritionPlans ?? [],
+      nutritionist: nutritionistUser,
     }),
-    [data.students, data.checkins, data.workouts, data.workoutLogs, data.messages, data.invoices, data.assessments],
+    [data.students, data.checkins, data.workouts, data.workoutLogs, data.messages, data.invoices, data.assessments, data.nutritionPlans, nutritionistUser],
   )
   const totalAlertCount = unreadCount + smartAlerts.length
   const coachBillingCycle = getCoachBillingCycle(data.coachSubscription, data.user?.createdAt, billingClock)
@@ -1915,8 +1928,6 @@ function AppContent() {
   const professionalAffiliate = Boolean(data.professionalAffiliate)
   const studentAuthSession = data.session?.user?.accountType === 'student'
   const professionalAccessActive = coachSubscriptionActive || professionalAffiliate
-  const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
-  const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
   const activeCoachId = data.session?.user?.id || data.user?.id
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !professionalAccessActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
@@ -2293,16 +2304,18 @@ function AppContent() {
 
     async function bootstrapAuthenticatedStudent() {
       try {
-        const studentBootstrap = await loadRemoteCurrentStudentAccess()
+        const portal = await loadStudentPortalWithRetry({
+          loadStudentAccess: loadRemoteCurrentStudentAccess,
+          loadStudentPortal: loadRemoteStudentByInvite,
+          onFirstAccess: (studentBootstrap) => {
+            if (!active) return
+            setStudentFirstAccess(studentBootstrap)
+            setRemoteStatus('Primeiro acesso')
+            setRemoteError('')
+          },
+        })
         if (!active) return
-        if (!studentBootstrap) throw new Error('Este login não está vinculado a um aluno ou paciente ativo.')
-        if (studentBootstrap.mustChangePassword) {
-          setStudentFirstAccess(studentBootstrap)
-          setRemoteStatus('Primeiro acesso')
-          return
-        }
-        const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
-        if (!active) return
+        if (!portal) return
         setStudentAccess(portal)
         removeLocalStorage(STUDENT_ACCESS_KEY)
         setRemoteStatus('Acesso carregado')
@@ -2316,7 +2329,7 @@ function AppContent() {
 
     bootstrapAuthenticatedStudent()
     return () => { active = false }
-  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess, sessionRestoring])
+  }, [data.session?.access_token, studentAuthSession, studentAccess, studentFirstAccess, sessionRestoring, studentBootstrapAttempt])
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token || !studentAuthSession || studentFirstAccess) {
@@ -2651,6 +2664,7 @@ function AppContent() {
           ? await signUpCoach({ name, email, password, role })
           : await signInCoach({ email, password })
         const studentBootstrap = mode === 'signin' ? await loadRemoteCurrentStudentAccess() : null
+        requireStudentBootstrapForSession(session, studentBootstrap)
         if (studentBootstrap) {
           const studentSession = {
             ...session,
@@ -3094,7 +3108,7 @@ function AppContent() {
         setRemoteError('')
       } catch (error) {
         handleRemoteError(error, 'Erro ao arquivar treino')
-        return false
+        throw error
       }
     }
     setData((current) => ({
@@ -4041,16 +4055,11 @@ function AppContent() {
       },
     }
     setData((current) => ({ ...current, session: studentSession, user: studentSession.user }))
-    const studentBootstrap = await loadRemoteCurrentStudentAccess()
-    if (!studentBootstrap || studentBootstrap.mustChangePassword) {
-      throw new Error('Não foi possível concluir a ativação da senha. Tente novamente.')
-    }
-    const portal = await loadRemoteStudentByInvite(studentBootstrap.inviteCode)
-    setStudentAccess(portal)
     setStudentFirstAccess(null)
     removeLocalStorage(STUDENT_ACCESS_KEY)
-    setRemoteStatus('Senha criada e acesso carregado')
+    setRemoteStatus('Senha criada com sucesso')
     setRemoteError('')
+    setStudentBootstrapAttempt((current) => current + 1)
   }
 
   async function finishPasswordRecovery(password) {
@@ -4090,7 +4099,20 @@ function AppContent() {
           <section className="w-full max-w-md rounded-xl border border-rose-300/25 bg-zinc-950/90 p-6 text-center shadow-2xl">
             <h1 className="text-xl font-black text-white">Não foi possível carregar seu acesso</h1>
             <p className="mt-3 text-sm leading-6 text-zinc-400">{remoteError}</p>
-            <button type="button" onClick={logout} className="mt-5 min-h-11 rounded-md bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950">Voltar ao login</button>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoteStatus('Carregando acesso')
+                  setRemoteError('')
+                  setStudentBootstrapAttempt((current) => current + 1)
+                }}
+                className="min-h-11 rounded-md bg-emerald-400 px-5 py-3 text-sm font-black text-zinc-950"
+              >
+                Tentar novamente
+              </button>
+              <button type="button" onClick={logout} className="min-h-11 rounded-md border border-white/10 px-5 py-3 text-sm font-black text-zinc-200">Voltar ao login</button>
+            </div>
           </section>
         </main>
       )
@@ -4199,7 +4221,9 @@ function AppContent() {
   const activeNavItem = visibleNavItems.find((item) => item.id === activeView) ?? visibleNavItems[0]
   const activeNavTone = getNavToneClasses(activeNavItem?.tone)
   const viewTitle = activeNavItem?.label ?? 'Visão geral'
-  const coachMobileBottomItems = ['visao', 'alunos', 'treinos', 'nutricao']
+  const coachMobileBottomItems = (nutritionistUser
+    ? ['visao', 'alunos', 'nutricao', 'agenda']
+    : ['visao', 'alunos', 'treinos', 'nutricao'])
     .map((id) => visibleNavItems.find((item) => item.id === id))
     .filter(Boolean)
   const coachMobileNavLabels = {
@@ -4207,13 +4231,19 @@ function AppContent() {
     alunos: nutritionistUser ? 'Pacientes' : 'Alunos',
     treinos: 'Treino',
     nutricao: 'Dieta',
+    agenda: 'Agenda',
   }
-  const coachMobileQuickActions = [
+  const coachMobileQuickActions = (nutritionistUser ? [
+    { id: 'nutricao', label: 'Criar dieta', icon: 'nutrition', hint: 'prescrição' },
+    { id: 'alunos', label: 'Novo paciente', icon: 'users', hint: 'cadastro' },
+    { id: 'avaliacoes', label: 'Avaliações', icon: 'chart', hint: 'evolução' },
+    { id: 'agenda', label: 'Agenda', icon: 'calendar', hint: 'rotina' },
+  ] : [
     { id: 'treinos', label: 'Criar treino', icon: 'dumbbell', hint: 'prescrição' },
     { id: 'nutricao', label: 'Criar dieta', icon: 'nutrition', hint: 'macros' },
-    { id: 'alunos', label: nutritionistUser ? 'Novo paciente' : 'Novo aluno', icon: 'users', hint: 'cadastro' },
+    { id: 'alunos', label: 'Novo aluno', icon: 'users', hint: 'cadastro' },
     { id: 'agenda', label: 'Agenda', icon: 'calendar', hint: 'rotina' },
-  ].map((action) => {
+  ]).map((action) => {
     const navItem = visibleNavItems.find((item) => item.id === action.id)
     return navItem ? { ...action, navItem } : null
   }).filter(Boolean)
@@ -4461,7 +4491,7 @@ function AppContent() {
           {activeView === 'visao' ? (
             <section className="coach-dashboard-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Metric label={nutritionistUser ? 'Pacientes ativos' : 'Alunos ativos'} value={activeStudents.length} detail={`${paidStudents} com plano pago`} />
-              <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
+              <Metric label="Constância média" value={`${averageAdherence}%`} detail={nutritionistUser ? 'plano + check-ins' : 'treino + dieta'} />
               <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
               <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
             </section>
@@ -4559,10 +4589,10 @@ function AppContent() {
                 toggleUiTheme={toggleUiTheme}
               />
             )}
-            {activeView === 'checkins' && !nutritionistUser && (
-              <Checkins checkins={data.checkins} students={data.students} onAddCheckin={addCheckin} />
+            {activeView === 'checkins' && (
+              <Checkins checkins={data.checkins} students={data.students} onAddCheckin={addCheckin} nutritionist={nutritionistUser} />
             )}
-            {activeView === 'pagamentos' && !nutritionistUser && (
+            {activeView === 'pagamentos' && (
               <Payments
                 students={data.students}
                 invoices={data.invoices ?? []}
@@ -4571,6 +4601,7 @@ function AppContent() {
                 onSaveInvoice={saveInvoice}
                 onUpdateInvoiceStatus={updateInvoiceStatus}
                 onUpdatePayment={updatePayment}
+                nutritionist={nutritionistUser}
               />
             )}
             {activeView === 'comissoes' && professionalAffiliate && (
@@ -4642,6 +4673,7 @@ function AppContent() {
                 onAddCheckin={addCheckin}
                 onSendMessage={sendMessage}
                 coachId={data.user?.id}
+                professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
                 onRemoteStatus={setRemoteStatus}
                 onRemoteError={setRemoteError}
               />
@@ -4660,7 +4692,7 @@ function AppContent() {
           </div>
           </div>
         </main>
-      <nav className="coach-mobile-bottom-nav lg:hidden" aria-label="Navegação rápida do treinador">
+      <nav className="coach-mobile-bottom-nav lg:hidden" aria-label={nutritionistUser ? 'Navegação rápida do nutricionista' : 'Navegação rápida do treinador'}>
         {coachMobileBottomItems.map((item) => {
           const isActive = activeView === item.id
           const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(item.id)
@@ -6850,7 +6882,7 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
 
   const assessmentData = buildAssessmentChartData(assessments, selectedStudent?.id)
   const revenueChartData = buildRevenueChartData(invoices)
-  const actionPlan = buildCoachActionPlan(smartAlerts)
+  const actionPlan = buildCoachActionPlan(smartAlerts, nutritionist)
   const openStudentFromPriority = (studentId, view = 'alunos') => {
     setSelectedStudentId?.(studentId)
     setActiveView(view)
@@ -6859,12 +6891,13 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.4fr_1fr]">
       <div className="xl:col-span-2">
-        <DailyIntelligenceSummary dashboard={priorityDashboard} onOpenView={setActiveView} />
+        <DailyIntelligenceSummary dashboard={priorityDashboard} onOpenView={setActiveView} nutritionist={nutritionist} />
       </div>
 
       <div className="xl:col-span-2">
         <StudentPriorityPanel
           dashboard={priorityDashboard}
+          nutritionist={nutritionist}
           onOpenStudent={(studentId) => openStudentFromPriority(studentId, 'alunos')}
           onMessageStudent={(studentId) => openStudentFromPriority(studentId, 'mensagens')}
         />
@@ -6875,14 +6908,14 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
             <AssessmentChart data={assessmentData} weightLabel="Peso (kg)" bodyFatLabel="Gordura (%)" />
           </Suspense>
         ) : (
-          <Empty text="Registre avaliações para visualizar a evolução real do aluno." />
+          <Empty text={`Registre avaliações para visualizar a evolução real do ${nutritionist ? 'paciente' : 'aluno'}.`} />
         )}
       </Panel>
 
-      <Panel title="Aluno em foco" action={selectedStudent?.status ?? 'Sem aluno'}>
-        {selectedStudent ? <StudentSnapshot student={selectedStudent} /> : <Empty text="Cadastre seu primeiro aluno." />}
+      <Panel title={nutritionist ? 'Paciente em foco' : 'Aluno em foco'} action={selectedStudent?.status ?? (nutritionist ? 'Sem paciente' : 'Sem aluno')}>
+        {selectedStudent ? <StudentSnapshot student={selectedStudent} /> : <Empty text={`Cadastre seu primeiro ${nutritionist ? 'paciente' : 'aluno'}.`} />}
         <button onClick={() => setActiveView('alunos')} className="mt-5 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-          Abrir alunos
+          Abrir {nutritionist ? 'pacientes' : 'alunos'}
         </button>
       </Panel>
 
@@ -6913,6 +6946,7 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
           selectedStudent={selectedStudent}
           action={actionPlan[0]}
           alertCount={smartAlerts.length}
+          nutritionist={nutritionist}
           onOpen={() => setActiveView(actionPlan[0]?.view || 'mensagens')}
         />
       </Panel>
@@ -6939,10 +6973,10 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
   )
 }
 
-function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
+function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen, nutritionist = false }) {
   const retentionStatus = alertCount > 2 ? 'Atenção alta' : alertCount > 0 ? 'Acompanhar hoje' : 'Carteira estável'
   const retentionCopy = alertCount > 2
-    ? 'Existem sinais que podem virar abandono se o coach não agir hoje.'
+    ? `Existem sinais que podem virar abandono se ${nutritionist ? 'a nutricionista' : 'o treinador'} não agir hoje.`
     : alertCount > 0
       ? 'Uma ação rápida agora aumenta percepção de cuidado.'
       : 'Use o momento para mandar feedback proativo e reforçar resultado.'
@@ -6959,8 +6993,8 @@ function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
-          <p className="text-xs font-black uppercase text-zinc-500">Aluno em foco</p>
-          <p className="mt-2 text-lg font-black text-white">{selectedStudent?.name || 'Selecione um aluno'}</p>
+          <p className="text-xs font-black uppercase text-zinc-500">{nutritionist ? 'Paciente' : 'Aluno'} em foco</p>
+          <p className="mt-2 text-lg font-black text-white">{selectedStudent?.name || `Selecione um ${nutritionist ? 'paciente' : 'aluno'}`}</p>
         </div>
         <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
           <p className="text-xs font-black uppercase text-zinc-500">Risco da carteira</p>
@@ -6972,6 +7006,8 @@ function CoachRetentionRadar({ selectedStudent, action, alertCount, onOpen }) {
 }
 
 function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateStatus, coachId, professionalType = 'trainer', professional = {}, uiTheme = DEFAULT_UI_THEME }) {
+  const nutritionist = professionalType === 'nutritionist'
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const [activeTab, setActiveTab] = useState('appointments')
   const [filter, setFilter] = useState('Proximos')
   const [saving, setSaving] = useState(false)
@@ -7051,10 +7087,10 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
       <section className="xl:col-span-2 rounded-2xl border border-blue-300/20 bg-gradient-to-br from-blue-500/10 via-zinc-950/90 to-emerald-300/8 p-5 shadow-2xl shadow-black/20">
         <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase text-blue-200">Agenda do coach</p>
+            <p className="text-xs font-black uppercase text-blue-200">Agenda {nutritionist ? 'da nutricionista' : 'do treinador'}</p>
             <h2 className="mt-2 text-2xl font-black text-white">Organize check-ins, avaliações, chamadas e revisões sem misturar com o chat.</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Use esta área para marcar compromissos que precisam de data, horário e acompanhamento. O aluno visualiza a agenda no portal dele.
+              Use esta área para marcar compromissos que precisam de data, horário e acompanhamento. O {clientLabel} visualiza a agenda no portal dele.
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -7067,7 +7103,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
               <p className="mt-1 text-2xl font-black text-blue-200">{nextAppointments.length}</p>
             </div>
             <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
-              <p className="text-xs font-black uppercase text-zinc-500">Alunos</p>
+              <p className="text-xs font-black uppercase text-zinc-500">{nutritionist ? 'Pacientes' : 'Alunos'}</p>
               <p className="mt-1 text-2xl font-black text-emerald-200">{students.length}</p>
             </div>
           </div>
@@ -7078,13 +7114,13 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
         {students.length ? (
           <form onSubmit={handleSubmit} className="grid gap-4">
             <Select
-              label="Aluno"
+              label={nutritionist ? 'Paciente' : 'Aluno'}
               name="studentId"
               options={students.map((student) => ({ label: student.name, value: student.id }))}
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Título" name="title" defaultValue="Acompanhamento" />
-              <Select label="Tipo" name="type" defaultValue="Consulta" options={['Consulta', 'Avaliação', 'Check-in', 'Chamada', 'Revisão de treino', 'Revisão de dieta', 'Outro']} />
+              <Select label="Tipo" name="type" defaultValue="Consulta" options={nutritionist ? ['Consulta', 'Avaliação', 'Check-in', 'Chamada', 'Revisão de dieta', 'Outro'] : ['Consulta', 'Avaliação', 'Check-in', 'Chamada', 'Revisão de treino', 'Revisão de dieta', 'Outro']} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Data e horário" name="startsAt" type="datetime-local" defaultValue={getDefaultAppointmentDate()} />
@@ -7109,7 +7145,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
             {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
           </form>
         ) : (
-          <Empty text="Cadastre um aluno antes de criar compromissos." />
+          <Empty text={`Cadastre um ${clientLabel} antes de criar compromissos.`} />
         )}
       </Panel>
 
@@ -7145,7 +7181,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
                         <span className="text-xs font-bold text-zinc-500">{formatUiText(appointment.type)}</span>
                       </div>
                       <h4 className="mt-3 text-lg font-black">{appointment.title}</h4>
-                      <p className="mt-1 text-sm text-zinc-300">{student?.name ?? 'Aluno'}</p>
+                      <p className="mt-1 text-sm text-zinc-300">{student?.name ?? (nutritionist ? 'Paciente' : 'Aluno')}</p>
                       <p className="mt-2 text-sm font-bold text-blue-200">{formatFullDateTime(appointment.startsAt)}</p>
                       <p className="mt-1 text-sm text-zinc-400">{appointment.durationMinutes} min - {appointment.location || 'Sem local'}</p>
                       {appointment.notes ? <p className="mt-3 text-sm leading-6 text-zinc-400">{appointment.notes}</p> : null}
@@ -7730,7 +7766,8 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome completo" name="name" defaultValue={student.name} autoComplete="name" />
-        <Field label="E-mail" name="email" type="email" defaultValue={student.email} autoComplete="email" />
+        <Field label={student.authUserId ? 'E-mail vinculado ao acesso' : 'E-mail'} name="email" type="email" defaultValue={student.email} autoComplete="email" readOnly={Boolean(student.authUserId)} />
+        {student.authUserId ? <p className="self-center text-xs font-semibold leading-5 text-zinc-400 sm:col-span-2">Para proteger o login já ativado, este e-mail não pode ser alterado pelo cadastro. Use o suporte administrativo quando precisar transferir o acesso.</p> : null}
         <Field label="Celular" name="phone" defaultValue={student.phone} inputMode="tel" autoComplete="tel" />
         <Field label="CPF (opcional)" name="cpf" defaultValue={student.cpf} inputMode="numeric" autoComplete="off" maxLength={14} required={false} />
         <Field label="Meta de água por dia (ml)" name="waterGoalMl" type="number" defaultValue={student.waterGoalMl || '2500'} inputMode="numeric" required={false} />
@@ -8792,6 +8829,56 @@ function getSupportedWorkoutSelectValue(value, options) {
   return options.find((item) => normalizeText(item) === normalized) || ''
 }
 
+function useModalFocusTrap(isOpen, onClose) {
+  const dialogRef = useRef(null)
+  const closeRef = useRef(onClose)
+
+  useEffect(() => {
+    closeRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined
+    const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    const dialog = dialogRef.current
+    const selector = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+    const getFocusable = () => Array.from(dialog?.querySelectorAll(selector) || []).filter((element) => element.getClientRects().length)
+
+    document.body.style.overflow = 'hidden'
+    window.requestAnimationFrame(() => getFocusable()[0]?.focus())
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeRef.current?.()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = getFocusable()
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
+  }, [isOpen])
+
+  return dialogRef
+}
+
 function MobileWorkoutManager({ selectedStudent, students, workouts = [], workoutLogs = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
@@ -8844,6 +8931,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       return []
     }
   })
+  const dayEditorDialogRef = useModalFocusTrap(Boolean(dayEditor), () => setDayEditor(null))
 
   useEffect(() => {
     try {
@@ -9559,7 +9647,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     setSaving(true)
     setError('')
     try {
-      await onArchiveWorkout(workout.id)
+      const archived = await onArchiveWorkout(workout.id)
+      if (!archived) throw new Error('O banco não confirmou o arquivamento do treino.')
       setMessage('Treino arquivado.')
     } catch (archiveError) {
       setError(archiveError?.message || 'Não foi possível arquivar o treino.')
@@ -10047,9 +10136,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
         </div>
       ) : null}
 
-      {dayEditor ? (
-        <div className="mobile-workout-sheet-backdrop" role="presentation" onClick={() => setDayEditor(null)}>
-          <section className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Editar dia do treino" onClick={(event) => event.stopPropagation()}>
+      {dayEditor ? createPortal((
+        <div className={`mobile-workout-sheet-backdrop app-theme-${uiTheme}`} role="presentation" onClick={() => setDayEditor(null)}>
+          <section ref={dayEditorDialogRef} className="mobile-workout-sheet" role="dialog" aria-modal="true" aria-label="Editar dia do treino" onClick={(event) => event.stopPropagation()}>
             <div className="mobile-workout-sheet-handle" />
             <div className="mobile-workout-creator-head">
               <div>
@@ -10078,7 +10167,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             <button type="button" className="mobile-workout-primary mobile-workout-save-day-action" onClick={saveDayEditor}>Salvar dia</button>
           </section>
         </div>
-      ) : null}
+      ), document.body) : null}
 
       {exercisePickerDayIndex !== null ? createPortal((
         <div className={`mobile-workout-sheet-backdrop app-theme-${uiTheme}`} role="presentation" onClick={closeExercisePicker}>
@@ -11061,7 +11150,8 @@ function summarizeExerciseSessions(sessions = []) {
 
 function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
   const targetName = normalizeText(recommendation.exercise.name)
-  const exercises = (workout.exercises || []).map((exercise) => {
+  const progressionSummary = `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`
+  const updateExercise = (exercise) => {
     if (normalizeText(exercise.name) !== targetName) return exercise
     const progressionNote = `Nova meta definida pelo seu treinador: ${nextTarget.sets || exercise.sets || '-'} séries, ${nextTarget.reps || exercise.reps || '-'} reps, ${nextTarget.load || exercise.load || 'carga conforme técnica'}.`
     return {
@@ -11071,14 +11161,34 @@ function buildWorkoutFromProgression(workout, recommendation, nextTarget) {
       load: nextTarget.load || exercise.load,
       instructions: [exercise.instructions, progressionNote].filter(Boolean).join('\n'),
     }
-  })
+  }
+  const days = Array.isArray(workout.days)
+    ? workout.days.map((day) => ({
+      ...day,
+      exercises: getWorkoutExercisesArray(day.exercises).map(updateExercise),
+    }))
+    : undefined
+  const exercises = days?.length
+    ? days.flatMap((day) => getWorkoutExercisesArray(day.exercises))
+    : getWorkoutExercisesArray(workout.exercises).map(updateExercise)
+  const nextWorkout = {
+    ...workout,
+    id: undefined,
+    clientRequestId: createWorkoutCompletionToken(),
+    publicationStatus: 'published',
+    status: 'Publicado',
+    active: true,
+    title: `${workout.title} · progressão`,
+    guidance: [workout.guidance || stripWorkoutMetadata(workout.notes), progressionSummary].filter(Boolean).join('\n'),
+    days,
+    exercises,
+  }
 
   return {
-    studentId: workout.studentId,
-    title: `${workout.title} · progressão`,
-    focus: workout.focus,
-    notes: [workout.notes, `Nova meta definida pelo treinador em ${formatDate(new Date().toISOString())}. ${recommendation.exercise.name}: ${recommendation.suggestion}.`].filter(Boolean).join('\n'),
-    exercises,
+    ...nextWorkout,
+    notes: days?.length
+      ? buildWorkoutNotesWithMetadata(nextWorkout)
+      : [stripWorkoutMetadata(workout.notes), progressionSummary].filter(Boolean).join('\n'),
   }
 }
 
@@ -13065,7 +13175,7 @@ function getWorkoutSetNumeric(value) {
   return Number.isFinite(number) ? number : 0
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -13085,11 +13195,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
   const [syncState, setSyncState] = useState(preview ? 'preview' : 'local')
+  const [hydrationAttempt, setHydrationAttempt] = useState(0)
   const [message, setMessage] = useState(initialExecution?.completedLog ? (initialExecution.completedLog.endedEarly ? 'Treino encerrado. Seu progresso foi mantido.' : 'Treino já concluído. O XP foi registrado uma única vez.') : '')
   const [error, setError] = useState('')
   const previousExecutionKeyRef = useRef(executionStorageKey)
   const skipNextPersistRef = useRef(false)
   const submissionLockRef = useRef(false)
+  const endDialogRef = useModalFocusTrap(endConfirmOpen, () => setEndConfirmOpen(false))
 
   useEffect(() => {
     const executionChanged = previousExecutionKeyRef.current !== executionStorageKey
@@ -13142,7 +13254,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         setError(loadError?.message || 'Não foi possível recuperar o progresso salvo na nuvem.')
       })
     return () => { active = false }
-  }, [dayIndex, days.length, executionStorageKey, onLoadWorkoutSession, preview, student?.id, workout?.id])
+  }, [dayIndex, days.length, executionStorageKey, hydrationAttempt, onLoadWorkoutSession, preview, student?.id, workout?.id])
 
   useEffect(() => {
     if (preview || !student?.id || !workout?.id) return
@@ -13194,6 +13306,21 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }, [cardioLogs])
 
   if (!workout) return <Empty text="Nenhum treino ativo para este aluno." />
+
+  const sessionSyncFeedback = !preview && syncState === 'loading' ? (
+    <div className="mobile-workout-sync-v8 is-loading" role="status" aria-live="polite">
+      <span aria-hidden="true" />
+      <div><strong>Recuperando seu progresso</strong><small>Aguarde enquanto sincronizamos este treino.</small></div>
+    </div>
+  ) : !preview && syncState === 'error' ? (
+    <div className="mobile-workout-sync-v8 is-error" role="alert">
+      <div><strong>Progresso salvo neste aparelho</strong><small>{error || 'Não foi possível sincronizar com a nuvem.'}</small></div>
+      <button type="button" onClick={() => {
+        setError('')
+        setHydrationAttempt((current) => current + 1)
+      }}>Tentar sincronizar novamente</button>
+    </div>
+  ) : null
 
   const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length)
 
@@ -13386,6 +13513,28 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }
 
   function returnToDaySelection() {
+    const pausedExecution = serializeWorkoutSession({
+      completionToken,
+      activeDayIndex: safeDayIndex,
+      activeExerciseIndex: safeExerciseIndex,
+      setLogs,
+      cardioLogs,
+      effort,
+      sessionNotes,
+      durationSeconds,
+      timerStartedAt: '',
+      updatedAt: new Date().toISOString(),
+    })
+    if (!preview && pausedExecution) {
+      persistStudentWorkoutExecution(student?.id, workout?.id, { ...pausedExecution, completionToken })
+      if (remoteHydrated && onSaveWorkoutSession) {
+        Promise.resolve(onSaveWorkoutSession(workout.id, { ...pausedExecution, completionToken }))
+          .catch((saveError) => {
+            setSyncState('error')
+            setError(saveError?.message || 'Seu progresso está neste aparelho e será sincronizado quando a conexão voltar.')
+          })
+      }
+    }
     if (timerStartedAt && onToggleTimer) onToggleTimer()
     onSelectDay?.(-1)
     setActiveDayIndex(-1)
@@ -13504,7 +13653,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function startNewWorkoutSession() {
     setActiveDayIndex(preview ? 0 : -1)
-    onSelectDay?.(preview ? 0 : -1)
+    onSelectDay?.(preview ? 0 : -1, { reset: true })
     setActiveExerciseIndex(0)
     setSetLogs({})
     setCardioLogs({})
@@ -13522,6 +13671,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   if (completedLog && daySelected) {
     return (
       <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 ' + (compact ? 'is-compact' : '')}>
+        {sessionSyncFeedback}
         <header className="mobile-workout-student-experience-head-v2">
           <div>
             <p>{completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído'}</p>
@@ -13556,7 +13706,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} aria-busy={syncState === 'loading'}>
+        {sessionSyncFeedback}
         <header className="mobile-workout-student-experience-head-v2">
           <div>
             <p>Programa atual</p>
@@ -13586,7 +13737,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                 </div>
                 <div className="mobile-workout-day-card-actions-v4">
                   {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Evolução</button> : null}
-                  <button type="button" onClick={() => selectDay(index)}>Ver treino</button>
+                  <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Ver treino</button>
                 </div>
               </article>
             )
@@ -13599,6 +13750,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   if (!sessionStarted) {
     return (
       <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+        {sessionSyncFeedback}
         <div className="mobile-workout-day-detail-head-v4">
           <button type="button" onClick={returnToDaySelection}>← Voltar</button>
           <div>
@@ -13611,7 +13763,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <strong>Modo de visualização</strong>
           <p>Revise os exercícios abaixo. Inicie o treino para registrar sua sessão.</p>
         </div>
-        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" onClick={onToggleTimer}>▶ Iniciar treino</button> : null}
+        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" disabled={syncState === 'loading'} onClick={onToggleTimer}>▶ Iniciar treino</button> : null}
         <div className="mobile-workout-day-exercise-list-v4">
           {exercises.map((currentExercise, index) => {
             const profile = getExerciseMuscleProfile(currentExercise)
@@ -13642,6 +13794,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   return (
     <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      {sessionSyncFeedback}
       <div className="mobile-workout-execution-head-v4">
         <button type="button" onClick={returnToDaySelection}>← Voltar</button>
         <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
@@ -13808,9 +13961,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
         </footer>
       ) : null}
-      {endConfirmOpen ? (
-        <div className="mobile-workout-end-overlay-v5" role="presentation">
-          <div className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
+      {endConfirmOpen ? createPortal((
+        <div className={`mobile-workout-end-overlay-v5 app-theme-${uiTheme}`} role="presentation">
+          <div ref={endDialogRef} className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
             <strong id="workout-end-title">Deseja encerrar o treino agora?</strong>
             <p id="workout-end-description">Seu progresso realizado até aqui será mantido.</p>
             <div>
@@ -13819,7 +13972,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         </div>
-      ) : null}
+      ), document.body) : null}
     </section>
   )
 }
@@ -15916,14 +16069,15 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
   )
 }
 
-function Checkins({ checkins = [], students = [], onAddCheckin }) {
+function Checkins({ checkins = [], students = [], onAddCheckin, nutritionist = false }) {
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <Panel title="Novo check-in" action="Upload local">
         {students.length ? (
           <CheckinForm students={students} onAddCheckin={onAddCheckin} />
         ) : (
-          <Empty text="Cadastre um aluno antes de registrar check-ins." />
+          <Empty text={`Cadastre um ${clientLabel} antes de registrar check-ins.`} />
         )}
       </Panel>
 
@@ -15936,7 +16090,7 @@ function Checkins({ checkins = [], students = [], onAddCheckin }) {
                 <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h4 className="font-bold">{student?.name ?? 'Aluno'}</h4>
+                      <h4 className="font-bold">{student?.name ?? (nutritionist ? 'Paciente' : 'Aluno')}</h4>
                       <p className="mt-1 text-sm text-zinc-400">{item.type} - {item.due} - {item.weight}</p>
                       <p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p>
                     </div>
@@ -15971,10 +16125,14 @@ function StudentPortalPreview({
   onAddCheckin,
   onSendMessage,
   coachId,
+  professionalType = 'trainer',
   onRemoteStatus,
   onRemoteError,
   canGenerateInvite = true,
 }) {
+  const nutritionist = professionalType === 'nutritionist'
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
+  const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
   const studentWorkouts = workouts.filter((workout) => (
@@ -16003,7 +16161,7 @@ function StudentPortalPreview({
   const inviteUrl = invite ? `${window.location.origin}${window.location.pathname}?invite=${invite.code}` : ''
 
   if (!student) {
-    return <Empty text="Cadastre ou selecione um aluno para visualizar a área do aluno." />
+    return <Empty text={`Cadastre ou selecione um ${clientLabel} para visualizar a área do ${clientLabel}.`} />
   }
 
   async function generateInvite() {
@@ -16023,17 +16181,17 @@ function StudentPortalPreview({
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <Panel title={`Portal do aluno - ${student.name}`} action="Prévia do app">
+      <Panel title={`Portal do ${clientLabel} - ${student.name}`} action="Prévia do app">
         <div className="grid gap-4 md:grid-cols-3">
           <Info label="Objetivo" value={student.goal} />
-          <Info label="Treino atual" value={student.workout} />
+          <Info label={nutritionist ? 'Plano atual' : 'Treino atual'} value={nutritionist ? (studentNutritionPlans[0]?.title || student.plan || 'Sem plano ativo') : student.workout} />
           <Info label="Próximo check-in" value={student.nextCheckin} />
         </div>
 
         <div className="mt-5 rounded-md border border-blue-300/30 bg-blue-300/10 p-4">
-          <p className="text-sm font-black text-blue-200">{coachSettings?.publicName || 'Mensagem do coach'}</p>
+          <p className="text-sm font-black text-blue-200">{coachSettings?.publicName || (nutritionist ? 'Mensagem da nutricionista' : 'Mensagem do treinador')}</p>
           <p className="mt-2 text-sm leading-6 text-zinc-300">
-            {coachSettings?.welcomeMessage || 'Mantenha o plano de hoje, registre seu treino e envie o check-in se notar mudanca relevante em peso, fome ou sono.'}
+            {coachSettings?.welcomeMessage || (nutritionist ? 'Siga o plano alimentar e envie um check-in se notar mudança relevante em peso, fome, digestão ou sono.' : 'Mantenha o plano de hoje, registre seu treino e envie o check-in se notar mudança relevante em peso, fome ou sono.')}
           </p>
         </div>
 
@@ -16041,9 +16199,9 @@ function StudentPortalPreview({
           <div className="mt-5 rounded-md border border-white/10 bg-white/[0.03] p-4">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <div>
-                <p className="text-sm font-black">Convite do aluno</p>
+                <p className="text-sm font-black">Convite do {clientLabel}</p>
                 <p className="mt-1 text-sm text-zinc-400">
-                  Gere um código para o aluno acessar a área dele pela tela inicial.
+                  Gere um código para o {clientLabel} acessar a área dele pela tela inicial.
                 </p>
               </div>
               <button onClick={generateInvite} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
@@ -16058,14 +16216,14 @@ function StudentPortalPreview({
                 <p className="mt-2 select-all break-all rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-100">
                   {inviteUrl}
                 </p>
-                <p className="mt-2 text-sm text-zinc-300">Envie o link ou o código para o aluno.</p>
+                <p className="mt-2 text-sm text-zinc-300">Envie o link ou o código para o {clientLabel}.</p>
               </div>
             ) : null}
           </div>
         ) : null}
       </Panel>
 
-      <Panel title="Enviar check-in" action="Aluno">
+      <Panel title="Enviar check-in" action={clientTitle}>
         <CheckinForm students={[student]} onAddCheckin={onAddCheckin} />
       </Panel>
 
@@ -16122,7 +16280,7 @@ function StudentPortalPreview({
         </div>
       </Panel>
 
-      <Panel title="Treino de hoje" action={studentWorkouts[0]?.title ?? student.workout}>
+      {!nutritionist ? <Panel title="Treino de hoje" action={studentWorkouts[0]?.title ?? student.workout}>
         {studentWorkouts.length ? (
           <div className="grid gap-4">
             <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
@@ -16156,7 +16314,7 @@ function StudentPortalPreview({
             ))}
           </div>
         )}
-      </Panel>
+      </Panel> : null}
 
       <Panel title="Dieta de hoje" action={student.calories}>
         {studentNutritionPlans.length ? (
@@ -16174,9 +16332,9 @@ function StudentPortalPreview({
         <AssessmentProgress assessments={studentAssessments} student={student} checkins={studentCheckins} />
       </Panel>
 
-      <Panel title="Treinos concluídos" action={`${studentWorkoutLogs.length} registros`}>
+      {!nutritionist ? <Panel title="Treinos concluídos" action={`${studentWorkoutLogs.length} registros`}>
         <WorkoutLogList logs={studentWorkoutLogs} />
-      </Panel>
+      </Panel> : null}
 
       <Panel title="Histórico enviado" action="Últimos registros">
         <div className="space-y-3">
@@ -16190,7 +16348,7 @@ function StudentPortalPreview({
               </div>
             ))
           ) : (
-            <Empty text="Este aluno ainda não enviou check-ins." />
+            <Empty text={`Este ${clientLabel} ainda não enviou check-ins.`} />
           )}
         </div>
       </Panel>
@@ -16308,6 +16466,8 @@ function StudentMessagePanel({ student, coachId, contact, messages = [], onSendM
 
 function StudentConsent({ access, onAccept, onExit, error, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [accepting, setAccepting] = useState(false)
+  const nutritionist = access.professionalType === 'nutritionist'
+  const professionalLabel = nutritionist ? 'nutricionista' : 'treinador'
 
   async function handleAccept() {
     setAccepting(true)
@@ -16324,7 +16484,7 @@ function StudentConsent({ access, onAccept, onExit, error, appAdminSettings = de
         <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="student-theme-toggle" />
       </div>
       <div className="student-access-card w-full max-w-2xl rounded-md border border-white/10 bg-zinc-900 p-5 shadow-2xl shadow-black/30 sm:p-7">
-        <BrandLockup subtitle={`por ${access.coachSettings?.brandName || access.coachSettings?.publicName || 'seu treinador'}`} />
+        <BrandLockup subtitle={`por ${access.coachSettings?.brandName || access.coachSettings?.publicName || `seu ${professionalLabel}`}`} />
         <div className="mt-7 h-px bg-white/10" />
         <h1 className="mt-2 text-3xl font-black">Consentimento de dados</h1>
         <p className="mt-2 text-sm leading-6 text-zinc-400">
@@ -16333,10 +16493,10 @@ function StudentConsent({ access, onAccept, onExit, error, appAdminSettings = de
 
         <div className="mt-6 grid gap-3">
           {[
-            'Dados de cadastro, treinos, dieta e comunicação.',
+            nutritionist ? 'Dados de cadastro, nutrição, avaliações e comunicação.' : 'Dados de cadastro, treinos, dieta e comunicação.',
             'Peso, medidas corporais, fotos e informações de saúde fornecidas por você.',
-            'Uso dos dados exclusivamente para acompanhamento pelo seu treinador.',
-            'Possibilidade de solicitar correção ou exclusão dos seus dados ao treinador.',
+            `Uso dos dados exclusivamente para acompanhamento pelo seu ${professionalLabel}.`,
+            `Possibilidade de solicitar correção ou exclusão dos seus dados ao ${professionalLabel}.`,
           ].map((text) => (
             <div key={text} className="rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">
               {text}
@@ -16949,9 +17109,10 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
   )
 }
 export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
+  const patientMode = professionalType === 'nutritionist'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState(() => getInitialStudentTab(student?.id))
+  const [activeTab, setActiveTab] = useState(() => resolveStudentPortalTab(professionalType, getInitialStudentTab(student?.id)))
   const previousStudentTabRef = useRef('inicio')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0)
@@ -16970,7 +17131,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const professionalRole = professionalType === 'nutritionist' ? 'Nutricionista responsável' : 'Treinador responsável'
   const studentProfileKind = professionalType === 'nutritionist' ? 'patient' : 'student'
 
-  const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
+  const studentWorkouts = patientMode ? [] : workouts.filter((workout) => String(workout.studentId) === String(student?.id) && workout.active !== false)
   const workoutSelectionStorageKey = `coachfitpro-selected-workout-${student?.id || 'student'}`
   const [selectedStudentWorkoutId, setSelectedStudentWorkoutId] = useState(() => {
     try { return window.localStorage.getItem(workoutSelectionStorageKey) || '' } catch { return '' }
@@ -16985,7 +17146,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   })
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
-  const studentReward = buildStudentRewardStats({ studentId: student?.id, workoutLogs: studentWorkoutLogs, questionnaireAssignments: studentQuestionnaireAssignments })
+  const studentReward = buildStudentRewardStats({ studentId: student?.id, workoutLogs: patientMode ? [] : studentWorkoutLogs, questionnaireAssignments: studentQuestionnaireAssignments, profileType: studentProfileKind })
   const rewardTotal = studentReward.xp
   const previousRewardRef = useRef({ studentId: student?.id, xp: rewardTotal })
   const [xpGain, setXpGain] = useState(0)
@@ -17014,13 +17175,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     .filter((invoice) => String(invoice.studentId) === String(student?.id))
     .slice()
     .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
-  const nextWorkout = selectedStudentWorkout
+  const nextWorkout = patientMode ? null : selectedStudentWorkout
   const nextAppointment = studentAppointments[0]
   const temporaryAccessOpen = Boolean(student?.accessOverrideUntil && new Date(student.accessOverrideUntil).getTime() > Date.now())
   const financialAccessOpen = typeof serverFinancialAccessOpen === 'boolean'
     ? serverFinancialAccessOpen
     : temporaryAccessOpen || hasStudentAccess(student)
-  const restrictedTabs = ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
+  const restrictedTabs = patientMode
+    ? ['dieta', 'checkin', 'agenda', 'progresso', 'historico']
+    : ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
   const waterStorageDate = new Date().toLocaleDateString('sv-SE')
@@ -17037,23 +17200,21 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
     { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
     { id: 'conta', label: 'Conta e privacidade', icon: 'settings', tone: 'slate' },
-  ]
+  ].filter((item) => !patientMode || item.id !== 'treino')
   const primaryStudentNavItems = [
-    navItems.find((item) => item.id === 'inicio'),
-    navItems.find((item) => item.id === 'treino'),
-    navItems.find((item) => item.id === 'dieta'),
-    navItems.find((item) => item.id === 'progresso'),
-  ].filter(Boolean)
-  const secondaryStudentNavItems = [
-    navItems.find((item) => item.id === 'mensagens'),
-    navItems.find((item) => item.id === 'checkin'),
-    navItems.find((item) => item.id === 'agenda'),
-    navItems.find((item) => item.id === 'pagamentos'),
-    navItems.find((item) => item.id === 'historico'),
-    navItems.find((item) => item.id === 'conta'),
-  ].filter(Boolean)
-  const bottomNavItems = primaryStudentNavItems
-  const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Treino'
+    ...(patientMode
+      ? ['inicio', 'dieta', 'progresso', 'checkin']
+      : ['inicio', 'treino', 'dieta', 'progresso']),
+  ].map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
+  const secondaryStudentNavIds = patientMode
+    ? ['mensagens', 'agenda', 'pagamentos', 'historico', 'conta']
+    : ['mensagens', 'checkin', 'agenda', 'pagamentos', 'historico', 'conta']
+  const bottomStudentNavIds = patientMode
+    ? ['inicio', 'dieta', 'progresso', 'mensagens']
+    : ['inicio', 'treino', 'dieta', 'progresso']
+  const secondaryStudentNavItems = secondaryStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
+  const bottomNavItems = bottomStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
+  const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Início'
   const weekProgress = buildStudentWeekProgress(studentReward.history)
   const completedThisWeek = studentReward.completedThisWeek
   const completedThisMonth = studentReward.completedThisMonth
@@ -17067,8 +17228,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }, [workoutStartedAt])
 
   useEffect(() => {
-    setActiveTab(getInitialStudentTab(student?.id))
-  }, [student?.id])
+    setActiveTab(resolveStudentPortalTab(professionalType, getInitialStudentTab(student?.id)))
+  }, [professionalType, student?.id])
 
   useEffect(() => {
     persistStudentTab(student?.id, activeTab)
@@ -17128,8 +17289,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }, [])
 
   function openTab(id) {
-    if (id === 'mensagens' && activeTab !== 'mensagens') previousStudentTabRef.current = activeTab || 'inicio'
-    setActiveTab(id)
+    const resolvedTab = resolveStudentPortalTab(professionalType, id)
+    if (resolvedTab === 'mensagens' && activeTab !== 'mensagens') previousStudentTabRef.current = activeTab || 'inicio'
+    setActiveTab(resolvedTab)
     setMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -17247,6 +17409,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       return (
         <StudentHomeDashboard
           student={student}
+          patientMode={patientMode}
           workoutLogs={studentWorkoutLogs}
           weekProgress={weekProgress}
           completedThisWeek={completedThisWeek}
@@ -17300,12 +17463,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 durationSeconds={workoutSeconds}
                 sessionDurationSeconds={workoutElapsedSeconds}
                 timerStartedAt={workoutStartedAt ? new Date(workoutStartedAt).toISOString() : ''}
+                uiTheme={theme}
                 onToggleTimer={toggleWorkoutTimer}
                 onOpenProgress={() => openTab('progresso')}
-                onSelectDay={() => {
+                onSelectDay={(_nextDayIndex, options = {}) => {
                   setWorkoutStartedAt(null)
-                  setWorkoutElapsedSeconds(0)
-                  setWorkoutStartNotified(false)
+                  if (options.reset) {
+                    setWorkoutElapsedSeconds(0)
+                    setWorkoutStartNotified(false)
+                  }
                   setWorkoutClock(Date.now())
                 }}
                 onCompleteWorkout={completeWorkoutFromStudent}
@@ -17354,7 +17520,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             assignments={studentQuestionnaireAssignments}
             onSubmitQuestionnaire={onSubmitQuestionnaire}
           />
-          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} /> : <Empty text="Sua dieta ainda não foi liberada pelo coach." />}
+          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
         </StudentAppSection>
       )
     }
@@ -17403,9 +17569,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     return (
-      <StudentAppSection title="Histórico" action={`${studentWorkoutLogs.length} treinos`}>
-        <WorkoutLogList logs={studentWorkoutLogs} />
+      <StudentAppSection title={patientMode ? 'Histórico de acompanhamento' : 'Histórico'} action={patientMode ? `${studentCheckins.length} registros` : `${studentWorkoutLogs.length} treinos`}>
+        {!patientMode ? <WorkoutLogList logs={studentWorkoutLogs} /> : null}
         {studentCheckins.length ? <div className="mt-4 space-y-3">{studentCheckins.slice(0, 3).map((item) => <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4"><h4 className="font-bold">{item.type}</h4><p className="mt-1 text-sm text-zinc-400">{item.due} - {item.weight}</p><p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p></div>)}</div> : null}
+        {patientMode && !studentCheckins.length ? <Empty text="Nenhum acompanhamento enviado ainda." /> : null}
       </StudentAppSection>
     )
   }
@@ -17415,7 +17582,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       {xpGain > 0 && <div className="student-xp-gain" role="status" aria-live="polite"><strong>+{xpGain} XP</strong><span>Progresso registrado</span></div>}
       <header className="student-header-nav sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-2.5 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
-          <button type="button" aria-label="Abrir menu do aluno" onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
+          <button type="button" aria-label={patientMode ? 'Abrir menu do paciente' : 'Abrir menu do aluno'} onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
             <NavIcon name="menu" className="h-5 w-5 text-emerald-300" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
@@ -17442,7 +17609,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               </button>
             </div>
             <div className="rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
-              <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
+              <p className="text-xs font-black uppercase text-emerald-200">Área do {patientMode ? 'paciente' : 'aluno'}</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
               <p className="mt-1 text-xs leading-5 text-zinc-400">{student.goal || 'Acompanhamento em andamento'}</p>
             </div>
@@ -17509,9 +17676,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       <div className="student-app-layout mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
         <aside className="student-desktop-sidebar lg:sticky lg:top-5 lg:self-start">
           <div className="rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
-            <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || 'seu treinador'}`} />
+            <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || (patientMode ? 'sua nutricionista' : 'seu treinador')}`} />
             <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
-              <p className="text-xs font-black uppercase text-emerald-200">Área do aluno</p>
+              <p className="text-xs font-black uppercase text-emerald-200">Área do {patientMode ? 'paciente' : 'aluno'}</p>
               <p className="mt-1 text-lg font-black">{student.name}</p>
             </div>
             <div className="mt-3 flex items-center gap-3 rounded-md border border-white/10 bg-white/[0.025] p-3">
@@ -17562,7 +17729,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             {!appInstalled ? (
               <div className="mt-4 rounded-md border border-blue-300/20 bg-blue-400/10 p-3">
                 <p className="text-xs font-black uppercase text-blue-200">Instalar no celular</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">O aluno abre pelo ícone e continua com o acesso salvo.</p>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">O {patientMode ? 'paciente' : 'aluno'} abre pelo ícone e continua com o acesso salvo.</p>
                 {installPrompt ? (
                   <button type="button" onClick={installStudentApp} className="mt-3 w-full rounded-md bg-emerald-400 px-3 py-2 text-xs font-black text-zinc-950">Adicionar app</button>
                 ) : (
@@ -17645,16 +17812,16 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   )
 }
 
-function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
-  const firstName = String(student?.name || 'aluno').split(' ')[0]
+function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
+  const firstName = String(student?.name || (patientMode ? 'paciente' : 'aluno')).split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
   const monthlyPercent = Math.min(100, Math.round((completedThisMonth / Math.max(1, monthlyTarget)) * 100))
-  const reward = buildStudentRewardStats({ studentId: student?.id, workoutLogs, completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments })
+  const reward = buildStudentRewardStats({ studentId: student?.id, workoutLogs: patientMode ? [] : workoutLogs, completedThisWeek, completedThisMonth, waterPercent, questionnaireAssignments, profileType: patientMode ? 'patient' : 'student' })
   const priorityQuestionnaire = getStudentQuestionnairePriority(questionnaireAssignments, dismissedQuestionnairePriorityIds)
   const priorityIsAnamnesis = isAnamnesisAssignment(priorityQuestionnaire)
   const priorityIsRequired = Boolean(priorityQuestionnaire && priorityQuestionnaire.priorityRequired)
-  const nextAction = nextWorkout
+  const nextAction = !patientMode && nextWorkout
     ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
     : nextNutritionPlan
       ? { title: 'Consultar plano alimentar', body: nextNutritionPlan.title || 'Confira suas refeições e orientações.', tab: 'dieta', icon: 'nutrition' }
@@ -17663,7 +17830,7 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
       : { title: 'Falar com seu profissional', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
 
   return (
-    <StudentAppSection title={`Olá, ${firstName}`} action="Seu plano">
+    <StudentAppSection title={`Olá, ${firstName}`} action={patientMode ? 'Seu acompanhamento' : 'Seu plano'}>
       <div className="grid gap-4">
         {priorityQuestionnaire ? (
           <div className={`student-questionnaire-priority-v1 ${priorityIsAnamnesis && priorityIsRequired ? 'student-anamnesis-priority-card' : ''} rounded-xl border border-emerald-300/30 bg-emerald-300/12 p-4`}>
@@ -17708,7 +17875,7 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
                 <RankMedal icon={reward.levelIcon} label={reward.levelName} />
               </div>
               <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. Treinos concluídos e questionários respondidos aproximam você do próximo selo.</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. {patientMode ? 'Questionários e retornos concluídos aproximam você do próximo selo.' : 'Treinos concluídos e questionários respondidos aproximam você do próximo selo.'}</p>
             </div>
             <div className="student-reward-next-card rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
               <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
@@ -17752,9 +17919,10 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
           currentMl={waterMl}
           onAddWater={onAddWater}
           onReset={onResetWater}
+          professionalReference={patientMode ? 'pela nutricionista' : 'pelo treinador'}
         />
 
-        <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
+        {!patientMode ? <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase text-emerald-300">Calendário semanal</p>
@@ -17779,18 +17947,36 @@ function StudentHomeDashboard({ student, workoutLogs = [], weekProgress, complet
               </div>
             ))}
           </div>
-        </div>
+        </div> : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button type="button" onClick={() => onOpenTab('dieta')} className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4 text-left">
+              <p className="text-xs font-black uppercase text-emerald-200">Plano alimentar</p>
+              <p className="mt-2 text-lg font-black text-white">{nextNutritionPlan ? 'Disponível' : 'Aguardando'}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">Consulte refeições, orientações e questionários.</p>
+            </button>
+            <button type="button" onClick={() => onOpenTab('checkin')} className="rounded-lg border border-sky-300/25 bg-sky-300/10 p-4 text-left">
+              <p className="text-xs font-black uppercase text-sky-200">Acompanhamento</p>
+              <p className="mt-2 text-lg font-black text-white">Enviar check-in</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">Registre peso, sintomas e observações.</p>
+            </button>
+            <button type="button" onClick={() => onOpenTab('agenda')} className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-4 text-left">
+              <p className="text-xs font-black uppercase text-cyan-200">Próximo compromisso</p>
+              <p className="mt-2 text-sm font-black text-white">{nextAppointment ? formatFullDateTime(nextAppointment.startsAt) : 'Nenhum agendamento'}</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">Acompanhe consultas e retornos.</p>
+            </button>
+          </div>
+        )}
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        {!patientMode ? <div className="grid gap-3 sm:grid-cols-3">
           <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta e ganhe bônus de XP.'} tone="emerald" />
           <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" />
           <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? 'Meta de hoje alcançada neste dispositivo.' : 'Meta de água definida pelo profissional.'} tone="cyan" />
-        </div>
+        </div> : null}
 
         <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => onOpenTab(nextWorkout ? 'treino' : 'dieta')} className="rounded-lg border border-lime-300/25 bg-lime-300/10 p-4 text-left">
-            <NavIcon name={nextWorkout ? 'dumbbell' : 'nutrition'} className="h-5 w-5 text-lime-200" />
-            <span className="mt-3 block text-sm font-black text-white">{nextWorkout ? 'Treinar agora' : 'Planos alimentares'}</span>
+          <button type="button" onClick={() => onOpenTab(patientMode ? 'dieta' : (nextWorkout ? 'treino' : 'dieta'))} className="rounded-lg border border-lime-300/25 bg-lime-300/10 p-4 text-left">
+            <NavIcon name={patientMode || !nextWorkout ? 'nutrition' : 'dumbbell'} className="h-5 w-5 text-lime-200" />
+            <span className="mt-3 block text-sm font-black text-white">{patientMode || !nextWorkout ? 'Planos alimentares' : 'Treinar agora'}</span>
           </button>
           <button type="button" onClick={() => onOpenTab('mensagens')} className="rounded-lg border border-blue-300/25 bg-blue-300/10 p-4 text-left">
             <NavIcon name="message" className="h-5 w-5 text-blue-200" />
@@ -17920,8 +18106,9 @@ function getProductDateKey(date) {
   return `${parts.year}-${parts.month}-${parts.day}`
 }
 
-export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPercent = 0, questionnaireAssignments = [], now = new Date() }) {
+export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPercent = 0, questionnaireAssignments = [], profileType = 'student', now = new Date() }) {
   // Rebuild the ledger from persisted completions, never from local progress or calendar totals.
+  const patientMode = profileType === 'patient'
   const history = []
   const seen = new Set()
   const weeks = new Map()
@@ -17933,7 +18120,7 @@ export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPerc
     return { week: day.toISOString().slice(0, 10), month: dayKey.slice(0, 7) }
   }
   const belongsToStudent = (record) => record && studentId != null && String(record.studentId ?? record.student_id) === String(studentId)
-  const logs = (Array.isArray(workoutLogs) ? workoutLogs : []).filter((log) => belongsToStudent(log) && !log?.endedEarly)
+  const logs = (patientMode ? [] : (Array.isArray(workoutLogs) ? workoutLogs : [])).filter((log) => belongsToStudent(log) && !log?.endedEarly)
     .slice().sort((a, b) => new Date(a.completedAt ?? a.completed_at) - new Date(b.completedAt ?? b.completed_at))
   for (const log of logs) {
     const at = log.completedAt ?? log.completed_at
@@ -17969,6 +18156,7 @@ export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPerc
   const weeklyBonusXp = sum('weekly')
   const monthlyBonusXp = sum('monthly')
   const questionnaireXp = sum('questionnaire')
+  const questionnaireCount = history.filter((event) => event.kind === 'questionnaire').length
   const xp = workoutXp + weeklyBonusXp + monthlyBonusXp + questionnaireXp
   const currentPeriod = periods(now)
   const completedThisWeek = weeks.get(currentPeriod.week) || 0
@@ -17997,13 +18185,22 @@ export function buildStudentRewardStats({ studentId, workoutLogs = [], waterPerc
     nextLevelName: next?.name || 'Ranking máximo',
     remainingXp,
     progress: Math.min(100, Math.max(0, progress)),
-    badges: [
+    badges: patientMode ? [
+      { label: 'Primeiro retorno', done: questionnaireCount >= 1, detail: questionnaireCount >= 1 ? 'primeiro questionário concluído' : 'responda seu primeiro questionário' },
+      { label: 'Hidratação', done: waterPercent >= 80, detail: waterPercent >= 80 ? 'meta local de hidratação alcançada' : 'bata 80% da meta de água' },
+      { label: 'Participação', done: questionnaireCount >= 2, detail: questionnaireCount >= 2 ? 'acompanhamento ativo' : 'conclua 2 questionários' },
+      { label: 'Evolução', done: questionnaireCount >= 4, detail: questionnaireCount >= 4 ? 'histórico consistente de respostas' : 'conclua 4 questionários' },
+    ] : [
       { label: 'Treino', done: completedThisWeek >= 3, detail: completedThisWeek >= 3 ? '+120 XP de bônus semanal' : 'complete 3 treinos na semana' },
       { label: 'Rotina', done: waterPercent >= 80, detail: waterPercent >= 80 ? 'meta local de hidratação alcançada' : 'bata 80% da meta de água' },
       { label: 'Consistência', done: completedThisMonth >= 8, detail: completedThisMonth >= 8 ? 'ritmo forte no mês' : 'alcance 8 treinos no mês' },
       { label: 'Evolução', done: completedThisMonth >= 12, detail: completedThisMonth >= 12 ? '+300 XP de bônus mensal' : 'busque 12 treinos no mês' },
     ],
-    sources: [
+    sources: patientMode ? [
+      { label: 'Questionários', value: `+${questionnaireXp} XP`, detail: `${QUESTIONNAIRE_XP_REWARD} XP por questionário concluído` },
+      { label: 'Respostas concluídas', value: questionnaireCount, detail: 'retornos registrados no acompanhamento' },
+      { label: 'Hidratação de hoje', value: `${waterPercent}%`, detail: 'progresso salvo neste dispositivo' },
+    ] : [
       { label: 'Treinos concluídos', value: `+${workoutXp} XP`, detail: '80 XP por treino finalizado' },
       { label: 'Bônus semanal', value: `+${weeklyBonusXp} XP`, detail: 'meta mínima de treinos da semana' },
       { label: 'Bônus mensal', value: `+${monthlyBonusXp} XP`, detail: '12 treinos ou mais no mês' },
@@ -18118,7 +18315,7 @@ function StudentAppSection({ id, title, action, children }) {
   )
 }
 
-function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
+function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset, professionalReference = 'pelo profissional' }) {
   const safeGoal = Math.max(500, Number(goalMl || 2500))
   const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
   const percent = Math.round((safeCurrent / safeGoal) * 100)
@@ -18157,7 +18354,7 @@ function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset }) {
             </span>
           </div>
           <p className="mt-2 text-sm leading-6 text-zinc-300">
-            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida pelo coach.` : 'Meta concluída hoje. Excelente consistência.'}
+            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida ${professionalReference}.` : 'Meta concluída hoje. Excelente consistência.'}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <button type="button" onClick={() => onAddWater(250)} className="student-water-action student-water-action--250 rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
@@ -19212,7 +19409,9 @@ function BillingLine({ label, value, note }) {
   )
 }
 
-function Payments({ students = [], invoices = [], coachSettings, coachPlans = plans, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment }) {
+function Payments({ students = [], invoices = [], coachSettings, coachPlans = plans, onSaveInvoice, onUpdateInvoiceStatus, onUpdatePayment, nutritionist = false }) {
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
+  const clientPlural = nutritionist ? 'pacientes' : 'alunos'
   const [filter, setFilter] = useState('Todos')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -19311,7 +19510,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
       if (student?.payment === 'Pago') {
         const paymentUpdated = await onUpdatePayment(student.id, 'Pendente')
         if (!paymentUpdated) {
-          setError('A cobrança foi criada, mas o status financeiro do aluno não pôde ser atualizado.')
+          setError(`A cobrança foi criada, mas o status financeiro do ${clientLabel} não pôde ser atualizado.`)
         }
       }
       formElement.reset()
@@ -19329,7 +19528,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
     try {
       const updated = await onUpdateInvoiceStatus(invoiceId, status, paymentMethod)
       if (updated === 'partial') {
-        setError('A cobrança foi atualizada, mas o status financeiro do aluno não pôde ser sincronizado.')
+        setError(`A cobrança foi atualizada, mas o status financeiro do ${clientLabel} não pôde ser sincronizado.`)
       } else if (!updated) {
         setError('Não foi possível atualizar esta cobrança.')
       }
@@ -19352,7 +19551,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
     ))
 
     if (!chargeableStudents.length) {
-      if (!silent) setMessage('Nenhum aluno pendente sem cobrança em aberto.')
+      if (!silent) setMessage(`Nenhum ${clientLabel} pendente sem cobrança em aberto.`)
       return
     }
 
@@ -19405,12 +19604,12 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
           <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-black text-zinc-300">Atualizado em tempo real</span>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${formatCount(activeStudents, 'aluno')} ${activeStudents === 1 ? 'ativo' : 'ativos'}`} />
+          <Metric label="Receita ativa" value={formatCurrency(activePlanRevenue)} detail={`${formatCount(activeStudents, clientLabel)} ${activeStudents === 1 ? 'ativo' : 'ativos'}`} />
           <Metric label="Vendas no mês" value={formatCurrency(salesThisMonth)} detail={`${paidThisMonth.length} pagamentos confirmados`} />
           <Metric label="Recebido total" value={formatCurrency(paidTotal)} detail={`${paidCount} pagamentos`} />
           <Metric label="A receber" value={formatCurrency(pendingTotal)} detail="pendentes e atrasados" />
           <Metric label="Renovações 7 dias" value={renewalsNext7Days.length} detail={formatCurrency(renewalValue7Days)} />
-          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${formatCount(paidStudents, 'aluno')} ${paidStudents === 1 ? 'liberado' : 'liberados'}`} />
+          <Metric label="Taxa paga" value={`${paymentRate}%`} detail={`${formatCount(paidStudents, clientLabel)} ${paidStudents === 1 ? 'liberado' : 'liberados'}`} />
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.9fr]">
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
@@ -19446,9 +19645,9 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
       <section className="rounded-md border border-amber-300/25 bg-amber-300/10 p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-amber-200">Cobrança automática dos alunos</p>
+            <p className="text-xs font-black uppercase text-amber-200">Cobrança automática de {clientPlural}</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">
-              O sistema identifica alunos pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
+              O sistema identifica {clientPlural} pendentes sem cobrança aberta, cria a cobrança pelo ciclo do plano e bloqueia o acesso até a validação.
             </p>
             <p className="hidden">
               Pix: {coachSettings?.pixKey || 'cadastre em Gerenciamento'} | WhatsApp: {coachSettings?.whatsapp || 'não informado'}
@@ -19465,7 +19664,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
           {students.length ? (
             <form onSubmit={handleSubmit} className="grid gap-4">
               <Select
-                label="Aluno"
+                label={nutritionist ? 'Paciente' : 'Aluno'}
                 name="studentId"
                 value={String(selectedBillingStudent?.id || '')}
                 onChange={(event) => setBillingStudentId(event.target.value)}
@@ -19512,7 +19711,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
                 <p className="text-xs font-black uppercase text-emerald-200">Próxima cobrança estimada</p>
                 <p className="mt-1 text-lg font-black text-white">{formatDate(selectedBillingDueDate)}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  Calculada pelo plano do aluno, ciclo cadastrado e histórico de cobranças já registradas.
+                  Calculada pelo plano do {clientLabel}, ciclo cadastrado e histórico de cobranças já registradas.
                 </p>
               </div>
               <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
@@ -19522,7 +19721,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
               {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
             </form>
           ) : (
-            <Empty text="Cadastre um aluno antes de gerar cobranças." />
+            <Empty text={`Cadastre um ${clientLabel} antes de gerar cobranças.`} />
           )}
 
           <div className="mt-5 grid gap-3">
@@ -19532,7 +19731,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
                   <div>
                     <h4 className="font-black">{plan.name}</h4>
                     <p className="mt-1 text-sm text-zinc-400">{plan.features}</p>
-                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {formatCount(plan.students, 'aluno')} {plan.students === 1 ? 'ativo' : 'ativos'}</p>
+                    <p className="mt-2 text-xs font-bold text-zinc-500">{getPlanCycleLabel(plan)} · {formatCount(plan.students, clientLabel)} {plan.students === 1 ? 'ativo' : 'ativos'}</p>
                   </div>
                   <span className="text-right text-lg font-black text-blue-300">{formatCurrency(plan.billingValue)}</span>
                 </div>
@@ -19570,7 +19769,7 @@ function Payments({ students = [], invoices = [], coachSettings, coachPlans = pl
                           <InvoiceStatus status={invoice.status} />
                           <span className="text-xs text-zinc-500">{invoice.planName}</span>
                         </div>
-                        <h4 className="mt-3 font-black">{student?.name ?? 'Aluno'}</h4>
+                        <h4 className="mt-3 font-black">{student?.name ?? (nutritionist ? 'Paciente' : 'Aluno')}</h4>
                         <p className="mt-1 text-sm text-zinc-400">{invoice.description}</p>
                         <p className="mt-3 text-xl font-black text-blue-200">{formatCurrency(invoice.amount)}</p>
                         <p className="mt-1 text-sm text-zinc-400">Vence em {formatDate(invoice.dueDate)}</p>
@@ -23119,6 +23318,7 @@ function Field({
   maxLength,
   placeholder,
   onChange,
+  readOnly = false,
 }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-zinc-300">
@@ -23134,7 +23334,9 @@ function Field({
         maxLength={maxLength}
         placeholder={placeholder}
         onChange={onChange}
-        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 sm:text-sm"
+        readOnly={readOnly}
+        aria-readonly={readOnly || undefined}
+        className="min-h-11 min-w-0 rounded-md border border-white/10 bg-zinc-950 px-3 py-2 text-base text-zinc-100 outline-none focus:border-emerald-500 read-only:cursor-not-allowed read-only:bg-zinc-900 read-only:text-zinc-400 sm:text-sm"
       />
     </label>
   )
@@ -23210,7 +23412,7 @@ function TextArea({ label, name, defaultValue = '', placeholder, required = fals
   )
 }
 
-function buildCoachActionPlan(smartAlerts = []) {
+function buildCoachActionPlan(smartAlerts = [], nutritionist = false) {
   const hasHighRisk = smartAlerts.some((alert) => alert.priority === 'Alto' && ['Risco', 'Check-in', 'Avaliação'].includes(alert.type))
   const hasPrescriptionGap = smartAlerts.some((alert) => ['Treino', 'Nutrição'].includes(alert.type))
   const hasOverduePayment = smartAlerts.some((alert) => alert.type === 'Financeiro')
@@ -23220,7 +23422,7 @@ function buildCoachActionPlan(smartAlerts = []) {
 
   if (hasHighRisk) {
     actions.push({
-      title: 'Priorize alunos que podem perder ritmo',
+      title: `Priorize ${nutritionist ? 'pacientes' : 'alunos'} que podem perder ritmo`,
       body: 'Comece pelos alertas de risco alto, check-ins críticos e avaliações atrasadas. Isso protege resultado e retenção.',
       view: 'notificacoes',
       tone: 'bg-rose-300',
@@ -23230,8 +23432,10 @@ function buildCoachActionPlan(smartAlerts = []) {
   if (hasPrescriptionGap) {
     actions.push({
       title: 'Complete o plano antes do próximo acesso',
-      body: 'Treino e dieta completos fazem o aluno perceber acompanhamento real logo que entra no aplicativo.',
-      view: 'treinos',
+      body: nutritionist
+        ? 'Plano alimentar, questionários e orientações completas reforçam a percepção de acompanhamento desde o primeiro acesso.'
+        : 'Treino e dieta completos fazem o aluno perceber acompanhamento real logo que entra no aplicativo.',
+      view: nutritionist ? 'nutricao' : 'treinos',
       tone: 'bg-emerald-300',
     })
   }
@@ -23273,18 +23477,18 @@ function buildCoachActionPlan(smartAlerts = []) {
   return actions.slice(0, 4)
 }
 
-function DailyIntelligenceSummary({ dashboard, onOpenView }) {
+function DailyIntelligenceSummary({ dashboard, onOpenView, nutritionist = false }) {
   const summary = dashboard?.summary || {}
   const actions = dashboard?.recommendedActions || []
 
   return (
     <Panel title="Resumo inteligente do dia" action="Prioridades reais">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-        <PrioritySummaryMetric label="Alunos em risco" value={summary.riskStudents || 0} detail="abandono médio, alto ou crítico" tone="rose" />
-        <PrioritySummaryMetric label="Sem treino ativo" value={summary.withoutWorkout || 0} detail="precisam de prescrição" tone="amber" />
+        <PrioritySummaryMetric label={`${nutritionist ? 'Pacientes' : 'Alunos'} em risco`} value={summary.riskStudents || 0} detail="abandono médio, alto ou crítico" tone="rose" />
+        <PrioritySummaryMetric label={nutritionist ? 'Sem plano alimentar' : 'Sem treino ativo'} value={nutritionist ? (summary.withoutPlan || 0) : (summary.withoutWorkout || 0)} detail="precisam de prescrição" tone="amber" />
         <PrioritySummaryMetric label="Check-ins pendentes" value={summary.pendingCheckins || 0} detail="retornos a revisar" tone="cyan" />
         <PrioritySummaryMetric label="Cobranças próximas" value={summary.upcomingCharges || 0} detail="vencem em até 7 dias" tone="emerald" />
-        <PrioritySummaryMetric label="Mensagens pendentes" value={summary.pendingMessages || 0} detail="alunos aguardando resposta" tone="blue" />
+        <PrioritySummaryMetric label="Mensagens pendentes" value={summary.pendingMessages || 0} detail={`${nutritionist ? 'pacientes' : 'alunos'} aguardando resposta`} tone="blue" />
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -23304,7 +23508,7 @@ function DailyIntelligenceSummary({ dashboard, onOpenView }) {
           </button>
         )) : (
           <div className="lg:col-span-3">
-            <Empty text="Nenhuma ação urgente agora. Acompanhe check-ins, treinos e mensagens para manter a carteira aquecida." />
+            <Empty text={nutritionist ? 'Nenhuma ação urgente agora. Acompanhe planos, check-ins e mensagens para manter a carteira organizada.' : 'Nenhuma ação urgente agora. Acompanhe check-ins, treinos e mensagens para manter a carteira aquecida.'} />
           </div>
         )}
       </div>
@@ -23330,7 +23534,7 @@ function PrioritySummaryMetric({ label, value, detail, tone = 'emerald' }) {
   )
 }
 
-function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
+function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent, nutritionist = false }) {
   const [filter, setFilter] = useState('todos')
   const items = (dashboard?.items || []).filter((item) => item.priority !== 'Regular')
   const filters = [
@@ -23338,7 +23542,7 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
     ['urgente', 'Urgente'],
     ['baixa-adesao', 'Baixa adesão'],
     ['risco-abandono', 'Risco de abandono'],
-    ['sem-treino', 'Sem treino'],
+    [nutritionist ? 'sem-plano' : 'sem-treino', nutritionist ? 'Sem plano' : 'Sem treino'],
     ['sem-checkin', 'Sem check-in'],
     ['financeiro', 'Financeiro'],
     ['sem-resposta', 'Sem resposta'],
@@ -23347,7 +23551,7 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
   const filteredItems = items.filter((item) => filter === 'todos' || item.filterTags.includes(filter))
 
   return (
-    <Panel title="Alunos que precisam de atenção" action={formatCount(filteredItems.length, 'aluno')}>
+    <Panel title={`${nutritionist ? 'Pacientes' : 'Alunos'} que precisam de atenção`} action={formatCount(filteredItems.length, nutritionist ? 'paciente' : 'aluno')}>
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-soft">
         {filters.map(([id, label]) => (
           <button
@@ -23378,7 +23582,7 @@ function StudentPriorityPanel({ dashboard, onOpenStudent, onMessageStudent }) {
         </div>
       ) : (
         <div className="mt-4">
-          <Empty text={filter === 'todos' ? 'Nenhum aluno precisa de atenção agora.' : 'Nenhum aluno com esta pendência. Selecione Todos para ver as demais prioridades.'} />
+          <Empty text={filter === 'todos' ? `Nenhum ${nutritionist ? 'paciente' : 'aluno'} precisa de atenção agora.` : `Nenhum ${nutritionist ? 'paciente' : 'aluno'} com esta pendência. Selecione Todos para ver as demais prioridades.`} />
         </div>
       )}
     </Panel>
@@ -23477,15 +23681,16 @@ function getPriorityTone(priority) {
   }
 }
 
-function buildPriorityDashboard({ students = [], checkins = [], workouts = [], workoutLogs = [], messages = [], invoices = [], assessments = [] } = {}) {
+function buildPriorityDashboard({ students = [], checkins = [], workouts = [], workoutLogs = [], messages = [], invoices = [], assessments = [], nutritionPlans = [], nutritionist = false } = {}) {
   const activeStudents = (students || []).filter((student) => student && student.status !== 'Inativo')
   const items = activeStudents
-    .map((student) => buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }))
+    .map((student) => buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments, nutritionPlans, nutritionist }))
     .sort((a, b) => a.priorityRank - b.priorityRank || b.risk.score - a.risk.score || a.adherence.score - b.adherence.score)
 
   const summary = {
     riskStudents: items.filter((item) => ['medio', 'alto', 'critico'].includes(item.risk.classification)).length,
     withoutWorkout: items.filter((item) => item.filterTags.includes('sem-treino')).length,
+    withoutPlan: items.filter((item) => item.filterTags.includes('sem-plano')).length,
     pendingCheckins: checkins.filter((checkin) => checkin.state !== 'Recebido').length,
     upcomingCharges: items.filter((item) => item.filterTags.includes('financeiro') && item.financialDueSoon).length,
     pendingMessages: items.reduce((total, item) => total + item.pendingMessages, 0),
@@ -23510,7 +23715,7 @@ function buildPriorityDashboard({ students = [], checkins = [], workouts = [], w
   }
 }
 
-function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments }) {
+function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, messages, invoices, assessments, nutritionPlans = [], nutritionist = false }) {
   const studentId = String(student.id)
   const studentWorkouts = workouts.filter((workout) => String(workout.studentId) === studentId && workout.active !== false)
   const studentLogs = workoutLogs.filter((log) => String(log.studentId) === studentId)
@@ -23518,6 +23723,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
   const studentMessages = messages.filter((message) => String(message.studentId) === studentId)
   const studentInvoices = invoices.map((invoice) => ({ ...invoice, status: getInvoiceStatus(invoice) })).filter((invoice) => String(invoice.studentId) === studentId)
   const studentAssessments = assessments.filter((assessment) => String(assessment.studentId) === studentId)
+  const studentNutritionPlans = nutritionPlans.filter((plan) => String(plan.studentId) === studentId && plan.active !== false)
 
   const latestWorkout = latestByDate(studentLogs, (item) => item.completedAt || item.createdAt || item.date)
   const latestCheckin = latestByDate(studentCheckins, (item) => item.createdAt || item.due)
@@ -23544,39 +23750,32 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
   })
   const painOrFatigue = detectPainOrFatigue(latestCheckin)
   const hasActiveWorkout = studentWorkouts.length > 0
+  const hasActiveNutritionPlan = studentNutritionPlans.length > 0
   const hasRecentAssessment = lastAssessmentDays !== null && lastAssessmentDays <= 45
   const studentAdherence = Number(student.adherence || 0)
-  const adherence = calculateAdherenceScore({
-    logs14,
-    previousLogs14,
-    lastWorkoutDays,
-    lastCheckinDays,
-    checkins30,
-    unreadStudentMessages,
-    studentAdherence,
-  })
-  const risk = calculateAbandonmentRisk({
-    lastWorkoutDays,
-    lastCheckinDays,
-    unreadStudentMessages,
-    overdueInvoices,
-    logs14,
-    previousLogs14,
-    adherenceScore: adherence.score,
-    latestMessageNeedsReply,
-  })
+  const adherence = nutritionist
+    ? calculateNutritionAdherenceScore({ lastCheckinDays, checkins30, unreadStudentMessages, studentAdherence, hasActiveNutritionPlan })
+    : calculateAdherenceScore({ logs14, previousLogs14, lastWorkoutDays, lastCheckinDays, checkins30, unreadStudentMessages, studentAdherence })
+  const risk = nutritionist
+    ? calculateNutritionAbandonmentRisk({ lastCheckinDays, unreadStudentMessages, overdueInvoices, adherenceScore: adherence.score, latestMessageNeedsReply, hasActiveNutritionPlan })
+    : calculateAbandonmentRisk({ lastWorkoutDays, lastCheckinDays, unreadStudentMessages, overdueInvoices, logs14, previousLogs14, adherenceScore: adherence.score, latestMessageNeedsReply })
 
   const factors = []
   const filterTags = ['todos']
   const reasons = []
   let primaryView = 'alunos'
 
-  if (!hasActiveWorkout) {
+  if (nutritionist && !hasActiveNutritionPlan) {
+    factors.push('Sem plano alimentar')
+    filterTags.push('sem-plano')
+    reasons.push({ level: 'Atencao', text: 'sem plano alimentar ativo', action: 'Prescreva um plano alimentar para liberar o acompanhamento no aplicativo.', view: 'nutricao' })
+  }
+  if (!nutritionist && !hasActiveWorkout) {
     factors.push('Sem treino ativo')
     filterTags.push('sem-treino')
     reasons.push({ level: 'Atencao', text: 'sem treino ativo', action: 'Prescreva um treino para liberar a execução no app.', view: 'treinos' })
   }
-  if (lastWorkoutDays === null || lastWorkoutDays >= 10) {
+  if (!nutritionist && (lastWorkoutDays === null || lastWorkoutDays >= 10)) {
     factors.push(lastWorkoutDays === null ? 'Sem treino concluído' : `${Math.floor(lastWorkoutDays)} dias sem treinar`)
     filterTags.push('risco-abandono')
     reasons.push({ level: lastWorkoutDays === null || lastWorkoutDays >= 14 ? 'Urgente' : 'Atencao', text: lastWorkoutDays === null ? 'sem treino concluído registrado' : 'muitos dias sem treinar', action: 'Envie uma mensagem e ajuste a próxima sessão.', view: 'mensagens' })
@@ -23584,22 +23783,22 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
   if (lastCheckinDays === null || lastCheckinDays >= 14) {
     factors.push(lastCheckinDays === null ? 'Sem check-in' : `${Math.floor(lastCheckinDays)} dias sem check-in`)
     filterTags.push('sem-checkin')
-    reasons.push({ level: lastCheckinDays === null || lastCheckinDays >= 21 ? 'Atencao' : 'Acompanhar', text: 'check-in atrasado', action: 'Solicite um retorno rápido sobre treino, dieta, sono e fome.', view: 'checkins' })
+    reasons.push({ level: lastCheckinDays === null || lastCheckinDays >= 21 ? 'Atencao' : 'Acompanhar', text: 'check-in atrasado', action: nutritionist ? 'Solicite um retorno rápido sobre alimentação, sintomas, sono e fome.' : 'Solicite um retorno rápido sobre treino, dieta, sono e fome.', view: 'checkins' })
   }
   if (adherence.score < 65 || studentAdherence < 65) {
     factors.push(`Adesão ${adherence.score}/100`)
     filterTags.push('baixa-adesao')
-    reasons.push({ level: adherence.score < 45 ? 'Urgente' : 'Atencao', text: 'baixa adesão', action: 'Revise volume, rotina e barreiras do aluno antes que ele desengaje.', view: 'alunos' })
+    reasons.push({ level: adherence.score < 45 ? 'Urgente' : 'Atencao', text: 'baixa adesão', action: `Revise rotina e barreiras do ${nutritionist ? 'paciente' : 'aluno'} antes que ele desengaje.`, view: 'alunos' })
   }
   if (painOrFatigue) {
     factors.push('Dor ou fadiga alta')
     filterTags.push('risco-abandono')
-    reasons.push({ level: 'Urgente', text: 'sinal de dor ou fadiga no check-in', action: 'Avalie ajuste de carga, descanso ou encaminhamento adequado.', view: 'checkins' })
+    reasons.push({ level: 'Urgente', text: 'sinal relevante no check-in', action: nutritionist ? 'Revise sintomas, tolerância alimentar e necessidade de encaminhamento adequado.' : 'Avalie ajuste de carga, descanso ou encaminhamento adequado.', view: 'checkins' })
   }
   if (unreadStudentMessages || latestMessageNeedsReply) {
-    factors.push(unreadStudentMessages ? `${formatCount(unreadStudentMessages, 'mensagem', 'mensagens')} sem resposta` : 'Aluno aguardando resposta')
+    factors.push(unreadStudentMessages ? `${formatCount(unreadStudentMessages, 'mensagem', 'mensagens')} sem resposta` : `${nutritionist ? 'Paciente' : 'Aluno'} aguardando resposta`)
     filterTags.push('sem-resposta')
-    reasons.push({ level: unreadStudentMessages > 1 || latestMessageNeedsReply ? 'Atencao' : 'Acompanhar', text: 'mensagem pendente', action: 'Responda o aluno para manter percepção de acompanhamento.', view: 'mensagens' })
+    reasons.push({ level: unreadStudentMessages > 1 || latestMessageNeedsReply ? 'Atencao' : 'Acompanhar', text: 'mensagem pendente', action: `Responda o ${nutritionist ? 'paciente' : 'aluno'} para manter percepção de acompanhamento.`, view: 'mensagens' })
   }
   if (overdueInvoices.length || student.payment === 'Pendente') {
     factors.push('Financeiro pendente')
@@ -23615,7 +23814,7 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     filterTags.push('risco-abandono')
     reasons.push({ level: lastAssessmentDays === null ? 'Atencao' : 'Acompanhar', text: 'sem avaliação recente', action: 'Atualize medidas e fotos para reforçar percepção de evolução.', view: 'avaliacoes' })
   }
-  if (logs14 < 2 && studentLogs.length > 0) {
+  if (!nutritionist && logs14 < 2 && studentLogs.length > 0) {
     factors.push('Baixa frequência')
     filterTags.push('baixa-adesao')
     reasons.push({ level: 'Atencao', text: 'baixa frequência nas últimas duas semanas', action: 'Reduza fricção da rotina e combine uma meta mínima para a semana.', view: 'treinos' })
@@ -23643,6 +23842,49 @@ function buildStudentPriorityItem({ student, checkins, workouts, workoutLogs, me
     financialDueSoon: dueSoonInvoices.length > 0,
     lastActivity: lastActivityDate ? `Última atividade: ${formatDateTime(lastActivityDate)}` : 'Última atividade: sem registro',
   }
+}
+
+function calculateNutritionAdherenceScore({ lastCheckinDays, checkins30, unreadStudentMessages, studentAdherence, hasActiveNutritionPlan }) {
+  const planScore = hasActiveNutritionPlan ? 100 : 25
+  const checkinScore = lastCheckinDays === null ? 30 : lastCheckinDays <= 7 ? 100 : lastCheckinDays <= 14 ? 72 : lastCheckinDays <= 21 ? 45 : 20
+  const responseScore = unreadStudentMessages ? Math.max(35, 100 - unreadStudentMessages * 20) : 100
+  const consistencyScore = studentAdherence > 0 ? clampPercent(studentAdherence) : Math.min(100, Math.round((checkins30 / 4) * 100))
+  const score = clampPercent((planScore * 0.3) + (checkinScore * 0.3) + (responseScore * 0.15) + (consistencyScore * 0.25))
+  const classification = score >= 85 ? 'excelente' : score >= 70 ? 'boa' : score >= 50 ? 'instavel' : 'baixa'
+  const reason = `Plano alimentar ${hasActiveNutritionPlan ? 'ativo' : 'pendente'}, check-ins ${checkins30}/30 dias, respostas ${responseScore}/100 e consistência ${consistencyScore}/100.`
+  return { score, classification, trend: 0, reason }
+}
+
+function calculateNutritionAbandonmentRisk({ lastCheckinDays, unreadStudentMessages, overdueInvoices, adherenceScore, latestMessageNeedsReply, hasActiveNutritionPlan }) {
+  const factors = []
+  let score = 0
+  if (!hasActiveNutritionPlan) {
+    score += 24
+    factors.push('sem plano alimentar')
+  }
+  if (lastCheckinDays === null || lastCheckinDays >= 21) {
+    score += 28
+    factors.push('falta de check-in')
+  } else if (lastCheckinDays >= 14) {
+    score += 14
+    factors.push('check-in atrasado')
+  }
+  if (unreadStudentMessages || latestMessageNeedsReply) {
+    score += Math.min(18, 8 + unreadStudentMessages * 5)
+    factors.push('ausência de resposta')
+  }
+  if (overdueInvoices.length) {
+    score += 24
+    factors.push('atraso financeiro')
+  }
+  if (adherenceScore < 55) {
+    score += 14
+    factors.push('baixa adesão')
+  }
+  const normalizedScore = clampPercent(score)
+  const classification = normalizedScore >= 75 ? 'critico' : normalizedScore >= 55 ? 'alto' : normalizedScore >= 30 ? 'medio' : 'baixo'
+  const reason = factors.length ? `Risco ${classification}: ${[...new Set(factors)].join(', ')}.` : 'Risco baixo: acompanhamento recente sem sinal crítico.'
+  return { score: normalizedScore, classification, factors: [...new Set(factors)], reason }
 }
 
 function calculateAdherenceScore({ logs14, previousLogs14, lastWorkoutDays, lastCheckinDays, checkins30, unreadStudentMessages, studentAdherence }) {
@@ -23753,9 +23995,11 @@ function detectPainOrFatigue(checkin) {
   return checkin.state === 'Critico' || /dor|fadiga|cansad|exaust|lesao|lesion|sono ruim|muito dolor/.test(text)
 }
 
-function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointments = [], invoices = [], assessments = []) {
+function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointments = [], invoices = [], assessments = [], options = {}) {
   const alerts = []
   const priorityScore = { Alto: 0, Medio: 1, Baixo: 2 }
+  const nutritionist = options.nutritionist === true
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
 
   students.forEach((student) => {
     const studentId = String(student.id)
@@ -23787,7 +24031,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
       })
     }
 
-    if (!hasWorkout) {
+    if (!nutritionist && !hasWorkout) {
       alerts.push({
         id: `workout-${student.id}`,
         type: 'Treino',
@@ -23804,8 +24048,8 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `nutrition-${student.id}`,
         type: 'Nutrição',
         priority: 'Medio',
-        title: `${student.name} ainda não tem dieta salva`,
-        body: 'Crie uma dieta com macros calculados para acompanhar a meta do aluno.',
+        title: `${student.name} ainda não tem plano alimentar salvo`,
+        body: `Crie um plano alimentar com orientações claras para acompanhar a meta do ${clientLabel}.`,
         action: 'Abrir nutrição',
         view: 'nutricao',
       })
@@ -23821,7 +24065,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `assessment-${student.id}`,
         type: 'Avaliação',
         priority: latestAssessment ? 'Medio' : 'Alto',
-        title: latestAssessment ? `${student.name} precisa ser reavaliado` : `${student.name} ainda não tem avaliação`,
+        title: latestAssessment ? `${student.name} precisa de nova avaliação` : `${student.name} ainda não tem avaliação`,
         body: latestAssessment
           ? `Última avaliação em ${formatDate(latestAssessment.assessedAt)}.`
           : 'Registre as medidas iniciais para criar uma linha de evolução.',
@@ -23839,7 +24083,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `checkin-${checkin.id}`,
         type: 'Check-in',
         priority: checkin.state === 'Critico' ? 'Alto' : 'Medio',
-        title: `${student?.name ?? 'Aluno'} tem check-in ${formatUiText(String(checkin.state)).toLowerCase()}`,
+        title: `${student?.name ?? (nutritionist ? 'Paciente' : 'Aluno')} tem check-in ${formatUiText(String(checkin.state)).toLowerCase()}`,
         body: `${checkin.type} - ${checkin.due}. ${checkin.note || 'Revise o retorno e registre o próximo ajuste.'}`,
         action: 'Abrir check-ins',
         view: 'checkins',
@@ -23861,7 +24105,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `appointment-${appointment.id}`,
         type: 'Agenda',
         priority: appointment.status === 'Confirmado' ? 'Baixo' : 'Medio',
-        title: `${appointment.title} com ${student?.name ?? 'aluno'}`,
+        title: `${appointment.title} com ${student?.name ?? clientLabel}`,
         body: `${formatDateTime(appointment.startsAt)} - ${appointment.location || 'Local não informado'}.`,
         action: 'Abrir agenda',
         view: 'agenda',
@@ -23877,7 +24121,7 @@ function buildSmartAlerts(students, checkins, workouts, nutritionPlans, appointm
         id: `invoice-${invoice.id}`,
         type: 'Financeiro',
         priority: 'Alto',
-        title: `${student?.name ?? 'Aluno'} tem cobrança atrasada`,
+        title: `${student?.name ?? (nutritionist ? 'Paciente' : 'Aluno')} tem cobrança atrasada`,
         body: `${formatCurrency(invoice.amount)} venceu em ${formatDate(invoice.dueDate)}.`,
         action: 'Abrir pagamentos',
         view: 'pagamentos',

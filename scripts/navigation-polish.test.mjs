@@ -33,6 +33,20 @@ test('menu inferior do aluno usa safe area sem criar espaco interno duplicado', 
   assert.match(cssSource, /\.student-mobile-shell \.student-bottom-nav\s*\{[^}]*padding-bottom:\s*0\.5rem\s*!important;/s)
 })
 
+test('navegacao do treinador permanece fixa e legivel em tablets', () => {
+  const tabletStart = cssSource.indexOf('@media (min-width: 768px) and (max-width: 1023px)')
+  const tabletRules = cssSource.slice(tabletStart, cssSource.indexOf('@media (min-width: 1024px)', tabletStart))
+  assert.match(tabletRules, /\.coach-mobile-bottom-nav\s*\{[^}]*position:\s*fixed[^}]*grid-template-columns:\s*repeat\(5,/s)
+  assert.match(tabletRules, /\.coach-auth-shell \.coach-auth-main\s*\{[^}]*padding-bottom:/s)
+})
+
+test('menu lateral escuro do treinador usa superfícies e contraste próprios', () => {
+  assert.match(cssSource, /coach-dark-sidebar-contrast-v1/)
+  assert.match(cssSource, /\.app-theme-dark \.coach-mobile-menu-panel \.coach-nav-item\s*\{[^}]*background:\s*rgba\(255, 255, 255, 0\.035\)/s)
+  assert.match(cssSource, /\.app-theme-dark \.coach-mobile-menu-panel \.coach-nav-item:is\(\.is-active, \[aria-current="page"\]\)/)
+  assert.match(cssSource, /\.app-theme-dark \.coach-mobile-menu-panel \.coach-nav-item \.coach-menu-icon-shell/)
+})
+
 test('hidratacao possui controles semanticos para o tema claro', () => {
   assert.match(appSource, /student-water-action--250/)
   assert.match(appSource, /student-water-action--500/)

@@ -57,7 +57,9 @@ export function shouldLoadStudentPremiumData(portalPayload) {
 }
 
 export function getFirstName(value) {
-  return String(value || '').trim().split(/\s+/).filter(Boolean)[0] || 'Aluno'
+  const parts = String(value || '').trim().split(/\s+/).filter(Boolean)
+  const honorifics = new Set(['dr', 'dra', 'drª', 'prof', 'profa', 'profª'])
+  return parts.find((part) => !honorifics.has(part.toLowerCase().replace(/[.,:;]/g, ''))) || parts[0] || 'Aluno'
 }
 
 export function getLocalGreeting(date = new Date()) {

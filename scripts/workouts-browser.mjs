@@ -101,6 +101,16 @@ try {
           assert.ok(await darkModeButton.count(), 'O alternador de tema deve permanecer disponível em Treinos')
           await darkModeButton.click()
           await page.locator('.app-theme-dark').first().waitFor({ state: 'visible' })
+          await page.waitForTimeout(220)
+          const darkNavSurface = await page.locator('.coach-nav-item:not([aria-current="page"])').first().evaluate((button) => {
+            const style = getComputedStyle(button)
+            return { background: style.backgroundColor, color: style.color }
+          })
+          const darkNavChannels = darkNavSurface.background.match(/[\d.]+/g)?.map(Number) || []
+          const darkNavUsesDarkSurface = darkNavChannels.length >= 4
+            ? darkNavChannels[3] <= 0.1
+            : darkNavChannels.length === 3 && darkNavChannels.every((channel) => channel < 80)
+          assert.ok(darkNavUsesDarkSurface, `Menu escuro deve usar superfície escura, recebido ${JSON.stringify(darkNavSurface)}`)
           await page.screenshot({ path: resolve(output, `after-dark-${viewport.width}.png`) })
           await page.getByRole('button', { name: 'Ativar modo claro', exact: true }).first().click()
           await page.getByRole('button', { name: 'Criar treino', exact: true }).click()
@@ -119,7 +129,7 @@ try {
           const picker = page.getByRole('dialog', { name: 'Adicionar exercício', exact: true })
           await picker.waitFor({ state: 'visible' })
           const exerciseCards = picker.locator('.mobile-workout-picker-card-v2')
-          assert.ok(await exerciseCards.count() >= 300)
+          assert.ok(await exerciseCards.count() >= 100, 'O catalogo curado deve manter pelo menos 100 exercicios uteis')
           const scrollCue = picker.getByRole('button', { name: 'Ver mais exercícios abaixo', exact: true })
           await scrollCue.waitFor({ state: 'visible' })
           await scrollCue.click()
@@ -140,8 +150,9 @@ try {
           const detail = page.getByRole('dialog', { name: 'Prévia do exercício', exact: true })
           await detail.waitFor()
           assert.equal(await detail.getByText('Músculo alvo', { exact: true }).count(), 1)
-          await detail.getByRole('button', { name: 'Costas', exact: true }).click()
-          assert.equal(await detail.getByRole('button', { name: 'Costas', exact: true }).getAttribute('aria-pressed'), 'true')
+          const backFilter = detail.locator('button').filter({ hasText: /^Costas$/ })
+          await backFilter.click()
+          assert.equal(await backFilter.getAttribute('aria-pressed'), 'true')
           await detail.screenshot({ path: resolve(output, `exercise-preview-${viewport.width}.png`) })
           await detail.getByRole('button', { name: 'Fechar', exact: true }).click()
           await exerciseCards.first().getByRole('button', { name: 'Remover dos favoritos', exact: true }).click()
@@ -153,7 +164,7 @@ try {
           await search.fill('zzzzqa-inexistente')
           assert.equal(await exerciseCards.count(), 0)
           await search.fill('')
-          assert.ok(await exerciseCards.count() >= 300)
+          assert.ok(await exerciseCards.count() >= 100, 'A busca limpa deve restaurar o catalogo curado')
           await page.screenshot({ path: resolve(output, `picker-${viewport.width}.png`), fullPage: true })
           await picker.getByRole('button', { name: 'Adicionar', exact: true }).first().click()
           await picker.getByRole('button', { name: 'Adicionar', exact: true }).first().click()
