@@ -13,7 +13,7 @@ function WelcomeAvatar({ name, photo, size = 'lg', onClick, busy = false, label 
 
   const sizeClass = size === 'sm'
     ? 'h-11 w-11 text-[11px]'
-    : 'h-14 w-14 text-sm sm:h-16 sm:w-16 sm:text-base'
+    : 'h-12 w-12 text-xs sm:h-16 sm:w-16 sm:text-base'
 
   const avatar = photo && !imageFailed ? (
       <img
@@ -101,11 +101,11 @@ export default function WelcomeHeader({
       className={`welcome-header mb-4 rounded-2xl border border-white/10 bg-zinc-950/60 p-4 shadow-lg shadow-black/10 sm:p-5 xl:mb-5 ${className}`}
     >
       <div className="flex items-center justify-between gap-3 sm:gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-3.5 sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-4">
           <WelcomeAvatar name={name} photo={photo} onClick={onAvatarClick} busy={avatarBusy} label={avatarLabel} />
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-300/90">{resolvedEyebrow}</p>
-            <h2 className="mt-1.5 truncate text-[19px] font-black leading-tight tracking-tight text-white sm:text-2xl">
+            <p className="welcome-header-eyebrow whitespace-nowrap text-[8px] font-black uppercase tracking-normal text-emerald-300/90 sm:text-[10px]">{resolvedEyebrow}</p>
+            <h2 className="mt-1.5 truncate text-base font-black leading-tight tracking-normal text-white sm:text-2xl">
               {buildGreetingLine(name)}
             </h2>
             <p className="mt-1.5 max-w-xl text-[13px] leading-5 text-zinc-400 sm:text-sm">
