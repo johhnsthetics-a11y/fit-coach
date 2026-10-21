@@ -580,12 +580,19 @@ html[data-theme="dark"] .chat-connection-state,
   width: 42px;
   height: 42px;
   place-items: center;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--chat-accent) 24%, var(--chat-border));
   border-radius: 50%;
   background: color-mix(in srgb, var(--chat-accent) 12%, var(--chat-surface-soft));
   color: var(--chat-accent-strong);
   font-size: 0.72rem;
   font-weight: 900;
+}
+
+.chat-row-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .chat-row-copy,

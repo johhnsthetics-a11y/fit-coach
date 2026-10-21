@@ -69,7 +69,11 @@ export function ConversationList({ rows = [], selectedStudentId, onSelect, Icon 
               aria-label={`Abrir conversa com ${row.student?.name || 'aluno'}`}
               onClick={() => onSelect?.(row.student)}
             >
-              <span className="chat-row-avatar" aria-hidden="true">{initials(row.student?.name)}</span>
+              <span className="chat-row-avatar" aria-hidden="true">
+                {row.student?.photo
+                  ? <img src={row.student.photo} alt="" />
+                  : initials(row.student?.name)}
+              </span>
               <span className="chat-row-copy">
                 <strong>{row.student?.name || 'Aluno sem nome'}</strong>
                 <small>{previewText(row)}</small>

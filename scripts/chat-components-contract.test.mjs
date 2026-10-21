@@ -14,6 +14,7 @@ const attachment = readFileSync(new URL('../src/chat/AttachmentMessage.jsx', imp
 const conversation = readFileSync(new URL('../src/chat/ChatConversation.jsx', import.meta.url), 'utf8')
 const header = readFileSync(new URL('../src/chat/ChatHeader.jsx', import.meta.url), 'utf8')
 const conversationList = readFileSync(new URL('../src/chat/ConversationList.jsx', import.meta.url), 'utf8')
+const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
 test('shared timeline owns message semantics and new-message navigation', () => {
   assert.match(timeline, /export function ChatMessageList/)
@@ -56,6 +57,12 @@ test('professional workspace exposes deterministic conversations and shared chat
   assert.match(conversationList, /data-conversation-id=/)
   assert.match(conversationList, /Buscar aluno ou mensagem/)
   assert.match(header, /aria-label="Voltar"/)
+})
+
+test('chat displays the other person profile photo for professionals and students', () => {
+  assert.match(conversationList, /row\.student\?\.photo\s*\?\s*<img/)
+  assert.match(app, /contact=\{\{ name: selectedStudent\.name, avatarUrl: selectedStudent\.photo,/)
+  assert.match(app, /contact=\{\{ name: contactName, avatarUrl: coachSettings\?\.profilePhotoUrl,/)
 })
 
 test('new chat JSX modules compile independently before integration', async () => {
