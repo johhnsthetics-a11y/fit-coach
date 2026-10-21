@@ -874,6 +874,11 @@ export async function loadRemoteMessages(studentId = '') {
   return Promise.all(rows.map(hydrateMessageRow))
 }
 
+export async function loadRemoteNotifications() {
+  const rows = await request('notifications?select=*&order=created_at.desc')
+  return rows.map(fromNotificationRow)
+}
+
 export async function loadRemoteStudentMessages(studentId) {
   if (!isUuid(studentId)) return []
   return loadRemoteMessages(studentId)
@@ -1003,6 +1008,17 @@ export async function saveRemoteCheckin(checkin) {
     }),
     uploadWarning,
   }
+}
+
+export async function updateRemoteCheckinState(checkinId, state = 'Recebido') {
+  if (!isUuid(checkinId)) throw new Error('Check-in inválido.')
+  if (!['Recebido', 'Pendente', 'Critico'].includes(state)) throw new Error('Status de check-in inválido.')
+  const rows = await request(`checkins?id=eq.${encodeURIComponent(checkinId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ state }),
+  })
+  if (!rows?.[0]) throw new Error('Check-in não encontrado ou sem permissão para revisar.')
+  return fromCheckinRow(rows[0])
 }
 
 async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
@@ -2235,6 +2251,10 @@ function fromNotificationRow(row) {
     title: row.title,
     body: row.body ?? '',
     read: Boolean(row.read),
+    eventType: row.event_type ?? '',
+    entityId: row.entity_id ?? '',
+    studentId: row.student_id ?? '',
+    createdAt: row.created_at ?? '',
   }
 }
 

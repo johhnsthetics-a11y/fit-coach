@@ -1,12 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
+import * as chatModel from '../src/chat/chatModel.js'
+import { getChatViewportMetrics } from '../src/chat/chatViewportModel.js'
+
+const {
   buildChatTimeline,
   buildConversationRows,
   formatChatDayLabel,
   sortChatMessages,
-} from '../src/chat/chatModel.js'
-import { getChatViewportMetrics } from '../src/chat/chatViewportModel.js'
+} = chatModel
 
 test('sorts messages oldest first and tolerates invalid dates', () => {
   const sorted = sortChatMessages([
@@ -85,5 +87,39 @@ test('falls back safely when visual viewport metrics are unavailable', () => {
     offsetTop: 0,
     keyboardHeight: 0,
     keyboardOpen: false,
+  })
+})
+
+test('identifies only a new incoming student message and suppresses the open conversation', () => {
+  assert.equal(typeof chatModel.findLatestIncomingStudentMessage, 'function')
+  const previous = [
+    { id: 'existing', studentId: 'student-a', sender: 'student', body: 'Mensagem antiga', createdAt: '2026-10-21T12:00:00Z' },
+  ]
+  const next = [
+    { id: 'coach-message', studentId: 'student-a', sender: 'coach', body: 'Resposta', createdAt: '2026-10-21T12:02:00Z' },
+    { id: 'incoming', studentId: 'student-b', sender: 'student', body: 'Preciso ajustar meu plano', createdAt: '2026-10-21T12:03:00Z' },
+    ...previous,
+  ]
+
+  assert.equal(chatModel.findLatestIncomingStudentMessage(previous, next)?.id, 'incoming')
+  assert.equal(chatModel.findLatestIncomingStudentMessage(previous, next, {
+    activeView: 'mensagens',
+    activeStudentId: 'student-b',
+  }), null)
+  assert.equal(chatModel.findLatestIncomingStudentMessage(previous, [...previous, next[0]]), null)
+})
+
+test('builds a concise role-aware incoming message alert', () => {
+  assert.equal(typeof chatModel.buildIncomingMessageAlert, 'function')
+  assert.deepEqual(chatModel.buildIncomingMessageAlert(
+    { id: 'message-1', studentId: 'patient-1', body: '  Minha digestão melhorou bastante esta semana.  ' },
+    [{ id: 'patient-1', name: 'Marina Costa' }],
+    { professionalType: 'nutritionist' },
+  ), {
+    id: 'message-1',
+    studentId: 'patient-1',
+    title: 'Nova mensagem de Marina',
+    body: 'Minha digestão melhorou bastante esta semana.',
+    audienceLabel: 'paciente',
   })
 })
