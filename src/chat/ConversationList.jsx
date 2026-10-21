@@ -27,6 +27,20 @@ function previewText(row) {
   return row.student?.lastMessage || 'Inicie uma conversa'
 }
 
+function ConversationAvatar({ student = {} }) {
+  const avatarUrl = String(student?.photo || '').trim()
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState('')
+  const showAvatar = avatarUrl && failedAvatarUrl !== avatarUrl
+
+  return (
+    <span className="chat-row-avatar" aria-hidden="true">
+      {showAvatar
+        ? <img src={avatarUrl} alt="" onError={() => setFailedAvatarUrl(avatarUrl)} />
+        : initials(student?.name)}
+    </span>
+  )
+}
+
 export function ConversationList({ rows = [], selectedStudentId, onSelect, Icon }) {
   const [query, setQuery] = useState('')
   const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR')
@@ -69,7 +83,7 @@ export function ConversationList({ rows = [], selectedStudentId, onSelect, Icon 
               aria-label={`Abrir conversa com ${row.student?.name || 'aluno'}`}
               onClick={() => onSelect?.(row.student)}
             >
-              <span className="chat-row-avatar" aria-hidden="true">{initials(row.student?.name)}</span>
+              <ConversationAvatar student={row.student} />
               <span className="chat-row-copy">
                 <strong>{row.student?.name || 'Aluno sem nome'}</strong>
                 <small>{previewText(row)}</small>

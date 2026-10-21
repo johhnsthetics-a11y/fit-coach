@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 function getInitials(value = '') {
   return String(value || '')
     .trim()
@@ -10,6 +12,9 @@ function getInitials(value = '') {
 export function ChatHeader({ contact = {}, onBack, Icon, actions }) {
   const name = String(contact.name || 'Conversa')
   const subtitle = String(contact.subtitle || 'Acompanhamento pelo Coach Fit Pro')
+  const avatarUrl = String(contact.avatarUrl || '').trim()
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState('')
+  const showAvatar = avatarUrl && failedAvatarUrl !== avatarUrl
 
   return (
     <header className="chat-header chat-pro-header">
@@ -19,8 +24,8 @@ export function ChatHeader({ contact = {}, onBack, Icon, actions }) {
         </button>
       ) : null}
       <div className="chat-contact-avatar" aria-hidden="true">
-        {contact.avatarUrl
-          ? <img src={contact.avatarUrl} alt="" />
+        {showAvatar
+          ? <img src={avatarUrl} alt="" onError={() => setFailedAvatarUrl(avatarUrl)} />
           : <span>{getInitials(name)}</span>}
       </div>
       <div className="chat-contact-copy">

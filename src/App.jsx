@@ -19038,7 +19038,7 @@ function StudentChatScreen({ student, coachId, coachSettings, messages = [], onS
     <StudentMessagePanel
       student={student}
       coachId={coachId}
-      contact={{ name: contactName, subtitle: 'Seu acompanhamento direto e seguro' }}
+      contact={{ name: contactName, avatarUrl: coachSettings?.profilePhotoUrl, subtitle: 'Seu acompanhamento direto e seguro' }}
       messages={messages}
       onSendMessage={onSendMessage}
       onEditMessage={onEditMessage}
@@ -23169,7 +23169,7 @@ function Messages({ students = [], messages = [], selectedStudent: selectedStude
         <ChatConversation
           viewerRole="coach"
           studentId={selectedStudent.id}
-          contact={{ name: selectedStudent.name, subtitle: selectedStudent.goal || selectedStudent.plan || 'Acompanhamento ativo' }}
+          contact={{ name: selectedStudent.name, avatarUrl: selectedStudent.photo, subtitle: selectedStudent.goal || selectedStudent.plan || 'Acompanhamento ativo' }}
           messages={studentMessages}
           onSendMessage={onSendMessage}
           onRetryMessage={retryMessage}
