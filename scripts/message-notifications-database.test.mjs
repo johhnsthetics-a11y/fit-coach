@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import test from 'node:test'
 
 test('student messages create one durable navigable notification for the professional', async () => {
-  const migrationFiles = await readdir(new URL('../supabase/migrations/', import.meta.url))
+  const migrationFiles = await readdir(new URL('../SUPABASE/migrations/', import.meta.url))
   const migrationFile = migrationFiles.find((file) => /_notify_professional_on_student_message\.sql$/.test(file))
   assert.ok(migrationFile, 'message notification migration must exist')
 
@@ -39,7 +39,7 @@ test('student messages create one durable navigable notification for the profess
       insert into public.users(id, role) values ('${coach}', 'Nutricionista');
       insert into public.students(id, coach_id, name) values ('${student}', '${coach}', 'Marina Costa');
     `)
-    await db.exec(await readFile(new URL(`../supabase/migrations/${migrationFile}`, import.meta.url), 'utf8'))
+    await db.exec(await readFile(new URL(`../SUPABASE/migrations/${migrationFile}`, import.meta.url), 'utf8'))
     await db.exec(`
       insert into public.messages(id, coach_id, student_id, sender, body)
       values ('${studentMessage}', '${coach}', '${student}', 'student', 'Preciso ajustar o plano alimentar.');
