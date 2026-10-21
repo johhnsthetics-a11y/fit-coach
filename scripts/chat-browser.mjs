@@ -10,6 +10,7 @@ const viewports = (process.env.CHAT_BROWSER_WIDTHS || '320,360,375,390,414,768,1
   .split(',')
   .map(Number)
   .filter((value) => Number.isFinite(value) && value > 0)
+const professionalType = process.env.CHAT_BROWSER_PROFESSIONAL_TYPE === 'nutritionist' ? 'nutritionist' : 'trainer'
 const longContactName = 'Pessoa com nome profissional muito extenso para validar truncamento responsivo'
 const studentFixture = `import React from 'react'; import {createRoot} from 'react-dom/client';
 import {StudentMobileApp} from '/src/App.jsx'; import '/src/index.css'; import '/src/chat/chat.css';
@@ -66,10 +67,10 @@ try {
     const errors = []
     page.on('pageerror', error => errors.push(error.message))
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-    await page.addInitScript((contactName) => {
+    await page.addInitScript(({ contactName, professionalType }) => {
       if (localStorage.getItem('qa-seeded')) return
       localStorage.setItem('qa-seeded', 'true')
-      localStorage.setItem('fitcoach-ai-pro-v2', JSON.stringify({ user: { id: 'qa-coach', name: 'QA' }, students: [
+      localStorage.setItem('fitcoach-ai-pro-v2', JSON.stringify({ user: { id: 'qa-coach', name: 'QA', role: professionalType === 'nutritionist' ? 'Nutricionista' : 'Treinador' }, students: [
         { id: 'student-a', name: 'Pessoa A', payment: 'Pago' },
         { id: 'student-b', name: contactName, payment: 'Pago' },
         { id: 'student-empty', name: 'Aluno sem histórico', payment: 'Pago' },
@@ -77,7 +78,7 @@ try {
         { id: 'coach-seed-a', studentId: 'student-a', sender: 'coach', body: 'Mensagem anterior', createdAt: new Date(Date.now() - 7200000).toISOString(), read: true },
         { id: 'student-seed-b', studentId: 'student-b', sender: 'student', body: 'Mensagem mais recente', createdAt: new Date().toISOString(), read: false },
       ] }))
-    }, longContactName)
+    }, { contactName: longContactName, professionalType })
     if (process.env.CHAT_BROWSER_SCOPE !== 'student') {
       await page.goto(server.resolvedUrls.local[0] + '?area=mensagens')
       const rows = page.locator('[data-conversation-id]')
@@ -188,13 +189,19 @@ try {
           const personalizationBox = await page.getByRole('button', { name: 'Abrir personalização do chat', exact: true }).boundingBox()
           assert.ok(avatarBox?.width >= 40 && copyBox?.width >= 72 && personalizationBox?.width <= 52, `Cabeçalho estreito deve preservar avatar/nome e compactar personalização: ${JSON.stringify({ avatarBox, copyBox, personalizationBox })}`)
         }
+        await draft.focus()
         await page.setViewportSize({ width, height: 560 })
         await page.waitForTimeout(120)
+        assert.equal(await page.evaluate(() => document.documentElement.classList.contains('chat-keyboard-open')), true, `Teclado virtual deve ser detectado para ${professionalType} em ${width}px`)
         const visualHeight = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--chat-pro-visual-height')))
         assert.ok(visualHeight > 0 && visualHeight <= 560, `Altura visual deve acompanhar teclado/viewport: ${visualHeight}`)
         const compactCoachComposer = await composer.boundingBox()
         assert.ok(compactCoachComposer && compactCoachComposer.y >= 0 && compactCoachComposer.y + compactCoachComposer.height <= 561)
+        const keyboardWorkspace = await page.locator('.chat-pro-mobile-conversation-open').boundingBox()
+        assert.ok(keyboardWorkspace && keyboardWorkspace.y >= 0 && keyboardWorkspace.y + keyboardWorkspace.height <= 561, `Chat de ${professionalType} deve caber na viewport do teclado: ${JSON.stringify(keyboardWorkspace)}`)
+        await draft.blur()
         await page.setViewportSize({ width, height: 900 })
+        await page.waitForTimeout(360)
       }
       const customize = page.getByRole('button', { name: 'Abrir personalização do chat', exact: true })
       await customize.click()

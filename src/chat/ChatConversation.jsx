@@ -11,12 +11,26 @@ function useChatVisualViewport() {
     const root = document.documentElement
     const viewport = window.visualViewport
     let frameId = 0
+    let settleTimer = 0
+    let baselineHeight = Math.max(
+      Number(window.innerHeight) || 0,
+      (Number(viewport?.height) || 0) + Math.max(Number(viewport?.offsetTop) || 0, 0),
+    )
+
+    const hasTextInputFocus = () => {
+      const active = document.activeElement
+      if (!active) return false
+      return active.matches?.('textarea, input:not([type="button"]):not([type="submit"]):not([type="file"]), [contenteditable="true"]') || false
+    }
 
     const applyMetrics = () => {
       frameId = 0
+      const visualExtent = (Number(viewport?.height) || 0) + Math.max(Number(viewport?.offsetTop) || 0, 0)
+      if (!hasTextInputFocus()) baselineHeight = Math.max(Number(window.innerHeight) || 0, visualExtent)
       const { height, offsetTop, keyboardHeight, keyboardOpen } = getChatViewportMetrics({
         visualViewport: viewport,
         innerHeight: window.innerHeight,
+        baselineHeight,
       })
 
       if (height > 0) root.style.setProperty('--chat-pro-visual-height', `${height}px`)
@@ -30,15 +44,26 @@ function useChatVisualViewport() {
       frameId = window.requestAnimationFrame(applyMetrics)
     }
 
+    const updateAfterKeyboardTransition = () => {
+      updateMetrics()
+      if (settleTimer) window.clearTimeout(settleTimer)
+      settleTimer = window.setTimeout(updateMetrics, 320)
+    }
+
     applyMetrics()
     viewport?.addEventListener('resize', updateMetrics)
     viewport?.addEventListener('scroll', updateMetrics)
     window.addEventListener('resize', updateMetrics)
+    document.addEventListener('focusin', updateAfterKeyboardTransition)
+    document.addEventListener('focusout', updateAfterKeyboardTransition)
     return () => {
       if (frameId) window.cancelAnimationFrame(frameId)
+      if (settleTimer) window.clearTimeout(settleTimer)
       viewport?.removeEventListener('resize', updateMetrics)
       viewport?.removeEventListener('scroll', updateMetrics)
       window.removeEventListener('resize', updateMetrics)
+      document.removeEventListener('focusin', updateAfterKeyboardTransition)
+      document.removeEventListener('focusout', updateAfterKeyboardTransition)
       root.style.removeProperty('--chat-pro-visual-height')
       root.style.removeProperty('--chat-pro-visual-offset-top')
       root.style.removeProperty('--chat-pro-keyboard-height')

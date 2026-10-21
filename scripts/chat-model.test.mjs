@@ -63,6 +63,19 @@ test('tracks the visible mobile viewport while the virtual keyboard is open', ()
   })
 })
 
+test('detects the iPhone keyboard when innerHeight shrinks together with visualViewport', () => {
+  assert.deepEqual(getChatViewportMetrics({
+    visualViewport: { height: 470, offsetTop: 0 },
+    innerHeight: 470,
+    baselineHeight: 852,
+  }), {
+    height: 470,
+    offsetTop: 0,
+    keyboardHeight: 382,
+    keyboardOpen: true,
+  })
+})
+
 test('falls back safely when visual viewport metrics are unavailable', () => {
   assert.deepEqual(getChatViewportMetrics({
     visualViewport: { height: Number.NaN, offsetTop: -20 },
