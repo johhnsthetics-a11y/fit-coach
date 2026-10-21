@@ -153,6 +153,7 @@ export default function OrganizationProtocols({ coachId, students = [], professi
       const normalized = normalizeProtocolTaskDraft(draft)
       const saved = await saveRemoteProtocolTask({ ...normalized, ...(draft.id ? { id: draft.id } : {}) }, coachId)
       setTasks(current => [...current.filter(task => String(task.id) !== String(saved.id)), saved]
+        .filter(task => task.plannedDate >= range.start && task.plannedDate <= range.end)
         .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate) || a.title.localeCompare(b.title, 'pt-BR')))
       setFormOpen(false)
       setDraft(taskDraft({}, anchorDate))
@@ -166,23 +167,20 @@ export default function OrganizationProtocols({ coachId, students = [], professi
 
   async function updateTaskStatus(task, status) {
     const taskId = String(task.id)
-    const previousTask = task
-    const optimisticTask = { ...task, status: status }
+    const pendingTask = { ...task, status }
     setBusyTaskId(taskId)
     setTaskFeedback({ id: taskId, type: 'saving', message: 'Sincronizando…' })
     setError('')
     setNotice('')
-    setTasks(current => current.map(item => String(item.id) === taskId ? optimisticTask : item))
     try {
-      const saved = await saveRemoteProtocolTask(optimisticTask, coachId)
+      const saved = await saveRemoteProtocolTask(pendingTask, coachId)
       if (saved.status !== status) throw new Error('O servidor não confirmou o novo status da tarefa.')
       setTasks(current => current.map(item => String(item.id) === String(saved.id) ? saved : item))
       const successMessage = status === 'done' ? 'Concluída e sincronizada.' : status === 'in_progress' ? 'Iniciada e sincronizada.' : 'Reaberta e sincronizada.'
       setTaskFeedback({ id: taskId, type: 'success', message: successMessage })
       setNotice(status === 'done' ? 'Tarefa concluída.' : status === 'in_progress' ? 'Tarefa iniciada.' : 'Tarefa reaberta.')
     } catch (saveError) {
-      setTasks(current => current.map(item => String(item.id) === taskId ? previousTask : item))
-      setTaskFeedback({ id: taskId, type: 'error', message: 'Alteração desfeita. Tente novamente.' })
+      setTaskFeedback({ id: taskId, type: 'error', message: 'Não foi possível sincronizar. Tente novamente.' })
       setError(saveError?.message || 'Não foi possível atualizar a tarefa.')
     } finally {
       setBusyTaskId('')
@@ -265,20 +263,23 @@ export default function OrganizationProtocols({ coachId, students = [], professi
         <div><span>Concluídas</span><strong>{counts.done}</strong></div>
       </div>
 
-      <div className="protocol-filters" aria-label="Filtros das tarefas">
-        <label>Categoria<select value={filters.category} onChange={event => setFilters(current => ({ ...current, category: event.target.value }))}>
-          <option value="all">Todas</option>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select></label>
-        <label>Prioridade<select value={filters.priority} onChange={event => setFilters(current => ({ ...current, priority: event.target.value }))}>
-          <option value="all">Todas</option>{priorities.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select></label>
-        <label>Status<select value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}>
-          <option value="all">Todos</option>{statuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select></label>
-        <label>{personLabel}<select value={filters.studentId} onChange={event => setFilters(current => ({ ...current, studentId: event.target.value }))}>
-          <option value="all">Todos</option><option value="">Sem vínculo</option>{students.map(student => <option key={student.id} value={String(student.id)}>{student.name}</option>)}
-        </select></label>
-      </div>
+      <details className="protocol-filters-shell">
+        <summary>Filtrar tarefas</summary>
+        <div className="protocol-filters" aria-label="Filtros das tarefas">
+          <label>Categoria<select value={filters.category} onChange={event => setFilters(current => ({ ...current, category: event.target.value }))}>
+            <option value="all">Todas</option>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select></label>
+          <label>Prioridade<select value={filters.priority} onChange={event => setFilters(current => ({ ...current, priority: event.target.value }))}>
+            <option value="all">Todas</option>{priorities.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select></label>
+          <label>Status<select value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}>
+            <option value="all">Todos</option>{statuses.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select></label>
+          <label>{personLabel}<select value={filters.studentId} onChange={event => setFilters(current => ({ ...current, studentId: event.target.value }))}>
+            <option value="all">Todos</option><option value="">Sem vínculo</option>{students.map(student => <option key={student.id} value={String(student.id)}>{student.name}</option>)}
+          </select></label>
+        </div>
+      </details>
 
       {error ? <p className="protocol-feedback protocol-feedback--error" role="alert">{error}</p> : null}
       {notice ? <p className="protocol-feedback protocol-feedback--success" role="status">{notice}</p> : null}
@@ -315,6 +316,7 @@ export default function OrganizationProtocols({ coachId, students = [], professi
                   <article className={`protocol-task protocol-task--${task.status}`} key={task.id} aria-busy={isBusy}>
                     <div className="protocol-task__main">
                       <div className="protocol-task__meta">
+                        <span className={`protocol-tag protocol-tag--status-${task.status}`}>{optionLabel(statuses, task.status)}</span>
                         <span className={`protocol-tag protocol-tag--${task.category}`}>{optionLabel(categories, task.category)}</span>
                         <span className={`protocol-tag protocol-tag--priority-${task.priority}`}>Prioridade {optionLabel(priorities, task.priority).toLowerCase()}</span>
                         {viewMode === 'day' ? <span className="protocol-task__date">{formatProtocolDateKey(task.plannedDate)}</span> : null}

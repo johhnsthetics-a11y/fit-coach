@@ -284,3 +284,13 @@ test('personalização do chat ganha CTA destacado no header', () => {
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-button-emphasis/)
   assert.match(wallpaperCss, /box-shadow:/)
 })
+
+test('seletor de wallpaper é acionado pelo cabeçalho React e estiliza as classes atuais', () => {
+  assert.match(conversationSource, /chat-wallpaper-native-trigger/)
+  assert.match(conversationSource, /coach-fit:open-chat-wallpaper/)
+  assert.match(wallpaperSource, /coach-fit:open-chat-wallpaper/)
+  assert.match(wallpaperCss, /\.chat-message-own/)
+  assert.match(wallpaperCss, /\.chat-message-received/)
+  assert.match(wallpaperCss, /\.chat-compose/)
+  assert.match(wallpaperCss, /\.chat-compose textarea/)
+})

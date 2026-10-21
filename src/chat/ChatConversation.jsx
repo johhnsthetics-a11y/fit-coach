@@ -95,6 +95,18 @@ export function ChatConversation({
   useChatVisualViewport()
   const ownSender = viewerRole === 'student' ? 'student' : 'coach'
   const conversationId = `${viewerRole || 'user'}:${studentId || 'conversation'}`
+  const wallpaperAction = (
+    <button
+      type="button"
+      className="chat-wallpaper-native-trigger"
+      aria-label="Escolher plano de fundo do chat"
+      title="Plano de fundo"
+      onClick={() => document.dispatchEvent(new CustomEvent('coach-fit:open-chat-wallpaper'))}
+    >
+      <span aria-hidden="true">✦</span>
+      <span>Fundo</span>
+    </button>
+  )
 
   return (
     <section
@@ -102,7 +114,7 @@ export function ChatConversation({
       data-chat-role={viewerRole || 'user'}
       aria-label={`Conversa com ${contact?.name || 'contato'}`}
     >
-      <ChatHeader contact={contact} onBack={onBack} Icon={Icon} />
+      <ChatHeader contact={contact} onBack={onBack} Icon={Icon} actions={wallpaperAction} />
       <ChatMessageList
         conversationId={conversationId}
         messages={messages}

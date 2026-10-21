@@ -5,6 +5,7 @@ import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
 import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
 import { filterStudents } from './studentDirectory'
+import { getCheckinScheduleStatus, normalizeCheckinScheduleDate, shouldNotifyCheckinSchedule } from './checkinSchedule'
 import { loadStudentPortalWithRetry, requireStudentBootstrapForSession } from './studentFirstPassword'
 import {
   QUESTIONNAIRE_TYPES,
@@ -3001,6 +3002,37 @@ function AppContent() {
     return { student: savedStudent, invite: createdInvite }
   }
 
+  async function scheduleStudentCheckin(studentId, dueDate) {
+    const nextCheckin = normalizeCheckinScheduleDate(dueDate)
+    const student = data.students.find((item) => String(item.id) === String(studentId))
+    if (!student) throw new Error('Selecione um aluno ou paciente válido.')
+    if (!nextCheckin) throw new Error('Informe uma data válida para o próximo check-in.')
+
+    let savedStudent = { ...student, nextCheckin }
+    if (supabaseEnabled) {
+      try {
+        savedStudent = await saveRemoteStudent(savedStudent, activeCoachId)
+        setRemoteStatus('Próximo check-in agendado')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao agendar check-in')
+        throw error
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      students: current.students.map((item) => String(item.id) === String(savedStudent.id) ? savedStudent : item),
+      notifications: [{
+        id: Date.now(),
+        title: 'Check-in agendado',
+        body: `${savedStudent.name} deve enviar o próximo check-in em ${formatDate(nextCheckin)}.`,
+        read: false,
+      }, ...current.notifications],
+    }))
+    return savedStudent
+  }
+
   async function saveProfessionalStudentAnamnesis(studentId, answers, requestStudentUpdate = false) {
     let savedAnamnesis
     if (supabaseEnabled) {
@@ -4720,6 +4752,7 @@ function AppContent() {
                 checkins={data.checkins}
                 students={data.students}
                 onReviewCheckin={reviewCheckin}
+                onScheduleCheckin={scheduleStudentCheckin}
                 onRefresh={() => syncCoachWorkspace({ status: 'Atualizando fotos', silent: true })}
                 nutritionist={nutritionistUser}
               />
@@ -16215,18 +16248,46 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
   )
 }
 
-export function Checkins({ checkins = [], students = [], onReviewCheckin, onRefresh, nutritionist = false }) {
+export function Checkins({ checkins = [], students = [], onReviewCheckin, onScheduleCheckin, onRefresh, nutritionist = false }) {
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
   const [filter, setFilter] = useState('novos')
   const [photoViewer, setPhotoViewer] = useState(null)
   const [failedPhotos, setFailedPhotos] = useState(() => new Set())
   const [reviewingId, setReviewingId] = useState('')
+  const [scheduleStudentId, setScheduleStudentId] = useState(() => String(students[0]?.id || ''))
+  const [scheduleDate, setScheduleDate] = useState(() => normalizeCheckinScheduleDate(students[0]?.nextCheckin) || '')
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleNotice, setScheduleNotice] = useState('')
   const [error, setError] = useState('')
   const pendingCheckins = checkins.filter((item) => item.state !== 'Recebido')
   const visibleCheckins = (filter === 'novos' ? pendingCheckins : checkins)
     .slice()
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  const scheduledStudent = students.find((item) => String(item.id) === scheduleStudentId)
+
+  useEffect(() => {
+    if (!students.length) return
+    const selected = students.find((item) => String(item.id) === scheduleStudentId) || students[0]
+    if (String(selected.id) !== scheduleStudentId) setScheduleStudentId(String(selected.id))
+    setScheduleDate(normalizeCheckinScheduleDate(selected.nextCheckin) || '')
+  }, [scheduleStudentId, students])
+
+  async function scheduleCheckin(event) {
+    event.preventDefault()
+    setScheduleSaving(true)
+    setScheduleNotice('')
+    setError('')
+    try {
+      const saved = await onScheduleCheckin?.(scheduleStudentId, scheduleDate)
+      setScheduleDate(normalizeCheckinScheduleDate(saved?.nextCheckin || scheduleDate))
+      setScheduleNotice(`Próximo check-in de ${saved?.name || scheduledStudent?.name || clientLabel} agendado para ${formatDate(scheduleDate)}.`)
+    } catch (scheduleError) {
+      setError(scheduleError?.message || 'Não foi possível agendar o check-in.')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
 
   async function markReviewed(checkinId) {
     setReviewingId(String(checkinId))
@@ -16272,6 +16333,32 @@ export function Checkins({ checkins = [], students = [], onReviewCheckin, onRefr
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-blue-300/20 bg-blue-300/[0.06] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 lg:max-w-md">
+            <p className="text-xs font-black uppercase text-blue-200">Próximo retorno</p>
+            <h3 className="mt-1 text-lg font-black text-white">Definir data do check-in</h3>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">O prazo ficará destacado no aplicativo do {clientLabel}. Ao enviar, você receberá a notificação normalmente.</p>
+          </div>
+          <form onSubmit={scheduleCheckin} className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto] lg:w-[660px]">
+            <label className="grid gap-1.5 text-xs font-black text-zinc-300">
+              {clientTitle}
+              <select value={scheduleStudentId} onChange={(event) => setScheduleStudentId(event.target.value)} required className="min-h-11 min-w-0 rounded-lg border border-white/10 bg-zinc-950 px-3 text-sm text-white">
+                {students.map((student) => <option key={student.id} value={String(student.id)}>{student.name}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-xs font-black text-zinc-300">
+              Data de envio
+              <input type="date" min={toDateInputValue(new Date())} value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} required className="min-h-11 min-w-0 rounded-lg border border-white/10 bg-zinc-950 px-3 text-sm text-white" />
+            </label>
+            <button type="submit" disabled={scheduleSaving || !students.length} className="min-h-11 self-end rounded-lg bg-blue-400 px-4 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {scheduleSaving ? 'Salvando...' : 'Agendar'}
+            </button>
+          </form>
+        </div>
+        {scheduleNotice ? <p role="status" className="mt-3 text-sm font-bold text-emerald-200">{scheduleNotice}</p> : null}
       </section>
 
       <Panel title="Acompanhamento" action={`${visibleCheckins.length} ${visibleCheckins.length === 1 ? 'registro' : 'registros'}`}>
@@ -17388,7 +17475,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
   const avatarInputRef = useRef(null)
-  const greeting = getLocalGreeting()
   const studentFirstName = getFirstName(student?.name)
   const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
   const professionalPhoto = coachSettings?.profilePhotoUrl || ''
@@ -17410,6 +17496,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   })
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
+  const checkinScheduleStatus = useMemo(
+    () => getCheckinScheduleStatus(student?.nextCheckin, studentCheckins),
+    [student?.nextCheckin, studentCheckins],
+  )
   const studentReward = buildStudentRewardStats({ studentId: student?.id, workoutLogs: patientMode ? [] : studentWorkoutLogs, questionnaireAssignments: studentQuestionnaireAssignments, profileType: studentProfileKind })
   const rewardTotal = studentReward.xp
   const previousRewardRef = useRef({ studentId: student?.id, xp: rewardTotal })
@@ -17532,6 +17622,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   useEffect(() => {
     writeLocalStorage(waterStorageKey, String(Math.min(waterMl, waterGoalMl)))
   }, [waterMl, waterGoalMl, waterStorageKey])
+
+  useEffect(() => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    if (!shouldNotifyCheckinSchedule({
+      studentId: student?.id,
+      dueDate: checkinScheduleStatus.dueDate,
+      kind: checkinScheduleStatus.kind,
+    })) return
+    sendLocalNotification(
+      checkinScheduleStatus.kind === 'overdue' ? 'Check-in pendente' : 'Check-in de hoje',
+      `${studentFirstName}, envie sua atualização para ${patientMode ? 'sua nutricionista' : 'seu treinador'}.`,
+      { tag: `checkin-${student?.id}-${checkinScheduleStatus.dueDate}`, data: { url: `${window.location.pathname}?alunoTab=checkin` } },
+    )
+  }, [checkinScheduleStatus.dueDate, checkinScheduleStatus.kind, patientMode, student?.id, studentFirstName])
 
   useEffect(() => {
     function handleBeforeInstallPrompt(event) {
@@ -17790,7 +17894,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'checkin') {
-      return <StudentAppSection title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} audienceLabel={patientMode ? 'Paciente' : 'Aluno'} /></StudentAppSection>
+      return (
+        <StudentAppSection title="Enviar check-in" action={checkinScheduleStatus.dueDate ? formatDate(checkinScheduleStatus.dueDate) : 'Retorno'}>
+          <StudentCheckinScheduleCard status={checkinScheduleStatus} professionalLabel={patientMode ? 'nutricionista' : 'treinador'} />
+          <CheckinForm students={[student]} onAddCheckin={onAddCheckin} audienceLabel={patientMode ? 'Paciente' : 'Aluno'} scheduledDate={checkinScheduleStatus.dueDate} />
+        </StudentAppSection>
+      )
     }
 
     if (activeTab === 'mensagens') {
@@ -17852,7 +17961,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
             <ProfileAvatar name={student.name} src={student.photo} size="sm" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-black text-white">{greeting}, {studentFirstName}</p>
+              <p className="truncate text-sm font-black text-white">{studentFirstName}</p>
               <p className="truncate text-[10px] font-black uppercase text-emerald-300">{activeTitle}</p>
             </div>
           </div>
@@ -19060,7 +19169,46 @@ function StudentStatusCard({ label, value, detail, tone = 'neutral' }) {
     </div>
   )
 }
-function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno' }) {
+
+function StudentCheckinScheduleCard({ status, professionalLabel = 'profissional' }) {
+  const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
+  const tone = status.kind === 'overdue'
+    ? 'border-rose-300/30 bg-rose-300/10 text-rose-100'
+    : status.kind === 'due'
+      ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+      : status.kind === 'sent'
+        ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
+        : 'border-blue-300/25 bg-blue-300/[0.07] text-blue-100'
+
+  async function enableNotifications() {
+    const nextPermission = await Notification.requestPermission()
+    setPermission(nextPermission)
+    if (nextPermission === 'granted') {
+      await sendLocalNotification('Avisos de check-in ativados', 'O Coach Fit Pro avisará quando sua atualização estiver pendente.', { tag: 'checkin-notifications-enabled' })
+    }
+  }
+
+  return (
+    <div className={`mb-4 rounded-xl border p-4 ${tone}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase">{status.label}</p>
+          <p className="mt-1 text-sm font-black text-white">
+            {status.dueDate ? `Data definida: ${formatDate(status.dueDate)}` : `Seu ${professionalLabel} ainda não definiu o próximo prazo.`}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-zinc-300">
+            {status.kind === 'sent' ? 'Sua atualização já foi enviada e está disponível para análise.' : 'Envie peso, observações e foto para manter seu acompanhamento atualizado.'}
+          </p>
+        </div>
+        {permission === 'default' ? (
+          <button type="button" onClick={enableNotifications} className="min-h-10 shrink-0 rounded-lg border border-white/15 bg-zinc-950/35 px-3 text-xs font-black text-white">Ativar avisos</button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno', scheduledDate = '' }) {
   const [photo, setPhoto] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -19108,7 +19256,7 @@ function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno' }) {
       const savedCheckin = await onAddCheckin({
         studentId: form.get('studentId')?.toString() || '',
         type: form.get('type')?.toString() || 'Check-in',
-        due: 'Hoje',
+        due: scheduledDate || 'Hoje',
         state: 'Pendente',
         weight,
         note,

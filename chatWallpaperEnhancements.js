@@ -1,6 +1,7 @@
 import { CHAT_COMPOSER_SELECTORS } from './chatEnhancements.js'
 
 export const CHAT_WALLPAPER_STORAGE_KEY = 'coachfit.chat.wallpaper.v1'
+export const CHAT_WALLPAPER_OPEN_EVENT = 'coach-fit:open-chat-wallpaper'
 export const CHAT_WALLPAPER_PRESETS = Object.freeze([
   { id: 'aurora', label: 'Aurora', description: 'Verde suave e luminoso' },
   { id: 'sage', label: 'Sálvia', description: 'Natural e discreto' },
@@ -525,7 +526,7 @@ function createWallpaperToolbar(viewport, storage) {
   if (!root) return
 
   const shell = viewport.closest('.chat-pro-conversation-panel, .chat-pro-student-shell, section') || root
-  if (shell.querySelector('.chat-pro-wallpaper-toolbar')) return
+  if (shell.querySelector('.chat-pro-wallpaper-toolbar, .chat-wallpaper-native-trigger')) return
 
   const toolbar = viewport.ownerDocument.createElement('div')
   toolbar.className = 'chat-pro-wallpaper-toolbar'
@@ -569,6 +570,9 @@ export function installChatWallpaperEnhancements(
 
   enhanceCurrentWallpaperChats(documentRoot, storage)
 
+  const openWallpaper = () => createWallpaperModal(documentRoot, storage).open()
+  documentRoot.addEventListener(CHAT_WALLPAPER_OPEN_EVENT, openWallpaper)
+
   let queued = false
   const observer = new MutationObserver(() => {
     if (queued) return
@@ -580,5 +584,8 @@ export function installChatWallpaperEnhancements(
   })
   observer.observe(documentRoot.body, { childList: true, subtree: true })
 
-  return () => observer.disconnect()
+  return () => {
+    observer.disconnect()
+    documentRoot.removeEventListener(CHAT_WALLPAPER_OPEN_EVENT, openWallpaper)
+  }
 }
