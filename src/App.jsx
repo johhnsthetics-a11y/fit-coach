@@ -49,6 +49,7 @@ import {
   loadRemoteCurrentStudentAccess,
   loadRemoteLeadEvents,
   loadRemoteMessages,
+  loadRemoteNotifications,
   loadRemoteStudentMessagesByInvite,
   loadRemoteStudentByInvite,
   loadRemoteWorkoutSession,
@@ -91,6 +92,7 @@ import {
   supabaseEnabled,
   updateRemoteAppointmentStatus,
   updateRemoteInvoiceStatus,
+  updateRemoteCheckinState,
   updateRemotePayment,
   updateRecoveredPassword,
   uploadRemoteProfessionalAvatar,
@@ -129,7 +131,11 @@ import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
 import { ChatConversation } from './chat/ChatConversation'
 import { ConversationList } from './chat/ConversationList'
-import { buildConversationRows } from './chat/chatModel'
+import {
+  buildConversationRows,
+  buildIncomingMessageAlert,
+  findLatestIncomingStudentMessage,
+} from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
 import { shouldRefreshPersistedSession } from './authSession'
 import { PASSWORD_POLICY_HINT, getNewPasswordError, validateNewPasswordConfirmation } from './passwordPolicy'
@@ -666,6 +672,15 @@ function getInitialCoachView() {
   return 'visao'
 }
 
+function getInitialCoachStudentId() {
+  if (typeof window === 'undefined') return ''
+  try {
+    return new URLSearchParams(window.location.search).get('student') || ''
+  } catch {
+    return ''
+  }
+}
+
 function persistCoachView(view) {
   if (typeof window === 'undefined' || !coachViewIds.has(view)) return
 
@@ -677,6 +692,7 @@ function persistCoachView(view) {
     } else {
       url.searchParams.set('area', view)
     }
+    if (view !== 'mensagens') url.searchParams.delete('student')
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
   } catch (error) {
     // Persistência de navegação não deve interromper o uso do painel.
@@ -1842,7 +1858,7 @@ export function getWorkoutPublicationStatus(workout = {}, workoutLogs = []) {
 function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring, professionalWorkspaceLoading] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
-  const [selectedStudentId, setSelectedStudentId] = useState(data.students[0]?.id ?? 1)
+  const [selectedStudentId, setSelectedStudentId] = useState(() => getInitialCoachStudentId() || data.students[0]?.id || 1)
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
   const [studentAccess, setStudentAccess] = useState(null)
   const [studentFirstAccess, setStudentFirstAccess] = useState(null)
@@ -1851,6 +1867,7 @@ function AppContent() {
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
+  const [incomingMessageAlert, setIncomingMessageAlert] = useState(null)
   const [billingClock, setBillingClock] = useState(Date.now())
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   useEffect(() => {
@@ -1871,6 +1888,9 @@ function AppContent() {
   }, [])
   const subscriptionCheckRef = useRef(0)
   const portalRequestRef = useRef(0)
+  const messageSnapshotRef = useRef(data.messages ?? [])
+  const coachNavigationRef = useRef({ activeView, selectedStudentId })
+  const coachAudienceRef = useRef({ students: data.students ?? [], professionalType: 'trainer' })
   const professionalReferralClaimRef = useRef('')
   const professionalAvatarInputRef = useRef(null)
   const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
@@ -1881,6 +1901,14 @@ function AppContent() {
     () => data.students.find((student) => student.id === selectedStudentId) ?? data.students[0],
     [data.students, selectedStudentId],
   )
+
+  useEffect(() => {
+    messageSnapshotRef.current = data.messages ?? []
+  }, [data.messages])
+
+  useEffect(() => {
+    coachNavigationRef.current = { activeView, selectedStudentId }
+  }, [activeView, selectedStudentId])
 
   const unreadCount = data.notifications.filter((item) => !item.read).length
   const activeStudents = data.students.filter((student) => student.status !== 'Inativo')
@@ -1895,6 +1923,12 @@ function AppContent() {
   ))
   const masterAdmin = isMasterAdmin(data.user, data.session?.user, data.session)
   const nutritionistUser = !masterAdmin && isNutritionistUser(data.user)
+  useEffect(() => {
+    coachAudienceRef.current = {
+      students: data.students ?? [],
+      professionalType: nutritionistUser ? 'nutritionist' : 'trainer',
+    }
+  }, [data.students, nutritionistUser])
   const smartAlerts = useMemo(
     () => buildSmartAlerts(
       data.students,
@@ -2035,6 +2069,32 @@ function AppContent() {
     setNutritionDraftDirty(false)
     setSelectedStudentId(nextStudentId)
   }, [activeView, nutritionDraftDirty, selectedStudentId])
+
+  const openStudentConversation = useCallback((studentId) => {
+    if (!studentId) {
+      setActiveViewSafely('mensagens')
+      return
+    }
+    if (
+      activeView === 'nutricao'
+      && nutritionDraftDirty
+      && !window.confirm('Existem alterações não salvas. Deseja abrir a conversa e descartar essas alterações?')
+    ) return
+
+    setNutritionDraftDirty(false)
+    setSelectedStudentId(studentId)
+    setActiveView('mensagens')
+    setIncomingMessageAlert(null)
+    setNotificationPopoverOpen(false)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('area', 'mensagens')
+      url.searchParams.set('student', String(studentId))
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    } catch {
+      // A navegação continua funcionando mesmo se o histórico estiver indisponível.
+    }
+  }, [activeView, nutritionDraftDirty, setActiveViewSafely])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -2575,16 +2635,41 @@ function AppContent() {
       if (!active || refreshPending) return
       refreshPending = true
       try {
+        const previousMessages = messageSnapshotRef.current
         const latestMessages = inviteCode
           ? await loadRemoteStudentMessagesByInvite(inviteCode)
           : await loadRemoteMessages()
         if (!active) return
+        const nextMessages = mergeRecords(previousMessages, latestMessages)
+        const navigation = coachNavigationRef.current
+        const incomingMessage = inviteCode ? null : findLatestIncomingStudentMessage(previousMessages, nextMessages, {
+          activeView: navigation.activeView,
+          activeStudentId: navigation.selectedStudentId,
+        })
+        messageSnapshotRef.current = nextMessages
         setChatSyncError('')
         setData((current) => ({ ...current, messages: mergeRecords(current.messages, latestMessages) }))
         if (inviteCode) {
           setStudentAccess((current) => current?.invite?.code === inviteCode
             ? { ...current, messages: mergeRecords(current.messages, latestMessages) }
             : current)
+        } else if (incomingMessage) {
+          const alert = buildIncomingMessageAlert(
+            incomingMessage,
+            coachAudienceRef.current.students,
+            { professionalType: coachAudienceRef.current.professionalType },
+          )
+          if (alert) {
+            setIncomingMessageAlert(alert)
+            const notificationUrl = `${window.location.pathname}?area=mensagens&student=${encodeURIComponent(alert.studentId)}`
+            sendLocalNotification(alert.title, alert.body, {
+              tag: `student-message-${alert.id}`,
+              data: { url: notificationUrl, studentId: alert.studentId },
+            }).catch(() => false)
+          }
+          loadRemoteNotifications().then((notifications) => {
+            if (active) setData((current) => ({ ...current, notifications }))
+          }).catch(() => {})
         }
       } catch (error) {
         if (active) setChatSyncError(error?.message || 'Não foi possível atualizar a conversa em tempo real.')
@@ -3018,6 +3103,30 @@ function AppContent() {
       ],
     }))
     return savedCheckin
+  }
+
+  async function reviewCheckin(checkinId) {
+    let savedCheckin = null
+    if (supabaseEnabled) {
+      try {
+        savedCheckin = await updateRemoteCheckinState(checkinId, 'Recebido')
+        setRemoteStatus('Check-in marcado como revisado')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao revisar check-in')
+        throw error
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      checkins: current.checkins.map((item) => (
+        String(item.id) === String(checkinId)
+          ? { ...item, ...(savedCheckin || {}), state: 'Recebido', photo: savedCheckin?.photo || item.photo }
+          : item
+      )),
+    }))
+    return savedCheckin || { id: checkinId, state: 'Recebido' }
   }
 
   async function updatePayment(studentId, payment) {
@@ -3806,9 +3915,17 @@ function AppContent() {
           ? { ...student, lastMessage: savedMessage.body }
           : student
       )),
-      notifications: savedMessage.sender === 'student'
+      notifications: savedMessage.sender === 'student' && !supabaseEnabled
         ? [
-          { id: Date.now() + 1, title: 'Nova mensagem do aluno', body: savedMessage.body, read: false },
+          {
+            id: Date.now() + 1,
+            title: 'Nova mensagem recebida',
+            body: savedMessage.body,
+            read: false,
+            studentId: savedMessage.studentId,
+            eventType: 'student_message',
+            entityId: savedMessage.id,
+          },
           ...current.notifications,
         ]
         : current.notifications,
@@ -4250,6 +4367,13 @@ function AppContent() {
 
   return (
     <div className={`app-shell coach-auth-shell ${activeView === 'mensagens' ? 'coach-chat-active' : ''} fit-gradient-bg app-theme-${uiTheme} min-h-screen w-full max-w-full overflow-x-hidden text-zinc-100`} data-theme={uiTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, uiTheme)}>
+      {incomingMessageAlert ? (
+        <IncomingMessageToast
+          alert={incomingMessageAlert}
+          onOpen={openStudentConversation}
+          onDismiss={() => setIncomingMessageAlert(null)}
+        />
+      ) : null}
       <div className="coach-mobile-header sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-zinc-950/90 px-3 py-2 backdrop-blur-xl lg:hidden">
         <BrandLockup compact subtitle="Coach Fit Pro" />
         <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="ml-auto mr-2" />
@@ -4270,6 +4394,7 @@ function AppContent() {
             setMobileMenuOpen(false)
             setNotificationPopoverOpen(false)
           }}
+          onOpenNotification={(item) => item.studentId ? openStudentConversation(item.studentId) : null}
           className="coach-mobile-notification-shortcut"
           theme={uiTheme}
         />
@@ -4422,6 +4547,7 @@ function AppContent() {
                   setActiveViewSafely(view)
                   setNotificationPopoverOpen(false)
                 }}
+                onOpenNotification={(item) => item.studentId ? openStudentConversation(item.studentId) : null}
                 className="coach-page-notification-shortcut"
                 theme={uiTheme}
               />
@@ -4488,10 +4614,10 @@ function AppContent() {
             </div>
           ) : null}
 
-          {activeView === 'visao' ? (
+          {activeView === 'visao' && !nutritionistUser ? (
             <section className="coach-dashboard-metrics grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric label={nutritionistUser ? 'Pacientes ativos' : 'Alunos ativos'} value={activeStudents.length} detail={`${paidStudents} com plano pago`} />
-              <Metric label="Constância média" value={`${averageAdherence}%`} detail={nutritionistUser ? 'plano + check-ins' : 'treino + dieta'} />
+              <Metric label="Alunos ativos" value={activeStudents.length} detail={`${paidStudents} com plano pago`} />
+              <Metric label="Constância média" value={`${averageAdherence}%`} detail="treino + dieta" />
               <Metric label="Agenda" value={upcomingAppointments.length} detail={`${openCheckins} check-ins abertos`} />
               <Metric label="Notificações" value={totalAlertCount} detail={`${smartAlerts.length} alertas ativos`} />
             </section>
@@ -4590,7 +4716,13 @@ function AppContent() {
               />
             )}
             {activeView === 'checkins' && (
-              <Checkins checkins={data.checkins} students={data.students} onAddCheckin={addCheckin} nutritionist={nutritionistUser} />
+              <Checkins
+                checkins={data.checkins}
+                students={data.students}
+                onReviewCheckin={reviewCheckin}
+                onRefresh={() => syncCoachWorkspace({ status: 'Atualizando fotos', silent: true })}
+                nutritionist={nutritionistUser}
+              />
             )}
             {activeView === 'pagamentos' && (
               <Payments
@@ -4639,6 +4771,7 @@ function AppContent() {
                 smartAlerts={smartAlerts}
                 onReadAll={markNotificationsRead}
                 onOpenView={setActiveViewSafely}
+                onOpenNotification={(item) => item.studentId ? openStudentConversation(item.studentId) : null}
               />
             )}
             {activeView === 'mensagens' && (
@@ -4670,7 +4803,6 @@ function AppContent() {
                 assessments={data.assessments ?? []}
                 coachSettings={data.coachSettings}
                 onCompleteWorkout={completeWorkout}
-                onAddCheckin={addCheckin}
                 onSendMessage={sendMessage}
                 coachId={data.user?.id}
                 professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
@@ -6886,6 +7018,20 @@ function Overview({ nutritionist = false, selectedStudent, smartAlerts = [], pri
   const openStudentFromPriority = (studentId, view = 'alunos') => {
     setSelectedStudentId?.(studentId)
     setActiveView(view)
+  }
+
+  if (nutritionist) {
+    return (
+      <div className="grid gap-4 lg:gap-6">
+        <DailyIntelligenceSummary dashboard={priorityDashboard} onOpenView={setActiveView} nutritionist />
+        <StudentPriorityPanel
+          dashboard={priorityDashboard}
+          nutritionist
+          onOpenStudent={(studentId) => openStudentFromPriority(studentId, 'alunos')}
+          onMessageStudent={(studentId) => openStudentFromPriority(studentId, 'mensagens')}
+        />
+      </div>
+    )
   }
 
   return (
@@ -16069,42 +16215,149 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
   )
 }
 
-function Checkins({ checkins = [], students = [], onAddCheckin, nutritionist = false }) {
+export function Checkins({ checkins = [], students = [], onReviewCheckin, onRefresh, nutritionist = false }) {
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
-  return (
-    <div className="grid gap-4 lg:gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-      <Panel title="Novo check-in" action="Upload local">
-        {students.length ? (
-          <CheckinForm students={students} onAddCheckin={onAddCheckin} />
-        ) : (
-          <Empty text={`Cadastre um ${clientLabel} antes de registrar check-ins.`} />
-        )}
-      </Panel>
+  const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
+  const [filter, setFilter] = useState('novos')
+  const [photoViewer, setPhotoViewer] = useState(null)
+  const [failedPhotos, setFailedPhotos] = useState(() => new Set())
+  const [reviewingId, setReviewingId] = useState('')
+  const [error, setError] = useState('')
+  const pendingCheckins = checkins.filter((item) => item.state !== 'Recebido')
+  const visibleCheckins = (filter === 'novos' ? pendingCheckins : checkins)
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
 
-      <Panel title="Histórico de check-ins" action={`${checkins.length} registros`}>
-        {checkins.length ? (
-          <div className="grid gap-3">
-            {checkins.map((item) => {
+  async function markReviewed(checkinId) {
+    setReviewingId(String(checkinId))
+    setError('')
+    try {
+      await onReviewCheckin?.(checkinId)
+    } catch (reviewError) {
+      setError(reviewError?.message || 'Não foi possível revisar este check-in.')
+    } finally {
+      setReviewingId('')
+    }
+  }
+
+  async function refreshPhotos() {
+    setError('')
+    try {
+      await onRefresh?.()
+      setFailedPhotos(new Set())
+    } catch (refreshError) {
+      setError(refreshError?.message || 'Não foi possível atualizar as fotos.')
+    }
+  }
+
+  return (
+    <div className="checkin-review-workspace grid gap-4 lg:gap-6">
+      <section className="rounded-xl border border-emerald-300/25 bg-emerald-300/[0.07] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-emerald-200">Fluxo de acompanhamento</p>
+            <h3 className="mt-2 text-xl font-black text-white sm:text-2xl">Check-ins recebidos</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
+              O {clientLabel} envia o check-in pelo próprio aplicativo. Aqui você confere dados e fotos, registra a análise e mantém o histórico organizado.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <div className="rounded-lg border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-center">
+              <strong className="block text-xl font-black text-amber-100">{pendingCheckins.length}</strong>
+              <span className="text-xs font-bold text-amber-200">A revisar</span>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-zinc-950/30 px-4 py-3 text-center">
+              <strong className="block text-xl font-black text-white">{checkins.length}</strong>
+              <span className="text-xs font-bold text-zinc-400">No histórico</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Panel title="Acompanhamento" action={`${visibleCheckins.length} ${visibleCheckins.length === 1 ? 'registro' : 'registros'}`}>
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+          <button type="button" onClick={() => setFilter('novos')} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black ${filter === 'novos' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 text-zinc-300'}`}>
+            Novos ({pendingCheckins.length})
+          </button>
+          <button type="button" onClick={() => setFilter('todos')} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black ${filter === 'todos' ? 'border-emerald-300 bg-emerald-300 text-zinc-950' : 'border-white/10 text-zinc-300'}`}>
+            Todo o histórico ({checkins.length})
+          </button>
+        </div>
+        {error ? <p role="alert" className="mb-4 rounded-lg border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{error}</p> : null}
+        {visibleCheckins.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {visibleCheckins.map((item) => {
               const student = students.find((studentItem) => studentItem.id === item.studentId)
+              const studentName = student?.name ?? clientTitle
+              const photoFailed = failedPhotos.has(String(item.id))
+              const reviewed = item.state === 'Recebido'
               return (
-                <div key={item.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-bold">{student?.name ?? (nutritionist ? 'Paciente' : 'Aluno')}</h4>
-                      <p className="mt-1 text-sm text-zinc-400">{item.type} - {item.due} - {item.weight}</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-300">{item.note}</p>
+                <article key={item.id} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                    {item.photo && !photoFailed ? (
+                      <button type="button" onClick={() => setPhotoViewer({ ...item, studentName })} className="group relative h-36 w-full shrink-0 overflow-hidden rounded-lg border border-white/10 bg-zinc-950 sm:h-32 sm:w-36" aria-label={`Ampliar foto do check-in de ${studentName}`}>
+                        <img
+                          src={item.photo}
+                          alt={`Foto do check-in de ${studentName}`}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={() => setFailedPhotos((current) => new Set(current).add(String(item.id)))}
+                          className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+                        />
+                        <span className="absolute inset-x-2 bottom-2 rounded-md bg-zinc-950/80 px-2 py-1 text-center text-[11px] font-black text-white">Ampliar foto</span>
+                      </button>
+                    ) : (
+                      <div className="grid h-28 w-full shrink-0 place-items-center rounded-lg border border-dashed border-white/15 bg-zinc-950/30 px-3 text-center sm:h-32 sm:w-36">
+                        <div>
+                          <NavIcon name="camera" className="mx-auto h-5 w-5 text-zinc-500" />
+                          <p className="mt-2 text-xs font-bold text-zinc-500">{photoFailed ? 'Foto indisponível' : 'Sem foto enviada'}</p>
+                          {photoFailed && onRefresh ? <button type="button" onClick={refreshPhotos} className="mt-2 text-xs font-black text-emerald-200">Atualizar</button> : null}
+                        </div>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h4 className="break-words font-black text-white">{studentName}</h4>
+                          <p className="mt-1 text-xs font-bold text-zinc-500">{item.createdAt ? formatDateTime(item.createdAt) : item.due || 'Data não informada'}</p>
+                        </div>
+                        <Badge tone={item.state === 'Critico' ? 'Alto' : reviewed ? 'Baixo' : 'Medio'}>{reviewed ? 'Revisado' : item.state || 'Pendente'}</Badge>
+                      </div>
+                      <p className="mt-3 text-sm font-bold text-zinc-200">{item.type || 'Check-in'}{item.weight ? ` · ${item.weight}` : ''}</p>
+                      <p className="mt-2 break-words text-sm leading-6 text-zinc-300">{item.note || 'Nenhuma observação adicionada.'}</p>
+                      {!reviewed ? (
+                        <button type="button" disabled={reviewingId === String(item.id)} onClick={() => markReviewed(item.id)} className="mt-4 min-h-10 rounded-md bg-emerald-400 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+                          {reviewingId === String(item.id) ? 'Salvando...' : 'Marcar como revisado'}
+                        </button>
+                      ) : null}
                     </div>
-                    <Badge tone={item.state === 'Critico' ? 'Alto' : 'Baixo'}>{item.state}</Badge>
                   </div>
-                  {item.photo ? <img src={item.photo} alt="Check-in" className="mt-4 h-44 w-full rounded-md object-cover" /> : null}
-                </div>
+                </article>
               )
             })}
           </div>
         ) : (
-          <Empty text="Nenhum check-in registrado ainda." />
+          <Empty text={filter === 'novos' ? `Nenhum check-in de ${clientLabel} aguardando revisão.` : 'Nenhum check-in enviado ainda.'} />
         )}
       </Panel>
+
+      {photoViewer ? createPortal((
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/85 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label={`Foto do check-in de ${photoViewer.studentName}`}>
+          <button type="button" className="absolute inset-0 cursor-default" onClick={() => setPhotoViewer(null)} aria-label="Fechar visualização da foto" />
+          <div className="relative z-10 flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/15 bg-zinc-950 shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate font-black text-white">{photoViewer.studentName}</p>
+                <p className="text-xs text-zinc-400">{photoViewer.type || 'Check-in'} · {photoViewer.createdAt ? formatDateTime(photoViewer.createdAt) : photoViewer.due}</p>
+              </div>
+              <button type="button" onClick={() => setPhotoViewer(null)} aria-label="Fechar foto" className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/10 text-white">
+                <NavIcon name="close" className="h-5 w-5" />
+              </button>
+            </div>
+            <img src={photoViewer.photo} alt={`Foto ampliada do check-in de ${photoViewer.studentName}`} className="min-h-0 w-full flex-1 object-contain" referrerPolicy="no-referrer" />
+          </div>
+        </div>
+      ), document.body) : null}
     </div>
   )
 }
@@ -16122,7 +16375,6 @@ function StudentPortalPreview({
   assessments = [],
   coachSettings = null,
   onCompleteWorkout,
-  onAddCheckin,
   onSendMessage,
   coachId,
   professionalType = 'trainer',
@@ -16223,8 +16475,13 @@ function StudentPortalPreview({
         ) : null}
       </Panel>
 
-      <Panel title="Enviar check-in" action={clientTitle}>
-        <CheckinForm students={[student]} onAddCheckin={onAddCheckin} />
+      <Panel title="Check-in do acompanhamento" action={clientTitle}>
+        <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
+          <p className="text-sm font-black text-emerald-100">Envio feito pelo {clientLabel}</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-300">
+            O {clientLabel} preenche e envia o check-in pelo próprio acesso. Depois, ele aparece em Check-ins para sua análise com observações, medidas e fotos.
+          </p>
+        </div>
       </Panel>
 
       <Panel title="Mensagens" action={`${studentMessages.length} registros`}>
@@ -16980,15 +17237,22 @@ function formatAppPaymentStatus(status) {
   return getStudentAppPaymentLabel(status)
 }
 
-async function sendLocalNotification(title, body) {
+async function sendLocalNotification(title, body, options = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
   try {
     const registration = await navigator.serviceWorker?.getRegistration()
-    if (registration) await registration.showNotification(title, { body, icon: '/logoabre.png' })
-    else new Notification(title, { body, icon: '/logoabre.png' })
+    const notificationOptions = {
+      body,
+      icon: '/logoabre.png',
+      badge: '/fit-coach-icon.svg',
+      tag: options.tag,
+      data: options.data || {},
+    }
+    if (registration) await registration.showNotification(title, notificationOptions)
+    else new Notification(title, notificationOptions)
     return true
   } catch {
-    // Notification support varies by browser; workout persistence must not depend on it.
+    // Browser notification support varies; message persistence must not depend on it.
     return false
   }
 }
@@ -17526,7 +17790,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'checkin') {
-      return <StudentAppSection title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} /></StudentAppSection>
+      return <StudentAppSection title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} audienceLabel={patientMode ? 'Paciente' : 'Aluno'} /></StudentAppSection>
     }
 
     if (activeTab === 'mensagens') {
@@ -18796,7 +19060,7 @@ function StudentStatusCard({ label, value, detail, tone = 'neutral' }) {
     </div>
   )
 }
-function CheckinForm({ students = [], onAddCheckin }) {
+function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno' }) {
   const [photo, setPhoto] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -18844,8 +19108,8 @@ function CheckinForm({ students = [], onAddCheckin }) {
       const savedCheckin = await onAddCheckin({
         studentId: form.get('studentId')?.toString() || '',
         type: form.get('type')?.toString() || 'Check-in',
-        due: form.get('due')?.toString() || 'Hoje',
-        state: form.get('state')?.toString() || 'Recebido',
+        due: 'Hoje',
+        state: 'Pendente',
         weight,
         note,
         photo,
@@ -18854,7 +19118,7 @@ function CheckinForm({ students = [], onAddCheckin }) {
       formElement.reset()
       setPhoto('')
       setPhotoFile(null)
-      setMessage('Check-in salvo com sucesso.')
+      setMessage('Check-in enviado. Seu profissional já pode revisar as informações.')
       if (savedCheckin?.uploadWarning) setWarning(savedCheckin.uploadWarning)
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível salvar o check-in.')
@@ -18865,26 +19129,28 @@ function CheckinForm({ students = [], onAddCheckin }) {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
+      <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/[0.07] p-4">
+        <p className="text-sm font-black text-emerald-100">Seu retorno para o profissional</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-300">Conte como você está, informe mudanças importantes e envie uma foto quando necessário. O status ficará aguardando análise automaticamente.</p>
+      </div>
       {students.length === 1 ? (
         <>
           <input type="hidden" name="studentId" value={students[0].id} />
-          <Info label="Aluno" value={students[0].name} />
+          <Info label={audienceLabel} value={students[0].name} />
         </>
       ) : (
-        <Select label="Aluno" name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
+        <Select label={audienceLabel} name="studentId" options={students.map((student) => ({ label: student.name, value: student.id }))} />
       )}
-      <Field label="Tipo" name="type" defaultValue="Check-in do dia" />
-      <Field label="Prazo" name="due" defaultValue="Hoje" />
-      <Select label="Status" name="state" defaultValue="Recebido" options={['Recebido', 'Pendente', 'Critico']} />
+      <Field label="Tipo do retorno" name="type" defaultValue="Check-in do dia" />
       <Field label="Peso informado" name="weight" required={false} inputMode="decimal" placeholder="Ex.: 84,0 kg" />
       <TextArea label="Observações" name="note" placeholder="Conte como foi sua rotina, evolução ou dificuldade." />
       <label className="grid gap-2 text-sm font-bold text-zinc-300">
         Foto do check-in
         <input type="file" accept="image/*" onChange={handlePhoto} className="rounded-md border border-white/10 bg-zinc-950 p-3 text-sm text-zinc-300" />
       </label>
-      {photo ? <img src={photo} alt="Prévia" className="h-44 rounded-md object-cover" /> : null}
+      {photo ? <img src={photo} alt="Prévia da foto do check-in" className="h-44 w-full rounded-md bg-zinc-950 object-contain" /> : null}
       <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-        {saving ? 'Salvando...' : 'Salvar check-in'}
+        {saving ? 'Enviando...' : 'Enviar check-in'}
       </button>
       {message ? <p role="status" aria-live="polite" className="text-sm font-bold text-blue-200">{message}</p> : null}
       {warning ? <p role="status" aria-live="polite" className="text-sm font-bold text-amber-200">{warning}</p> : null}
@@ -19854,11 +20120,87 @@ function Notifications({ notifications = [], onReadAll }) {
   )
 }
 
-function SmartNotifications({ notifications = [], smartAlerts = [], onReadAll, onOpenView }) {
+export function IncomingMessageToast({ alert, onOpen, onDismiss, durationMs = 3000 }) {
+  const dismissRef = useRef(onDismiss)
+  useEffect(() => {
+    dismissRef.current = onDismiss
+  }, [onDismiss])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => dismissRef.current?.(), durationMs)
+    return () => window.clearTimeout(timer)
+  }, [alert?.id, durationMs])
+
+  if (!alert) return null
+
+  return createPortal((
+    <button
+      type="button"
+      className="incoming-message-toast"
+      aria-label={`${alert.title}. ${alert.body}. Abrir conversa`}
+      onClick={() => {
+        onOpen?.(alert.studentId)
+        onDismiss?.()
+      }}
+    >
+      <span className="incoming-message-toast-icon"><NavIcon name="message" className="h-5 w-5" /></span>
+      <span className="min-w-0 text-left">
+        <strong>{alert.title}</strong>
+        <small>{alert.body}</small>
+      </span>
+      <span className="incoming-message-toast-action">Abrir</span>
+    </button>
+  ), document.body)
+}
+
+function ProfessionalNotificationPermissionControl() {
+  const supported = typeof window !== 'undefined' && 'Notification' in window
+  const [permission, setPermission] = useState(() => supported ? Notification.permission : 'unsupported')
+  const [requesting, setRequesting] = useState(false)
+
+  async function requestPermission() {
+    if (!supported || requesting) return
+    setRequesting(true)
+    try {
+      const nextPermission = await Notification.requestPermission()
+      setPermission(nextPermission)
+      if (nextPermission === 'granted') {
+        await sendLocalNotification('Avisos ativados', 'Você receberá alertas de novas mensagens.', { tag: 'notification-permission-confirmation' })
+      }
+    } finally {
+      setRequesting(false)
+    }
+  }
+
+  if (permission === 'unsupported') return null
+
+  return (
+    <section className="xl:col-span-2 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4 sm:flex sm:items-center sm:justify-between sm:gap-4">
+      <div>
+        <p className="text-sm font-black text-zinc-100">Avisos de novas mensagens</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">
+          {permission === 'granted'
+            ? 'Ativos neste dispositivo. A central de notificações continua guardando o histórico.'
+            : permission === 'denied'
+              ? 'Bloqueados pelo navegador. Libere as notificações nas configurações do site para receber avisos no celular.'
+              : 'Ative para ser avisado quando um aluno ou paciente enviar uma mensagem.'}
+        </p>
+      </div>
+      {permission === 'default' ? (
+        <button type="button" disabled={requesting} onClick={requestPermission} className="mt-3 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60 sm:mt-0 sm:w-auto">
+          {requesting ? 'Ativando...' : 'Ativar avisos no celular'}
+        </button>
+      ) : null}
+    </section>
+  )
+}
+
+function SmartNotifications({ notifications = [], smartAlerts = [], onReadAll, onOpenView, onOpenNotification }) {
   const unread = notifications.filter((item) => !item.read).length
 
   return (
     <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      <ProfessionalNotificationPermissionControl />
       <Panel title="Alertas inteligentes" action={`${smartAlerts.length} ativos`}>
         <div className="grid gap-3">
           {smartAlerts.length ? (
@@ -19877,12 +20219,21 @@ function SmartNotifications({ notifications = [], smartAlerts = [], onReadAll, o
         </button>
         <div className="grid gap-3">
           {notifications.length ? (
-            notifications.map((item) => (
-              <div key={item.id} className={`rounded-md border p-4 ${item.read ? 'border-white/10 bg-white/[0.03]' : 'border-amber-300/40 bg-amber-300/10'}`}>
+            notifications.map((item) => {
+              const NotificationItem = item.studentId ? 'button' : 'div'
+              return (
+              <NotificationItem
+                key={item.id}
+                type={item.studentId ? 'button' : undefined}
+                onClick={item.studentId ? () => onOpenNotification?.(item) : undefined}
+                className={`w-full rounded-md border p-4 text-left ${item.studentId ? 'transition hover:border-emerald-300/40 hover:bg-emerald-300/[0.08]' : ''} ${item.read ? 'border-white/10 bg-white/[0.03]' : 'border-amber-300/40 bg-amber-300/10'}`}
+              >
                 <h4 className="font-black">{item.title}</h4>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">{item.body}</p>
-              </div>
-            ))
+                {item.studentId ? <span className="mt-3 inline-flex text-xs font-black text-emerald-200">Abrir conversa</span> : null}
+              </NotificationItem>
+              )
+            })
           ) : (
             <Empty text="Nenhuma notificação registrada ainda." />
           )}
@@ -22884,7 +23235,7 @@ function ChartLoading() {
   )
 }
 
-function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [], open = false, onToggle, onClose, onOpenAll, onOpenView, className = '', theme = DEFAULT_UI_THEME }) {
+function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [], open = false, onToggle, onClose, onOpenAll, onOpenView, onOpenNotification, className = '', theme = DEFAULT_UI_THEME }) {
   const numericCount = Number(count || 0)
   const visibleCount = numericCount > 99 ? '99+' : numericCount
   const recentNotifications = notifications || []
@@ -23031,16 +23382,27 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
                   </span>
                 </button>
               ))}
-              {recentNotifications.map((item) => (
-                <article key={item.id} className={`coach-notification-popover-item ${item.read ? '' : 'is-unread'}`}>
+              {recentNotifications.map((item) => {
+                const NotificationItem = item.studentId ? 'button' : 'article'
+                return (
+                <NotificationItem
+                  key={item.id}
+                  type={item.studentId ? 'button' : undefined}
+                  className={`coach-notification-popover-item ${item.read ? '' : 'is-unread'}`}
+                  onClick={item.studentId ? () => {
+                    onOpenNotification?.(item)
+                    onClose?.()
+                  } : undefined}
+                >
                   <span className="coach-notification-dot" />
                   <span>
                     <strong>{item.title}</strong>
                     <small>{item.body}</small>
-                    <em>{item.read ? 'Lida' : 'Nova'}</em>
+                    <em>{item.studentId ? 'Abrir conversa' : item.read ? 'Lida' : 'Nova'}</em>
                   </span>
-                </article>
-              ))}
+                </NotificationItem>
+                )
+              })}
               {!hasItems ? <p className="coach-notification-popover-empty">Nenhuma notificação recente.</p> : null}
             </div>
 

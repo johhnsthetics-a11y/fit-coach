@@ -51,8 +51,12 @@ await server.listen()
 const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE_PATH })
 const base = server.resolvedUrls.local[0]
 
+const viewportWidths = process.env.TEST_VIEWPORT
+  ? [Number(process.env.TEST_VIEWPORT)]
+  : [320, 390, 1440]
+
 try {
-  for (const width of [320, 390, 1440]) {
+  for (const width of viewportWidths) {
     const context = await browser.newContext({ viewport: { width, height: 900 } })
     await context.route('**/*', (route) => new URL(route.request().url()).hostname === '127.0.0.1'
       ? route.continue()
@@ -78,6 +82,11 @@ try {
     assert.equal(await page.getByText('Criar dieta', { exact: true }).isVisible(), width < 1024)
     assert.equal(await page.getByText('Sem treino ativo', { exact: true }).count(), 0)
     assert.equal(await page.getByText('Sem plano alimentar', { exact: true }).count(), 1)
+    assert.equal(await page.getByText('Resumo inteligente do dia', { exact: true }).count(), 1)
+    assert.equal(await page.getByText('Pacientes que precisam de atenção', { exact: true }).count(), 1)
+    assert.equal(await page.getByText('Pacientes ativos', { exact: true }).count(), 0)
+    assert.equal(await page.getByText('Evolução corporal', { exact: true }).count(), 0)
+    assert.equal(await page.getByText('Receita recebida', { exact: true }).count(), 0)
 
     if (width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
     const professionalNav = page.locator('.coach-nav-item')

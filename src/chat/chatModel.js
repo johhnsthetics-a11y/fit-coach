@@ -107,3 +107,29 @@ export function buildConversationRows(students = [], messages = []) {
     .sort((a, b) => timestampOf(b.activityAt) - timestampOf(a.activityAt) || a.index - b.index)
     .map(({ index: _index, ...row }) => row)
 }
+
+export function findLatestIncomingStudentMessage(previousMessages = [], nextMessages = [], { activeView = '', activeStudentId = '' } = {}) {
+  const knownIds = new Set((Array.isArray(previousMessages) ? previousMessages : []).map((message) => String(message?.id || '')))
+  const incoming = (Array.isArray(nextMessages) ? nextMessages : [])
+    .filter((message) => message?.sender === 'student' && message?.id && !knownIds.has(String(message.id)))
+    .sort((a, b) => timestampOf(b.createdAt) - timestampOf(a.createdAt))[0]
+
+  if (!incoming) return null
+  if (activeView === 'mensagens' && String(activeStudentId || '') === String(incoming.studentId || '')) return null
+  return incoming
+}
+
+export function buildIncomingMessageAlert(message, students = [], { professionalType = 'trainer' } = {}) {
+  if (!message?.id || !message?.studentId) return null
+  const student = (Array.isArray(students) ? students : []).find((item) => String(item?.id || '') === String(message.studentId))
+  const firstName = String(student?.name || '').trim().split(/\s+/)[0] || (professionalType === 'nutritionist' ? 'Paciente' : 'Aluno')
+  const body = String(message.body || '').replace(/\s+/g, ' ').trim() || 'Enviou uma nova mensagem.'
+
+  return {
+    id: message.id,
+    studentId: message.studentId,
+    title: `Nova mensagem de ${firstName}`,
+    body: body.length > 120 ? `${body.slice(0, 117).trimEnd()}...` : body,
+    audienceLabel: professionalType === 'nutritionist' ? 'paciente' : 'aluno',
+  }
+}
