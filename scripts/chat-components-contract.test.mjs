@@ -60,9 +60,15 @@ test('professional workspace exposes deterministic conversations and shared chat
 })
 
 test('chat displays the other person profile photo for professionals and students', () => {
-  assert.match(conversationList, /row\.student\?\.photo\s*\?\s*<img/)
+  assert.match(conversationList, /avatarUrl = String\(student\?\.photo/)
+  assert.match(conversationList, /<ConversationAvatar student=\{row\.student\}/)
   assert.match(app, /contact=\{\{ name: selectedStudent\.name, avatarUrl: selectedStudent\.photo,/)
   assert.match(app, /contact=\{\{ name: contactName, avatarUrl: coachSettings\?\.profilePhotoUrl,/)
+})
+
+test('chat falls back to initials when a signed profile photo fails', () => {
+  assert.match(header, /onError=\{\(\) => setFailedAvatarUrl\(avatarUrl\)\}/)
+  assert.match(conversationList, /onError=\{\(\) => setFailedAvatarUrl\(avatarUrl\)\}/)
 })
 
 test('new chat JSX modules compile independently before integration', async () => {
