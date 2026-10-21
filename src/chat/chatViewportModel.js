@@ -1,4 +1,4 @@
-export function getChatViewportMetrics({ visualViewport, innerHeight = 0 } = {}) {
+export function getChatViewportMetrics({ visualViewport, innerHeight = 0, baselineHeight = 0 } = {}) {
   const visualHeight = Number(visualViewport?.height)
   const fallbackHeight = Number(innerHeight)
   const resolvedHeight = Number.isFinite(visualHeight) && visualHeight > 0
@@ -10,8 +10,12 @@ export function getChatViewportMetrics({ visualViewport, innerHeight = 0 } = {})
   const resolvedOffsetTop = Number.isFinite(rawOffsetTop) && rawOffsetTop > 0
     ? rawOffsetTop
     : 0
-  const keyboardHeight = Number.isFinite(fallbackHeight) && fallbackHeight > 0
-    ? Math.max(Math.round(fallbackHeight - resolvedHeight - resolvedOffsetTop), 0)
+  const stableHeight = Number(baselineHeight)
+  const referenceHeight = Number.isFinite(stableHeight) && stableHeight > 0
+    ? Math.max(stableHeight, fallbackHeight || 0)
+    : fallbackHeight
+  const keyboardHeight = Number.isFinite(referenceHeight) && referenceHeight > 0
+    ? Math.max(Math.round(referenceHeight - resolvedHeight - resolvedOffsetTop), 0)
     : 0
 
   return {

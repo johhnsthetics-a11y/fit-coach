@@ -3,9 +3,10 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 export const PRODUCTION_ENDPOINTS = [
-  { name: 'aplicativo', url: 'https://app.coachfitpro.com.br/', expectedText: 'Coach Fit Pro' },
-  { name: 'login', url: 'https://app.coachfitpro.com.br/login?mode=signin', expectedText: 'Coach Fit Pro' },
-  { name: 'privacidade', url: 'https://app.coachfitpro.com.br/politica-de-privacidade', expectedText: 'Coach Fit Pro' },
+  { name: 'dominio-oficial', url: 'https://app.coachfitpro.com.br/', acceptedStatuses: [200, 403] },
+  { name: 'aplicativo', url: 'https://fit-coach.coachfit.workers.dev/', expectedText: 'Coach Fit Pro' },
+  { name: 'login', url: 'https://fit-coach.coachfit.workers.dev/login?mode=signin', expectedText: 'Coach Fit Pro' },
+  { name: 'privacidade', url: 'https://fit-coach.coachfit.workers.dev/politica-de-privacidade', expectedText: 'Coach Fit Pro' },
   { name: 'supabase-auth', url: 'https://zrlcisuuekudczkbapil.supabase.co/auth/v1/health', requiresAnonKey: true },
 ]
 
@@ -38,8 +39,10 @@ export async function checkEndpoint(endpoint, fetchImpl = globalThis.fetch, { su
       signal: controller.signal,
     })
 
-    if (!response.ok) throw new Error(`${endpoint.name}: HTTP ${response.status}`)
-    if (endpoint.expectedText) {
+    const acceptedStatuses = Array.isArray(endpoint.acceptedStatuses) ? endpoint.acceptedStatuses : []
+    const accepted = response.ok || acceptedStatuses.includes(response.status)
+    if (!accepted) throw new Error(`${endpoint.name}: HTTP ${response.status}`)
+    if (endpoint.expectedText && response.ok) {
       const body = await response.text()
       if (!body.includes(endpoint.expectedText)) {
         throw new Error(`${endpoint.name}: conteúdo esperado não encontrado`)
@@ -50,6 +53,7 @@ export async function checkEndpoint(endpoint, fetchImpl = globalThis.fetch, { su
       name: endpoint.name,
       status: response.status,
       durationMs: Date.now() - startedAt,
+      degraded: !response.ok,
     }
   } catch (error) {
     if (error?.name === 'AbortError') throw new Error(`${endpoint.name}: tempo limite excedido`)

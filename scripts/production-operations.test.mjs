@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { checkEndpoint, runProductionHealthCheck } from './production-health.mjs'
+import { PRODUCTION_ENDPOINTS, checkEndpoint, runProductionHealthCheck } from './production-health.mjs'
 import { exportSupabaseStorage } from './supabase-storage-backup.mjs'
 
 test('health check valida status e identidade da aplicacao', async () => {
@@ -50,6 +50,21 @@ test('health check autentica a leitura de saude do Supabase sem expor a chave', 
   )
 
   assert.equal(requestHeaders.apikey, 'public-test-key')
+})
+
+test('health check distingue bloqueio do monitor na borda de indisponibilidade da aplicacao', async () => {
+  const result = await checkEndpoint(
+    {
+      name: 'dominio-oficial',
+      url: 'https://app.coachfitpro.com.br/',
+      acceptedStatuses: [200, 403],
+    },
+    async () => new Response('', { status: 403 }),
+  )
+
+  assert.equal(result.status, 403)
+  assert.equal(result.degraded, true)
+  assert.ok(PRODUCTION_ENDPOINTS.some((endpoint) => endpoint.expectedText && endpoint.url.includes('workers.dev')))
 })
 
 test('backup de Storage preserva caminhos e rejeita travessia de diretorio', async () => {

@@ -203,6 +203,15 @@ test('chat mobile mantém o compositor acima do teclado e remove a navegação c
   assert.match(composerSource, /scrollIntoView/)
 })
 
+test('chat profissional usa a viewport visual completa durante o teclado do iPhone', () => {
+  assert.match(conversationSource, /baselineHeight/)
+  assert.match(conversationSource, /focusin/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.coach-mobile-header[\s\S]*?display:\s*none/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.chat-pro-mobile-conversation-open[\s\S]*?position:\s*fixed/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.chat-pro-mobile-conversation-open[\s\S]*?top:\s*var\(--chat-pro-visual-offset-top/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.chat-pro-mobile-conversation-open[\s\S]*?height:\s*var\(--chat-pro-visual-height/)
+})
+
 test('chat do aluno recebe shell dedicado para a mesma responsividade do coach', () => {
   assert.match(conversationSource, /chat-pro-student-shell/)
   assert.match(conversationSource, /chat-conversation-immersive/)
