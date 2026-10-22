@@ -13,6 +13,9 @@ Nao ha SQL nem migracao nova para executar. O agendamento de check-in reutiliza 
 ## O que foi atualizado
 
 - Seletor de plano de fundo do chat integrado ao cabecalho e corrigido para o layout atual.
+- Botao de personalizacao profissional, com nome do fundo ativo, indicador visual e selecao acessivel.
+- Presets e previews adaptados separadamente aos temas claro e escuro.
+- Campo de mensagem mobile estabilizado acima do teclado, sem salto causado por `scrollIntoView`.
 - Saudacao duplicada removida da area do aluno/paciente.
 - Agendamento de check-in por data, com status explicito para aluno/paciente e aviso local quando vence.
 - Data agendada preservada no envio do check-in e notificacao existente ao profissional mantida.

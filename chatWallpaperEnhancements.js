@@ -246,6 +246,21 @@ function applyWallpaperToViewport(viewport, preference) {
 
 function applyWallpaperToDocument(documentRoot, preference) {
   collectChatViewports(documentRoot).forEach((viewport) => applyWallpaperToViewport(viewport, preference))
+  syncWallpaperControls(documentRoot, preference)
+}
+
+function syncWallpaperControls(documentRoot, preference) {
+  const normalized = normalizeChatWallpaperPreference(preference)
+  const preset = CHAT_WALLPAPER_PRESETS.find((item) => item.id === normalized.presetId)
+  const label = normalized.presetId === 'custom' ? 'Imagem própria' : (preset?.label || 'Padrão')
+
+  documentRoot.querySelectorAll('.chat-wallpaper-native-trigger').forEach((button) => {
+    button.setAttribute('data-wallpaper-selection', normalized.presetId)
+    button.setAttribute('aria-label', `Personalizar conversa. Fundo atual: ${label}`)
+    button.setAttribute('title', `Fundo atual: ${label}`)
+    const current = button.querySelector('.chat-wallpaper-native-current')
+    if (current) current.textContent = label
+  })
 }
 
 function createWallpaperModal(documentRoot, storage) {
@@ -286,7 +301,7 @@ function createWallpaperModal(documentRoot, storage) {
     button.type = 'button'
     button.className = 'chat-pro-wallpaper-preset'
     button.dataset.wallpaperPreset = preset.id
-    button.innerHTML = `<span class="chat-pro-wallpaper-swatch" data-wallpaper-swatch="${preset.id}" aria-hidden="true"></span><strong>${preset.label}</strong><small>${preset.description}</small>`
+    button.innerHTML = `<span class="chat-pro-wallpaper-swatch" data-wallpaper-swatch="${preset.id}" aria-hidden="true"></span><strong>${preset.label}</strong><small>${preset.description}</small><span class="chat-pro-wallpaper-choice-status"><span aria-hidden="true">✓</span> Selecionado</span>`
     presetGrid.appendChild(button)
     presetButtons.set(preset.id, button)
   })
@@ -365,7 +380,11 @@ function createWallpaperModal(documentRoot, storage) {
   function renderDraft() {
     applyWallpaperToDocument(documentRoot, draft)
     overlayInput.value = String(draft.overlay)
-    presetButtons.forEach((button, id) => button.classList.toggle('chat-pro-wallpaper-selected', draft.presetId === id))
+    presetButtons.forEach((button, id) => {
+      const selected = draft.presetId === id
+      button.classList.toggle('chat-pro-wallpaper-selected', selected)
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false')
+    })
     const hasCustomImage = Boolean(draft.customDataUrl)
     customPreview.classList.toggle('chat-pro-wallpaper-selected', draft.presetId === 'custom')
     customPreview.setAttribute('aria-pressed', draft.presetId === 'custom' ? 'true' : 'false')
@@ -559,7 +578,9 @@ function enhanceWallpaperViewport(viewport, storage) {
 }
 
 function enhanceCurrentWallpaperChats(documentRoot, storage) {
+  const preference = loadChatWallpaperPreference(storage)
   collectChatViewports(documentRoot).forEach((viewport) => enhanceWallpaperViewport(viewport, storage))
+  syncWallpaperControls(documentRoot, preference)
 }
 
 export function installChatWallpaperEnhancements(

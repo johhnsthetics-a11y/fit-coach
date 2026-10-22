@@ -100,11 +100,17 @@ export function ChatConversation({
       type="button"
       className="chat-wallpaper-native-trigger"
       aria-label="Escolher plano de fundo do chat"
-      title="Plano de fundo"
+      title="Personalizar conversa"
       onClick={() => document.dispatchEvent(new CustomEvent('coach-fit:open-chat-wallpaper'))}
     >
-      <span aria-hidden="true">✦</span>
-      <span>Fundo</span>
+      {Icon
+        ? <Icon name="settings" className="chat-wallpaper-native-icon" />
+        : <span className="chat-wallpaper-native-fallback-icon" aria-hidden="true" />}
+      <span className="chat-wallpaper-native-copy">
+        <strong>Personalizar</strong>
+        <small className="chat-wallpaper-native-current">Aurora</small>
+      </span>
+      <span className="chat-wallpaper-native-indicator" aria-hidden="true" />
     </button>
   )
 
