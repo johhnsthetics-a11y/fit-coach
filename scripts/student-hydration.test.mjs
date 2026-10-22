@@ -50,3 +50,13 @@ test('experiencia de hidratacao possui estilos responsivos nos temas claro e esc
   assert.match(cssSource, /@keyframes studentHydrationCelebrate/)
   assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)[\s\S]*student-hydration/s)
 })
+
+test('volumes permanecem alinhados e legiveis nos celulares estreitos', () => {
+  assert.match(cssSource, /\.student-hydration-actions \.student-water-action\s*\{[^}]*display:\s*flex[^}]*white-space:\s*nowrap[^}]*font-variant-numeric:\s*tabular-nums/s)
+  assert.match(cssSource, /@media \(max-width:\s*420px\)\s*\{[^}]*\.student-hydration-hero\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s)
+  assert.match(cssSource, /@media \(max-width:\s*420px\)[\s\S]*\.student-hydration-actions \.student-water-action\s*\{[^}]*min-width:\s*0/s)
+})
+
+test('percentual da garrafa tem contraste proprio no tema claro', () => {
+  assert.match(cssSource, /\.student-mobile-shell\.app-theme-light \.student-hydration-bottle-body > strong\s*\{[^}]*background:\s*rgba\(255, 255, 255,[^}]*color:\s*#075985\s*!important[^}]*-webkit-text-fill-color:\s*#075985\s*!important/s)
+})

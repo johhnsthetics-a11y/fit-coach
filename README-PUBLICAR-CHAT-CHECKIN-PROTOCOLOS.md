@@ -27,7 +27,7 @@ Nao ha SQL nem migracao nova para executar. O agendamento de check-in reutiliza 
 
 ## Validacoes executadas
 
-- 371 testes automatizados aprovados.
+- 373 testes automatizados aprovados.
 - Build de producao aprovado.
 - Typecheck leve aprovado.
 - Verificacao de tema aprovada.
