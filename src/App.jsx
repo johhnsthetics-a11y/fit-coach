@@ -171,7 +171,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'webapp-workout-20260925'
+const COACH_FIT_PRO_BUILD_MARKER = 'webapp-alignment-20261022'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -6569,17 +6569,17 @@ function LegalModal({ type, onClose }) {
   const isPrivacy = type === 'privacy'
   const title = isPrivacy ? 'Privacidade e dados' : 'Termos de uso'
   const intro = isPrivacy
-    ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar o painel do treinador e o acesso do aluno.'
-    : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional e relação com o aluno continuam sob responsabilidade do treinador.'
+    ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar os painéis de treinadores e nutricionistas e os acessos de alunos e pacientes.'
+    : 'O Coach Fit Pro é uma plataforma de organização para treinadores e nutricionistas. A prescrição, a orientação e a relação com alunos e pacientes continuam sob responsabilidade do profissional responsável.'
   const items = isPrivacy
     ? [
-        'Dados sensíveis devem ser usados apenas com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, check-ins e mensagens ficam vinculados ao treinador responsável e ao aluno cadastrado.',
+        'Dados sensíveis devem ser usados apenas com consentimento do aluno ou paciente e finalidade de acompanhamento.',
+        'Fotos, check-ins e mensagens ficam vinculados ao profissional responsável e ao aluno ou paciente cadastrado.',
         'Chaves de API e integrações ficam protegidas no ambiente seguro da Supabase, não no navegador do usuário.',
         'Solicitações sobre dados podem ser enviadas para sac@coachfitpro.com.br.',
       ]
     : [
-        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
+        'Treinadores e nutricionistas devem usar o sistema de forma ética, profissional e conforme as regras de suas áreas de atuação.',
         'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
         'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout.',
         'O acesso pode ser limitado em caso de uso indevido, inadimplência ou violação de segurança.',
@@ -14473,6 +14473,8 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
   const formStudent = students.find((student) => String(student.id) === String(editingPlan?.studentId || selectedStudent?.id)) || selectedStudent
   const formAnamnesis = anamneses.find((item) => String(item.studentId) === String(formStudent?.id)) || null
+  const nutritionist = isNutritionistUser(professional)
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
   const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
@@ -14693,7 +14695,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
             ) : null}
             <button type="button" onClick={() => setPreviewOpen(true)} className="nutrition-preview-action inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
               <NavIcon name="eye" className="h-4 w-4" />
-              Visão do aluno
+              Visão do {clientLabel}
             </button>
           </div>
         </div>
@@ -14713,9 +14715,9 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
 
       <input type="hidden" name="studentId" value={formStudent?.id || ''} />
       <div className="nutrition-student-context-v1 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Paciente em edição</p>
-        <p className="mt-1 break-words text-lg font-black text-white">{formStudent?.name || 'Selecione um aluno'}</p>
-        <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este aluno selecionado no painel.</p>
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">{nutritionist ? 'Paciente' : 'Aluno'} em edição</p>
+        <p className="mt-1 break-words text-lg font-black text-white">{formStudent?.name || `Selecione um ${clientLabel}`}</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este {clientLabel} selecionado no painel.</p>
       </div>
 
       {createPortal((
@@ -14734,12 +14736,12 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
             <section
               id="nutrition-anamnesis-panel"
               className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] right-3 z-[80] flex max-h-[68vh] w-[min(92vw,30rem)] flex-col overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950 text-zinc-100 shadow-2xl shadow-black/50 md:bottom-20"
-              aria-label={`Anamnese do ${isNutritionistUser(professional) ? 'paciente' : 'aluno'}`}
+              aria-label={`Anamnese do ${clientLabel}`}
             >
               <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-300">Contexto de saúde</p>
-                  <h3 className="mt-1 truncate font-black text-white">Anamnese · {formStudent?.name || 'Cliente'}</h3>
+                  <h3 className="mt-1 truncate font-black text-white">Anamnese · {formStudent?.name || (nutritionist ? 'Paciente' : 'Aluno')}</h3>
                 </div>
                 <button type="button" onClick={() => setAnamnesisOpen(false)} className="min-h-10 shrink-0 rounded-lg border border-white/15 px-3 text-sm font-bold text-zinc-200 hover:bg-white/5">Recolher</button>
               </header>
@@ -14748,8 +14750,8 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
                   anamnesis={formAnamnesis}
                   student={formStudent}
                   questionnaireAssignments={questionnaireAssignments}
-                  clientLabel={isNutritionistUser(professional) ? 'paciente' : 'aluno'}
-                  nutritionist={isNutritionistUser(professional)}
+                  clientLabel={clientLabel}
+                  nutritionist={nutritionist}
                 />
               </div>
             </section>
@@ -14885,6 +14887,9 @@ function escapeNutritionPdfHtml(value = '') {
 function openNutritionPlanPdf(plan, student = {}, professional = {}) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const today = formatDate(new Date().toISOString())
+  const nutritionist = isNutritionistUser(professional)
+  const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const rows = meals.length
     ? meals.map((meal, index) => `
       <section class="meal">
@@ -14934,7 +14939,7 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
     <header>
       <div class="eyebrow">Coach Fit Pro · Plano alimentar</div>
       <h1>${escapeNutritionPdfHtml(plan?.title || 'Plano alimentar')}</h1>
-      <p>Paciente: <strong>${escapeNutritionPdfHtml(student?.name || 'Aluno')}</strong> · Profissional: <strong>${escapeNutritionPdfHtml(professional?.name || professional?.email || 'Profissional')}</strong> · ${today}</p>
+      <p>${clientTitle}: <strong>${escapeNutritionPdfHtml(student?.name || clientTitle)}</strong> · Profissional: <strong>${escapeNutritionPdfHtml(professional?.name || professional?.email || 'Profissional')}</strong> · ${today}</p>
       <div class="meta">
         <div class="card"><small>Calorias</small><strong>${escapeNutritionPdfHtml(plan?.calories || '-')}</strong></div>
         <div class="card"><small>Proteína</small><strong>${escapeNutritionPdfHtml(plan?.protein || '-')}</strong></div>
@@ -14943,7 +14948,7 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
     </header>
     ${rows}
     ${notes ? `<section class="notes"><div class="eyebrow">Orientações</div><p>${escapeNutritionPdfHtml(notes)}</p></section>` : ''}
-    <footer>Documento gerado pelo Coach Fit Pro. Revise as orientações individualmente antes de enviar ao paciente.</footer>
+    <footer>Documento gerado pelo Coach Fit Pro. Revise as orientações individualmente antes de enviar ao ${clientLabel}.</footer>
   </main>
   <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script>
 </body>
@@ -14961,17 +14966,19 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
 function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, onClose }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const canDownloadPdf = canPatientDownloadNutritionPdf(plan)
+  const nutritionist = isNutritionistUser(professional)
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
 
   return createPortal((
-    <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
+    <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label={`Visão do ${clientLabel} da dieta`}>
       <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do aluno</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do {clientLabel}</p>
             <h3 className="mt-1 break-words text-2xl font-black text-white">{plan?.title || 'Plano alimentar'}</h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || 'Aluno'} verá refeições, horários e macros de forma simples.</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || (nutritionist ? 'Paciente' : 'Aluno')} verá refeições, horários e macros de forma simples.</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label="Fechar visão do aluno">
+          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label={`Fechar visão do ${clientLabel}`}>
             <NavIcon name="close" className="h-5 w-5" />
           </button>
         </div>
@@ -14991,7 +14998,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
 
         {plan?.notes ? (
           <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+            <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
           </div>
         ) : null}
@@ -15009,7 +15016,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
               </div>
             </article>
           )) : (
-            <Empty text="Adicione refeições para visualizar a dieta como o aluno verá." />
+            <Empty text={`Adicione refeições para visualizar a dieta como o ${clientLabel} verá.`} />
           )}
         </div>
       </div>
@@ -15222,12 +15229,15 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   const [visibilityMessage, setVisibilityMessage] = useState('')
   const [visibilityError, setVisibilityError] = useState('')
   const visibilityPending = useRef(false)
+  const nutritionist = isNutritionistUser(professional)
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
+  const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
 
   async function handleArchive(plan, active = false) {
     if (!onArchive || visibilityPending.current) return
     const confirmText = active
-      ? `Mostrar a dieta "${plan.title}" ao paciente novamente?`
-      : `Ocultar a dieta "${plan.title}" do paciente? Ela continuará salva e as outras dietas não serão alteradas.`
+      ? `Mostrar a dieta "${plan.title}" ao ${clientLabel} novamente?`
+      : `Ocultar a dieta "${plan.title}" do ${clientLabel}? Ela continuará salva e as outras dietas não serão alteradas.`
     if (!window.confirm(confirmText)) return
     visibilityPending.current = true
     setArchivingId(String(plan.id))
@@ -15236,7 +15246,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
     try {
       const saved = await onArchive(plan.id, active)
       if (saved === false) throw new Error('visibility-not-saved')
-      setVisibilityMessage(active ? 'Dieta disponível para o paciente.' : 'Dieta oculta do paciente. As outras dietas continuam disponíveis.')
+      setVisibilityMessage(active ? `Dieta disponível para o ${clientLabel}.` : `Dieta oculta do ${clientLabel}. As outras dietas continuam disponíveis.`)
     } catch {
       setVisibilityError('Não foi possível alterar a visibilidade. Tente novamente.')
     } finally {
@@ -15259,7 +15269,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   if (!allPlans.length) {
     return (
       <div className="nutrition-prescribed-empty-v5 space-y-3">
-        <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
+        <Empty text={`Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este ${clientLabel}.`} />
         <div className="grid gap-3 sm:grid-cols-2">
           <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
           <Info label="Proteína da ficha" value={selectedStudent?.protein ?? '-'} />
@@ -15290,13 +15300,13 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      Paciente: {planStudent?.name || 'Aluno'}
+                      {clientTitle}: {planStudent?.name || clientTitle}
                     </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
-                    {archived ? 'Oculta do paciente' : 'Disponível'}
+                    {archived ? `Oculta do ${clientLabel}` : 'Disponível'}
                   </span>
                   <span className="nutrition-plan-expand-indicator-v1 grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-zinc-300">
                     <NavIcon name={isExpanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
@@ -15310,7 +15320,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
             <div className="border-b border-white/10 bg-emerald-300/[0.035] p-4">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
-                  Paciente: {planStudent?.name || 'Aluno'}
+                  {clientTitle}: {planStudent?.name || clientTitle}
                 </span>
                 {onEdit && !archived ? (
                   <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
@@ -15324,7 +15334,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                 ) : null}
                 {onArchive ? (
                   <button disabled={Boolean(archivingId)} type="button" onClick={() => handleArchive(plan, archived)} className={`rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition disabled:opacity-50 ${archived ? 'hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-100' : 'hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100'}`}>
-                    {archivingId === String(plan.id) ? 'Salvando...' : archived ? 'Mostrar ao paciente' : 'Ocultar do paciente'}
+                    {archivingId === String(plan.id) ? 'Salvando...' : archived ? `Mostrar ao ${clientLabel}` : `Ocultar do ${clientLabel}`}
                   </button>
                 ) : null}
               </div>
@@ -15338,7 +15348,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
             <div className="space-y-3 p-4">
               {stripNutritionPlanMetadata(plan.notes) ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
                 </div>
               ) : null}
@@ -15392,7 +15402,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
 
       {onArchive ? <div className="nutrition-archived-plans-v1 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Ocultas do paciente</h4>
+          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Ocultas do {clientLabel}</h4>
           <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-zinc-400">{hiddenPlans.length}</span>
         </div>
         {hiddenPlans.length ? hiddenPlans.map((plan) => renderPlan(plan, true)) : (
@@ -17327,7 +17337,10 @@ function formatAppPaymentStatus(status) {
 async function sendLocalNotification(title, body, options = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
   try {
-    const registration = await navigator.serviceWorker?.getRegistration()
+    let registration = await navigator.serviceWorker?.getRegistration()
+    if (registration && !registration.active && navigator.serviceWorker?.ready) {
+      registration = await navigator.serviceWorker.ready
+    }
     const notificationOptions = {
       body,
       icon: '/logoabre.png',
@@ -17698,7 +17711,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     openTab(previousTab && previousTab !== 'mensagens' ? previousTab : 'inicio')
   }
 
-  function addWater(amountMl) {
+  async function addWater(amountMl) {
     const safeAmount = Math.max(0, Number(amountMl) || 0)
     const current = waterMlRef.current
     const next = Math.min(waterGoalMl, current + safeAmount)
@@ -17712,12 +17725,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     if (current < waterGoalMl && next >= waterGoalMl) {
       setWaterGoalCelebration(true)
       if (readLocalStorage(waterGoalNoticeKey, '') !== '1') {
-        writeLocalStorage(waterGoalNoticeKey, '1')
-        sendLocalNotification(
+        const notificationDelivered = await sendLocalNotification(
           'Meta de água concluída',
           `Parabéns, ${studentFirstName}! Você completou sua hidratação de hoje.`,
           { tag: `water-goal-${student?.id}-${waterStorageDate}`, data: { url: `${window.location.pathname}?alunoTab=agua` } },
         )
+        if (notificationDelivered) writeLocalStorage(waterGoalNoticeKey, '1')
       }
     }
   }

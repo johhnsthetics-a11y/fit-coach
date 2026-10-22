@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-pwa-20261021-message-alerts-v1'
+const CACHE_NAME = 'coach-fit-pro-webapp-alignment-20261022'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {

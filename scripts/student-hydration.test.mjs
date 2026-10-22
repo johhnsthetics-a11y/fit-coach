@@ -42,6 +42,18 @@ test('reiniciar o progresso nao repete a notificacao da mesma conquista diaria',
   assert.doesNotMatch(resetSource, /removeLocalStorage\(waterGoalNoticeKey\)/)
 })
 
+test('conquista so fica notificada depois que o celular confirma a entrega', () => {
+  const notificationSource = appSource.slice(appSource.indexOf('async function sendLocalNotification'), appSource.indexOf('function ProfileAvatar'))
+  const addWaterStart = appSource.indexOf('async function addWater(amountMl)')
+  const addWaterSource = appSource.slice(addWaterStart, appSource.indexOf('function undoLastWater()'))
+
+  assert.match(notificationSource, /navigator\.serviceWorker\?\.ready/)
+  assert.ok(addWaterStart >= 0)
+  assert.match(addWaterSource, /async function addWater\(amountMl\)/)
+  assert.match(addWaterSource, /const notificationDelivered = await sendLocalNotification\(/)
+  assert.match(addWaterSource, /if \(notificationDelivered\) writeLocalStorage\(waterGoalNoticeKey, ['"]1['"]\)/)
+})
+
 test('experiencia de hidratacao possui estilos responsivos nos temas claro e escuro', () => {
   assert.match(cssSource, /\.student-hydration-page/)
   assert.match(cssSource, /\.student-water-quick-card/)
