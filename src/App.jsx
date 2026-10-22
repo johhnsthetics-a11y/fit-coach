@@ -627,8 +627,8 @@ const navItems = [
 
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
-const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
-const patientPortalTabIds = new Set(['inicio', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
+const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
+const patientPortalTabIds = new Set(['inicio', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
 const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'checkins', 'pagamentos', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
 
 function resolveStudentPortalTab(professionalType, tab) {
@@ -17536,17 +17536,24 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     ? serverFinancialAccessOpen
     : temporaryAccessOpen || hasStudentAccess(student)
   const restrictedTabs = patientMode
-    ? ['dieta', 'checkin', 'agenda', 'progresso', 'historico']
-    : ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
+    ? ['dieta', 'agua', 'checkin', 'agenda', 'progresso', 'historico']
+    : ['treino', 'dieta', 'agua', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
   const waterStorageDate = new Date().toLocaleDateString('sv-SE')
   const waterStorageKey = `fitcoach-water-${student?.id || 'aluno'}-${waterStorageDate}`
+  const waterLogStorageKey = `${waterStorageKey}-entries`
+  const waterGoalNoticeKey = `${waterStorageKey}-goal-notified`
   const [waterMl, setWaterMl] = useState(0)
+  const waterMlRef = useRef(0)
+  const [waterEntries, setWaterEntries] = useState([])
+  const [waterGoalCelebration, setWaterGoalCelebration] = useState(false)
+  const [waterNotificationStatus, setWaterNotificationStatus] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
   const navItems = [
     { id: 'inicio', label: 'Início', icon: 'dashboard', tone: 'emerald' },
     { id: 'treino', label: 'Treino', icon: 'dumbbell', tone: 'lime' },
     { id: 'dieta', label: 'Dieta', icon: 'nutrition', tone: 'orange' },
+    { id: 'agua', label: 'Água', icon: 'water', tone: 'sky' },
     { id: 'checkin', label: 'Check-in', icon: 'camera', tone: 'rose' },
     { id: 'mensagens', label: 'Chat', icon: 'message', tone: 'blue' },
     { id: 'pagamentos', label: 'Fatura', icon: 'wallet', tone: 'green' },
@@ -17557,15 +17564,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   ].filter((item) => !patientMode || item.id !== 'treino')
   const primaryStudentNavItems = [
     ...(patientMode
-      ? ['inicio', 'dieta', 'progresso', 'checkin']
-      : ['inicio', 'treino', 'dieta', 'progresso']),
+      ? ['inicio', 'dieta', 'agua', 'progresso', 'checkin']
+      : ['inicio', 'treino', 'dieta', 'agua', 'progresso']),
   ].map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const secondaryStudentNavIds = patientMode
     ? ['mensagens', 'agenda', 'pagamentos', 'historico', 'conta']
     : ['mensagens', 'checkin', 'agenda', 'pagamentos', 'historico', 'conta']
   const bottomStudentNavIds = patientMode
-    ? ['inicio', 'dieta', 'progresso', 'mensagens']
-    : ['inicio', 'treino', 'dieta', 'progresso']
+    ? ['inicio', 'dieta', 'agua', 'progresso']
+    : ['inicio', 'treino', 'agua', 'dieta']
   const secondaryStudentNavItems = secondaryStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const bottomNavItems = bottomStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Início'
@@ -17616,12 +17623,34 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
   useEffect(() => {
     const savedWater = Number(readLocalStorage(waterStorageKey, '0'))
-    setWaterMl(Number.isFinite(savedWater) ? Math.min(savedWater, waterGoalMl) : 0)
-  }, [waterStorageKey, waterGoalMl])
+    const nextWater = Number.isFinite(savedWater) ? Math.max(0, Math.min(savedWater, waterGoalMl)) : 0
+    let nextEntries = []
+    try {
+      const parsedEntries = JSON.parse(readLocalStorage(waterLogStorageKey, '[]'))
+      nextEntries = Array.isArray(parsedEntries)
+        ? parsedEntries.filter((entry) => Number(entry?.amountMl) > 0 && entry?.at).slice(0, 40)
+        : []
+    } catch {}
+    waterMlRef.current = nextWater
+    setWaterMl(nextWater)
+    setWaterEntries(nextEntries)
+    setWaterGoalCelebration(false)
+  }, [waterLogStorageKey, waterStorageKey, waterGoalMl])
 
   useEffect(() => {
+    waterMlRef.current = waterMl
     writeLocalStorage(waterStorageKey, String(Math.min(waterMl, waterGoalMl)))
   }, [waterMl, waterGoalMl, waterStorageKey])
+
+  useEffect(() => {
+    writeLocalStorage(waterLogStorageKey, JSON.stringify(waterEntries.slice(0, 40)))
+  }, [waterEntries, waterLogStorageKey])
+
+  useEffect(() => {
+    if (!waterGoalCelebration) return undefined
+    const timer = window.setTimeout(() => setWaterGoalCelebration(false), 4800)
+    return () => window.clearTimeout(timer)
+  }, [waterGoalCelebration])
 
   useEffect(() => {
     if (!('Notification' in window) || Notification.permission !== 'granted') return
@@ -17670,11 +17699,58 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }
 
   function addWater(amountMl) {
-    setWaterMl((current) => Math.min(waterGoalMl, current + amountMl))
+    const safeAmount = Math.max(0, Number(amountMl) || 0)
+    const current = waterMlRef.current
+    const next = Math.min(waterGoalMl, current + safeAmount)
+    const recordedAmount = next - current
+    if (!recordedAmount) return
+
+    waterMlRef.current = next
+    setWaterMl(next)
+    setWaterEntries((entries) => [{ id: createNutritionDraftId('water'), amountMl: recordedAmount, at: new Date().toISOString() }, ...entries].slice(0, 40))
+
+    if (current < waterGoalMl && next >= waterGoalMl) {
+      setWaterGoalCelebration(true)
+      if (readLocalStorage(waterGoalNoticeKey, '') !== '1') {
+        writeLocalStorage(waterGoalNoticeKey, '1')
+        sendLocalNotification(
+          'Meta de água concluída',
+          `Parabéns, ${studentFirstName}! Você completou sua hidratação de hoje.`,
+          { tag: `water-goal-${student?.id}-${waterStorageDate}`, data: { url: `${window.location.pathname}?alunoTab=agua` } },
+        )
+      }
+    }
+  }
+
+  function undoLastWater() {
+    const latestEntry = waterEntries[0]
+    if (!latestEntry) return
+    const next = Math.max(0, waterMlRef.current - Number(latestEntry.amountMl || 0))
+    waterMlRef.current = next
+    setWaterMl(next)
+    setWaterEntries((entries) => entries.slice(1))
+    setWaterGoalCelebration(false)
   }
 
   function resetWater() {
+    waterMlRef.current = 0
     setWaterMl(0)
+    setWaterEntries([])
+    setWaterGoalCelebration(false)
+  }
+
+  async function requestWaterNotifications() {
+    if (!('Notification' in window)) {
+      setWaterNotificationStatus('unsupported')
+      return
+    }
+    const nextPermission = Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission
+    setWaterNotificationStatus(nextPermission)
+    if (nextPermission === 'granted') {
+      await sendLocalNotification('Avisos de hidratação ativados', 'Você receberá uma mensagem quando concluir sua meta diária.', { tag: 'water-notifications-enabled' })
+    }
   }
 
   async function handleAvatarChange(event) {
@@ -17791,10 +17867,26 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           waterGoalMl={waterGoalMl}
           questionnaireAssignments={studentQuestionnaireAssignments}
           dismissedQuestionnairePriorityIds={dismissedQuestionnairePriorityIds}
-          onAddWater={addWater}
-          onResetWater={resetWater}
           onOpenTab={openTab}
           onDismissQuestionnaire={(assignmentId) => setDismissedQuestionnairePriorityIds((current) => [...new Set([...current, assignmentId])])}
+        />
+      )
+    }
+
+    if (activeTab === 'agua') {
+      return (
+        <StudentHydrationPage
+          goalMl={waterGoalMl}
+          currentMl={waterMl}
+          entries={waterEntries}
+          celebration={waterGoalCelebration}
+          notificationStatus={waterNotificationStatus}
+          professionalReference={patientMode ? 'pela nutricionista' : 'pelo treinador'}
+          onAddWater={addWater}
+          onUndoLast={undoLastWater}
+          onReset={resetWater}
+          onRequestNotifications={requestWaterNotifications}
+          onDismissCelebration={() => setWaterGoalCelebration(false)}
         />
       )
     }
@@ -18185,7 +18277,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   )
 }
 
-function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
+function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onOpenTab, onDismissQuestionnaire }) {
   const firstName = String(student?.name || (patientMode ? 'paciente' : 'aluno')).split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
@@ -18287,12 +18379,10 @@ function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], 
           </details>
         </div>
 
-        <StudentWaterTracker
+        <StudentWaterQuickCard
           goalMl={waterGoalMl}
           currentMl={waterMl}
-          onAddWater={onAddWater}
-          onReset={onResetWater}
-          professionalReference={patientMode ? 'pela nutricionista' : 'pelo treinador'}
+          onOpen={() => onOpenTab('agua')}
         />
 
         {!patientMode ? <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
@@ -18688,57 +18778,133 @@ function StudentAppSection({ id, title, action, children }) {
   )
 }
 
-function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset, professionalReference = 'pelo profissional' }) {
+function StudentWaterQuickCard({ goalMl, currentMl, onOpen }) {
   const safeGoal = Math.max(500, Number(goalMl || 2500))
   const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
   const percent = Math.round((safeCurrent / safeGoal) * 100)
-  const fillHeight = `${Math.min(100, Math.max(0, percent))}%`
+  const remainingMl = Math.max(0, safeGoal - safeCurrent)
+
+  return (
+    <button type="button" onClick={onOpen} className="student-water-quick-card group w-full text-left">
+      <span className="student-water-quick-icon" aria-hidden="true">
+        <NavIcon name="water" className="h-6 w-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-3">
+          <strong>Hidratação de hoje</strong>
+          <span className="student-water-quick-percent">{percent}%</span>
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-zinc-400">
+          {remainingMl > 0 ? `${safeCurrent} ml registrados. Faltam ${remainingMl} ml.` : 'Meta concluída. Continue mantendo sua consistência.'}
+        </span>
+        <span className="student-water-quick-progress" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>
+      </span>
+      <NavIcon name="chevronRight" className="h-5 w-5 shrink-0 text-sky-200 transition group-hover:translate-x-0.5" />
+    </button>
+  )
+}
+
+function StudentHydrationPage({ goalMl, currentMl, entries = [], celebration = false, notificationStatus = 'default', professionalReference = 'pelo profissional', onAddWater, onUndoLast, onReset, onRequestNotifications, onDismissCelebration }) {
+  const safeGoal = Math.max(500, Number(goalMl || 2500))
+  const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
+  const percent = Math.round((safeCurrent / safeGoal) * 100)
   const remainingMl = Math.max(0, safeGoal - safeCurrent)
   const currentLiters = (safeCurrent / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const goalLiters = (safeGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  const milestones = [25, 50, 75, 100]
+  const permissionLabel = notificationStatus === 'granted'
+    ? 'Notificações ativas'
+    : notificationStatus === 'denied'
+      ? 'Notificações bloqueadas no navegador'
+      : notificationStatus === 'unsupported'
+        ? 'Notificações indisponíveis neste navegador'
+        : 'Ativar notificações'
 
   return (
-    <div className="mb-4 overflow-hidden rounded-md border border-sky-300/25 bg-sky-400/10 p-4">
-      <div className="grid gap-4 sm:grid-cols-[112px_1fr] sm:items-center">
-        <div className="mx-auto grid justify-items-center gap-2">
-          <div className="h-5 w-14 rounded-t-md border border-sky-200/40 bg-zinc-950/80" />
-          <div className="relative h-44 w-24 overflow-hidden rounded-[2rem] border-2 border-sky-100/35 bg-zinc-950/70 shadow-inner shadow-sky-950/50">
-            <div
-              className="absolute inset-x-0 bottom-0 rounded-b-[1.8rem] bg-gradient-to-t from-sky-500 via-cyan-300 to-sky-200 transition-all duration-500 ease-out"
-              style={{ height: fillHeight }}
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.18)_0%,transparent_22%,transparent_72%,rgba(255,255,255,0.14)_100%)]" />
-            <div className="absolute inset-0 grid place-items-center">
-              <span className="rounded-full border border-white/20 bg-zinc-950/70 px-3 py-1 text-sm font-black text-sky-100 backdrop-blur">
-                {percent}%
-              </span>
+    <StudentAppSection title="Hidratação" action="Meta diária">
+      <div className={`student-hydration-page ${celebration ? 'is-celebrating' : ''}`}>
+        {celebration ? (
+          <div className="student-hydration-celebration" role="status" aria-live="polite">
+            <span className="student-hydration-celebration-icon"><NavIcon name="check" className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1">
+              <strong>Meta concluída!</strong>
+              <small>Excelente. Sua hidratação de hoje está completa.</small>
+            </span>
+            <button type="button" onClick={onDismissCelebration} aria-label="Fechar comemoração"><NavIcon name="close" className="h-4 w-4" /></button>
+          </div>
+        ) : null}
+
+        <div className="student-hydration-hero">
+          <div className="student-hydration-bottle" aria-label={`${percent}% da meta de água concluída`}>
+            <span className="student-hydration-bottle-cap" />
+            <span className="student-hydration-bottle-body">
+              <span className="student-hydration-water" style={{ height: `${percent}%` }} />
+              <strong>{percent}%</strong>
+            </span>
+          </div>
+
+          <div className="student-hydration-summary">
+            <p>Missão de hoje</p>
+            <h3>{currentLiters} L <span>de {goalLiters} L</span></h3>
+            <p className="student-hydration-guidance">
+              {remainingMl > 0
+                ? `Faltam ${remainingMl} ml para a meta definida ${professionalReference}. Cada registro conta.`
+                : 'Meta concluída. Pequenos hábitos, repetidos todos os dias, constroem grandes resultados.'}
+            </p>
+            <div className="student-hydration-actions" aria-label="Registrar água">
+              <button type="button" onClick={() => onAddWater(250)} className="student-water-action student-water-action--250"><strong>+250</strong><span>ml</span></button>
+              <button type="button" onClick={() => onAddWater(350)} className="student-water-action student-water-action--350"><strong>+350</strong><span>ml</span></button>
+              <button type="button" onClick={() => onAddWater(500)} className="student-water-action student-water-action--500"><strong>+500</strong><span>ml</span></button>
             </div>
           </div>
         </div>
 
-        <div className="min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase text-sky-200">Meta de água</p>
-              <h3 className="mt-1 text-2xl font-black text-white">{currentLiters} L / {goalLiters} L</h3>
+        <div className="student-hydration-milestones" aria-label="Marcos da hidratação">
+          {milestones.map((milestone) => (
+            <div key={milestone} className={percent >= milestone ? 'is-reached' : ''}>
+              <span>{percent >= milestone ? <NavIcon name="check" className="h-3.5 w-3.5" /> : milestone}</span>
+              <small>{milestone}%</small>
             </div>
-            <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-xs font-black text-sky-100">
-              Hoje
-            </span>
+          ))}
+          <span className="student-hydration-milestone-line"><span style={{ width: `${percent}%` }} /></span>
+        </div>
+
+        <div className="student-hydration-details">
+          <div className="student-hydration-history">
+            <div className="student-hydration-subhead">
+              <div>
+                <p>Histórico de hoje</p>
+                <span>{entries.length ? `${entries.length} ${entries.length === 1 ? 'registro' : 'registros'}` : 'Comece pelo primeiro copo'}</span>
+              </div>
+              <button type="button" onClick={onUndoLast} disabled={!entries.length} className="student-water-action student-water-action--undo">Desfazer último</button>
+            </div>
+            {entries.length ? (
+              <ol className="student-hydration-entry-list">
+                {entries.slice(0, 6).map((entry) => (
+                  <li key={entry.id}>
+                    <span><NavIcon name="water" className="h-4 w-4" /></span>
+                    <strong>+{entry.amountMl} ml</strong>
+                    <time dateTime={entry.at}>{new Date(entry.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="student-hydration-empty">Registre a primeira dose para iniciar sua missão diária.</p>
+            )}
           </div>
-          <p className="mt-2 text-sm leading-6 text-zinc-300">
-            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida ${professionalReference}.` : 'Meta concluída hoje. Excelente consistência.'}
-          </p>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => onAddWater(250)} className="student-water-action student-water-action--250 rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
-            <button type="button" onClick={() => onAddWater(500)} className="student-water-action student-water-action--500 rounded-md bg-cyan-300 px-3 py-3 text-xs font-black text-zinc-950">+500 ml</button>
-            <button type="button" onClick={onReset} className="student-water-action student-water-action--reset rounded-md border border-white/10 px-3 py-3 text-xs font-black text-zinc-200">
-              Zerar
+
+          <aside className="student-hydration-settings">
+            <p>Lembrete de conquista</p>
+            <span>Ao concluir 100%, o aplicativo comemora e pode avisar no celular.</span>
+            <button type="button" disabled={notificationStatus !== 'default'} onClick={onRequestNotifications} className="student-water-notification-button">
+              <NavIcon name={notificationStatus === 'granted' ? 'check' : 'notifications'} className="h-4 w-4" />
+              {permissionLabel}
             </button>
-          </div>
+            <button type="button" onClick={onReset} disabled={!safeCurrent} className="student-water-action student-water-action--reset">Reiniciar dia</button>
+          </aside>
         </div>
       </div>
-    </div>
+    </StudentAppSection>
   )
 }
 
