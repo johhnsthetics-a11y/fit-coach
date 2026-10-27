@@ -7549,14 +7549,18 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   }
 
   return (
-    <div className="grid gap-4 lg:gap-6">
-      <div className="inline-flex w-fit max-w-full gap-1 rounded-lg border border-white/10 bg-black/20 p-1" role="tablist" aria-label="Áreas de alunos">
+    <div className="students-workspace grid gap-4 lg:gap-6">
+      <div
+        className="students-workspace-tabs inline-flex w-fit max-w-full gap-1 p-1"
+        role="tablist"
+        aria-label={nutritionist ? 'Áreas de pacientes' : 'Áreas de alunos'}
+      >
         <button
           type="button"
           role="tab"
           aria-selected={studentSection === 'wallet'}
           onClick={() => setStudentSection('wallet')}
-          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'wallet' ? 'bg-emerald-300 text-zinc-950' : 'text-zinc-300 hover:bg-white/5'}`}
+          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'wallet' ? 'is-active' : ''}`}
         >
           Carteira
         </button>
@@ -7565,7 +7569,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           role="tab"
           aria-selected={studentSection === 'anamnesis'}
           onClick={() => setStudentSection('anamnesis')}
-          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'anamnesis' ? 'bg-emerald-300 text-zinc-950' : 'text-zinc-300 hover:bg-white/5'}`}
+          className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'anamnesis' ? 'is-active' : ''}`}
         >
           Anamnese
         </button>
@@ -7584,10 +7588,11 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           uiTheme={uiTheme}
         />
       </div>
-      <div hidden={studentSection !== 'wallet'} className="grid gap-4 lg:gap-6">
-      <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
+      <div hidden={studentSection !== 'wallet'} className="student-wallet-workspace grid gap-4 lg:gap-6">
+        <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
-      <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
+      <div className="student-wallet-columns grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
+      <div className="student-wallet-directory">
       <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
         <div className="mb-4 grid gap-2 sm:grid-cols-2">
           <button onClick={() => setEditing(createBlankStudent())} className="min-h-12 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
@@ -7613,7 +7618,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
             />
           </span>
         </label>
-        <div className="space-y-3">
+        <div className="student-wallet-directory__list space-y-3">
           {visibleStudents.map((student) => (
             <button
               key={student.id}
@@ -7642,7 +7647,9 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           ) : null}
         </div>
       </Panel>
+      </div>
 
+      <div className="student-wallet-detail">
       <Panel title="Ficha e edição" action={selectedStudent?.phase ?? 'Novo'}>
         {editing ? (
           <StudentForm
@@ -7740,6 +7747,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           <Empty text={nutritionist ? 'Nenhum paciente selecionado.' : 'Nenhum aluno selecionado.'} />
         )}
       </Panel>
+      </div>
       </div>
       </div>
       <StudentImportDialog

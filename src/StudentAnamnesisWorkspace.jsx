@@ -159,12 +159,12 @@ export default function StudentAnamnesisWorkspace({
     <section className={`student-anamnesis-workspace theme-${uiTheme}`} aria-label="Organização de anamneses">
       <header className="student-anamnesis-workspace__header">
         <div>
-          <p>Anamnese personalizada</p>
-          <h2>Crie, programe e acompanhe</h2>
-          <span>Organize as perguntas que fazem sentido para o seu atendimento e mantenha a resposta mais recente disponível na prescrição.</span>
+          <p>Central de anamnese</p>
+          <h2>Modelos, envios e respostas</h2>
+          <span>Personalize as perguntas, defina o envio e acompanhe o retorno mais recente sem sair desta área.</span>
         </div>
-        <button type="button" onClick={() => setDraft(createQuestionnaireDraft({}, QUESTIONNAIRE_TYPES.ANAMNESIS))}>
-          Novo modelo
+        <button className="student-anamnesis-new-model" type="button" onClick={() => setDraft(createQuestionnaireDraft({}, QUESTIONNAIRE_TYPES.ANAMNESIS))}>
+          Criar modelo
         </button>
       </header>
 
