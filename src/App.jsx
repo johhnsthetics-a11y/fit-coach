@@ -7548,17 +7548,29 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     }
   }
 
+  function handleStudentTabsKeyDown(event) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const nextSection = event.key === 'ArrowLeft' || event.key === 'Home' ? 'wallet' : 'anamnesis'
+    setStudentSection(nextSection)
+    window.requestAnimationFrame(() => document.getElementById(`students-tab-${nextSection}`)?.focus())
+  }
+
   return (
     <div className="students-workspace grid gap-4 lg:gap-6">
       <div
         className="students-workspace-tabs inline-flex w-fit max-w-full gap-1 p-1"
         role="tablist"
         aria-label={nutritionist ? 'Áreas de pacientes' : 'Áreas de alunos'}
+        onKeyDown={handleStudentTabsKeyDown}
       >
         <button
           type="button"
           role="tab"
+          id="students-tab-wallet"
+          aria-controls="students-panel-wallet"
           aria-selected={studentSection === 'wallet'}
+          tabIndex={studentSection === 'wallet' ? 0 : -1}
           onClick={() => setStudentSection('wallet')}
           className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'wallet' ? 'is-active' : ''}`}
         >
@@ -7567,7 +7579,10 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
         <button
           type="button"
           role="tab"
+          id="students-tab-anamnesis"
+          aria-controls="students-panel-anamnesis"
           aria-selected={studentSection === 'anamnesis'}
+          tabIndex={studentSection === 'anamnesis' ? 0 : -1}
           onClick={() => setStudentSection('anamnesis')}
           className={`min-h-11 rounded-md px-4 text-sm font-black transition ${studentSection === 'anamnesis' ? 'is-active' : ''}`}
         >
@@ -7575,7 +7590,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
         </button>
       </div>
 
-      <div hidden={studentSection !== 'anamnesis'}>
+      <div id="students-panel-anamnesis" role="tabpanel" aria-labelledby="students-tab-anamnesis" tabIndex={0} hidden={studentSection !== 'anamnesis'}>
         <StudentAnamnesisWorkspace
           nutritionist={nutritionist}
           students={students}
@@ -7588,7 +7603,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
           uiTheme={uiTheme}
         />
       </div>
-      <div hidden={studentSection !== 'wallet'} className="student-wallet-workspace grid gap-4 lg:gap-6">
+      <div id="students-panel-wallet" role="tabpanel" aria-labelledby="students-tab-wallet" tabIndex={0} hidden={studentSection !== 'wallet'} className="student-wallet-workspace grid gap-4 lg:gap-6">
         <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
       <div className="student-wallet-columns grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
@@ -17177,8 +17192,8 @@ function ProfessionalAnamnesisSummary({ anamnesis, student, questionnaireAssignm
   if (!anamnesis) {
     if (student?.requireAnamnesis === false) {
       return (
-        <div className="rounded-lg border border-blue-300/30 bg-blue-300/10 p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="professional-anamnesis-state is-info">
+          <div className="professional-anamnesis-state__content">
             <div>
               <p className="font-black text-blue-100">{clientLabel === 'paciente' ? 'Paciente transferido' : 'Aluno transferido'}</p>
               <p className="mt-1 text-sm leading-6 text-zinc-300">Anamnese dispensada pelo profissional. Use avaliações, histórico e evolução atual para continuar o acompanhamento.</p>
@@ -17190,9 +17205,9 @@ function ProfessionalAnamnesisSummary({ anamnesis, student, questionnaireAssignm
     }
 
     return (
-      <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4">
-        <p className="font-black text-amber-100">Anamnese pendente</p>
-        <p className="mt-1 text-sm leading-6 text-zinc-300">Ainda não registrada. O {clientLabel} poderá responder no primeiro acesso, ou você pode preencher pela ficha antes de prescrever.</p>
+      <div className="professional-anamnesis-state is-warning">
+        <p>Anamnese pendente</p>
+        <span>Ainda não registrada. O {clientLabel} poderá responder no primeiro acesso, ou você pode preencher pela ficha antes de prescrever.</span>
       </div>
     )
   }
@@ -17257,61 +17272,64 @@ function ProfessionalAnamnesisSummary({ anamnesis, student, questionnaireAssignm
   ]
 
   return (
-    <div className="overflow-hidden rounded-lg border border-emerald-300/30 bg-zinc-950/74 shadow-2xl shadow-black/20">
-      <div className="border-b border-white/10 bg-emerald-300/10 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="professional-anamnesis-summary" aria-labelledby="professional-anamnesis-title">
+      <header className="professional-anamnesis-summary__header">
+        <div className="professional-anamnesis-summary__identity">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Anamnese do {clientLabel}</p>
-            <h4 className="mt-1 text-xl font-black text-white">Mapa inicial de {student?.name || clientLabel}</h4>
-            <p className="mt-1 text-xs leading-5 text-zinc-400">
+            <p>Anamnese do {clientLabel}</p>
+            <h4 id="professional-anamnesis-title">Mapa inicial de {student?.name || clientLabel}</h4>
+            <span>
               {anamnesis.source === 'professional' ? 'Preenchida pelo profissional' : 'Enviada pelo aluno/paciente'}
               {anamnesis.updatedAt || anamnesis.submittedAt ? ` · Atualizada em ${formatDateTime(anamnesis.updatedAt || anamnesis.submittedAt)}` : ''}
-            </p>
+            </span>
           </div>
           <Badge tone="Baixo">Completa</Badge>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="professional-anamnesis-stats">
           <AnamnesisStat label="Prontidão" value={`${readinessScore}%`} tone={readinessScore >= 80 ? 'emerald' : readinessScore >= 55 ? 'amber' : 'rose'} />
           <AnamnesisStat label="Pontos de atenção" value={riskFlags.length || '0'} tone={riskFlags.length ? 'amber' : 'emerald'} />
           <AnamnesisStat label="Frequência" value={anamnesis.trainingFrequency || '-'} tone="blue" />
         </div>
-      </div>
+      </header>
 
-      <div className="grid gap-4 p-4">
+      <div className="professional-anamnesis-summary__body">
         {riskFlags.length ? (
-          <div className="rounded-lg border border-amber-300/30 bg-amber-300/10 p-4">
-            <p className="text-xs font-black uppercase text-amber-200">Revisar antes de prescrever</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {riskFlags.map((flag) => (
-                <span key={flag} className="rounded-full border border-amber-200/25 bg-amber-200/10 px-3 py-1 text-xs font-bold text-amber-100">{flag}</span>
-              ))}
+          <aside className="professional-anamnesis-alert is-warning" aria-label="Pontos de atenção informados">
+            <div>
+              <strong>Revisar antes de prescrever</strong>
+              <span>Indicadores encontrados nas respostas desta anamnese.</span>
             </div>
-          </div>
+            <ul>
+              {riskFlags.map((flag) => (
+                <li key={flag}>{flag}</li>
+              ))}
+            </ul>
+          </aside>
         ) : (
-          <div className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Sem alerta crítico informado</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">Ainda assim, confirme execução, dor e tolerância de carga nos primeiros treinos.</p>
-          </div>
+          <aside className="professional-anamnesis-alert is-success">
+            <strong>Sem alerta crítico informado</strong>
+            <span>Ainda assim, confirme execução, dor e tolerância de carga nos primeiros treinos.</span>
+          </aside>
         )}
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="professional-anamnesis-sections">
           {sections.map((section) => <AnamnesisSection key={section.title} {...section} />)}
         </div>
         {customAnswers.length ? (
-          <section className="rounded-lg border border-violet-300/20 bg-violet-300/[0.07] p-4">
-            <p className="text-xs font-black uppercase tracking-[0.1em] text-violet-200">Perguntas personalizadas</p>
-            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <section className="professional-anamnesis-custom">
+            <h5>Perguntas personalizadas</h5>
+            <dl>
               {customAnswers.map((answer) => (
-                <div key={answer.id} className="rounded-lg border border-white/10 bg-black/20 p-3">
-                  <dt className="text-xs font-bold leading-5 text-zinc-400">{answer.label}</dt>
-                  <dd className="mt-1 break-words text-sm font-black leading-6 text-white">{answer.value}</dd>
+                <div key={answer.id}>
+                  <dt>{answer.label}</dt>
+                  <dd>{answer.value}</dd>
                 </div>
               ))}
             </dl>
           </section>
         ) : null}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -17321,43 +17339,36 @@ function hasUsefulAnamnesisValue(value) {
 }
 
 function AnamnesisStat({ label, value, tone = 'emerald' }) {
-  const tones = {
-    emerald: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
-    amber: 'border-amber-300/25 bg-amber-300/10 text-amber-100',
-    rose: 'border-rose-300/25 bg-rose-300/10 text-rose-100',
-    blue: 'border-blue-300/25 bg-blue-300/10 text-blue-100',
-  }
-
   return (
-    <div className={`rounded-lg border p-3 ${tones[tone] || tones.emerald}`}>
-      <p className="text-[10px] font-black uppercase opacity-80">{label}</p>
-      <p className="mt-1 break-words text-lg font-black">{value}</p>
+    <div className={`professional-anamnesis-stat tone-${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   )
 }
 
 function AnamnesisSection({ title, tone = 'emerald', items = [] }) {
-  const tones = {
-    emerald: 'border-emerald-300/20 bg-emerald-300/5 text-emerald-200',
-    blue: 'border-blue-300/20 bg-blue-300/5 text-blue-200',
-    sky: 'border-sky-300/20 bg-sky-300/5 text-sky-200',
-    orange: 'border-orange-300/20 bg-orange-300/5 text-orange-200',
-    rose: 'border-rose-300/20 bg-rose-300/5 text-rose-200',
-  }
-
   return (
-    <div className={`rounded-lg border p-4 ${tones[tone] || tones.emerald}`}>
-      <h5 className="text-sm font-black">{title}</h5>
-      <div className="mt-3 grid gap-2">
-        {items.map(([label, value]) => (
-          <div key={label} className="rounded-md border border-white/10 bg-zinc-950/55 p-3">
-            <p className="text-[10px] font-black uppercase text-zinc-500">{label}</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-100">{value || 'Não informado'}</p>
-          </div>
-        ))}
-      </div>
-    </div>
+    <section className={`professional-anamnesis-section tone-${tone}`}>
+      <h5>{title}</h5>
+      <dl className="professional-anamnesis-section__list">
+        {items.map(([label, value]) => {
+          const unavailable = isAnamnesisUnavailable(value)
+          return (
+            <div key={label} className={unavailable ? 'is-empty' : ''}>
+              <dt>{label}</dt>
+              <dd>{unavailable ? 'Não informado' : value}</dd>
+            </div>
+          )
+        })}
+      </dl>
+    </section>
   )
+}
+
+function isAnamnesisUnavailable(value) {
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return !normalized || ['-', 'não informado', 'nao informado', 'n/a'].includes(normalized)
 }
 
 function StudentAnamnesisSummary({ anamnesis, student }) {

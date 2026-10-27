@@ -158,7 +158,7 @@ export default function StudentAnamnesisWorkspace({
   return (
     <section className={`student-anamnesis-workspace theme-${uiTheme}`} aria-label="Organização de anamneses">
       <header className="student-anamnesis-workspace__header">
-        <div>
+        <div className="student-anamnesis-workspace__header-copy">
           <p>Central de anamnese</p>
           <h2>Modelos, envios e respostas</h2>
           <span>Personalize as perguntas, defina o envio e acompanhe o retorno mais recente sem sair desta área.</span>
@@ -169,8 +169,14 @@ export default function StudentAnamnesisWorkspace({
       </header>
 
       <nav className="student-anamnesis-workspace__templates" aria-label="Modelos de anamnese">
-        <strong>Modelos salvos</strong>
-        <div>
+        <div className="student-anamnesis-workspace__templates-heading">
+          <div>
+            <p>Biblioteca</p>
+            <strong>Modelos salvos</strong>
+          </div>
+          <span>{anamnesisTemplates.length} {anamnesisTemplates.length === 1 ? 'modelo' : 'modelos'}</span>
+        </div>
+        <div className="student-anamnesis-workspace__templates-list">
           {anamnesisTemplates.length ? anamnesisTemplates.map((template) => (
             <button
               type="button"
@@ -181,7 +187,12 @@ export default function StudentAnamnesisWorkspace({
               <span>{template.title}</span>
               <small>{template.questions?.length || 0} perguntas</small>
             </button>
-          )) : <p>Nenhum modelo salvo. O primeiro modelo já está pronto para personalização.</p>}
+          )) : (
+            <div className="student-anamnesis-empty-state">
+              <strong>Seu primeiro modelo está em edição</strong>
+              <span>Personalize as perguntas abaixo e selecione “Salvar modelo” para adicioná-lo à biblioteca.</span>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -195,14 +206,28 @@ export default function StudentAnamnesisWorkspace({
             <button type="button" onClick={handleSave} disabled={saving}>{saving ? 'Salvando...' : 'Salvar modelo'}</button>
           </div>
 
-          <label>
-            <span>Título</span>
-            <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
-          </label>
-          <label>
-            <span>Orientação para o {audience}</span>
-            <textarea rows="2" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} />
-          </label>
+          <div className="student-anamnesis-editor__settings">
+            <div className="student-anamnesis-subsection-heading">
+              <strong>Configuração do modelo</strong>
+              <span>Defina como esta anamnese será apresentada.</span>
+            </div>
+            <label>
+              <span>Título</span>
+              <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
+            </label>
+            <label>
+              <span>Orientação para o {audience}</span>
+              <textarea rows="2" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} />
+            </label>
+          </div>
+
+          <div className="student-anamnesis-question-list-heading">
+            <div>
+              <strong>Perguntas</strong>
+              <span>Organize a ordem e defina quais respostas são obrigatórias.</span>
+            </div>
+            <span>{draft.questions.length} perguntas</span>
+          </div>
 
           <div className="student-anamnesis-editor__questions">
             {draft.questions.map((question, index) => (

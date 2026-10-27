@@ -763,6 +763,301 @@ body {
   }
 }
 
+/* professional-anamnesis-summary-v1 */
+.professional-anamnesis-summary,
+.professional-anamnesis-state {
+  --anamnesis-profile-surface: rgba(9, 18, 16, 0.94);
+  --anamnesis-profile-surface-soft: rgba(255, 255, 255, 0.035);
+  --anamnesis-profile-border: rgba(94, 234, 212, 0.16);
+  --anamnesis-profile-divider: rgba(255, 255, 255, 0.08);
+  --anamnesis-profile-text: #f4f7f6;
+  --anamnesis-profile-muted: #98aaa6;
+  --anamnesis-profile-accent: #5eead4;
+}
+
+.professional-anamnesis-summary {
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--anamnesis-profile-border);
+  border-radius: 0.5rem;
+  background: var(--anamnesis-profile-surface);
+  color: var(--anamnesis-profile-text);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+}
+
+.professional-anamnesis-summary__header {
+  display: grid;
+  gap: 1rem;
+  border-bottom: 1px solid var(--anamnesis-profile-divider);
+  background: rgba(45, 212, 191, 0.065);
+  padding: 1.1rem;
+}
+
+.professional-anamnesis-summary__identity {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.professional-anamnesis-summary__identity p,
+.professional-anamnesis-summary__identity h4,
+.professional-anamnesis-summary__identity span {
+  margin: 0;
+}
+
+.professional-anamnesis-summary__identity p {
+  color: var(--anamnesis-profile-accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.professional-anamnesis-summary__identity h4 {
+  margin-top: 0.25rem;
+  color: var(--anamnesis-profile-text);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.professional-anamnesis-summary__identity span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--anamnesis-profile-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.professional-anamnesis-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.professional-anamnesis-stat {
+  --anamnesis-stat-tone: #5eead4;
+  min-width: 0;
+  border-left: 3px solid var(--anamnesis-stat-tone);
+  border-radius: 0.35rem;
+  background: var(--anamnesis-profile-surface-soft);
+  padding: 0.65rem 0.75rem;
+}
+
+.professional-anamnesis-stat.tone-amber { --anamnesis-stat-tone: #fbbf24; }
+.professional-anamnesis-stat.tone-rose { --anamnesis-stat-tone: #fb7185; }
+.professional-anamnesis-stat.tone-blue { --anamnesis-stat-tone: #60a5fa; }
+
+.professional-anamnesis-stat span,
+.professional-anamnesis-stat strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.professional-anamnesis-stat span {
+  color: var(--anamnesis-profile-muted);
+  font-size: 0.65rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.professional-anamnesis-stat strong {
+  margin-top: 0.2rem;
+  color: var(--anamnesis-profile-text);
+  font-size: 1rem;
+}
+
+.professional-anamnesis-summary__body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+}
+
+.professional-anamnesis-alert {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  border-left-width: 3px;
+  border-radius: 0.45rem;
+  background: rgba(45, 212, 191, 0.07);
+  padding: 0.85rem 0.95rem;
+}
+
+.professional-anamnesis-alert.is-warning {
+  border-color: rgba(251, 191, 36, 0.32);
+  background: rgba(251, 191, 36, 0.075);
+}
+
+.professional-anamnesis-alert strong,
+.professional-anamnesis-alert span {
+  display: block;
+}
+
+.professional-anamnesis-alert strong {
+  color: var(--anamnesis-profile-text);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.professional-anamnesis-alert span {
+  margin-top: 0.15rem;
+  color: var(--anamnesis-profile-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.professional-anamnesis-alert ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.professional-anamnesis-alert li {
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.08);
+  padding: 0.3rem 0.55rem;
+  color: #fde68a;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.professional-anamnesis-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.professional-anamnesis-section,
+.professional-anamnesis-custom {
+  min-width: 0;
+  border: 1px solid var(--anamnesis-profile-divider);
+  border-top: 2px solid var(--anamnesis-profile-accent);
+  border-radius: 0.45rem;
+  background: var(--anamnesis-profile-surface-soft);
+  padding: 0.9rem;
+}
+
+.professional-anamnesis-section.tone-rose { border-top-color: #fb7185; }
+.professional-anamnesis-section.tone-blue { border-top-color: #60a5fa; }
+.professional-anamnesis-section.tone-sky { border-top-color: #38bdf8; }
+.professional-anamnesis-section.tone-orange { border-top-color: #fb923c; }
+
+.professional-anamnesis-section h5,
+.professional-anamnesis-custom h5 {
+  margin: 0 0 0.6rem;
+  color: var(--anamnesis-profile-text);
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.professional-anamnesis-section__list,
+.professional-anamnesis-custom dl {
+  margin: 0;
+}
+
+.professional-anamnesis-section__list > div,
+.professional-anamnesis-custom dl > div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+  border-top: 1px solid var(--anamnesis-profile-divider);
+  padding: 0.65rem 0;
+}
+
+.professional-anamnesis-section__list dt,
+.professional-anamnesis-custom dt {
+  color: var(--anamnesis-profile-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.professional-anamnesis-section__list dd,
+.professional-anamnesis-custom dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: break-word;
+  color: var(--anamnesis-profile-text);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.professional-anamnesis-section__list .is-empty dd {
+  color: var(--anamnesis-profile-muted);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.professional-anamnesis-state {
+  border: 1px solid var(--anamnesis-profile-border);
+  border-radius: 0.5rem;
+  background: var(--anamnesis-profile-surface);
+  padding: 1rem;
+  color: var(--anamnesis-profile-text);
+}
+
+.professional-anamnesis-state.is-warning { border-left: 3px solid #fbbf24; }
+.professional-anamnesis-state.is-info { border-left: 3px solid #60a5fa; }
+.professional-anamnesis-state__content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.professional-anamnesis-state p { margin: 0; color: var(--anamnesis-profile-text) !important; font-weight: 900; }
+.professional-anamnesis-state span,
+.professional-anamnesis-state p + p { display: block; margin-top: 0.25rem; color: var(--anamnesis-profile-muted) !important; font-size: 0.82rem; line-height: 1.55; }
+
+.app-theme-light .professional-anamnesis-summary,
+.app-theme-light .professional-anamnesis-state {
+  --anamnesis-profile-surface: #ffffff;
+  --anamnesis-profile-surface-soft: #f6faf9;
+  --anamnesis-profile-border: #d3e4df;
+  --anamnesis-profile-divider: #e2ebe8;
+  --anamnesis-profile-text: #10201d;
+  --anamnesis-profile-muted: #586b67;
+  --anamnesis-profile-accent: #008f7b;
+}
+
+.app-theme-light .professional-anamnesis-summary {
+  box-shadow: 0 12px 30px rgba(15, 52, 45, 0.08);
+}
+
+.app-theme-light .professional-anamnesis-alert li {
+  color: #8a5900;
+}
+
+@media (max-width: 720px) {
+  .professional-anamnesis-sections,
+  .professional-anamnesis-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .professional-anamnesis-summary__identity,
+  .professional-anamnesis-state__content {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .professional-anamnesis-section__list > div,
+  .professional-anamnesis-custom dl > div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .professional-anamnesis-summary__header,
+  .professional-anamnesis-summary__body {
+    padding: 0.9rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .fit-gradient-bg {
     background-image:
@@ -17395,6 +17690,10 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 
 /* students-workspace-polish-v1 */
+.students-workspace > [hidden] {
+  display: none !important;
+}
+
 .students-workspace-tabs {
   border: 1px solid rgba(94, 234, 212, 0.16);
   border-radius: 0.5rem;
