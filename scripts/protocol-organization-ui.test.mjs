@@ -36,13 +36,14 @@ test('planner adapts to narrow screens and light/dark application themes', () =>
   assert.match(source, /touch-action:\s*manipulation/)
 })
 
-test('mobile completion is optimistic, confirmed by the saved row, and rolls back on failure', () => {
+test('mobile completion stays visible while saving and applies only the confirmed row', () => {
   const source = readFileSync(componentPath, 'utf8')
 
-  assert.match(source, /const previousTask = task/)
-  assert.match(source, /status:\s*status/)
   assert.match(source, /saved\.status !== status/)
-  assert.match(source, /previousTask/)
+  assert.doesNotMatch(source, /setTasks\(current => current\.map\(item => String\(item\.id\) === taskId \? optimisticTask/)
   assert.match(source, /protocol-task__sync/)
   assert.match(source, /aria-busy=\{isBusy\}/)
+  assert.match(source, /protocol-tag--status-/)
+  assert.match(source, /protocol-filters-shell/)
+  assert.match(source, /Concluída/)
 })

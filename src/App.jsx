@@ -4,7 +4,10 @@ import { swapShowcasePositions } from './showcaseCarousel'
 import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
 import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
+import StudentImportDialog from './StudentImportDialog'
 import { filterStudents } from './studentDirectory'
+import { findStudentImportDuplicate } from './studentImport'
+import { getCheckinScheduleStatus, normalizeCheckinScheduleDate, shouldNotifyCheckinSchedule } from './checkinSchedule'
 import { loadStudentPortalWithRetry, requireStudentBootstrapForSession } from './studentFirstPassword'
 import {
   QUESTIONNAIRE_TYPES,
@@ -170,7 +173,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'webapp-workout-20260925'
+const COACH_FIT_PRO_BUILD_MARKER = 'student-import-20261027'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -626,8 +629,8 @@ const navItems = [
 
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
-const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
-const patientPortalTabIds = new Set(['inicio', 'dieta', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
+const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
+const patientPortalTabIds = new Set(['inicio', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
 const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'checkins', 'pagamentos', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
 
 function resolveStudentPortalTab(professionalType, tab) {
@@ -3001,6 +3004,101 @@ function AppContent() {
     return { student: savedStudent, invite: createdInvite }
   }
 
+  async function importStudents(rows) {
+    const candidates = Array.isArray(rows) ? rows : []
+    const imported = []
+    const failed = []
+    const knownStudents = [...data.students]
+
+    for (let index = 0; index < candidates.length; index += 1) {
+      const student = candidates[index]
+      const duplicate = findStudentImportDuplicate(student, knownStudents)
+      if (duplicate) {
+        failed.push({
+          lineNumber: student.importLine,
+          name: student.name,
+          message: `Já existe um cadastro para ${duplicate.email || duplicate.cpf || duplicate.name}.`,
+        })
+        continue
+      }
+
+      try {
+        const savedStudent = supabaseEnabled
+          ? await saveRemoteStudent(student, activeCoachId)
+          : { ...student, id: `import-${Date.now()}-${index}` }
+        imported.push(savedStudent)
+        knownStudents.push(savedStudent)
+      } catch (error) {
+        failed.push({
+          lineNumber: student.importLine,
+          name: student.name,
+          message: error?.message || 'Erro ao salvar o cadastro.',
+          error,
+        })
+      }
+    }
+
+    if (imported.length) {
+      setData((current) => ({
+        ...current,
+        students: [...imported, ...current.students],
+        notifications: [{
+          id: Date.now(),
+          title: 'Importação concluída',
+          body: `${imported.length} cadastro(s) importado(s) aguardando liberação de acesso.`,
+          read: false,
+        }, ...current.notifications],
+      }))
+      setSelectedStudentId(imported[0].id)
+    }
+
+    if (supabaseEnabled) {
+      const firstError = failed.find((item) => item.error)?.error
+      if (!imported.length && firstError && /JWT expired|PGRST303/.test(firstError?.message || '')) {
+        handleRemoteError(firstError, 'Erro ao importar alunos')
+      } else {
+        setRemoteStatus(failed.length ? 'Importação concluída com avisos' : 'Supabase conectado')
+        setRemoteError(failed.length ? `${failed.length} cadastro(s) não foram importados.` : '')
+      }
+    }
+
+    return {
+      imported,
+      failed: failed.map(({ error: _error, ...item }) => item),
+    }
+  }
+
+  async function scheduleStudentCheckin(studentId, dueDate) {
+    const nextCheckin = normalizeCheckinScheduleDate(dueDate)
+    const student = data.students.find((item) => String(item.id) === String(studentId))
+    if (!student) throw new Error('Selecione um aluno ou paciente válido.')
+    if (!nextCheckin) throw new Error('Informe uma data válida para o próximo check-in.')
+
+    let savedStudent = { ...student, nextCheckin }
+    if (supabaseEnabled) {
+      try {
+        savedStudent = await saveRemoteStudent(savedStudent, activeCoachId)
+        setRemoteStatus('Próximo check-in agendado')
+        setRemoteError('')
+      } catch (error) {
+        handleRemoteError(error, 'Erro ao agendar check-in')
+        throw error
+      }
+    }
+
+    setData((current) => ({
+      ...current,
+      students: current.students.map((item) => String(item.id) === String(savedStudent.id) ? savedStudent : item),
+      notifications: [{
+        id: Date.now(),
+        title: 'Check-in agendado',
+        body: `${savedStudent.name} deve enviar o próximo check-in em ${formatDate(nextCheckin)}.`,
+        read: false,
+      }, ...current.notifications],
+    }))
+    return savedStudent
+  }
+
   async function saveProfessionalStudentAnamnesis(studentId, answers, requestStudentUpdate = false) {
     let savedAnamnesis
     if (supabaseEnabled) {
@@ -4659,6 +4757,7 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentIdSafely}
                 onSave={saveStudent}
+                onImport={importStudents}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateCredentials={generateStudentCredentials}
                 onSaveAnamnesis={saveProfessionalStudentAnamnesis}
@@ -4720,6 +4819,7 @@ function AppContent() {
                 checkins={data.checkins}
                 students={data.students}
                 onReviewCheckin={reviewCheckin}
+                onScheduleCheckin={scheduleStudentCheckin}
                 onRefresh={() => syncCoachWorkspace({ status: 'Atualizando fotos', silent: true })}
                 nutritionist={nutritionistUser}
               />
@@ -6536,17 +6636,17 @@ function LegalModal({ type, onClose }) {
   const isPrivacy = type === 'privacy'
   const title = isPrivacy ? 'Privacidade e dados' : 'Termos de uso'
   const intro = isPrivacy
-    ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar o painel do treinador e o acesso do aluno.'
-    : 'O Coach Fit Pro é uma plataforma de organização para treinadores. A prescrição, orientação profissional e relação com o aluno continuam sob responsabilidade do treinador.'
+    ? 'O Coach Fit Pro utiliza dados de cadastro, acompanhamento, fotos, mensagens, treinos, dieta e pagamentos para operar os painéis de treinadores e nutricionistas e os acessos de alunos e pacientes.'
+    : 'O Coach Fit Pro é uma plataforma de organização para treinadores e nutricionistas. A prescrição, a orientação e a relação com alunos e pacientes continuam sob responsabilidade do profissional responsável.'
   const items = isPrivacy
     ? [
-        'Dados sensíveis devem ser usados apenas com consentimento do aluno e finalidade de acompanhamento.',
-        'Fotos, check-ins e mensagens ficam vinculados ao treinador responsável e ao aluno cadastrado.',
+        'Dados sensíveis devem ser usados apenas com consentimento do aluno ou paciente e finalidade de acompanhamento.',
+        'Fotos, check-ins e mensagens ficam vinculados ao profissional responsável e ao aluno ou paciente cadastrado.',
         'Chaves de API e integrações ficam protegidas no ambiente seguro da Supabase, não no navegador do usuário.',
         'Solicitações sobre dados podem ser enviadas para sac@coachfitpro.com.br.',
       ]
     : [
-        'O treinador deve usar o sistema de forma ética, profissional e conforme as regras da sua área de atuação.',
+        'Treinadores e nutricionistas devem usar o sistema de forma ética, profissional e conforme as regras de suas áreas de atuação.',
         'A plataforma não substitui avaliação médica, nutricional ou física quando ela for necessária.',
         'Pagamentos, planos e liberações podem depender da confirmação do provedor de checkout.',
         'O acesso pode ser limitado em caso de uso indevido, inadimplência ou violação de segurança.',
@@ -7365,9 +7465,10 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
   const [studentSection, setStudentSection] = useState('wallet')
   const [editing, setEditing] = useState(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
@@ -7488,9 +7589,14 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
       <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
-        <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-          {nutritionist ? 'Novo paciente' : 'Novo aluno'}
-        </button>
+        <div className="mb-4 grid gap-2 sm:grid-cols-2">
+          <button onClick={() => setEditing(createBlankStudent())} className="min-h-12 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+            {nutritionist ? 'Novo paciente' : 'Novo aluno'}
+          </button>
+          <button type="button" onClick={() => setImportDialogOpen(true)} className="min-h-12 w-full rounded-md border border-cyan-300/35 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20">
+            Importar planilha
+          </button>
+        </div>
         <label className="mb-4 block">
           <span className="mb-2 block text-xs font-black uppercase tracking-[0.1em] text-zinc-500">
             Buscar {nutritionist ? 'paciente' : 'aluno'}
@@ -7636,6 +7742,14 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       </Panel>
       </div>
       </div>
+      <StudentImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImport={onImport}
+        students={students}
+        plans={coachPlans}
+        nutritionist={nutritionist}
+      />
       {anamnesisEditorOpen && selectedStudent ? createPortal(
         <div
           className="fixed inset-0 z-[130] grid place-items-center bg-black/75 p-3 backdrop-blur-sm sm:p-6"
@@ -14440,6 +14554,8 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
   const totalItems = meals.reduce((sum, meal) => sum + meal.items.length, 0)
   const formStudent = students.find((student) => String(student.id) === String(editingPlan?.studentId || selectedStudent?.id)) || selectedStudent
   const formAnamnesis = anamneses.find((item) => String(item.studentId) === String(formStudent?.id)) || null
+  const nutritionist = isNutritionistUser(professional)
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
   const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
@@ -14660,7 +14776,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
             ) : null}
             <button type="button" onClick={() => setPreviewOpen(true)} className="nutrition-preview-action inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
               <NavIcon name="eye" className="h-4 w-4" />
-              Visão do aluno
+              Visão do {clientLabel}
             </button>
           </div>
         </div>
@@ -14680,9 +14796,9 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
 
       <input type="hidden" name="studentId" value={formStudent?.id || ''} />
       <div className="nutrition-student-context-v1 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
-        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Paciente em edição</p>
-        <p className="mt-1 break-words text-lg font-black text-white">{formStudent?.name || 'Selecione um aluno'}</p>
-        <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este aluno selecionado no painel.</p>
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">{nutritionist ? 'Paciente' : 'Aluno'} em edição</p>
+        <p className="mt-1 break-words text-lg font-black text-white">{formStudent?.name || `Selecione um ${clientLabel}`}</p>
+        <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este {clientLabel} selecionado no painel.</p>
       </div>
 
       {createPortal((
@@ -14701,12 +14817,12 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
             <section
               id="nutrition-anamnesis-panel"
               className="fixed bottom-[calc(9.5rem+env(safe-area-inset-bottom))] right-3 z-[80] flex max-h-[68vh] w-[min(92vw,30rem)] flex-col overflow-hidden rounded-2xl border border-emerald-300/25 bg-zinc-950 text-zinc-100 shadow-2xl shadow-black/50 md:bottom-20"
-              aria-label={`Anamnese do ${isNutritionistUser(professional) ? 'paciente' : 'aluno'}`}
+              aria-label={`Anamnese do ${clientLabel}`}
             >
               <header className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-300">Contexto de saúde</p>
-                  <h3 className="mt-1 truncate font-black text-white">Anamnese · {formStudent?.name || 'Cliente'}</h3>
+                  <h3 className="mt-1 truncate font-black text-white">Anamnese · {formStudent?.name || (nutritionist ? 'Paciente' : 'Aluno')}</h3>
                 </div>
                 <button type="button" onClick={() => setAnamnesisOpen(false)} className="min-h-10 shrink-0 rounded-lg border border-white/15 px-3 text-sm font-bold text-zinc-200 hover:bg-white/5">Recolher</button>
               </header>
@@ -14715,8 +14831,8 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
                   anamnesis={formAnamnesis}
                   student={formStudent}
                   questionnaireAssignments={questionnaireAssignments}
-                  clientLabel={isNutritionistUser(professional) ? 'paciente' : 'aluno'}
-                  nutritionist={isNutritionistUser(professional)}
+                  clientLabel={clientLabel}
+                  nutritionist={nutritionist}
                 />
               </div>
             </section>
@@ -14852,6 +14968,9 @@ function escapeNutritionPdfHtml(value = '') {
 function openNutritionPlanPdf(plan, student = {}, professional = {}) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const today = formatDate(new Date().toISOString())
+  const nutritionist = isNutritionistUser(professional)
+  const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const rows = meals.length
     ? meals.map((meal, index) => `
       <section class="meal">
@@ -14901,7 +15020,7 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
     <header>
       <div class="eyebrow">Coach Fit Pro · Plano alimentar</div>
       <h1>${escapeNutritionPdfHtml(plan?.title || 'Plano alimentar')}</h1>
-      <p>Paciente: <strong>${escapeNutritionPdfHtml(student?.name || 'Aluno')}</strong> · Profissional: <strong>${escapeNutritionPdfHtml(professional?.name || professional?.email || 'Profissional')}</strong> · ${today}</p>
+      <p>${clientTitle}: <strong>${escapeNutritionPdfHtml(student?.name || clientTitle)}</strong> · Profissional: <strong>${escapeNutritionPdfHtml(professional?.name || professional?.email || 'Profissional')}</strong> · ${today}</p>
       <div class="meta">
         <div class="card"><small>Calorias</small><strong>${escapeNutritionPdfHtml(plan?.calories || '-')}</strong></div>
         <div class="card"><small>Proteína</small><strong>${escapeNutritionPdfHtml(plan?.protein || '-')}</strong></div>
@@ -14910,7 +15029,7 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
     </header>
     ${rows}
     ${notes ? `<section class="notes"><div class="eyebrow">Orientações</div><p>${escapeNutritionPdfHtml(notes)}</p></section>` : ''}
-    <footer>Documento gerado pelo Coach Fit Pro. Revise as orientações individualmente antes de enviar ao paciente.</footer>
+    <footer>Documento gerado pelo Coach Fit Pro. Revise as orientações individualmente antes de enviar ao ${clientLabel}.</footer>
   </main>
   <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script>
 </body>
@@ -14928,17 +15047,19 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
 function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, onClose }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const canDownloadPdf = canPatientDownloadNutritionPdf(plan)
+  const nutritionist = isNutritionistUser(professional)
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
 
   return createPortal((
-    <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label="Visão do aluno da dieta">
+    <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label={`Visão do ${clientLabel} da dieta`}>
       <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do aluno</p>
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do {clientLabel}</p>
             <h3 className="mt-1 break-words text-2xl font-black text-white">{plan?.title || 'Plano alimentar'}</h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || 'Aluno'} verá refeições, horários e macros de forma simples.</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || (nutritionist ? 'Paciente' : 'Aluno')} verá refeições, horários e macros de forma simples.</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label="Fechar visão do aluno">
+          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label={`Fechar visão do ${clientLabel}`}>
             <NavIcon name="close" className="h-5 w-5" />
           </button>
         </div>
@@ -14958,7 +15079,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
 
         {plan?.notes ? (
           <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+            <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
             <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
           </div>
         ) : null}
@@ -14976,7 +15097,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
               </div>
             </article>
           )) : (
-            <Empty text="Adicione refeições para visualizar a dieta como o aluno verá." />
+            <Empty text={`Adicione refeições para visualizar a dieta como o ${clientLabel} verá.`} />
           )}
         </div>
       </div>
@@ -15189,12 +15310,15 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   const [visibilityMessage, setVisibilityMessage] = useState('')
   const [visibilityError, setVisibilityError] = useState('')
   const visibilityPending = useRef(false)
+  const nutritionist = isNutritionistUser(professional)
+  const clientLabel = nutritionist ? 'paciente' : 'aluno'
+  const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
 
   async function handleArchive(plan, active = false) {
     if (!onArchive || visibilityPending.current) return
     const confirmText = active
-      ? `Mostrar a dieta "${plan.title}" ao paciente novamente?`
-      : `Ocultar a dieta "${plan.title}" do paciente? Ela continuará salva e as outras dietas não serão alteradas.`
+      ? `Mostrar a dieta "${plan.title}" ao ${clientLabel} novamente?`
+      : `Ocultar a dieta "${plan.title}" do ${clientLabel}? Ela continuará salva e as outras dietas não serão alteradas.`
     if (!window.confirm(confirmText)) return
     visibilityPending.current = true
     setArchivingId(String(plan.id))
@@ -15203,7 +15327,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
     try {
       const saved = await onArchive(plan.id, active)
       if (saved === false) throw new Error('visibility-not-saved')
-      setVisibilityMessage(active ? 'Dieta disponível para o paciente.' : 'Dieta oculta do paciente. As outras dietas continuam disponíveis.')
+      setVisibilityMessage(active ? `Dieta disponível para o ${clientLabel}.` : `Dieta oculta do ${clientLabel}. As outras dietas continuam disponíveis.`)
     } catch {
       setVisibilityError('Não foi possível alterar a visibilidade. Tente novamente.')
     } finally {
@@ -15226,7 +15350,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   if (!allPlans.length) {
     return (
       <div className="nutrition-prescribed-empty-v5 space-y-3">
-        <Empty text="Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este aluno." />
+        <Empty text={`Nenhuma dieta prescrita ainda. Salve o primeiro plano alimentar para este ${clientLabel}.`} />
         <div className="grid gap-3 sm:grid-cols-2">
           <Info label="Calorias da ficha" value={selectedStudent?.calories ?? '-'} />
           <Info label="Proteína da ficha" value={selectedStudent?.protein ?? '-'} />
@@ -15257,13 +15381,13 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
                     <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      Paciente: {planStudent?.name || 'Aluno'}
+                      {clientTitle}: {planStudent?.name || clientTitle}
                     </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
-                    {archived ? 'Oculta do paciente' : 'Disponível'}
+                    {archived ? `Oculta do ${clientLabel}` : 'Disponível'}
                   </span>
                   <span className="nutrition-plan-expand-indicator-v1 grid h-9 w-9 place-items-center rounded-xl border border-white/10 text-zinc-300">
                     <NavIcon name={isExpanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
@@ -15277,7 +15401,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
             <div className="border-b border-white/10 bg-emerald-300/[0.035] p-4">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
-                  Paciente: {planStudent?.name || 'Aluno'}
+                  {clientTitle}: {planStudent?.name || clientTitle}
                 </span>
                 {onEdit && !archived ? (
                   <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
@@ -15291,7 +15415,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                 ) : null}
                 {onArchive ? (
                   <button disabled={Boolean(archivingId)} type="button" onClick={() => handleArchive(plan, archived)} className={`rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition disabled:opacity-50 ${archived ? 'hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-100' : 'hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100'}`}>
-                    {archivingId === String(plan.id) ? 'Salvando...' : archived ? 'Mostrar ao paciente' : 'Ocultar do paciente'}
+                    {archivingId === String(plan.id) ? 'Salvando...' : archived ? `Mostrar ao ${clientLabel}` : `Ocultar do ${clientLabel}`}
                   </button>
                 ) : null}
               </div>
@@ -15305,7 +15429,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
             <div className="space-y-3 p-4">
               {stripNutritionPlanMetadata(plan.notes) ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-                  <p className="text-xs font-black uppercase text-emerald-200">Orientação do coach</p>
+                  <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
                   <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
                 </div>
               ) : null}
@@ -15359,7 +15483,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
 
       {onArchive ? <div className="nutrition-archived-plans-v1 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Ocultas do paciente</h4>
+          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-400">Ocultas do {clientLabel}</h4>
           <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-zinc-400">{hiddenPlans.length}</span>
         </div>
         {hiddenPlans.length ? hiddenPlans.map((plan) => renderPlan(plan, true)) : (
@@ -16215,18 +16339,46 @@ function NutritionFoodItem({ item, totals, onChange, onRemove, favoriteFoodNames
   )
 }
 
-export function Checkins({ checkins = [], students = [], onReviewCheckin, onRefresh, nutritionist = false }) {
+export function Checkins({ checkins = [], students = [], onReviewCheckin, onScheduleCheckin, onRefresh, nutritionist = false }) {
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
   const [filter, setFilter] = useState('novos')
   const [photoViewer, setPhotoViewer] = useState(null)
   const [failedPhotos, setFailedPhotos] = useState(() => new Set())
   const [reviewingId, setReviewingId] = useState('')
+  const [scheduleStudentId, setScheduleStudentId] = useState(() => String(students[0]?.id || ''))
+  const [scheduleDate, setScheduleDate] = useState(() => normalizeCheckinScheduleDate(students[0]?.nextCheckin) || '')
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleNotice, setScheduleNotice] = useState('')
   const [error, setError] = useState('')
   const pendingCheckins = checkins.filter((item) => item.state !== 'Recebido')
   const visibleCheckins = (filter === 'novos' ? pendingCheckins : checkins)
     .slice()
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+  const scheduledStudent = students.find((item) => String(item.id) === scheduleStudentId)
+
+  useEffect(() => {
+    if (!students.length) return
+    const selected = students.find((item) => String(item.id) === scheduleStudentId) || students[0]
+    if (String(selected.id) !== scheduleStudentId) setScheduleStudentId(String(selected.id))
+    setScheduleDate(normalizeCheckinScheduleDate(selected.nextCheckin) || '')
+  }, [scheduleStudentId, students])
+
+  async function scheduleCheckin(event) {
+    event.preventDefault()
+    setScheduleSaving(true)
+    setScheduleNotice('')
+    setError('')
+    try {
+      const saved = await onScheduleCheckin?.(scheduleStudentId, scheduleDate)
+      setScheduleDate(normalizeCheckinScheduleDate(saved?.nextCheckin || scheduleDate))
+      setScheduleNotice(`Próximo check-in de ${saved?.name || scheduledStudent?.name || clientLabel} agendado para ${formatDate(scheduleDate)}.`)
+    } catch (scheduleError) {
+      setError(scheduleError?.message || 'Não foi possível agendar o check-in.')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
 
   async function markReviewed(checkinId) {
     setReviewingId(String(checkinId))
@@ -16272,6 +16424,32 @@ export function Checkins({ checkins = [], students = [], onReviewCheckin, onRefr
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-blue-300/20 bg-blue-300/[0.06] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 lg:max-w-md">
+            <p className="text-xs font-black uppercase text-blue-200">Próximo retorno</p>
+            <h3 className="mt-1 text-lg font-black text-white">Definir data do check-in</h3>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">O prazo ficará destacado no aplicativo do {clientLabel}. Ao enviar, você receberá a notificação normalmente.</p>
+          </div>
+          <form onSubmit={scheduleCheckin} className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(150px,0.7fr)_auto] lg:w-[660px]">
+            <label className="grid gap-1.5 text-xs font-black text-zinc-300">
+              {clientTitle}
+              <select value={scheduleStudentId} onChange={(event) => setScheduleStudentId(event.target.value)} required className="min-h-11 min-w-0 rounded-lg border border-white/10 bg-zinc-950 px-3 text-sm text-white">
+                {students.map((student) => <option key={student.id} value={String(student.id)}>{student.name}</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-xs font-black text-zinc-300">
+              Data de envio
+              <input type="date" min={toDateInputValue(new Date())} value={scheduleDate} onChange={(event) => setScheduleDate(event.target.value)} required className="min-h-11 min-w-0 rounded-lg border border-white/10 bg-zinc-950 px-3 text-sm text-white" />
+            </label>
+            <button type="submit" disabled={scheduleSaving || !students.length} className="min-h-11 self-end rounded-lg bg-blue-400 px-4 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {scheduleSaving ? 'Salvando...' : 'Agendar'}
+            </button>
+          </form>
+        </div>
+        {scheduleNotice ? <p role="status" className="mt-3 text-sm font-bold text-emerald-200">{scheduleNotice}</p> : null}
       </section>
 
       <Panel title="Acompanhamento" action={`${visibleCheckins.length} ${visibleCheckins.length === 1 ? 'registro' : 'registros'}`}>
@@ -17240,7 +17418,10 @@ function formatAppPaymentStatus(status) {
 async function sendLocalNotification(title, body, options = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return false
   try {
-    const registration = await navigator.serviceWorker?.getRegistration()
+    let registration = await navigator.serviceWorker?.getRegistration()
+    if (registration && !registration.active && navigator.serviceWorker?.ready) {
+      registration = await navigator.serviceWorker.ready
+    }
     const notificationOptions = {
       body,
       icon: '/logoabre.png',
@@ -17388,7 +17569,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
   const avatarInputRef = useRef(null)
-  const greeting = getLocalGreeting()
   const studentFirstName = getFirstName(student?.name)
   const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
   const professionalPhoto = coachSettings?.profilePhotoUrl || ''
@@ -17410,6 +17590,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   })
   const studentWorkoutLogs = workoutLogs.filter((log) => String(log.studentId) === String(student?.id))
   const studentCheckins = checkins.filter((item) => String(item.studentId) === String(student?.id))
+  const checkinScheduleStatus = useMemo(
+    () => getCheckinScheduleStatus(student?.nextCheckin, studentCheckins),
+    [student?.nextCheckin, studentCheckins],
+  )
   const studentReward = buildStudentRewardStats({ studentId: student?.id, workoutLogs: patientMode ? [] : studentWorkoutLogs, questionnaireAssignments: studentQuestionnaireAssignments, profileType: studentProfileKind })
   const rewardTotal = studentReward.xp
   const previousRewardRef = useRef({ studentId: student?.id, xp: rewardTotal })
@@ -17446,17 +17630,24 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     ? serverFinancialAccessOpen
     : temporaryAccessOpen || hasStudentAccess(student)
   const restrictedTabs = patientMode
-    ? ['dieta', 'checkin', 'agenda', 'progresso', 'historico']
-    : ['treino', 'dieta', 'checkin', 'agenda', 'progresso', 'historico']
+    ? ['dieta', 'agua', 'checkin', 'agenda', 'progresso', 'historico']
+    : ['treino', 'dieta', 'agua', 'checkin', 'agenda', 'progresso', 'historico']
   const workoutSeconds = workoutElapsedSeconds + (workoutStartedAt ? Math.floor((workoutClock - workoutStartedAt) / 1000) : 0)
   const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
   const waterStorageDate = new Date().toLocaleDateString('sv-SE')
   const waterStorageKey = `fitcoach-water-${student?.id || 'aluno'}-${waterStorageDate}`
+  const waterLogStorageKey = `${waterStorageKey}-entries`
+  const waterGoalNoticeKey = `${waterStorageKey}-goal-notified`
   const [waterMl, setWaterMl] = useState(0)
+  const waterMlRef = useRef(0)
+  const [waterEntries, setWaterEntries] = useState([])
+  const [waterGoalCelebration, setWaterGoalCelebration] = useState(false)
+  const [waterNotificationStatus, setWaterNotificationStatus] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
   const navItems = [
     { id: 'inicio', label: 'Início', icon: 'dashboard', tone: 'emerald' },
     { id: 'treino', label: 'Treino', icon: 'dumbbell', tone: 'lime' },
     { id: 'dieta', label: 'Dieta', icon: 'nutrition', tone: 'orange' },
+    { id: 'agua', label: 'Água', icon: 'water', tone: 'sky' },
     { id: 'checkin', label: 'Check-in', icon: 'camera', tone: 'rose' },
     { id: 'mensagens', label: 'Chat', icon: 'message', tone: 'blue' },
     { id: 'pagamentos', label: 'Fatura', icon: 'wallet', tone: 'green' },
@@ -17467,15 +17658,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   ].filter((item) => !patientMode || item.id !== 'treino')
   const primaryStudentNavItems = [
     ...(patientMode
-      ? ['inicio', 'dieta', 'progresso', 'checkin']
-      : ['inicio', 'treino', 'dieta', 'progresso']),
+      ? ['inicio', 'dieta', 'agua', 'progresso', 'checkin']
+      : ['inicio', 'treino', 'dieta', 'agua', 'progresso']),
   ].map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const secondaryStudentNavIds = patientMode
     ? ['mensagens', 'agenda', 'pagamentos', 'historico', 'conta']
     : ['mensagens', 'checkin', 'agenda', 'pagamentos', 'historico', 'conta']
   const bottomStudentNavIds = patientMode
-    ? ['inicio', 'dieta', 'progresso', 'mensagens']
-    : ['inicio', 'treino', 'dieta', 'progresso']
+    ? ['inicio', 'dieta', 'agua', 'progresso']
+    : ['inicio', 'treino', 'agua', 'dieta']
   const secondaryStudentNavItems = secondaryStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const bottomNavItems = bottomStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Início'
@@ -17526,12 +17717,48 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
   useEffect(() => {
     const savedWater = Number(readLocalStorage(waterStorageKey, '0'))
-    setWaterMl(Number.isFinite(savedWater) ? Math.min(savedWater, waterGoalMl) : 0)
-  }, [waterStorageKey, waterGoalMl])
+    const nextWater = Number.isFinite(savedWater) ? Math.max(0, Math.min(savedWater, waterGoalMl)) : 0
+    let nextEntries = []
+    try {
+      const parsedEntries = JSON.parse(readLocalStorage(waterLogStorageKey, '[]'))
+      nextEntries = Array.isArray(parsedEntries)
+        ? parsedEntries.filter((entry) => Number(entry?.amountMl) > 0 && entry?.at).slice(0, 40)
+        : []
+    } catch {}
+    waterMlRef.current = nextWater
+    setWaterMl(nextWater)
+    setWaterEntries(nextEntries)
+    setWaterGoalCelebration(false)
+  }, [waterLogStorageKey, waterStorageKey, waterGoalMl])
 
   useEffect(() => {
+    waterMlRef.current = waterMl
     writeLocalStorage(waterStorageKey, String(Math.min(waterMl, waterGoalMl)))
   }, [waterMl, waterGoalMl, waterStorageKey])
+
+  useEffect(() => {
+    writeLocalStorage(waterLogStorageKey, JSON.stringify(waterEntries.slice(0, 40)))
+  }, [waterEntries, waterLogStorageKey])
+
+  useEffect(() => {
+    if (!waterGoalCelebration) return undefined
+    const timer = window.setTimeout(() => setWaterGoalCelebration(false), 4800)
+    return () => window.clearTimeout(timer)
+  }, [waterGoalCelebration])
+
+  useEffect(() => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    if (!shouldNotifyCheckinSchedule({
+      studentId: student?.id,
+      dueDate: checkinScheduleStatus.dueDate,
+      kind: checkinScheduleStatus.kind,
+    })) return
+    sendLocalNotification(
+      checkinScheduleStatus.kind === 'overdue' ? 'Check-in pendente' : 'Check-in de hoje',
+      `${studentFirstName}, envie sua atualização para ${patientMode ? 'sua nutricionista' : 'seu treinador'}.`,
+      { tag: `checkin-${student?.id}-${checkinScheduleStatus.dueDate}`, data: { url: `${window.location.pathname}?alunoTab=checkin` } },
+    )
+  }, [checkinScheduleStatus.dueDate, checkinScheduleStatus.kind, patientMode, student?.id, studentFirstName])
 
   useEffect(() => {
     function handleBeforeInstallPrompt(event) {
@@ -17565,12 +17792,59 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     openTab(previousTab && previousTab !== 'mensagens' ? previousTab : 'inicio')
   }
 
-  function addWater(amountMl) {
-    setWaterMl((current) => Math.min(waterGoalMl, current + amountMl))
+  async function addWater(amountMl) {
+    const safeAmount = Math.max(0, Number(amountMl) || 0)
+    const current = waterMlRef.current
+    const next = Math.min(waterGoalMl, current + safeAmount)
+    const recordedAmount = next - current
+    if (!recordedAmount) return
+
+    waterMlRef.current = next
+    setWaterMl(next)
+    setWaterEntries((entries) => [{ id: createNutritionDraftId('water'), amountMl: recordedAmount, at: new Date().toISOString() }, ...entries].slice(0, 40))
+
+    if (current < waterGoalMl && next >= waterGoalMl) {
+      setWaterGoalCelebration(true)
+      if (readLocalStorage(waterGoalNoticeKey, '') !== '1') {
+        const notificationDelivered = await sendLocalNotification(
+          'Meta de água concluída',
+          `Parabéns, ${studentFirstName}! Você completou sua hidratação de hoje.`,
+          { tag: `water-goal-${student?.id}-${waterStorageDate}`, data: { url: `${window.location.pathname}?alunoTab=agua` } },
+        )
+        if (notificationDelivered) writeLocalStorage(waterGoalNoticeKey, '1')
+      }
+    }
+  }
+
+  function undoLastWater() {
+    const latestEntry = waterEntries[0]
+    if (!latestEntry) return
+    const next = Math.max(0, waterMlRef.current - Number(latestEntry.amountMl || 0))
+    waterMlRef.current = next
+    setWaterMl(next)
+    setWaterEntries((entries) => entries.slice(1))
+    setWaterGoalCelebration(false)
   }
 
   function resetWater() {
+    waterMlRef.current = 0
     setWaterMl(0)
+    setWaterEntries([])
+    setWaterGoalCelebration(false)
+  }
+
+  async function requestWaterNotifications() {
+    if (!('Notification' in window)) {
+      setWaterNotificationStatus('unsupported')
+      return
+    }
+    const nextPermission = Notification.permission === 'default'
+      ? await Notification.requestPermission()
+      : Notification.permission
+    setWaterNotificationStatus(nextPermission)
+    if (nextPermission === 'granted') {
+      await sendLocalNotification('Avisos de hidratação ativados', 'Você receberá uma mensagem quando concluir sua meta diária.', { tag: 'water-notifications-enabled' })
+    }
   }
 
   async function handleAvatarChange(event) {
@@ -17687,10 +17961,26 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           waterGoalMl={waterGoalMl}
           questionnaireAssignments={studentQuestionnaireAssignments}
           dismissedQuestionnairePriorityIds={dismissedQuestionnairePriorityIds}
-          onAddWater={addWater}
-          onResetWater={resetWater}
           onOpenTab={openTab}
           onDismissQuestionnaire={(assignmentId) => setDismissedQuestionnairePriorityIds((current) => [...new Set([...current, assignmentId])])}
+        />
+      )
+    }
+
+    if (activeTab === 'agua') {
+      return (
+        <StudentHydrationPage
+          goalMl={waterGoalMl}
+          currentMl={waterMl}
+          entries={waterEntries}
+          celebration={waterGoalCelebration}
+          notificationStatus={waterNotificationStatus}
+          professionalReference={patientMode ? 'pela nutricionista' : 'pelo treinador'}
+          onAddWater={addWater}
+          onUndoLast={undoLastWater}
+          onReset={resetWater}
+          onRequestNotifications={requestWaterNotifications}
+          onDismissCelebration={() => setWaterGoalCelebration(false)}
         />
       )
     }
@@ -17790,7 +18080,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'checkin') {
-      return <StudentAppSection title="Enviar check-in" action="Retorno"><CheckinForm students={[student]} onAddCheckin={onAddCheckin} audienceLabel={patientMode ? 'Paciente' : 'Aluno'} /></StudentAppSection>
+      return (
+        <StudentAppSection title="Enviar check-in" action={checkinScheduleStatus.dueDate ? formatDate(checkinScheduleStatus.dueDate) : 'Retorno'}>
+          <StudentCheckinScheduleCard status={checkinScheduleStatus} professionalLabel={patientMode ? 'nutricionista' : 'treinador'} />
+          <CheckinForm students={[student]} onAddCheckin={onAddCheckin} audienceLabel={patientMode ? 'Paciente' : 'Aluno'} scheduledDate={checkinScheduleStatus.dueDate} />
+        </StudentAppSection>
+      )
     }
 
     if (activeTab === 'mensagens') {
@@ -17852,7 +18147,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
             <ProfileAvatar name={student.name} src={student.photo} size="sm" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-black text-white">{greeting}, {studentFirstName}</p>
+              <p className="truncate text-sm font-black text-white">{studentFirstName}</p>
               <p className="truncate text-[10px] font-black uppercase text-emerald-300">{activeTitle}</p>
             </div>
           </div>
@@ -18076,7 +18371,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   )
 }
 
-function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onAddWater, onResetWater, onOpenTab, onDismissQuestionnaire }) {
+function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onOpenTab, onDismissQuestionnaire }) {
   const firstName = String(student?.name || (patientMode ? 'paciente' : 'aluno')).split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
@@ -18178,12 +18473,10 @@ function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], 
           </details>
         </div>
 
-        <StudentWaterTracker
+        <StudentWaterQuickCard
           goalMl={waterGoalMl}
           currentMl={waterMl}
-          onAddWater={onAddWater}
-          onReset={onResetWater}
-          professionalReference={patientMode ? 'pela nutricionista' : 'pelo treinador'}
+          onOpen={() => onOpenTab('agua')}
         />
 
         {!patientMode ? <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
@@ -18579,57 +18872,133 @@ function StudentAppSection({ id, title, action, children }) {
   )
 }
 
-function StudentWaterTracker({ goalMl, currentMl, onAddWater, onReset, professionalReference = 'pelo profissional' }) {
+function StudentWaterQuickCard({ goalMl, currentMl, onOpen }) {
   const safeGoal = Math.max(500, Number(goalMl || 2500))
   const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
   const percent = Math.round((safeCurrent / safeGoal) * 100)
-  const fillHeight = `${Math.min(100, Math.max(0, percent))}%`
+  const remainingMl = Math.max(0, safeGoal - safeCurrent)
+
+  return (
+    <button type="button" onClick={onOpen} className="student-water-quick-card group w-full text-left">
+      <span className="student-water-quick-icon" aria-hidden="true">
+        <NavIcon name="water" className="h-6 w-6" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-3">
+          <strong>Hidratação de hoje</strong>
+          <span className="student-water-quick-percent">{percent}%</span>
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-zinc-400">
+          {remainingMl > 0 ? `${safeCurrent} ml registrados. Faltam ${remainingMl} ml.` : 'Meta concluída. Continue mantendo sua consistência.'}
+        </span>
+        <span className="student-water-quick-progress" aria-hidden="true"><span style={{ width: `${percent}%` }} /></span>
+      </span>
+      <NavIcon name="chevronRight" className="h-5 w-5 shrink-0 text-sky-200 transition group-hover:translate-x-0.5" />
+    </button>
+  )
+}
+
+function StudentHydrationPage({ goalMl, currentMl, entries = [], celebration = false, notificationStatus = 'default', professionalReference = 'pelo profissional', onAddWater, onUndoLast, onReset, onRequestNotifications, onDismissCelebration }) {
+  const safeGoal = Math.max(500, Number(goalMl || 2500))
+  const safeCurrent = Math.max(0, Math.min(Number(currentMl || 0), safeGoal))
+  const percent = Math.round((safeCurrent / safeGoal) * 100)
   const remainingMl = Math.max(0, safeGoal - safeCurrent)
   const currentLiters = (safeCurrent / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const goalLiters = (safeGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  const milestones = [25, 50, 75, 100]
+  const permissionLabel = notificationStatus === 'granted'
+    ? 'Notificações ativas'
+    : notificationStatus === 'denied'
+      ? 'Notificações bloqueadas no navegador'
+      : notificationStatus === 'unsupported'
+        ? 'Notificações indisponíveis neste navegador'
+        : 'Ativar notificações'
 
   return (
-    <div className="mb-4 overflow-hidden rounded-md border border-sky-300/25 bg-sky-400/10 p-4">
-      <div className="grid gap-4 sm:grid-cols-[112px_1fr] sm:items-center">
-        <div className="mx-auto grid justify-items-center gap-2">
-          <div className="h-5 w-14 rounded-t-md border border-sky-200/40 bg-zinc-950/80" />
-          <div className="relative h-44 w-24 overflow-hidden rounded-[2rem] border-2 border-sky-100/35 bg-zinc-950/70 shadow-inner shadow-sky-950/50">
-            <div
-              className="absolute inset-x-0 bottom-0 rounded-b-[1.8rem] bg-gradient-to-t from-sky-500 via-cyan-300 to-sky-200 transition-all duration-500 ease-out"
-              style={{ height: fillHeight }}
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.18)_0%,transparent_22%,transparent_72%,rgba(255,255,255,0.14)_100%)]" />
-            <div className="absolute inset-0 grid place-items-center">
-              <span className="rounded-full border border-white/20 bg-zinc-950/70 px-3 py-1 text-sm font-black text-sky-100 backdrop-blur">
-                {percent}%
-              </span>
+    <StudentAppSection title="Hidratação" action="Meta diária">
+      <div className={`student-hydration-page ${celebration ? 'is-celebrating' : ''}`}>
+        {celebration ? (
+          <div className="student-hydration-celebration" role="status" aria-live="polite">
+            <span className="student-hydration-celebration-icon"><NavIcon name="check" className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1">
+              <strong>Meta concluída!</strong>
+              <small>Excelente. Sua hidratação de hoje está completa.</small>
+            </span>
+            <button type="button" onClick={onDismissCelebration} aria-label="Fechar comemoração"><NavIcon name="close" className="h-4 w-4" /></button>
+          </div>
+        ) : null}
+
+        <div className="student-hydration-hero">
+          <div className="student-hydration-bottle" aria-label={`${percent}% da meta de água concluída`}>
+            <span className="student-hydration-bottle-cap" />
+            <span className="student-hydration-bottle-body">
+              <span className="student-hydration-water" style={{ height: `${percent}%` }} />
+              <strong>{percent}%</strong>
+            </span>
+          </div>
+
+          <div className="student-hydration-summary">
+            <p>Missão de hoje</p>
+            <h3>{currentLiters} L <span>de {goalLiters} L</span></h3>
+            <p className="student-hydration-guidance">
+              {remainingMl > 0
+                ? `Faltam ${remainingMl} ml para a meta definida ${professionalReference}. Cada registro conta.`
+                : 'Meta concluída. Pequenos hábitos, repetidos todos os dias, constroem grandes resultados.'}
+            </p>
+            <div className="student-hydration-actions" aria-label="Registrar água">
+              <button type="button" onClick={() => onAddWater(250)} className="student-water-action student-water-action--250"><strong>+250</strong><span>ml</span></button>
+              <button type="button" onClick={() => onAddWater(350)} className="student-water-action student-water-action--350"><strong>+350</strong><span>ml</span></button>
+              <button type="button" onClick={() => onAddWater(500)} className="student-water-action student-water-action--500"><strong>+500</strong><span>ml</span></button>
             </div>
           </div>
         </div>
 
-        <div className="min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase text-sky-200">Meta de água</p>
-              <h3 className="mt-1 text-2xl font-black text-white">{currentLiters} L / {goalLiters} L</h3>
+        <div className="student-hydration-milestones" aria-label="Marcos da hidratação">
+          {milestones.map((milestone) => (
+            <div key={milestone} className={percent >= milestone ? 'is-reached' : ''}>
+              <span>{percent >= milestone ? <NavIcon name="check" className="h-3.5 w-3.5" /> : milestone}</span>
+              <small>{milestone}%</small>
             </div>
-            <span className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3 py-1 text-xs font-black text-sky-100">
-              Hoje
-            </span>
+          ))}
+          <span className="student-hydration-milestone-line"><span style={{ width: `${percent}%` }} /></span>
+        </div>
+
+        <div className="student-hydration-details">
+          <div className="student-hydration-history">
+            <div className="student-hydration-subhead">
+              <div>
+                <p>Histórico de hoje</p>
+                <span>{entries.length ? `${entries.length} ${entries.length === 1 ? 'registro' : 'registros'}` : 'Comece pelo primeiro copo'}</span>
+              </div>
+              <button type="button" onClick={onUndoLast} disabled={!entries.length} className="student-water-action student-water-action--undo">Desfazer último</button>
+            </div>
+            {entries.length ? (
+              <ol className="student-hydration-entry-list">
+                {entries.slice(0, 6).map((entry) => (
+                  <li key={entry.id}>
+                    <span><NavIcon name="water" className="h-4 w-4" /></span>
+                    <strong>+{entry.amountMl} ml</strong>
+                    <time dateTime={entry.at}>{new Date(entry.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="student-hydration-empty">Registre a primeira dose para iniciar sua missão diária.</p>
+            )}
           </div>
-          <p className="mt-2 text-sm leading-6 text-zinc-300">
-            {remainingMl > 0 ? `Faltam ${remainingMl} ml para bater a meta definida ${professionalReference}.` : 'Meta concluída hoje. Excelente consistência.'}
-          </p>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => onAddWater(250)} className="student-water-action student-water-action--250 rounded-md bg-sky-300 px-3 py-3 text-xs font-black text-zinc-950">+250 ml</button>
-            <button type="button" onClick={() => onAddWater(500)} className="student-water-action student-water-action--500 rounded-md bg-cyan-300 px-3 py-3 text-xs font-black text-zinc-950">+500 ml</button>
-            <button type="button" onClick={onReset} className="student-water-action student-water-action--reset rounded-md border border-white/10 px-3 py-3 text-xs font-black text-zinc-200">
-              Zerar
+
+          <aside className="student-hydration-settings">
+            <p>Lembrete de conquista</p>
+            <span>Ao concluir 100%, o aplicativo comemora e pode avisar no celular.</span>
+            <button type="button" disabled={notificationStatus !== 'default'} onClick={onRequestNotifications} className="student-water-notification-button">
+              <NavIcon name={notificationStatus === 'granted' ? 'check' : 'notifications'} className="h-4 w-4" />
+              {permissionLabel}
             </button>
-          </div>
+            <button type="button" onClick={onReset} disabled={!safeCurrent} className="student-water-action student-water-action--reset">Reiniciar dia</button>
+          </aside>
         </div>
       </div>
-    </div>
+    </StudentAppSection>
   )
 }
 
@@ -19060,7 +19429,46 @@ function StudentStatusCard({ label, value, detail, tone = 'neutral' }) {
     </div>
   )
 }
-function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno' }) {
+
+function StudentCheckinScheduleCard({ status, professionalLabel = 'profissional' }) {
+  const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
+  const tone = status.kind === 'overdue'
+    ? 'border-rose-300/30 bg-rose-300/10 text-rose-100'
+    : status.kind === 'due'
+      ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+      : status.kind === 'sent'
+        ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-100'
+        : 'border-blue-300/25 bg-blue-300/[0.07] text-blue-100'
+
+  async function enableNotifications() {
+    const nextPermission = await Notification.requestPermission()
+    setPermission(nextPermission)
+    if (nextPermission === 'granted') {
+      await sendLocalNotification('Avisos de check-in ativados', 'O Coach Fit Pro avisará quando sua atualização estiver pendente.', { tag: 'checkin-notifications-enabled' })
+    }
+  }
+
+  return (
+    <div className={`mb-4 rounded-xl border p-4 ${tone}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase">{status.label}</p>
+          <p className="mt-1 text-sm font-black text-white">
+            {status.dueDate ? `Data definida: ${formatDate(status.dueDate)}` : `Seu ${professionalLabel} ainda não definiu o próximo prazo.`}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-zinc-300">
+            {status.kind === 'sent' ? 'Sua atualização já foi enviada e está disponível para análise.' : 'Envie peso, observações e foto para manter seu acompanhamento atualizado.'}
+          </p>
+        </div>
+        {permission === 'default' ? (
+          <button type="button" onClick={enableNotifications} className="min-h-10 shrink-0 rounded-lg border border-white/15 bg-zinc-950/35 px-3 text-xs font-black text-white">Ativar avisos</button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno', scheduledDate = '' }) {
   const [photo, setPhoto] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -19108,7 +19516,7 @@ function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno' }) {
       const savedCheckin = await onAddCheckin({
         studentId: form.get('studentId')?.toString() || '',
         type: form.get('type')?.toString() || 'Check-in',
-        due: 'Hoje',
+        due: scheduledDate || 'Hoje',
         state: 'Pendente',
         weight,
         note,

@@ -71,22 +71,6 @@ export function ChatComposer({
     if (hasContent && !unavailable) event.currentTarget.form?.requestSubmit()
   }
 
-  function handleComposerFocus() {
-    const textarea = textareaRef.current
-    if (!textarea || typeof window === 'undefined') return
-    const ensureVisible = () => {
-      const viewport = window.visualViewport
-      const viewportTop = Number(viewport?.offsetTop) || 0
-      const viewportBottom = viewportTop + (Number(viewport?.height) || window.innerHeight)
-      const bounds = textarea.getBoundingClientRect()
-      if (bounds.top < viewportTop || bounds.bottom > viewportBottom - 8) {
-        textarea.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-      }
-    }
-    window.requestAnimationFrame(ensureVisible)
-    window.setTimeout(ensureVisible, 180)
-  }
-
   return (
     <form className={`chat-compose ${recording ? 'chat-compose-recording' : ''}`} onSubmit={submit}>
       {suggestion && !hasContent && !recording ? (
@@ -110,7 +94,6 @@ export function ChatComposer({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
-            onFocus={handleComposerFocus}
             placeholder={placeholder}
             disabled={unavailable}
             enterKeyHint="send"

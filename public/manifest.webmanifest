@@ -1,7 +1,7 @@
 {
   "name": "Coach Fit Pro",
   "short_name": "Coach Fit Pro",
-  "description": "Acompanhamento de treino, dieta, check-ins e mensagens do aluno.",
+  "description": "Acompanhamento de treinos, nutrição, check-ins, hidratação e mensagens para alunos e pacientes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

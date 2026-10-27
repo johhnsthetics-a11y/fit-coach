@@ -199,8 +199,10 @@ test('chat mobile mantém o compositor acima do teclado e remove a navegação c
   assert.match(conversationSource, /keyboardOpen/)
   assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.coach-mobile-bottom-nav[\s\S]*?display:\s*none/)
   assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.chat-pro-mobile-conversation-open/)
-  assert.match(composerSource, /onFocus=\{handleComposerFocus\}/)
-  assert.match(composerSource, /scrollIntoView/)
+  assert.doesNotMatch(composerSource, /scrollIntoView/)
+  assert.match(chatCss, /\.chat-compose[\s\S]*?position:\s*sticky[\s\S]*?bottom:\s*0/)
+  assert.match(chatCss, /\.chat-compose:focus-within/)
+  assert.match(chatCss, /html\.chat-keyboard-open[\s\S]*?\.chat-compose[\s\S]*?padding-bottom:\s*0\.45rem/)
 })
 
 test('chat profissional usa a viewport visual completa durante o teclado do iPhone', () => {
@@ -283,4 +285,26 @@ test('personalização do chat ganha CTA destacado no header', () => {
   assert.match(wallpaperSource, /chat-pro-wallpaper-button-emphasis/)
   assert.match(wallpaperCss, /\.chat-pro-wallpaper-button-emphasis/)
   assert.match(wallpaperCss, /box-shadow:/)
+})
+
+test('seletor de wallpaper é acionado pelo cabeçalho React e estiliza as classes atuais', () => {
+  assert.match(conversationSource, /chat-wallpaper-native-trigger/)
+  assert.match(conversationSource, /coach-fit:open-chat-wallpaper/)
+  assert.match(wallpaperSource, /coach-fit:open-chat-wallpaper/)
+  assert.match(wallpaperCss, /\.chat-message-own/)
+  assert.match(wallpaperCss, /\.chat-message-received/)
+  assert.match(wallpaperCss, /\.chat-compose/)
+  assert.match(wallpaperCss, /\.chat-compose textarea/)
+})
+
+test('personalizacao identifica claramente o fundo selecionado nos temas claro e escuro', () => {
+  assert.match(conversationSource, /name="settings"/)
+  assert.match(conversationSource, /chat-wallpaper-native-indicator/)
+  assert.doesNotMatch(conversationSource, />Fundo</)
+  assert.match(wallpaperSource, /chat-pro-wallpaper-choice-status/)
+  assert.match(wallpaperSource, /aria-pressed/)
+  assert.match(wallpaperSource, /data-wallpaper-selection/)
+  assert.match(wallpaperCss, /\.chat-pro-wallpaper-preset\.chat-pro-wallpaper-selected \.chat-pro-wallpaper-choice-status/)
+  assert.match(wallpaperCss, /html\[data-theme="dark"\][\s\S]*?\.chat-pro-wallpaper-preset\.chat-pro-wallpaper-selected/)
+  assert.match(wallpaperCss, /html\[data-theme="dark"\][\s\S]*?data-wallpaper-swatch="aurora"/)
 })

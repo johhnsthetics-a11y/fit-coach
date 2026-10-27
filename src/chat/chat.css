@@ -807,12 +807,22 @@ html[data-theme="dark"] .chat-connection-state,
   }
 
   html.chat-keyboard-open .chat-compose {
-    padding-bottom: max(0.45rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0.45rem;
+  }
+
+  html.chat-keyboard-open .chat-conversation,
+  html.chat-keyboard-open .chat-message-list {
+    overscroll-behavior: contain;
+  }
+
+  html.chat-keyboard-open .chat-compose textarea {
+    max-height: min(6rem, calc(var(--chat-pro-visual-height, 100dvh) * 0.28));
   }
 }
 
 .chat-compose {
-  position: relative;
+  position: sticky;
+  bottom: 0;
   z-index: 5;
   display: grid;
   width: 100%;
@@ -824,6 +834,11 @@ html[data-theme="dark"] .chat-connection-state,
   background: color-mix(in srgb, var(--chat-surface) 96%, transparent);
   padding: 0.6rem max(0.65rem, env(safe-area-inset-right, 0px)) max(0.65rem, env(safe-area-inset-bottom, 0px)) max(0.65rem, env(safe-area-inset-left, 0px));
   backdrop-filter: blur(14px);
+}
+
+.chat-compose:focus-within {
+  border-top-color: color-mix(in srgb, var(--chat-accent) 26%, var(--chat-border));
+  background: color-mix(in srgb, var(--chat-surface) 98%, transparent);
 }
 
 .chat-compose-row {
