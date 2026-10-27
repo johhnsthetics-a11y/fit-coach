@@ -7467,6 +7467,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
 
 function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
   const [studentSection, setStudentSection] = useState('wallet')
+  const [walletMobileView, setWalletMobileView] = useState('list')
   const [editing, setEditing] = useState(null)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [studentSearch, setStudentSearch] = useState('')
@@ -7556,6 +7557,33 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     window.requestAnimationFrame(() => document.getElementById(`students-tab-${nextSection}`)?.focus())
   }
 
+  function handleWalletStudentSelect(studentId) {
+    setSelectedStudentId(studentId)
+    setEditing(null)
+    setWalletMobileView('detail')
+  }
+
+  function handleCreateStudent() {
+    setEditing(createBlankStudent())
+    setWalletMobileView('detail')
+  }
+
+  async function deleteSelectedStudent() {
+    if (!selectedStudent) return
+    const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
+    if (!confirmed) return
+    setDeleting(true)
+    setAccessError('')
+    try {
+      await onDelete(selectedStudent.id)
+      setWalletMobileView('list')
+    } catch (error) {
+      setAccessError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="students-workspace grid gap-4 lg:gap-6">
       <div
@@ -7606,163 +7634,190 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       <div id="students-panel-wallet" role="tabpanel" aria-labelledby="students-tab-wallet" tabIndex={0} hidden={studentSection !== 'wallet'} className="student-wallet-workspace grid gap-4 lg:gap-6">
         <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
-      <div className="student-wallet-columns grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
-      <div className="student-wallet-directory">
-      <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
-        <div className="mb-4 grid gap-2 sm:grid-cols-2">
-          <button onClick={() => setEditing(createBlankStudent())} className="min-h-12 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-            {nutritionist ? 'Novo paciente' : 'Novo aluno'}
-          </button>
-          <button type="button" onClick={() => setImportDialogOpen(true)} className="min-h-12 w-full rounded-md border border-cyan-300/35 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20">
-            Importar planilha
-          </button>
-        </div>
-        <label className="mb-4 block">
-          <span className="mb-2 block text-xs font-black uppercase tracking-[0.1em] text-zinc-500">
-            Buscar {nutritionist ? 'paciente' : 'aluno'}
-          </span>
-          <span className="flex min-h-12 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.035] px-3 focus-within:border-cyan-300/50 focus-within:bg-cyan-300/[0.05]">
-            <NavIcon name="search" className="h-5 w-5 shrink-0 text-cyan-300" />
-            <input
-              type="search"
-              value={studentSearch}
-              onChange={(event) => setStudentSearch(event.target.value)}
-              placeholder="Nome, e-mail ou CPF"
-              autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent py-3 text-sm font-bold text-zinc-100 outline-none placeholder:text-zinc-600"
-            />
-          </span>
-        </label>
-        <div className="student-wallet-directory__list space-y-3">
-          {visibleStudents.map((student) => (
-            <button
-              key={student.id}
-              onClick={() => setSelectedStudentId(student.id)}
-              className={`w-full rounded-md border p-4 text-left transition ${
-                selectedStudent?.id === student.id ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <ProfileAvatar name={student.name} src={student.photo} size="md" />
-                  <div className="min-w-0">
-                    <h3 className="truncate font-black">{student.name}</h3>
-                    <p className="mt-1 truncate text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
-                  </div>
+      <div className="student-wallet-columns" data-mobile-view={walletMobileView}>
+        <aside className="student-wallet-directory" aria-label={nutritionist ? 'Lista de pacientes' : 'Lista de alunos'}>
+          <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
+            <div className="student-wallet-directory__actions">
+              <button type="button" onClick={handleCreateStudent} className="student-wallet-primary-action">
+                <NavIcon name="plus" className="h-4 w-4" />
+                {nutritionist ? 'Novo paciente' : 'Novo aluno'}
+              </button>
+              <button type="button" onClick={() => setImportDialogOpen(true)} className="student-wallet-secondary-action">
+                <NavIcon name="download" className="h-4 w-4" />
+                Importar planilha
+              </button>
+            </div>
+            <label className="student-wallet-search">
+              <span>Buscar {nutritionist ? 'paciente' : 'aluno'}</span>
+              <span className="student-wallet-search__control">
+                <NavIcon name="search" className="h-5 w-5 shrink-0" />
+                <input
+                  type="search"
+                  value={studentSearch}
+                  onChange={(event) => setStudentSearch(event.target.value)}
+                  placeholder="Nome, e-mail ou CPF"
+                  autoComplete="off"
+                />
+              </span>
+            </label>
+            <div className="student-wallet-directory__list">
+              {visibleStudents.map((student) => {
+                const adherence = clampPercent(student.adherence)
+                const selected = selectedStudent?.id === student.id
+                return (
+                  <button
+                    key={student.id}
+                    type="button"
+                    onClick={() => handleWalletStudentSelect(student.id)}
+                    aria-current={selectedStudent?.id === student.id ? 'true' : undefined}
+                    className={`student-wallet-person ${selected ? 'is-selected' : ''}`}
+                  >
+                    <span className="student-wallet-person__topline">
+                      <span className="student-wallet-person__identity">
+                        <ProfileAvatar name={student.name} src={student.photo} size="md" />
+                        <span>
+                          <strong>{student.name}</strong>
+                          <small>{student.email || student.phone || student.goal || student.plan || 'Acompanhamento'}</small>
+                        </span>
+                      </span>
+                      <Badge tone={student.risk}>{student.risk || 'Baixo'}</Badge>
+                    </span>
+                    <span
+                      className="student-wallet-progress"
+                      role="progressbar"
+                      aria-label={`Constância de ${student.name}`}
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuenow={clampPercent(student.adherence)}
+                    >
+                      <span className="student-wallet-progress__fill" style={{ '--student-wallet-progress': `${adherence}%` }} />
+                    </span>
+                    <span className="student-wallet-person__meta">
+                      <span>{student.plan || 'Plano não definido'}</span>
+                      <strong>{adherence}%</strong>
+                    </span>
+                  </button>
+                )
+              })}
+              {!visibleStudents.length ? (
+                <div className="student-wallet-empty-state">
+                  <NavIcon name="search" className="h-5 w-5" />
+                  <strong>{studentSearch.trim() ? `Nenhum ${clientLabel} encontrado` : `Nenhum ${clientLabel} cadastrado`}</strong>
+                  <span>{studentSearch.trim() ? 'Tente buscar por outro nome, e-mail ou CPF.' : `Cadastre o primeiro ${clientLabel} para iniciar o acompanhamento.`}</span>
                 </div>
-                <Badge tone={student.risk}>{student.risk}</Badge>
-              </div>
-              <div className="mt-4 h-2 rounded bg-zinc-800">
-                <div className="h-2 rounded bg-blue-500" style={{ width: `${clampPercent(student.adherence)}%` }} />
-              </div>
-            </button>
-          ))}
-          {!visibleStudents.length ? (
-            <Empty text={studentSearch.trim() ? `Nenhum ${clientLabel} encontrado por nome, e-mail ou CPF.` : `Nenhum ${clientLabel} cadastrado.`} />
-          ) : null}
-        </div>
-      </Panel>
-      </div>
+              ) : null}
+            </div>
+          </Panel>
+        </aside>
 
-      <div className="student-wallet-detail">
-      <Panel title="Ficha e edição" action={selectedStudent?.phase ?? 'Novo'}>
-        {editing ? (
-          <StudentForm
-            nutritionist={nutritionist}
-            student={editing}
-            coachPlans={coachPlans}
-            onSaveCoachPlan={onSaveCoachPlan}
-            onCancel={() => setEditing(null)}
-            onSave={async (student) => {
-              await onSave(student)
-              setEditing(null)
-            }}
-          />
-        ) : selectedStudent ? (
-          <>
-            <StudentSnapshot student={selectedStudent} />
-            <StudentPlanPreview plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal', features: 'Selecione um plano cadastrado para ativar a cobrança automática.' }} availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: 'mensal' }]} />
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Info label="E-mail" value={selectedStudent.email} />
-              <Info label="Telefone" value={selectedStudent.phone} />
-              <Info label="CPF" value={formatCpf(selectedStudent.cpf) || 'Não informado'} />
-              <Info label="Plano" value={selectedStudent.plan} />
-              <Info label="Mensalidade do profissional" value={selectedStudent.payment} />
-              <Info label="Assinatura Coach Fit Pro" value={formatAppPaymentStatus(selectedStudent.appPaymentStatus)} />
-              <Info label="Periodicidade" value={getPlanCycleLabel({ cycle: selectedStudent.billingCycle })} />
-              <Info label="Próximo vencimento" value={formatDate(selectedStudent.nextDueDate || selectedStudent.firstDueDate)} />
-              <Info label="Meta de água" value={selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'} />
-              <Info label="Liberação temporária" value={selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'} />
-              <Info label="Próximo check-in" value={selectedStudent.nextCheckin} />
-            </div>
-            <div className="mt-5 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
-              <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-200">
-                {professionalAffiliate
-                  ? `Gere o login e envie ao ${clientLabel}. Depois do primeiro acesso, o aplicativo solicitará a ativação de R$ 25 por mês antes de liberar as ferramentas.`
-                  : `Gere o login e envie ao ${clientLabel}. Após trocar a senha temporária, o acompanhamento estará pronto para uso.`}
-              </p>
-              <button
-                type="button"
-                disabled={credentialsSaving || !selectedStudent?.email || Boolean(selectedStudent?.authUserId && !selectedStudent?.mustChangePassword)}
-                onClick={generateCredentials}
-                className="mt-4 min-h-11 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {credentialsSaving ? 'Gerando...' : selectedStudent?.mustChangePassword ? 'Gerar nova senha temporária' : 'Gerar acesso'}
-              </button>
-              {!selectedStudent?.email ? <p className="mt-2 text-xs font-bold text-amber-100">Cadastre um e-mail válido antes de gerar o acesso.</p> : null}
-              {selectedStudent?.authUserId && !selectedStudent?.mustChangePassword ? <p className="mt-2 text-xs text-zinc-400">Acesso já ativado. Para trocar a senha, use “Esqueci minha senha” no login.</p> : null}
-              {accessError ? <p className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{accessError}</p> : null}
-            </div>
-            <div className="mt-5 grid gap-3">
-              <div className="flex flex-col gap-3 rounded-md border border-emerald-300/25 bg-emerald-300/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.1em] text-emerald-200">Anamnese inicial</p>
-                  <p className="mt-1 text-sm leading-6 text-zinc-300">
-                    {selectedAnamnesis ? 'Revise e atualize o histórico antes de prescrever.' : `Registre o perfil, a saúde, a rotina e os objetivos do ${clientLabel}.`}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAnamnesisEditorOpen((open) => !open)}
-                  className="min-h-11 shrink-0 rounded-md bg-emerald-300 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-emerald-200"
-                >
-                  {anamnesisEditorOpen ? 'Fechar formulário' : selectedAnamnesis ? 'Editar anamnese' : 'Preencher anamnese'}
-                </button>
-              </div>
-              <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} questionnaireAssignments={questionnaireAssignments} clientLabel={clientLabel} nutritionist={nutritionist} />
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => setEditing(selectedStudent)} className="w-full rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
-                {nutritionist ? 'Editar paciente' : 'Editar aluno'}
-              </button>
-              <button
-                type="button"
-                disabled={deleting}
-                onClick={async () => {
-                  const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
-                  if (!confirmed) return
-                  setDeleting(true)
-                  setAccessError('')
-                  try {
-                    await onDelete(selectedStudent.id)
-                  } catch (error) {
-                    setAccessError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
-                  } finally {
-                    setDeleting(false)
-                  }
+        <main className="student-wallet-detail" aria-label={nutritionist ? 'Ficha do paciente' : 'Ficha do aluno'}>
+          <button type="button" className="student-wallet-mobile-back" onClick={() => setWalletMobileView('list')}>
+            <NavIcon name="arrowLeft" className="h-5 w-5" />
+            Voltar para a carteira
+          </button>
+          <Panel title={editing ? (nutritionist ? 'Cadastro do paciente' : 'Cadastro do aluno') : 'Ficha e edição'} action={selectedStudent?.phase ?? 'Novo'}>
+            {editing ? (
+              <StudentForm
+                nutritionist={nutritionist}
+                student={editing}
+                coachPlans={coachPlans}
+                onSaveCoachPlan={onSaveCoachPlan}
+                onCancel={() => setEditing(null)}
+                onSave={async (student) => {
+                  await onSave(student)
+                  setEditing(null)
                 }}
-                className="w-full rounded-md border border-rose-300/30 px-4 py-3 text-sm font-black text-rose-200 disabled:opacity-50"
-              >
-                {deleting ? 'Excluindo...' : nutritionist ? 'Excluir paciente' : 'Excluir aluno'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <Empty text={nutritionist ? 'Nenhum paciente selecionado.' : 'Nenhum aluno selecionado.'} />
-        )}
-      </Panel>
-      </div>
+              />
+            ) : selectedStudent ? (
+              <>
+                <StudentSnapshot
+                  student={selectedStudent}
+                  actions={(
+                    <div className="student-wallet-header-actions">
+                      <button type="button" onClick={() => setEditing(selectedStudent)} className="student-wallet-edit-action">
+                        Editar
+                      </button>
+                      <details className="student-wallet-actions-menu">
+                        <summary><span>Mais opções</span></summary>
+                        <div>
+                          <button type="button" disabled={deleting} onClick={deleteSelectedStudent}>
+                            {deleting ? 'Excluindo...' : nutritionist ? 'Excluir paciente' : 'Excluir aluno'}
+                          </button>
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                />
+                <StudentWalletPlanSummary
+                  plan={selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: selectedStudent.billingCycle || 'mensal' }}
+                  availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: selectedStudent.billingCycle || 'mensal' }]}
+                  payment={selectedStudent.payment}
+                />
+                <div className="student-wallet-detail-grid">
+                  <StudentWalletDetailSection
+                    title="Cadastro e contato"
+                    items={[
+                      ['E-mail', selectedStudent.email],
+                      ['Telefone', selectedStudent.phone],
+                      ['CPF', formatCpf(selectedStudent.cpf)],
+                      ['Status do cadastro', selectedStudent.phase],
+                    ]}
+                  />
+                  <StudentWalletDetailSection
+                    title="Cobrança e acompanhamento"
+                    items={[
+                      ['Mensalidade do profissional', selectedStudent.payment],
+                      ['Assinatura Coach Fit Pro', formatAppPaymentStatus(selectedStudent.appPaymentStatus)],
+                      ['Periodicidade', getPlanCycleLabel({ cycle: selectedStudent.billingCycle })],
+                      ['Próximo vencimento', formatDate(selectedStudent.nextDueDate || selectedStudent.firstDueDate)],
+                      ['Próximo check-in', selectedStudent.nextCheckin],
+                      ['Meta de água', selectedStudent.waterGoalMl ? `${selectedStudent.waterGoalMl} ml/dia` : '2500 ml/dia'],
+                      ['Liberação temporária', selectedStudent.accessOverrideUntil ? `Até ${formatFullDateTime(selectedStudent.accessOverrideUntil)}` : 'Sem liberação ativa'],
+                    ]}
+                  />
+                </div>
+                <section className="student-wallet-access-panel">
+                  <div>
+                    <p>{nutritionist ? 'Acesso do paciente' : 'Acesso do aluno'}</p>
+                    <span>
+                      {professionalAffiliate
+                        ? `Gere o login e envie ao ${clientLabel}. A ativação de R$ 25 por mês será solicitada no primeiro acesso.`
+                        : `Gere o login e envie ao ${clientLabel}. Após trocar a senha temporária, o acompanhamento estará pronto.`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={credentialsSaving || !selectedStudent?.email || Boolean(selectedStudent?.authUserId && !selectedStudent?.mustChangePassword)}
+                    onClick={generateCredentials}
+                  >
+                    {credentialsSaving ? 'Gerando...' : selectedStudent?.mustChangePassword ? 'Gerar nova senha' : 'Gerar acesso'}
+                  </button>
+                  {!selectedStudent?.email ? <small>Cadastre um e-mail válido antes de gerar o acesso.</small> : null}
+                  {selectedStudent?.authUserId && !selectedStudent?.mustChangePassword ? <small>Acesso já ativado. Para trocar a senha, use “Esqueci minha senha” no login.</small> : null}
+                  {accessError ? <strong className="student-wallet-inline-error">{accessError}</strong> : null}
+                </section>
+                <section className="student-wallet-anamnesis">
+                  <div className="student-wallet-anamnesis__heading">
+                    <div>
+                      <p>Anamnese inicial</p>
+                      <span>{selectedAnamnesis ? 'Revise o histórico antes de prescrever.' : `Registre saúde, rotina e objetivos do ${clientLabel}.`}</span>
+                    </div>
+                    <button type="button" onClick={() => setAnamnesisEditorOpen((open) => !open)}>
+                      {selectedAnamnesis ? 'Editar anamnese' : 'Preencher anamnese'}
+                    </button>
+                  </div>
+                  <ProfessionalAnamnesisSummary anamnesis={selectedAnamnesis} student={selectedStudent} questionnaireAssignments={questionnaireAssignments} clientLabel={clientLabel} nutritionist={nutritionist} />
+                </section>
+              </>
+            ) : (
+              <div className="student-wallet-empty-state is-detail">
+                <NavIcon name="users" className="h-6 w-6" />
+                <strong>{nutritionist ? 'Selecione um paciente' : 'Selecione um aluno'}</strong>
+                <span>A ficha aparecerá aqui sem recarregar a página.</span>
+              </div>
+            )}
+          </Panel>
+        </main>
       </div>
       </div>
       <StudentImportDialog
@@ -8170,6 +8225,58 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
         </button>
       </div>
     </form>
+  )
+}
+
+function StudentWalletPlanSummary({ plan, availablePlans = plans, payment = '' }) {
+  const billingAmount = getPlanBillingAmount(plan?.name, availablePlans)
+  const monthlyEquivalent = getPlanMonthlyPrice(plan?.name, availablePlans)
+  const showMonthlyEquivalent = Math.abs(Number(billingAmount || 0) - Number(monthlyEquivalent || 0)) > 0.01
+
+  return (
+    <section className="student-wallet-plan-summary" aria-label="Resumo comercial">
+      <div className="student-wallet-plan-summary__item is-plan">
+        <span>Plano aplicado</span>
+        <strong>{plan?.name || 'Plano não definido'}</strong>
+        <small>{plan?.features || 'Acompanhamento personalizado'}</small>
+      </div>
+      <div className="student-wallet-plan-summary__item is-billing">
+        <span>Valor da cobrança</span>
+        <strong>{formatCurrency(billingAmount)}</strong>
+        <small>{getPlanCycleLabel(plan)}</small>
+      </div>
+      {showMonthlyEquivalent ? (
+        <div className="student-wallet-plan-summary__item">
+          <span>Equivalente mensal</span>
+          <strong>{formatCurrency(monthlyEquivalent)}</strong>
+          <small>Referência financeira</small>
+        </div>
+      ) : null}
+      <div className="student-wallet-plan-summary__item">
+        <span>Situação</span>
+        <strong>{payment || 'Não informado'}</strong>
+        <small>Cobrança do profissional</small>
+      </div>
+    </section>
+  )
+}
+
+function StudentWalletDetailSection({ title, items = [] }) {
+  return (
+    <section className="student-wallet-detail-section">
+      <h4>{title}</h4>
+      <dl>
+        {items.map(([label, value]) => {
+          const unavailable = isAnamnesisUnavailable(value)
+          return (
+            <div key={label} className={unavailable ? 'is-empty' : ''}>
+              <dt>{label}</dt>
+              <dd>{unavailable ? 'Não informado' : value}</dd>
+            </div>
+          )
+        })}
+      </dl>
+    </section>
   )
 }
 
@@ -24048,28 +24155,39 @@ function Panel({ title, action, children }) {
   )
 }
 
-function StudentSnapshot({ student }) {
+function StudentSnapshot({ student, actions = null }) {
+  const adherence = clampPercent(student.adherence)
   return (
-    <div>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
+    <header className="student-wallet-snapshot">
+      <div className="student-wallet-snapshot__topline">
+        <div className="student-wallet-snapshot__identity">
           <ProfileAvatar name={student.name} src={student.photo} size="lg" />
-          <div className="min-w-0">
-            <h3 className="truncate text-2xl font-black">{student.name}</h3>
-            <p className="mt-1 truncate text-sm text-zinc-400">{student.goal || student.plan || 'Acompanhamento'}</p>
+          <div>
+            <h3>{student.name}</h3>
+            <p>{student.goal || student.plan || 'Acompanhamento'}</p>
           </div>
         </div>
-        <Badge tone={student.risk}>{student.risk}</Badge>
+        <div className="student-wallet-snapshot__actions">
+          <Badge tone={student.risk}>{student.risk || 'Baixo'}</Badge>
+          {actions}
+        </div>
       </div>
-      <div className="mt-5 h-2 rounded bg-zinc-800">
-        <div className="h-2 rounded bg-blue-500" style={{ width: `${clampPercent(student.adherence)}%` }} />
+      <div className="student-wallet-snapshot__progress-copy">
+        <span>Constância no acompanhamento</span>
+        <strong>{adherence}%</strong>
       </div>
-      <div className="mt-2 flex justify-between text-xs text-zinc-400">
-        <span>Constância</span>
-        <span>{clampPercent(student.adherence)}%</span>
+      <div
+        className="student-wallet-progress is-large"
+        role="progressbar"
+        aria-label={`Constância de ${student.name}`}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={adherence}
+      >
+        <span className="student-wallet-progress__fill" style={{ '--student-wallet-progress': `${adherence}%` }} />
       </div>
-      <p className="mt-5 rounded-md border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-zinc-300">{student.lastMessage}</p>
-    </div>
+      {student.lastMessage ? <p className="student-wallet-snapshot__message">{student.lastMessage}</p> : null}
+    </header>
   )
 }
 

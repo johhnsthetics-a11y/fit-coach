@@ -36,6 +36,33 @@ test('Students tabs expose complete keyboard and tabpanel semantics', () => {
   assert.match(students, /ArrowRight/)
 })
 
+test('Carteira uses a responsive master-detail flow and preserves the selected student', () => {
+  const students = app.slice(app.indexOf('function Students('), app.indexOf('function StudentRankingPanel('))
+  assert.match(students, /walletMobileView/)
+  assert.match(students, /handleWalletStudentSelect/)
+  assert.match(students, /data-mobile-view=\{walletMobileView\}/)
+  assert.match(students, /student-wallet-mobile-back/)
+  assert.match(students, /aria-current=\{selectedStudent\?\.id === student\.id \? 'true' : undefined\}/)
+  assert.match(appCss, /student-wallet-columns[\s\S]*?grid-template-columns:\s*minmax\(320px,\s*380px\)\s+minmax\(0,\s*1fr\)/)
+  assert.match(appCss, /@media \(max-width: 1279px\)[\s\S]*?data-mobile-view='detail'[\s\S]*?student-wallet-directory[\s\S]*?display:\s*none/)
+  assert.match(appCss, /@media \(max-width: 1279px\)[\s\S]*?data-mobile-view='list'[\s\S]*?student-wallet-detail[\s\S]*?display:\s*none/)
+})
+
+test('Carteira exposes semantic progress, compact detail groups and protected destructive actions', () => {
+  const students = app.slice(app.indexOf('function Students('), app.indexOf('function StudentRankingPanel('))
+  const snapshot = app.slice(app.indexOf('function StudentSnapshot('), app.indexOf('function Row('))
+  assert.match(students, /role="progressbar"/)
+  assert.match(students, /aria-valuenow=\{clampPercent\(student\.adherence\)\}/)
+  assert.match(students, /student-wallet-progress__fill/)
+  assert.match(students, /student-wallet-detail-grid/)
+  assert.match(students, /<StudentWalletDetailSection/)
+  assert.match(app, /function StudentWalletDetailSection[\s\S]*?student-wallet-detail-section/)
+  assert.match(students, /student-wallet-actions-menu/)
+  assert.match(students, /<summary[^>]*>[\s\S]*?Mais opções/)
+  assert.match(snapshot, /role="progressbar"/)
+  assert.doesNotMatch(students, /<StudentPlanPreview/)
+})
+
 test('workspace isolates anamnesis templates and supports complete question editing', () => {
   assert.match(workspace, /questionnaireType === QUESTIONNAIRE_TYPES\.ANAMNESIS/)
   assert.match(workspace, /questionSnapshot\?\.questionnaireType === QUESTIONNAIRE_TYPES\.ANAMNESIS/)
@@ -93,5 +120,5 @@ test('workspace styles are responsive and loaded by the application', () => {
   assert.match(appCss, /\.student-wallet-directory[\s\S]*?position: sticky/)
   assert.match(appCss, /\.student-wallet-directory__list[\s\S]*?overflow-y: auto/)
   assert.match(appCss, /\.student-wallet-directory__list[\s\S]*?flex:\s*1 1 auto/)
-  assert.match(appCss, /@media \(max-width: 1279px\)[\s\S]*?\.student-wallet-directory[\s\S]*?position: static/)
+  assert.match(appCss, /@media \(max-width: 1279px\)[\s\S]*?data-mobile-view='detail'/)
 })
