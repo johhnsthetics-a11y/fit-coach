@@ -4,7 +4,9 @@ import { swapShowcasePositions } from './showcaseCarousel'
 import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
 import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
+import StudentImportDialog from './StudentImportDialog'
 import { filterStudents } from './studentDirectory'
+import { findStudentImportDuplicate } from './studentImport'
 import { getCheckinScheduleStatus, normalizeCheckinScheduleDate, shouldNotifyCheckinSchedule } from './checkinSchedule'
 import { loadStudentPortalWithRetry, requireStudentBootstrapForSession } from './studentFirstPassword'
 import {
@@ -171,7 +173,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'webapp-alignment-20261022'
+const COACH_FIT_PRO_BUILD_MARKER = 'student-import-20261027'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -3002,6 +3004,70 @@ function AppContent() {
     return { student: savedStudent, invite: createdInvite }
   }
 
+  async function importStudents(rows) {
+    const candidates = Array.isArray(rows) ? rows : []
+    const imported = []
+    const failed = []
+    const knownStudents = [...data.students]
+
+    for (let index = 0; index < candidates.length; index += 1) {
+      const student = candidates[index]
+      const duplicate = findStudentImportDuplicate(student, knownStudents)
+      if (duplicate) {
+        failed.push({
+          lineNumber: student.importLine,
+          name: student.name,
+          message: `Já existe um cadastro para ${duplicate.email || duplicate.cpf || duplicate.name}.`,
+        })
+        continue
+      }
+
+      try {
+        const savedStudent = supabaseEnabled
+          ? await saveRemoteStudent(student, activeCoachId)
+          : { ...student, id: `import-${Date.now()}-${index}` }
+        imported.push(savedStudent)
+        knownStudents.push(savedStudent)
+      } catch (error) {
+        failed.push({
+          lineNumber: student.importLine,
+          name: student.name,
+          message: error?.message || 'Erro ao salvar o cadastro.',
+          error,
+        })
+      }
+    }
+
+    if (imported.length) {
+      setData((current) => ({
+        ...current,
+        students: [...imported, ...current.students],
+        notifications: [{
+          id: Date.now(),
+          title: 'Importação concluída',
+          body: `${imported.length} cadastro(s) importado(s) aguardando liberação de acesso.`,
+          read: false,
+        }, ...current.notifications],
+      }))
+      setSelectedStudentId(imported[0].id)
+    }
+
+    if (supabaseEnabled) {
+      const firstError = failed.find((item) => item.error)?.error
+      if (!imported.length && firstError && /JWT expired|PGRST303/.test(firstError?.message || '')) {
+        handleRemoteError(firstError, 'Erro ao importar alunos')
+      } else {
+        setRemoteStatus(failed.length ? 'Importação concluída com avisos' : 'Supabase conectado')
+        setRemoteError(failed.length ? `${failed.length} cadastro(s) não foram importados.` : '')
+      }
+    }
+
+    return {
+      imported,
+      failed: failed.map(({ error: _error, ...item }) => item),
+    }
+  }
+
   async function scheduleStudentCheckin(studentId, dueDate) {
     const nextCheckin = normalizeCheckinScheduleDate(dueDate)
     const student = data.students.find((item) => String(item.id) === String(studentId))
@@ -4691,6 +4757,7 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentIdSafely}
                 onSave={saveStudent}
+                onImport={importStudents}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateCredentials={generateStudentCredentials}
                 onSaveAnamnesis={saveProfessionalStudentAnamnesis}
@@ -7398,9 +7465,10 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
   const [studentSection, setStudentSection] = useState('wallet')
   const [editing, setEditing] = useState(null)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
@@ -7521,9 +7589,14 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
 
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.25fr)]">
       <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
-        <button onClick={() => setEditing(createBlankStudent())} className="mb-4 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
-          {nutritionist ? 'Novo paciente' : 'Novo aluno'}
-        </button>
+        <div className="mb-4 grid gap-2 sm:grid-cols-2">
+          <button onClick={() => setEditing(createBlankStudent())} className="min-h-12 w-full rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950">
+            {nutritionist ? 'Novo paciente' : 'Novo aluno'}
+          </button>
+          <button type="button" onClick={() => setImportDialogOpen(true)} className="min-h-12 w-full rounded-md border border-cyan-300/35 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/20">
+            Importar planilha
+          </button>
+        </div>
         <label className="mb-4 block">
           <span className="mb-2 block text-xs font-black uppercase tracking-[0.1em] text-zinc-500">
             Buscar {nutritionist ? 'paciente' : 'aluno'}
@@ -7669,6 +7742,14 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       </Panel>
       </div>
       </div>
+      <StudentImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImport={onImport}
+        students={students}
+        plans={coachPlans}
+        nutritionist={nutritionist}
+      />
       {anamnesisEditorOpen && selectedStudent ? createPortal(
         <div
           className="fixed inset-0 z-[130] grid place-items-center bg-black/75 p-3 backdrop-blur-sm sm:p-6"
