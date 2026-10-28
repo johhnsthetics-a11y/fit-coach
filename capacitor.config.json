@@ -1,0 +1,9 @@
+{
+  "appId": "br.com.coachfitpro.ios",
+  "appName": "Coach Fit Pro",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile"
+  }
+}

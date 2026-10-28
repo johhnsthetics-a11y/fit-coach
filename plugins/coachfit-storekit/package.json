@@ -1,0 +1,21 @@
+{
+  "name": "@coachfit/storekit",
+  "version": "1.0.0",
+  "description": "Coach Fit Pro StoreKit 2 bridge for Capacitor",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "ios",
+    "Package.swift",
+    "index.js",
+    "index.d.ts"
+  ],
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

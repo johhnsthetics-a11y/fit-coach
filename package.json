@@ -7,9 +7,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "ios:add": "cap add ios --packagemanager SPM",
+    "ios:sync": "pnpm run build && cap sync ios",
+    "ios:open": "cap open ios",
     "preview": "pnpm run build && pnpm dlx wrangler@4 dev",
     "deploy": "pnpm run build && pnpm dlx wrangler@4 deploy",
-    "test": "node scripts/theme-smoke.mjs && node --test scripts/password-policy.test.mjs scripts/production-operations.test.mjs scripts/student-portal-resilience.test.mjs scripts/student-first-password-flow.test.mjs scripts/student-anamnesis-priority.test.mjs scripts/student-anamnesis-workspace.test.mjs scripts/questionnaire-model.test.mjs scripts/student-directory.test.mjs scripts/student-import.test.mjs scripts/checkin-schedule.test.mjs scripts/student-hydration.test.mjs scripts/production-supabase-config.test.mjs scripts/admin-student-free-access.test.mjs scripts/account-deletion.test.mjs scripts/password-recovery.test.mjs scripts/affiliate-billing.test.mjs scripts/professional-affiliate-referrals.test.mjs scripts/student-access-funnel.test.mjs scripts/student-profile-access.test.mjs scripts/student-payment.test.mjs scripts/student-auth-credentials.test.mjs scripts/chat-model.test.mjs scripts/chat-draft.test.mjs scripts/chat-components-contract.test.mjs scripts/chat-resilience-contract.test.mjs scripts/chat-enhancements.test.mjs scripts/chat-audio-enhancements.test.mjs scripts/workout-flow-contract.test.mjs scripts/workout-session.test.mjs scripts/workout-cardio.test.mjs scripts/workouts-regression.test.mjs scripts/nutrition-plan-access.test.mjs scripts/anamnesis-professional-ui.test.mjs scripts/dashboard-notification-ui.test.mjs scripts/showcase-carousel.test.mjs scripts/product-safety.test.mjs scripts/final-blockers-contract.test.mjs scripts/cartpanda-payment-policy.test.mjs scripts/navigation-polish.test.mjs scripts/session-resume.test.mjs scripts/protocol-organization-model.test.mjs scripts/protocol-organization-database.test.mjs scripts/protocol-organization-ui.test.mjs",
+    "test": "node scripts/theme-smoke.mjs && node --test scripts/password-policy.test.mjs scripts/production-operations.test.mjs scripts/student-portal-resilience.test.mjs scripts/student-first-password-flow.test.mjs scripts/student-anamnesis-priority.test.mjs scripts/student-anamnesis-workspace.test.mjs scripts/questionnaire-model.test.mjs scripts/student-directory.test.mjs scripts/student-import.test.mjs scripts/checkin-schedule.test.mjs scripts/student-hydration.test.mjs scripts/production-supabase-config.test.mjs scripts/admin-student-free-access.test.mjs scripts/account-deletion.test.mjs scripts/password-recovery.test.mjs scripts/affiliate-billing.test.mjs scripts/professional-affiliate-referrals.test.mjs scripts/student-access-funnel.test.mjs scripts/student-profile-access.test.mjs scripts/student-payment.test.mjs scripts/student-auth-credentials.test.mjs scripts/chat-model.test.mjs scripts/chat-draft.test.mjs scripts/chat-components-contract.test.mjs scripts/chat-resilience-contract.test.mjs scripts/chat-enhancements.test.mjs scripts/chat-audio-enhancements.test.mjs scripts/workout-flow-contract.test.mjs scripts/workout-session.test.mjs scripts/workout-cardio.test.mjs scripts/workouts-regression.test.mjs scripts/nutrition-plan-access.test.mjs scripts/anamnesis-professional-ui.test.mjs scripts/dashboard-notification-ui.test.mjs scripts/showcase-carousel.test.mjs scripts/product-safety.test.mjs scripts/final-blockers-contract.test.mjs scripts/cartpanda-payment-policy.test.mjs scripts/navigation-polish.test.mjs scripts/session-resume.test.mjs scripts/protocol-organization-model.test.mjs scripts/protocol-organization-database.test.mjs scripts/protocol-organization-ui.test.mjs scripts/ios-storekit-package.test.mjs",
     "test:database": "node scripts/product-database.test.mjs && node scripts/messages-database.test.mjs && node scripts/student-auth-database.test.mjs && node --test scripts/admin-student-free-access-database.test.mjs scripts/professional-affiliate-referrals-database.test.mjs scripts/anamnesis-professional-write.test.mjs scripts/protocol-organization-database.test.mjs scripts/student-anamnesis-builder-database.test.mjs scripts/student-anamnesis-return-shape.test.mjs scripts/message-notifications-database.test.mjs",
     "test:student-anamnesis": "node --test scripts/student-anamnesis-priority.test.mjs scripts/student-anamnesis-workspace.test.mjs scripts/questionnaire-model.test.mjs",
     "test:protocol-organization": "node --test scripts/protocol-organization-model.test.mjs scripts/protocol-organization-database.test.mjs scripts/protocol-organization-ui.test.mjs",
@@ -25,12 +28,16 @@
     "lint": "node scripts/theme-smoke.mjs && node --test scripts/canonical-app-alignment.test.mjs"
   },
   "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@coachfit/storekit": "file:plugins/coachfit-storekit",
     "@supabase/supabase-js": "2.91.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@electric-sql/pglite": "0.3.14",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
