@@ -15651,17 +15651,17 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
               className="nutrition-plan-summary-button-v1 block w-full border-b border-white/10 bg-emerald-300/[0.055] p-4 text-left transition hover:bg-emerald-300/[0.08]"
               aria-expanded={isExpanded}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 items-start gap-3">
+              <div className="nutrition-plan-summary-main-v3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="nutrition-plan-summary-copy-v3 flex min-w-0 items-start gap-3">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/12 text-emerald-200">
                     <NavIcon name="nutrition" className="h-5 w-5" />
                   </span>
                   <div className="min-w-0">
-                    <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
+                    <h4 className="nutrition-plan-summary-title-v3 break-words text-lg font-black text-white">{plan.title}</h4>
                     {!studentView ? <p className="mt-1 text-sm leading-6 text-zinc-300">{clientTitle}: {planStudent?.name || clientTitle}</p> : null}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="nutrition-plan-summary-meta-v3 flex shrink-0 flex-wrap items-center gap-2">
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-300/12 px-3 py-1 text-xs font-black text-emerald-100">
                     {archived ? `Oculta do ${clientLabel}` : 'Disponível'}
                   </span>

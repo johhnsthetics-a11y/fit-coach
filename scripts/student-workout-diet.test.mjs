@@ -104,6 +104,9 @@ try {
     selectedStudent: { id: 'student-1', name: 'Aluno Demonstração' },
   }))
   assert.match(planMarkup, /nutrition-student-plan-list-v2/)
+  assert.match(planMarkup, /nutrition-plan-summary-main-v3/)
+  assert.match(planMarkup, /nutrition-plan-summary-title-v3/)
+  assert.match(planMarkup, /nutrition-plan-summary-meta-v3/)
   assert.match(planMarkup, /Minha dieta/)
   assert.doesNotMatch(planMarkup, /Dietas disponíveis/)
   assert.doesNotMatch(planMarkup, /Aluno: Aluno Demonstração/)
@@ -111,6 +114,9 @@ try {
   const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
   assert.match(css, /nutrition-student-plan-list-v2/)
   assert.match(css, /nutrition-meal-macros-v2/)
+  assert.match(css, /--diet-surface-raised:\s*#ffffff/)
+  assert.match(css, /\.student-sidebar-nav-icon\.app-nav-tone-icon[^}]*color:\s*rgb\(var\(--nav-tone/s)
+  assert.match(css, /\.nutrition-plan-summary-title-v3[^}]*overflow-wrap:\s*normal/s)
   assert.match(css, /safe-area-inset-bottom/)
   console.log('student workout and diet presentation tests passed')
 } finally {
