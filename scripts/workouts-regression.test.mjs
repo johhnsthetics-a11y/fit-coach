@@ -805,6 +805,25 @@ test('descanso flutua acima da navegação e o tempo do treino permanece compact
   assert.match(cssSource, /bottom:\s*calc\(5\.35rem \+ env\(safe-area-inset-bottom, 0px\)\)/)
 })
 
+test('treino mobile premium mantém série ativa compacta e descanso arrastável sem duplicar timer', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(appSource, /restWidgetExpanded/)
+  assert.match(appSource, /onPointerDown=\{beginRestWidgetDrag\}/)
+  assert.match(appSource, /setPointerCapture/)
+  assert.match(appSource, /visualViewport/)
+  assert.match(appSource, /mobile-workout-rest-compact-v11/)
+  assert.match(appSource, /mobile-workout-set-card-v11/)
+  assert.match(appSource, /mobile-workout-set-open-v11/)
+  assert.match(appSource, /<StudentReminderCard[\s\S]*compact/)
+  assert.match(cssSource, /workout-mobile-premium-v11/)
+  assert.match(cssSource, /\.mobile-workout-rest-drag-handle-v11\s*\{[^}]*touch-action:\s*none/s)
+  assert.match(cssSource, /\.mobile-workout-rest-floating-v6\.is-compact/)
+  assert.match(cssSource, /\.mobile-workout-set-card-v11\.is-collapsed/)
+  assert.match(cssSource, /safe-area-inset-bottom/)
+})
+
 test('tema claro do treino usa superfícies neutras e teal do branding sem excesso de verde', async () => {
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 

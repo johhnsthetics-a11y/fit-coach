@@ -13611,6 +13611,24 @@ function getWorkoutSetNumeric(value) {
   return Number.isFinite(number) ? number : 0
 }
 
+export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
+  const viewportWidth = Math.max(0, Number(bounds.viewportWidth) || 0)
+  const viewportHeight = Math.max(0, Number(bounds.viewportHeight) || 0)
+  const widgetWidth = Math.max(0, Number(bounds.widgetWidth) || 0)
+  const widgetHeight = Math.max(0, Number(bounds.widgetHeight) || 0)
+  const offsetLeft = Math.max(0, Number(bounds.offsetLeft) || 0)
+  const offsetTop = Math.max(0, Number(bounds.offsetTop) || 0)
+  const safeLeft = offsetLeft + 8
+  const safeTop = offsetTop + 72
+  const maxLeft = Math.max(safeLeft, offsetLeft + viewportWidth - widgetWidth - 8)
+  const maxTop = Math.max(safeTop, offsetTop + viewportHeight - widgetHeight - 92)
+
+  return {
+    x: Math.min(maxLeft, Math.max(safeLeft, Number(position.x) || safeLeft)),
+    y: Math.min(maxTop, Math.max(safeTop, Number(position.y) || safeTop)),
+  }
+}
+
 export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
@@ -13627,6 +13645,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
   const [restPaused, setRestPaused] = useState(false)
+  const [restWidgetExpanded, setRestWidgetExpanded] = useState(false)
+  const [restWidgetPosition, setRestWidgetPosition] = useState(null)
+  const [expandedSetKey, setExpandedSetKey] = useState('')
   const [endConfirmOpen, setEndConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
@@ -13637,6 +13658,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const previousExecutionKeyRef = useRef(executionStorageKey)
   const skipNextPersistRef = useRef(false)
   const submissionLockRef = useRef(false)
+  const restWidgetRef = useRef(null)
+  const restDragRef = useRef(null)
   const endDialogRef = useModalFocusTrap(endConfirmOpen, () => setEndConfirmOpen(false))
 
   useEffect(() => {
@@ -13736,6 +13759,32 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }, [restPaused, restRemaining > 0])
 
   useEffect(() => {
+    if (!restRemaining || !restWidgetPosition) return undefined
+    const viewport = window.visualViewport
+    const constrainPosition = () => {
+      const node = restWidgetRef.current
+      if (!node) return
+      const rect = node.getBoundingClientRect()
+      setRestWidgetPosition((current) => current ? clampWorkoutRestWidgetPosition(current, {
+        viewportWidth: viewport?.width || window.innerWidth,
+        viewportHeight: viewport?.height || window.innerHeight,
+        offsetLeft: viewport?.offsetLeft || 0,
+        offsetTop: viewport?.offsetTop || 0,
+        widgetWidth: rect.width,
+        widgetHeight: rect.height,
+      }) : current)
+    }
+    const frame = window.requestAnimationFrame(constrainPosition)
+    window.addEventListener('resize', constrainPosition)
+    viewport?.addEventListener('resize', constrainPosition)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', constrainPosition)
+      viewport?.removeEventListener('resize', constrainPosition)
+    }
+  }, [restRemaining, restWidgetExpanded, Boolean(restWidgetPosition)])
+
+  useEffect(() => {
     if (!Object.values(cardioLogs).some((log) => log?.status === 'running')) return undefined
     const timer = window.setInterval(() => setCardioTick((current) => current + 1), 1000)
     return () => window.clearInterval(timer)
@@ -13785,6 +13834,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       targetReps: getWorkoutSetTargetReps(exercise, index),
     }
   })
+  const nextPendingSetKey = currentSets.find((setItem) => !setItem.completed)?.key || ''
+  const activeSetKey = expandedSetKey || nextPendingSetKey
 
   const exerciseStates = exercises.map((currentExercise, currentExerciseIndex) => {
     if (isCardioExercise(currentExercise)) {
@@ -13869,9 +13920,84 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     if (nextCompleted) {
       setRestRemaining(Math.max(0, Number.parseInt(exercise?.rest, 10) || 0))
       setRestPaused(false)
+      setRestWidgetExpanded(false)
       const nextSet = currentSets.find((item) => item.number === setItem.number + 1)
+      setExpandedSetKey(nextSet?.key || '')
       if (nextSet) window.requestAnimationFrame(() => document.getElementById('workout-set-load-' + nextSet.key)?.focus())
+    } else {
+      setExpandedSetKey(setItem.key)
     }
+  }
+
+  function getRestWidgetViewportBounds() {
+    const viewport = window.visualViewport
+    const rect = restWidgetRef.current?.getBoundingClientRect()
+    return {
+      viewportWidth: viewport?.width || window.innerWidth,
+      viewportHeight: viewport?.height || window.innerHeight,
+      offsetLeft: viewport?.offsetLeft || 0,
+      offsetTop: viewport?.offsetTop || 0,
+      widgetWidth: rect?.width || 0,
+      widgetHeight: rect?.height || 0,
+    }
+  }
+
+  function beginRestWidgetDrag(event) {
+    if (event.button !== undefined && event.button !== 0) return
+    const node = restWidgetRef.current
+    if (!node) return
+    const rect = node.getBoundingClientRect()
+    restDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: rect.left,
+      originY: rect.top,
+    }
+    setRestWidgetPosition({ x: rect.left, y: rect.top })
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    event.preventDefault()
+  }
+
+  function moveRestWidget(event) {
+    const drag = restDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    setRestWidgetPosition(clampWorkoutRestWidgetPosition({
+      x: drag.originX + event.clientX - drag.startX,
+      y: drag.originY + event.clientY - drag.startY,
+    }, getRestWidgetViewportBounds()))
+  }
+
+  function endRestWidgetDrag(event) {
+    const drag = restDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const node = restWidgetRef.current
+    const bounds = getRestWidgetViewportBounds()
+    const rect = node?.getBoundingClientRect()
+    const center = (rect?.left || drag.originX) + (rect?.width || 0) / 2
+    const viewportCenter = bounds.offsetLeft + bounds.viewportWidth / 2
+    const targetX = center < viewportCenter
+      ? bounds.offsetLeft + 8
+      : bounds.offsetLeft + bounds.viewportWidth - (rect?.width || 0) - 8
+    setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition({ x: targetX, y: current?.y ?? rect?.top }, bounds))
+    restDragRef.current = null
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }
+
+  function moveRestWidgetByKeyboard(event) {
+    const direction = {
+      ArrowLeft: [-16, 0],
+      ArrowRight: [16, 0],
+      ArrowUp: [0, -16],
+      ArrowDown: [0, 16],
+    }[event.key]
+    if (!direction) return
+    event.preventDefault()
+    const rect = restWidgetRef.current?.getBoundingClientRect()
+    setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition({
+      x: (current?.x ?? rect?.left ?? 8) + direction[0],
+      y: (current?.y ?? rect?.top ?? 72) + direction[1],
+    }, getRestWidgetViewportBounds()))
   }
 
   function getCardioElapsed(log = currentCardioLog) {
@@ -13914,6 +14040,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveExerciseIndex(0)
     setRestRemaining(0)
     setRestPaused(false)
+    setExpandedSetKey('')
     setEndConfirmOpen(false)
     setMessage('')
     setError('')
@@ -13926,6 +14053,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveExerciseIndex(nextPosition.exerciseIndex)
     setRestRemaining(0)
     setRestPaused(false)
+    setExpandedSetKey('')
     setEndConfirmOpen(false)
   }
 
@@ -13977,6 +14105,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveExerciseIndex(0)
     setRestRemaining(0)
     setRestPaused(false)
+    setExpandedSetKey('')
     setEndConfirmOpen(false)
     setError('')
   }
@@ -14315,11 +14444,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </>
           ) : (
             <>
-              <div className="mobile-workout-student-metrics-v2">
+              <div className="mobile-workout-student-metrics-v2 mobile-workout-strength-metrics-v11">
                 <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
                 <ExerciseMetric label="Meta de reps" value={exercise.reps || '-'} />
                 <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
-                <ExerciseMetric label="Status" value={currentExerciseStatusLabel} />
               </div>
               <div className="mobile-workout-student-series-v2">
                 <div className="mobile-workout-student-series-head-v2">
@@ -14328,16 +14456,24 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                 </div>
                 {currentSets.map((setItem) => {
                   const previous = previousSetRecords.get(setItem.number)
+                  const isExpanded = setItem.key === activeSetKey
                   return (
-                    <div key={setItem.key} className={setItem.completed ? 'is-complete' : ''}>
+                    <div key={setItem.key} className={`mobile-workout-set-card-v11 ${setItem.completed ? 'is-complete' : ''} ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
                       <div className="mobile-workout-set-label-v4">
                         <strong>{'Série ' + setItem.number}</strong>
                         <small>{'Meta: ' + (setItem.targetReps || 'livre') + ' reps'}</small>
                         {previous ? <em>{'Último: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : <em>Sem histórico anterior</em>}
                       </div>
-                      <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
-                      <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
-                      <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+                      {isExpanded ? <>
+                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
+                        <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
+                        <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+                      </> : (
+                        <button type="button" className="mobile-workout-set-open-v11" onClick={() => setExpandedSetKey(setItem.key)}>
+                          <span>{setItem.completed ? `${setItem.load || 0} kg × ${setItem.reps || '-'} reps` : 'Próxima etapa'}</span>
+                          <strong>{setItem.completed ? 'Revisar' : 'Abrir série'}</strong>
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -14367,22 +14503,48 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
       {restRemaining ? (
         <div
-          className="mobile-workout-rest-floating-v6"
+          ref={restWidgetRef}
+          className={`mobile-workout-rest-floating-v6 ${restWidgetExpanded ? 'is-expanded' : 'is-compact'} ${restWidgetPosition ? 'is-positioned' : ''}`}
           role="timer"
           aria-live="off"
           aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}
+          style={restWidgetPosition ? { '--rest-widget-left': `${restWidgetPosition.x}px`, '--rest-widget-top': `${restWidgetPosition.y}px` } : undefined}
         >
           <div className="mobile-workout-rest-floating-card-v6">
-            <div className="mobile-workout-rest-floating-copy-v6">
-              <span>Descanso</span>
-              <strong>{formatWorkoutTimer(restRemaining)}</strong>
-              <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
-            </div>
-            <div className="mobile-workout-rest-actions-v5">
-              <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
-              <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-              <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
-            </div>
+            <button
+              type="button"
+              className="mobile-workout-rest-drag-handle-v11"
+              aria-label="Mover timer de descanso"
+              onPointerDown={beginRestWidgetDrag}
+              onPointerMove={moveRestWidget}
+              onPointerUp={endRestWidgetDrag}
+              onPointerCancel={endRestWidgetDrag}
+              onKeyDown={moveRestWidgetByKeyboard}
+            >
+              <span aria-hidden="true">•••</span>
+            </button>
+            {!restWidgetExpanded ? (
+              <button type="button" className="mobile-workout-rest-compact-v11" onClick={() => setRestWidgetExpanded(true)} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
+                <NavIcon name="clock" className="h-4 w-4" />
+                <span>{restPaused ? 'Pausado' : 'Descanso'}</span>
+                <strong>{formatWorkoutTimer(restRemaining)}</strong>
+                <NavIcon name="chevronUp" className="h-4 w-4" />
+              </button>
+            ) : <>
+              <div className="mobile-workout-rest-floating-copy-v6">
+                <span>Descanso</span>
+                <strong>{formatWorkoutTimer(restRemaining)}</strong>
+                <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
+              </div>
+              <button type="button" className="mobile-workout-rest-minimize-v11" onClick={() => setRestWidgetExpanded(false)} aria-label="Minimizar timer de descanso">
+                <NavIcon name="chevronDown" className="h-4 w-4" />
+              </button>
+              <div className="mobile-workout-rest-actions-v5">
+                <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Continuar' : 'Pausar'}</button>
+                <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
+                <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
+              </div>
+            </>}
           </div>
         </div>
       ) : null}
@@ -18277,6 +18439,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             title="Lembrete de treino"
             body={`Hora de treinar, ${student.name}. Abra o Coach Fit Pro e siga o plano de hoje.`}
             action="Ativar lembrete"
+            compact
           />
 
           {studentWorkouts.length ? (
@@ -19554,7 +19717,7 @@ function WorkoutFeedbackPrompt({ prompt, student, onSend, onClose }) {
   )
 }
 
-function StudentReminderCard({ title, body }) {
+function StudentReminderCard({ title, body, compact = false }) {
   const [permission, setPermission] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'))
   const [notice, setNotice] = useState('')
 
@@ -19576,11 +19739,11 @@ function StudentReminderCard({ title, body }) {
   }
 
   return (
-    <div className="mb-4 rounded-md border border-white/10 bg-white/[0.035] p-3">
+    <div className={`student-reminder-card ${compact ? 'is-compact student-workout-reminder-v11' : ''} mb-4 rounded-md border border-white/10 bg-white/[0.035] p-3`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase text-blue-300">{title}</p>
-          <p className="mt-1 text-xs leading-5 text-zinc-400">Envie um aviso agora. Este recurso não agenda lembretes.</p>
+          {!compact ? <p className="mt-1 text-xs leading-5 text-zinc-400">Envie um aviso agora. Este recurso não agenda lembretes.</p> : null}
           {notice ? <p role="status" className="mt-1 text-xs">{notice}</p> : null}
         </div>
         <button type="button" disabled={permission === 'unsupported'} onClick={handleReminder} className="rounded-md border border-blue-300/30 px-3 py-2 text-xs font-black text-blue-100 disabled:opacity-50">
@@ -24344,6 +24507,7 @@ function NavIcon({ name, className = '' }) {
     activity: <><path d="M22 12h-4l-3 8-6-16-3 8H2" /></>,
     plus: <><path d="M12 5v14M5 12h14" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     arrowLeft: <><path d="m15 18-6-6 6-6" /><path d="M9 12h11" /></>,
     paperclip: <><path d="m21.4 11.6-8.5 8.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5" /></>,
     mic: <><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8" /></>,
@@ -24353,6 +24517,7 @@ function NavIcon({ name, className = '' }) {
     close: <><path d="M6 6l12 12M18 6 6 18" /></>,
     chevronRight: <><path d="m9 18 6-6-6-6" /></>,
     chevronDown: <><path d="m6 9 6 6 6-6" /></>,
+    chevronUp: <><path d="m6 15 6-6 6 6" /></>,
   }
 
   return (
