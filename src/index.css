@@ -18868,3 +18868,357 @@ html[data-theme="dark"] body { background: #05070d; }
     text-align: left;
   }
 }
+
+/* student-diet-premium-v2 */
+.nutrition-student-plan-list-v2 {
+  --diet-surface: #0a1513;
+  --diet-surface-raised: #101e1b;
+  --diet-surface-soft: rgb(20 184 166 / 7%);
+  --diet-border: rgb(94 234 212 / 14%);
+  --diet-border-strong: rgb(45 212 191 / 28%);
+  --diet-title: #f1faf8;
+  --diet-body: #c0d0cc;
+  --diet-muted: #829691;
+  --diet-accent: #5eead4;
+  --diet-accent-strong: #2dd4bf;
+  display: grid;
+  min-width: 0;
+  gap: 20px;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  color: var(--diet-body);
+}
+
+.nutrition-plan-section-heading-v2 > div:first-child {
+  min-width: 0;
+}
+
+.nutrition-plan-section-heading-v2 span:first-child {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--diet-muted, #829691);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-section-heading-v2 h4 {
+  margin: 0;
+  color: var(--diet-title);
+  font-size: clamp(1.25rem, 6vw, 1.55rem);
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-card-v6.is-student-plan {
+  border-color: var(--diet-border) !important;
+  border-radius: 18px;
+  background: var(--diet-surface) !important;
+  box-shadow: 0 16px 34px rgb(0 0 0 / 18%) !important;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 {
+  min-height: 76px;
+  padding: 14px 16px !important;
+  border-color: var(--diet-border) !important;
+  background: var(--diet-surface-raised) !important;
+  color: var(--diet-title);
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1:hover,
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1:focus-visible {
+  background: color-mix(in srgb, var(--diet-surface-raised) 88%, var(--diet-accent) 12%) !important;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1:focus-visible {
+  outline: 2px solid var(--diet-accent-strong);
+  outline-offset: -3px;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 > div {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 h4 {
+  color: var(--diet-title) !important;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 .nutrition-plan-expand-indicator-v1 {
+  border-color: var(--diet-border-strong);
+  color: var(--diet-accent);
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-actions-v2.is-student-view:empty {
+  display: none;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-card-v6 > div:nth-child(2) {
+  border-color: var(--diet-border) !important;
+  background: var(--diet-surface-soft) !important;
+  padding: 14px !important;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 0;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 > div {
+  min-width: 0;
+  padding: 11px !important;
+  border-color: var(--diet-border) !important;
+  border-radius: 14px !important;
+  background: var(--diet-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 > div > div:first-child {
+  width: 30px;
+  height: 30px;
+  margin-bottom: 8px;
+  border-radius: 9px;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 p {
+  overflow-wrap: anywhere;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 p:nth-of-type(1) {
+  color: var(--diet-muted) !important;
+  font-size: 0.62rem;
+  letter-spacing: 0;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 p:nth-of-type(2) {
+  color: var(--diet-title) !important;
+  font-size: clamp(0.95rem, 4vw, 1.2rem);
+  line-height: 1.15;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 p:nth-of-type(3) {
+  color: var(--diet-accent) !important;
+  font-size: 0.68rem;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-meals-v2 {
+  display: grid;
+  gap: 12px;
+  padding: 12px !important;
+  background: var(--diet-surface) !important;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-meal-card-v6 {
+  min-width: 0;
+  padding: 14px !important;
+  border-color: var(--diet-border) !important;
+  border-radius: 16px !important;
+  background: var(--diet-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.nutrition-plan-meal-head-v7 {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nutrition-plan-meal-head-v7 time,
+.nutrition-meal-time-empty-v2 {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--diet-accent, #5eead4);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.nutrition-student-plan-list-v2 .nutrition-plan-meal-head-v7 h5 {
+  margin: 0;
+  color: var(--diet-title) !important;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-list {
+  gap: 0;
+  margin-top: 12px !important;
+  border-top: 1px solid var(--diet-border);
+  border-bottom: 1px solid var(--diet-border);
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-row {
+  grid-template-columns: 7px minmax(0, 1fr) minmax(72px, auto);
+  min-height: 48px;
+  gap: 10px;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid var(--diet-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-row:last-child {
+  border-bottom: 0;
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-copy strong {
+  color: var(--diet-title);
+  font-size: 0.88rem;
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-copy small {
+  color: var(--diet-muted);
+  font-size: 0.7rem;
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-amount {
+  max-width: 9rem;
+  color: var(--diet-accent);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.nutrition-student-plan-list-v2 .student-diet-food-row.is-amount-missing .student-diet-food-amount {
+  color: var(--diet-muted);
+  font-style: italic;
+  font-weight: 700;
+}
+
+.nutrition-meal-macros-v2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.nutrition-meal-macros-v2 > div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 6px;
+  border: 1px solid var(--diet-border, rgb(94 234 212 / 14%));
+  border-radius: 10px;
+  background: var(--diet-surface-soft, rgb(20 184 166 / 7%));
+}
+
+.nutrition-meal-macros-v2 dt {
+  color: var(--diet-muted, #829691);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.nutrition-meal-macros-v2 dd {
+  margin: 0;
+  color: var(--diet-accent, #5eead4);
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.nutrition-meal-macros-empty-v2 {
+  margin: 12px 0 0;
+  color: var(--diet-muted, #829691);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.student-mobile-shell.app-theme-light .nutrition-student-plan-list-v2 {
+  --diet-surface: #ffffff;
+  --diet-surface-raised: #f8fbfa;
+  --diet-surface-soft: rgb(13 148 136 / 6%);
+  --diet-border: rgb(15 118 110 / 14%);
+  --diet-border-strong: rgb(13 148 136 / 27%);
+  --diet-title: #14211e;
+  --diet-body: #425650;
+  --diet-muted: #687b76;
+  --diet-accent: #087f70;
+  --diet-accent-strong: #0d9488;
+}
+
+.student-mobile-shell.app-theme-light .nutrition-student-plan-list-v2 .nutrition-plan-card-v6.is-student-plan,
+.app-theme-light .nutrition-student-plan-list-v2 .nutrition-plan-card-v6.is-student-plan {
+  background: #ffffff !important;
+  border-color: rgb(15 118 110 / 14%) !important;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 7%) !important;
+}
+
+.student-mobile-shell.app-theme-light .nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1,
+.app-theme-light .nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 {
+  background: #f8fbfa !important;
+  border-color: rgb(15 118 110 / 14%) !important;
+}
+
+.student-mobile-shell.app-theme-light .nutrition-student-plan-list-v2 :is(.nutrition-plan-meals-v2, .nutrition-plan-meal-card-v6, .nutrition-plan-metrics-v2 > div),
+.app-theme-light .nutrition-student-plan-list-v2 :is(.nutrition-plan-meals-v2, .nutrition-plan-meal-card-v6, .nutrition-plan-metrics-v2 > div) {
+  background: var(--diet-surface-raised) !important;
+  border-color: var(--diet-border) !important;
+}
+
+@container (max-width: 430px) {
+  .nutrition-student-plan-list-v2 {
+    gap: 16px;
+  }
+
+  .nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 {
+    padding: 12px !important;
+  }
+
+  .nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 > div {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  .nutrition-student-plan-list-v2 .nutrition-plan-summary-button-v1 > div > div:first-child {
+    min-width: 0;
+  }
+
+  .nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 350px) {
+  .nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 > div {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    column-gap: 10px;
+  }
+
+  .nutrition-student-plan-list-v2 .nutrition-plan-metrics-v2 > div > div:first-child {
+    grid-row: span 3;
+    margin-bottom: 0;
+  }
+
+  .nutrition-student-plan-list-v2 .student-diet-food-row {
+    grid-template-columns: 7px minmax(0, 1fr);
+  }
+
+  .nutrition-student-plan-list-v2 .student-diet-food-amount {
+    grid-column: 2;
+    max-width: none;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nutrition-student-plan-list-v2 *,
+  .nutrition-student-plan-list-v2 *::before,
+  .nutrition-student-plan-list-v2 *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

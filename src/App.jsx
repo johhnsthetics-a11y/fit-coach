@@ -14469,7 +14469,11 @@ function parseNutritionFoodItems(foodText = '') {
 
 export function getNutritionMealDisplayItems(meal = {}) {
   const sourceItems = Array.isArray(meal.items) && meal.items.length
-    ? meal.items.map(createNutritionMealItem)
+    ? meal.items.map((item) => ({
+        ...createNutritionMealItem(item),
+        amountSpecified: [item.grams, item.quantity, item.customMeasureGrams]
+          .some((value) => value !== undefined && value !== null && value !== ''),
+      }))
     : String(meal.foods || '')
       .split(/,(?![^|]*\|)/)
       .map((part) => part.replace(/\|\s*Substituições:.*/i, '').trim())
@@ -14484,6 +14488,7 @@ export function getNutritionMealDisplayItems(meal = {}) {
           quantity: gramsMatch ? Number(gramsMatch[1].replace(',', '.')) : 0,
           measureUnit: 'g',
           category: findFoodByName(foodName)?.category || 'Alimento',
+          amountSpecified: Boolean(gramsMatch),
         }
       })
 
@@ -14494,15 +14499,19 @@ export function getNutritionMealDisplayItems(meal = {}) {
       const measure = getFoodMeasure(item)
       const quantity = Number(item.quantity || 0)
       const unitLabel = item.customMeasureName || measure.unitLabel || measure.label || 'porção'
-      const amount = item.measureUnit && measure.id !== 'g' && quantity > 0
-        ? `${roundMacro(quantity)} ${quantity === 1 ? unitLabel : pluralizeServingLabel(unitLabel)} · ${grams} g`
-        : `${grams} g`
+      const amountMissing = item.amountSpecified === false
+      const amount = amountMissing
+        ? 'Quantidade não informada'
+        : item.measureUnit && measure.id !== 'g' && quantity > 0
+          ? `${roundMacro(quantity)} ${quantity === 1 ? unitLabel : pluralizeServingLabel(unitLabel)} · ${grams} g`
+          : `${grams} g`
 
       return {
         id: item.id || `${item.foodName || item.name}-${index}`,
         name: item.foodName || item.name || 'Alimento',
         category: item.category || 'Alimento',
         amount,
+        amountMissing,
       }
     })
 }
@@ -14705,7 +14714,7 @@ export function NutritionMealFoodList({ meal }) {
   return (
     <div className="student-diet-food-list mt-3" role="list" aria-label={`Alimentos de ${meal?.name || 'refeição'}`}>
       {items.map((item) => (
-        <div key={item.id} className="student-diet-food-row" role="listitem">
+        <div key={item.id} className={`student-diet-food-row ${item.amountMissing ? 'is-amount-missing' : ''}`} role="listitem" data-amount-state={item.amountMissing ? 'missing' : 'provided'}>
           <span className="student-diet-food-marker" aria-hidden="true" />
           <span className="student-diet-food-copy">
             <strong>{item.name}</strong>
@@ -14715,6 +14724,35 @@ export function NutritionMealFoodList({ meal }) {
         </div>
       ))}
     </div>
+  )
+}
+
+export function getNutritionMealMacroSegments(macros) {
+  const source = String(macros || '').trim()
+  const labelFirst = [...source.matchAll(/\b([PCG])\s*:?[ ]*(\d+(?:[.,]\d+)?)\s*g?/gi)]
+    .map((match) => ({ label: match[1].toUpperCase(), value: `${match[2].replace(',', '.')} g` }))
+  const valueFirst = [...source.matchAll(/\b(\d+(?:[.,]\d+)?)\s*g?\s*([PCG])\b/gi)]
+    .map((match) => ({ label: match[2].toUpperCase(), value: `${match[1].replace(',', '.')} g` }))
+
+  return labelFirst.length ? labelFirst : valueFirst
+}
+
+function NutritionMealMacroSummary({ macros }) {
+  const segments = getNutritionMealMacroSegments(macros)
+
+  if (!segments.length) {
+    return <p className="nutrition-meal-macros-empty-v2">Macros calculados no plano</p>
+  }
+
+  return (
+    <dl className="nutrition-meal-macros-v2" aria-label="Macronutrientes da refeição">
+      {segments.map((segment) => (
+        <div key={segment.label}>
+          <dt>{segment.label}</dt>
+          <dd>{segment.value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
@@ -15542,7 +15580,7 @@ function NutritionFormLegacy({ students = [], selectedStudent, onSaveNutritionPl
   )
 }
 
-function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive }) {
+export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive, showHeading = true }) {
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
   const [search, setSearch] = useState('')
@@ -15550,6 +15588,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   const [visibilityError, setVisibilityError] = useState('')
   const visibilityPending = useRef(false)
   const nutritionist = isNutritionistUser(professional)
+  const studentView = !onArchive && !onEdit
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
 
@@ -15605,7 +15644,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
     const canDownloadPdf = Boolean(onArchive) || canPatientDownloadNutritionPdf(plan)
 
     return (
-      <article key={plan.id} className={`nutrition-plan-card-v6 ${archived ? 'is-archived' : ''} overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20`}>
+      <article key={plan.id} className={`nutrition-plan-card-v6 ${studentView ? 'is-student-plan' : ''} ${archived ? 'is-archived' : ''} overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20`}>
             <button
               type="button"
               onClick={() => setExpandedPlanId((current) => sameId(current, plan.id) ? '' : String(plan.id))}
@@ -15619,9 +15658,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                   </span>
                   <div className="min-w-0">
                     <h4 className="break-words text-lg font-black text-white">{plan.title}</h4>
-                    <p className="mt-1 text-sm leading-6 text-zinc-300">
-                      {clientTitle}: {planStudent?.name || clientTitle}
-                    </p>
+                    {!studentView ? <p className="mt-1 text-sm leading-6 text-zinc-300">{clientTitle}: {planStudent?.name || clientTitle}</p> : null}
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -15638,10 +15675,8 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
             {isExpanded ? (
               <>
             <div className="border-b border-white/10 bg-emerald-300/[0.035] p-4">
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">
-                  {clientTitle}: {planStudent?.name || clientTitle}
-                </span>
+              <div className={`nutrition-plan-actions-v2 ${studentView ? 'is-student-view' : ''} mb-4 flex flex-wrap items-center gap-2`}>
+                {!studentView ? <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">{clientTitle}: {planStudent?.name || clientTitle}</span> : null}
                 {onEdit && !archived ? (
                   <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
                     {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar dieta'}
@@ -15658,14 +15693,14 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                   </button>
                 ) : null}
               </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="nutrition-plan-metrics-v2 mt-4 grid gap-3 sm:grid-cols-3">
                 <NutritionQuickStat icon="chart" label="Calorias" value={plan.calories || '-'} detail="meta diária" />
                 <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan.protein || '-'} detail="por dia" />
                 <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
               </div>
             </div>
 
-            <div className="space-y-3 p-4">
+            <div className="nutrition-plan-meals-v2 space-y-3 p-4">
               {stripNutritionPlanMetadata(plan.notes) ? (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                   <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
@@ -15674,22 +15709,21 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
               ) : null}
 
               {meals.map((meal, index) => (
-                <div key={meal.id ?? `${meal.name}-${index}`} className="nutrition-plan-meal-card-v6 rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <section key={meal.id ?? `${meal.name}-${index}`} className="nutrition-plan-meal-card-v6 rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
+                  <header className="nutrition-plan-meal-head-v7">
                     <div className="flex min-w-0 gap-3">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
                         {index + 1}
                       </span>
                       <div className="min-w-0">
-                        <h5 className="break-words font-black text-white">{meal.time ? `${meal.time} - ` : ''}{meal.name}</h5>
-                        <NutritionMealFoodList meal={meal} />
+                        {meal.time ? <time>{meal.time}</time> : <span className="nutrition-meal-time-empty-v2">Horário livre</span>}
+                        <h5 className="break-words font-black text-white">{meal.name}</h5>
                       </div>
                     </div>
-                    <span className="w-fit shrink-0 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black leading-5 text-emerald-100">
-                      {meal.macros || 'Macros calculados'}
-                    </span>
-                  </div>
-                </div>
+                  </header>
+                  <NutritionMealFoodList meal={meal} />
+                  <NutritionMealMacroSummary macros={meal.macros} />
+                </section>
               ))}
             </div>
               </>
@@ -15699,7 +15733,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
   }
 
   return (
-    <div className="nutrition-prescribed-list space-y-5">
+    <div className={`nutrition-prescribed-list ${studentView ? 'nutrition-student-plan-list-v2' : ''} space-y-5`} aria-label={studentView ? 'Minha dieta' : undefined}>
       {onArchive || onEdit ? (
         <div className="nutrition-prescribed-search">
           <label className="grid gap-2 text-sm font-bold">
@@ -15713,10 +15747,13 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
       {visibilityError ? <p role="alert" className="text-sm text-rose-500">{visibilityError}</p> : null}
       {terms.length && !visiblePlans.length && !hiddenPlans.length ? <p role="status">Nenhuma dieta encontrada para esta busca.</p> : null}
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-black uppercase tracking-[0.12em] text-emerald-200">Dietas disponíveis</h4>
-          <span className="rounded-full border border-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-100">{visiblePlans.length}</span>
-        </div>
+        {showHeading ? <div className="nutrition-plan-section-heading-v2 flex items-center justify-between gap-3">
+          <div>
+            {studentView ? <span>Plano alimentar</span> : null}
+            <h4 className="text-sm font-black uppercase tracking-[0.12em] text-emerald-200">{studentView ? 'Minha dieta' : 'Dietas disponíveis'}</h4>
+          </div>
+          {(!studentView || visiblePlans.length > 1) ? <span className="rounded-full border border-emerald-300/20 px-3 py-1 text-xs font-black text-emerald-100">{visiblePlans.length}</span> : null}
+        </div> : null}
         {visiblePlans.length ? visiblePlans.map((plan) => renderPlan(plan, false)) : <Empty text={terms.length ? 'Nenhuma dieta disponível corresponde à busca.' : 'Nenhuma dieta disponível no momento.'} />}
       </div>
 
@@ -18296,7 +18333,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
     if (activeTab === 'dieta') {
       return (
-        <StudentAppSection title="Planos alimentares" action={`${studentNutritionPlans.length} disponíveis`}>
+        <StudentAppSection title="Minha dieta" action={studentNutritionPlans.length > 1 ? `${studentNutritionPlans.length} planos` : 'Plano atual'}>
           {questionnaireError ? <p role="alert" className="mb-4 rounded-md border border-amber-400/40 p-3 text-sm">{questionnaireError}</p> : null}
           <StudentReminderCard
             title="Lembrete de refeição"
@@ -18309,7 +18346,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             assignments={studentQuestionnaireAssignments}
             onSubmitQuestionnaire={onSubmitQuestionnaire}
           />
-          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
+          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} showHeading={false} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
         </StudentAppSection>
       )
     }

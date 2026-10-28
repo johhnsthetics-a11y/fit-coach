@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
 import { createServer, transformWithEsbuild } from 'vite'
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
@@ -64,6 +65,7 @@ import '/src/index.css'
 const student = ${JSON.stringify(student)}
 const workout = ${JSON.stringify(workout)}
 const nutritionPlan = ${JSON.stringify(nutritionPlan)}
+const theme = new URLSearchParams(window.location.search).get('theme') === 'light' ? 'light' : 'dark'
 
 function Harness() {
   return <StudentMobileApp
@@ -79,7 +81,7 @@ function Harness() {
     questionnaireAssignments={[]}
     exerciseLibraryItems={[]}
     coachId="qa-coach"
-    theme="dark"
+    theme={theme}
     coachSettings={{ publicName: 'Treinador QA' }}
     professionalType="trainer"
     accountEmail="aluno.qa@example.test"
@@ -138,11 +140,20 @@ async function openTab(page, width, label) {
 }
 
 try {
-  for (const width of [390, 1440]) {
+  await mkdir('.superpowers/diet-qa', { recursive: true })
+  for (const theme of ['light', 'dark']) {
+  for (const width of [320, 390, 430, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 960 } })
     const page = await context.newPage()
-    await page.goto(`${base}qa-student-workout-diet`)
-    await page.locator('.student-mobile-shell').waitFor()
+    const pageErrors = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+    await page.goto(`${base}qa-student-workout-diet?theme=${theme}`)
+    try {
+      await page.locator('.student-mobile-shell').waitFor()
+    } catch (error) {
+      throw new Error(`A aplicação não montou em ${theme}/${width}px: ${pageErrors.join(' | ') || error.message}`)
+    }
+    await page.locator(`.student-mobile-shell.app-theme-${theme}`).waitFor()
 
     await openTab(page, width, 'Treino')
     const workoutArea = page.locator('.student-mobile-main')
@@ -158,10 +169,13 @@ try {
     assert.ok(await foodList.getByText('Arroz Branco', { exact: true }).count(), 'O nome do alimento deve ficar visível')
     assert.ok(await foodList.getByText('200 g', { exact: true }).count(), 'A quantidade do alimento deve ficar visível')
     assert.ok(await foodList.getByText('Peito de Frango', { exact: true }).count(), 'Os alimentos da refeição não podem ser omitidos')
+    assert.equal(await page.locator('.nutrition-meal-macros-v2 > div').count(), 3, 'Os três macronutrientes devem aparecer no rodapé da refeição')
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 1, `A página não pode ter overflow horizontal em ${width}px`)
+    await page.screenshot({ path: `.superpowers/diet-qa/diet-${theme}-${width}.png`, fullPage: true })
     await context.close()
+  }
   }
 
   console.log('PASS student workout text-only and detailed diet')

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
@@ -45,6 +46,29 @@ try {
     { name: 'Banana', amount: '90 g' },
   ])
 
+  const missingAmountItems = app.getNutritionMealDisplayItems({ foods: 'Ovos, Aveia' })
+  assert.deepEqual(missingAmountItems.map(({ name, amount, amountMissing }) => ({ name, amount, amountMissing })), [
+    { name: 'Ovos', amount: 'Quantidade não informada', amountMissing: true },
+    { name: 'Aveia', amount: 'Quantidade não informada', amountMissing: true },
+  ])
+
+  const explicitZeroItems = app.getNutritionMealDisplayItems({ foods: 'Ovos (0g)' })
+  assert.deepEqual(explicitZeroItems.map(({ amount, amountMissing }) => ({ amount, amountMissing })), [
+    { amount: '0 g', amountMissing: false },
+  ])
+
+  assert.equal(typeof app.getNutritionMealMacroSegments, 'function')
+  assert.deepEqual(app.getNutritionMealMacroSegments('P 32 g | C 58 g | G 18 g'), [
+    { label: 'P', value: '32 g' },
+    { label: 'C', value: '58 g' },
+    { label: 'G', value: '18 g' },
+  ])
+  assert.deepEqual(app.getNutritionMealMacroSegments('52P / 74C / 14G'), [
+    { label: 'P', value: '52 g' },
+    { label: 'C', value: '74 g' },
+    { label: 'G', value: '14 g' },
+  ])
+
   const muscleMarkup = renderToStaticMarkup(React.createElement(app.MuscleMap, {
     exercise: { name: 'Supino reto', primaryMuscle: 'peitoral', secondaryMuscles: ['triceps'] },
     compact: true,
@@ -66,6 +90,28 @@ try {
   assert.equal((foodMarkup.match(/student-diet-food-row/g) || []).length, 2)
   assert.match(foodMarkup, /Arroz Branco/)
   assert.match(foodMarkup, /200 g/)
+
+  assert.equal(typeof app.NutritionPlanList, 'function', 'A listagem da dieta do aluno deve ser verificável isoladamente')
+  const planMarkup = renderToStaticMarkup(React.createElement(app.NutritionPlanList, {
+    plans: [{
+      id: 'plan-1',
+      studentId: 'student-1',
+      title: 'Plano alimentar',
+      calories: '2300 kcal',
+      protein: '160 g',
+      meals: [{ id: 'meal-1', name: 'Café da manhã', time: '07:30', foods: 'Ovos, Aveia', macros: 'P 32 g | C 58 g | G 18 g' }],
+    }],
+    selectedStudent: { id: 'student-1', name: 'Aluno Demonstração' },
+  }))
+  assert.match(planMarkup, /nutrition-student-plan-list-v2/)
+  assert.match(planMarkup, /Minha dieta/)
+  assert.doesNotMatch(planMarkup, /Dietas disponíveis/)
+  assert.doesNotMatch(planMarkup, /Aluno: Aluno Demonstração/)
+
+  const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  assert.match(css, /nutrition-student-plan-list-v2/)
+  assert.match(css, /nutrition-meal-macros-v2/)
+  assert.match(css, /safe-area-inset-bottom/)
   console.log('student workout and diet presentation tests passed')
 } finally {
   await server.close()
