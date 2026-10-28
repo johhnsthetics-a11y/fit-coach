@@ -143,6 +143,13 @@ import { createChatMessageId } from './chat/chatMessageIdentity'
 import { shouldRefreshPersistedSession } from './authSession'
 import { PASSWORD_POLICY_HINT, getNewPasswordError, validateNewPasswordConfirmation } from './passwordPolicy'
 import {
+  getIosEntitlements,
+  isNativeIosApp,
+  loadIosProducts,
+  purchaseIosPlan,
+  restoreIosPurchases,
+} from './iosStoreKit'
+import {
   ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
   STUDENT_PORTAL_REFRESH_INTERVAL_MS,
   readLocalStorage,
@@ -1872,6 +1879,7 @@ function AppContent() {
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [incomingMessageAlert, setIncomingMessageAlert] = useState(null)
   const [billingClock, setBillingClock] = useState(Date.now())
+  const [nativeIosEntitlement, setNativeIosEntitlement] = useState(false)
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   useEffect(() => {
     document.documentElement.dataset.theme = uiTheme
@@ -1964,11 +1972,37 @@ function AppContent() {
   const coachSubscriptionActive = isCoachSubscriptionActive(data.coachSubscription)
   const professionalAffiliate = Boolean(data.professionalAffiliate)
   const studentAuthSession = data.session?.user?.accountType === 'student'
-  const professionalAccessActive = coachSubscriptionActive || professionalAffiliate
+  const professionalAccessActive = coachSubscriptionActive || professionalAffiliate || nativeIosEntitlement
   const activeCoachId = data.session?.user?.id || data.user?.id
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !professionalAccessActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
+
+  const refreshNativeIosEntitlement = useCallback(async () => {
+    if (!isNativeIosApp()) return false
+    try {
+      const result = await getIosEntitlements()
+      setNativeIosEntitlement(Boolean(result.active))
+      return Boolean(result.active)
+    } catch (error) {
+      console.warn('Não foi possível validar a assinatura da App Store.', error)
+      return false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isNativeIosApp()) return undefined
+    refreshNativeIosEntitlement()
+    const refreshOnResume = () => {
+      if (document.visibilityState !== 'hidden') refreshNativeIosEntitlement()
+    }
+    window.addEventListener('focus', refreshOnResume)
+    document.addEventListener('visibilitychange', refreshOnResume)
+    return () => {
+      window.removeEventListener('focus', refreshOnResume)
+      document.removeEventListener('visibilitychange', refreshOnResume)
+    }
+  }, [refreshNativeIosEntitlement])
   const visibleNavItems = useMemo(() => {
     const professionalItems = navItems.filter((item) => (
       professionalAffiliate ? item.id !== 'assinatura' : item.id !== 'comissoes'
@@ -4852,6 +4886,8 @@ function AppContent() {
                 appAdminSettings={appAdminSettings}
                 onRefreshSubscription={syncCoachWorkspace}
                 professionalAffiliate={professionalAffiliate}
+                nativeIosEntitlement={nativeIosEntitlement}
+                onNativeEntitlementChange={setNativeIosEntitlement}
               />
             )}
             {activeView === 'admin-affiliate-finance' && masterAdmin && (
@@ -12961,20 +12997,30 @@ function getExerciseMuscleProfile(exercise = {}) {
 }
 
 function MuscleMapMini({ exercise, className = 'h-5 w-5' }) {
+  void exercise
+  void className
+  return null
+}
+
+export function MuscleMap({ exercise, compact = false, className = '' }) {
   const profile = getExerciseMuscleProfile(exercise)
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
-      <path d="M12 2.5a2.6 2.6 0 0 1 2.6 2.6 2.5 2.5 0 0 1-1.1 2.1l1.7 1.4 1.5 5.6-1.8.5-1.1-3.8-.9 3.5.7 6.7h-2l-.6-5.2-.6 5.2h-2l.7-6.7-.9-3.5-1.1 3.8-1.8-.5 1.5-5.6 1.7-1.4a2.5 2.5 0 0 1-1.1-2.1A2.6 2.6 0 0 1 12 2.5Z" fill="currentColor" opacity="0.32" />
-      <circle cx="12" cy="5.1" r="2.1" fill="currentColor" opacity="0.44" />
-      <path
-        d={profile.view === 'back' ? 'M8.7 8.6h6.6l1.2 4.6-2.7 3.2H10l-2.5-3.2Z' : 'M8.5 8.6h7l-1.1 4.8H9.6Z'}
-        fill="#ff5c5c"
-      />
-    </svg>
+    <div className={`exercise-target-text-summary ${compact ? 'is-compact' : ''} ${className}`}>
+      <div>
+        <span>Músculo principal</span>
+        <strong>{profile.primaryLabel}</strong>
+      </div>
+      {profile.secondaryLabels.length ? (
+        <div>
+          <span>Músculos auxiliares</span>
+          <strong>{profile.secondaryLabels.join(', ')}</strong>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
-function MuscleMap({ exercise, compact = false, className = '' }) {
+function MuscleMapLegacy({ exercise, compact = false, className = '' }) {
   const [hovered, setHovered] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('')
   const profile = useMemo(() => getExerciseMuscleProfile(exercise), [exercise])
@@ -14421,6 +14467,46 @@ function parseNutritionFoodItems(foodText = '') {
     })
 }
 
+export function getNutritionMealDisplayItems(meal = {}) {
+  const sourceItems = Array.isArray(meal.items) && meal.items.length
+    ? meal.items.map(createNutritionMealItem)
+    : String(meal.foods || '')
+      .split(/,(?![^|]*\|)/)
+      .map((part) => part.replace(/\|\s*Substituições:.*/i, '').trim())
+      .filter(Boolean)
+      .map((part) => {
+        const gramsMatch = part.match(/\((\d+(?:[.,]\d+)?)\s*g\)/i)
+        const foodName = part.replace(/\s*\(\d+(?:[.,]\d+)?\s*g\)/i, '').trim()
+        return {
+          id: `legacy-${foodName}`,
+          foodName,
+          grams: gramsMatch ? Number(gramsMatch[1].replace(',', '.')) : 0,
+          quantity: gramsMatch ? Number(gramsMatch[1].replace(',', '.')) : 0,
+          measureUnit: 'g',
+          category: findFoodByName(foodName)?.category || 'Alimento',
+        }
+      })
+
+  return sourceItems
+    .filter((item) => String(item.foodName || item.name || '').trim())
+    .map((item, index) => {
+      const grams = Math.round(calculateFoodServingGrams(item) || Number(item.grams || 0))
+      const measure = getFoodMeasure(item)
+      const quantity = Number(item.quantity || 0)
+      const unitLabel = item.customMeasureName || measure.unitLabel || measure.label || 'porção'
+      const amount = item.measureUnit && measure.id !== 'g' && quantity > 0
+        ? `${roundMacro(quantity)} ${quantity === 1 ? unitLabel : pluralizeServingLabel(unitLabel)} · ${grams} g`
+        : `${grams} g`
+
+      return {
+        id: item.id || `${item.foodName || item.name}-${index}`,
+        name: item.foodName || item.name || 'Alimento',
+        category: item.category || 'Alimento',
+        amount,
+      }
+    })
+}
+
 function createNutritionMeal(meal = {}) {
   const parsedItems = Array.isArray(meal.items) && meal.items.length
     ? meal.items.map(createNutritionMealItem)
@@ -14605,6 +14691,29 @@ function NutritionQuickStat({ icon, label, value, detail }) {
       <p className="text-xs font-black uppercase text-zinc-400">{label}</p>
       <p className="mt-1 text-xl font-black text-white">{value}</p>
       <p className="mt-1 text-xs font-bold text-emerald-200">{detail}</p>
+    </div>
+  )
+}
+
+export function NutritionMealFoodList({ meal }) {
+  const items = getNutritionMealDisplayItems(meal)
+
+  if (!items.length) {
+    return <p className="mt-3 break-words text-sm leading-6 text-zinc-300">{meal?.foods || 'Alimentos em ajuste.'}</p>
+  }
+
+  return (
+    <div className="student-diet-food-list mt-3" role="list" aria-label={`Alimentos de ${meal?.name || 'refeição'}`}>
+      {items.map((item) => (
+        <div key={item.id} className="student-diet-food-row" role="listitem">
+          <span className="student-diet-food-marker" aria-hidden="true" />
+          <span className="student-diet-food-copy">
+            <strong>{item.name}</strong>
+            <small>{item.category}</small>
+          </span>
+          <span className="student-diet-food-amount">{item.amount}</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -15221,7 +15330,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase text-emerald-200">{meal.time || 'Horário livre'}</p>
                   <h4 className="mt-1 break-words text-lg font-black text-white">{meal.name}</h4>
-                  <p className="mt-2 break-words text-sm leading-6 text-zinc-300">{meal.foods || 'Alimentos em ajuste.'}</p>
+                  <NutritionMealFoodList meal={meal} />
                 </div>
                 <span className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-right text-xs font-black leading-5 text-emerald-100">{meal.macros || 'Macros'}</span>
               </div>
@@ -15573,7 +15682,7 @@ function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, student
                       </span>
                       <div className="min-w-0">
                         <h5 className="break-words font-black text-white">{meal.time ? `${meal.time} - ` : ''}{meal.name}</h5>
-                        <p className="mt-2 break-words text-sm leading-6 text-zinc-300">{meal.foods}</p>
+                        <NutritionMealFoodList meal={meal} />
                       </div>
                     </div>
                     <span className="w-fit shrink-0 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black leading-5 text-emerald-100">
@@ -18305,36 +18414,36 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 <p className="truncate text-[10px] font-bold uppercase text-zinc-500">{professionalRole}</p>
               </div>
             </div>
-            <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
-            <div className="mt-2 grid gap-2">
+            <p className="student-sidebar-section-label mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
+            <div className="student-sidebar-nav-list mt-2 grid gap-2">
               {primaryStudentNavItems.map((item) => {
                 const tone = getNavToneClasses(item.tone)
                 const active = activeTab === item.id
 
                 return (
-                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
-                    <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
+                  <button key={item.id} type="button" aria-current={active ? 'page' : undefined} onClick={() => openTab(item.id)} className={`student-sidebar-nav-item app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
+                    <span className={`student-sidebar-nav-icon app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    <span className="text-zinc-500">›</span>
+                    <span className="student-sidebar-nav-label min-w-0 flex-1">{item.label}</span>
+                    <span className="student-sidebar-nav-chevron text-zinc-500" aria-hidden="true">›</span>
                   </button>
                 )
               })}
             </div>
-            <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Acompanhamento</p>
-            <div className="mt-2 grid gap-2">
+            <p className="student-sidebar-section-label mt-5 text-[11px] font-black uppercase text-zinc-500">Mais opções</p>
+            <div className="student-sidebar-nav-list mt-2 grid gap-2">
               {secondaryStudentNavItems.map((item) => {
                 const tone = getNavToneClasses(item.tone)
                 const active = activeTab === item.id
 
                 return (
-                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
-                    <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
+                  <button key={item.id} type="button" aria-current={active ? 'page' : undefined} onClick={() => openTab(item.id)} className={`student-sidebar-nav-item app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-left text-sm font-black ${active ? tone.active : tone.idle}`}>
+                    <span className={`student-sidebar-nav-icon app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    <span className="text-zinc-500">›</span>
+                    <span className="student-sidebar-nav-label min-w-0 flex-1">{item.label}</span>
+                    <span className="student-sidebar-nav-chevron text-zinc-500" aria-hidden="true">›</span>
                   </button>
                 )
               })}
@@ -18360,7 +18469,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
       <div className="student-app-layout mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
         <aside className="student-desktop-sidebar lg:sticky lg:top-5 lg:self-start">
-          <div className="rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
+          <div className="student-sidebar-surface rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
             <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || (patientMode ? 'sua nutricionista' : 'seu treinador')}`} />
             <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-400/10 p-3">
               <p className="text-xs font-black uppercase text-emerald-200">Área do {patientMode ? 'paciente' : 'aluno'}</p>
@@ -18373,35 +18482,35 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 <p className="truncate text-[10px] font-bold uppercase text-zinc-500">{professionalRole}</p>
               </div>
             </div>
-            <p className="mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
-            <div className="mt-2 grid gap-2">
+            <p className="student-sidebar-section-label mt-5 text-[11px] font-black uppercase text-zinc-500">Principal</p>
+            <div className="student-sidebar-nav-list mt-2 grid gap-2">
               {primaryStudentNavItems.map((item) => {
                 const tone = getNavToneClasses(item.tone)
                 const active = activeTab === item.id
 
                 return (
-                  <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-10 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : `${tone.idle} hover:-translate-y-0.5`}`}>
-                    <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
+                  <button key={item.id} type="button" aria-current={active ? 'page' : undefined} onClick={() => openTab(item.id)} className={`student-sidebar-nav-item app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-10 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : `${tone.idle} hover:-translate-y-0.5`}`}>
+                    <span className={`student-sidebar-nav-icon app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                       <NavIcon name={item.icon} className="h-4 w-4" />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="student-sidebar-nav-label min-w-0 flex-1">{item.label}</span>
                   </button>
                 )
               })}
             </div>
-            <details className="mt-4 rounded-md border border-white/10 bg-white/[0.025] p-2" open={secondaryStudentNavItems.some((item) => item.id === activeTab)}>
-              <summary className="cursor-pointer px-2 py-2 text-xs font-black uppercase text-zinc-400">Mais opções</summary>
-              <div className="mt-1 grid gap-2">
+            <details className="student-sidebar-more mt-4 rounded-md border border-white/10 bg-white/[0.025] p-2" open={secondaryStudentNavItems.some((item) => item.id === activeTab)}>
+              <summary className="student-sidebar-section-label student-sidebar-more-summary cursor-pointer px-2 py-2 text-xs font-black uppercase text-zinc-400">Mais opções</summary>
+              <div className="student-sidebar-nav-list mt-1 grid gap-2">
                 {secondaryStudentNavItems.map((item) => {
                   const tone = getNavToneClasses(item.tone)
                   const active = activeTab === item.id
 
                   return (
-                    <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-10 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : tone.idle}`}>
-                      <span className={`app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
+                    <button key={item.id} type="button" aria-current={active ? 'page' : undefined} onClick={() => openTab(item.id)} className={`student-sidebar-nav-item app-nav-toned-button tone-${item.tone} ${active ? 'is-active' : ''} flex min-h-10 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-sm font-bold transition ${active ? tone.active : tone.idle}`}>
+                      <span className={`student-sidebar-nav-icon app-nav-tone-icon grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${active ? tone.iconActive : tone.iconIdle}`}>
                         <NavIcon name={item.icon} className="h-4 w-4" />
                       </span>
-                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      <span className="student-sidebar-nav-label min-w-0 flex-1">{item.label}</span>
                     </button>
                   )
                 })}
@@ -19693,13 +19802,16 @@ function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno', sch
   )
 }
 
-function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [checkoutStarted, setCheckoutStarted] = useState(false)
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [paymentMessage, setPaymentMessage] = useState('')
+  const [nativeProducts, setNativeProducts] = useState([])
+  const [nativePurchasePending, setNativePurchasePending] = useState(false)
+  const nativeIosApp = isNativeIosApp()
   const [selectedCheckoutPlanId, setSelectedCheckoutPlanId] = useState(() => {
     try {
       return window.localStorage.getItem(SELECTED_CHECKOUT_PLAN_KEY) || 'mensal'
@@ -19710,6 +19822,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
   const firstMonthCheckoutUrl = resolveCheckoutUrl(import.meta.env.VITE_FITCOACH_FIRST_MONTH_CHECKOUT_URL || subscription?.checkoutFirstMonthUrl || import.meta.env.VITE_FITCOACH_BILLING_URL || '', primaryCartpandaCheckoutUrl)
   const regularCheckoutUrl = resolveCheckoutUrl(import.meta.env.VITE_FITCOACH_REGULAR_CHECKOUT_URL || subscription?.checkoutRegularUrl || '', firstMonthCheckoutUrl)
   const officialCheckoutPlans = normalizeAdminSettings(appAdminSettings).checkoutPlans
+  const nativeProductsByPlan = Object.fromEntries(nativeProducts.map((product) => [product.planId, product]))
   const checkoutPlans = officialCheckoutPlans.map((plan) => {
     const envUrl = plan.id === 'mensal'
       ? firstMonthCheckoutUrl
@@ -19719,11 +19832,16 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
 
     return {
       ...plan,
+      price: nativeIosApp && nativeProductsByPlan[plan.id]?.displayPrice
+        ? nativeProductsByPlan[plan.id].displayPrice
+        : plan.price,
       checkoutUrl: appendAttributionToCheckoutUrl(resolveCheckoutUrl(envUrl, plan.checkoutUrl), plan.id),
     }
   })
-  const subscriptionActive = professionalAffiliate || isCoachSubscriptionActive(subscription)
-  const subscriptionStatusLabel = professionalAffiliate ? 'Conta profissional ativa' : getSubscriptionStatusLabel(subscription)
+  const subscriptionActive = professionalAffiliate || isCoachSubscriptionActive(subscription) || nativeIosEntitlement
+  const subscriptionStatusLabel = nativeIosEntitlement
+    ? 'Assinatura ativa pela App Store'
+    : professionalAffiliate ? 'Conta profissional ativa' : getSubscriptionStatusLabel(subscription)
   const activeStudents = students.filter((student) => student.status !== 'Inativo')
   const estimatedRevenue = activeStudents.reduce((total, student) => total + getPlanMonthlyPrice(student.plan, coachPlans), 0)
   const now = new Date()
@@ -19766,7 +19884,22 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
   }, [])
 
   useEffect(() => {
-    if (!checkoutStarted || subscriptionActive || !onRefreshSubscription) return undefined
+    if (!nativeIosApp) return undefined
+    let active = true
+    loadIosProducts()
+      .then((products) => {
+        if (active) setNativeProducts(products)
+      })
+      .catch((error) => {
+        if (active) setPaymentMessage(error?.message || 'Não foi possível carregar os planos da App Store.')
+      })
+    return () => {
+      active = false
+    }
+  }, [nativeIosApp])
+
+  useEffect(() => {
+    if (nativeIosApp || !checkoutStarted || subscriptionActive || !onRefreshSubscription) return undefined
 
     let stopped = false
     let attempts = 0
@@ -19798,10 +19931,10 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       stopped = true
       window.clearInterval(timer)
     }
-  }, [checkoutStarted, subscriptionActive, onRefreshSubscription])
+  }, [nativeIosApp, checkoutStarted, subscriptionActive, onRefreshSubscription])
 
   useEffect(() => {
-    if (!checkoutStarted || subscriptionActive || !onRefreshSubscription) return undefined
+    if (nativeIosApp || !checkoutStarted || subscriptionActive || !onRefreshSubscription) return undefined
 
     const verifyOnReturn = () => {
       if (document.visibilityState === 'hidden') return
@@ -19814,7 +19947,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       window.removeEventListener('focus', verifyOnReturn)
       document.removeEventListener('visibilitychange', verifyOnReturn)
     }
-  }, [checkoutStarted, subscriptionActive, onRefreshSubscription])
+  }, [nativeIosApp, checkoutStarted, subscriptionActive, onRefreshSubscription])
 
   async function copyBillingSummary() {
     const summary = [
@@ -19865,6 +19998,44 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     setPaymentMessage('Checkout aberto em uma nova aba. Ao voltar para o app, a liberação será verificada automaticamente.')
   }
 
+  async function handleNativePurchase() {
+    setNativePurchasePending(true)
+    setPaymentMessage('Abrindo pagamento seguro da App Store...')
+    try {
+      const result = await purchaseIosPlan(selectedCheckoutPlanId)
+      if (result.cancelled) {
+        setPaymentMessage('Compra cancelada. Nenhuma cobrança foi realizada.')
+      } else if (result.pending) {
+        setPaymentMessage('Compra pendente de aprovação. O acesso será liberado automaticamente após a confirmação da Apple.')
+      } else if (result.active) {
+        onNativeEntitlementChange?.(true)
+        setPaymentMessage('Assinatura confirmada pela App Store. Seu acesso está liberado.')
+      } else {
+        setPaymentMessage('A compra foi processada, mas a assinatura ainda está sendo validada pela Apple.')
+      }
+    } catch (error) {
+      setPaymentMessage(error?.message || 'Não foi possível concluir a compra pela App Store.')
+    } finally {
+      setNativePurchasePending(false)
+    }
+  }
+
+  async function handleRestorePurchases() {
+    setNativePurchasePending(true)
+    setPaymentMessage('Restaurando compras da App Store...')
+    try {
+      const result = await restoreIosPurchases()
+      onNativeEntitlementChange?.(Boolean(result.active))
+      setPaymentMessage(result.active
+        ? 'Compra restaurada. Seu acesso está liberado.'
+        : 'Nenhuma assinatura ativa foi encontrada para este Apple ID.')
+    } catch (error) {
+      setPaymentMessage(error?.message || 'Não foi possível restaurar as compras.')
+    } finally {
+      setNativePurchasePending(false)
+    }
+  }
+
   if (!subscriptionActive) {
     return (
       <div className="grid min-w-0 gap-5 lg:gap-6">
@@ -19876,7 +20047,9 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
                 Falta só escolher o ciclo e ativar seu Coach Fit Pro.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-                Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.
+                {nativeIosApp
+                  ? 'Você já criou sua conta. Agora escolha o plano e confirme a assinatura com seu Apple ID para liberar o painel.'
+                  : 'Você já criou sua conta. Agora confirme o plano, faça o pagamento com o mesmo e-mail cadastrado e o painel será liberado automaticamente assim que a Cartpanda aprovar.'}
               </p>
 
               <div className="mt-5 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 sm:grid-cols-3">
@@ -19968,24 +20141,43 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
                 ))}
               </div>
 
-              <a
-                href={selectedCheckoutPlan.checkoutUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => handleCheckoutClick(selectedCheckoutPlan.id)}
-                className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5"
-              >
-                Ativar {selectedCheckoutPlan.name} agora
-              </a>
-
-              <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-xl border border-blue-300/25 bg-blue-300/10 px-4 py-3 text-sm font-black text-blue-100 disabled:cursor-wait disabled:opacity-60">
-                {checkingPayment ? 'Verificando...' : 'Já paguei, verificar liberação'}
-              </button>
+              {nativeIosApp ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleNativePurchase}
+                    disabled={nativePurchasePending || nativeProducts.length === 0}
+                    className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {nativePurchasePending ? 'Aguarde...' : `Assinar ${selectedCheckoutPlan.name} pela App Store`}
+                  </button>
+                  <button type="button" onClick={handleRestorePurchases} disabled={nativePurchasePending} className="mt-3 w-full rounded-xl border border-blue-300/25 bg-blue-300/10 px-4 py-3 text-sm font-black text-blue-100 disabled:cursor-wait disabled:opacity-60">
+                    Restaurar compras
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a
+                    href={selectedCheckoutPlan.checkoutUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => handleCheckoutClick(selectedCheckoutPlan.id)}
+                    className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-4 text-center text-base font-black text-zinc-950 shadow-xl shadow-emerald-950/35 transition hover:-translate-y-0.5"
+                  >
+                    Ativar {selectedCheckoutPlan.name} agora
+                  </a>
+                  <button type="button" onClick={() => checkPaymentStatus(false)} disabled={checkingPayment} className="mt-3 w-full rounded-xl border border-blue-300/25 bg-blue-300/10 px-4 py-3 text-sm font-black text-blue-100 disabled:cursor-wait disabled:opacity-60">
+                    {checkingPayment ? 'Verificando...' : 'Já paguei, verificar liberação'}
+                  </button>
+                </>
+              )}
 
               {paymentMessage ? <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{paymentMessage}</p> : null}
 
               <p className="mt-4 text-xs leading-5 text-zinc-500">
-                Use o mesmo e-mail da conta no pagamento para a liberação automática funcionar.
+                {nativeIosApp
+                  ? 'A cobrança e o gerenciamento da assinatura são feitos com segurança pela Apple.'
+                  : 'Use o mesmo e-mail da conta no pagamento para a liberação automática funcionar.'}
               </p>
             </div>
           </div>

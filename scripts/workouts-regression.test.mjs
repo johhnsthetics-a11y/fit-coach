@@ -380,10 +380,11 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
   assert.match(html, /mobile-workout-student-experience-v2/)
   assert.match(html, /Concluir série/)
   assert.match(html, /Finalizar treino/)
-  assert.match(html, /Músculo alvo/)
-  assert.match(html, /Mapa muscular: Peitoral/)
+  assert.match(html, /Músculo principal/)
+  assert.match(html, /Peitoral/)
   assert.match(html, /Meta de reps/)
   assert.doesNotMatch(html, /YouTube/)
+  assert.doesNotMatch(html, /muscle-map-region/)
   assert.doesNotMatch(html, /<img[^>]+Execução de Supino reto com barra/)
 })
 
@@ -733,7 +734,7 @@ test('encerramento antecipado preserva histórico sem conceder XP de conclusão'
   assert.equal(stats.history.length, 0)
 })
 
-test('executor destaca timer, encerramento e músculo alvo anatômico no topo', () => {
+test('executor destaca timer, encerramento e músculo alvo textual no topo', () => {
   const html = renderToString(React.createElement(StudentWorkoutExecution, {
     student,
     preview: true,
@@ -757,9 +758,10 @@ test('executor destaca timer, encerramento e músculo alvo anatômico no topo', 
   const muscleMapIndex = html.indexOf('mobile-workout-muscle-target-anatomy-v6')
   const timerIndex = html.indexOf('mobile-workout-timer-panel-v5')
   assert.ok(exerciseTitleIndex >= 0 && muscleMapIndex > exerciseTitleIndex && timerIndex > muscleMapIndex)
-  assert.match(html, /muscle-map-region is-active is-primary/)
+  assert.doesNotMatch(html, /muscle-map-region/)
   assert.doesNotMatch(html, /mobile-workout-muscle-target-compact-v5/)
-  assert.match(html, /Músculo alvo/)
+  assert.match(html, /Músculo principal/)
+  assert.match(html, /Peitoral/)
 })
 
 test('encerramento antecipado usa RPC dedicado e mantém validação da conclusão normal', async () => {
