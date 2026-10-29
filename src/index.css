@@ -21622,3 +21622,24 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-light .student-diet-favorite-day-v1, .student-mobile-shell.app-theme-light .student-diet-favorite-meal-v1 { border-color: rgba(0,143,122,.2); background: rgba(0,143,122,.06); color: #66817A; }
 .student-mobile-shell.app-theme-light .student-diet-favorite-day-v1.is-favorite, .student-mobile-shell.app-theme-light .student-diet-favorite-meal-v1.is-favorite { border-color: rgba(190,142,0,.46); background: rgba(232,190,80,.16); color: #9a6a00; }
 @media (max-width: 560px) { .student-diet-plan-row-v1 { align-items: flex-start; gap: .55rem; } .student-diet-favorite-day-v1 { padding-inline: .52rem; } .student-diet-favorite-day-v1 span { display: none; } }
+
+/* student-diet-black-emerald-v1 */
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) { background: #000000 !important; }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-experience-v1 { background: #050807; border-color: rgba(0,210,178,.22); box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-experience-v1::before { border-color: rgba(0,210,178,.12); box-shadow: 0 0 0 2rem rgba(0,210,178,.035), 0 0 0 4rem rgba(0,210,178,.018); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-experience-v1::after { background: rgba(0,210,178,.04); filter: blur(34px); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-header-v1 { background: #07110f; border-color: rgba(0,210,178,.28); box-shadow: 0 16px 36px rgba(0,0,0,.36); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-status-v1, .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-plan-row-v1 > span { background: rgba(0,210,178,.1); border-color: rgba(0,210,178,.3); color: #8affdf; }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-progress-v1 { background: #08231d; border-color: rgba(0,210,178,.38); box-shadow: 0 16px 34px rgba(0,210,178,.09); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-progress-track-v1 { background: rgba(0,0,0,.48); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-progress-track-v1 span, .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-water-track-v1 span { background: #00d2b2; box-shadow: 0 0 14px rgba(0,210,178,.35); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-metrics-v1 > div { background: #0a1110; border-color: rgba(0,210,178,.2); box-shadow: inset 0 1px 0 rgba(0,210,178,.07); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-meal-v1 { background: #080d0c; border-color: rgba(0,210,178,.2); box-shadow: 0 12px 28px rgba(0,0,0,.28); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-meal-v1.is-selected { border-color: rgba(0,210,178,.62); box-shadow: 0 16px 34px rgba(0,210,178,.12); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-meal-detail-v1 { background: #06110e; border-top-color: rgba(0,210,178,.16); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-water-v1 { background: #07151a; border-color: rgba(0,210,178,.25); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-note-v1 { background: #101007; border-color: rgba(232,190,80,.25); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-progress-charts-v1 { background: #050807; border-color: rgba(0,210,178,.2); box-shadow: 0 18px 40px rgba(0,0,0,.3); }
+.student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-progress-chart-card-v1 { background: #080d0c; border-color: rgba(0,210,178,.18); }
+.nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel { background: #050807 !important; border-color: rgba(0,210,178,.24) !important; }
+.nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel article, .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel .rounded-2xl { background: #080d0c !important; border-color: rgba(0,210,178,.16) !important; }
