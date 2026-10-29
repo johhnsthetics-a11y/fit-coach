@@ -21701,5 +21701,25 @@ html[data-theme="dark"] body { background: #05070d; }
 .coach-auth-shell .coach-auth-main { width: 100%; max-width: none; }
 @media (max-width: 767px) {
   .app-shell:not(.sales-page) { min-height: 100svh; }
-  .student-mobile-shell .student-app-layout { padding-inline: clamp(.75rem, 4vw, 1.25rem); }
+  .student-mobile-shell .student-app-layout { padding-inline: 0; }
 }
+
+/* student-portal-continuous-layout-v1 */
+.student-mobile-shell .student-app-section {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.student-mobile-shell main > section:first-child {
+  border: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-light-brand, #00d2b2) 18%, transparent) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.student-mobile-shell main > section:first-child > div { padding-inline: 0 !important; }
+.student-mobile-shell main > section:first-child > div > div { border-top-color: color-mix(in srgb, var(--app-light-brand, #00d2b2) 15%, transparent) !important; }
