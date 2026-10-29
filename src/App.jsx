@@ -16205,6 +16205,19 @@ function getStudentDietMealIcon(meal = {}, index = 0) {
   return index === 0 ? 'sun' : index === 1 ? 'restaurant' : index === 2 ? 'coffee' : index === 3 ? 'moon' : 'nutrition'
 }
 
+function getStudentDietWeekDays() {
+  const today = new Date()
+  const monday = new Date(today)
+  const day = monday.getDay() || 7
+  monday.setDate(monday.getDate() - day + 1)
+  monday.setHours(0, 0, 0, 0)
+  return ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map((label, index) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + index)
+    return { label, number: date.getDate(), active: date.toDateString() === today.toDateString() }
+  })
+}
+
 function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
@@ -16244,6 +16257,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const todayLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
   const initials = getInitials(student?.name || 'Aluno')
+  const weekDays = useMemo(() => getStudentDietWeekDays(), [])
 
   return (
     <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
@@ -16261,6 +16275,10 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
       </header>
 
       <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><span><NavIcon name="calendar" className="h-4 w-4" />{todayLabel}</span></div>
+
+      <div className="student-diet-week-strip-v1" aria-label="Semana atual">
+        {weekDays.map((day) => <span key={`${day.label}-${day.number}`} className={day.active ? 'is-active' : ''}><small>{day.label}</small><strong>{day.number}</strong></span>)}
+      </div>
 
       <div className="student-diet-progress-v1" aria-label={`Progresso da dieta: ${progress}%`}>
         <div><strong>Ritmo de hoje</strong><span>{progress}% concluído</span></div>
