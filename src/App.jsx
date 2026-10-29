@@ -16007,7 +16007,7 @@ function NutritionFormLegacy({ students = [], selectedStudent, onSaveNutritionPl
   )
 }
 
-export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive, showHeading = true }) {
+export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
   const [search, setSearch] = useState('')
@@ -16066,7 +16066,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
 
   if (studentView) {
     const studentPlan = visiblePlans[0] || plans[0]
-    return <StudentDietExperience plan={studentPlan} student={selectedStudent} professional={professional} showHeading={showHeading} />
+    return <StudentDietExperience plan={studentPlan} student={selectedStudent} professional={professional} showHeading={showHeading} waterMl={waterMl} waterGoalMl={waterGoalMl} onAddWater={onAddWater} onOpenWater={onOpenWater} />
   }
 
   function renderPlan(plan, archived = false) {
@@ -16196,7 +16196,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
   )
 }
 
-function StudentDietExperience({ plan, student, professional = {}, showHeading = true }) {
+function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const [completedMealIds, setCompletedMealIds] = useState(() => {
@@ -16228,6 +16228,11 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const completedCount = meals.filter((meal) => completedMealIds.includes(String(meal.id || meal.name))).length
   const progress = meals.length ? Math.round((completedCount / meals.length) * 100) : 0
   const selectedMeal = meals.find((meal) => String(meal.id || meal.name) === String(selectedMealId)) || meals[0]
+  const safeWaterGoal = Math.max(500, Number(waterGoalMl || 2500))
+  const safeWater = Math.max(0, Math.min(Number(waterMl || 0), safeWaterGoal))
+  const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
+  const waterLiters = (safeWater / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 
   return (
     <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
@@ -16283,6 +16288,16 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
             </article>
           )
         })}
+      </div>
+
+      <div className="student-diet-section-heading-v1 student-diet-hydration-heading-v1">
+        <div><span>HIDRATAÇÃO</span><h4>Água do dia</h4></div>
+        <strong>{waterLiters} L <small>/ {waterGoalLiters} L</small></strong>
+      </div>
+      <div className="student-diet-water-v1">
+        <button type="button" className="student-diet-water-icon-v1" onClick={onOpenWater} aria-label="Abrir hidratação"><NavIcon name="water" className="h-5 w-5" /></button>
+        <div className="student-diet-water-copy-v1"><div><strong>{waterPercent}% da meta</strong><span>{Math.max(0, safeWaterGoal - safeWater)} ml restantes</span></div><div className="student-diet-water-track-v1"><span style={{ width: `${Math.max(waterPercent, safeWater ? 0 : 4)}%` }} /></div><small>Registre sua água para acompanhar o ritmo de hoje.</small></div>
+        <button type="button" className="student-diet-water-add-v1" onClick={() => onAddWater?.(250)} aria-label="Adicionar 250 ml de água"><NavIcon name="plus" className="h-5 w-5" /></button>
       </div>
 
       {stripNutritionPlanMetadata(plan?.notes) ? <aside className="student-diet-note-v1"><NavIcon name="sparkles" className="h-5 w-5" /><div><span>ORIENTAÇÃO DO SEU PROFISSIONAL</span><p>{stripNutritionPlanMetadata(plan.notes)}</p><small>{professional?.publicName || 'Equipe Coach Fit'}</small></div></aside> : null}
@@ -18884,7 +18899,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             assignments={studentQuestionnaireAssignments}
             onSubmitQuestionnaire={onSubmitQuestionnaire}
           />
-          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} showHeading={false} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
+          {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} showHeading={false} waterMl={waterMl} waterGoalMl={waterGoalMl} onAddWater={addWater} onOpenWater={() => openTab('agua')} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
         </StudentAppSection>
       )
     }
