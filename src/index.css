@@ -21561,3 +21561,15 @@ html[data-theme="dark"] body { background: #05070d; }
   .student-diet-meal-meta-v1 { min-width: 3.65rem; font-size: .52rem; }
   .student-diet-meal-detail-v1.is-open { padding-inline: .58rem; }
 }
+
+/* student-diet-drawer-and-stack-fix-v14 */
+.student-diet-meal-detail-v1 { animation: none !important; visibility: hidden; }
+.student-diet-meal-detail-v1.is-open { visibility: visible; }
+.student-diet-day-content-v1 { display: grid; min-width: 0; gap: 1rem; }
+.student-diet-progress-v1, .student-diet-metrics-v1 { position: relative; display: grid; width: 100%; min-width: 0; box-sizing: border-box; clear: both; }
+.student-diet-progress-v1 { z-index: 1; min-height: 7rem; overflow: visible; }
+.student-diet-metrics-v1 { z-index: 2; align-items: stretch; margin: 0; }
+.student-diet-metrics-v1 > div { width: 100%; min-width: 0; box-sizing: border-box; overflow: hidden; }
+.student-diet-meal-trigger-v1 { z-index: 1; }
+@media (max-width: 560px) { .student-diet-progress-v1 { min-height: 6.8rem; } .student-diet-metrics-v1 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .student-diet-metrics-v1 { gap: .35rem; } .student-diet-metrics-v1 > div { padding-inline: .42rem; } }
