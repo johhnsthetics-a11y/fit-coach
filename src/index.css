@@ -21626,6 +21626,36 @@ html[data-theme="dark"] body { background: #05070d; }
 /* student-diet-black-emerald-v1 */
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) { background: #000000 !important; }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-experience-v1 { background: #050807; border-color: rgba(0,210,178,.22); box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+
+/* student-diet-fullscreen-surface-v1 */
+.student-diet-app-section,
+.student-app-section:has(.student-diet-experience-v1) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.student-diet-experience-v1 {
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0;
+  box-shadow: none !important;
+}
+.student-diet-experience-v1::before,
+.student-diet-experience-v1::after { display: none; }
+.student-diet-header-v1 {
+  border: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--diet-brand, #00d2b2) 18%, transparent) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 0 1.25rem;
+  box-shadow: none !important;
+}
+.student-diet-topbar-v1 { padding-inline: 0; }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-experience-v1::before { border-color: rgba(0,210,178,.12); box-shadow: 0 0 0 2rem rgba(0,210,178,.035), 0 0 0 4rem rgba(0,210,178,.018); }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-experience-v1::after { background: rgba(0,210,178,.04); filter: blur(34px); }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-diet-header-v1 { background: #07110f; border-color: rgba(0,210,178,.28); box-shadow: 0 16px 36px rgba(0,0,0,.36); }

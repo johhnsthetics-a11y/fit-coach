@@ -18986,7 +18986,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
     if (activeTab === 'dieta') {
       return (
-        <StudentAppSection hideHeader title="Minha dieta" action={studentNutritionPlans.length > 1 ? `${studentNutritionPlans.length} planos` : 'Plano atual'}>
+        <StudentAppSection className="student-diet-app-section" hideHeader title="Minha dieta" action={studentNutritionPlans.length > 1 ? `${studentNutritionPlans.length} planos` : 'Plano atual'}>
           {questionnaireError ? <p role="alert" className="mb-4 rounded-md border border-amber-400/40 p-3 text-sm">{questionnaireError}</p> : null}
           <StudentQuestionnaireCenter
             student={student}
@@ -19823,9 +19823,9 @@ function toLocalDateKey(value) {
   return date.toLocaleDateString('sv-SE')
 }
 
-function StudentAppSection({ id, title, action, hideHeader = false, children }) {
+function StudentAppSection({ id, title, action, hideHeader = false, className = '', children }) {
   return (
-    <section id={id ? `student-${id}` : undefined} className="student-app-section scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
+    <section id={id ? `student-${id}` : undefined} className={`student-app-section ${className} scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5`}>
       {!hideHeader ? <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="text-lg font-black">{title}</h2>
         <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
