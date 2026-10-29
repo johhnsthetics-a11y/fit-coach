@@ -21817,6 +21817,39 @@ html[data-theme="dark"] body { background: #05070d; }
   background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(231,246,241,.9)) !important;
 }
 
+/* favorites-and-dark-surface-v1 */
+.student-mobile-shell.app-theme-light .student-diet-favorite-day-v1.is-favorite,
+.student-mobile-shell.app-theme-light .student-diet-favorite-meal-v1.is-favorite,
+.app-theme-light .nutrition-favorite-action.is-favorite {
+  border-color: #b77900 !important;
+  background: linear-gradient(145deg, #ffe9a8, #f4c95d) !important;
+  color: #5d3a00 !important;
+  box-shadow: 0 0 0 3px rgba(244, 201, 93, .24), 0 8px 20px rgba(183, 121, 0, .2) !important;
+  -webkit-text-fill-color: #5d3a00 !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-favorite-day-v1.is-favorite svg,
+.student-mobile-shell.app-theme-light .student-diet-favorite-meal-v1.is-favorite svg,
+.app-theme-light .nutrition-favorite-action.is-favorite svg {
+  fill: currentColor !important;
+  color: #5d3a00 !important;
+  filter: drop-shadow(0 1px 1px rgba(255,255,255,.55));
+}
+.student-mobile-shell.app-theme-dark .student-diet-favorite-day-v1.is-favorite,
+.student-mobile-shell.app-theme-dark .student-diet-favorite-meal-v1.is-favorite,
+.app-theme-dark .nutrition-favorite-action.is-favorite {
+  border-color: #e8be50 !important;
+  background: rgba(232, 190, 80, .18) !important;
+  color: #ffe08a !important;
+  box-shadow: 0 0 0 3px rgba(232, 190, 80, .1), 0 8px 20px rgba(0,0,0,.24) !important;
+}
+.student-mobile-shell.app-theme-dark,
+.student-access-shell.app-theme-dark,
+.coach-auth-shell.app-theme-dark,
+.app-theme-dark.app-shell:not(.sales-page) {
+  background: #000000 !important;
+  background-image: none !important;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .app-shell:not(.sales-page) button,
   .app-shell:not(.sales-page) a,
