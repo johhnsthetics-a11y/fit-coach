@@ -6,5 +6,13 @@ export default defineConfig({
   publicDir: 'public',
   build: {
     chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+        },
+      },
+    },
   },
 })

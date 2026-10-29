@@ -4999,16 +4999,17 @@ function AppLoading() {
   const loadingTheme = getStoredUiTheme()
 
   return (
-    <main className={`app-loading-shell app-shell fit-gradient-bg app-theme-${loadingTheme} grid min-h-screen place-items-center p-4 text-zinc-100`} data-theme={loadingTheme}>
-      <section className="app-loading-card w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950/85 p-6 text-center shadow-2xl shadow-black/30">
+    <main className={`app-loading-shell app-shell fit-gradient-bg app-theme-${loadingTheme} grid min-h-screen place-items-center p-4 text-zinc-100`} data-theme={loadingTheme} aria-busy="true">
+      <section className="app-loading-card w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-950/85 p-6 text-center shadow-2xl shadow-black/30" role="status" aria-live="polite">
+        <div className="app-loading-orbit" aria-hidden="true"><span /><span /><span /></div>
         <div className="flex justify-center">
           <BrandLockup large subtitle="Coach Fit Pro" />
         </div>
         <div className="app-loading-progress mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
-          <span className="block h-full w-1/2 animate-pulse rounded bg-emerald-400" />
+          <span className="block h-full w-1/2 rounded bg-emerald-400" />
         </div>
-        <p className="mt-4 text-sm font-bold text-emerald-100">Carregando sua operação...</p>
-        <p className="mt-2 text-xs leading-5 text-zinc-500">Sincronizando alunos, prescrições e agenda.</p>
+        <p className="app-loading-title mt-4 text-sm font-bold text-emerald-100">Preparando seu espaço...</p>
+        <p className="app-loading-caption mt-2 text-xs leading-5 text-zinc-500">Sincronizando alunos, treinos e evolução.</p>
       </section>
     </main>
   )
