@@ -21444,3 +21444,49 @@ html[data-theme="dark"] body { background: #05070d; }
 @media (prefers-reduced-motion: reduce) {
   .student-diet-day-content-v1, .student-diet-meal-detail-v1, .student-diet-meal-detail-v1 .student-diet-macros-v1, .student-diet-meal-detail-v1 .student-diet-foods-v1, .student-diet-meal-detail-v1 .student-diet-complete-v1 { animation: none !important; transition: none !important; }
 }
+
+/* student-profile-goals-immersive-v11 */
+.student-profile-goals-screen-v1 { background: radial-gradient(circle at 10% 0%, rgba(0,210,178,.1), transparent 32%), radial-gradient(circle at 94% 12%, rgba(37,99,235,.08), transparent 28%), #050908; }
+.student-profile-goals-form-v1 { border-color: rgba(0,210,178,.18); background: linear-gradient(145deg, rgba(5,18,16,.96), rgba(6,11,13,.96)); box-shadow: 0 28px 70px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05); }
+.student-profile-goals-section-v1 { position: relative; overflow: hidden; border-radius: 1.15rem; border: 1px solid rgba(0,210,178,.14); padding: 1.15rem; background: linear-gradient(145deg, rgba(0,210,178,.065), rgba(255,255,255,.018)); }
+.student-profile-goals-section-v1::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(#00B99F, #008F7A); opacity: .9; }
+.student-profile-goals-section-v1.is-safety { border-color: rgba(245,158,11,.16); background: linear-gradient(145deg, rgba(245,158,11,.055), rgba(255,255,255,.015)); }
+.student-profile-goals-section-v1.is-safety::before { background: linear-gradient(#F6C453, #C98A18); }
+.student-profile-goals-section-v1.is-routine { border-color: rgba(37,99,235,.16); background: linear-gradient(145deg, rgba(37,99,235,.06), rgba(255,255,255,.015)); }
+.student-profile-goals-section-v1.is-routine::before { background: linear-gradient(#5BA4FF, #2563EB); }
+.student-profile-goals-heading-v1 { position: relative; z-index: 1; }
+.student-profile-goals-heading-v1 > span { color: #7BFFE9; font-size: .67rem; font-weight: 950; letter-spacing: .14em; }
+.student-profile-goals-heading-v1 h2 { margin-top: .35rem; color: #F7FFFD; font-size: 1.15rem; font-weight: 950; letter-spacing: -.035em; }
+.student-profile-goals-heading-v1 p { margin-top: .35rem; max-width: 42rem; color: #9AAFA9; font-size: .82rem; line-height: 1.55; }
+.student-profile-goals-section-v1 label { color: #DCEBE7; }
+.student-profile-goals-section-v1 input, .student-profile-goals-section-v1 select, .student-profile-goals-section-v1 textarea { border-color: rgba(0,210,178,.16); background: rgba(2,9,8,.58); color: #F7FFFD; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+.student-profile-goals-section-v1 input:focus, .student-profile-goals-section-v1 select:focus, .student-profile-goals-section-v1 textarea:focus { border-color: #00B99F; background: rgba(0,143,122,.08); box-shadow: 0 0 0 3px rgba(0,185,159,.14); outline: none; }
+.student-profile-goals-section-v1.is-safety input, .student-profile-goals-section-v1.is-safety select, .student-profile-goals-section-v1.is-safety textarea { border-color: rgba(245,158,11,.16); }
+.student-profile-goals-section-v1.is-routine input, .student-profile-goals-section-v1.is-routine select, .student-profile-goals-section-v1.is-routine textarea { border-color: rgba(37,99,235,.18); }
+.student-profile-goals-screen-v1 button[type="submit"] { background: linear-gradient(110deg, #008F7A, #00B99F); color: #03110E; box-shadow: 0 12px 26px rgba(0,143,122,.2); transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
+.student-profile-goals-screen-v1 button[type="submit"]:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 16px 32px rgba(0,143,122,.28); }
+.student-mobile-shell.app-theme-light .student-profile-goals-screen-v1 { background: radial-gradient(circle at 8% 0%, rgba(0,143,122,.09), transparent 32%), radial-gradient(circle at 95% 12%, rgba(37,99,235,.05), transparent 28%), #F3FAF7; }
+.student-mobile-shell.app-theme-light .student-profile-goals-form-v1 { border-color: rgba(0,143,122,.16); background: linear-gradient(145deg, #FFFFFF, #F3FAF7); box-shadow: 0 28px 70px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.85); }
+.student-mobile-shell.app-theme-light .student-profile-goals-section-v1 { border-color: rgba(0,143,122,.15); background: linear-gradient(145deg, #FFFFFF, #F2FAF7); }
+.student-mobile-shell.app-theme-light .student-profile-goals-section-v1.is-safety { border-color: rgba(201,138,24,.2); background: linear-gradient(145deg, #FFF9E9, #FFFFFF); }
+.student-mobile-shell.app-theme-light .student-profile-goals-section-v1.is-routine { border-color: rgba(37,99,235,.13); background: linear-gradient(145deg, #F7FAFF, #FFFFFF); }
+.student-mobile-shell.app-theme-light .student-profile-goals-heading-v1 > span { color: #007D6C; }
+.student-mobile-shell.app-theme-light .student-profile-goals-heading-v1 h2 { color: #18302A; }
+.student-mobile-shell.app-theme-light .student-profile-goals-heading-v1 p { color: #61736D; }
+.student-mobile-shell.app-theme-light .student-profile-goals-section-v1 label { color: #29453D; }
+.student-mobile-shell.app-theme-light .student-profile-goals-section-v1 input, .student-mobile-shell.app-theme-light .student-profile-goals-section-v1 select, .student-mobile-shell.app-theme-light .student-profile-goals-section-v1 textarea { border-color: rgba(0,143,122,.18); background: #FFFFFF; color: #18302A; }
+.student-mobile-shell.app-theme-light .student-profile-goals-section-v1 input:focus, .student-mobile-shell.app-theme-light .student-profile-goals-section-v1 select:focus, .student-mobile-shell.app-theme-light .student-profile-goals-section-v1 textarea:focus { border-color: #008F7A; background: #F7FCFA; }
+@media (max-width: 640px) { .student-profile-goals-section-v1 { padding: 1rem; } .student-profile-goals-heading-v1 h2 { font-size: 1.05rem; } }
+@media (prefers-reduced-motion: reduce) { .student-profile-goals-section-v1 input, .student-profile-goals-section-v1 select, .student-profile-goals-section-v1 textarea, .student-profile-goals-screen-v1 button[type="submit"] { transition: none; } }
+
+.student-profile-goals-screen-v1.app-theme-light { background: radial-gradient(circle at 8% 0%, rgba(0,143,122,.09), transparent 32%), radial-gradient(circle at 95% 12%, rgba(37,99,235,.05), transparent 28%), #F3FAF7; }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-form-v1 { border-color: rgba(0,143,122,.16); background: linear-gradient(145deg, #FFFFFF, #F3FAF7); box-shadow: 0 28px 70px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.85); }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 { border-color: rgba(0,143,122,.15); background: linear-gradient(145deg, #FFFFFF, #F2FAF7); }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1.is-safety { border-color: rgba(201,138,24,.2); background: linear-gradient(145deg, #FFF9E9, #FFFFFF); }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1.is-routine { border-color: rgba(37,99,235,.13); background: linear-gradient(145deg, #F7FAFF, #FFFFFF); }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-heading-v1 > span { color: #007D6C; }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-heading-v1 h2 { color: #18302A; }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-heading-v1 p { color: #61736D; }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 label { color: #29453D; }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 input, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 select, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 textarea { border-color: rgba(0,143,122,.18); background: #FFFFFF; color: #18302A; }
+.student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 input:focus, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 select:focus, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 textarea:focus { border-color: #008F7A; background: #F7FCFA; }

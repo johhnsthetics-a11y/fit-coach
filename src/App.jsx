@@ -17859,11 +17859,11 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
   }
 
   return (
-    <div className={`app-shell student-access-shell student-theme-sync-v1 fit-gradient-bg app-theme-${uiTheme} min-h-screen p-3 text-zinc-100 sm:p-6`} data-theme={uiTheme} style={mergeThemeStyle(appAdminSettings, uiTheme)}>
+    <div className={`app-shell student-access-shell student-theme-sync-v1 student-profile-goals-screen-v1 fit-gradient-bg app-theme-${uiTheme} min-h-screen p-3 text-zinc-100 sm:p-6`} data-theme={uiTheme} style={mergeThemeStyle(appAdminSettings, uiTheme)}>
       <div className="mx-auto mb-3 flex max-w-4xl justify-end">
         <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="student-theme-toggle" />
       </div>
-      <form onSubmit={handleSubmit} className="student-access-card mx-auto grid max-w-4xl gap-5 rounded-md border border-white/10 bg-zinc-950/85 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
+      <form onSubmit={handleSubmit} className="student-access-card student-profile-goals-form-v1 mx-auto grid max-w-4xl gap-5 rounded-md border border-white/10 bg-zinc-950/85 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-7">
         <div className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-300">{updating ? 'Atualização prioritária' : 'Primeiro acesso'}</p>
@@ -17873,8 +17873,8 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
           <BrandLockup subtitle="Coach Fit Pro" />
         </div>
 
-        <section className="grid gap-4">
-          <h2 className="font-black text-blue-200">Perfil e objetivo</h2>
+        <section className="student-profile-goals-section-v1 is-profile grid gap-4">
+          <div className="student-profile-goals-heading-v1"><span>BASE DO ACOMPANHAMENTO</span><h2>Perfil e objetivo</h2><p>Esses dados orientam a leitura das suas metas e a personalização da dieta.</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Data de nascimento" name="birthDate" type="date" defaultValue={priorAnswers.birthDate || ''} />
             <Select label="Sexo biológico para cálculo metabólico" name="biologicalSex" defaultValue={priorAnswers.biologicalSex || ''} options={['Masculino', 'Feminino']} />
@@ -17888,8 +17888,8 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
           <TextArea label="Objetivo principal e resultado esperado" name="primaryGoal" defaultValue={priorAnswers.primaryGoal || ''} />
         </section>
 
-        <section className="grid gap-4 border-t border-white/10 pt-5">
-          <h2 className="font-black text-red-200">Saúde e segurança</h2>
+        <section className="student-profile-goals-section-v1 is-safety grid gap-4 border-t border-white/10 pt-5">
+          <div className="student-profile-goals-heading-v1"><span>PROTEÇÃO E CONTEXTO</span><h2>Saúde e segurança</h2><p>Informações importantes para que as metas sejam conduzidas com responsabilidade.</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
             <TextArea label="Lesões atuais ou anteriores" name="injuries" defaultValue={priorAnswers.injuries || 'Nenhuma'} />
             <TextArea label="Doenças ou condições de saúde" name="healthConditions" defaultValue={priorAnswers.healthConditions || 'Nenhuma'} />
@@ -17900,8 +17900,8 @@ function StudentAnamnesis({ access, onSubmit, onExit, error, appAdminSettings = 
           <Field label="Contato de emergência" name="emergencyContact" defaultValue={priorAnswers.emergencyContact || ''} />
         </section>
 
-        <section className="grid gap-4 border-t border-white/10 pt-5">
-          <h2 className="font-black text-emerald-200">Rotina e hábitos</h2>
+        <section className="student-profile-goals-section-v1 is-routine grid gap-4 border-t border-white/10 pt-5">
+          <div className="student-profile-goals-heading-v1"><span>ROTINA E ADESÃO</span><h2>Hábitos que sustentam suas metas</h2><p>Quanto mais fiel for o retrato da sua rotina, mais útil será o seu plano alimentar.</p></div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Horas de sono" name="sleepHours" defaultValue={priorAnswers.sleepHours || ''} />
             <Select label="Qualidade do sono" name="sleepQuality" defaultValue={priorAnswers.sleepQuality || 'Regular'} options={['Ruim', 'Regular', 'Boa', 'Excelente']} />
