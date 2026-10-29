@@ -21723,3 +21723,64 @@ html[data-theme="dark"] body { background: #05070d; }
 }
 .student-mobile-shell main > section:first-child > div { padding-inline: 0 !important; }
 .student-mobile-shell main > section:first-child > div > div { border-top-color: color-mix(in srgb, var(--app-light-brand, #00d2b2) 15%, transparent) !important; }
+
+/* app-fluid-theme-finish-v1 */
+.app-shell:not(.sales-page) {
+  background-color: #050908;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(0, 210, 178, 0.08), transparent 30%),
+    radial-gradient(circle at 92% 14%, rgba(59, 130, 246, 0.05), transparent 28%),
+    linear-gradient(180deg, #07110f 0%, #050908 52%, #030605 100%);
+}
+.app-theme-light.app-shell:not(.sales-page) {
+  background-color: #eef7f4 !important;
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(0, 143, 122, 0.12), transparent 31%),
+    radial-gradient(circle at 94% 13%, rgba(37, 99, 235, 0.06), transparent 28%),
+    linear-gradient(180deg, #f7fcfa 0%, #eef7f4 52%, #e7f2ef 100%) !important;
+}
+.student-mobile-shell.app-theme-light.fit-gradient-bg,
+.student-access-shell.app-theme-light.fit-gradient-bg {
+  background-color: #eef7f4 !important;
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(0, 143, 122, 0.12), transparent 31%),
+    radial-gradient(circle at 94% 13%, rgba(37, 99, 235, 0.06), transparent 28%),
+    linear-gradient(180deg, #f7fcfa 0%, #eef7f4 52%, #e7f2ef 100%) !important;
+}
+.student-mobile-shell.app-theme-light .student-app-section,
+.student-mobile-shell.app-theme-light main > section:first-child,
+.student-mobile-shell.app-theme-light .student-diet-experience-v1 {
+  background: transparent !important;
+  border-color: color-mix(in srgb, #008f7a 18%, transparent) !important;
+  box-shadow: none !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-progress-v1,
+.student-mobile-shell.app-theme-light .student-diet-meal-v1,
+.student-mobile-shell.app-theme-light .student-diet-water-v1,
+.student-mobile-shell.app-theme-light .student-diet-note-v1,
+.student-mobile-shell.app-theme-light .student-diet-metrics-v1 > div {
+  background: linear-gradient(145deg, rgba(255,255,255,.78), rgba(239,249,246,.82)) !important;
+  border-color: rgba(0, 143, 122, .18) !important;
+  box-shadow: 0 14px 34px rgba(15, 72, 61, .07) !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-header-v1 {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-shell:not(.sales-page) button,
+  .app-shell:not(.sales-page) a,
+  .app-shell:not(.sales-page) summary {
+    transition: color .22s ease, background-color .22s ease, border-color .22s ease, box-shadow .28s ease, transform .28s cubic-bezier(.2,.8,.2,1), opacity .22s ease;
+  }
+  .app-shell:not(.sales-page) button:active,
+  .app-shell:not(.sales-page) a:active { transform: scale(.985); }
+  .student-mobile-shell .student-app-section,
+  .student-mobile-shell main > section,
+  .student-mobile-shell .student-bottom-nav,
+  .coach-auth-shell .coach-auth-main > div {
+    transition: background-color .3s ease, border-color .3s ease, box-shadow .35s ease;
+  }
+  .student-diet-day-content-v1 { animation-duration: .48s; }
+}
