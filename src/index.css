@@ -21581,3 +21581,31 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-diet-plan-row-v1 > div > span svg { flex: 0 0 auto; }
 .student-app-section:has(.student-diet-experience-v1) { padding-top: 1rem; }
 @media (max-width: 560px) { .student-diet-plan-row-v1 > div > span { font-size: .62rem; } .student-diet-plan-row-v1 > div > strong { font-size: 1rem; } }
+
+/* nutrition-editor-quality-v1 */
+.nutrition-draft-quality-v1 { border-color: rgba(0,210,178,.18); background: linear-gradient(145deg, rgba(0,210,178,.08), rgba(255,255,255,.025)); color: #d9fff7; }
+.nutrition-draft-quality-v1.is-ready { border-color: rgba(0,210,178,.34); background: linear-gradient(145deg, rgba(0,210,178,.12), rgba(0,143,122,.05)); }
+.nutrition-draft-quality-v1.is-review { border-color: rgba(232,190,80,.28); background: linear-gradient(145deg, rgba(232,190,80,.09), rgba(255,255,255,.025)); }
+.nutrition-draft-quality-v1 h3 { color: #f7fffd; }
+.nutrition-draft-quality-v1 > div:first-child > p:first-child { color: #7bffe9; }
+.nutrition-draft-quality-v1.is-review > div:first-child > p:first-child { color: #f4cf71; }
+.nutrition-draft-quality-v1 > div:first-child > p:last-child, .nutrition-draft-quality-v1 > p:last-child { color: #9eb5ae; }
+.nutrition-draft-quality-status { border-color: rgba(0,210,178,.28); background: rgba(0,210,178,.12); color: #9fffee; }
+.nutrition-draft-quality-v1.is-review .nutrition-draft-quality-status { border-color: rgba(232,190,80,.3); background: rgba(232,190,80,.12); color: #ffe6a0; }
+.nutrition-draft-quality-check { display: flex; min-width: 0; align-items: center; gap: .65rem; background: rgba(0,0,0,.14); }
+.nutrition-draft-quality-check > span { display: grid; width: 1.7rem; height: 1.7rem; flex: 0 0 auto; place-items: center; border-radius: 50%; font-weight: 950; }
+.nutrition-draft-quality-check.is-ok { border-color: rgba(0,210,178,.2); }
+.nutrition-draft-quality-check.is-ok > span { background: rgba(0,210,178,.18); color: #9fffee; }
+.nutrition-draft-quality-check.is-pending { border-color: rgba(232,190,80,.22); }
+.nutrition-draft-quality-check.is-pending > span { background: rgba(232,190,80,.16); color: #ffe6a0; }
+.nutrition-draft-quality-check > div { min-width: 0; }
+.nutrition-draft-quality-check strong, .nutrition-draft-quality-check small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nutrition-draft-quality-check strong { color: #f7fffd; font-size: .88rem; }
+.nutrition-draft-quality-check small { margin-top: .15rem; color: #8da69e; font-size: .65rem; font-weight: 800; }
+.app-theme-light .nutrition-draft-quality-v1 { border-color: rgba(0,143,122,.18); background: linear-gradient(145deg, #f1fbf8, #ffffff); color: #17352e; }
+.app-theme-light .nutrition-draft-quality-v1.is-ready { border-color: rgba(0,143,122,.3); }
+.app-theme-light .nutrition-draft-quality-v1.is-review { border-color: rgba(190,142,0,.28); background: linear-gradient(145deg, #fffaf0, #ffffff); }
+.app-theme-light .nutrition-draft-quality-v1 h3, .app-theme-light .nutrition-draft-quality-check strong { color: #17352e; }
+.app-theme-light .nutrition-draft-quality-v1 > div:first-child > p:last-child, .app-theme-light .nutrition-draft-quality-v1 > p:last-child { color: #647872; }
+.app-theme-light .nutrition-draft-quality-check { background: rgba(255,255,255,.78); }
+@media (max-width: 640px) { .nutrition-draft-quality-grid { grid-template-columns: 1fr; } .nutrition-draft-quality-check { min-height: 3.1rem; } }

@@ -15222,6 +15222,34 @@ function NutritionBmrStrip({ student, anamnesis = null, compact = false }) {
   )
 }
 
+function NutritionDraftQuality({ meals = [], totals }) {
+  const namedMeals = meals.filter((meal) => String(meal.name || '').trim())
+  const mealsWithFood = namedMeals.filter((meal) => meal.items.some((item) => String(item.foodName || '').trim() && Number(item.grams) > 0))
+  const incompleteItems = meals.reduce((count, meal) => count + meal.items.filter((item) => !String(item.foodName || '').trim() || Number(item.grams) <= 0).length, 0)
+  const checks = [
+    { label: 'Refeições nomeadas', value: `${namedMeals.length}/${meals.length}`, ok: namedMeals.length === meals.length && meals.length > 0 },
+    { label: 'Com alimentos e porções', value: `${mealsWithFood.length}/${meals.length}`, ok: mealsWithFood.length === meals.length && meals.length > 0 },
+    { label: 'Energia calculada', value: `${Math.round(totals.calories)} kcal`, ok: totals.calories > 0 },
+  ]
+  const ready = checks.every((check) => check.ok) && incompleteItems === 0
+  return (
+    <section className={`nutrition-draft-quality-v1 ${ready ? 'is-ready' : 'is-review'} rounded-2xl border p-4`} aria-label="Conferência da dieta">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.12em]">Conferência antes de salvar</p>
+          <h3 className="mt-1 text-base font-black">{ready ? 'Plano pronto para prescrição' : 'Revise os pontos pendentes'}</h3>
+          <p className="mt-1 text-xs leading-5">{ready ? 'Os macros estão calculados e todas as refeições possuem porções válidas.' : 'A conferência evita publicar refeições sem alimento, nome ou quantidade.'}</p>
+        </div>
+        <span className="nutrition-draft-quality-status shrink-0 rounded-full border px-3 py-1.5 text-xs font-black">{ready ? 'PRONTO' : 'REVISAR'}</span>
+      </div>
+      <div className="nutrition-draft-quality-grid mt-3 grid gap-2 sm:grid-cols-3">
+        {checks.map((check) => <div key={check.label} className={`nutrition-draft-quality-check ${check.ok ? 'is-ok' : 'is-pending'} rounded-xl border p-3`}><span>{check.ok ? '✓' : '!'}</span><div><strong>{check.value}</strong><small>{check.label}</small></div></div>)}
+      </div>
+      {incompleteItems > 0 ? <p className="mt-3 text-xs font-bold">{incompleteItems} alimento(s) precisam de nome e quantidade maior que zero.</p> : null}
+    </section>
+  )
+}
+
 function NutritionForm({ students = [], selectedStudent, anamneses = [], questionnaireAssignments = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
@@ -15504,6 +15532,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
         <p className="mt-1 break-words text-lg font-black text-white">{formStudent?.name || `Selecione um ${clientLabel}`}</p>
         <p className="mt-1 text-sm leading-6 text-zinc-400">A dieta será salva somente para este {clientLabel} selecionado no painel.</p>
       </div>
+      <NutritionDraftQuality meals={meals} totals={planTotals} />
 
       {createPortal((
         <>
