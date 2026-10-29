@@ -21525,3 +21525,39 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-light .student-progress-chart-empty-v1 span { color: #5F746D; }
 .student-mobile-shell.app-theme-light .student-progress-chart-empty-v1 small { color: #73847F; }
 @media (max-width: 640px) { .student-progress-charts-grid-v1 { grid-template-columns: 1fr; } }
+
+/* student-diet-responsive-fix-v13 */
+.student-diet-experience-v1, .student-diet-meals-v1, .student-diet-meal-v1, .student-diet-meal-trigger-v1, .student-diet-meal-copy-v1, .student-diet-detail-v1 { width: 100%; max-width: 100%; min-width: 0; }
+.student-diet-meal-trigger-v1 { display: flex; align-items: center; justify-content: space-between; gap: clamp(.55rem, 2vw, .85rem); min-height: 4.6rem; overflow: visible; pointer-events: auto; }
+.student-diet-meal-copy-v1 { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.student-diet-meal-copy-v1 strong, .student-diet-meal-copy-v1 em { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.student-diet-meal-meta-v1 { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; min-width: 4.6rem; gap: .3rem; white-space: nowrap; word-break: keep-all; }
+.student-diet-meal-meta-v1 svg { flex: 0 0 auto; }
+.student-diet-meal-detail-v1 { width: 100%; min-width: 0; box-sizing: border-box; }
+.student-diet-foods-v1, .student-diet-macros-v1, .student-diet-complete-v1 { min-width: 0; max-width: 100%; }
+.student-diet-foods-v1 > div { min-width: 0; }
+.student-diet-foods-v1 > div span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.student-diet-foods-v1 > div small { flex: 0 0 auto; white-space: nowrap; }
+.student-progress-charts-v1, .student-progress-charts-grid-v1, .student-progress-chart-card-v1 { min-width: 0; width: 100%; }
+.student-progress-chart-card-head-v1 { min-width: 0; }
+.student-progress-chart-card-head-v1 > div { min-width: 0; }
+.student-progress-chart-card-head-v1 strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .student-diet-experience-v1 { width: 100%; max-width: none; padding: .8rem; }
+  .student-diet-meal-trigger-v1 { gap: .5rem; padding: .72rem .68rem; }
+  .student-diet-meal-icon-v1 { width: 2.25rem; height: 2.25rem; }
+  .student-diet-meal-copy-v1 strong { font-size: .88rem; }
+  .student-diet-meal-copy-v1 em { font-size: .67rem; }
+  .student-diet-meal-meta-v1 { min-width: 4.15rem; padding-inline: .34rem; font-size: .57rem; }
+  .student-diet-meal-detail-v1.is-open { max-height: 48rem; padding: .8rem .72rem .9rem; }
+  .student-progress-charts-v1 { padding: .85rem; }
+}
+@media (max-width: 380px) {
+  .student-diet-experience-v1 { padding: .62rem; }
+  .student-diet-meal-trigger-v1 { gap: .38rem; padding-inline: .55rem; }
+  .student-diet-meal-icon-v1 { width: 2.08rem; height: 2.08rem; border-radius: .72rem; }
+  .student-diet-meal-copy-v1 strong { font-size: .82rem; }
+  .student-diet-meal-copy-v1 em { display: none; }
+  .student-diet-meal-meta-v1 { min-width: 3.65rem; font-size: .52rem; }
+  .student-diet-meal-detail-v1.is-open { padding-inline: .58rem; }
+}
