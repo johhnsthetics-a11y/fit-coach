@@ -22007,3 +22007,41 @@ html[data-theme="dark"] body { background: #05070d; }
 @media (prefers-reduced-motion: reduce) {
   .app-loading-card, .app-loading-orbit span, .app-loading-progress span { animation: none !important; }
 }
+
+/* student-workout-controls-polish-v2 */
+.student-mobile-shell .mobile-workout-student-experience-v2 button {
+  min-height: 48px;
+  padding: .7rem .9rem;
+  font-size: .78rem;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.student-mobile-shell .mobile-workout-day-card-actions-v4 button { min-width: 9rem; }
+.student-mobile-shell .mobile-workout-start-session-v4 { width: 100%; letter-spacing: -.01em; }
+.student-mobile-shell .mobile-workout-execution-head-v4 > button:first-child,
+.student-mobile-shell .mobile-workout-day-detail-head-v4 > button { min-width: max-content; }
+.student-mobile-shell .mobile-workout-end-trigger-v5 { min-width: max-content; }
+.student-mobile-shell .mobile-workout-student-navigation-v3 { gap: .6rem; }
+.student-mobile-shell .mobile-workout-student-navigation-v3 button,
+.student-mobile-shell .mobile-workout-summary-actions-v4 button { min-width: 0; }
+.student-mobile-shell .mobile-workout-rest-actions-v5 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.student-mobile-shell .mobile-workout-rest-actions-v5 button { min-width: 0; padding-inline: .55rem; }
+.student-mobile-shell .mobile-workout-end-trigger-v5,
+.student-mobile-shell .mobile-workout-end-secondary-v5 { border-color: rgba(244,188,94,.38) !important; background: rgba(244,188,94,.1) !important; color: #f4d18b !important; }
+.student-mobile-shell.app-theme-light .mobile-workout-student-experience-v2 { --workout-primary: #008f7a; --workout-primary-hover: #007565; --workout-primary-pressed: #005f53; --workout-secondary-bg: rgba(255,255,255,.72); --workout-secondary-hover: #e6f5f0; --workout-secondary-border: rgba(0,143,122,.26); --workout-secondary-text: #17352f; --workout-end-bg: #fff8e7; --workout-end-border: #c49a3a; --workout-end-text: #6b4d0b; }
+.student-mobile-shell.app-theme-light .mobile-workout-end-trigger-v5,
+.student-mobile-shell.app-theme-light .mobile-workout-end-secondary-v5 { border-color: #c49a3a !important; background: #fff8e7 !important; color: #6b4d0b !important; }
+@media (max-width: 560px) {
+  .student-mobile-shell .mobile-workout-day-card-actions-v4 { display: grid; grid-template-columns: 1fr; width: 100%; }
+  .student-mobile-shell .mobile-workout-day-card-actions-v4 button { width: 100%; }
+  .student-mobile-shell .mobile-workout-execution-head-v4 { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .student-mobile-shell .mobile-workout-execution-head-v4 > button:first-child { justify-self: start; }
+  .student-mobile-shell .mobile-workout-execution-head-v4 > div { order: -1; }
+  .student-mobile-shell .mobile-workout-end-trigger-v5 { width: 100%; }
+  .student-mobile-shell .mobile-workout-rest-actions-v5 button { font-size: .7rem; }
+}
+@media (max-width: 360px) {
+  .student-mobile-shell .mobile-workout-student-experience-v2 button { padding-inline: .65rem; font-size: .72rem; }
+  .student-mobile-shell .mobile-workout-rest-actions-v5 button { padding-inline: .35rem; }
+}

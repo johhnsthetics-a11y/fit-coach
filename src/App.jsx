@@ -14526,7 +14526,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                   <small>{lastLog ? 'Concluído anteriormente' : 'Ainda não realizado'}</small>
                 </div>
                 <div className="mobile-workout-day-card-actions-v4">
-                  <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Ver treino</button>
+                  <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Abrir treino</button>
                 </div>
               </article>
             )
@@ -14541,7 +14541,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
         {sessionSyncFeedback}
         <div className="mobile-workout-day-detail-head-v4">
-          <button type="button" onClick={returnToDaySelection}>← Voltar</button>
+          <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
           <div>
             <p>{activeDay?.day || 'Treino do dia'}</p>
             <h3>{activeDay?.focus || workout.title || 'Treino'}</h3>
@@ -14552,7 +14552,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <strong>Modo de visualização</strong>
           <p>Revise os exercícios abaixo. Inicie o treino para registrar sua sessão.</p>
         </div>
-        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" disabled={syncState === 'loading'} onClick={onToggleTimer}>▶ Iniciar treino</button> : null}
+        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" disabled={syncState === 'loading'} onClick={onToggleTimer}>▶ Iniciar sessão</button> : null}
         <div className="mobile-workout-day-exercise-list-v4">
           {exercises.map((currentExercise, index) => {
             const profile = getExerciseMuscleProfile(currentExercise)
@@ -14573,7 +14573,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <div className="mobile-workout-rest-day-v3">
               <span><NavIcon name="calendar" className="h-6 w-6" /></span>
               <div><strong>Dia de descanso</strong><p>Este dia não possui exercícios cadastrados.</p></div>
-              <button type="button" onClick={returnToDaySelection}>Voltar aos treinos</button>
+              <button type="button" onClick={returnToDaySelection}>Voltar à seleção de dias</button>
             </div>
           ) : null}
         </div>
@@ -14628,7 +14628,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <div className="mobile-workout-rest-actions-v5">
               <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Continuar' : 'Pausar'}</button>
               <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-              <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
+              <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular descanso</button>
             </div>
           </>}
         </div>
@@ -14641,9 +14641,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       {sessionSyncFeedback}
       <div className="mobile-workout-command-v12">
         <div className="mobile-workout-execution-head-v4">
-          <button type="button" onClick={returnToDaySelection}>← Voltar</button>
+          <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
           <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
-          {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button> : null}
+          {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar sessão</button> : null}
         </div>
         <div className="mobile-workout-exercise-progress-v3">
           <div className="mobile-workout-exercise-progress-head-v3">
