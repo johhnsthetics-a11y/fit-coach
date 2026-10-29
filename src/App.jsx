@@ -16064,6 +16064,11 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
     )
   }
 
+  if (studentView) {
+    const studentPlan = visiblePlans[0] || plans[0]
+    return <StudentDietExperience plan={studentPlan} student={selectedStudent} professional={professional} showHeading={showHeading} />
+  }
+
   function renderPlan(plan, archived = false) {
     const meals = Array.isArray(plan.meals) ? plan.meals : []
     const isExpanded = sameId(expandedPlanId, plan.id)
@@ -16188,6 +16193,101 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
 
       </div> : null}
     </div>
+  )
+}
+
+function StudentDietExperience({ plan, student, professional = {}, showHeading = true }) {
+  const meals = Array.isArray(plan?.meals) ? plan.meals : []
+  const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
+  const [completedMealIds, setCompletedMealIds] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+  const [selectedMealId, setSelectedMealId] = useState(meals[0]?.id || '')
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(completedMealIds))
+    } catch {
+      // A private browsing context may block localStorage; the screen remains usable.
+    }
+  }, [completedMealIds, storageKey])
+
+  function toggleMeal(meal) {
+    const mealId = String(meal?.id || meal?.name || '')
+    if (!mealId) return
+    setCompletedMealIds((current) => current.includes(mealId)
+      ? current.filter((id) => id !== mealId)
+      : [...current, mealId])
+  }
+
+  const completedCount = meals.filter((meal) => completedMealIds.includes(String(meal.id || meal.name))).length
+  const progress = meals.length ? Math.round((completedCount / meals.length) * 100) : 0
+  const selectedMeal = meals.find((meal) => String(meal.id || meal.name) === String(selectedMealId)) || meals[0]
+
+  return (
+    <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
+      <header className="student-diet-header-v1 nutrition-plan-summary-main-v3">
+        <div>
+          {showHeading ? <span className="student-diet-eyebrow">PLANO ALIMENTAR</span> : null}
+          <h3 className="nutrition-plan-summary-title-v3">{plan?.title || 'Sua dieta'}</h3>
+          <p>{student?.name ? `Plano personalizado para ${student.name}` : 'Seu plano alimentar personalizado'}</p>
+        </div>
+        <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
+      </header>
+
+      <div className="student-diet-progress-v1" aria-label={`Progresso da dieta: ${progress}%`}>
+        <div><strong>Ritmo de hoje</strong><span>{progress}% concluído</span></div>
+        <div className="student-diet-progress-track-v1"><span style={{ width: `${Math.max(progress, progress ? 0 : 3)}%` }} /></div>
+        <small>{progress === 100 ? 'Muito bem. Todas as refeições foram registradas.' : 'Marque cada refeição conforme você seguir o plano.'}</small>
+      </div>
+
+      <div className="student-diet-metrics-v1" aria-label="Resumo nutricional">
+        <div><span>Calorias</span><strong>{plan?.calories || '-'}</strong><small>meta diária</small></div>
+        <div><span>Proteína</span><strong>{plan?.protein || '-'}</strong><small>por dia</small></div>
+        <div><span>Refeições</span><strong>{meals.length || '-'}</strong><small>organizadas</small></div>
+      </div>
+
+      <div className="student-diet-section-heading-v1">
+        <div><span>SEU DIA</span><h4>Refeições programadas</h4></div>
+        {plan?.calories ? <strong>{plan.calories}</strong> : null}
+      </div>
+
+      <div className="student-diet-meals-v1">
+        {meals.map((meal, index) => {
+          const mealId = String(meal.id || meal.name || index)
+          const done = completedMealIds.includes(mealId)
+          const expanded = String(selectedMeal?.id || selectedMeal?.name || '') === mealId
+          const macros = getNutritionMealMacroSegments(meal.macros)
+          return (
+            <article key={mealId} className={`student-diet-meal-v1 ${done ? 'is-complete' : ''} ${expanded ? 'is-selected' : ''}`}>
+              <button type="button" className="student-diet-meal-trigger-v1" onClick={() => setSelectedMealId(expanded ? '' : mealId)} aria-expanded={expanded}>
+                <span className="student-diet-meal-icon-v1"><NavIcon name={done ? 'check' : index === 0 ? 'sun' : index === meals.length - 1 ? 'moon' : 'nutrition'} className="h-5 w-5" /></span>
+                <span className="student-diet-meal-copy-v1"><small>{meal.time || `Refeição ${index + 1}`}</small><strong>{meal.name || `Refeição ${index + 1}`}</strong><em>{getNutritionMealDisplayItems(meal).slice(0, 2).map((item) => item.name).join(' · ')}</em></span>
+                <span className="student-diet-meal-meta-v1 nutrition-plan-summary-meta-v3">{done ? 'CONCLUÍDA' : 'ABRIR'} <NavIcon name={expanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" /></span>
+              </button>
+              {expanded ? (
+                <div className="student-diet-meal-detail-v1">
+                  {macros.length ? <div className="student-diet-macros-v1">{macros.map((macro) => <span key={macro.label}><strong>{macro.value}</strong><small>{macro.label === 'P' ? 'proteínas' : macro.label === 'C' ? 'carboidratos' : 'gorduras'}</small></span>)}</div> : null}
+                  <div className="student-diet-foods-v1">
+                    <strong>O que você vai comer</strong>
+                    {getNutritionMealDisplayItems(meal).map((item) => <div key={item.id}><NavIcon name="check" className="h-3.5 w-3.5" /><span>{item.name}</span><small>{item.amount}</small></div>)}
+                  </div>
+                  <button type="button" className="student-diet-complete-v1" onClick={() => toggleMeal(meal)}><NavIcon name={done ? 'check' : 'checkCircle'} className="h-4 w-4" />{done ? 'Refeição concluída' : 'Marcar como concluída'}</button>
+                </div>
+              ) : null}
+            </article>
+          )
+        })}
+      </div>
+
+      {stripNutritionPlanMetadata(plan?.notes) ? <aside className="student-diet-note-v1"><NavIcon name="sparkles" className="h-5 w-5" /><div><span>ORIENTAÇÃO DO SEU PROFISSIONAL</span><p>{stripNutritionPlanMetadata(plan.notes)}</p><small>{professional?.publicName || 'Equipe Coach Fit'}</small></div></aside> : null}
+      <button type="button" className="student-diet-pdf-v1" onClick={() => openNutritionPlanPdf(plan, student, professional)}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button>
+    </section>
   )
 }
 
