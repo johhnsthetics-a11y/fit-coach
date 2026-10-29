@@ -981,3 +981,13 @@ test('tema claro diferencia ações positivas, informativas e de encerramento co
   assert.match(cssSource, /mobile-workout-end-trigger-v5[\s\S]*background:\s*#f3cf7c !important/)
   assert.match(cssSource, /div\.is-complete > button[\s\S]*background:\s*#a8d9cd !important/)
 })
+
+test('controles do treino centralizam textos e preservam ação verde no tema claro', async () => {
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /workout-button-alignment-v14/)
+  assert.match(cssSource, /\.mobile-workout-navigation-premium-v13\s*\{[\s\S]*width:\s*min\(100%, 420px\)[\s\S]*margin-inline:\s*auto/)
+  assert.match(cssSource, /\.mobile-workout-navigation-premium-v13 button\s*\{[\s\S]*display:\s*inline-flex[\s\S]*justify-content:\s*center[\s\S]*text-align:\s*center/)
+  assert.match(cssSource, /\.mobile-workout-set-open-v11\s*\{[\s\S]*place-items:\s*center[\s\S]*text-align:\s*center/)
+  assert.match(cssSource, /\.student-mobile-shell\.app-theme-light[\s\S]*\.mobile-workout-set-card-v11:not\(\.is-complete\)[\s\S]*\.mobile-workout-set-fields-v12 > button:not\(:disabled\)[\s\S]*background:\s*#087d6c !important[\s\S]*color:\s*#fff !important/)
+})

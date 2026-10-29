@@ -215,9 +215,36 @@ try {
     assert.equal(await workoutArea.getByRole('button', { name: 'Ver evolução do exercício', exact: true }).count(), 0, 'A evolução não deve distrair durante a sessão ativa')
     assert.ok(await workoutArea.getByText('Orientações do treinador', { exact: true }).count(), 'As orientações devem usar o nome profissional correto')
     assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'A finalização deve ficar oculta antes do último exercício')
+    const completeExerciseButton = workoutArea.getByRole('button', { name: 'Concluir exercício', exact: true })
+    const completeExerciseAlignment = await completeExerciseButton.evaluate((element) => ({
+      display: getComputedStyle(element).display,
+      justifyContent: getComputedStyle(element).justifyContent,
+      textAlign: getComputedStyle(element).textAlign,
+    }))
+    assert.equal(completeExerciseAlignment.display, 'flex', 'Concluir exercício deve usar alinhamento flexível')
+    assert.equal(completeExerciseAlignment.justifyContent, 'center', 'Concluir exercício deve ficar centralizado')
+    assert.equal(completeExerciseAlignment.textAlign, 'center', 'O texto de Concluir exercício deve ficar centralizado')
+    const openSetButton = workoutArea.locator('.mobile-workout-set-open-v11').first()
+    const openSetAlignment = await openSetButton.evaluate((element) => ({
+      justifyContent: getComputedStyle(element).justifyContent,
+      textAlign: getComputedStyle(element).textAlign,
+    }))
+    assert.equal(openSetAlignment.justifyContent, 'center', 'Próxima etapa e Abrir série devem ficar centralizados')
+    assert.equal(openSetAlignment.textAlign, 'center', 'O conteúdo do botão de série deve ficar centralizado')
     await workoutArea.getByLabel('Carga (kg)', { exact: true }).fill('20')
     await workoutArea.getByLabel('Repetições', { exact: true }).fill('12')
-    await workoutArea.getByRole('button', { name: 'Concluir série', exact: true }).click()
+    const completeSetButton = workoutArea.getByRole('button', { name: 'Concluir série', exact: true })
+    const completeSetStyle = await completeSetButton.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      color: getComputedStyle(element).color,
+      justifyContent: getComputedStyle(element).justifyContent,
+    }))
+    assert.equal(completeSetStyle.justifyContent, 'center', 'Concluir série deve ficar centralizado')
+    if (theme === 'light') {
+      assert.equal(completeSetStyle.background, 'rgb(8, 125, 108)', 'Concluir série não pode permanecer branco no tema claro')
+      assert.equal(completeSetStyle.color, 'rgb(255, 255, 255)', 'Concluir série deve manter contraste no tema claro')
+    }
+    await completeSetButton.click()
 
     const restWidget = page.locator('.mobile-workout-rest-portal-v12 .mobile-workout-rest-floating-v6')
     await restWidget.waitFor()
@@ -292,7 +319,9 @@ try {
     assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'A finalização continua oculta enquanto o primeiro exercício está ativo')
     await workoutArea.getByRole('button', { name: 'Concluir exercício', exact: true }).click()
     await workoutArea.getByText('Remada baixa com triângulo', { exact: true }).waitFor()
-    assert.ok(await workoutArea.getByRole('button', { name: 'Exercício anterior', exact: true }).isVisible(), 'O segundo exercício deve permitir voltar ao anterior')
+    const previousExerciseButton = workoutArea.getByRole('button', { name: 'Exercício anterior', exact: true })
+    assert.ok(await previousExerciseButton.isVisible(), 'O segundo exercício deve permitir voltar ao anterior')
+    assert.equal(await previousExerciseButton.evaluate((element) => getComputedStyle(element).justifyContent), 'center', 'Exercício anterior deve ficar centralizado')
     const muscleSummary = workoutArea.locator('.mobile-workout-muscle-target-anatomy-v6')
     assert.ok(await muscleSummary.isVisible(), 'O músculo principal deve permanecer visível e compacto')
     assert.ok(await muscleSummary.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'O músculo principal não pode gerar overflow')
