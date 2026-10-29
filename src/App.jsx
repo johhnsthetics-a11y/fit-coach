@@ -13611,6 +13611,219 @@ function getWorkoutSetNumeric(value) {
   return Number.isFinite(number) ? number : 0
 }
 
+function getExerciseProgressCatalog(workouts = [], exerciseLibraryItems = []) {
+  const catalog = new Map()
+  const register = (exercise = {}) => {
+    const key = normalizeText(exercise.name || '')
+    if (!key || catalog.has(key)) return
+    catalog.set(key, {
+      muscleGroup: exercise.muscleGroup || exercise.primaryMuscle || exercise.group || '',
+    })
+  }
+  workouts.forEach((item) => getStudentWorkoutExercises(item, exerciseLibraryItems).forEach(register))
+  getExerciseLibrary(exerciseLibraryItems).forEach(register)
+  return catalog
+}
+
+function parseWorkoutExerciseHistory(notes = '', completedAt = '') {
+  return String(notes || '').split(/\r?\n/).flatMap((rawLine) => {
+    const line = rawLine.trim()
+    const separatorIndex = line.indexOf('—')
+    if (separatorIndex <= 0) return []
+    const name = line.slice(0, separatorIndex).trim()
+    const detail = line.slice(separatorIndex + 1).trim()
+    const sets = Array.from(detail.matchAll(/S(\d+):\s*([^·\n]+?)\s*kg\s*[×x]\s*([^·\n]+)/gi)).map((match) => ({
+      number: Number(match[1]),
+      load: getWorkoutSetNumeric(match[2]),
+      reps: getWorkoutSetNumeric(match[3]),
+    }))
+    if (sets.length) {
+      const volume = sets.reduce((total, setItem) => total + setItem.load * setItem.reps, 0)
+      return [{
+        key: normalizeText(name), name, completedAt, kind: 'strength', sets, volume,
+        bestLoad: Math.max(...sets.map((setItem) => setItem.load), 0),
+        bestReps: Math.max(...sets.map((setItem) => setItem.reps), 0),
+        totalReps: sets.reduce((total, setItem) => total + setItem.reps, 0),
+      }]
+    }
+
+    const durationMatch = detail.match(/\b(\d{1,2}):(\d{2})\b/)
+    const distanceMatch = detail.match(/([\d.,]+)\s*km\b/i)
+    const caloriesMatch = detail.match(/([\d.,]+)\s*kcal\b/i)
+    if (!durationMatch && !distanceMatch && !caloriesMatch) return []
+    return [{
+      key: normalizeText(name), name, completedAt, kind: 'cardio', sets: [], volume: 0, bestLoad: 0, bestReps: 0, totalReps: 0,
+      durationSeconds: durationMatch ? Number(durationMatch[1]) * 60 + Number(durationMatch[2]) : 0,
+      distanceKm: distanceMatch ? getWorkoutSetNumeric(distanceMatch[1]) : 0,
+      calories: caloriesMatch ? getWorkoutSetNumeric(caloriesMatch[1]) : 0,
+    }]
+  })
+}
+
+export function buildStudentExerciseProgressModel({ studentId, workoutLogs = [], workouts = [], exerciseLibraryItems = [], range = 'all', now = Date.now() } = {}) {
+  const nowTime = Number.isFinite(Number(now)) ? Number(now) : new Date(now).getTime()
+  const rangeDays = range === 'all' ? 0 : Math.max(0, Number(range) || 0)
+  const cutoff = rangeDays ? nowTime - rangeDays * 86400000 : Number.NEGATIVE_INFINITY
+  const catalog = getExerciseProgressCatalog(workouts, exerciseLibraryItems)
+  const completedLogs = (Array.isArray(workoutLogs) ? workoutLogs : [])
+    .filter((log) => String(log?.studentId || '') === String(studentId || ''))
+    .filter((log) => !log?.endedEarly)
+    .map((log) => ({ ...log, progressTime: new Date(log?.completedAt || log?.createdAt || 0).getTime() }))
+    .filter((log) => Number.isFinite(log.progressTime) && log.progressTime >= cutoff && log.progressTime <= nowTime)
+    .sort((a, b) => a.progressTime - b.progressTime)
+
+  const grouped = new Map()
+  completedLogs.forEach((log) => {
+    parseWorkoutExerciseHistory(log.notes, log.completedAt || log.createdAt).forEach((session) => {
+      if (!session.key) return
+      const current = grouped.get(session.key) || {
+        key: session.key,
+        name: session.name,
+        muscleGroup: catalog.get(session.key)?.muscleGroup || '',
+        sessions: [],
+      }
+      current.sessions.push({ ...session, logId: log.id, workoutId: log.workoutId })
+      grouped.set(session.key, current)
+    })
+  })
+
+  const exercises = Array.from(grouped.values()).map((exercise) => {
+    const sessions = exercise.sessions.slice().sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt))
+    const strengthSessions = sessions.filter((session) => session.kind === 'strength')
+    const first = strengthSessions[0]
+    const latestStrength = strengthSessions.at(-1)
+    return {
+      ...exercise,
+      sessions,
+      latest: sessions.at(-1),
+      totalVolume: strengthSessions.reduce((total, session) => total + session.volume, 0),
+      loadChange: first && latestStrength && strengthSessions.length > 1 ? latestStrength.bestLoad - first.bestLoad : null,
+      repChange: first && latestStrength && strengthSessions.length > 1 ? latestStrength.bestReps - first.bestReps : null,
+      personalRecords: {
+        maxLoad: Math.max(...strengthSessions.map((session) => session.bestLoad), 0),
+        maxReps: Math.max(...strengthSessions.map((session) => session.bestReps), 0),
+        maxVolume: Math.max(...strengthSessions.map((session) => session.volume), 0),
+      },
+    }
+  }).sort((a, b) => new Date(b.latest?.completedAt || 0) - new Date(a.latest?.completedAt || 0))
+
+  const loadComparisons = exercises.filter((item) => item.loadChange != null && item.sessions.find((session) => session.kind === 'strength')?.bestLoad > 0)
+  const repComparisons = exercises.filter((item) => item.repChange != null && item.sessions.find((session) => session.kind === 'strength')?.bestReps > 0)
+  const averagePercent = (items, field, baseField) => items.length
+    ? Math.round(items.reduce((total, item) => total + (item[field] / item.sessions.find((session) => session.kind === 'strength')[baseField]) * 100, 0) / items.length)
+    : null
+
+  return {
+    totalWorkouts: completedLogs.length,
+    totalVolume: exercises.reduce((total, exercise) => total + exercise.totalVolume, 0),
+    loadEvolutionPercent: averagePercent(loadComparisons, 'loadChange', 'bestLoad'),
+    repEvolutionPercent: averagePercent(repComparisons, 'repChange', 'bestReps'),
+    updatedAt: completedLogs.at(-1)?.completedAt || completedLogs.at(-1)?.createdAt || '',
+    exercises,
+  }
+}
+
+function formatExerciseProgressDate(value) {
+  const date = new Date(value || 0)
+  if (Number.isNaN(date.getTime())) return 'Data indisponível'
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
+function ExerciseProgressChart({ sessions = [] }) {
+  const strengthSessions = sessions.filter((session) => session.kind === 'strength' && session.bestLoad > 0)
+  if (strengthSessions.length < 2) return <p className="student-workout-progress-insufficient-v13">Registre este exercício em mais treinos para visualizar a curva de carga.</p>
+  const maxValue = Math.max(...strengthSessions.map((session) => session.bestLoad), 1)
+  const points = strengthSessions.map((session, index) => {
+    const x = strengthSessions.length === 1 ? 150 : 16 + (index / (strengthSessions.length - 1)) * 268
+    const y = 104 - (session.bestLoad / maxValue) * 84
+    return `${x},${y}`
+  }).join(' ')
+  return (
+    <div className="student-workout-progress-chart-v13">
+      <svg viewBox="0 0 300 120" role="img" aria-label="Evolução da maior carga registrada">
+        <line x1="16" y1="104" x2="284" y2="104" />
+        <polyline points={points} />
+        {points.split(' ').map((point, index) => {
+          const [cx, cy] = point.split(',')
+          return <circle key={`${point}-${index}`} cx={cx} cy={cy} r="4" />
+        })}
+      </svg>
+      <div><span>Primeiro registro: {strengthSessions[0].bestLoad.toLocaleString('pt-BR')} kg</span><strong>Atual: {strengthSessions.at(-1).bestLoad.toLocaleString('pt-BR')} kg</strong></div>
+    </div>
+  )
+}
+
+export function StudentWorkoutProgress({ student, workoutLogs = [], workouts = [], exerciseLibraryItems = [], onBack, loading = false, error = '' }) {
+  const [range, setRange] = useState('all')
+  const [selectedKey, setSelectedKey] = useState('')
+  const model = useMemo(() => buildStudentExerciseProgressModel({
+    studentId: student?.id,
+    workoutLogs,
+    workouts,
+    exerciseLibraryItems,
+    range,
+  }), [exerciseLibraryItems, range, student?.id, workoutLogs, workouts])
+  const selectedExercise = model.exercises.find((item) => item.key === selectedKey) || model.exercises[0]
+  const trendLabel = (value, unit) => value == null ? 'Aguardando comparação' : value > 0 ? `+${value.toLocaleString('pt-BR')} ${unit}` : value < 0 ? `${value.toLocaleString('pt-BR')} ${unit}` : 'Estável'
+
+  return (
+    <section className="student-workout-progress-page-v13" aria-busy={loading}>
+      <header className="student-workout-progress-head-v13">
+        <button type="button" onClick={onBack} aria-label="Voltar para treinos">← <span>Voltar para treinos</span></button>
+        <div><p>Desempenho real</p><h2>Minha evolução</h2><span>Acompanhe cargas, repetições e volume registrados nos seus treinos.</span></div>
+        {model.updatedAt ? <small>Atualizado em {formatExerciseProgressDate(model.updatedAt)}</small> : null}
+      </header>
+
+      <div className="student-workout-progress-filters-v13" role="group" aria-label="Período da evolução">
+        {[['7', '7 dias'], ['30', '30 dias'], ['90', '90 dias'], ['all', 'Todo o período']].map(([value, label]) => (
+          <button key={value} type="button" className={range === value ? 'is-active' : ''} aria-pressed={range === value} onClick={() => setRange(value)}>{label}</button>
+        ))}
+      </div>
+
+      {loading ? <div className="student-workout-progress-state-v13" role="status">Atualizando seu histórico...</div> : null}
+      {!loading && error ? <div className="student-workout-progress-state-v13 is-error" role="alert"><strong>Não foi possível carregar a evolução.</strong><span>{error}</span></div> : null}
+      {!loading && !error && !model.totalWorkouts ? <div className="student-workout-progress-state-v13"><strong>Nenhum treino concluído neste período.</strong><span>Quando você finalizar um treino, os exercícios registrados aparecerão aqui.</span></div> : null}
+
+      {!loading && !error && model.totalWorkouts ? <>
+        <div className="student-workout-progress-summary-v13" aria-label="Resumo da evolução">
+          <div><span>Treinos concluídos</span><strong>{model.totalWorkouts} {model.totalWorkouts === 1 ? 'treino' : 'treinos'}</strong></div>
+          {model.totalVolume > 0 ? <div><span>Volume registrado</span><strong>{Math.round(model.totalVolume).toLocaleString('pt-BR')} kg</strong></div> : null}
+          {model.loadEvolutionPercent != null ? <div><span>Evolução de carga</span><strong>{model.loadEvolutionPercent > 0 ? '+' : ''}{model.loadEvolutionPercent}%</strong></div> : null}
+          {model.repEvolutionPercent != null ? <div><span>Evolução de repetições</span><strong>{model.repEvolutionPercent > 0 ? '+' : ''}{model.repEvolutionPercent}%</strong></div> : null}
+        </div>
+
+        <div className="student-workout-progress-layout-v13">
+          <div className="student-workout-progress-list-v13">
+            <div><p>Exercícios registrados</p><strong>{model.exercises.length}</strong></div>
+            {model.exercises.map((exercise) => (
+              <button key={exercise.key} type="button" className={selectedExercise?.key === exercise.key ? 'is-active' : ''} onClick={() => setSelectedKey(exercise.key)}>
+                <span><strong>{exercise.name}</strong><small>{exercise.muscleGroup || 'Grupo muscular não informado'} · {formatExerciseProgressDate(exercise.latest?.completedAt)}</small></span>
+                <em>{exercise.loadChange != null ? trendLabel(exercise.loadChange, 'kg') : exercise.repChange != null ? trendLabel(exercise.repChange, 'reps') : `${exercise.sessions.length} ${exercise.sessions.length === 1 ? 'registro' : 'registros'}`}</em>
+              </button>
+            ))}
+          </div>
+
+          {selectedExercise ? <article className="student-workout-progress-detail-v13">
+            <header><div><p>{selectedExercise.muscleGroup || 'Exercício'}</p><h3>{selectedExercise.name}</h3></div><span>{selectedExercise.sessions.length} {selectedExercise.sessions.length === 1 ? 'execução' : 'execuções'}</span></header>
+            {selectedExercise.personalRecords.maxLoad > 0 ? <div className="student-workout-progress-records-v13">
+              <div><span>Recorde de carga</span><strong>{selectedExercise.personalRecords.maxLoad.toLocaleString('pt-BR')} kg</strong></div>
+              <div><span>Recorde de reps</span><strong>{selectedExercise.personalRecords.maxReps.toLocaleString('pt-BR')}</strong></div>
+              <div><span>Melhor volume</span><strong>{Math.round(selectedExercise.personalRecords.maxVolume).toLocaleString('pt-BR')} kg</strong></div>
+            </div> : null}
+            <ExerciseProgressChart sessions={selectedExercise.sessions} />
+            <div className="student-workout-progress-history-v13"><h4>Histórico cronológico</h4>{selectedExercise.sessions.slice().reverse().map((session) => (
+              <div key={`${session.logId}-${session.completedAt}`}>
+                <span>{formatExerciseProgressDate(session.completedAt)}</span>
+                {session.kind === 'strength' ? <strong>{session.bestLoad.toLocaleString('pt-BR')} kg · {session.bestReps.toLocaleString('pt-BR')} reps · {Math.round(session.volume).toLocaleString('pt-BR')} kg de volume</strong> : <strong>{session.durationSeconds ? `${Math.round(session.durationSeconds / 60)} min` : 'Cardio concluído'}{session.distanceKm ? ` · ${session.distanceKm.toLocaleString('pt-BR')} km` : ''}</strong>}
+              </div>
+            ))}</div>
+          </article> : null}
+        </div>
+      </> : null}
+    </section>
+  )
+}
+
 export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
   const viewportWidth = Math.max(0, Number(bounds.viewportWidth) || 0)
   const viewportHeight = Math.max(0, Number(bounds.viewportHeight) || 0)
@@ -14271,7 +14484,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         ) : null}
         {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
         <div className="mobile-workout-summary-actions-v4">
-          {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Ver evolução</button> : null}
+          {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
           <button type="button" onClick={startNewWorkoutSession}>Voltar aos treinos</button>
         </div>
       </section>
@@ -14297,6 +14510,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           {workout.frequency ? <div><span>Frequência</span><strong>{workout.frequency}</strong></div> : null}
         </div>
 
+        {onOpenProgress ? <button type="button" className="student-workout-open-progress-v13" aria-label="Minha evolução" onClick={onOpenProgress}><NavIcon name="chart" className="h-5 w-5" /><span><strong>Minha evolução</strong><small>Cargas, repetições e recordes dos exercícios</small></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
+
         <div id="student-workout-day-selector" className="mobile-workout-day-list-v4">
           {days.map((day, index) => {
             const dayExercises = getWorkoutExercisesArray(day.exercises)
@@ -14310,7 +14525,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                   <small>{lastLog ? 'Concluído anteriormente' : 'Ainda não realizado'}</small>
                 </div>
                 <div className="mobile-workout-day-card-actions-v4">
-                  {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Evolução</button> : null}
                   <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Ver treino</button>
                 </div>
               </article>
@@ -14392,14 +14606,16 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           >
             <span aria-hidden="true">•••</span>
           </button>
-          {!restWidgetExpanded ? (
-            <button type="button" className="mobile-workout-rest-compact-v11" onPointerDown={stopRestWidgetTogglePointer} onClick={(event) => { event.stopPropagation(); setRestWidgetExpanded(true) }} aria-expanded={restWidgetExpanded} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
+          {!restWidgetExpanded ? <>
+            <div className="mobile-workout-rest-compact-v13">
               <NavIcon name="clock" className="h-4 w-4" />
               <span>{restPaused ? 'Pausado' : 'Descanso'}</span>
               <strong>{formatWorkoutTimer(restRemaining)}</strong>
+            </div>
+            <button type="button" className="mobile-workout-rest-expand-v13" onPointerDown={stopRestWidgetTogglePointer} onClick={(event) => { event.stopPropagation(); setRestWidgetExpanded(true) }} aria-expanded={restWidgetExpanded} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
               <NavIcon name="chevronUp" className="h-4 w-4" />
             </button>
-          ) : <>
+          </> : <>
             <div className="mobile-workout-rest-floating-copy-v6">
               <span>Descanso</span>
               <strong>{formatWorkoutTimer(restRemaining)}</strong>
@@ -14458,6 +14674,14 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           </div>
 
           <MuscleMap exercise={exercise} compact className="mobile-workout-muscle-target-anatomy-v6" />
+
+          {(exercise.cues || exercise.instructions || exercise.notes) ? (
+            <details className="mobile-workout-orientations-v4 mobile-workout-orientations-context-v13">
+              <summary>Orientações do treinador</summary>
+              <p>{exercise.cues || exercise.instructions || 'Siga a execução orientada pelo seu treinador.'}</p>
+              {exercise.notes ? <small>{exercise.notes}</small> : null}
+            </details>
+          ) : null}
 
           <div className="mobile-workout-timer-panel-v5">
             <div className="mobile-workout-session-timer-v5">
@@ -14545,22 +14769,11 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           )}
 
 
-          <div className="mobile-workout-student-navigation-v3">
-            <button type="button" className="is-secondary" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }} disabled={!hasPreviousExercise}>← Exercício anterior</button>
-            <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>{hasNextExercise ? 'Concluir exercício e ir para o próximo →' : 'Ir para finalização do treino ↓'}</button>
+          <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13">
+            <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>Concluir exercício</button>
+            {hasPreviousExercise ? <button type="button" className="is-secondary" aria-label="Exercício anterior" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }}>← <span>Exercício anterior</span></button> : null}
           </div>
           {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">{currentExerciseIsCardio ? 'Finalize esta atividade cardiovascular para liberar o avanço rápido.' : 'Conclua todas as séries deste exercício para liberar o avanço rápido. Você também pode abrir outro exercício acima.'}</small> : null}
-
-          <div className="mobile-workout-supplementary-v5">
-            {(exercise.cues || exercise.instructions || exercise.notes) ? (
-              <details className="mobile-workout-orientations-v4">
-                <summary>Orientações do coach</summary>
-                <p>{exercise.cues || exercise.instructions || 'Siga a execução orientada pelo seu coach.'}</p>
-                {exercise.notes ? <small>{exercise.notes}</small> : null}
-              </details>
-            ) : null}
-            {onOpenProgress ? <button type="button" className="mobile-workout-evolution-link-v4" onClick={onOpenProgress}>Ver evolução do exercício</button> : null}
-          </div>
         </article>
       ) : null}
 
@@ -18010,6 +18223,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(() => resolveStudentPortalTab(professionalType, getInitialStudentTab(student?.id)))
+  const [workoutPage, setWorkoutPage] = useState('main')
   const previousStudentTabRef = useRef('inicio')
   const [workoutStartedAt, setWorkoutStartedAt] = useState(null)
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0)
@@ -18234,6 +18448,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   function openTab(id) {
     const resolvedTab = resolveStudentPortalTab(professionalType, id)
     if (resolvedTab === 'mensagens' && activeTab !== 'mensagens') previousStudentTabRef.current = activeTab || 'inicio'
+    setWorkoutPage('main')
     setActiveTab(resolvedTab)
     setMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -18438,6 +18653,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'treino') {
+      if (workoutPage === 'progress') {
+        return (
+          <StudentWorkoutProgress
+            student={student}
+            workoutLogs={studentWorkoutLogs}
+            workouts={studentWorkouts}
+            exerciseLibraryItems={availableExerciseLibrary}
+            onBack={() => {
+              setWorkoutPage('main')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          />
+        )
+      }
       return (
         <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
           {studentWorkouts.length > 1 ? (
@@ -18472,7 +18701,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 timerStartedAt={workoutStartedAt ? new Date(workoutStartedAt).toISOString() : ''}
                 uiTheme={theme}
                 onToggleTimer={toggleWorkoutTimer}
-                onOpenProgress={() => openTab('progresso')}
+                onOpenProgress={() => {
+                  setWorkoutPage('progress')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
                 onSelectDay={(_nextDayIndex, options = {}) => {
                   setWorkoutStartedAt(null)
                   if (options.reset) {

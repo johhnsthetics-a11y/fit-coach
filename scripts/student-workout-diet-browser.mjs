@@ -71,8 +71,17 @@ const nutritionPlan = {
   }],
 }
 
+const workoutHistory = [{
+  id: 'qa-history-1',
+  studentId: student.id,
+  workoutId: workout.id,
+  title: 'Treino A · Segunda-feira',
+  completedAt: '2026-10-01T12:00:00.000Z',
+  notes: 'Atividades registradas pelo aluno:\nSupino reto — S1: 18 kg × 12 · S2: 20 kg × 10\nRemada baixa com triângulo — S1: 30 kg × 10',
+}]
+
 const fixture = `
-import React from 'react'
+import React, { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { StudentMobileApp } from '/src/App.jsx'
 import '/src/index.css'
@@ -80,15 +89,22 @@ import '/src/index.css'
 const student = ${JSON.stringify(student)}
 const workout = ${JSON.stringify(workout)}
 const nutritionPlan = ${JSON.stringify(nutritionPlan)}
+const initialWorkoutLogs = ${JSON.stringify(workoutHistory)}
 const theme = new URLSearchParams(window.location.search).get('theme') === 'light' ? 'light' : 'dark'
 
 function Harness() {
+  const [workoutLogs, setWorkoutLogs] = useState(initialWorkoutLogs)
+  async function saveWorkout(value) {
+    const saved = { ...value, id: 'qa-saved-' + Date.now(), completedAt: new Date().toISOString() }
+    setWorkoutLogs((current) => [...current, saved])
+    return saved
+  }
   return <StudentMobileApp
     student={student}
     checkins={[]}
     workouts={[workout]}
     nutritionPlans={[nutritionPlan]}
-    workoutLogs={[]}
+    workoutLogs={workoutLogs}
     messages={[]}
     appointments={[]}
     invoices={[]}
@@ -100,7 +116,7 @@ function Harness() {
     coachSettings={{ publicName: 'Treinador QA' }}
     professionalType="trainer"
     accountEmail="aluno.qa@example.test"
-    onCompleteWorkout={async (value) => value}
+    onCompleteWorkout={saveWorkout}
     onEndWorkout={async (value) => value}
     onSendMessage={async (value) => value}
     onAddCheckin={async (value) => value}
@@ -133,7 +149,7 @@ const server = await createServer({
       vite.middlewares.use(async (request, response, next) => {
         if (new URL(request.url, 'http://localhost').pathname !== '/qa-student-workout-diet') return next()
         response.setHeader('Content-Type', 'text/html')
-        response.end(await vite.transformIndexHtml('/qa-student-workout-diet', '<div id="root"></div><script type="module" src="/qa-student-workout-diet.jsx"></script>'))
+        response.end(await vite.transformIndexHtml('/qa-student-workout-diet', '<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="/qa-student-workout-diet.jsx"></script>'))
       })
     },
   }],
@@ -178,6 +194,14 @@ try {
 
     await openTab(page, width, 'Treino')
     const workoutArea = page.locator('.student-app-layout main')
+    await workoutArea.getByRole('button', { name: 'Minha evolução', exact: true }).click()
+    await workoutArea.getByRole('heading', { name: 'Minha evolução', exact: true }).waitFor()
+    assert.ok(await workoutArea.getByText('Supino reto', { exact: true }).count(), 'A evolução deve listar somente exercícios com histórico real')
+    assert.ok(await workoutArea.getByText('Peitoral', { exact: true }).count(), 'A evolução deve reutilizar o grupo muscular do treino')
+    assert.ok(await workoutArea.locator('.student-workout-progress-page-v13').evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'A evolução não pode gerar overflow horizontal')
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), 'A página de evolução não pode ampliar a viewport mobile')
+    await page.screenshot({ path: `.superpowers/diet-qa/workout-progress-${theme}-${width}.png`, fullPage: true })
+    await workoutArea.getByRole('button', { name: 'Voltar para treinos', exact: true }).click()
     const openWorkout = workoutArea.getByRole('button', { name: 'Ver treino', exact: true })
     assert.ok(await openWorkout.count(), `A aba Treino deve exibir a rotina: ${await workoutArea.innerText()}`)
     await openWorkout.click()
@@ -187,6 +211,9 @@ try {
 
     await workoutArea.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click()
     await workoutArea.locator('.mobile-workout-command-v12').waitFor()
+    assert.equal(await workoutArea.getByRole('button', { name: 'Exercício anterior', exact: true }).count(), 0, 'O primeiro exercício não deve exibir navegação anterior')
+    assert.equal(await workoutArea.getByRole('button', { name: 'Ver evolução do exercício', exact: true }).count(), 0, 'A evolução não deve distrair durante a sessão ativa')
+    assert.ok(await workoutArea.getByText('Orientações do treinador', { exact: true }).count(), 'As orientações devem usar o nome profissional correto')
     assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'A finalização deve ficar oculta antes do último exercício')
     await workoutArea.getByLabel('Carga (kg)', { exact: true }).fill('20')
     await workoutArea.getByLabel('Repetições', { exact: true }).fill('12')
@@ -225,7 +252,7 @@ try {
     const compactTimer = restWidget.getByRole('button', { name: /Expandir descanso/ })
     const compactTimerBox = await compactTimer.boundingBox()
     assert.ok(compactTimerBox.height >= 44, 'O controle de expandir deve ter uma área de toque confortável')
-    const compactValue = parseTimerSeconds(await compactTimer.innerText())
+    const compactValue = parseTimerSeconds(await restWidget.locator('.mobile-workout-rest-compact-v13 strong').innerText())
     await compactTimer.click()
     await page.waitForTimeout(1100)
     const expandedValue = parseTimerSeconds(await restWidget.locator('.mobile-workout-rest-floating-copy-v6 strong').innerText())
@@ -234,7 +261,7 @@ try {
     const minimizeTimerBox = await minimizeTimer.boundingBox()
     assert.ok(minimizeTimerBox.height >= 44 && minimizeTimerBox.width >= 44, 'O controle de minimizar deve ter ao menos 44px')
     await minimizeTimer.click()
-    const minimizedValue = parseTimerSeconds(await compactTimer.innerText())
+    const minimizedValue = parseTimerSeconds(await restWidget.locator('.mobile-workout-rest-compact-v13 strong').innerText())
     await compactTimer.click()
     const reexpandedValue = parseTimerSeconds(await restWidget.locator('.mobile-workout-rest-floating-copy-v6 strong').innerText())
     assert.ok(reexpandedValue <= minimizedValue && reexpandedValue >= minimizedValue - 1, 'Minimizar e reabrir não pode reiniciar o descanso')
@@ -263,8 +290,9 @@ try {
 
     await workoutArea.getByText('3/5 concluídas no dia', { exact: true }).waitFor()
     assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'A finalização continua oculta enquanto o primeiro exercício está ativo')
-    await workoutArea.getByRole('button', { name: 'Concluir exercício e ir para o próximo →', exact: true }).click()
+    await workoutArea.getByRole('button', { name: 'Concluir exercício', exact: true }).click()
     await workoutArea.getByText('Remada baixa com triângulo', { exact: true }).waitFor()
+    assert.ok(await workoutArea.getByRole('button', { name: 'Exercício anterior', exact: true }).isVisible(), 'O segundo exercício deve permitir voltar ao anterior')
     const muscleSummary = workoutArea.locator('.mobile-workout-muscle-target-anatomy-v6')
     assert.ok(await muscleSummary.isVisible(), 'O músculo principal deve permanecer visível e compacto')
     assert.ok(await muscleSummary.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'O músculo principal não pode gerar overflow')
@@ -275,7 +303,7 @@ try {
     assert.equal(await finishWorkout.isEnabled(), false, 'A finalização deve aparecer no último exercício sem ignorar etapas pendentes')
     await finishPanel.getByLabel('Como foi o esforço?').selectOption('Forte')
     await finishPanel.getByLabel('Observação para o treinador').fill('Execução controlada e sem dor.')
-    await workoutArea.getByRole('button', { name: '← Exercício anterior', exact: true }).click()
+    await workoutArea.getByRole('button', { name: 'Exercício anterior', exact: true }).click()
     assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'Voltar do último exercício deve ocultar a finalização')
     await workoutArea.locator('.mobile-workout-exercise-switcher-v4 button').nth(1).click()
     await finishPanel.waitFor()
@@ -301,6 +329,10 @@ try {
     await page.screenshot({ path: `.superpowers/diet-qa/workout-execution-${theme}-${width}.png`, fullPage: true })
     await finishWorkout.click()
     await workoutArea.getByText('Treino concluído', { exact: true }).waitFor()
+    await workoutArea.getByRole('button', { name: 'Minha evolução', exact: true }).click()
+    await workoutArea.getByRole('heading', { name: 'Minha evolução', exact: true }).waitFor()
+    assert.ok(await workoutArea.getByText('2 treinos', { exact: true }).count(), 'A evolução deve refletir o novo registro sem recarregar a aplicação')
+    await workoutArea.getByRole('button', { name: 'Voltar para treinos', exact: true }).click()
 
     const workoutOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(workoutOverflow <= 1, `O treino não pode ter overflow horizontal em ${width}px`)

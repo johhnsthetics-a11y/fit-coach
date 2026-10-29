@@ -28,6 +28,8 @@ let buildStudentRewardStats
 let buildCoachStudentRanking
 let buildStudentWeekProgress
 let reconcileMessageDelivery
+let buildStudentExerciseProgressModel
+let StudentWorkoutProgress
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -37,7 +39,73 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, StudentWorkoutProgress, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, buildStudentExerciseProgressModel, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+})
+
+test('evolucao dos exercicios usa apenas treinos concluidos do aluno e calcula volume real', () => {
+  const logs = [
+    {
+      id: 'history-1', studentId: student.id, workoutId: workout.id, completedAt: '2026-10-01T12:00:00Z',
+      notes: 'Atividades registradas pelo aluno:\nSupino reto com barra — S1: 40 kg × 10 · S2: 42 kg × 8',
+    },
+    {
+      id: 'history-2', studentId: student.id, workoutId: workout.id, completedAt: '2026-10-28T12:00:00Z',
+      notes: 'Atividades registradas pelo aluno:\nSupino reto com barra — S1: 45 kg × 10 · S2: 45 kg × 10',
+    },
+    {
+      id: 'other-student', studentId: 'private-student', completedAt: '2026-10-28T13:00:00Z',
+      notes: 'Atividades registradas pelo aluno:\nSupino reto com barra — S1: 200 kg × 20',
+    },
+    {
+      id: 'partial', studentId: student.id, completedAt: '2026-10-29T13:00:00Z', endedEarly: true,
+      notes: 'Atividades registradas pelo aluno:\nSupino reto com barra — S1: 100 kg × 10',
+    },
+  ]
+  const model = buildStudentExerciseProgressModel({
+    studentId: student.id,
+    workoutLogs: logs,
+    workouts: [{ ...workout, days: [{ day: 'A', exercises: [{ name: 'Supino reto com barra', muscleGroup: 'Peitoral' }] }] }],
+    range: 'all',
+    now: '2026-10-29T18:00:00Z',
+  })
+
+  assert.equal(model.totalWorkouts, 2)
+  assert.equal(model.exercises.length, 1)
+  assert.equal(model.exercises[0].muscleGroup, 'Peitoral')
+  assert.equal(model.exercises[0].sessions.length, 2)
+  assert.equal(model.exercises[0].personalRecords.maxLoad, 45)
+  assert.equal(model.exercises[0].loadChange, 3)
+  assert.equal(model.totalVolume, 1636)
+  assert.equal(model.updatedAt, '2026-10-28T12:00:00Z')
+
+  const lastSevenDays = buildStudentExerciseProgressModel({
+    studentId: student.id,
+    workoutLogs: logs,
+    workouts: [workout],
+    range: '7',
+    now: '2026-10-29T18:00:00Z',
+  })
+  assert.equal(lastSevenDays.totalWorkouts, 1)
+  assert.equal(lastSevenDays.exercises[0].sessions.length, 1)
+})
+
+test('pagina Minha evolucao possui retorno, filtros e estado vazio sem inventar historico', () => {
+  const html = renderToString(React.createElement(StudentWorkoutProgress, {
+    student,
+    workoutLogs: [],
+    workouts: [workout],
+    exerciseLibraryItems: [],
+    onBack: () => {},
+  }))
+
+  assert.match(html, /Minha evolução/)
+  assert.match(html, /Voltar para treinos/)
+  assert.match(html, /7 dias/)
+  assert.match(html, /30 dias/)
+  assert.match(html, /90 dias/)
+  assert.match(html, /Todo o período/)
+  assert.match(html, /Nenhum treino concluído neste período/)
+  assert.doesNotMatch(html, /0% de evolução/)
 })
 
 test('XP acumulado preserva meses anteriores e ignora duplicatas e outros pacientes', () => {
@@ -813,7 +881,8 @@ test('treino mobile premium mantém série ativa compacta e descanso arrastável
   assert.match(appSource, /onPointerDown=\{beginRestWidgetDrag\}/)
   assert.match(appSource, /setPointerCapture/)
   assert.match(appSource, /visualViewport/)
-  assert.match(appSource, /mobile-workout-rest-compact-v11/)
+  assert.match(appSource, /mobile-workout-rest-compact-v13/)
+  assert.match(appSource, /mobile-workout-rest-expand-v13/)
   assert.match(appSource, /mobile-workout-set-card-v11/)
   assert.match(appSource, /mobile-workout-set-open-v11/)
   assert.match(appSource, /<StudentReminderCard[\s\S]*compact/)

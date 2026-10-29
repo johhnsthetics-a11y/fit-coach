@@ -20454,3 +20454,433 @@ html[data-theme="dark"] body { background: #05070d; }
     padding-inline: 3px !important;
   }
 }
+
+/* workout-progress-and-controls-v13 */
+.mobile-workout-orientations-context-v13 {
+  margin: 0 !important;
+  border-color: var(--workout-v12-border) !important;
+  background: var(--workout-v12-raised) !important;
+}
+
+.mobile-workout-orientations-context-v13 summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--workout-v12-accent) !important;
+  font-size: 0.82rem !important;
+}
+
+.mobile-workout-orientations-context-v13 p {
+  color: var(--workout-v12-body) !important;
+}
+
+.mobile-workout-navigation-premium-v13 {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+}
+
+.mobile-workout-navigation-premium-v13 button {
+  width: 100%;
+  min-height: 48px !important;
+  border-radius: 12px !important;
+  font-size: 0.82rem !important;
+  font-weight: 900 !important;
+  text-align: center;
+}
+
+.mobile-workout-navigation-premium-v13 .is-primary {
+  grid-row: 1 !important;
+  border: 1px solid var(--workout-v12-accent-strong) !important;
+  background: var(--workout-v12-accent-strong) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--workout-v12-accent-strong) 22%, transparent) !important;
+}
+
+.mobile-workout-navigation-premium-v13 .is-primary:disabled {
+  border-color: var(--workout-v12-border) !important;
+  background: var(--workout-v12-soft) !important;
+  color: var(--workout-v12-muted) !important;
+  -webkit-text-fill-color: var(--workout-v12-muted) !important;
+  box-shadow: none !important;
+}
+
+.mobile-workout-navigation-premium-v13 .is-secondary {
+  grid-row: 2 !important;
+  border: 1px solid var(--workout-v12-border) !important;
+  background: var(--workout-v12-raised) !important;
+  color: var(--workout-v12-body) !important;
+  -webkit-text-fill-color: var(--workout-v12-body) !important;
+}
+
+.mobile-workout-navigation-premium-v13 :is(button:not(:disabled):hover, button:focus-visible),
+.student-workout-open-progress-v13:is(:hover, :focus-visible) {
+  filter: brightness(1.06);
+}
+
+.mobile-workout-navigation-premium-v13 button:focus-visible,
+.student-workout-open-progress-v13:focus-visible,
+.student-workout-progress-page-v13 button:focus-visible,
+.mobile-workout-rest-expand-v13:focus-visible {
+  outline: 3px solid color-mix(in srgb, #2dd4bf 48%, transparent);
+  outline-offset: 2px;
+}
+
+.student-workout-open-progress-v13 {
+  display: grid;
+  width: 100%;
+  min-height: 62px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  padding: 11px 13px;
+  border: 1px solid rgb(45 212 191 / 28%);
+  border-radius: 14px;
+  background: rgb(45 212 191 / 9%);
+  color: #a7fff2;
+  text-align: left;
+}
+
+.student-workout-open-progress-v13 > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.student-workout-open-progress-v13 strong {
+  color: #f3faf8;
+  font-size: 0.88rem;
+}
+
+.student-workout-open-progress-v13 small {
+  color: #8fa9a2;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.app-theme-light .student-workout-open-progress-v13 {
+  border-color: #b9ddd5;
+  background: #eaf7f4;
+  color: #087d6c;
+}
+
+.app-theme-light .student-workout-open-progress-v13 strong { color: #14211f; }
+.app-theme-light .student-workout-open-progress-v13 small { color: #5e746e; }
+
+.mobile-workout-rest-compact-v13 {
+  display: grid;
+  min-width: 0;
+  min-height: 46px;
+  grid-column: 2;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  color: #e8faf6;
+}
+
+.mobile-workout-rest-compact-v13 span {
+  overflow: hidden;
+  color: #a8beb8;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-workout-rest-compact-v13 strong {
+  min-width: 5.7ch;
+  color: #fff;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.mobile-workout-rest-expand-v13 {
+  display: grid;
+  width: 44px;
+  min-height: 44px;
+  grid-column: 3;
+  place-items: center;
+  padding: 0 !important;
+  border: 1px solid rgb(255 255 255 / 8%) !important;
+  border-radius: 10px !important;
+  background: rgb(255 255 255 / 5%) !important;
+  color: #5eead4 !important;
+  touch-action: manipulation;
+}
+
+.mobile-workout-rest-portal-v12[data-workout-theme="light"] .mobile-workout-rest-compact-v13,
+.mobile-workout-rest-portal-v12[data-workout-theme="light"] .mobile-workout-rest-compact-v13 strong {
+  color: #12332d;
+}
+
+.mobile-workout-rest-portal-v12[data-workout-theme="light"] .mobile-workout-rest-compact-v13 span { color: #56716a; }
+.mobile-workout-rest-portal-v12[data-workout-theme="light"] .mobile-workout-rest-expand-v13 {
+  border-color: #d8e4e0 !important;
+  background: #edf4f2 !important;
+  color: #087d6c !important;
+}
+
+.student-workout-progress-page-v13 {
+  --progress-bg: #0a1312;
+  --progress-surface: #101d1b;
+  --progress-raised: #172622;
+  --progress-soft: #1c2d29;
+  --progress-border: rgb(148 194 183 / 18%);
+  --progress-text: #f3faf8;
+  --progress-body: #c5d8d3;
+  --progress-muted: #8fa9a2;
+  --progress-accent: #5eead4;
+  --progress-accent-strong: #19cbb4;
+  --progress-accent-soft: rgb(45 212 191 / 12%);
+  display: grid;
+  width: min(1120px, 100%);
+  gap: 16px;
+  margin: 0 auto;
+  padding: 0 0 40px;
+  color: var(--progress-text);
+}
+
+.app-theme-light .student-workout-progress-page-v13 {
+  --progress-bg: #f4f7f6;
+  --progress-surface: #fff;
+  --progress-raised: #f8faf9;
+  --progress-soft: #edf4f2;
+  --progress-border: #d8e4e0;
+  --progress-text: #14211f;
+  --progress-body: #40534e;
+  --progress-muted: #667b75;
+  --progress-accent: #087d6c;
+  --progress-accent-strong: #066658;
+  --progress-accent-soft: #e6f4f0;
+}
+
+.student-workout-progress-head-v13 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid var(--progress-border);
+  border-radius: 16px;
+  background: var(--progress-surface);
+}
+
+.student-workout-progress-head-v13 > button {
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--progress-border);
+  border-radius: 11px;
+  background: var(--progress-raised);
+  color: var(--progress-body);
+  font-weight: 850;
+}
+
+.student-workout-progress-head-v13 > div { min-width: 0; }
+.student-workout-progress-head-v13 p,
+.student-workout-progress-list-v13 > div > p,
+.student-workout-progress-detail-v13 > header p {
+  margin: 0;
+  color: var(--progress-accent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.student-workout-progress-head-v13 h2 {
+  margin: 2px 0 3px;
+  color: var(--progress-text);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.1;
+}
+
+.student-workout-progress-head-v13 > div > span,
+.student-workout-progress-head-v13 > small {
+  color: var(--progress-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.student-workout-progress-filters-v13 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--progress-border);
+  border-radius: 13px;
+  background: var(--progress-surface);
+}
+
+.student-workout-progress-filters-v13 button {
+  min-height: 42px;
+  padding: 7px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--progress-muted);
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.student-workout-progress-filters-v13 button.is-active {
+  background: var(--progress-accent-strong);
+  color: #fff;
+}
+
+.student-workout-progress-state-v13 {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 32px 18px;
+  border: 1px dashed var(--progress-border);
+  border-radius: 16px;
+  background: var(--progress-surface);
+  color: var(--progress-muted);
+  text-align: center;
+}
+
+.student-workout-progress-state-v13 strong { color: var(--progress-text); }
+.student-workout-progress-state-v13.is-error { border-color: rgb(239 68 68 / 36%); }
+
+.student-workout-progress-summary-v13 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-workout-progress-summary-v13 > div,
+.student-workout-progress-records-v13 > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--progress-border);
+  border-radius: 13px;
+  background: var(--progress-surface);
+}
+
+.student-workout-progress-summary-v13 span,
+.student-workout-progress-records-v13 span {
+  color: var(--progress-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.student-workout-progress-summary-v13 strong,
+.student-workout-progress-records-v13 strong { color: var(--progress-text); font-size: 1rem; }
+
+.student-workout-progress-layout-v13 {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.5fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.student-workout-progress-list-v13,
+.student-workout-progress-detail-v13 {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--progress-border);
+  border-radius: 16px;
+  background: var(--progress-surface);
+}
+
+.student-workout-progress-list-v13 > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 8px;
+}
+
+.student-workout-progress-list-v13 > div:first-child > strong { color: var(--progress-text); }
+.student-workout-progress-list-v13 > button {
+  display: grid;
+  min-height: 62px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 11px;
+  border: 1px solid var(--progress-border);
+  border-radius: 11px;
+  background: var(--progress-raised);
+  color: var(--progress-body);
+  text-align: left;
+}
+
+.student-workout-progress-list-v13 > button.is-active {
+  border-color: var(--progress-accent);
+  background: var(--progress-accent-soft);
+  box-shadow: inset 3px 0 0 var(--progress-accent);
+}
+
+.student-workout-progress-list-v13 > button > span { display: grid; min-width: 0; gap: 3px; }
+.student-workout-progress-list-v13 > button strong { overflow-wrap: anywhere; color: var(--progress-text); font-size: 0.82rem; }
+.student-workout-progress-list-v13 > button small { color: var(--progress-muted); font-size: 0.66rem; line-height: 1.35; }
+.student-workout-progress-list-v13 > button em { color: var(--progress-accent); font-size: 0.68rem; font-style: normal; font-weight: 850; text-align: right; }
+
+.student-workout-progress-detail-v13 { gap: 14px; }
+.student-workout-progress-detail-v13 > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.student-workout-progress-detail-v13 > header h3 { margin: 3px 0 0; color: var(--progress-text); font-size: 1.25rem; line-height: 1.2; overflow-wrap: anywhere; }
+.student-workout-progress-detail-v13 > header > span { padding: 6px 8px; border-radius: 999px; background: var(--progress-soft); color: var(--progress-body); font-size: 0.68rem; font-weight: 850; white-space: nowrap; }
+.student-workout-progress-records-v13 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+.student-workout-progress-chart-v13 {
+  padding: 10px;
+  border: 1px solid var(--progress-border);
+  border-radius: 13px;
+  background: var(--progress-raised);
+}
+
+.student-workout-progress-chart-v13 svg { display: block; width: 100%; height: 150px; overflow: visible; }
+.student-workout-progress-chart-v13 line { stroke: var(--progress-border); stroke-width: 1; }
+.student-workout-progress-chart-v13 polyline { fill: none; stroke: var(--progress-accent-strong); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.student-workout-progress-chart-v13 circle { fill: var(--progress-surface); stroke: var(--progress-accent-strong); stroke-width: 3; }
+.student-workout-progress-chart-v13 > div { display: flex; justify-content: space-between; gap: 8px; color: var(--progress-muted); font-size: 0.68rem; }
+.student-workout-progress-chart-v13 > div strong { color: var(--progress-text); }
+.student-workout-progress-insufficient-v13 { margin: 0; padding: 18px; border: 1px dashed var(--progress-border); border-radius: 12px; color: var(--progress-muted); font-size: 0.76rem; text-align: center; }
+
+.student-workout-progress-history-v13 { display: grid; gap: 0; }
+.student-workout-progress-history-v13 h4 { margin: 0 0 5px; color: var(--progress-text); font-size: 0.88rem; }
+.student-workout-progress-history-v13 > div { display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr); gap: 10px; padding: 10px 2px; border-top: 1px solid var(--progress-border); }
+.student-workout-progress-history-v13 span { color: var(--progress-muted); font-size: 0.7rem; }
+.student-workout-progress-history-v13 strong { color: var(--progress-body); font-size: 0.74rem; text-align: right; }
+
+@media (max-width: 767px) {
+  .student-workout-progress-page-v13 {
+    gap: 12px;
+    padding: 0 0 calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .student-workout-progress-head-v13 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .student-workout-progress-head-v13 > button { width: fit-content; }
+  .student-workout-progress-head-v13 > small { justify-self: start; }
+  .student-workout-progress-summary-v13 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .student-workout-progress-layout-v13 { grid-template-columns: 1fr; }
+  .student-workout-progress-list-v13,
+  .student-workout-progress-detail-v13 { padding: 12px; border-radius: 14px; }
+  .student-workout-progress-records-v13 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 380px) {
+  .student-workout-progress-filters-v13 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .student-workout-progress-summary-v13 { grid-template-columns: 1fr; }
+  .student-workout-progress-records-v13 { grid-template-columns: 1fr; }
+  .student-workout-progress-list-v13 > button { grid-template-columns: 1fr; }
+  .student-workout-progress-list-v13 > button em { text-align: left; }
+  .student-workout-progress-detail-v13 > header { display: grid; }
+  .student-workout-progress-detail-v13 > header > span { width: fit-content; }
+  .student-workout-progress-history-v13 > div { grid-template-columns: 1fr; gap: 3px; }
+  .student-workout-progress-history-v13 strong { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-workout-navigation-premium-v13 button,
+  .student-workout-open-progress-v13,
+  .student-workout-progress-page-v13 button { transition: none !important; }
+}
