@@ -21490,3 +21490,38 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 label { color: #29453D; }
 .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 input, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 select, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 textarea { border-color: rgba(0,143,122,.18); background: #FFFFFF; color: #18302A; }
 .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 input:focus, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 select:focus, .student-profile-goals-screen-v1.app-theme-light .student-profile-goals-section-v1 textarea:focus { border-color: #008F7A; background: #F7FCFA; }
+
+/* student-progress-charts-v12 */
+.student-progress-charts-v1 { border: 1px solid rgba(0,210,178,.15); border-radius: 1.25rem; padding: 1rem; background: radial-gradient(circle at 8% 0%, rgba(0,210,178,.08), transparent 34%), linear-gradient(145deg, rgba(7,21,19,.95), rgba(7,12,14,.94)); box-shadow: 0 20px 46px rgba(0,0,0,.18); }
+.student-progress-charts-heading-v1 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: #7BFFE9; }
+.student-progress-charts-heading-v1 span { display: block; color: #7BFFE9; font-size: .64rem; font-weight: 950; letter-spacing: .14em; }
+.student-progress-charts-heading-v1 h3 { margin-top: .25rem; color: #F7FFFD; font-size: 1.1rem; font-weight: 950; letter-spacing: -.035em; }
+.student-progress-charts-grid-v1 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .85rem; }
+.student-progress-chart-card-v1 { min-width: 0; border: 1px solid rgba(0,210,178,.13); border-radius: 1rem; padding: .85rem; background: rgba(255,255,255,.035); }
+.student-progress-chart-card-v1.is-calories { border-color: rgba(37,99,235,.18); }
+.student-progress-chart-card-head-v1 { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.student-progress-chart-card-head-v1 span:first-child { display: block; color: #91AAA3; font-size: .62rem; font-weight: 950; letter-spacing: .1em; }
+.student-progress-chart-card-head-v1 strong { display: block; margin-top: .25rem; color: #FFFFFF; font-size: 1.25rem; font-weight: 950; letter-spacing: -.04em; }
+.student-progress-chart-badge-v1 { flex-shrink: 0; border: 1px solid rgba(0,210,178,.18); border-radius: 999px; padding: .3rem .45rem; color: #9FFFEF; font-size: .58rem; font-weight: 900; }
+.student-progress-chart-viz-v1 { margin-top: .7rem; }
+.student-progress-chart-viz-v1 svg { display: block; width: 100%; height: auto; overflow: visible; }
+.student-progress-chart-axis-v1 { display: flex; justify-content: space-between; gap: .25rem; margin-top: .25rem; color: #738983; font-size: .56rem; font-weight: 800; }
+.student-progress-chart-empty-v1 { position: relative; display: flex; min-height: 118px; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; margin-top: .7rem; padding: .75rem; border: 1px dashed rgba(0,210,178,.22); border-radius: .8rem; color: #7BFFE9; text-align: center; }
+.student-progress-chart-empty-v1 span { max-width: 18rem; color: #A6B9B4; font-size: .7rem; line-height: 1.45; }
+.student-progress-chart-empty-v1 small { color: #6F8580; font-size: .62rem; }
+.student-progress-chart-empty-v1.is-calories-empty { border-color: rgba(37,99,235,.26); color: #8CB9FF; overflow: hidden; }
+.student-progress-chart-dashed-line { position: absolute; top: 36%; right: .6rem; left: .6rem; border-top: 1px dashed rgba(91,164,255,.4); }
+.student-progress-chart-note-v1 { margin-top: .55rem; color: #6F8580; font-size: .61rem; line-height: 1.4; }
+.student-mobile-shell.app-theme-light .student-progress-charts-v1 { border-color: rgba(0,143,122,.15); background: radial-gradient(circle at 8% 0%, rgba(0,143,122,.08), transparent 34%), linear-gradient(145deg, #FFFFFF, #F1F9F6); box-shadow: 0 20px 46px rgba(15,23,42,.07); }
+.student-mobile-shell.app-theme-light .student-progress-charts-heading-v1 span { color: #007D6C; }
+.student-mobile-shell.app-theme-light .student-progress-charts-heading-v1 h3 { color: #18302A; }
+.student-mobile-shell.app-theme-light .student-progress-chart-card-v1 { border-color: rgba(0,143,122,.14); background: rgba(255,255,255,.74); }
+.student-mobile-shell.app-theme-light .student-progress-chart-card-v1.is-calories { border-color: rgba(37,99,235,.14); }
+.student-mobile-shell.app-theme-light .student-progress-chart-card-head-v1 span:first-child { color: #61736D; }
+.student-mobile-shell.app-theme-light .student-progress-chart-card-head-v1 strong { color: #18302A; }
+.student-mobile-shell.app-theme-light .student-progress-chart-badge-v1 { border-color: rgba(0,143,122,.18); color: #007D6C; }
+.student-mobile-shell.app-theme-light .student-progress-chart-axis-v1, .student-mobile-shell.app-theme-light .student-progress-chart-note-v1 { color: #70827D; }
+.student-mobile-shell.app-theme-light .student-progress-chart-empty-v1 { border-color: rgba(0,143,122,.24); }
+.student-mobile-shell.app-theme-light .student-progress-chart-empty-v1 span { color: #5F746D; }
+.student-mobile-shell.app-theme-light .student-progress-chart-empty-v1 small { color: #73847F; }
+@media (max-width: 640px) { .student-progress-charts-grid-v1 { grid-template-columns: 1fr; } }

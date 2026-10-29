@@ -18812,6 +18812,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           nextWorkout={nextWorkout}
           nextNutritionPlan={studentNutritionPlans[0]}
           nextAppointment={nextAppointment}
+          assessments={studentAssessments}
           waterMl={waterMl}
           waterGoalMl={waterGoalMl}
           questionnaireAssignments={studentQuestionnaireAssignments}
@@ -19244,7 +19245,49 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   )
 }
 
-function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onOpenTab, onDismissQuestionnaire }) {
+function StudentProgressCharts({ assessments = [], nutritionPlan = null }) {
+  const weightSeries = assessments
+    .map((assessment) => ({
+      value: Number(assessment.weightKg),
+      date: assessment.assessedAt || assessment.createdAt,
+    }))
+    .filter((item) => Number.isFinite(item.value) && item.value > 0 && item.date)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-7)
+  const weightValues = weightSeries.map((item) => item.value)
+  const weightMin = weightValues.length ? Math.min(...weightValues) : 0
+  const weightMax = weightValues.length ? Math.max(...weightValues) : 0
+  const weightRange = Math.max(weightMax - weightMin, 1)
+  const weightPoints = weightSeries.map((item, index) => {
+    const x = weightSeries.length === 1 ? 180 : (index / (weightSeries.length - 1)) * 336 + 12
+    const y = 112 - ((item.value - weightMin) / weightRange) * 82
+    return { ...item, x, y }
+  })
+  const weightPolyline = weightPoints.map((point) => `${point.x},${point.y}`).join(' ')
+  const calorieGoal = parseNutritionMetricNumber(nutritionPlan?.calories)
+  const hasCalorieConsumption = false
+  return (
+    <section className="student-progress-charts-v1" aria-label="Progresso semanal">
+      <div className="student-progress-charts-heading-v1"><div><span>LEITURA DO PROGRESSO</span><h3>Seu ritmo em dados</h3></div><NavIcon name="chart" className="h-5 w-5" /></div>
+      <div className="student-progress-charts-grid-v1">
+        <article className="student-progress-chart-card-v1">
+          <div className="student-progress-chart-card-head-v1"><div><span>PESO</span><strong>{weightSeries.length ? `${formatNumber(weightSeries[weightSeries.length - 1].value)} kg` : 'Sem registro'}</strong></div><span className="student-progress-chart-badge-v1">{weightSeries.length ? `${weightSeries.length} pontos` : 'Check-in'}</span></div>
+          {weightPoints.length ? (
+            <div className="student-progress-chart-viz-v1"><svg viewBox="0 0 360 132" role="img" aria-label="Evolução semanal de peso"><defs><linearGradient id="weight-area-gradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#00B99F" stopOpacity=".3" /><stop offset="1" stopColor="#00B99F" stopOpacity="0" /></linearGradient></defs><path d={`M ${weightPoints[0].x} 126 L ${weightPolyline.replaceAll(' ', ' L ')} L ${weightPoints[weightPoints.length - 1].x} 126 Z`} fill="url(#weight-area-gradient)" /><polyline points={weightPolyline} fill="none" stroke="#00B99F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />{weightPoints.map((point) => <circle key={`${point.date}-${point.value}`} cx={point.x} cy={point.y} r="4.5" fill="#07110F" stroke="#7BFFE9" strokeWidth="2.5" />)}</svg><div className="student-progress-chart-axis-v1">{weightPoints.map((point) => <span key={`${point.date}-label`}>{formatShortDate(point.date)}</span>)}</div></div>
+          ) : <div className="student-progress-chart-empty-v1"><NavIcon name="chart" className="h-5 w-5" /><span>Registre um peso no check-in para acompanhar sua evolução.</span></div>}
+          <p className="student-progress-chart-note-v1">Fonte: avaliações e check-ins registrados.</p>
+        </article>
+        <article className="student-progress-chart-card-v1 is-calories">
+          <div className="student-progress-chart-card-head-v1"><div><span>CALORIAS CONSUMIDAS</span><strong>{hasCalorieConsumption ? '— kcal' : 'Sem registros'}</strong></div><span className="student-progress-chart-badge-v1">{calorieGoal ? `Meta ${calorieGoal} kcal` : 'Plano alimentar'}</span></div>
+          <div className="student-progress-chart-empty-v1 is-calories-empty"><div className="student-progress-chart-dashed-line" /> <NavIcon name="nutrition" className="h-5 w-5" /><span>O consumo diário aparecerá aqui quando as refeições forem registradas.</span><small>{calorieGoal ? `Sua referência atual é ${calorieGoal} kcal/dia.` : 'Aguardando uma meta no plano alimentar.'}</small></div>
+          <p className="student-progress-chart-note-v1">Não confunde meta planejada com consumo real.</p>
+        </article>
+      </div>
+    </section>
+  )
+}
+
+function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, assessments = [], waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onOpenTab, onDismissQuestionnaire }) {
   const firstName = String(student?.name || (patientMode ? 'paciente' : 'aluno')).split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
@@ -19346,6 +19389,7 @@ function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], 
           </details>
         </div>
 
+        <StudentProgressCharts assessments={assessments} nutritionPlan={nextNutritionPlan} />
         <StudentWaterQuickCard
           goalMl={waterGoalMl}
           currentMl={waterMl}
