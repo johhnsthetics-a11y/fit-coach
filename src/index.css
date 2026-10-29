@@ -19025,11 +19025,98 @@ html[data-theme="dark"] body { background: #05070d; }
 
 .nutrition-student-plan-list-v2 .nutrition-plan-meal-card-v6 {
   min-width: 0;
-  padding: 14px !important;
+  padding: 0 !important;
   border-color: var(--diet-border) !important;
   border-radius: 16px !important;
   background: var(--diet-surface-raised) !important;
   box-shadow: none !important;
+  overflow: hidden;
+}
+
+.nutrition-meal-accordion-trigger-v3 {
+  display: grid;
+  width: 100%;
+  min-height: 64px;
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--diet-title);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.nutrition-meal-accordion-trigger-v3:hover,
+.nutrition-meal-accordion-trigger-v3:focus-visible {
+  background: var(--diet-surface-soft);
+}
+
+.nutrition-meal-accordion-trigger-v3:focus-visible {
+  outline: 2px solid var(--diet-accent-strong);
+  outline-offset: -3px;
+}
+
+.nutrition-meal-number-v3,
+.nutrition-meal-chevron-v3 {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--diet-border-strong);
+  color: var(--diet-accent);
+}
+
+.nutrition-meal-number-v3 {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--diet-surface-soft);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.nutrition-meal-heading-v3 {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nutrition-meal-heading-v3 strong {
+  overflow-wrap: anywhere;
+  color: var(--diet-title);
+  font-size: 0.96rem;
+  line-height: 1.25;
+}
+
+.nutrition-meal-heading-v3 span {
+  color: var(--diet-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.nutrition-meal-chevron-v3 {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  transition: transform 180ms ease, background-color 180ms ease;
+}
+
+.nutrition-meal-accordion-v3.is-expanded .nutrition-meal-chevron-v3 {
+  transform: rotate(180deg);
+  background: var(--diet-surface-soft);
+}
+
+.nutrition-meal-accordion-content-v3 {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--diet-border);
+  animation: nutritionMealReveal 180ms ease-out both;
+}
+
+@keyframes nutritionMealReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .nutrition-plan-meal-head-v7 {
@@ -19234,6 +19321,22 @@ html[data-theme="dark"] body { background: #05070d; }
     grid-column: 2;
     max-width: none;
     text-align: left;
+  }
+
+  .nutrition-meal-accordion-trigger-v3 {
+    grid-template-columns: 38px minmax(0, 1fr) 34px;
+    gap: 9px;
+    padding-inline: 10px;
+  }
+
+  .nutrition-meal-number-v3 {
+    width: 38px;
+    height: 38px;
+  }
+
+  .nutrition-meal-chevron-v3 {
+    width: 34px;
+    height: 34px;
   }
 }
 

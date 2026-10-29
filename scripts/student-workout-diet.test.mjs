@@ -91,6 +91,24 @@ try {
   assert.match(foodMarkup, /Arroz Branco/)
   assert.match(foodMarkup, /200 g/)
 
+  assert.equal(typeof app.NutritionMealAccordion, 'function', 'Cada refeição deve usar um accordion independente')
+  const mealAccordionMarkup = renderToStaticMarkup(React.createElement(app.NutritionMealAccordion, {
+    meal: {
+      id: 'meal-breakfast',
+      name: 'Café da manhã',
+      time: '07:30',
+      foods: 'Ovos, Aveia',
+      macros: 'P 32 g | C 58 g | G 18 g',
+    },
+    index: 0,
+    defaultExpanded: true,
+  }))
+  assert.match(mealAccordionMarkup, /nutrition-meal-accordion-v3/)
+  assert.match(mealAccordionMarkup, /aria-expanded="true"/)
+  assert.match(mealAccordionMarkup, /aria-controls="[^"]+"/)
+  assert.match(mealAccordionMarkup, /Quantidade não informada/)
+  assert.doesNotMatch(mealAccordionMarkup, />0 g</)
+
   assert.equal(typeof app.NutritionPlanList, 'function', 'A listagem da dieta do aluno deve ser verificável isoladamente')
   const planMarkup = renderToStaticMarkup(React.createElement(app.NutritionPlanList, {
     plans: [{
@@ -114,6 +132,8 @@ try {
   const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
   assert.match(css, /nutrition-student-plan-list-v2/)
   assert.match(css, /nutrition-meal-macros-v2/)
+  assert.match(css, /nutrition-meal-accordion-trigger-v3/)
+  assert.match(css, /nutrition-meal-accordion-content-v3/)
   assert.match(css, /--diet-surface-raised:\s*#ffffff/)
   assert.match(css, /\.student-sidebar-nav-icon\.app-nav-tone-icon[^}]*color:\s*rgb\(var\(--nav-tone/s)
   assert.match(css, /\.nutrition-plan-summary-title-v3[^}]*overflow-wrap:\s*normal/s)

@@ -58,6 +58,12 @@ const nutritionPlan = {
   protein: '160 g',
   active: true,
   meals: [{
+    id: 'qa-breakfast',
+    name: 'Café da manhã',
+    time: '07:30',
+    macros: '32P / 58C / 18G',
+    foods: 'Ovos, Aveia',
+  }, {
     id: 'qa-meal',
     name: 'Almoço',
     time: '12:30',
@@ -68,6 +74,12 @@ const nutritionPlan = {
       { id: 'chicken', category: 'Carnes', foodName: 'Peito de Frango', grams: 180, quantity: 180, measureUnit: 'g' },
       { id: 'eggs', category: 'Ovos', foodName: 'Ovos', grams: 100, quantity: 100, measureUnit: 'g' },
     ],
+  }, {
+    id: 'qa-dinner',
+    name: 'Jantar',
+    time: '19:30',
+    macros: '42P / 45C / 12G',
+    foods: 'Batata Doce (180g), Peixe (160g)',
   }],
 }
 
@@ -369,13 +381,30 @@ try {
 
     await openTab(page, width, 'Dieta')
     await page.getByRole('button', { name: /Plano alimentar detalhado/ }).click()
-    const foodList = page.locator('.student-diet-food-list')
+    const breakfastButton = page.getByRole('button', { name: /Café da manhã/ })
+    const lunchButton = page.getByRole('button', { name: /Almoço/ })
+    const dinnerButton = page.getByRole('button', { name: /Jantar/ })
+    assert.equal(await breakfastButton.getAttribute('aria-expanded'), 'true', 'A primeira refeição deve iniciar aberta')
+    assert.equal(await lunchButton.getAttribute('aria-expanded'), 'false', 'As demais refeições devem iniciar recolhidas')
+    assert.ok(await breakfastButton.getAttribute('aria-controls'), 'O accordion precisa relacionar cabeçalho e conteúdo')
+    assert.ok(await page.getByText('Quantidade não informada', { exact: true }).count(), 'Quantidades ausentes devem ser informadas sem inventar 0 g')
+    assert.equal(await page.getByText('0 g', { exact: true }).count(), 0, 'A dieta não pode inventar 0 g para quantidades ausentes')
+    await lunchButton.click()
+    assert.equal(await breakfastButton.getAttribute('aria-expanded'), 'true', 'Abrir o almoço não deve fechar o café da manhã')
+    assert.equal(await lunchButton.getAttribute('aria-expanded'), 'true', 'O almoço deve abrir independentemente')
+    const lunchSection = lunchButton.locator('xpath=..')
+    const foodList = lunchSection.locator('.student-diet-food-list')
     await foodList.waitFor()
     assert.equal(await foodList.locator('.student-diet-food-row').count(), 3, 'Cada alimento deve ocupar uma linha própria')
     assert.ok(await foodList.getByText('Arroz Branco', { exact: true }).count(), 'O nome do alimento deve ficar visível')
     assert.ok(await foodList.getByText('200 g', { exact: true }).count(), 'A quantidade do alimento deve ficar visível')
     assert.ok(await foodList.getByText('Peito de Frango', { exact: true }).count(), 'Os alimentos da refeição não podem ser omitidos')
-    assert.equal(await page.locator('.nutrition-meal-macros-v2 > div').count(), 3, 'Os três macronutrientes devem aparecer no rodapé da refeição')
+    assert.equal(await lunchSection.locator('.nutrition-meal-macros-v2 > div').count(), 3, 'Os três macronutrientes devem aparecer no rodapé da refeição')
+    await breakfastButton.click()
+    assert.equal(await breakfastButton.getAttribute('aria-expanded'), 'false', 'A refeição deve poder ser recolhida novamente')
+    assert.equal(await lunchButton.getAttribute('aria-expanded'), 'true', 'Recolher uma refeição não deve alterar as demais')
+    await dinnerButton.click()
+    assert.equal(await dinnerButton.getAttribute('aria-expanded'), 'true', 'Qualquer refeição deve poder ser aberta')
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 1, `A página não pode ter overflow horizontal em ${width}px`)

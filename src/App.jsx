@@ -15149,6 +15149,40 @@ function NutritionMealMacroSummary({ macros }) {
   )
 }
 
+export function NutritionMealAccordion({ meal, index, defaultExpanded = false }) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const contentId = `nutrition-meal-${useId().replace(/:/g, '')}`
+  const mealName = String(meal?.name || `Refeição ${index + 1}`).trim()
+  const mealTime = String(meal?.time || '').trim()
+
+  return (
+    <section className={`nutrition-plan-meal-card-v6 nutrition-meal-accordion-v3 ${expanded ? 'is-expanded' : 'is-collapsed'} rounded-2xl border border-white/10 bg-zinc-950/55`}>
+      <button
+        type="button"
+        className="nutrition-meal-accordion-trigger-v3"
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <span className="nutrition-meal-number-v3" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+        <span className="nutrition-meal-heading-v3">
+          <strong>{mealName}</strong>
+          <span>{mealTime || 'Horário livre'}</span>
+        </span>
+        <span className="nutrition-meal-chevron-v3" aria-hidden="true">
+          <NavIcon name="chevronDown" className="h-4 w-4" />
+        </span>
+      </button>
+      {expanded ? (
+        <div id={contentId} className="nutrition-meal-accordion-content-v3" role="region" aria-label={`Detalhes de ${mealName}`}>
+          <NutritionMealFoodList meal={meal} />
+          <NutritionMealMacroSummary macros={meal?.macros} />
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function NutritionBmrStrip({ student, anamnesis = null, compact = false }) {
   const bmrDetails = calculateBasalMetabolicRateDetails(student, anamnesis)
   const bmr = bmrDetails.bmr
@@ -16102,21 +16136,12 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
               ) : null}
 
               {meals.map((meal, index) => (
-                <section key={meal.id ?? `${meal.name}-${index}`} className="nutrition-plan-meal-card-v6 rounded-2xl border border-white/10 bg-zinc-950/55 p-4">
-                  <header className="nutrition-plan-meal-head-v7">
-                    <div className="flex min-w-0 gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-sm font-black text-emerald-100">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        {meal.time ? <time>{meal.time}</time> : <span className="nutrition-meal-time-empty-v2">Horário livre</span>}
-                        <h5 className="break-words font-black text-white">{meal.name}</h5>
-                      </div>
-                    </div>
-                  </header>
-                  <NutritionMealFoodList meal={meal} />
-                  <NutritionMealMacroSummary macros={meal.macros} />
-                </section>
+                <NutritionMealAccordion
+                  key={meal.id ?? `${meal.name}-${index}`}
+                  meal={meal}
+                  index={index}
+                  defaultExpanded={index === 0}
+                />
               ))}
             </div>
               </>
