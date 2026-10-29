@@ -16290,7 +16290,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
               <button type="button" className="student-diet-meal-trigger-v1" onClick={() => setSelectedMealId(expanded ? '' : mealId)} aria-expanded={expanded}>
                 <span className={`student-diet-meal-icon-v1 student-diet-meal-icon-${getStudentDietMealIcon(meal, index)} ${done ? 'is-complete' : ''}`}><NavIcon name={done ? 'check' : getStudentDietMealIcon(meal, index)} className="h-5 w-5" /></span>
                 <span className="student-diet-meal-copy-v1"><small>{meal.time || `Refeição ${index + 1}`}</small><strong>{meal.name || `Refeição ${index + 1}`}</strong><em>{getNutritionMealDisplayItems(meal).slice(0, 2).map((item) => item.name).join(' · ')}</em></span>
-                <span className="student-diet-meal-meta-v1 nutrition-plan-summary-meta-v3">{done ? 'CONCLUÍDA' : 'ABRIR'} <NavIcon name={expanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" /></span>
+                <span className={`student-diet-meal-meta-v1 nutrition-plan-summary-meta-v3 ${expanded ? 'is-open' : ''}`}>{expanded ? 'FECHAR' : done ? 'CONCLUÍDA' : 'ABRIR'} <NavIcon name={expanded ? 'chevronUp' : 'chevronRight'} className="h-4 w-4" /></span>
               </button>
               {expanded ? (
                 <div className="student-diet-meal-detail-v1">
