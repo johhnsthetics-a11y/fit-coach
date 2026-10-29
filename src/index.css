@@ -21427,3 +21427,20 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-light .student-diet-header-v1 { box-shadow: 0 22px 48px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.85); }
 .student-mobile-shell.app-theme-light .student-diet-experience-v1 { background: radial-gradient(circle at 8% 0%, rgba(0,143,122,.075), transparent 31%), radial-gradient(circle at 96% 18%, rgba(37,99,235,.035), transparent 28%), linear-gradient(155deg, #F7FCFA, #EEF7F5); border-color: rgba(0,143,122,.14); }
 .student-mobile-shell.app-theme-light .student-diet-meal-v1 { border-color: rgba(0,143,122,.14); background: linear-gradient(145deg, #FFFFFF, #F8FCFA); }
+
+/* student-diet-motion-v10 */
+.student-diet-week-strip-v1 > span { cursor: pointer; user-select: none; }
+.student-diet-week-strip-v1 > span:hover { border-color: color-mix(in srgb, var(--diet-brand, #00D2B2) 52%, transparent); transform: translateY(-1px); }
+.student-diet-week-strip-v1 > span:focus-visible { outline: 3px solid color-mix(in srgb, var(--diet-brand, #00D2B2) 36%, transparent); outline-offset: 2px; }
+.student-diet-day-content-v1 { animation: studentDietDayIn .38s cubic-bezier(.2,.8,.2,1) both; transform-origin: top center; }
+.student-diet-meal-detail-v1 { max-height: 0; overflow: hidden; padding: 0 1rem; opacity: 0; transform: translateY(-5px); transition: max-height .38s cubic-bezier(.2,.8,.2,1), opacity .22s ease, transform .38s cubic-bezier(.2,.8,.2,1), padding .38s cubic-bezier(.2,.8,.2,1); }
+.student-diet-meal-detail-v1.is-open { max-height: 42rem; padding: .85rem 1rem 1rem; opacity: 1; transform: translateY(0); }
+.student-diet-meal-detail-v1[aria-hidden="true"] { pointer-events: none; }
+.student-diet-meal-detail-v1[aria-hidden="false"] { pointer-events: auto; }
+.student-diet-meal-detail-v1 .student-diet-macros-v1, .student-diet-meal-detail-v1 .student-diet-foods-v1, .student-diet-meal-detail-v1 .student-diet-complete-v1 { transition: opacity .26s ease, transform .32s cubic-bezier(.2,.8,.2,1); }
+.student-diet-meal-detail-v1:not(.is-open) .student-diet-macros-v1, .student-diet-meal-detail-v1:not(.is-open) .student-diet-foods-v1, .student-diet-meal-detail-v1:not(.is-open) .student-diet-complete-v1 { opacity: 0; transform: translateY(-4px); }
+.student-diet-meal-detail-v1.is-open .student-diet-macros-v1, .student-diet-meal-detail-v1.is-open .student-diet-foods-v1, .student-diet-meal-detail-v1.is-open .student-diet-complete-v1 { opacity: 1; transform: translateY(0); }
+@keyframes studentDietDayIn { from { opacity: .35; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .student-diet-day-content-v1, .student-diet-meal-detail-v1, .student-diet-meal-detail-v1 .student-diet-macros-v1, .student-diet-meal-detail-v1 .student-diet-foods-v1, .student-diet-meal-detail-v1 .student-diet-complete-v1 { animation: none !important; transition: none !important; }
+}

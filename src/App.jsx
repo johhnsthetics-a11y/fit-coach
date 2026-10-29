@@ -16225,12 +16225,14 @@ function getStudentDietWeekDays() {
   return ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map((label, index) => {
     const date = new Date(monday)
     date.setDate(monday.getDate() + index)
-    return { label, number: date.getDate(), active: date.toDateString() === today.toDateString() }
+    return { label, number: date.getDate(), active: date.toDateString() === today.toDateString(), fullLabel: date.toLocaleDateString('pt-BR', { weekday: 'long' }), dateLabel: date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') }
   })
 }
 
 function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
+  const weekDays = useMemo(() => getStudentDietWeekDays(), [])
+  const todayWeekIndex = Math.max(0, weekDays.findIndex((day) => day.active))
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const [completedMealIds, setCompletedMealIds] = useState(() => {
     try {
@@ -16241,6 +16243,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
     }
   })
   const [selectedMealId, setSelectedMealId] = useState(meals[0]?.id || '')
+  const [selectedWeekDayIndex, setSelectedWeekDayIndex] = useState(todayWeekIndex)
 
   useEffect(() => {
     try {
@@ -16266,9 +16269,8 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
   const waterLiters = (safeWater / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
-  const todayLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
   const initials = getInitials(student?.name || 'Aluno')
-  const weekDays = useMemo(() => getStudentDietWeekDays(), [])
+  const selectedDay = weekDays[selectedWeekDayIndex] || weekDays[todayWeekIndex]
 
   return (
     <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
@@ -16285,12 +16287,13 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
       </header>
 
-      <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><span><NavIcon name="calendar" className="h-4 w-4" />{todayLabel}</span></div>
+      <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><span><NavIcon name="calendar" className="h-4 w-4" />{selectedDay.dateLabel}</span></div>
 
       <div className="student-diet-week-strip-v1" aria-label="Semana atual">
-        {weekDays.map((day) => <span key={`${day.label}-${day.number}`} className={day.active ? 'is-active' : ''}><small>{day.label}</small><strong>{day.number}</strong></span>)}
+        {weekDays.map((day, dayIndex) => <span key={`${day.label}-${day.number}`} role="button" tabIndex={0} className={dayIndex === selectedWeekDayIndex ? 'is-active' : ''} onClick={() => setSelectedWeekDayIndex(dayIndex)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedWeekDayIndex(dayIndex) }} aria-pressed={dayIndex === selectedWeekDayIndex}><small>{day.label}</small><strong>{day.number}</strong></span>)}
       </div>
 
+      <div key={`day-content-${selectedWeekDayIndex}`} className="student-diet-day-content-v1">
       <div className="student-diet-progress-v1" aria-label={`Progresso da dieta: ${progress}%`}>
         <div><strong>Ritmo de hoje</strong><span>{progress}% concluído</span></div>
         <div className="student-diet-progress-track-v1"><span style={{ width: `${Math.max(progress, progress ? 0 : 3)}%` }} /></div>
@@ -16321,19 +16324,18 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
                 <span className="student-diet-meal-copy-v1"><small>{meal.time || `Refeição ${index + 1}`}</small><strong>{meal.name || `Refeição ${index + 1}`}</strong><em>{getNutritionMealDisplayItems(meal).slice(0, 2).map((item) => item.name).join(' · ')}</em></span>
                 <span className={`student-diet-meal-meta-v1 nutrition-plan-summary-meta-v3 ${expanded ? 'is-open' : ''}`}>{expanded ? 'FECHAR' : done ? 'CONCLUÍDA' : 'ABRIR'} <NavIcon name={expanded ? 'chevronUp' : 'chevronRight'} className="h-4 w-4" /></span>
               </button>
-              {expanded ? (
-                <div className="student-diet-meal-detail-v1">
+              <div className={`student-diet-meal-detail-v1 ${expanded ? 'is-open' : ''}`} aria-hidden={!expanded}>
                   {macros.length ? <div className="student-diet-macros-v1">{macros.map((macro) => <span key={macro.label}><strong>{macro.value}</strong><small>{macro.label === 'P' ? 'proteínas' : macro.label === 'C' ? 'carboidratos' : 'gorduras'}</small></span>)}</div> : null}
                   <div className="student-diet-foods-v1">
                     <strong>O que você vai comer</strong>
                     {getNutritionMealDisplayItems(meal).map((item) => <div key={item.id}><NavIcon name="check" className="h-3.5 w-3.5" /><span>{item.name}</span><small>{item.amount}</small></div>)}
                   </div>
                   <button type="button" className="student-diet-complete-v1" onClick={() => toggleMeal(meal)}><NavIcon name={done ? 'check' : 'checkCircle'} className="h-4 w-4" />{done ? 'Refeição concluída' : 'Marcar como concluída'}</button>
-                </div>
-              ) : null}
+              </div>
             </article>
           )
         })}
+      </div>
       </div>
 
       <div className="student-diet-section-heading-v1 student-diet-hydration-heading-v1">
