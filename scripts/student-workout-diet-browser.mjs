@@ -183,6 +183,12 @@ try {
 
     const restWidget = page.locator('.mobile-workout-rest-portal-v12 .mobile-workout-rest-floating-v6')
     await restWidget.waitFor()
+    const restPortal = page.locator('.mobile-workout-rest-portal-v12')
+    assert.equal(await restPortal.evaluate((element) => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)', 'O portal de descanso não pode cobrir o treino com um fundo opaco')
+    assert.ok(await workoutArea.getByText('Supino reto', { exact: true }).isVisible(), 'Concluir a série deve manter o exercício visível')
+    if (theme === 'light') {
+      assert.equal(await restWidget.locator('.mobile-workout-rest-floating-card-v6').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgba(255, 255, 255, 0.98)', 'O descanso deve usar superfície clara legível')
+    }
     const initialWidget = await restWidget.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, viewportWidth: innerWidth, viewportHeight: innerHeight }
@@ -220,6 +226,23 @@ try {
     await restWidget.getByRole('button', { name: '+30s', exact: true }).click()
     await restWidget.getByRole('button', { name: 'Pular', exact: true }).click()
     await restWidget.waitFor({ state: 'hidden' })
+
+    for (const [load, reps] of [['22', '12'], ['24', '11']]) {
+      await workoutArea.getByLabel('Carga (kg)', { exact: true }).fill(load)
+      await workoutArea.getByLabel('Repetições', { exact: true }).fill(reps)
+      await workoutArea.getByRole('button', { name: 'Concluir série', exact: true }).click()
+      await restWidget.waitFor()
+      assert.equal(await restPortal.evaluate((element) => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)', 'O portal deve continuar transparente nas séries seguintes')
+      await restWidget.getByRole('button', { name: /Expandir descanso/ }).click()
+      await restWidget.getByRole('button', { name: 'Pular', exact: true }).click()
+      await restWidget.waitFor({ state: 'hidden' })
+    }
+
+    await workoutArea.getByText('3/3 concluídas no dia', { exact: true }).waitFor()
+    const finishWorkout = workoutArea.getByRole('button', { name: 'Finalizar treino', exact: true })
+    assert.equal(await finishWorkout.isEnabled(), true, 'Finalizar treino deve ser liberado após todas as séries')
+    await finishWorkout.click()
+    await workoutArea.getByText('Treino concluído', { exact: true }).waitFor()
 
     const workoutOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(workoutOverflow <= 1, `O treino não pode ter overflow horizontal em ${width}px`)

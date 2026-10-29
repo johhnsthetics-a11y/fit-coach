@@ -14362,7 +14362,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }
 
   const restWidget = restRemaining ? (
-    <div className={preview ? 'mobile-workout-rest-preview-v12' : `mobile-workout-rest-portal-v12 app-theme-${uiTheme}`}>
+    <div
+      className={preview ? 'mobile-workout-rest-preview-v12' : 'mobile-workout-rest-portal-v12'}
+      data-workout-theme={uiTheme}
+    >
       <div
         ref={restWidgetRef}
         className={`mobile-workout-rest-floating-v6 ${restWidgetExpanded ? 'is-expanded' : 'is-compact'} ${restWidgetPosition ? 'is-positioned' : ''}`}
