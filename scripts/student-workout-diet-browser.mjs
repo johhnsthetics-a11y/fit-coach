@@ -36,6 +36,16 @@ const workout = {
       imageUrl: 'https://example.test/supino.jpg',
       videoUrl: 'https://example.test/supino.mp4',
       instructions: 'Mantenha os ombros apoiados e controle a descida.',
+    }, {
+      id: 'qa-exercise-2',
+      name: 'Remada baixa com triângulo',
+      sets: '2',
+      reps: '10',
+      rest: '45s',
+      muscleGroup: 'Costas',
+      primaryMuscle: 'dorsais',
+      equipment: 'Cabo',
+      instructions: 'Mantenha o tronco estável e conduza os cotovelos para trás.',
     }],
   }],
 }
@@ -177,6 +187,7 @@ try {
 
     await workoutArea.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click()
     await workoutArea.locator('.mobile-workout-command-v12').waitFor()
+    assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'A finalização deve ficar oculta antes do último exercício')
     await workoutArea.getByLabel('Carga (kg)', { exact: true }).fill('20')
     await workoutArea.getByLabel('Repetições', { exact: true }).fill('12')
     await workoutArea.getByRole('button', { name: 'Concluir série', exact: true }).click()
@@ -203,6 +214,7 @@ try {
     await page.mouse.down()
     await page.mouse.move(handleBox.x + handleBox.width / 2 + targetLeft - initialWidget.left, 180, { steps: 8 })
     await page.mouse.up()
+    assert.ok(await restWidget.evaluate((element) => element.classList.contains('is-compact')), 'Arrastar o descanso não pode expandir o widget')
     const movedWidget = await restWidget.evaluate((element) => {
       const rect = element.getBoundingClientRect()
       return { left: rect.left, top: rect.top }
@@ -211,11 +223,22 @@ try {
     assert.ok(movedWidget.top >= 71, 'O descanso arrastado deve continuar na área segura')
 
     const compactTimer = restWidget.getByRole('button', { name: /Expandir descanso/ })
+    const compactTimerBox = await compactTimer.boundingBox()
+    assert.ok(compactTimerBox.height >= 44, 'O controle de expandir deve ter uma área de toque confortável')
     const compactValue = parseTimerSeconds(await compactTimer.innerText())
     await compactTimer.click()
     await page.waitForTimeout(1100)
     const expandedValue = parseTimerSeconds(await restWidget.locator('.mobile-workout-rest-floating-copy-v6 strong').innerText())
     assert.ok(expandedValue <= compactValue - 1 && expandedValue >= compactValue - 2, 'Expandir o descanso não pode reiniciar nem duplicar a contagem')
+    const minimizeTimer = restWidget.getByRole('button', { name: 'Minimizar timer de descanso', exact: true })
+    const minimizeTimerBox = await minimizeTimer.boundingBox()
+    assert.ok(minimizeTimerBox.height >= 44 && minimizeTimerBox.width >= 44, 'O controle de minimizar deve ter ao menos 44px')
+    await minimizeTimer.click()
+    const minimizedValue = parseTimerSeconds(await compactTimer.innerText())
+    await compactTimer.click()
+    const reexpandedValue = parseTimerSeconds(await restWidget.locator('.mobile-workout-rest-floating-copy-v6 strong').innerText())
+    assert.ok(reexpandedValue <= minimizedValue && reexpandedValue >= minimizedValue - 1, 'Minimizar e reabrir não pode reiniciar o descanso')
+    await page.screenshot({ path: `.superpowers/diet-qa/workout-timer-${theme}-${width}.png`, fullPage: false })
     if (theme === 'light') {
       assert.equal(await restWidget.locator('.mobile-workout-rest-floating-copy-v6 strong').evaluate((element) => getComputedStyle(element).color), 'rgb(20, 33, 31)', 'O contador expandido deve permanecer legível no portal claro')
     }
@@ -238,9 +261,44 @@ try {
       await restWidget.waitFor({ state: 'hidden' })
     }
 
-    await workoutArea.getByText('3/3 concluídas no dia', { exact: true }).waitFor()
-    const finishWorkout = workoutArea.getByRole('button', { name: 'Finalizar treino', exact: true })
+    await workoutArea.getByText('3/5 concluídas no dia', { exact: true }).waitFor()
+    assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'A finalização continua oculta enquanto o primeiro exercício está ativo')
+    await workoutArea.getByRole('button', { name: 'Concluir exercício e ir para o próximo →', exact: true }).click()
+    await workoutArea.getByText('Remada baixa com triângulo', { exact: true }).waitFor()
+    const muscleSummary = workoutArea.locator('.mobile-workout-muscle-target-anatomy-v6')
+    assert.ok(await muscleSummary.isVisible(), 'O músculo principal deve permanecer visível e compacto')
+    assert.ok(await muscleSummary.evaluate((element) => element.scrollWidth <= element.clientWidth + 1), 'O músculo principal não pode gerar overflow')
+    assert.equal(await muscleSummary.locator('span').first().evaluate((element) => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)', 'O rótulo muscular não deve herdar fundos antigos')
+    const finishPanel = workoutArea.locator('#student-workout-finish')
+    await finishPanel.waitFor()
+    const finishWorkout = finishPanel.getByRole('button', { name: 'Finalizar treino', exact: true })
+    assert.equal(await finishWorkout.isEnabled(), false, 'A finalização deve aparecer no último exercício sem ignorar etapas pendentes')
+    await finishPanel.getByLabel('Como foi o esforço?').selectOption('Forte')
+    await finishPanel.getByLabel('Observação para o treinador').fill('Execução controlada e sem dor.')
+    await workoutArea.getByRole('button', { name: '← Exercício anterior', exact: true }).click()
+    assert.equal(await workoutArea.locator('#student-workout-finish').count(), 0, 'Voltar do último exercício deve ocultar a finalização')
+    await workoutArea.locator('.mobile-workout-exercise-switcher-v4 button').nth(1).click()
+    await finishPanel.waitFor()
+    assert.equal(await finishPanel.getByLabel('Como foi o esforço?').inputValue(), 'Forte', 'O esforço deve ser preservado ao navegar entre exercícios')
+    assert.equal(await finishPanel.getByLabel('Observação para o treinador').inputValue(), 'Execução controlada e sem dor.', 'A observação deve ser preservada ao navegar entre exercícios')
+
+    for (const [load, reps] of [['35', '10'], ['37', '10']]) {
+      await workoutArea.getByLabel('Carga (kg)', { exact: true }).fill(load)
+      await workoutArea.getByLabel('Repetições', { exact: true }).fill(reps)
+      await workoutArea.getByRole('button', { name: 'Concluir série', exact: true }).click()
+      await restWidget.waitFor()
+      await restWidget.getByRole('button', { name: /Expandir descanso/ }).click()
+      await restWidget.getByRole('button', { name: 'Pular', exact: true }).click()
+      await restWidget.waitFor({ state: 'hidden' })
+    }
+
+    await workoutArea.getByText('5/5 concluídas no dia', { exact: true }).waitFor()
     assert.equal(await finishWorkout.isEnabled(), true, 'Finalizar treino deve ser liberado após todas as séries')
+    const finalizeColors = await finishWorkout.evaluate((element) => ({ background: getComputedStyle(element).backgroundColor, color: getComputedStyle(element).color }))
+    assert.notEqual(finalizeColors.background, 'rgba(0, 0, 0, 0)', 'Finalizar treino deve continuar sendo a ação primária')
+    assert.notEqual(finalizeColors.background, 'rgb(255, 255, 255)', 'Finalizar treino não deve parecer uma ação neutra no tema claro')
+    assert.equal(finalizeColors.color, 'rgb(255, 255, 255)', 'Finalizar treino precisa manter contraste de texto')
+    await page.screenshot({ path: `.superpowers/diet-qa/workout-execution-${theme}-${width}.png`, fullPage: true })
     await finishWorkout.click()
     await workoutArea.getByText('Treino concluído', { exact: true }).waitFor()
 

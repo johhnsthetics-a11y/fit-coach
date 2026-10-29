@@ -850,6 +850,27 @@ test('treino mobile definitivo usa estrutura compacta e descanso livre em portal
   assert.match(cssSource, /@media \(max-width:\s*767px\)[\s\S]*\.mobile-workout-command-v12/)
 })
 
+test('treino mobile premium limita a finalizacao ao ultimo exercicio sem perder o formulario', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+
+  assert.match(appSource, /const isLastExercise = exercises\.length > 0 && safeExerciseIndex === exercises\.length - 1/)
+  assert.match(appSource, /\{isLastExercise \? \(\s*<footer id="student-workout-finish"/)
+  assert.match(appSource, /value=\{effort\}[\s\S]*value=\{sessionNotes\}/)
+  assert.match(appSource, /disabled=\{saving \|\| !dayCanFinish \|\| Boolean\(completedLog\)\}/)
+  assert.match(appSource, /mobile-workout-end-trigger-v5/)
+})
+
+test('timer flutuante separa toque de expandir do gesto de arraste', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(appSource, /function stopRestWidgetTogglePointer\(event\)/)
+  assert.match(appSource, /onPointerDown=\{stopRestWidgetTogglePointer\}/)
+  assert.match(appSource, /aria-expanded=\{restWidgetExpanded\}/)
+  assert.match(cssSource, /\.mobile-workout-rest-compact-v11\s*\{[\s\S]*touch-action:\s*manipulation/s)
+  assert.match(cssSource, /\.mobile-workout-rest-minimize-v11\s*\{[\s\S]*min-height:\s*44px[\s\S]*touch-action:\s*manipulation/s)
+})
+
 test('tema claro do treino usa superfícies neutras e teal do branding sem excesso de verde', async () => {
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 

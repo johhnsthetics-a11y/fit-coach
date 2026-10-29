@@ -13824,6 +13824,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const currentPositionIndex = exercisePositions.findIndex((position) => position.dayIndex === safeDayIndex && position.exerciseIndex === safeExerciseIndex)
   const hasPreviousExercise = currentPositionIndex > 0
   const hasNextExercise = currentPositionIndex >= 0 && currentPositionIndex < exercisePositions.length - 1
+  const isLastExercise = exercises.length > 0 && safeExerciseIndex === exercises.length - 1
   const currentExerciseIsCardio = isCardioExercise(exercise)
   const currentCardioKey = safeDayIndex + '-' + safeExerciseIndex
   const currentCardioLog = createCardioLog(cardioLogs[currentCardioKey])
@@ -14002,6 +14003,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       x: (current?.x ?? rect?.left ?? 8) + direction[0],
       y: (current?.y ?? rect?.top ?? 72) + direction[1],
     }, getRestWidgetViewportBounds()))
+  }
+
+  function stopRestWidgetTogglePointer(event) {
+    event.stopPropagation()
   }
 
   function getCardioElapsed(log = currentCardioLog) {
@@ -14388,7 +14393,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <span aria-hidden="true">•••</span>
           </button>
           {!restWidgetExpanded ? (
-            <button type="button" className="mobile-workout-rest-compact-v11" onClick={() => setRestWidgetExpanded(true)} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
+            <button type="button" className="mobile-workout-rest-compact-v11" onPointerDown={stopRestWidgetTogglePointer} onClick={(event) => { event.stopPropagation(); setRestWidgetExpanded(true) }} aria-expanded={restWidgetExpanded} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
               <NavIcon name="clock" className="h-4 w-4" />
               <span>{restPaused ? 'Pausado' : 'Descanso'}</span>
               <strong>{formatWorkoutTimer(restRemaining)}</strong>
@@ -14400,7 +14405,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               <strong>{formatWorkoutTimer(restRemaining)}</strong>
               <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
             </div>
-            <button type="button" className="mobile-workout-rest-minimize-v11" onClick={() => setRestWidgetExpanded(false)} aria-label="Minimizar timer de descanso">
+            <button type="button" className="mobile-workout-rest-minimize-v11" onPointerDown={stopRestWidgetTogglePointer} onClick={(event) => { event.stopPropagation(); setRestWidgetExpanded(false) }} aria-expanded={restWidgetExpanded} aria-label="Minimizar timer de descanso">
               <NavIcon name="chevronDown" className="h-4 w-4" />
             </button>
             <div className="mobile-workout-rest-actions-v5">
@@ -14561,14 +14566,15 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
       {restWidget ? (preview || typeof document === 'undefined' ? restWidget : createPortal(restWidget, document.body)) : null}
 
-      {exercises.length ? (
+      {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
+
+      {isLastExercise ? (
         <footer id="student-workout-finish" className="mobile-workout-student-finish-v2">
           <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
           <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
           <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
           {!dayCanFinish ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'etapa ainda não concluída' : 'etapas ainda não concluídas') + '. Você pode concluir as atividades ou encerrar a sessão atual.'}</small> : null}
           <button type="button" className="mobile-workout-end-secondary-v5" disabled={saving || Boolean(completedLog)} onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button>
-          {error ? <p className="mobile-workout-student-error-v2">{error}</p> : null}
         </footer>
       ) : null}
       {endConfirmOpen ? createPortal((
