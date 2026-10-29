@@ -16196,6 +16196,15 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
   )
 }
 
+function getStudentDietMealIcon(meal = {}, index = 0) {
+  const name = normalizeText(meal.name || '')
+  if (name.includes('cafe') || name.includes('manha')) return 'sun'
+  if (name.includes('almoco')) return 'restaurant'
+  if (name.includes('lanche') || name.includes('snack')) return 'coffee'
+  if (name.includes('jantar') || name.includes('ceia')) return 'moon'
+  return index === 0 ? 'sun' : index === 1 ? 'restaurant' : index === 2 ? 'coffee' : index === 3 ? 'moon' : 'nutrition'
+}
+
 function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
@@ -16233,14 +16242,13 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
   const waterLiters = (safeWater / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
-  const greeting = new Date().getHours() < 12 ? 'Bom dia' : new Date().getHours() < 18 ? 'Boa tarde' : 'Boa noite'
   const todayLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
   const initials = getInitials(student?.name || 'Aluno')
 
   return (
     <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
       <div className="student-diet-topbar-v1">
-        <div><span>{greeting}, {getFirstName(student?.name) || 'aluno'}</span><strong>Sua dieta</strong></div>
+        <div><span>PLANO ALIMENTAR</span><strong>Sua dieta</strong></div>
         <span className="student-diet-avatar-v1" aria-label={`Perfil de ${student?.name || 'aluno'}`}>{initials}</span>
       </div>
       <header className="student-diet-header-v1 nutrition-plan-summary-main-v3">
@@ -16252,7 +16260,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
       </header>
 
-      <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}</strong></div><span><NavIcon name="calendar" className="h-4 w-4" />{todayLabel}</span></div>
+      <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><span><NavIcon name="calendar" className="h-4 w-4" />{todayLabel}</span></div>
 
       <div className="student-diet-progress-v1" aria-label={`Progresso da dieta: ${progress}%`}>
         <div><strong>Ritmo de hoje</strong><span>{progress}% concluído</span></div>
@@ -16280,7 +16288,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
           return (
             <article key={mealId} className={`student-diet-meal-v1 ${done ? 'is-complete' : ''} ${expanded ? 'is-selected' : ''}`}>
               <button type="button" className="student-diet-meal-trigger-v1" onClick={() => setSelectedMealId(expanded ? '' : mealId)} aria-expanded={expanded}>
-                <span className="student-diet-meal-icon-v1"><NavIcon name={done ? 'check' : index === 0 ? 'sun' : index === meals.length - 1 ? 'moon' : 'nutrition'} className="h-5 w-5" /></span>
+                <span className={`student-diet-meal-icon-v1 student-diet-meal-icon-${getStudentDietMealIcon(meal, index)} ${done ? 'is-complete' : ''}`}><NavIcon name={done ? 'check' : getStudentDietMealIcon(meal, index)} className="h-5 w-5" /></span>
                 <span className="student-diet-meal-copy-v1"><small>{meal.time || `Refeição ${index + 1}`}</small><strong>{meal.name || `Refeição ${index + 1}`}</strong><em>{getNutritionMealDisplayItems(meal).slice(0, 2).map((item) => item.name).join(' · ')}</em></span>
                 <span className="student-diet-meal-meta-v1 nutrition-plan-summary-meta-v3">{done ? 'CONCLUÍDA' : 'ABRIR'} <NavIcon name={expanded ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" /></span>
               </button>
@@ -24883,6 +24891,10 @@ function NavIcon({ name, className = '' }) {
     chart: <><path d="M4 19V5" /><path d="M4 19h17" /><path d="M8 15l3-4 3 2 5-7" /><path d="M18 6h1v1" /></>,
     dumbbell: <><path d="M6 6v12M18 6v12M3 9v6M21 9v6M6 12h12" /></>,
     nutrition: <><path d="M6 3.5h11.5a2 2 0 0 1 2 2v12.2a2.8 2.8 0 0 1-2.8 2.8H6a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2Z" /><path d="M8 7.5h7" /><path d="M8 11.5h8.5" /><path d="M8 15.5h5" /><path d="M17.5 5.5v13" /><path d="M16.5 9.5h2" /></>,
+    sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></>,
+    moon: <><path d="M20.5 14.7A8.5 8.5 0 0 1 9.3 3.5 8.5 8.5 0 1 0 20.5 14.7Z" /></>,
+    coffee: <><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z" /><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M7 5c0 1-1 1-1 2M11 5c0 1-1 1-1 2M15 5c0 1-1 1-1 2M3 21h15" /></>,
+    restaurant: <><path d="M6 3v8M3 3v5a3 3 0 0 0 6 0V3M6 11v10M17 3v18M17 3c2 1.2 3 3.4 3 6h-3" /></>,
     camera: <><path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" /><circle cx="12" cy="13" r="4" /></>,
     wallet: <><path d="M3 7a2 2 0 0 1 2-2h14v4H5a2 2 0 0 1 0-4" /><path d="M3 7v12a2 2 0 0 0 2 2h16V9H5" /><path d="M17 14h.01" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>,

@@ -21192,3 +21192,30 @@ html[data-theme="dark"] body { background: #05070d; }
   .student-diet-topbar-v1 strong { font-size: 1.45rem; }
   .student-diet-plan-row-v1 > div > strong { font-size: .96rem; }
 }
+
+.student-diet-plan-row-v1 > div > small { color: #8fa6a0; font-size: .72rem; }
+.student-mobile-shell.app-theme-light .student-diet-plan-row-v1 > div > small { color: #66736f; }
+.student-diet-meal-icon-v1 { animation: studentDietIconIn .42s cubic-bezier(.2,.8,.2,1) both; }
+.student-diet-meal-v1:nth-child(2) .student-diet-meal-icon-v1 { animation-delay: .06s; }
+.student-diet-meal-v1:nth-child(3) .student-diet-meal-icon-v1 { animation-delay: .12s; }
+.student-diet-meal-v1:nth-child(4) .student-diet-meal-icon-v1 { animation-delay: .18s; }
+.student-diet-meal-icon-sun { color: #f4c95d; border-color: rgba(244,201,93,.35); background: rgba(244,201,93,.12); }
+.student-diet-meal-icon-restaurant { color: #ff9a70; border-color: rgba(255,154,112,.35); background: rgba(255,154,112,.12); }
+.student-diet-meal-icon-coffee { color: #caa36a; border-color: rgba(202,163,106,.35); background: rgba(202,163,106,.12); }
+.student-diet-meal-icon-moon { color: #9eafff; border-color: rgba(158,175,255,.35); background: rgba(158,175,255,.12); }
+.student-diet-meal-icon-nutrition { color: #73ffe8; border-color: rgba(0,210,178,.32); background: rgba(0,210,178,.12); }
+.student-diet-meal-icon-v1.is-complete { color: #73ffe8; border-color: rgba(0,210,178,.36); background: rgba(0,210,178,.14); animation: studentDietComplete .5s cubic-bezier(.2,.8,.2,1); }
+.student-diet-meal-v1 { animation: studentDietCardIn .5s cubic-bezier(.2,.8,.2,1) both; }
+.student-diet-meal-v1:nth-child(2) { animation-delay: .05s; }
+.student-diet-meal-v1:nth-child(3) { animation-delay: .1s; }
+.student-diet-meal-v1:nth-child(4) { animation-delay: .15s; }
+.student-diet-progress-track-v1 span, .student-diet-water-track-v1 span { animation: studentDietProgressIn .65s cubic-bezier(.2,.8,.2,1) both; transform-origin: left center; }
+.student-diet-complete-v1:active, .student-diet-water-add-v1:active { transform: scale(.96); }
+@keyframes studentDietCardIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes studentDietIconIn { from { opacity: 0; transform: scale(.75) rotate(-8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes studentDietComplete { 0% { transform: scale(.82); } 65% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes studentDietProgressIn { from { transform: scaleX(0); opacity: .4; } to { transform: scaleX(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .student-diet-meal-v1, .student-diet-meal-icon-v1, .student-diet-progress-track-v1 span, .student-diet-water-track-v1 span { animation: none !important; }
+  .student-diet-complete-v1:active, .student-diet-water-add-v1:active { transform: none; }
+}
