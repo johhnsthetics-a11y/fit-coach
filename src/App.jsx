@@ -16263,6 +16263,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const weekDays = useMemo(() => getStudentDietWeekDays(), [])
   const todayWeekIndex = Math.max(0, weekDays.findIndex((day) => day.active))
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
+  const favoriteStorageKey = `coachfitpro-student-diet-favorites-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const [completedMealIds, setCompletedMealIds] = useState(() => {
     try {
       const saved = window.localStorage.getItem(storageKey)
@@ -16273,6 +16274,12 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   })
   const [selectedMealId, setSelectedMealId] = useState(meals[0]?.id || '')
   const [selectedWeekDayIndex, setSelectedWeekDayIndex] = useState(todayWeekIndex)
+  const [favoriteMeals, setFavoriteMeals] = useState(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(favoriteStorageKey) || '{}')
+      return { meals: Array.isArray(saved.meals) ? saved.meals : [], days: Array.isArray(saved.days) ? saved.days : [] }
+    } catch { return { meals: [], days: [] } }
+  })
 
   useEffect(() => {
     try {
@@ -16281,6 +16288,9 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
       // A private browsing context may block localStorage; the screen remains usable.
     }
   }, [completedMealIds, storageKey])
+  useEffect(() => {
+    try { window.localStorage.setItem(favoriteStorageKey, JSON.stringify(favoriteMeals)) } catch {}
+  }, [favoriteMeals, favoriteStorageKey])
 
   function toggleMeal(meal) {
     const mealId = String(meal?.id || meal?.name || '')
@@ -16288,6 +16298,11 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
     setCompletedMealIds((current) => current.includes(mealId)
       ? current.filter((id) => id !== mealId)
       : [...current, mealId])
+  }
+  function toggleFavoriteMeal(meal) {
+    const mealId = String(meal?.id || meal?.name || '')
+    if (!mealId) return
+    setFavoriteMeals((current) => ({ ...current, meals: current.meals.includes(mealId) ? current.meals.filter((id) => id !== mealId) : [...current.meals, mealId] }))
   }
 
   const completedCount = meals.filter((meal) => completedMealIds.includes(String(meal.id || meal.name))).length
@@ -16299,6 +16314,11 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const initials = getInitials(student?.name || 'Aluno')
   const selectedDay = weekDays[selectedWeekDayIndex] || weekDays[todayWeekIndex]
+  const selectedDayId = `${selectedDay?.dateLabel || selectedDay?.fullLabel || selectedWeekDayIndex}-${selectedDay?.number || selectedWeekDayIndex}`
+  const isFavoriteDay = favoriteMeals.days.includes(selectedDayId)
+  function toggleFavoriteDay() {
+    setFavoriteMeals((current) => ({ ...current, days: current.days.includes(selectedDayId) ? current.days.filter((id) => id !== selectedDayId) : [...current.days, selectedDayId] }))
+  }
 
   return (
     <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
@@ -16315,7 +16335,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
       </header>
 
-      <div className="student-diet-plan-row-v1"><div><span><NavIcon name="calendar" className="h-3.5 w-3.5" /> {selectedDay.dateLabel} · PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div></div>
+      <div className="student-diet-plan-row-v1"><div><span><NavIcon name="calendar" className="h-3.5 w-3.5" /> {selectedDay.dateLabel} · PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><button type="button" className={`student-diet-favorite-day-v1 ${isFavoriteDay ? 'is-favorite' : ''}`} onClick={toggleFavoriteDay} aria-pressed={isFavoriteDay} aria-label={isFavoriteDay ? 'Remover dia dos favoritos' : 'Favoritar dia inteiro'}><NavIcon name="star" className="h-4 w-4" /><span>{isFavoriteDay ? 'Dia salvo' : 'Salvar dia'}</span></button></div>
 
       <div className="student-diet-week-strip-v1" aria-label="Semana atual">
         {weekDays.map((day, dayIndex) => <span key={`${day.label}-${day.number}`} role="button" tabIndex={0} className={dayIndex === selectedWeekDayIndex ? 'is-active' : ''} onClick={() => setSelectedWeekDayIndex(dayIndex)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedWeekDayIndex(dayIndex) }} aria-pressed={dayIndex === selectedWeekDayIndex}><small>{day.label}</small><strong>{day.number}</strong></span>)}
@@ -16347,11 +16367,11 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
           const macros = getNutritionMealMacroSegments(meal.macros)
           return (
             <article key={mealId} className={`student-diet-meal-v1 ${done ? 'is-complete' : ''} ${expanded ? 'is-selected' : ''}`}>
-              <button type="button" className="student-diet-meal-trigger-v1" onClick={() => setSelectedMealId(expanded ? '' : mealId)} aria-expanded={expanded}>
+              <div className="student-diet-meal-head-v1"><button type="button" className="student-diet-meal-trigger-v1" onClick={() => setSelectedMealId(expanded ? '' : mealId)} aria-expanded={expanded}>
                 <span className={`student-diet-meal-icon-v1 student-diet-meal-icon-${getStudentDietMealIcon(meal, index)} ${done ? 'is-complete' : ''}`}><NavIcon name={done ? 'check' : getStudentDietMealIcon(meal, index)} className="h-5 w-5" /></span>
                 <span className="student-diet-meal-copy-v1"><small>{meal.time || `Refeição ${index + 1}`}</small><strong>{meal.name || `Refeição ${index + 1}`}</strong><em>{getNutritionMealDisplayItems(meal).slice(0, 2).map((item) => item.name).join(' · ')}</em></span>
                 <span className={`student-diet-meal-meta-v1 nutrition-plan-summary-meta-v3 ${expanded ? 'is-open' : ''}`}>{expanded ? 'FECHAR' : done ? 'CONCLUÍDA' : 'ABRIR'} <NavIcon name={expanded ? 'chevronUp' : 'chevronRight'} className="h-4 w-4" /></span>
-              </button>
+              </button><button type="button" className={`student-diet-favorite-meal-v1 ${favoriteMeals.meals.includes(mealId) ? 'is-favorite' : ''}`} onClick={() => toggleFavoriteMeal(meal)} aria-pressed={favoriteMeals.meals.includes(mealId)} aria-label={favoriteMeals.meals.includes(mealId) ? `Remover ${meal.name || 'refeição'} dos favoritos` : `Favoritar ${meal.name || 'refeição'}`}><NavIcon name="star" className="h-4 w-4" /></button></div>
               <div className={`student-diet-meal-detail-v1 ${expanded ? 'is-open' : ''}`} aria-hidden={!expanded}>
                   {macros.length ? <div className="student-diet-macros-v1">{macros.map((macro) => <span key={macro.label}><strong>{macro.value}</strong><small>{macro.label === 'P' ? 'proteínas' : macro.label === 'C' ? 'carboidratos' : 'gorduras'}</small></span>)}</div> : null}
                   <div className="student-diet-foods-v1">

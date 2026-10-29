@@ -21609,3 +21609,16 @@ html[data-theme="dark"] body { background: #05070d; }
 .app-theme-light .nutrition-draft-quality-v1 > div:first-child > p:last-child, .app-theme-light .nutrition-draft-quality-v1 > p:last-child { color: #647872; }
 .app-theme-light .nutrition-draft-quality-check { background: rgba(255,255,255,.78); }
 @media (max-width: 640px) { .nutrition-draft-quality-grid { grid-template-columns: 1fr; } .nutrition-draft-quality-check { min-height: 3.1rem; } }
+
+/* student-diet-favorites-v1 */
+.student-diet-plan-row-v1 { align-items: center; }
+.student-diet-favorite-day-v1, .student-diet-favorite-meal-v1 { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; border: 1px solid color-mix(in srgb, var(--diet-brand, #00d2b2) 24%, transparent); background: color-mix(in srgb, var(--diet-brand, #00d2b2) 7%, transparent); color: var(--diet-muted, #94a3b8); cursor: pointer; transition: border-color .2s ease, background .2s ease, color .2s ease, transform .2s ease; }
+.student-diet-favorite-day-v1 { flex: 0 0 auto; border-radius: .75rem; padding: .48rem .65rem; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.student-diet-favorite-meal-v1 { width: 2.35rem; height: 2.35rem; flex: 0 0 auto; border-radius: .7rem; }
+.student-diet-favorite-day-v1:hover, .student-diet-favorite-meal-v1:hover { border-color: color-mix(in srgb, var(--diet-brand, #00d2b2) 52%, transparent); color: color-mix(in srgb, var(--diet-brand, #00d2b2) 72%, white); transform: translateY(-1px); }
+.student-diet-favorite-day-v1.is-favorite, .student-diet-favorite-meal-v1.is-favorite { border-color: rgba(232,190,80,.55); background: rgba(232,190,80,.14); color: #f8d66d; }
+.student-diet-meal-head-v1 { display: flex; min-width: 0; align-items: stretch; gap: .45rem; }
+.student-diet-meal-head-v1 .student-diet-meal-trigger-v1 { flex: 1 1 auto; min-width: 0; }
+.student-mobile-shell.app-theme-light .student-diet-favorite-day-v1, .student-mobile-shell.app-theme-light .student-diet-favorite-meal-v1 { border-color: rgba(0,143,122,.2); background: rgba(0,143,122,.06); color: #66817A; }
+.student-mobile-shell.app-theme-light .student-diet-favorite-day-v1.is-favorite, .student-mobile-shell.app-theme-light .student-diet-favorite-meal-v1.is-favorite { border-color: rgba(190,142,0,.46); background: rgba(232,190,80,.16); color: #9a6a00; }
+@media (max-width: 560px) { .student-diet-plan-row-v1 { align-items: flex-start; gap: .55rem; } .student-diet-favorite-day-v1 { padding-inline: .52rem; } .student-diet-favorite-day-v1 span { display: none; } }
