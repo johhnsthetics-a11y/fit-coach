@@ -21395,3 +21395,14 @@ html[data-theme="dark"] body { background: #05070d; }
   .student-diet-week-strip-v1 > span small { font-size: .5rem; letter-spacing: .04em; }
   .student-diet-week-strip-v1 > span strong { font-size: .9rem; }
 }
+
+/* student-diet-sapphire-light-v8 */
+.student-mobile-shell.app-theme-light .student-diet-experience-v1 { background: radial-gradient(circle at 8% 0%, rgba(0,143,122,.08), transparent 31%), radial-gradient(circle at 96% 18%, rgba(37,99,235,.07), transparent 28%), linear-gradient(155deg, #F6FAFC, #EDF5FA); border-color: rgba(37,99,235,.16); }
+.student-mobile-shell.app-theme-light .student-diet-header-v1 { background: radial-gradient(circle at 0 0, rgba(0,143,122,.12), transparent 42%), linear-gradient(145deg, #FFFFFF, #F4FAFC); border-color: rgba(37,99,235,.18); }
+.student-mobile-shell.app-theme-light .student-diet-meal-v1, .student-mobile-shell.app-theme-light .student-diet-progress-v1 { border-color: #D4E2EC; }
+.student-mobile-shell.app-theme-light .student-diet-meal-v1 { background: linear-gradient(145deg, #FFFFFF, #F8FBFE); }
+.student-mobile-shell.app-theme-light .student-diet-metrics-v1 > div { border-color: rgba(37,99,235,.14); background: linear-gradient(145deg, #FFFFFF, #EDF8F7); }
+.student-mobile-shell.app-theme-light .student-diet-water-v1 { border-color: rgba(37,99,235,.18); background: linear-gradient(145deg, #EDF5FA, #FFFFFF); }
+.student-mobile-shell.app-theme-light .student-diet-note-v1 { border-color: rgba(201,153,36,.3); background: linear-gradient(145deg, #FFF9E8, #FFFFFF); }
+.student-mobile-shell.app-theme-light .student-diet-pdf-v1 { border-color: rgba(37,99,235,.28); background: linear-gradient(110deg, rgba(0,143,122,.12), rgba(37,99,235,.1)); color: #006F63; }
+.student-mobile-shell.app-theme-light .student-diet-status-v1, .student-mobile-shell.app-theme-light .student-diet-plan-row-v1 > span { border-color: rgba(37,99,235,.18); background: rgba(0,143,122,.07); color: #006F63; }

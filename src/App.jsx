@@ -15672,6 +15672,7 @@ function escapeNutritionPdfHtml(value = '') {
 function openNutritionPlanPdf(plan, student = {}, professional = {}) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const today = formatDate(new Date().toISOString())
+  const weekDays = getStudentDietWeekDays()
   const nutritionist = isNutritionistUser(professional)
   const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
@@ -15690,33 +15691,42 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
     `).join('')
     : '<p class="empty">Nenhuma refeição adicionada a esta dieta.</p>'
   const notes = stripNutritionPlanMetadata(plan?.notes || '')
+  const weekStrip = weekDays.map((day) => `<span class="${day.active ? 'active' : ''}"><small>${day.label}</small><strong>${day.number}</strong></span>`).join('')
   const documentHtml = `<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <title>${escapeNutritionPdfHtml(plan?.title || 'Plano alimentar')}</title>
   <style>
-    @page { margin: 18mm; }
+    @page { margin: 14mm; size: A4; }
     * { box-sizing: border-box; }
-    body { margin: 0; color: #10201d; font-family: Inter, Arial, sans-serif; background: #ffffff; }
+    body { margin: 0; color: #101820; font-family: Inter, Arial, sans-serif; background: #f6fafc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page { max-width: 860px; margin: 0 auto; }
-    header { border-bottom: 2px solid #00a88f; padding-bottom: 18px; }
-    .eyebrow { color: #007d6c; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
-    h1 { margin: 8px 0 8px; font-size: 30px; line-height: 1.1; }
+    header { border: 1px solid #bfe8df; border-radius: 20px; padding: 20px; background: linear-gradient(135deg, #008f7a, #2563eb); color: #ffffff; box-shadow: 0 16px 32px rgba(0, 91, 120, .12); }
+    .eyebrow { color: #d9fffa; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0 8px; color: #ffffff; font-size: 30px; line-height: 1.1; }
+    header > p { margin: 0; color: rgba(255,255,255,.82); font-size: 12px; line-height: 1.6; }
     .meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
-    .card { border: 1px solid #c9efea; border-radius: 14px; padding: 12px; background: #f5fffc; }
-    .card small { display: block; color: #5a6b66; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-    .card strong { display: block; margin-top: 5px; font-size: 15px; }
-    .meal { break-inside: avoid; margin-top: 12px; border: 1px solid #d9e7e4; border-radius: 16px; padding: 14px; }
+    .card { border: 1px solid rgba(255,255,255,.24); border-radius: 14px; padding: 12px; background: rgba(255,255,255,.13); }
+    .card small { display: block; color: rgba(255,255,255,.78); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .card strong { display: block; margin-top: 5px; color: #ffffff; font-size: 15px; }
+    .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 16px 0 4px; }
+    .week span { display: grid; place-items: center; gap: 3px; padding: 7px 3px; border: 1px solid #d4e2ec; border-radius: 10px; background: #ffffff; color: #425466; }
+    .week small { font-size: 8px; font-weight: 900; letter-spacing: .05em; }
+    .week strong { font-size: 14px; color: #101820; }
+    .week .active { border-color: #008f7a; background: linear-gradient(145deg, #008f7a, #2563eb); color: #ffffff; }
+    .week .active strong, .week .active small { color: #ffffff; }
+    .meal { break-inside: avoid; margin-top: 12px; border: 1px solid #d4e2ec; border-radius: 16px; padding: 14px; background: #ffffff; box-shadow: 0 8px 20px rgba(16,24,32,.05); }
     .meal-head { display: flex; gap: 12px; align-items: flex-start; }
-    .meal-head span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #00d2b2; color: #06231f; font-weight: 900; }
+    .meal-head span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: linear-gradient(145deg, #008f7a, #2563eb); color: #ffffff; font-weight: 900; }
     .meal strong { display: block; font-size: 17px; }
-    .meal small { display: block; margin-top: 4px; color: #007d6c; font-weight: 800; }
+    .meal small { display: block; margin-top: 4px; color: #008f7a; font-weight: 800; }
     .meal p, .notes p { color: #344540; font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
-    .notes { break-inside: avoid; margin-top: 14px; border: 1px solid #c9efea; border-radius: 16px; background: #f7fbfa; padding: 14px; }
-    .empty { border: 1px dashed #b5d9d4; border-radius: 14px; color: #63716d; padding: 14px; }
+    .notes { break-inside: avoid; margin-top: 14px; border: 1px solid #d9c77e; border-radius: 16px; background: #fff9e8; padding: 14px; }
+    .empty { border: 1px dashed #b8d2e1; border-radius: 14px; color: #63716d; padding: 14px; }
     footer { margin-top: 24px; color: #63716d; font-size: 11px; }
-    @media print { button { display: none; } }
+    @media (max-width: 680px) { .meta { grid-template-columns: 1fr; } .week { gap: 3px; } .week span { padding-inline: 1px; } }
+    @media print { button { display: none; } .meal, .notes { box-shadow: none; } }
   </style>
 </head>
 <body>
@@ -15731,6 +15741,7 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
         <div class="card"><small>Refeições</small><strong>${meals.length || '-'}</strong></div>
       </div>
     </header>
+    <div class="week" aria-label="Semana atual">${weekStrip}</div>
     ${rows}
     ${notes ? `<section class="notes"><div class="eyebrow">Orientações</div><p>${escapeNutritionPdfHtml(notes)}</p></section>` : ''}
     <footer>Documento gerado pelo Coach Fit Pro. Revise as orientações individualmente antes de enviar ao ${clientLabel}.</footer>
@@ -15769,7 +15780,7 @@ function NutritionStudentDietPreview({ plan, student, professional = {}, theme =
         </div>
 
         {canDownloadPdf ? (
-          <button type="button" onClick={() => openNutritionPlanPdf(plan, student, professional)} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
+          <button type="button" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
             <NavIcon name="download" className="h-4 w-4" />
             Baixar PDF da dieta
           </button>
@@ -16336,7 +16347,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
       </div>
 
       {stripNutritionPlanMetadata(plan?.notes) ? <aside className="student-diet-note-v1"><NavIcon name="sparkles" className="h-5 w-5" /><div><span>ORIENTAÇÃO DO SEU PROFISSIONAL</span><p>{stripNutritionPlanMetadata(plan.notes)}</p><small>{professional?.publicName || 'Equipe Coach Fit'}</small></div></aside> : null}
-      <button type="button" className="student-diet-pdf-v1" onClick={() => openNutritionPlanPdf(plan, student, professional)}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button>
+      <button type="button" className="student-diet-pdf-v1" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button>
     </section>
   )
 }
