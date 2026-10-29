@@ -21172,3 +21172,23 @@ html[data-theme="dark"] body { background: #05070d; }
   .student-diet-water-v1 { gap: .55rem; padding: .75rem; }
   .student-diet-water-copy-v1 > div:first-child { align-items: flex-start; flex-direction: column; gap: .1rem; }
 }
+
+.student-diet-topbar-v1 { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .15rem .1rem .1rem; }
+.student-diet-topbar-v1 > div { display: grid; gap: .15rem; }
+.student-diet-topbar-v1 span:first-child { color: #8fa6a0; font-size: .78rem; font-weight: 800; }
+.student-diet-topbar-v1 strong { color: #f8fffd; font-size: 1.65rem; font-weight: 950; letter-spacing: -.045em; }
+.student-diet-avatar-v1 { display: grid; width: 2.75rem; height: 2.75rem; place-items: center; border: 2px solid rgba(0,210,178,.3); border-radius: 50%; background: linear-gradient(145deg, #0c7568, #12332f); color: #dffff7; font-size: .9rem; font-weight: 950; }
+.student-diet-plan-row-v1 { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: .15rem .1rem 0; }
+.student-diet-plan-row-v1 > div { display: grid; gap: .2rem; }
+.student-diet-plan-row-v1 > div > span { color: #63f6df; font-size: .68rem; font-weight: 950; letter-spacing: .12em; }
+.student-diet-plan-row-v1 > div > strong { color: #f8fffd; font-size: 1.05rem; font-weight: 950; text-transform: capitalize; }
+.student-diet-plan-row-v1 > span { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid rgba(0,210,178,.22); border-radius: .8rem; background: rgba(0,210,178,.08); padding: .5rem .65rem; color: #73ffe8; font-size: .76rem; font-weight: 900; white-space: nowrap; }
+.student-mobile-shell.app-theme-light .student-diet-topbar-v1 span:first-child { color: #64736e; }
+.student-mobile-shell.app-theme-light .student-diet-topbar-v1 strong, .student-mobile-shell.app-theme-light .student-diet-plan-row-v1 > div > strong { color: #13201d; }
+.student-mobile-shell.app-theme-light .student-diet-avatar-v1 { border-color: rgba(0,156,134,.24); background: linear-gradient(145deg, #d9f8f0, #ffffff); color: #007d6c; }
+.student-mobile-shell.app-theme-light .student-diet-plan-row-v1 > div > span { color: #007d6c; }
+.student-mobile-shell.app-theme-light .student-diet-plan-row-v1 > span { border-color: rgba(0,156,134,.18); background: rgba(0,156,134,.07); color: #007d6c; }
+@media (max-width: 420px) {
+  .student-diet-topbar-v1 strong { font-size: 1.45rem; }
+  .student-diet-plan-row-v1 > div > strong { font-size: .96rem; }
+}

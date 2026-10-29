@@ -16233,17 +16233,26 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
   const waterLiters = (safeWater / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+  const greeting = new Date().getHours() < 12 ? 'Bom dia' : new Date().getHours() < 18 ? 'Boa tarde' : 'Boa noite'
+  const todayLabel = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+  const initials = getInitials(student?.name || 'Aluno')
 
   return (
     <section className="student-diet-experience-v1 nutrition-student-plan-list-v2" aria-label="Minha dieta">
+      <div className="student-diet-topbar-v1">
+        <div><span>{greeting}, {getFirstName(student?.name) || 'aluno'}</span><strong>Sua dieta</strong></div>
+        <span className="student-diet-avatar-v1" aria-label={`Perfil de ${student?.name || 'aluno'}`}>{initials}</span>
+      </div>
       <header className="student-diet-header-v1 nutrition-plan-summary-main-v3">
         <div>
           {showHeading ? <span className="student-diet-eyebrow">PLANO ALIMENTAR</span> : null}
-          <h3 className="nutrition-plan-summary-title-v3">{plan?.title || 'Sua dieta'}</h3>
+          <h3 className="nutrition-plan-summary-title-v3">{plan?.title || 'Plano alimentar'}</h3>
           <p>{student?.name ? `Plano personalizado para ${student.name}` : 'Seu plano alimentar personalizado'}</p>
         </div>
         <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
       </header>
+
+      <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{new Date().toLocaleDateString('pt-BR', { weekday: 'long' })}</strong></div><span><NavIcon name="calendar" className="h-4 w-4" />{todayLabel}</span></div>
 
       <div className="student-diet-progress-v1" aria-label={`Progresso da dieta: ${progress}%`}>
         <div><strong>Ritmo de hoje</strong><span>{progress}% concluído</span></div>
