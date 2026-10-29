@@ -21662,3 +21662,14 @@ html[data-theme="dark"] body { background: #05070d; }
   .student-diet-meal-head-v1 .student-diet-favorite-meal-v1 { width: 2.15rem; height: 2.15rem; margin: .45rem .45rem .45rem 0; }
   .student-diet-meal-head-v1 .student-diet-meal-meta-v1 { max-width: 4.8rem; font-size: .58rem; }
 }
+
+/* app-fullscreen-layout-v1 */
+.app-shell:not(.sales-page) { width: 100%; max-width: none; min-height: 100dvh; margin-inline: 0; }
+.app-shell:not(.sales-page) > main, .app-shell:not(.sales-page) > div { max-width: none; }
+.student-mobile-shell .student-app-layout { width: 100%; max-width: none; margin-inline: 0; }
+.student-mobile-shell main { width: 100%; max-width: none; }
+.coach-auth-shell .coach-auth-main { width: 100%; max-width: none; }
+@media (max-width: 767px) {
+  .app-shell:not(.sales-page) { min-height: 100svh; }
+  .student-mobile-shell .student-app-layout { padding-inline: clamp(.75rem, 4vw, 1.25rem); }
+}
