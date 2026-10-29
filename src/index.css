@@ -21768,6 +21768,55 @@ html[data-theme="dark"] body { background: #05070d; }
   box-shadow: none !important;
 }
 
+/* student-light-brand-consistency-v2 */
+.student-mobile-shell.app-theme-light:has(.student-diet-experience-v1) {
+  background-color: #e8f4f0 !important;
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(0, 143, 122, .16), transparent 32%),
+    radial-gradient(circle at 96% 17%, rgba(37, 99, 235, .055), transparent 28%),
+    linear-gradient(180deg, #f4fbf8 0%, #e8f4f0 56%, #e1efeb 100%) !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-topbar-v1 span:first-child,
+.student-mobile-shell.app-theme-light .student-diet-plan-row-v1 > div > span,
+.student-mobile-shell.app-theme-light .student-diet-section-heading-v1 > div > span {
+  color: #087565 !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-topbar-v1 strong,
+.student-mobile-shell.app-theme-light .student-diet-header-v1 h3,
+.student-mobile-shell.app-theme-light .student-diet-section-heading-v1 h4,
+.student-mobile-shell.app-theme-light .student-diet-meal-copy-v1 strong,
+.student-mobile-shell.app-theme-light .student-diet-metrics-v1 strong {
+  color: #17352f !important;
+  -webkit-text-fill-color: #17352f !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-progress-v1 {
+  border: 1px solid rgba(0, 126, 108, .34) !important;
+  background: linear-gradient(135deg, #00b99f 0%, #008f7a 55%, #087565 100%) !important;
+  box-shadow: 0 18px 38px rgba(0, 126, 108, .2), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-progress-v1 > div:first-child,
+.student-mobile-shell.app-theme-light .student-diet-progress-v1 > div:first-child strong,
+.student-mobile-shell.app-theme-light .student-diet-progress-v1 > div:first-child span,
+.student-mobile-shell.app-theme-light .student-diet-progress-v1 small { color: #ffffff !important; }
+.student-mobile-shell.app-theme-light .student-diet-progress-track-v1 { background: rgba(2, 65, 56, .28) !important; }
+.student-mobile-shell.app-theme-light .student-diet-progress-track-v1 span { background: #f4c95d !important; box-shadow: 0 0 14px rgba(244, 201, 93, .55); }
+.student-mobile-shell.app-theme-light .student-diet-week-strip-v1 > span,
+.student-mobile-shell.app-theme-light .student-diet-metrics-v1 > div {
+  border-color: rgba(0, 143, 122, .2) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.7), rgba(230,246,241,.86)) !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-week-strip-v1 > span.is-active {
+  border-color: #008f7a !important;
+  background: linear-gradient(145deg, #008f7a, #00b99f) !important;
+  box-shadow: 0 12px 24px rgba(0, 143, 122, .22) !important;
+}
+.student-mobile-shell.app-theme-light .student-diet-meal-v1,
+.student-mobile-shell.app-theme-light .student-diet-water-v1,
+.student-mobile-shell.app-theme-light .student-diet-note-v1 {
+  border-color: rgba(0, 143, 122, .2) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(231,246,241,.9)) !important;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .app-shell:not(.sales-page) button,
   .app-shell:not(.sales-page) a,
