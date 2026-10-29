@@ -21643,3 +21643,22 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-progress-chart-card-v1 { background: #080d0c; border-color: rgba(0,210,178,.18); }
 .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel { background: #050807 !important; border-color: rgba(0,210,178,.24) !important; }
 .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel article, .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel .rounded-2xl { background: #080d0c !important; border-color: rgba(0,210,178,.16) !important; }
+
+/* student-diet-favorites-layout-v2 */
+.student-diet-meal-head-v1 { width: 100%; max-width: 100%; overflow: hidden; }
+.student-diet-meal-head-v1 .student-diet-meal-trigger-v1 { display: flex; width: 0; max-width: 100%; align-items: center; gap: .7rem; overflow: hidden; }
+.student-diet-meal-head-v1 .student-diet-meal-copy-v1 { overflow: hidden; }
+.student-diet-meal-head-v1 .student-diet-meal-meta-v1 { max-width: 5.8rem; overflow: hidden; white-space: nowrap; }
+.student-diet-meal-head-v1 .student-diet-favorite-meal-v1 { margin: .55rem .55rem .55rem 0; }
+.student-diet-section-heading-v1 { align-items: center; }
+.student-diet-section-heading-actions-v1 { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: .55rem; }
+.student-diet-section-heading-actions-v1 > strong { flex: 0 0 auto; }
+.student-diet-section-heading-actions-v1 .student-diet-favorite-day-v1 { padding: .42rem .6rem; }
+@media (max-width: 560px) {
+  .student-diet-section-heading-actions-v1 { gap: .35rem; }
+  .student-diet-section-heading-actions-v1 .student-diet-favorite-day-v1 { width: 2.35rem; height: 2.35rem; padding: 0; }
+  .student-diet-section-heading-actions-v1 .student-diet-favorite-day-v1 span { display: none; }
+  .student-diet-meal-head-v1 .student-diet-meal-trigger-v1 { gap: .5rem; padding: .72rem .65rem; }
+  .student-diet-meal-head-v1 .student-diet-favorite-meal-v1 { width: 2.15rem; height: 2.15rem; margin: .45rem .45rem .45rem 0; }
+  .student-diet-meal-head-v1 .student-diet-meal-meta-v1 { max-width: 4.8rem; font-size: .58rem; }
+}

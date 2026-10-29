@@ -16335,7 +16335,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
       </header>
 
-      <div className="student-diet-plan-row-v1"><div><span><NavIcon name="calendar" className="h-3.5 w-3.5" /> {selectedDay.dateLabel} · PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><button type="button" className={`student-diet-favorite-day-v1 ${isFavoriteDay ? 'is-favorite' : ''}`} onClick={toggleFavoriteDay} aria-pressed={isFavoriteDay} aria-label={isFavoriteDay ? 'Remover dia dos favoritos' : 'Favoritar dia inteiro'}><NavIcon name="star" className="h-4 w-4" /><span>{isFavoriteDay ? 'Dia salvo' : 'Salvar dia'}</span></button></div>
+      <div className="student-diet-plan-row-v1"><div><span><NavIcon name="calendar" className="h-3.5 w-3.5" /> {selectedDay.dateLabel} · PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div></div>
 
       <div className="student-diet-week-strip-v1" aria-label="Semana atual">
         {weekDays.map((day, dayIndex) => <span key={`${day.label}-${day.number}`} role="button" tabIndex={0} className={dayIndex === selectedWeekDayIndex ? 'is-active' : ''} onClick={() => setSelectedWeekDayIndex(dayIndex)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedWeekDayIndex(dayIndex) }} aria-pressed={dayIndex === selectedWeekDayIndex}><small>{day.label}</small><strong>{day.number}</strong></span>)}
@@ -16356,7 +16356,10 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
 
       <div className="student-diet-section-heading-v1">
         <div><span>SEU DIA</span><h4>Refeições programadas</h4></div>
-        {plan?.calories ? <strong>{plan.calories}</strong> : null}
+        <div className="student-diet-section-heading-actions-v1">
+          {plan?.calories ? <strong>{plan.calories}</strong> : null}
+          <button type="button" className={`student-diet-favorite-day-v1 ${isFavoriteDay ? 'is-favorite' : ''}`} onClick={toggleFavoriteDay} aria-pressed={isFavoriteDay} aria-label={isFavoriteDay ? 'Remover dia dos favoritos' : 'Favoritar dia inteiro'}><NavIcon name="star" className="h-4 w-4" /><span>{isFavoriteDay ? 'Dia salvo' : 'Salvar dia'}</span></button>
+        </div>
       </div>
 
       <div className="student-diet-meals-v1">
