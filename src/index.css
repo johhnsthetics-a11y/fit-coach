@@ -21312,7 +21312,7 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-light .student-diet-note-v1 { background: linear-gradient(145deg, color-mix(in srgb, var(--app-light-brand, #00d2b2) 7%, transparent), #fffaf0); }
 
 /* student-diet-responsive-brand-v5 */
-.student-diet-experience-v1 { width: 100%; max-width: 52rem; margin-inline: auto; }
+.student-diet-experience-v1 { width: 100%; max-width: none; margin-inline: 0; }
 .student-diet-topbar-v1 strong { background: linear-gradient(110deg, var(--diet-title, #f8fafc) 15%, color-mix(in srgb, var(--diet-brand, #00d2b2) 74%, white) 90%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .student-diet-avatar-v1 { border-color: color-mix(in srgb, var(--diet-brand, #00d2b2) 52%, transparent); background: linear-gradient(145deg, color-mix(in srgb, var(--diet-brand, #00d2b2) 50%, #09251f), color-mix(in srgb, var(--diet-accent, #047c6d) 70%, #061014)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--diet-brand, #00d2b2) 8%, transparent), 0 10px 24px color-mix(in srgb, var(--diet-brand, #00d2b2) 14%, transparent); }
 .student-diet-status-v1 { background: linear-gradient(135deg, color-mix(in srgb, var(--diet-brand, #00d2b2) 18%, transparent), color-mix(in srgb, var(--diet-accent, #047c6d) 12%, transparent)); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }

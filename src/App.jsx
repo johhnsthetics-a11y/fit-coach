@@ -4620,7 +4620,7 @@ function AppContent() {
       </aside>
 
         <main className="coach-auth-main min-w-0 max-w-full overflow-x-hidden px-3 py-4 sm:px-5 sm:py-6 lg:ml-[292px] lg:w-[calc(100%-292px)] lg:px-5 xl:ml-[304px] xl:w-[calc(100%-304px)] xl:px-7">
-          <div className="mx-auto min-w-0 max-w-[1440px]">
+          <div className="min-w-0 w-full">
           {activeView !== 'mensagens' ? (
             <div className="sticky top-2 z-30">
               <WelcomeHeader
@@ -19152,7 +19152,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         </div>
       ) : null}
 
-      <div className="student-app-layout mx-auto grid min-w-0 max-w-6xl gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
+      <div className="student-app-layout grid min-w-0 w-full gap-4 px-3 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[260px_1fr] lg:gap-6 lg:pb-10">
         <aside className="student-desktop-sidebar lg:sticky lg:top-5 lg:self-start">
           <div className="student-sidebar-surface rounded-md border border-white/10 bg-zinc-950/82 p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
             <BrandLockup subtitle={`por ${coachSettings?.brandName || coachSettings?.publicName || (patientMode ? 'sua nutricionista' : 'seu treinador')}`} />
