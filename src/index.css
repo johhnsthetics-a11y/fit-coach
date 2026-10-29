@@ -21573,3 +21573,11 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-diet-meal-trigger-v1 { z-index: 1; }
 @media (max-width: 560px) { .student-diet-progress-v1 { min-height: 6.8rem; } .student-diet-metrics-v1 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 380px) { .student-diet-metrics-v1 { gap: .35rem; } .student-diet-metrics-v1 > div { padding-inline: .42rem; } }
+
+/* student-diet-header-cleanup-v15 */
+.student-diet-plan-row-v1 { align-items: flex-start; justify-content: flex-start; }
+.student-diet-plan-row-v1 > div { min-width: 0; width: 100%; }
+.student-diet-plan-row-v1 > div > span { display: inline-flex; align-items: center; gap: .25rem; white-space: nowrap; }
+.student-diet-plan-row-v1 > div > span svg { flex: 0 0 auto; }
+.student-app-section:has(.student-diet-experience-v1) { padding-top: 1rem; }
+@media (max-width: 560px) { .student-diet-plan-row-v1 > div > span { font-size: .62rem; } .student-diet-plan-row-v1 > div > strong { font-size: 1rem; } }

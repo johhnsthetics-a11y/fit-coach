@@ -16286,7 +16286,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <span className="student-diet-status-v1">{progress === 100 ? 'Dia concluído' : `${completedCount}/${meals.length} refeições`}</span>
       </header>
 
-      <div className="student-diet-plan-row-v1"><div><span>PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div><span><NavIcon name="calendar" className="h-4 w-4" />{selectedDay.dateLabel}</span></div>
+      <div className="student-diet-plan-row-v1"><div><span><NavIcon name="calendar" className="h-3.5 w-3.5" /> {selectedDay.dateLabel} · PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div></div>
 
       <div className="student-diet-week-strip-v1" aria-label="Semana atual">
         {weekDays.map((day, dayIndex) => <span key={`${day.label}-${day.number}`} role="button" tabIndex={0} className={dayIndex === selectedWeekDayIndex ? 'is-active' : ''} onClick={() => setSelectedWeekDayIndex(dayIndex)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedWeekDayIndex(dayIndex) }} aria-pressed={dayIndex === selectedWeekDayIndex}><small>{day.label}</small><strong>{day.number}</strong></span>)}
@@ -18934,13 +18934,8 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
 
     if (activeTab === 'dieta') {
       return (
-        <StudentAppSection title="Minha dieta" action={studentNutritionPlans.length > 1 ? `${studentNutritionPlans.length} planos` : 'Plano atual'}>
+        <StudentAppSection hideHeader title="Minha dieta" action={studentNutritionPlans.length > 1 ? `${studentNutritionPlans.length} planos` : 'Plano atual'}>
           {questionnaireError ? <p role="alert" className="mb-4 rounded-md border border-amber-400/40 p-3 text-sm">{questionnaireError}</p> : null}
-          <StudentReminderCard
-            title="Lembrete de refeição"
-            body={`${student.name}, confira sua refeição no Coach Fit Pro para manter os macros do dia.`}
-            action="Ativar lembrete"
-          />
           <StudentQuestionnaireCenter
             student={student}
             questionnaires={nutritionQuestionnaires}
@@ -19206,13 +19201,13 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               {avatarError ? <p role="alert" className="mt-3 text-xs font-bold text-rose-200">{avatarError}</p> : null}
               </div>
             </section>
-            <section className="mb-4 overflow-hidden rounded-md border border-white/10 bg-zinc-950/65 shadow-lg shadow-black/15">
+            {activeTab !== 'dieta' ? <section className="mb-4 overflow-hidden rounded-md border border-white/10 bg-zinc-950/65 shadow-lg shadow-black/15">
               <div className="p-4 sm:p-5">
                 <p className="text-xs font-black uppercase text-emerald-300">Coach Fit Pro</p>
                 <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{activeTitle}</h1>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">{student.goal || 'Siga o plano do dia e registre seus retornos.'}</p>
               </div>
-            </section>
+            </section> : null}
           </>}
           {renderActiveContent()}
         </main>
@@ -19776,13 +19771,13 @@ function toLocalDateKey(value) {
   return date.toLocaleDateString('sv-SE')
 }
 
-function StudentAppSection({ id, title, action, children }) {
+function StudentAppSection({ id, title, action, hideHeader = false, children }) {
   return (
     <section id={id ? `student-${id}` : undefined} className="student-app-section scroll-mt-24 rounded-md border border-white/10 bg-zinc-900/72 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
+      {!hideHeader ? <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="text-lg font-black">{title}</h2>
         <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-right text-xs font-bold text-zinc-300">{formatUiText(action)}</span>
-      </div>
+      </div> : null}
       {children}
     </section>
   )
