@@ -16236,7 +16236,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
 
   const completedCount = meals.filter((meal) => completedMealIds.includes(String(meal.id || meal.name))).length
   const progress = meals.length ? Math.round((completedCount / meals.length) * 100) : 0
-  const selectedMeal = meals.find((meal) => String(meal.id || meal.name) === String(selectedMealId)) || meals[0]
+  const selectedMeal = selectedMealId ? meals.find((meal) => String(meal.id || meal.name) === String(selectedMealId)) || null : null
   const safeWaterGoal = Math.max(500, Number(waterGoalMl || 2500))
   const safeWater = Math.max(0, Math.min(Number(waterMl || 0), safeWaterGoal))
   const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
