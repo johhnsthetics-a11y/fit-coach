@@ -824,6 +824,26 @@ test('treino mobile premium mantém série ativa compacta e descanso arrastável
   assert.match(cssSource, /safe-area-inset-bottom/)
 })
 
+test('treino mobile definitivo usa estrutura compacta e descanso livre em portal', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+
+  assert.match(appSource, /mobile-workout-command-v12/)
+  assert.match(appSource, /mobile-workout-focus-v12/)
+  assert.match(appSource, /mobile-workout-rest-portal-v12/)
+  assert.match(appSource, /createPortal\(restWidget, document\.body\)/)
+  assert.match(appSource, /mobile-workout-set-fields-v12/)
+  assert.match(appSource, /viewport\?\.addEventListener\('scroll', constrainPosition\)/)
+  assert.match(appSource, /viewport\?\.removeEventListener\('scroll', constrainPosition\)/)
+  assert.doesNotMatch(appSource, /const viewportCenter = bounds\.offsetLeft/)
+  assert.doesNotMatch(appSource, /const targetX = center < viewportCenter/)
+  assert.match(cssSource, /workout-mobile-definitive-v12/)
+  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\s*\{[\s\S]*position:\s*fixed[\s\S]*pointer-events:\s*none/)
+  assert.match(cssSource, /\.mobile-workout-rest-portal-v12 \.mobile-workout-rest-floating-v6\s*\{[\s\S]*pointer-events:\s*auto/)
+  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\.app-theme-light \.mobile-workout-rest-floating-copy-v6 > strong\s*\{[\s\S]*color:\s*#14211f/)
+  assert.match(cssSource, /@media \(max-width:\s*767px\)[\s\S]*\.mobile-workout-command-v12/)
+})
+
 test('tema claro do treino usa superfícies neutras e teal do branding sem excesso de verde', async () => {
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 

@@ -13759,30 +13759,36 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }, [restPaused, restRemaining > 0])
 
   useEffect(() => {
-    if (!restRemaining || !restWidgetPosition) return undefined
+    if (!restRemaining) return undefined
     const viewport = window.visualViewport
     const constrainPosition = () => {
       const node = restWidgetRef.current
       if (!node) return
       const rect = node.getBoundingClientRect()
-      setRestWidgetPosition((current) => current ? clampWorkoutRestWidgetPosition(current, {
+      const bounds = {
         viewportWidth: viewport?.width || window.innerWidth,
         viewportHeight: viewport?.height || window.innerHeight,
         offsetLeft: viewport?.offsetLeft || 0,
         offsetTop: viewport?.offsetTop || 0,
         widgetWidth: rect.width,
         widgetHeight: rect.height,
-      }) : current)
+      }
+      setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition(current || {
+        x: bounds.offsetLeft + bounds.viewportWidth - bounds.widgetWidth - 12,
+        y: bounds.offsetTop + bounds.viewportHeight - bounds.widgetHeight - 104,
+      }, bounds))
     }
     const frame = window.requestAnimationFrame(constrainPosition)
     window.addEventListener('resize', constrainPosition)
     viewport?.addEventListener('resize', constrainPosition)
+    viewport?.addEventListener('scroll', constrainPosition)
     return () => {
       window.cancelAnimationFrame(frame)
       window.removeEventListener('resize', constrainPosition)
       viewport?.removeEventListener('resize', constrainPosition)
+      viewport?.removeEventListener('scroll', constrainPosition)
     }
-  }, [restRemaining, restWidgetExpanded, Boolean(restWidgetPosition)])
+  }, [restRemaining > 0, restWidgetExpanded])
 
   useEffect(() => {
     if (!Object.values(cardioLogs).some((log) => log?.status === 'running')) return undefined
@@ -13974,12 +13980,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     const node = restWidgetRef.current
     const bounds = getRestWidgetViewportBounds()
     const rect = node?.getBoundingClientRect()
-    const center = (rect?.left || drag.originX) + (rect?.width || 0) / 2
-    const viewportCenter = bounds.offsetLeft + bounds.viewportWidth / 2
-    const targetX = center < viewportCenter
-      ? bounds.offsetLeft + 8
-      : bounds.offsetLeft + bounds.viewportWidth - (rect?.width || 0) - 8
-    setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition({ x: targetX, y: current?.y ?? rect?.top }, bounds))
+    setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition(current || {
+      x: rect?.left ?? drag.originX,
+      y: rect?.top ?? drag.originY,
+    }, bounds))
     restDragRef.current = null
     event.currentTarget.releasePointerCapture?.(event.pointerId)
   }
@@ -14357,34 +14361,85 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     )
   }
 
-  return (
-    <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
-      {sessionSyncFeedback}
-      <div className="mobile-workout-execution-head-v4">
-        <button type="button" onClick={returnToDaySelection}>← Voltar</button>
-        <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
-        {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button> : null}
-      </div>
-
-      <div className="mobile-workout-exercise-progress-v3">
-        <div className="mobile-workout-exercise-progress-head-v3">
-          <div><span>Progresso do treino</span><strong>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</strong></div>
-          <small>{completedExercises + ' concluídos · ' + remainingExercises + ' restantes'}</small>
-        </div>
-        <div className="mobile-workout-exercise-dots-v3" role="progressbar" aria-label="Progresso dos exercícios" aria-valuemin="0" aria-valuemax={exercises.length} aria-valuenow={completedExercises}>
-          {exerciseStates.map((state, index) => <span key={index} className={(state.status === 'completed' ? 'is-complete ' : '') + (index === safeExerciseIndex ? 'is-current' : '')} />)}
-        </div>
-        <div className="mobile-workout-exercise-switcher-v4" aria-label="Exercícios deste treino">
-          {exercises.map((item, index) => (
-            <button key={item.id || item.name + '-' + index} type="button" className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
-              {index + 1}
+  const restWidget = restRemaining ? (
+    <div className={preview ? 'mobile-workout-rest-preview-v12' : `mobile-workout-rest-portal-v12 app-theme-${uiTheme}`}>
+      <div
+        ref={restWidgetRef}
+        className={`mobile-workout-rest-floating-v6 ${restWidgetExpanded ? 'is-expanded' : 'is-compact'} ${restWidgetPosition ? 'is-positioned' : ''}`}
+        role="timer"
+        aria-live="off"
+        aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}
+        style={restWidgetPosition ? { '--rest-widget-left': `${restWidgetPosition.x}px`, '--rest-widget-top': `${restWidgetPosition.y}px` } : undefined}
+      >
+        <div className="mobile-workout-rest-floating-card-v6">
+          <button
+            type="button"
+            className="mobile-workout-rest-drag-handle-v11"
+            aria-label="Mover timer de descanso"
+            onPointerDown={beginRestWidgetDrag}
+            onPointerMove={moveRestWidget}
+            onPointerUp={endRestWidgetDrag}
+            onPointerCancel={endRestWidgetDrag}
+            onKeyDown={moveRestWidgetByKeyboard}
+          >
+            <span aria-hidden="true">•••</span>
+          </button>
+          {!restWidgetExpanded ? (
+            <button type="button" className="mobile-workout-rest-compact-v11" onClick={() => setRestWidgetExpanded(true)} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
+              <NavIcon name="clock" className="h-4 w-4" />
+              <span>{restPaused ? 'Pausado' : 'Descanso'}</span>
+              <strong>{formatWorkoutTimer(restRemaining)}</strong>
+              <NavIcon name="chevronUp" className="h-4 w-4" />
             </button>
-          ))}
+          ) : <>
+            <div className="mobile-workout-rest-floating-copy-v6">
+              <span>Descanso</span>
+              <strong>{formatWorkoutTimer(restRemaining)}</strong>
+              <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
+            </div>
+            <button type="button" className="mobile-workout-rest-minimize-v11" onClick={() => setRestWidgetExpanded(false)} aria-label="Minimizar timer de descanso">
+              <NavIcon name="chevronDown" className="h-4 w-4" />
+            </button>
+            <div className="mobile-workout-rest-actions-v5">
+              <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Continuar' : 'Pausar'}</button>
+              <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
+              <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
+            </div>
+          </>}
+        </div>
+      </div>
+    </div>
+  ) : null
+
+  return (
+    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      {sessionSyncFeedback}
+      <div className="mobile-workout-command-v12">
+        <div className="mobile-workout-execution-head-v4">
+          <button type="button" onClick={returnToDaySelection}>← Voltar</button>
+          <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
+          {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button> : null}
+        </div>
+        <div className="mobile-workout-exercise-progress-v3">
+          <div className="mobile-workout-exercise-progress-head-v3">
+            <div><span>Progresso do treino</span><strong>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</strong></div>
+            <small>{completedExercises + ' concluídos · ' + remainingExercises + ' restantes'}</small>
+          </div>
+          <div className="mobile-workout-exercise-dots-v3" role="progressbar" aria-label="Progresso dos exercícios" aria-valuemin="0" aria-valuemax={exercises.length} aria-valuenow={completedExercises}>
+            {exerciseStates.map((state, index) => <span key={index} className={(state.status === 'completed' ? 'is-complete ' : '') + (index === safeExerciseIndex ? 'is-current' : '')} />)}
+          </div>
+          <div className="mobile-workout-exercise-switcher-v4" aria-label="Exercícios deste treino">
+            {exercises.map((item, index) => (
+              <button key={item.id || item.name + '-' + index} type="button" className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
+                {index + 1}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {exercise ? (
-        <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2">
+        <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2 mobile-workout-focus-v12">
           <div className="mobile-workout-current-heading-v5">
             <div>
               <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
@@ -14464,11 +14519,11 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                         <small>{'Meta: ' + (setItem.targetReps || 'livre') + ' reps'}</small>
                         {previous ? <em>{'Último: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : <em>Sem histórico anterior</em>}
                       </div>
-                      {isExpanded ? <>
-                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
-                        <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
+                      {isExpanded ? <div className="mobile-workout-set-fields-v12">
+                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" enterKeyHint="next" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
+                        <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
                         <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
-                      </> : (
+                      </div> : (
                         <button type="button" className="mobile-workout-set-open-v11" onClick={() => setExpandedSetKey(setItem.key)}>
                           <span>{setItem.completed ? `${setItem.load || 0} kg × ${setItem.reps || '-'} reps` : 'Próxima etapa'}</span>
                           <strong>{setItem.completed ? 'Revisar' : 'Abrir série'}</strong>
@@ -14501,53 +14556,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         </article>
       ) : null}
 
-      {restRemaining ? (
-        <div
-          ref={restWidgetRef}
-          className={`mobile-workout-rest-floating-v6 ${restWidgetExpanded ? 'is-expanded' : 'is-compact'} ${restWidgetPosition ? 'is-positioned' : ''}`}
-          role="timer"
-          aria-live="off"
-          aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}
-          style={restWidgetPosition ? { '--rest-widget-left': `${restWidgetPosition.x}px`, '--rest-widget-top': `${restWidgetPosition.y}px` } : undefined}
-        >
-          <div className="mobile-workout-rest-floating-card-v6">
-            <button
-              type="button"
-              className="mobile-workout-rest-drag-handle-v11"
-              aria-label="Mover timer de descanso"
-              onPointerDown={beginRestWidgetDrag}
-              onPointerMove={moveRestWidget}
-              onPointerUp={endRestWidgetDrag}
-              onPointerCancel={endRestWidgetDrag}
-              onKeyDown={moveRestWidgetByKeyboard}
-            >
-              <span aria-hidden="true">•••</span>
-            </button>
-            {!restWidgetExpanded ? (
-              <button type="button" className="mobile-workout-rest-compact-v11" onClick={() => setRestWidgetExpanded(true)} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
-                <NavIcon name="clock" className="h-4 w-4" />
-                <span>{restPaused ? 'Pausado' : 'Descanso'}</span>
-                <strong>{formatWorkoutTimer(restRemaining)}</strong>
-                <NavIcon name="chevronUp" className="h-4 w-4" />
-              </button>
-            ) : <>
-              <div className="mobile-workout-rest-floating-copy-v6">
-                <span>Descanso</span>
-                <strong>{formatWorkoutTimer(restRemaining)}</strong>
-                <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
-              </div>
-              <button type="button" className="mobile-workout-rest-minimize-v11" onClick={() => setRestWidgetExpanded(false)} aria-label="Minimizar timer de descanso">
-                <NavIcon name="chevronDown" className="h-4 w-4" />
-              </button>
-              <div className="mobile-workout-rest-actions-v5">
-                <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Continuar' : 'Pausar'}</button>
-                <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-                <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular</button>
-              </div>
-            </>}
-          </div>
-        </div>
-      ) : null}
+      {restWidget ? (preview || typeof document === 'undefined' ? restWidget : createPortal(restWidget, document.body)) : null}
 
       {exercises.length ? (
         <footer id="student-workout-finish" className="mobile-workout-student-finish-v2">
