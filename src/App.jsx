@@ -15018,7 +15018,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
               Monte dietas claras, com macros automáticos e opções de substituição.
             </h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
-              O treinador escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O aluno vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
+              {isNutritionistUser(professional) ? 'A nutricionista' : 'O treinador'} escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O {isNutritionistUser(professional) ? 'paciente' : 'aluno'} vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
             </p>
           </div>
 
@@ -15073,6 +15073,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
               students={students}
               questionnaires={nutritionQuestionnaires}
               assignments={questionnaireAssignments}
+              nutritionist={isNutritionistUser(professional)}
               onSaveQuestionnaire={onSaveQuestionnaire}
               onAssignQuestionnaire={onAssignQuestionnaire}
               uiTheme={uiTheme}
@@ -16410,7 +16411,7 @@ function createNutritionQuestionnaireDraft(base = {}) {
   return createQuestionnaireDraft(base, QUESTIONNAIRE_TYPES.NUTRITION)
 }
 
-function NutritionQuestionnaires({ selectedStudent, students = [], questionnaires = [], assignments = [], onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
+function NutritionQuestionnaires({ selectedStudent, students = [], questionnaires = [], assignments = [], nutritionist = false, onSaveQuestionnaire, onAssignQuestionnaire, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [draft, setDraft] = useState(() => createNutritionQuestionnaireDraft())
   const [previewOpen, setPreviewOpen] = useState(false)
   const [message, setMessage] = useState('')
@@ -16492,7 +16493,7 @@ function NutritionQuestionnaires({ selectedStudent, students = [], questionnaire
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setPreviewOpen(true)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200">Pré-visualizar</button>
             <button type="button" disabled={saving} onClick={() => handleSave('Rascunho')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-200 disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar rascunho'}</button>
-            <button type="button" disabled={saving || !selectedStudent?.id} onClick={handleSend} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">Enviar ao aluno</button>
+            <button type="button" disabled={saving || !selectedStudent?.id} onClick={handleSend} className="rounded-xl bg-emerald-300 px-3 py-2 text-xs font-black text-zinc-950 disabled:opacity-50">Enviar ao {nutritionist ? 'paciente' : 'aluno'}</button>
           </div>
         </div>
       </div>
