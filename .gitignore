@@ -11,3 +11,13 @@ __*/
 diagnostics/
 diagnostico/
 qa-output/
+
+# iOS signing credentials must never be committed
+*.p12
+*.mobileprovision
+*.p8
+*.keychain-db
+
+# Local application environments
+.env.production.local
+.env.development.local
