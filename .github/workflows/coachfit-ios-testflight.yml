@@ -1,6 +1,17 @@
 name: Coach Fit Pro - iOS TestFlight (manual)
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/coachfit-ios-testflight.yml'
+      - 'ios/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'plugins/**'
+      - 'src/**'
+      - 'chatEnhancements.js'
   workflow_dispatch:
     inputs:
       operation:
@@ -36,8 +47,8 @@ jobs:
     timeout-minutes: 60
     env:
       APP_ID: br.com.coachfitpro.ios
-      IOS_VERSION: ${{ inputs.version }}
-      IOS_BUILD: ${{ inputs.build_number }}
+      IOS_VERSION: ${{ inputs.version || '1.0' }}
+      IOS_BUILD: ${{ inputs.build_number || '2' }}
 
     steps:
       - name: Checkout
