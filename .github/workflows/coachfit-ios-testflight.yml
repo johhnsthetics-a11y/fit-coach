@@ -1,0 +1,209 @@
+name: Coach Fit Pro - iOS TestFlight (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Verificar compilacao ou enviar build ao TestFlight"
+        type: choice
+        required: true
+        default: verify
+        options:
+          - verify
+          - testflight
+      version:
+        description: "Versao iOS (ex.: 1.0 ou 1.1)"
+        type: string
+        required: true
+        default: "1.0"
+      build_number:
+        description: "Build INEDITO para esta versao (ex.: 2)"
+        type: string
+        required: true
+        default: "2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coachfit-ios-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios:
+    name: Build iOS on macOS
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      APP_ID: br.com.coachfitpro.ios
+      IOS_VERSION: ${{ inputs.version }}
+      IOS_BUILD: ${{ inputs.build_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar projeto nativo e numero do build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f ios/App/App.xcodeproj/project.pbxproj || {
+            echo "::error::Projeto iOS ausente. Adicione a pasta ios do ZIP funcional, com revisao de segredos, antes de executar este workflow."
+            exit 1
+          }
+          [[ "$IOS_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "::error::Versao iOS invalida"; exit 1; }
+          [[ "$IOS_BUILD" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Numero do build invalido"; exit 1; }
+          echo "macOS runner: $(sw_vers -productVersion)"
+          xcodebuild -version
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.1
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate source and StoreKit bridge
+        run: |
+          set -euo pipefail
+          node --test scripts/ios-storekit-package.test.mjs scripts/chat-enhancements.test.mjs
+
+      - name: Build web assets
+        run: pnpm run build
+
+      - name: Sync compiled web assets to existing native project
+        run: |
+          set -euo pipefail
+          pnpm exec cap sync ios
+          test -f ios/App/App.xcodeproj/project.pbxproj
+          test -f ios/App/CapApp-SPM/Package.swift
+
+      - name: Verify native compilation without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/coachfit-derived" \
+            MARKETING_VERSION="$IOS_VERSION" \
+            CURRENT_PROJECT_VERSION="$IOS_BUILD" \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: Install distribution credentials (only for TestFlight)
+        if: ${{ inputs.operation == 'testflight' }}
+        shell: bash
+        env:
+          P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          for key in P12_BASE64 P12_PASSWORD PROFILE_BASE64 TEAM_ID API_KEY_BASE64 API_KEY_ID API_ISSUER_ID; do
+            if [ -z "${!key:-}" ]; then echo "::error::Credencial ausente: $key"; exit 1; fi
+          done
+          printf '%s' "$P12_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
+          printf '%s' "$PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.mobileprovision"
+          printf '%s' "$API_KEY_BASE64" | base64 -D > "$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8"
+          KEYCHAIN_PATH="$RUNNER_TEMP/coachfit-build.keychain-db"
+          KEYCHAIN_PASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/distribution.p12" -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+          security cms -D -i "$RUNNER_TEMP/distribution.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          if [[ "$PROFILE_APP_ID" != "$TEAM_ID.$APP_ID" ]]; then
+            echo "::error::Perfil nao corresponde a equipe e ao Bundle Identifier do Coach Fit Pro"
+            exit 1
+          fi
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/distribution.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          cp "$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8" "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
+          echo "API_KEY_ID=$API_KEY_ID" >> "$GITHUB_ENV"
+          echo "API_ISSUER_ID=$API_ISSUER_ID" >> "$GITHUB_ENV"
+
+      - name: Archive signed iOS app
+        if: ${{ inputs.operation == 'testflight' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -project ios/App/App.xcodeproj \
+            -scheme App -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/CoachFitPro.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            MARKETING_VERSION="$IOS_VERSION" \
+            CURRENT_PROJECT_VERSION="$IOS_BUILD" \
+            archive
+
+      - name: Export signed IPA
+        if: ${{ inputs.operation == 'testflight' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, plistlib
+          options = dict(
+              method="app-store-connect",
+              destination="export",
+              signingStyle="manual",
+              signingCertificate="Apple Distribution",
+              teamID=os.environ["TEAM_ID"],
+              provisioningProfiles={os.environ["APP_ID"]: os.environ["PROFILE_NAME"]},
+          )
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as f:
+              plistlib.dump(options, f)
+          PY
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/CoachFitPro.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          test -f "$RUNNER_TEMP/export/App.ipa" || {
+            ls -la "$RUNNER_TEMP/export"
+            echo "::error::O IPA nao foi encontrado"
+            exit 1
+          }
+
+      - name: Upload to App Store Connect TestFlight
+        if: ${{ inputs.operation == 'testflight' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun altool --upload-app --type ios \
+            --file "$RUNNER_TEMP/export/App.ipa" \
+            --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER_ID"
+          echo "Upload iniciado; confira o processamento do build no App Store Connect."
+
+      - name: Clean up temporary signing credentials
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/coachfit-build.keychain-db" ]; then
+            security delete-keychain "$RUNNER_TEMP/coachfit-build.keychain-db" || true
+          fi
+          rm -f "$RUNNER_TEMP/distribution.p12" "$RUNNER_TEMP/distribution.mobileprovision" \
+            "$RUNNER_TEMP/profile.plist" "$RUNNER_TEMP"/AuthKey_*.p8
+          rm -rf "$HOME/.appstoreconnect/private_keys"
