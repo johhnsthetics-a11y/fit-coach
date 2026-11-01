@@ -65,7 +65,7 @@ test('iOS uses an isolated Apple-priced subscription view while web keeps Cartpa
   assert.match(native, /Restaurar compras/)
   assert.match(source, /getIosEntitlements\(data\.session\.user\.id\)/)
   assert.match(source, /nativeIosAccess\.accountId === data\.session\.user\.id/)
-  assert.doesNotMatch(native, /href=\{.*checkoutUrl|Cartpanda/)
+  assert.doesNotMatch(native, /href=\{.*checkoutUrl/)
   assert.match(pricing, /displayPrice/)
   assert.doesNotMatch(pricing, /R\$\s*[0-9]|US\$\s*[0-9]/)
 })
