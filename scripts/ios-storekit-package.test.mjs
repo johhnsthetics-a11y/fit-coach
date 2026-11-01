@@ -46,12 +46,19 @@ test('Swift StoreKit plugin verifies transactions and supports restore', () => {
   assert.match(source, /await transaction\.finish\(\)/)
 })
 
-test('professional access gate and subscription screen recognize native Apple entitlement', () => {
+test('iOS uses an isolated Apple-priced subscription view while web keeps Cartpanda', () => {
   const source = read('src/App.jsx')
+  const native = read('src/NativeIosSubscriptionPanel.jsx')
+  const pricing = read('src/iosProductPresentation.js')
 
-  assert.match(source, /nativeIosEntitlement/)
-  assert.match(source, /coachSubscriptionActive \|\| professionalAffiliate \|\| nativeIosEntitlement/)
-  assert.match(source, /onNativeEntitlementChange/)
-  assert.match(source, /Restaurar compras/)
-  assert.match(source, /purchaseIosPlan/)
+  assert.match(source, /isNativeIosApp\(\)/)
+  assert.match(source, /<NativeIosSubscriptionPanel/)
+  assert.match(source, /cartpandaCheckoutPlans/)
+  assert.match(native, /loadIosProducts\(/)
+  assert.match(native, /restoreIosPurchases\(/)
+  assert.match(native, /buildIosSubscriptionCards\(/)
+  assert.match(native, /Assinaturas temporariamente indisponíveis/)
+  assert.doesNotMatch(native, /href=\{.*checkoutUrl|Cartpanda/)
+  assert.match(pricing, /displayPrice/)
+  assert.doesNotMatch(pricing, /R\$\s*[0-9]|US\$\s*[0-9]/)
 })
