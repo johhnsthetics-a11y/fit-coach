@@ -18418,6 +18418,9 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
   }
 
   async function createStudentActivationCheckout() {
+    if (isNativeIosApp()) {
+      throw new Error('O pagamento externo não é disponibilizado dentro do aplicativo para iPhone. Entre em contato com seu profissional.')
+    }
     const session = await createRemoteStudentCheckoutSessionByInvite(inviteCode)
     const checkoutBaseUrl = resolveAudienceCheckoutUrl({
       nutritionist: access.professionalType === 'nutritionist',
@@ -19985,6 +19988,7 @@ function StudentHydrationPage({ goalMl, currentMl, entries = [], celebration = f
 }
 
 function StudentPaymentLock({ student, coachSettings, professionalType = 'trainer', paymentReturnPending = false, onActivateAccess, onOpenPayments, onOpenChat }) {
+  const nativeIosApp = isNativeIosApp()
   const billingBrand = getBillingBrand(coachSettings)
   const professionalPaymentCurrent = student?.payment === 'Pago'
   const appPaymentCurrent = student?.appPaymentStatus === 'active'
@@ -19995,7 +19999,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   const professionalBillingLabel = getProfessionalBillingLabel(professionalType)
 
   async function activateAccess() {
-    if (!onActivateAccess || activating) return
+    if (nativeIosApp || !onActivateAccess || activating) return
     setActivating(true)
     setActivationError('')
     try {
@@ -20031,7 +20035,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        {lockState?.canOpenCheckout ? (
+        {lockState?.canOpenCheckout && !nativeIosApp ? (
           <button type="button" disabled={activating || paymentReturnPending || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {paymentReturnPending ? 'Confirmando pagamento...' : activating ? 'Abrindo checkout...' : lockState.actionLabel}
           </button>
@@ -20052,7 +20056,8 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
       {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
       {paymentReturnPending ? <p role="status" className="mt-3 text-xs leading-5 text-emerald-100">Retorno do checkout identificado. Estamos confirmando a liberação segura do seu acesso.</p> : null}
-      {lockState?.canOpenCheckout ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout && !nativeIosApp ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout && nativeIosApp ? <p className="mt-3 text-xs leading-5 text-zinc-400">A ativação do acesso do aluno ou paciente não é oferecida para compra dentro do aplicativo iOS. Fale com seu profissional para verificar seu cadastro.</p> : null}
     </StudentAppSection>
   )
 }
