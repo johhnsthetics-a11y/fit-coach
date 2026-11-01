@@ -23,17 +23,17 @@ Adicione em **Settings → Secrets and variables → Actions → New repository 
 | `IOS_P12_PASSWORD` | Senha do `.p12` |
 | `IOS_PROVISIONING_PROFILE_BASE64` | Bytes base64 do perfil de distribuição `.mobileprovision` correspondente |
 | `APPLE_TEAM_ID` | ID de equipe Apple Developer do perfil |
-| `ASC_API_KEY_BASE64` | Bytes base64 da chave API `.p8` do App Store Connect |
+| `ASC_API_KEY_P8` | **Conteúdo integral** do arquivo `.p8` do App Store Connect, incluindo as linhas `-----BEGIN PRIVATE KEY-----` e `-----END PRIVATE KEY-----` |
 | `ASC_KEY_ID` | Key ID da chave API do App Store Connect |
 | `ASC_ISSUER_ID` | Issuer ID da chave API do App Store Connect |
 
-**Base64 não é criptografia.** Insira estes dados exclusivamente como Secrets. Nunca cole valores em conversas, issues, commits ou pull requests.
+O arquivo `.p8` **não precisa** de Base64: abra-o no Bloco de Notas, selecione tudo e cole no Secret `ASC_API_KEY_P8`. Para o certificado `.p12` e perfil `.mobileprovision`, ainda use Base64. **Base64 não é criptografia.** Insira todos os dados exclusivamente como Secrets. Nunca cole valores em conversas, issues, commits ou pull requests.
 
 No Windows, é possível converter um arquivo local para base64 com PowerShell:
 ```powershell
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\CAMINHO\arquivo.p12"))
 ```
-Repita para `.mobileprovision` e `.p8`, usando o caminho respectivo. Copie a saída **diretamente** para o secret no GitHub, sem salvar em arquivos públicos.
+Repita para `.mobileprovision`, usando o caminho respectivo. Não converta o `.p8`: use seu conteúdo textual integral no Secret `ASC_API_KEY_P8`. Copie os valores **diretamente** para os Secrets no GitHub, sem salvar em arquivos públicos.
 
 A chave API pode ser criada em **App Store Connect → Users and Access → Integrations → App Store Connect API** por alguém com permissões adequadas. O arquivo `.p8` só pode ser baixado uma vez.
 
