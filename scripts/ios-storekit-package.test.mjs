@@ -44,6 +44,8 @@ test('Swift StoreKit plugin verifies transactions and supports restore', () => {
   assert.match(source, /AppStore\.sync\(\)/)
   assert.match(source, /case \.verified/)
   assert.match(source, /await transaction\.finish\(\)/)
+  assert.match(source, /\.appAccountToken\(accountToken\)/)
+  assert.match(source, /transaction\.appAccountToken == accountToken/)
 })
 
 test('iOS uses an isolated Apple-priced subscription view while web keeps Cartpanda', () => {
@@ -57,7 +59,11 @@ test('iOS uses an isolated Apple-priced subscription view while web keeps Cartpa
   assert.match(native, /loadIosProducts\(/)
   assert.match(native, /restoreIosPurchases\(/)
   assert.match(native, /buildIosSubscriptionCards\(/)
-  assert.match(native, /Assinaturas temporariamente indisponíveis/)
+  assert.match(native, /purchaseIosPlan\(/)
+  assert.match(native, /accountId=\{accountId\}/)
+  assert.match(native, /Restaurar compras/)
+  assert.match(source, /getIosEntitlements\(data\.session\.user\.id\)/)
+  assert.match(source, /nativeIosAccess\.accountId === data\.session\.user\.id/)
   assert.doesNotMatch(native, /href=\{.*checkoutUrl|Cartpanda/)
   assert.match(pricing, /displayPrice/)
   assert.doesNotMatch(pricing, /R\$\s*[0-9]|US\$\s*[0-9]/)
