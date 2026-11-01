@@ -117,17 +117,17 @@ jobs:
           P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          API_KEY_BASE64: ${{ secrets.ASC_API_KEY_BASE64 }}
+          API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
           API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           set -euo pipefail
-          for key in P12_BASE64 P12_PASSWORD PROFILE_BASE64 TEAM_ID API_KEY_BASE64 API_KEY_ID API_ISSUER_ID; do
+          for key in P12_BASE64 P12_PASSWORD PROFILE_BASE64 TEAM_ID API_KEY_P8 API_KEY_ID API_ISSUER_ID; do
             if [ -z "${!key:-}" ]; then echo "::error::Credencial ausente: $key"; exit 1; fi
           done
           printf '%s' "$P12_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
           printf '%s' "$PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.mobileprovision"
-          printf '%s' "$API_KEY_BASE64" | base64 -D > "$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8"
+          printf '%s\n' "$API_KEY_P8" > "$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8"
           KEYCHAIN_PATH="$RUNNER_TEMP/coachfit-build.keychain-db"
           KEYCHAIN_PASS="$(openssl rand -hex 24)"
           security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
