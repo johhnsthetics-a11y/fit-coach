@@ -135,6 +135,10 @@ export default function NativeIosSubscriptionPanel({
         {processing === 'restore' ? 'Verificando compras...' : 'Restaurar compras'}
       </button>
       <p className="native-ios-help">Para gerenciar ou cancelar uma assinatura, abra Ajustes do iPhone → seu nome → Assinaturas. Se você já pagou, não compre novamente; use Restaurar compras.</p>
+      <nav className="native-ios-legal" aria-label="Informações legais das assinaturas">
+        <a href="https://app.coachfitpro.com.br/termos-de-uso" target="_blank" rel="noopener noreferrer">Termos de Uso</a>
+        <a href="https://app.coachfitpro.com.br/politica-de-privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
+      </nav>
       {message ? <p className="native-ios-feedback" role="status" aria-live="polite">{message}</p> : null}
     </section>
   )
