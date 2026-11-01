@@ -69,3 +69,14 @@
 .native-ios-legal { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; font-size: .82rem; }
 .native-ios-legal a { color: var(--ios-accent); text-decoration: underline; text-underline-offset: 3px; }
 .native-ios-legal a:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
+
+/* Keep native first-launch focused on authentication. The sales landing page,
+   Cartpanda offers and web promotional prices remain exclusively on the web. */
+.native-ios-entry main > :not(#acesso) { display: none !important; }
+.native-ios-entry .sales-header-nav { display: none !important; }
+.native-ios-entry .sales-header-actions > button:last-child:not(.sales-theme-toggle) { display: none !important; }
+.native-ios-entry .sales-header { padding-top: env(safe-area-inset-top, 0px); }
+.native-ios-entry #acesso {
+  min-height: calc(100dvh - 5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+}
