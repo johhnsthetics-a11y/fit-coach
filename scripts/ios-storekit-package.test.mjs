@@ -69,3 +69,17 @@ test('iOS uses an isolated Apple-priced subscription view while web keeps Cartpa
   assert.match(pricing, /displayPrice/)
   assert.doesNotMatch(pricing, /R\$\s*[0-9]|US\$\s*[0-9]/)
 })
+
+test('native student payment screen blocks external checkout and keeps web checkout', () => {
+  const source = read('src/App.jsx')
+  const native = read('src/NativeIosSubscriptionPanel.jsx')
+  const styles = read('src/nativeIosSubscription.css')
+
+  assert.match(source, /lockState\?\.canOpenCheckout && !nativeIosApp/)
+  assert.match(source, /if \(isNativeIosApp\(\)\) \{\s*throw new Error\('O pagamento externo/)
+  assert.match(source, /const isLoginRoute = nativeIosApp \|\|/)
+  assert.match(styles, /\.native-ios-entry main > :not\(#acesso\)/)
+  assert.match(native, /pol[ií]tica-de-privacidade/i)
+  assert.match(native, /termos-de-uso/)
+  assert.doesNotMatch(native, /checkoutUrl/)
+})
