@@ -5143,7 +5143,8 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
 }
 
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
-  const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
+  const nativeIosApp = isNativeIosApp()
+  const isLoginRoute = nativeIosApp || window.location.pathname.toLowerCase() === '/login'
   const initialMode = new URLSearchParams(window.location.search).get('mode')
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
@@ -5179,7 +5180,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [salesPlans])
   const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
   const signupPlan = orderedSalesPlans.find((plan) => plan.id === signupPlanId) || orderedSalesPlans[0]
-  const signupTitle = mode === 'signup'
+  const signupTitle = nativeIosApp && mode === 'signup'
+    ? 'Criar conta'
+    : mode === 'signup'
     ? signupPlan?.id === 'mensal'
       ? 'Começar por R$ 9,90'
       : `Criar conta para o plano ${signupPlan?.name || 'selecionado'}`
@@ -5188,7 +5191,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       : mode === 'forgot'
         ? 'Recuperar senha'
         : 'Entrar no painel'
-  const signupDescription = mode === 'signup'
+  const signupDescription = nativeIosApp && mode === 'signup'
+    ? 'Crie sua conta profissional e escolha a assinatura pela App Store após entrar no aplicativo.'
+    : mode === 'signup'
     ? signupPlan?.id === 'mensal'
       ? 'Crie sua conta e ative o primeiro mês promocional por R$ 9,90 usando o mesmo e-mail no checkout.'
       : `Crie sua conta e siga para o checkout do plano ${signupPlan?.name || 'selecionado'} usando o mesmo e-mail cadastrado.`
@@ -5485,7 +5490,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
+    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''} ${nativeIosApp ? 'native-ios-entry' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
