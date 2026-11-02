@@ -18,7 +18,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         Task {
             do {
                 let products = try await Product.products(for: productIds)
-                call.resolve(["products": products.map(productDictionary)])
+                let storefront = await Storefront.current
+                call.resolve([
+                    "products": products.map(productDictionary),
+                    "storefrontCountryCode": storefront?.countryCode.uppercased() ?? ""
+                ])
             } catch {
                 call.reject("Não foi possível carregar os planos da App Store.", nil, error)
             }
