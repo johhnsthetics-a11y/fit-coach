@@ -29,3 +29,20 @@ test('Malformed StoreKit data cannot generate a hard-coded price', () => {
   assert.ok(cards.every((item) => !item.available))
   assert.ok(cards.every((item) => item.displayPrice === 'Preço indisponível'))
 })
+
+test('StoreKit currency code is preserved; never relabel USD as BRL', () => {
+  const cards = buildIosSubscriptionCards([
+    { planId: 'mensal', displayPrice: 'US$ 7,99', currencyCode: 'USD' },
+    { planId: 'semestral', displayPrice: 'R$ 49,90', currencyCode: 'BRL' },
+  ])
+  assert.equal(cards[0].displayPrice, 'US$ 7,99')
+  assert.equal(cards[0].currencyCode, 'USD')
+  assert.equal(cards[1].displayPrice, 'R$ 49,90')
+  assert.equal(cards[1].currencyCode, 'BRL')
+  assert.equal(cards[2].available, false)
+})
+
+test('Pricing presentation recognizes localized US dollar symbol when code is absent', () => {
+  const [card] = buildIosSubscriptionCards([{ planId: 'mensal', displayPrice: 'US$ 7,99' }])
+  assert.equal(card.currencyCode, 'USD')
+})
