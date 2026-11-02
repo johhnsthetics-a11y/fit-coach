@@ -28,10 +28,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 7)"
+        description: "Build INEDITO para esta versao (ex.: 8)"
         type: string
         required: true
-        default: "7"
+        default: "8"
 
 permissions:
   contents: read
