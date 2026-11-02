@@ -31,6 +31,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
+        guard let rawAccountId = call.getString("accountId"), let accountToken = UUID(uuidString: rawAccountId) else {
+            call.reject("Entre na sua conta Coach Fit Pro antes de assinar pela App Store.")
+            return
+        }
+
         Task {
             do {
                 guard let product = try await Product.products(for: [productId]).first else {
@@ -38,10 +43,14 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     return
                 }
 
-                switch try await product.purchase() {
+                switch try await product.purchase(options: [.appAccountToken(accountToken)]) {
                 case .success(let verification):
                     switch verification {
                     case .verified(let transaction):
+                        guard transaction.appAccountToken == accountToken else {
+                            call.reject("A compra não pertence à conta Coach Fit Pro conectada.")
+                            return
+                        }
                         await transaction.finish()
                         call.resolve([
                             "purchased": true,
@@ -78,11 +87,16 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func getEntitlements(_ call: CAPPluginCall) {
         let acceptedProductIds = Set(call.getArray("productIds", String.self) ?? [])
+        guard let rawAccountId = call.getString("accountId"), let accountToken = UUID(uuidString: rawAccountId) else {
+            call.reject("Identificador da conta Coach Fit Pro ausente.")
+            return
+        }
         Task {
             var entitlements: [[String: Any]] = []
             for await result in Transaction.currentEntitlements {
                 guard case .verified(let transaction) = result else { continue }
                 guard acceptedProductIds.isEmpty || acceptedProductIds.contains(transaction.productID) else { continue }
+                guard transaction.appAccountToken == accountToken else { continue }
                 entitlements.append(entitlementDictionary(transaction))
             }
             call.resolve(["entitlements": entitlements])
@@ -95,6 +109,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             "displayName": product.displayName,
             "description": product.description,
             "displayPrice": product.displayPrice,
+            "currencyCode": product.priceFormatStyle.currencyCode,
             "type": String(describing: product.type)
         ]
         if let subscription = product.subscription {
@@ -111,6 +126,8 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private func transactionDictionary(_ transaction: Transaction) -> [String: Any] {
         var value: [String: Any] = [
             "id": String(transaction.id),
+            "originalId": String(transaction.originalID),
+            "accountId": transaction.appAccountToken?.uuidString.lowercased() ?? "",
             "productId": transaction.productID,
             "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate)
         ]
