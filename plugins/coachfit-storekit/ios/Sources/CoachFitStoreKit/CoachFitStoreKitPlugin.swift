@@ -19,8 +19,15 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 let products = try await Product.products(for: productIds)
                 let storefront = await Storefront.current
+                // Introductory eligibility depends on the App Store account and
+                // subscription group. Query it per product; it is not implied
+                // by the existence of an introductory offer.
+                var productDetails: [[String: Any]] = []
+                for product in products {
+                    productDetails.append(await productDictionary(product))
+                }
                 call.resolve([
-                    "products": products.map(productDictionary),
+                    "products": productDetails,
                     "storefrontCountryCode": storefront?.countryCode.uppercased() ?? ""
                 ])
             } catch {
@@ -117,7 +124,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func productDictionary(_ product: Product) -> [String: Any] {
+    private func productDictionary(_ product: Product) async -> [String: Any] {
         var value: [String: Any] = [
             "id": product.id,
             "displayName": product.displayName,
@@ -132,6 +139,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             if let offer = subscription.introductoryOffer {
                 value["introductoryDisplayPrice"] = offer.displayPrice
                 value["introductoryPeriodCount"] = offer.periodCount
+                // StoreKit 2 determines the current Apple ID's eligibility.
+                // A marketing price cannot confer introductory eligibility.
+                value["introductoryEligible"] = await subscription.isEligibleForIntroOffer
+            } else {
+                value["introductoryEligible"] = false
             }
         }
         return value
