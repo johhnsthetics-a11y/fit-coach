@@ -96,7 +96,7 @@ test('Native subscription CTA uses green accessible styling and discloses Apple 
   assert.doesNotMatch(panel, /Conferir preço e assinar/)
   assert.match(panel, /native-ios-price-details/)
   assert.match(panel, /native-ios-price-disclaimer/)
-  assert.match(panel, /Primeiro mês/)
+  assert.match(read('src/iosBrazilPlanPriceReference.js'), /Primeiro mês/)
   assert.match(css, /native-ios-price-period/)
   assert.match(pricing, /IOS_BRAZIL_PLAN_PRICE_REFERENCE/)
   assert.match(css, /\.native-ios-subscription-panel \.native-ios-purchase-button/)
