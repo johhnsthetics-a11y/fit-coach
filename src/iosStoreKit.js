@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
+import { normalizeIosStorefrontCountryCode } from './iosProductPresentation'
 
 export const IOS_PRODUCT_IDS = Object.freeze({
   mensal: 'br.com.coachfitpro.ios.profissional.mensal',
@@ -23,11 +24,10 @@ function requireNativeIos() {
 export async function loadIosProducts() {
   requireNativeIos()
   const result = await CoachFitStoreKit.getProducts({ productIds: Object.values(IOS_PRODUCT_IDS) })
-  const storefrontCountryCode = typeof result.storefrontCountryCode === 'string'
-    ? result.storefrontCountryCode.toUpperCase() : ''
+  const storefrontCountryCode = normalizeIosStorefrontCountryCode(result.storefrontCountryCode)
   return (result.products ?? []).map((product) => ({
     ...product,
-    storefrontCountryCode,
+    storefrontCountryCode: storefrontCountryCode || normalizeIosStorefrontCountryCode(product.storefrontCountryCode),
     planId: planByProductId[product.id] ?? '',
   }))
 }
