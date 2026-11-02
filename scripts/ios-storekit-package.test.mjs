@@ -83,3 +83,22 @@ test('native student payment screen blocks external checkout and keeps web check
   assert.match(native, /termos-de-uso/)
   assert.doesNotMatch(native, /checkoutUrl/)
 })
+
+test('Native subscription CTA uses green accessible styling and discloses Apple currency', () => {
+  const panel = read('src/NativeIosSubscriptionPanel.jsx')
+  const css = read('src/nativeIosSubscription.css')
+  const pricing = read('src/iosProductPresentation.js')
+  const swift = read('plugins/coachfit-storekit/ios/Sources/CoachFitStoreKit/CoachFitStoreKitPlugin.swift')
+  const app = read('src/App.jsx')
+
+  assert.match(panel, /className="native-ios-purchase-button"/)
+  assert.match(css, /\.native-ios-subscription-panel \.native-ios-purchase-button/)
+  assert.match(css, /background: #22d7ad/)
+  assert.match(css, /color: #052b23/)
+  assert.match(panel, /dollarPricing/)
+  assert.match(panel, /Preços em dólar informados pela App Store/)
+  assert.match(swift, /product\.priceFormatStyle\.currencyCode/)
+  assert.match(pricing, /currencyCode/)
+  assert.match(app, /isNativeIosApp\(\)\s*\? 'Para liberar o painel no iPhone/)
+  assert.doesNotMatch(panel, /replace\(['"]US\$|replaceAll\(['"]US\$/)
+})
