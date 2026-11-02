@@ -85,7 +85,7 @@ jobs:
       - name: Validate source and StoreKit bridge
         run: |
           set -euo pipefail
-          node --test scripts/ios-storekit-package.test.mjs scripts/chat-enhancements.test.mjs
+          node --test scripts/ios-storekit-package.test.mjs scripts/ios-product-pricing.test.mjs scripts/chat-enhancements.test.mjs
 
       - name: Build web assets
         run: pnpm run build

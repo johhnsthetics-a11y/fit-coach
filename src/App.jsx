@@ -149,6 +149,7 @@ import {
   purchaseIosPlan,
   restoreIosPurchases,
 } from './iosStoreKit'
+import NativeIosSubscriptionPanel from './NativeIosSubscriptionPanel'
 import {
   ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
   STUDENT_PORTAL_REFRESH_INTERVAL_MS,
@@ -1879,7 +1880,13 @@ function AppContent() {
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [incomingMessageAlert, setIncomingMessageAlert] = useState(null)
   const [billingClock, setBillingClock] = useState(Date.now())
-  const [nativeIosEntitlement, setNativeIosEntitlement] = useState(false)
+  const [nativeIosAccess, setNativeIosAccess] = useState({ accountId: '', active: false })
+  const nativeIosEntitlement = Boolean(
+    data.session?.user?.id && nativeIosAccess.accountId === data.session.user.id && nativeIosAccess.active
+  )
+  const setNativeIosEntitlement = useCallback((active) => {
+    setNativeIosAccess({ accountId: data.session?.user?.id || '', active: Boolean(active) })
+  }, [data.session?.user?.id])
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   useEffect(() => {
     document.documentElement.dataset.theme = uiTheme
@@ -1979,16 +1986,20 @@ function AppContent() {
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
 
   const refreshNativeIosEntitlement = useCallback(async () => {
-    if (!isNativeIosApp()) return false
+    if (!isNativeIosApp() || !data.session?.access_token || !data.session?.user?.id) {
+      setNativeIosEntitlement(false)
+      return false
+    }
     try {
-      const result = await getIosEntitlements()
+      const result = await getIosEntitlements(data.session.user.id)
       setNativeIosEntitlement(Boolean(result.active))
       return Boolean(result.active)
     } catch (error) {
+      setNativeIosEntitlement(false)
       console.warn('Não foi possível validar a assinatura da App Store.', error)
       return false
     }
-  }, [])
+  }, [data.session?.user?.id, data.session?.access_token, setNativeIosEntitlement])
 
   useEffect(() => {
     if (!isNativeIosApp()) return undefined
@@ -4888,6 +4899,7 @@ function AppContent() {
                 professionalAffiliate={professionalAffiliate}
                 nativeIosEntitlement={nativeIosEntitlement}
                 onNativeEntitlementChange={setNativeIosEntitlement}
+                accountId={data.session?.user?.id || ''}
               />
             )}
             {activeView === 'admin-affiliate-finance' && masterAdmin && (
@@ -5131,7 +5143,8 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
 }
 
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
-  const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
+  const nativeIosApp = isNativeIosApp()
+  const isLoginRoute = nativeIosApp || window.location.pathname.toLowerCase() === '/login'
   const initialMode = new URLSearchParams(window.location.search).get('mode')
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
@@ -5167,7 +5180,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [salesPlans])
   const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
   const signupPlan = orderedSalesPlans.find((plan) => plan.id === signupPlanId) || orderedSalesPlans[0]
-  const signupTitle = mode === 'signup'
+  const signupTitle = nativeIosApp && mode === 'signup'
+    ? 'Criar conta'
+    : mode === 'signup'
     ? signupPlan?.id === 'mensal'
       ? 'Começar por R$ 9,90'
       : `Criar conta para o plano ${signupPlan?.name || 'selecionado'}`
@@ -5176,7 +5191,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       : mode === 'forgot'
         ? 'Recuperar senha'
         : 'Entrar no painel'
-  const signupDescription = mode === 'signup'
+  const signupDescription = nativeIosApp && mode === 'signup'
+    ? 'Crie sua conta profissional e escolha a assinatura pela App Store após entrar no aplicativo.'
+    : mode === 'signup'
     ? signupPlan?.id === 'mensal'
       ? 'Crie sua conta e ative o primeiro mês promocional por R$ 9,90 usando o mesmo e-mail no checkout.'
       : `Crie sua conta e siga para o checkout do plano ${signupPlan?.name || 'selecionado'} usando o mesmo e-mail cadastrado.`
@@ -5473,7 +5490,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
+    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''} ${nativeIosApp ? 'native-ios-entry' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
@@ -18401,6 +18418,9 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
   }
 
   async function createStudentActivationCheckout() {
+    if (isNativeIosApp()) {
+      throw new Error('O pagamento externo não é disponibilizado dentro do aplicativo para iPhone. Entre em contato com seu profissional.')
+    }
     const session = await createRemoteStudentCheckoutSessionByInvite(inviteCode)
     const checkoutBaseUrl = resolveAudienceCheckoutUrl({
       nutritionist: access.professionalType === 'nutritionist',
@@ -19968,6 +19988,7 @@ function StudentHydrationPage({ goalMl, currentMl, entries = [], celebration = f
 }
 
 function StudentPaymentLock({ student, coachSettings, professionalType = 'trainer', paymentReturnPending = false, onActivateAccess, onOpenPayments, onOpenChat }) {
+  const nativeIosApp = isNativeIosApp()
   const billingBrand = getBillingBrand(coachSettings)
   const professionalPaymentCurrent = student?.payment === 'Pago'
   const appPaymentCurrent = student?.appPaymentStatus === 'active'
@@ -19978,7 +19999,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   const professionalBillingLabel = getProfessionalBillingLabel(professionalType)
 
   async function activateAccess() {
-    if (!onActivateAccess || activating) return
+    if (nativeIosApp || !onActivateAccess || activating) return
     setActivating(true)
     setActivationError('')
     try {
@@ -20014,7 +20035,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        {lockState?.canOpenCheckout ? (
+        {lockState?.canOpenCheckout && !nativeIosApp ? (
           <button type="button" disabled={activating || paymentReturnPending || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {paymentReturnPending ? 'Confirmando pagamento...' : activating ? 'Abrindo checkout...' : lockState.actionLabel}
           </button>
@@ -20035,7 +20056,8 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
       {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
       {paymentReturnPending ? <p role="status" className="mt-3 text-xs leading-5 text-emerald-100">Retorno do checkout identificado. Estamos confirmando a liberação segura do seu acesso.</p> : null}
-      {lockState?.canOpenCheckout ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout && !nativeIosApp ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout && nativeIosApp ? <p className="mt-3 text-xs leading-5 text-zinc-400">A ativação do acesso do aluno ou paciente não é oferecida para compra dentro do aplicativo iOS. Fale com seu profissional para verificar seu cadastro.</p> : null}
     </StudentAppSection>
   )
 }
@@ -20532,7 +20554,7 @@ function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno', sch
   )
 }
 
-function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange, accountId = '' }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -20764,6 +20786,16 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     } finally {
       setNativePurchasePending(false)
     }
+  }
+
+  if (nativeIosApp) {
+    return (
+      <NativeIosSubscriptionPanel
+        accountId={accountId}
+        subscriptionActive={subscriptionActive}
+        onNativeEntitlementChange={onNativeEntitlementChange}
+      />
+    )
   }
 
   if (!subscriptionActive) {
