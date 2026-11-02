@@ -40,6 +40,7 @@ export default function NativeIosSubscriptionPanel({
   }, [accountId])
 
   const cards = buildIosSubscriptionCards(products)
+  const dollarPricing = cards.some((plan) => plan.available && plan.currencyCode === 'USD')
   const accountValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(accountId || ''))
 
   async function purchase(plan) {
@@ -100,6 +101,13 @@ export default function NativeIosSubscriptionPanel({
         </div>
       ) : null}
 
+      {!loading && dollarPricing && (
+        <div className="native-ios-currency-warning" role="status">
+          <strong>Preços em dólar informados pela App Store</strong>
+          <p>Os produtos estão retornando valores em USD. Para exibir preços em reais, confira o País/Região da conta Apple usada para compras (inclusive a conta de teste, se houver) e os preços das assinaturas no App Store Connect. O aplicativo não altera a moeda nem converte valores, pois a confirmação de pagamento da Apple determina a cobrança.</p>
+        </div>
+      )}
+
       {!loading && (
         <div className="native-ios-plan-grid">
           {cards.map((plan) => (
@@ -111,7 +119,7 @@ export default function NativeIosSubscriptionPanel({
               {!subscriptionActive && (
                 <button
                   type="button"
-                  className="native-ios-restore"
+                  className="native-ios-purchase-button"
                   onClick={() => purchase(plan)}
                   disabled={!accountValid || !plan.available || Boolean(processing)}
                   aria-label={`Assinar plano ${plan.title} pela App Store`}
