@@ -15,10 +15,14 @@ export function buildIosSubscriptionCards(products = []) {
   return IOS_PLAN_DETAILS.map((detail) => {
     const product = byPlan.get(detail.planId)
     const price = typeof product?.displayPrice === 'string' ? product.displayPrice.trim() : ''
+    const currencyCode = typeof product?.currencyCode === 'string' && /^[A-Z]{3}$/i.test(product.currencyCode.trim())
+      ? product.currencyCode.trim().toUpperCase()
+      : /^US\$/.test(price) ? 'USD' : /^R\$/.test(price) ? 'BRL' : ''
     return {
       ...detail,
       available: Boolean(product && price),
       displayPrice: price || 'Preço indisponível',
+      currencyCode,
       // An introductory offer cannot be advertised unless eligibility is checked.
       // The StoreKit purchase sheet remains authoritative about any actual offer.
       introductoryDisplayPrice: null,
