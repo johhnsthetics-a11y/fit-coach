@@ -29,3 +29,27 @@ test('Malformed StoreKit data cannot generate a hard-coded price', () => {
   assert.ok(cards.every((item) => !item.available))
   assert.ok(cards.every((item) => item.displayPrice === 'Preço indisponível'))
 })
+
+test('Brazilian interface avoids false USD prices while retaining Apple purchase availability', () => {
+  const cards = buildIosSubscriptionCards([
+    { planId: 'mensal', displayPrice: 'US$ 7,99' },
+    { planId: 'semestral', displayPrice: 'US$ 49,99' },
+    { planId: 'anual', displayPrice: 'US$ 99,99' },
+  ], { locale: 'pt-BR' })
+  assert.ok(cards.every((card) => card.currencyMismatch))
+  assert.ok(cards.every((card) => card.available))
+  assert.ok(cards.every((card) => !card.displayPrice.includes('US$')))
+  assert.ok(cards.every((card) => card.displayPrice.includes('App Store')))
+})
+
+test('Correct Brazilian currency is retained unchanged', () => {
+  const [card] = buildIosSubscriptionCards([{ planId: 'mensal', displayPrice: 'R$ 49,90' }], { locale: 'pt-BR' })
+  assert.equal(card.displayPrice, 'R$ 49,90')
+  assert.equal(card.currencyMismatch, false)
+})
+
+test('Legitimate USD App Store price remains visible outside Brazilian interface', () => {
+  const [card] = buildIosSubscriptionCards([{ planId: 'mensal', displayPrice: 'US$ 7.99' }], { locale: 'en-US' })
+  assert.equal(card.displayPrice, 'US$ 7.99')
+  assert.equal(card.currencyMismatch, false)
+})
