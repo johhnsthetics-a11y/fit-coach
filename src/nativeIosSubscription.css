@@ -107,17 +107,6 @@
   font-weight: 800;
   cursor: pointer;
 }
-.native-ios-currency-warning {
-  display: grid;
-  gap: .35rem;
-  border: 1px solid rgba(203, 147, 47, .42);
-  border-radius: 14px;
-  padding: .9rem 1rem;
-  background: rgba(203, 147, 47, .10);
-  color: var(--ios-text);
-}
-.native-ios-currency-warning strong { font-size: .9rem; font-weight: 850; }
-.native-ios-currency-warning p { font-size: .83rem; line-height: 1.6; color: var(--ios-muted); }
 .native-ios-restore:focus-visible,
 .native-ios-feedback button:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
 .native-ios-restore:disabled { cursor: wait; opacity: .6; }
