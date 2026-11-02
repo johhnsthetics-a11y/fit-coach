@@ -112,6 +112,7 @@ export default function NativeIosSubscriptionPanel({
           : 'Preços e condições cobrados pela Apple de acordo com a região da sua conta App Store. Confira a confirmação da Apple antes de pagar.'}</p>
       </header>
 
+      {message ? <p className="native-ios-feedback" role="status" aria-live="polite">{message}</p> : null}
       {loading ? <p className="native-ios-feedback" role="status">Consultando preços na App Store...</p> : null}
       {loadError ? (
         <div className="native-ios-feedback" role="alert">
@@ -172,7 +173,6 @@ export default function NativeIosSubscriptionPanel({
         <a href="https://app.coachfitpro.com.br/termos-de-uso" target="_blank" rel="noopener noreferrer">Termos de Uso</a>
         <a href="https://app.coachfitpro.com.br/politica-de-privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
       </nav>
-      {message ? <p className="native-ios-feedback" role="status" aria-live="polite">{message}</p> : null}
     </section>
   )
 }
