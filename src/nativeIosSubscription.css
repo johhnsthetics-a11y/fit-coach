@@ -138,3 +138,7 @@
   min-height: calc(100dvh - 5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
 }
+
+/* Price is intentionally not guessed when Apple's returned currency conflicts with pt-BR. */
+.native-ios-plan-price--verify { font-size: clamp(1rem, 3vw, 1.2rem); line-height: 1.45; }
+.native-ios-currency-warning .native-ios-restore { justify-self: start; margin-top: .5rem; }
