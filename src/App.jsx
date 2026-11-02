@@ -2034,6 +2034,17 @@ function AppContent() {
       document.removeEventListener('visibilitychange', refreshOnResume)
     }
   }, [refreshNativeIosEntitlement])
+  // On app restart, open the workspace when an existing verified App Store
+  // entitlement is restored. Do not redirect an already active user who
+  // deliberately opens "Assinatura" later to manage purchases.
+  const previousNativeIosEntitlement = useRef(false)
+  useEffect(() => {
+    if (nativeIosEntitlement && !previousNativeIosEntitlement.current && activeView === 'assinatura') {
+      setActiveView('visao')
+    }
+    previousNativeIosEntitlement.current = nativeIosEntitlement
+  }, [nativeIosEntitlement, activeView])
+
   const visibleNavItems = useMemo(() => {
     const professionalItems = navItems.filter((item) => (
       professionalAffiliate ? item.id !== 'assinatura' : item.id !== 'comissoes'
