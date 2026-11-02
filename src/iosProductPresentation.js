@@ -107,7 +107,7 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
         ? brazilReference.promoDescription : (brazilReference?.renewalLabel || ''),
       renewalText: monthlyPromo ? `Depois, ${renewalPrice}/mês` : '',
       // Do not imply an introductory offer is guaranteed for this account.
-      introductoryDisplayPrice: validAppleIntro ? appleIntro : null,
+      introductoryDisplayPrice: monthlyPromo && validAppleIntro ? appleIntro : null,
     }
   })
 }
