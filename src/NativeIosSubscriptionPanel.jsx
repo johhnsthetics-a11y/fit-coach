@@ -59,26 +59,14 @@ export default function NativeIosSubscriptionPanel({
   const accountValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(accountId || ''))
 
   async function purchase(plan) {
-    if (!accountValid || !plan.available || processing) return
+    if (!accountValid || processing) return
     setProcessing(plan.planId)
     setMessage('Abrindo a confirmação de pagamento da App Store...')
     try {
-      // Price/region may have changed since this card loaded. Require another
-      // deliberate tap if any currently displayed product data is stale.
-      const freshProducts = await loadIosProducts()
-      const current = freshProducts.find((item) => item.planId === plan.planId)
-      const previous = products.find((item) => item.planId === plan.planId)
-      if (!current?.displayPrice) {
-        setMessage('Não foi possível confirmar o preço deste plano na App Store. Atualize os preços e tente novamente.')
-        return
-      }
-      if (current.displayPrice !== previous?.displayPrice
-        || current.currencyCode !== previous?.currencyCode
-        || current.storefrontCountryCode !== previous?.storefrontCountryCode) {
-        setProducts(freshProducts)
-        setMessage('A App Store atualizou o preço ou a região da loja. Confira a informação exibida e toque novamente para continuar.')
-        return
-      }
+      // StoreKit purchase() retrieves the selected product again and displays
+      // Apple's authoritative amount. Do not block its sheet behind a second
+      // JS pricing/storefront fetch: TestFlight metadata can change between
+      // calls and the reference-priced monthly card must remain actionable.
       const result = await purchaseIosPlan(plan.planId, accountId)
       if (result.cancelled) {
         setMessage('Compra cancelada. Nenhuma cobrança foi concluída.')
@@ -91,7 +79,7 @@ export default function NativeIosSubscriptionPanel({
         setMessage('Compra concluída, mas não foi possível confirmar a assinatura desta conta. Não compre novamente; use Restaurar compras ou contate o suporte.')
       }
     } catch (error) {
-      setMessage(error?.message || 'Não foi possível concluir a assinatura pela App Store.')
+      setMessage(error?.message || 'A App Store não conseguiu abrir a confirmação deste plano. Tente novamente ou use Restaurar compras se já pagou.')
     } finally {
       setProcessing('')
     }
@@ -151,7 +139,7 @@ export default function NativeIosSubscriptionPanel({
                   type="button"
                   className="native-ios-purchase-button"
                   onClick={() => purchase(plan)}
-                  disabled={!accountValid || !plan.available || Boolean(processing)}
+                  disabled={!accountValid || Boolean(processing)}
                   aria-label={`Assinar plano ${plan.title} pela App Store`}
                 >
                   {processing === plan.planId ? 'Aguarde...' : `Assinar ${plan.title}`}
