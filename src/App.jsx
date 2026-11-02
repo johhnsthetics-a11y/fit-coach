@@ -20699,7 +20699,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       if (stopped || busy) return
       busy = true
       attempts += 1
-      const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+      const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: false })
       if (stopped) return
       if (result?.active) {
         setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
@@ -20761,7 +20761,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     if (!onRefreshSubscription) return
     setCheckingPayment(true)
     if (!silent) setPaymentMessage('Verificando pagamento...')
-    const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+    const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: false })
     if (result?.active) {
       setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
       recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
