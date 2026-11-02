@@ -1,5 +1,7 @@
-// Native prices are provided by StoreKit. Never convert USD to BRL or
-// hardcode subscription amounts: the Apple purchase sheet is authoritative.
+// StoreKit supplies the authoritative checkout prices. Brazilian marketing prices
+// are owner-provided references only, not converted USD or guaranteed charges.
+import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
+
 export const IOS_PLAN_DETAILS = Object.freeze([
   { planId: 'mensal', title: 'Mensal', cycleLabel: 'Renovação mensal' },
   { planId: 'semestral', title: 'Semestral', cycleLabel: 'Renovação semestral' },
@@ -70,17 +72,42 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const currencyMismatch = Boolean(rawPrice)
       && (storefrontConflict || textMetadataConflict || foreignInterfacePrice || ambiguousDollar || mislabeledReal)
 
+    const brazilReference = brazilianInterface ? IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId] : null
+    const validAppleBRL = Boolean(rawPrice && currencyCode === 'BRL'
+      && priceCurrencyCode === 'BRL' && !currencyMismatch)
+    const appleIntro = typeof product?.introductoryDisplayPrice === 'string'
+      ? product.introductoryDisplayPrice.trim() : ''
+    const validAppleIntro = Boolean(validAppleBRL && displayedCurrency(appleIntro) === 'BRL')
+
+    // The owner has provided the BR subscription catalog for marketing display.
+    // Prefer a consistent real StoreKit BRL price whenever available. When
+    // TestFlight returns USD, show clearly labeled Brazilian reference prices,
+    // never a converted or relabeled USD amount. Final Apple sheet is binding.
+    const monthlyPromo = detail.planId === 'mensal' && Boolean(brazilReference)
+    const referencePriceUsed = Boolean(brazilReference && (monthlyPromo
+      ? !validAppleIntro : !validAppleBRL))
+    const displayPrice = brazilReference
+      ? (monthlyPromo
+        ? (validAppleIntro ? appleIntro : brazilReference.introductoryPrice)
+        : (validAppleBRL ? rawPrice : brazilReference.recurringPrice))
+      : (currencyMismatch ? 'Confira o preço na App Store' : (rawPrice || 'Preço indisponível'))
+    const renewalPrice = monthlyPromo
+      ? (validAppleBRL ? rawPrice : brazilReference.recurringPrice) : ''
+
     return {
       ...detail,
       available: Boolean(product && rawPrice),
       currencyCode,
       storefrontCountryCode,
       currencyMismatch,
-      displayPrice: currencyMismatch
-        ? 'Confira o preço na App Store'
-        : (rawPrice || 'Preço indisponível'),
-      // Introductory offer eligibility varies; confirm it in the Apple sheet.
-      introductoryDisplayPrice: null,
+      referencePriceUsed,
+      displayPrice,
+      pricePeriod: brazilReference?.periodLabel || '',
+      priceDescription: monthlyPromo
+        ? brazilReference.promoDescription : (brazilReference?.renewalLabel || ''),
+      renewalText: monthlyPromo ? `Depois, ${renewalPrice}/mês` : '',
+      // Do not imply an introductory offer is guaranteed for this account.
+      introductoryDisplayPrice: validAppleIntro ? appleIntro : null,
     }
   })
 }
