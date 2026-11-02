@@ -55,7 +55,8 @@ export default function NativeIosSubscriptionPanel({
 
   const pricingLocale = resolveIosPricingLocale(typeof document !== 'undefined' ? document.documentElement.lang : '')
   const cards = buildIosSubscriptionCards(products, { locale: pricingLocale })
-  const currencyMismatch = cards.some((plan) => plan.currencyMismatch)
+  const currencyMismatch = cards.some((plan) => plan.currencyMismatch && !plan.referencePriceUsed)
+  const brazilPriceReferenceShown = cards.some((plan) => plan.referencePriceUsed)
   const reportedStorefrontCountry = cards.find((plan) => plan.storefrontCountryCode)?.storefrontCountryCode || ''
   const accountValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(accountId || ''))
 
@@ -116,7 +117,7 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel" aria-label="Assinaturas pela App Store" data-ios-price-presentation="build-6">
+    <section className="native-ios-subscription-panel" aria-label="Assinaturas pela App Store" data-ios-price-presentation="brasil-planos">
       <header className="native-ios-subscription-heading">
         <span className="native-ios-eyebrow">Coach Fit Pro · App Store</span>
         <h2>{subscriptionActive ? 'Sua assinatura está ativa' : 'Escolha sua assinatura'}</h2>
@@ -148,8 +149,14 @@ export default function NativeIosSubscriptionPanel({
             <article className="native-ios-plan-card" key={plan.planId}>
               <span className="native-ios-plan-cycle">{plan.cycleLabel}</span>
               <h3>{plan.title}</h3>
-              <p className={`native-ios-plan-price${plan.currencyMismatch ? ' native-ios-plan-price--verify' : ''}`}>{plan.displayPrice}</p>
-              <p className="native-ios-plan-note">Cobrança recorrente. Confira o valor, a periodicidade e ofertas aplicáveis na confirmação da App Store.</p>
+              <div className="native-ios-price-details">
+                <div className="native-ios-price-line">
+                  <p className={`native-ios-plan-price${plan.currencyMismatch && !plan.referencePriceUsed ? ' native-ios-plan-price--verify' : ''}`}>{plan.displayPrice}</p>
+                  {plan.pricePeriod ? <span className="native-ios-price-period">{plan.pricePeriod}</span> : null}
+                </div>
+                {plan.priceDescription ? <p className="native-ios-plan-note">{plan.priceDescription}</p> : null}
+                {plan.renewalText ? <p className="native-ios-renewal-note">{plan.renewalText}</p> : null}
+              </div>
               {!subscriptionActive && (
                 <button
                   type="button"
@@ -158,12 +165,19 @@ export default function NativeIosSubscriptionPanel({
                   disabled={!accountValid || !plan.available || Boolean(processing)}
                   aria-label={`Assinar plano ${plan.title} pela App Store`}
                 >
-                  {processing === plan.planId ? 'Aguarde...' : plan.currencyMismatch ? `Conferir preço e assinar ${plan.title}` : `Assinar ${plan.title}`}
+                  {processing === plan.planId ? 'Aguarde...' : `Assinar ${plan.title}`}
                 </button>
               )}
             </article>
           ))}
         </div>
+      )}
+
+      {!loading && brazilPriceReferenceShown && (
+        <p className="native-ios-price-disclaimer">
+          Preços anunciados para o Brasil. A oferta do primeiro mês é válida para novos assinantes elegíveis.
+          O valor final, a moeda e as condições da assinatura são confirmados pela Apple antes da compra.
+        </p>
       )}
 
       {!accountValid ? (
