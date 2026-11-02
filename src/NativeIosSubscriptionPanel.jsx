@@ -116,7 +116,7 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel" aria-label="Assinaturas pela App Store">
+    <section className="native-ios-subscription-panel" aria-label="Assinaturas pela App Store" data-ios-price-presentation="build-6">
       <header className="native-ios-subscription-heading">
         <span className="native-ios-eyebrow">Coach Fit Pro · App Store</span>
         <h2>{subscriptionActive ? 'Sua assinatura está ativa' : 'Escolha sua assinatura'}</h2>
@@ -136,7 +136,7 @@ export default function NativeIosSubscriptionPanel({
       {!loading && currencyMismatch && (
         <div className="native-ios-currency-warning" role="status" aria-live="polite">
           <strong>Preço disponível para confirmação na App Store</strong>
-          <p>Encontramos uma diferença entre a moeda dos produtos e a interface brasileira. Para evitar valores incorretos, consulte o preço definitivo na janela de confirmação da Apple antes de autorizar a assinatura.</p>
+          <p>A App Store retornou um preço em moeda diferente ou com dados inconsistentes. Isso pode ocorrer no TestFlight. Para não apresentar um valor incorreto, confirme a moeda e o preço definitivo na janela de pagamento da Apple antes de autorizar a assinatura.</p>
           <p>Região informada pelo StoreKit: {reportedStorefrontCountry || 'não identificada'}.</p>
           <button type="button" className="native-ios-restore" onClick={() => setReloadCount((count) => count + 1)}>Atualizar preços</button>
         </div>
