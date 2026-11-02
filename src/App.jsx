@@ -4752,7 +4752,9 @@ function AppContent() {
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.
+                {isNativeIosApp()
+                  ? 'Para liberar o painel no iPhone, escolha um plano na seção Assinatura e confirme a compra pela App Store. A verificação da Apple determinará o acesso.'
+                  : 'Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.'}
               </p>
             </div>
           ) : null}
