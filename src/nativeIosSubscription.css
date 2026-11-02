@@ -1,0 +1,232 @@
+/* Native subscription view: isolated from Cartpanda and web marketing styles. */
+.native-ios-subscription-panel {
+  --ios-surface: #0b1516;
+  --ios-card: #111e20;
+  --ios-border: rgba(130, 232, 213, 0.20);
+  --ios-text: #f4fffd;
+  --ios-muted: #a7bdba;
+  --ios-accent: #4ee9d0;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  width: 100%;
+  color: var(--ios-text);
+  border: 1px solid var(--ios-border);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  margin-bottom: max(6.5rem, env(safe-area-inset-bottom, 0px));
+}
+.native-ios-subscription-heading { display: grid; gap: .5rem; }
+.native-ios-eyebrow { font-size: .76rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ios-accent); }
+.native-ios-subscription-heading h2 { font-size: clamp(1.45rem, 5vw, 2rem); font-weight: 800; line-height: 1.16; }
+.native-ios-subscription-heading p,
+.native-ios-plan-note,
+.native-ios-help,
+.native-ios-availability p { color: var(--ios-muted); font-size: .875rem; line-height: 1.6; }
+.native-ios-plan-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .75rem; }
+.native-ios-plan-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: 1rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 16px;
+  background: var(--ios-card);
+}
+.native-ios-plan-cycle { color: var(--ios-accent); font-size: .7rem; text-transform: uppercase; font-weight: 800; }
+.native-ios-plan-card h3 { font-size: 1.05rem; font-weight: 800; }
+.native-ios-plan-price { font-size: clamp(1.25rem, 3.5vw, 1.85rem); font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.native-ios-price-details {
+  display: grid;
+  align-content: start;
+  gap: .35rem;
+  min-height: 116px;
+}
+.native-ios-price-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: .35rem;
+  row-gap: .1rem;
+}
+.native-ios-price-period { color: var(--ios-muted); font-weight: 700; font-size: .86rem; }
+.native-ios-renewal-note { color: var(--ios-text); font-size: .82rem; font-weight: 700; line-height: 1.45; }
+.native-ios-price-disclaimer { color: var(--ios-muted); font-size: .78rem; line-height: 1.55; margin: 0; }
+.native-ios-plan-card .native-ios-plan-note { margin: 0; }
+
+.native-ios-availability { border: 1px solid var(--ios-border); border-radius: 15px; padding: 1rem; display: grid; gap: .5rem; }
+.native-ios-availability strong { color: var(--ios-accent); font-size: .9rem; }
+/* Green, high-contrast primary purchase action in both light and dark modes. */
+.native-ios-subscription-panel .native-ios-purchase-button {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin-top: auto;
+  padding: .8rem 1rem;
+  border: 1px solid #0aab8b;
+  border-radius: 14px;
+  background: #22d7ad;
+  color: #052b23;
+  font: inherit;
+  font-weight: 850;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(12, 170, 131, .16);
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:hover:not(:disabled) {
+  background: #48eac2;
+  border-color: #0f997f;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:active:not(:disabled) {
+  background: #16bf9e;
+  box-shadow: none;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+  box-shadow: none;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:focus-visible {
+  outline: 3px solid var(--ios-accent);
+  outline-offset: 3px;
+}
+/* Secondary actions remain outlined instead of competing with the purchase CTA. */
+.native-ios-restore,
+.native-ios-feedback button {
+  min-height: 48px;
+  border-radius: 13px;
+  border: 1px solid var(--ios-border);
+  padding: .75rem 1rem;
+  color: var(--ios-text);
+  background: var(--ios-card);
+  font-weight: 800;
+  cursor: pointer;
+}
+.native-ios-restore:focus-visible,
+.native-ios-feedback button:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
+.native-ios-restore:disabled { cursor: wait; opacity: .6; }
+.native-ios-feedback { border: 1px solid var(--ios-border); border-radius: 13px; padding: 1rem; background: var(--ios-card); font-size: .9rem; }
+.native-ios-feedback p { margin-bottom: .65rem; }
+.coach-auth-shell.app-theme-light .native-ios-subscription-panel {
+  --ios-surface: #fff;
+  --ios-card: #f5faf9;
+  --ios-border: rgba(5,118,101,.18);
+  --ios-text: #0d2523;
+  --ios-muted: #425c58;
+  --ios-accent: #087f72;
+}
+@media (max-width: 700px) {
+  .native-ios-plan-grid { grid-template-columns: 1fr; }
+  .native-ios-subscription-panel { border-radius: 16px; padding: 1rem; }
+}
+@media (max-width: 1023px) {
+  .coach-auth-shell .coach-mobile-header { padding-top: max(.5rem, env(safe-area-inset-top, 0px)); }
+  .coach-auth-shell .native-ios-subscription-panel {
+    margin-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.native-ios-legal { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; font-size: .82rem; }
+.native-ios-legal a { color: var(--ios-accent); text-decoration: underline; text-underline-offset: 3px; }
+.native-ios-legal a:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
+
+/* Keep native first-launch focused on authentication. The sales landing page,
+   Cartpanda offers and web promotional prices remain exclusively on the web. */
+.native-ios-entry main > :not(#acesso) { display: none !important; }
+.native-ios-entry .sales-header-nav { display: none !important; }
+.native-ios-entry .sales-header-actions > button:last-child:not(.sales-theme-toggle) { display: none !important; }
+.native-ios-entry .sales-header { padding-top: env(safe-area-inset-top, 0px); }
+.native-ios-entry #acesso {
+  min-height: calc(100dvh - 5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Price is intentionally not guessed when Apple's returned currency conflicts with pt-BR. */
+.native-ios-plan-price--verify { font-size: clamp(1rem, 3vw, 1.2rem); line-height: 1.45; }
+.native-ios-currency-warning .native-ios-restore { justify-self: start; margin-top: .5rem; }
+
+
+/* Minha Assinatura: new status-first layout from the uploaded build-7 design. */
+.subscription-workspace { max-width: 1120px; gap: 1.5rem; border: 0; background: transparent; padding: 0; font-family: inherit; }
+.subscription-workspace h2, .subscription-workspace h3, .subscription-workspace h4 { color: var(--ios-text); letter-spacing: -.025em; }
+.subscription-page-heading { padding: .25rem .125rem; }
+.subscription-page-heading h2 { font-size: clamp(1.8rem, 5vw, 2.4rem); }
+.subscription-current-card { min-width: 0; border: 1px solid var(--ios-border); border-radius: 22px; padding: clamp(1.1rem, 3vw, 1.75rem); background: var(--ios-card); box-shadow: 0 12px 36px rgba(0,0,0,.1); }
+.subscription-current-card.is-active { border-color: color-mix(in srgb, var(--ios-accent) 46%, transparent); background: linear-gradient(120deg, color-mix(in srgb, var(--ios-accent) 9%, var(--ios-card)), var(--ios-card)); }
+.subscription-current-topline { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.subscription-status-badge { display: inline-flex; align-items: center; gap: .45rem; width: fit-content; border-radius: 100px; padding: .35rem .7rem; color: var(--ios-muted); background: var(--ios-surface); border: 1px solid var(--ios-border); font-size: .73rem; font-weight: 800; }
+.subscription-status-badge > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.subscription-status-badge.is-active { color: var(--ios-accent); }
+.subscription-current-card h3 { margin: 1rem 0 .5rem; font-size: clamp(1.55rem, 4vw, 2.15rem); font-weight: 850; line-height: 1.2; }
+.subscription-summary-note { max-width: 68ch; color: var(--ios-muted); font-size: .9rem; line-height: 1.65; }
+.subscription-current-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .8rem; margin: 1.3rem 0 1rem; }
+.subscription-current-facts > div { min-width: 0; padding: .9rem 1rem; border: 1px solid var(--ios-border); border-radius: 14px; background: var(--ios-surface); }
+.subscription-current-facts dt { color: var(--ios-muted); font-size: .74rem; line-height: 1.4; }
+.subscription-current-facts dd { margin-top: .45rem; color: var(--ios-text); font-size: 1rem; line-height: 1.45; font-weight: 800; overflow-wrap: anywhere; }
+.subscription-small-print { color: var(--ios-muted); font-size: .77rem; line-height: 1.65; }
+.subscription-summary-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.15rem; }
+.subscription-summary-actions > * { flex: 1 1 160px; text-align: center; font-size: .85rem; }
+.subscription-manage-link { display: grid; place-items: center; min-height: 48px; border-radius: 13px; padding: .75rem 1rem; color: #052b23; background: #22d7ad; font-weight: 800; text-decoration: none; }
+.subscription-manage-link:focus-visible { outline: 3px solid var(--ios-accent); outline-offset: 3px; }
+.subscription-section-title { margin-bottom: 1rem; }
+.subscription-section-title h3, .subscription-included h3, .subscription-support h3 { font-size: 1.07rem; font-weight: 850; }
+.subscription-section-title p, .subscription-included > p, .subscription-support p { color: var(--ios-muted); font-size: .85rem; line-height: 1.65; margin-top: .3rem; }
+.subscription-workspace .native-ios-plan-card { position: relative; padding: 1.1rem; border-radius: 18px; gap: .65rem; transition: border-color .16s ease, background-color .16s ease; }
+.subscription-workspace .native-ios-plan-card.is-selected, .subscription-workspace .native-ios-plan-card.is-current { border-color: var(--ios-accent); background: color-mix(in srgb, var(--ios-accent) 7%, var(--ios-card)); box-shadow: inset 0 0 0 1px var(--ios-accent); }
+.subscription-plan-option { display: flex; align-items: flex-start; gap: .65rem; cursor: pointer; }
+.subscription-plan-option::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.subscription-plan-option input { position: relative; z-index: 1; width: 19px; height: 19px; margin: .13rem 0 0; flex: 0 0 auto; accent-color: var(--ios-accent); }
+.subscription-plan-option input:disabled { opacity: .5; cursor: not-allowed; }
+.subscription-plan-option-title { font-size: 1.1rem; font-weight: 850; line-height: 1.3; color: var(--ios-text); }
+.subscription-plan-option-title > span { display: block; font-size: .76rem; font-weight: 500; color: var(--ios-muted); margin-top: .3rem; }
+.subscription-plan-badge { width: fit-content; padding: .25rem .55rem; font-size: .66rem; font-weight: 750; border-radius: 100px; border: 1px solid var(--ios-border); color: var(--ios-muted); }
+.is-selected .subscription-plan-badge, .is-current .subscription-plan-badge { color: var(--ios-accent); border-color: var(--ios-accent); }
+.subscription-workspace .native-ios-plan-price { font-size: clamp(1.2rem, 3vw, 1.65rem); margin-top: .25rem; }
+.subscription-workspace .native-ios-plan-note { font-size: .77rem; }
+.subscription-workspace .native-ios-plan-card:focus-within { outline: 3px solid var(--ios-accent); outline-offset: 4px; }
+.subscription-selection-summary { margin-top: 1rem; padding: 1.2rem; border: 1px solid var(--ios-border); border-radius: 18px; background: var(--ios-card); display: grid; gap: .85rem; }
+.subscription-selection-summary > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.subscription-selection-summary h4 { font-size: 1.25rem; font-weight: 850; }
+.subscription-selection-summary strong { font-size: 1.3rem; font-weight: 850; line-height: 1.35; overflow-wrap: anywhere; }
+.subscription-selection-summary .native-ios-purchase-button { margin-top: .2rem; text-decoration: none; }
+.subscription-plan-comparison { border: 1px solid var(--ios-border); border-radius: 18px; padding: 1.05rem 1.2rem; background: var(--ios-card); }
+.subscription-plan-comparison summary { min-height: 30px; display: list-item; font-size: .94rem; line-height: 1.6; font-weight: 800; cursor: pointer; }
+.subscription-plan-comparison[open] summary { margin-bottom: .8rem; }
+.subscription-plan-comparison > p { margin-bottom: 1rem; }
+.subscription-included { border: 1px solid var(--ios-border); border-radius: 18px; padding: 1.1rem 1.2rem; background: var(--ios-card); }
+.subscription-included ul { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem 1rem; margin-top: 1rem; }
+.subscription-included li { display: flex; align-items: center; gap: .55rem; font-size: .82rem; color: var(--ios-text); line-height: 1.5; }
+.subscription-included li::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ios-accent); flex: 0 0 auto; }
+.subscription-support { border-top: 1px solid var(--ios-border); padding-top: 1.2rem; display: grid; gap: .9rem; }
+.subscription-support button { justify-self: start; min-width: min(100%,220px); font-size: .85rem; }
+.subscription-steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .85rem; margin-top: 1.25rem; }
+.subscription-steps li { display: flex; gap: .65rem; min-width: 0; }
+.subscription-steps li > span { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: var(--ios-card); border: 1px solid var(--ios-border); color: var(--ios-accent); flex: 0 0 auto; font-size: .75rem; font-weight: 800; }
+.subscription-steps strong { color: var(--ios-text); font-size: .81rem; }
+.subscription-steps p { font-size: .75rem; color: var(--ios-muted); line-height: 1.6; margin-top: .2rem; }
+.subscription-workspace .native-ios-feedback { font-size: .85rem; line-height: 1.6; overflow-wrap: anywhere; }
+.subscription-operation-message { border-left: 3px solid var(--ios-accent); }
+.coach-auth-shell.app-theme-light .subscription-workspace { background: transparent; }
+@media (max-width:700px) {
+  .subscription-current-facts { grid-template-columns: 1fr; gap: .55rem; }
+  .subscription-current-facts > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; padding: .8rem .9rem; }
+  .subscription-current-facts dd { margin: 0; font-size: .92rem; }
+  .subscription-workspace .native-ios-plan-grid { grid-template-columns: 1fr; gap: .7rem; }
+  .subscription-workspace .native-ios-plan-card { display: grid; grid-template-columns: 1fr auto; gap: .45rem .8rem; }
+  .subscription-workspace .native-ios-plan-card .subscription-plan-option, .subscription-workspace .native-ios-plan-card .subscription-plan-option-title { grid-column: 1; }
+  .subscription-workspace .native-ios-plan-card .subscription-plan-badge { grid-column: 1; }
+  .subscription-workspace .native-ios-plan-card .native-ios-plan-price { grid-column: 2; grid-row: 1 / span 2; text-align: right; align-self: center; max-width: 9rem; font-size: 1.3rem; margin: 0; }
+  .subscription-workspace .native-ios-plan-card .native-ios-plan-note { grid-column: 1 / -1; }
+  .subscription-steps { grid-template-columns: 1fr; }
+}
+@media (max-width:380px) {
+  .subscription-included ul { grid-template-columns: 1fr; }
+  .subscription-workspace .native-ios-plan-card { display: flex; }
+  .subscription-workspace .native-ios-plan-card .native-ios-plan-price { text-align: left; align-self: start; max-width: none; }
+}
+@media (prefers-reduced-motion:reduce) { .subscription-workspace *, .subscription-workspace *::before, .subscription-workspace *::after { transition: none !important; } }

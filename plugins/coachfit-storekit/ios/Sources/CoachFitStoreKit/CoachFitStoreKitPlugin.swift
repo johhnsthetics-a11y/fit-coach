@@ -18,7 +18,18 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         Task {
             do {
                 let products = try await Product.products(for: productIds)
-                call.resolve(["products": products.map(productDictionary)])
+                let storefront = await Storefront.current
+                // Introductory eligibility depends on the App Store account and
+                // subscription group. Query it per product; it is not implied
+                // by the existence of an introductory offer.
+                var productDetails: [[String: Any]] = []
+                for product in products {
+                    productDetails.append(await productDictionary(product))
+                }
+                call.resolve([
+                    "products": productDetails,
+                    "storefrontCountryCode": storefront?.countryCode.uppercased() ?? ""
+                ])
             } catch {
                 call.reject("Não foi possível carregar os planos da App Store.", nil, error)
             }
@@ -31,6 +42,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
+        guard let rawAccountId = call.getString("accountId"), let accountToken = UUID(uuidString: rawAccountId) else {
+            call.reject("Entre na sua conta Coach Fit Pro antes de assinar pela App Store.")
+            return
+        }
+
         Task {
             do {
                 guard let product = try await Product.products(for: [productId]).first else {
@@ -38,12 +54,26 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     return
                 }
 
-                switch try await product.purchase() {
+                switch try await product.purchase(options: [.appAccountToken(accountToken)]) {
                 case .success(let verification):
                     switch verification {
                     case .verified(let transaction):
+                        guard transaction.appAccountToken == accountToken else {
+                            call.reject("A compra não pertence à conta Coach Fit Pro conectada.")
+                            return
+                        }
+                        // Only a live, Apple-verified subscription for this
+                        // exact product/account can unlock professional tools.
+                        guard transaction.productID == productId,
+                              transaction.revocationDate == nil,
+                              let expiry = transaction.expirationDate,
+                              expiry > Date() else {
+                            call.reject("A assinatura ainda não está ativa. Verifique a confirmação da Apple ou restaure a compra.")
+                            return
+                        }
                         await transaction.finish()
                         call.resolve([
+                            "verified": true,
                             "purchased": true,
                             "cancelled": false,
                             "pending": false,
@@ -78,23 +108,29 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func getEntitlements(_ call: CAPPluginCall) {
         let acceptedProductIds = Set(call.getArray("productIds", String.self) ?? [])
+        guard let rawAccountId = call.getString("accountId"), let accountToken = UUID(uuidString: rawAccountId) else {
+            call.reject("Identificador da conta Coach Fit Pro ausente.")
+            return
+        }
         Task {
             var entitlements: [[String: Any]] = []
             for await result in Transaction.currentEntitlements {
                 guard case .verified(let transaction) = result else { continue }
                 guard acceptedProductIds.isEmpty || acceptedProductIds.contains(transaction.productID) else { continue }
+                guard transaction.appAccountToken == accountToken else { continue }
                 entitlements.append(entitlementDictionary(transaction))
             }
             call.resolve(["entitlements": entitlements])
         }
     }
 
-    private func productDictionary(_ product: Product) -> [String: Any] {
+    private func productDictionary(_ product: Product) async -> [String: Any] {
         var value: [String: Any] = [
             "id": product.id,
             "displayName": product.displayName,
             "description": product.description,
             "displayPrice": product.displayPrice,
+            "currencyCode": product.priceFormatStyle.currencyCode,
             "type": String(describing: product.type)
         ]
         if let subscription = product.subscription {
@@ -103,6 +139,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             if let offer = subscription.introductoryOffer {
                 value["introductoryDisplayPrice"] = offer.displayPrice
                 value["introductoryPeriodCount"] = offer.periodCount
+                // StoreKit 2 determines the current Apple ID's eligibility.
+                // A marketing price cannot confer introductory eligibility.
+                value["introductoryEligible"] = await subscription.isEligibleForIntroOffer
+            } else {
+                value["introductoryEligible"] = false
             }
         }
         return value
@@ -111,6 +152,8 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private func transactionDictionary(_ transaction: Transaction) -> [String: Any] {
         var value: [String: Any] = [
             "id": String(transaction.id),
+            "originalId": String(transaction.originalID),
+            "accountId": transaction.appAccountToken?.uuidString.lowercased() ?? "",
             "productId": transaction.productID,
             "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate)
         ]
