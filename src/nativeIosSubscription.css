@@ -38,6 +38,24 @@
 .native-ios-plan-cycle { color: var(--ios-accent); font-size: .7rem; text-transform: uppercase; font-weight: 800; }
 .native-ios-plan-card h3 { font-size: 1.05rem; font-weight: 800; }
 .native-ios-plan-price { font-size: clamp(1.25rem, 3.5vw, 1.85rem); font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.native-ios-price-details {
+  display: grid;
+  align-content: start;
+  gap: .35rem;
+  min-height: 116px;
+}
+.native-ios-price-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: .35rem;
+  row-gap: .1rem;
+}
+.native-ios-price-period { color: var(--ios-muted); font-weight: 700; font-size: .86rem; }
+.native-ios-renewal-note { color: var(--ios-text); font-size: .82rem; font-weight: 700; line-height: 1.45; }
+.native-ios-price-disclaimer { color: var(--ios-muted); font-size: .78rem; line-height: 1.55; margin: 0; }
+.native-ios-plan-card .native-ios-plan-note { margin: 0; }
+
 .native-ios-availability { border: 1px solid var(--ios-border); border-radius: 15px; padding: 1rem; display: grid; gap: .5rem; }
 .native-ios-availability strong { color: var(--ios-accent); font-size: .9rem; }
 /* Green, high-contrast primary purchase action in both light and dark modes. */
