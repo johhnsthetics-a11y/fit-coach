@@ -55,9 +55,7 @@ export default function NativeIosSubscriptionPanel({
 
   const pricingLocale = resolveIosPricingLocale(typeof document !== 'undefined' ? document.documentElement.lang : '')
   const cards = buildIosSubscriptionCards(products, { locale: pricingLocale })
-  const currencyMismatch = cards.some((plan) => plan.currencyMismatch && !plan.referencePriceUsed)
   const brazilPriceReferenceShown = cards.some((plan) => plan.referencePriceUsed)
-  const reportedStorefrontCountry = cards.find((plan) => plan.storefrontCountryCode)?.storefrontCountryCode || ''
   const accountValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(accountId || ''))
 
   async function purchase(plan) {
@@ -117,7 +115,7 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel" aria-label="Assinaturas pela App Store" data-ios-price-presentation="brasil-planos">
+    <section className="native-ios-subscription-panel" aria-label="Assinaturas pela App Store">
       <header className="native-ios-subscription-heading">
         <span className="native-ios-eyebrow">Coach Fit Pro · App Store</span>
         <h2>{subscriptionActive ? 'Sua assinatura está ativa' : 'Escolha sua assinatura'}</h2>
@@ -134,15 +132,6 @@ export default function NativeIosSubscriptionPanel({
         </div>
       ) : null}
 
-      {!loading && currencyMismatch && (
-        <div className="native-ios-currency-warning" role="status" aria-live="polite">
-          <strong>Preço disponível para confirmação na App Store</strong>
-          <p>A App Store retornou um preço em moeda diferente ou com dados inconsistentes. Isso pode ocorrer no TestFlight. Para não apresentar um valor incorreto, confirme a moeda e o preço definitivo na janela de pagamento da Apple antes de autorizar a assinatura.</p>
-          <p>Região informada pelo StoreKit: {reportedStorefrontCountry || 'não identificada'}.</p>
-          <button type="button" className="native-ios-restore" onClick={() => setReloadCount((count) => count + 1)}>Atualizar preços</button>
-        </div>
-      )}
-
       {!loading && (
         <div className="native-ios-plan-grid">
           {cards.map((plan) => (
@@ -151,7 +140,7 @@ export default function NativeIosSubscriptionPanel({
               <h3>{plan.title}</h3>
               <div className="native-ios-price-details">
                 <div className="native-ios-price-line">
-                  <p className={`native-ios-plan-price${plan.currencyMismatch && !plan.referencePriceUsed ? ' native-ios-plan-price--verify' : ''}`}>{plan.displayPrice}</p>
+                  <p className="native-ios-plan-price">{plan.displayPrice}</p>
                   {plan.pricePeriod ? <span className="native-ios-price-period">{plan.pricePeriod}</span> : null}
                 </div>
                 {plan.priceDescription ? <p className="native-ios-plan-note">{plan.priceDescription}</p> : null}
@@ -175,8 +164,8 @@ export default function NativeIosSubscriptionPanel({
 
       {!loading && brazilPriceReferenceShown && (
         <p className="native-ios-price-disclaimer">
-          Preços anunciados para o Brasil. A oferta do primeiro mês é válida para novos assinantes elegíveis.
-          O valor final, a moeda e as condições da assinatura são confirmados pela Apple antes da compra.
+          A oferta mensal de R$ 9,90 é válida somente para novos assinantes elegíveis.
+          Confira o valor e a renovação na confirmação de compra da Apple.
         </p>
       )}
 
