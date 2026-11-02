@@ -110,7 +110,7 @@ test('Native subscription CTA uses green accessible styling and discloses Apple 
   assert.match(panel, /A oferta mensal de R\$ 9,90/)
   assert.match(panel, /loadIosProducts\(\)/)
   assert.match(panel, /document\.addEventListener\('visibilitychange'/)
-  assert.match(panel, /current\.displayPrice !== previous\?\.displayPrice/)
+  assert.doesNotMatch(panel, /current\.displayPrice !== previous\?\.displayPrice/)
   assert.match(swift, /product\.priceFormatStyle\.currencyCode/)
   assert.match(swift, /Storefront\.current/)
   assert.match(swift, /storefrontCountryCode/)
