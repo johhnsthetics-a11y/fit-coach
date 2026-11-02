@@ -83,9 +83,9 @@ export default function NativeIosSubscriptionPanel({
         setClock(Date.now())
         if (result.active) {
           rememberPendingPlan('')
-          // The parent navigates to the professional dashboard only on a
-          // verified account-bound entitlement.
-          onNativeEntitlementChange?.(true)
+          // Existing subscribers must be able to open Minha Assinatura
+          // without being redirected away on every status refresh.
+          if (!subscriptionActive) onNativeEntitlementChange?.(true)
         }
       }).catch(error => {
         if (!alive || version !== verificationRef.current || accountRef.current !== accountId) return
