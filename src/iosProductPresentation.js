@@ -6,7 +6,7 @@ export const IOS_PLAN_DETAILS = Object.freeze([
   { planId: 'anual', title: 'Anual', cycleLabel: 'Renovação anual' },
 ])
 
-const looksLikeUSD = (price) => /(?:\bUSD\b|\bUS\$|\$\s*\d)/i.test(price)
+const looksLikeUSD = (price) => /(?:\bUSD\b|\bUS\$|^\s*\$\s*\d)/i.test(price)
 
 // Language/region are a display preference, NOT proof of the user's App Store storefront.
 // When the local interface is Brazilian but StoreKit unexpectedly returns USD,
