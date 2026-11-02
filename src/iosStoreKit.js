@@ -23,8 +23,11 @@ function requireNativeIos() {
 export async function loadIosProducts() {
   requireNativeIos()
   const result = await CoachFitStoreKit.getProducts({ productIds: Object.values(IOS_PRODUCT_IDS) })
+  const storefrontCountryCode = typeof result.storefrontCountryCode === 'string'
+    ? result.storefrontCountryCode.toUpperCase() : ''
   return (result.products ?? []).map((product) => ({
     ...product,
+    storefrontCountryCode,
     planId: planByProductId[product.id] ?? '',
   }))
 }
