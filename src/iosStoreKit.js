@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import { normalizeIosStorefrontCountryCode } from './iosProductPresentation'
+import { isVerifiedIosSubscriptionPurchase } from './iosPurchaseVerification'
 
 export const IOS_PRODUCT_IDS = Object.freeze({
   mensal: 'br.com.coachfitpro.ios.profissional.mensal',
@@ -59,8 +60,23 @@ export async function purchaseIosPlan(planId, accountId) {
 
   const purchase = await CoachFitStoreKit.purchase({ productId, accountId: id })
   if (purchase.cancelled || purchase.pending) return purchase
-  const entitlement = await getIosEntitlements(id)
-  return { ...purchase, active: entitlement.active, entitlements: entitlement.entitlements }
+  const verifiedPurchase = isVerifiedIosSubscriptionPurchase(purchase, id, productId)
+
+  // Current entitlements may lag behind a just-verified StoreKit purchase,
+  // particularly on TestFlight. Never lose an already verified transaction
+  // solely because the second Apple lookup has not refreshed yet.
+  try {
+    const entitlement = await getIosEntitlements(id)
+    return {
+      ...purchase,
+      active: entitlement.active || verifiedPurchase,
+      entitlements: entitlement.entitlements,
+      awaitingEntitlementSync: verifiedPurchase && !entitlement.active,
+    }
+  } catch (error) {
+    if (!verifiedPurchase) throw error
+    return { ...purchase, active: true, entitlements: [], awaitingEntitlementSync: true }
+  }
 }
 
 export async function restoreIosPurchases(accountId) {
