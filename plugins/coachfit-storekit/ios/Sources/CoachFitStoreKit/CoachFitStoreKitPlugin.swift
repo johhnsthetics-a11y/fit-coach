@@ -19,8 +19,12 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 let products = try await Product.products(for: productIds)
                 let storefront = await Storefront.current
+                var productInfo: [[String: Any]] = []
+                for product in products {
+                    productInfo.append(await productDictionary(product))
+                }
                 call.resolve([
-                    "products": products.map(productDictionary),
+                    "products": productInfo,
                     "storefrontCountryCode": storefront?.countryCode.uppercased() ?? ""
                 ])
             } catch {
@@ -117,7 +121,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    private func productDictionary(_ product: Product) -> [String: Any] {
+    private func productDictionary(_ product: Product) async -> [String: Any] {
         var value: [String: Any] = [
             "id": product.id,
             "displayName": product.displayName,
@@ -130,8 +134,17 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             value["subscriptionPeriodValue"] = subscription.subscriptionPeriod.value
             value["subscriptionPeriodUnit"] = String(describing: subscription.subscriptionPeriod.unit)
             if let offer = subscription.introductoryOffer {
+                // StoreKit determines eligibility for the Apple Account and
+                // subscription group. A listed offer is NOT proof of eligibility.
+                let eligible = await subscription.isEligibleForIntroOffer
+                value["introductoryOfferAvailable"] = true
+                value["introductoryOfferEligible"] = eligible
                 value["introductoryDisplayPrice"] = offer.displayPrice
                 value["introductoryPeriodCount"] = offer.periodCount
+                value["introductoryPaymentMode"] = String(describing: offer.paymentMode)
+            } else {
+                value["introductoryOfferAvailable"] = false
+                value["introductoryOfferEligible"] = false
             }
         }
         return value
