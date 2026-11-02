@@ -55,8 +55,18 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                             call.reject("A compra não pertence à conta Coach Fit Pro conectada.")
                             return
                         }
+                        // Only a live, Apple-verified subscription for this
+                        // exact product/account can unlock professional tools.
+                        guard transaction.productID == productId,
+                              transaction.revocationDate == nil,
+                              let expiry = transaction.expirationDate,
+                              expiry > Date() else {
+                            call.reject("A assinatura ainda não está ativa. Verifique a confirmação da Apple ou restaure a compra.")
+                            return
+                        }
                         await transaction.finish()
                         call.resolve([
+                            "verified": true,
                             "purchased": true,
                             "cancelled": false,
                             "pending": false,
