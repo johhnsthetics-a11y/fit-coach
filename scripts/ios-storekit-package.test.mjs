@@ -107,7 +107,7 @@ test('Native subscription CTA uses green accessible styling and discloses Apple 
   assert.doesNotMatch(panel, /Preço disponível para confirmação na App Store/)
   assert.doesNotMatch(panel, /Região informada pelo StoreKit|TestFlight|moeda diferente|dados inconsistentes/)
   assert.match(panel, /Assinar \$\{selectedPlan\?\.title/)
-  assert.match(panel, /A oferta mensal é válida para novos assinantes elegíveis/)
+  assert.match(panel, /elegível à oferta introdutória/)
   assert.match(panel, /loadIosProducts\(\)/)
   assert.match(panel, /document\.addEventListener\('visibilitychange'/)
   assert.doesNotMatch(panel, /current\.displayPrice !== previous\?\.displayPrice/)
