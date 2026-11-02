@@ -150,6 +150,8 @@ import {
   restoreIosPurchases,
 } from './iosStoreKit'
 import NativeIosSubscriptionPanel from './NativeIosSubscriptionPanel'
+import WebSubscriptionPanel from './WebSubscriptionPanel'
+import { getSafeSubscriptionCheckoutUrl } from './subscriptionPresentation'
 import {
   ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
   STUDENT_PORTAL_REFRESH_INTERVAL_MS,
@@ -4930,6 +4932,7 @@ function AppContent() {
                 appAdminSettings={appAdminSettings}
                 onRefreshSubscription={syncCoachWorkspace}
                 professionalAffiliate={professionalAffiliate}
+                professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
                 nativeIosEntitlement={nativeIosEntitlement}
                 onNativeEntitlementChange={handleVerifiedIosSubscription}
                 accountId={data.session?.user?.id || ''}
@@ -20587,13 +20590,15 @@ function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno', sch
   )
 }
 
-function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange, accountId = '' }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange, professionalType = 'trainer', accountId = '' }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [checkoutStarted, setCheckoutStarted] = useState(false)
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [paymentMessage, setPaymentMessage] = useState('')
+  const [retryCheckoutConfirmed, setRetryCheckoutConfirmed] = useState(false)
+  const webCheckoutRequestRef = useRef(false)
   const [nativeProducts, setNativeProducts] = useState([])
   const [nativePurchasePending, setNativePurchasePending] = useState(false)
   const nativeIosApp = isNativeIosApp()
@@ -20824,12 +20829,55 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
   if (nativeIosApp) {
     return (
       <NativeIosSubscriptionPanel
+        key={accountId}
         accountId={accountId}
-        subscriptionActive={subscriptionActive}
+        subscriptionActive={nativeIosEntitlement}
+        subscription={subscription}
+        professionalAffiliate={professionalAffiliate}
+        professionalType={professionalType}
         onNativeEntitlementChange={onNativeEntitlementChange}
       />
     )
   }
+
+  const safeCheckoutPlans = checkoutPlans.map((item) => ({
+    ...item,
+    checkoutUrl: getSafeSubscriptionCheckoutUrl(item.checkoutUrl),
+  }))
+  const pendingProviderStatus = ['pending','pendente','waiting_payment','aguardando_pagamento']
+    .includes(String(subscription?.status || '').toLowerCase())
+  return (
+    <WebSubscriptionPanel
+      subscription={subscription}
+      professionalAffiliate={professionalAffiliate}
+      professionalType={professionalType}
+      plans={safeCheckoutPlans}
+      selectedPlanId={selectedCheckoutPlanId}
+      onSelectPlan={chooseCheckoutPlan}
+      onCheckout={(planId) => {
+        const selected = safeCheckoutPlans.find(item => item.id === planId)
+        if (webCheckoutRequestRef.current || checkoutStarted || subscriptionActive ||
+          (pendingProviderStatus && !retryCheckoutConfirmed) || !selected?.checkoutUrl) return false
+        webCheckoutRequestRef.current = true
+        handleCheckoutClick(planId)
+        return true
+      }}
+      onRefresh={() => checkPaymentStatus(false)}
+      checking={checkingPayment}
+      paymentMessage={paymentMessage}
+      checkoutStarted={checkoutStarted}
+      retryCheckoutConfirmed={retryCheckoutConfirmed}
+      onRetryCheckout={() => {
+        webCheckoutRequestRef.current = false
+        setCheckoutStarted(false)
+        setRetryCheckoutConfirmed(true)
+        setPaymentMessage('Nova tentativa liberada. Continue apenas se a anterior foi cancelada ou recusada.')
+      }}
+      copied={copied}
+      onCopy={copyBillingSummary}
+      now={currentTime}
+    />
+  )
 
   if (!subscriptionActive) {
     return (
