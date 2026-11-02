@@ -80,3 +80,5 @@
   min-height: calc(100dvh - 5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
 }
+
+.native-ios-plan-price--verify { font-size: clamp(1rem, 3vw, 1.18rem); line-height: 1.45; }
