@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { loadIosProducts, purchaseIosPlan, restoreIosPurchases } from './iosStoreKit'
-import { buildIosSubscriptionCards } from './iosProductPresentation'
+import { buildIosSubscriptionCards, resolveIosPricingLocale } from './iosProductPresentation'
 import './nativeIosSubscription.css'
 
 // StoreKit 2 verifies the Apple-signed transaction on-device. The plugin also
@@ -53,7 +53,8 @@ export default function NativeIosSubscriptionPanel({
     }
   }, [])
 
-  const cards = buildIosSubscriptionCards(products, { locale: typeof navigator !== 'undefined' ? navigator.language : '' })
+  const pricingLocale = resolveIosPricingLocale(typeof document !== 'undefined' ? document.documentElement.lang : '')
+  const cards = buildIosSubscriptionCards(products, { locale: pricingLocale })
   const currencyMismatch = cards.some((plan) => plan.currencyMismatch)
   const reportedStorefrontCountry = cards.find((plan) => plan.storefrontCountryCode)?.storefrontCountryCode || ''
   const accountValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(accountId || ''))
