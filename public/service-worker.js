@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-student-import-20261027'
+const CACHE_NAME = 'coach-fit-pro-ios-brl-planos-build7-20261102'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {

@@ -28,10 +28,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 2)"
+        description: "Build INEDITO para esta versao (ex.: 7)"
         type: string
         required: true
-        default: "2"
+        default: "7"
 
 permissions:
   contents: read
@@ -85,7 +85,7 @@ jobs:
       - name: Validate source and StoreKit bridge
         run: |
           set -euo pipefail
-          node --test scripts/ios-storekit-package.test.mjs scripts/chat-enhancements.test.mjs
+          node --test scripts/ios-storekit-package.test.mjs scripts/ios-product-pricing.test.mjs scripts/chat-enhancements.test.mjs
 
       - name: Build web assets
         run: pnpm run build
