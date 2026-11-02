@@ -1881,12 +1881,23 @@ function AppContent() {
   const [incomingMessageAlert, setIncomingMessageAlert] = useState(null)
   const [billingClock, setBillingClock] = useState(Date.now())
   const [nativeIosAccess, setNativeIosAccess] = useState({ accountId: '', active: false })
+  const recentVerifiedIosPurchaseUntil = useRef(0)
   const nativeIosEntitlement = Boolean(
     data.session?.user?.id && nativeIosAccess.accountId === data.session.user.id && nativeIosAccess.active
   )
   const setNativeIosEntitlement = useCallback((active) => {
     setNativeIosAccess({ accountId: data.session?.user?.id || '', active: Boolean(active) })
   }, [data.session?.user?.id])
+  // Only called after native StoreKit has verified an active subscription.
+  // Navigate away from the paywall instead of leaving the buyer in "Assinatura".
+  const handleVerifiedIosSubscription = useCallback((active) => {
+    setNativeIosEntitlement(active)
+    if (active) {
+      recentVerifiedIosPurchaseUntil.current = Date.now() + 25_000
+      setActiveView('visao')
+      setMobileMenuOpen(false)
+    }
+  }, [setNativeIosEntitlement])
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   useEffect(() => {
     document.documentElement.dataset.theme = uiTheme
@@ -1992,9 +2003,18 @@ function AppContent() {
     }
     try {
       const result = await getIosEntitlements(data.session.user.id)
-      setNativeIosEntitlement(Boolean(result.active))
-      return Boolean(result.active)
+      if (result.active) {
+        recentVerifiedIosPurchaseUntil.current = 0
+        setNativeIosEntitlement(true)
+        return true
+      }
+      // After a signed purchase, StoreKit.currentEntitlements can lag for a
+      // few seconds. Do not immediately re-lock the verified buyer on focus.
+      if (Date.now() < recentVerifiedIosPurchaseUntil.current) return true
+      setNativeIosEntitlement(false)
+      return false
     } catch (error) {
+      if (Date.now() < recentVerifiedIosPurchaseUntil.current) return true
       setNativeIosEntitlement(false)
       console.warn('Não foi possível validar a assinatura da App Store.', error)
       return false
@@ -4900,7 +4920,7 @@ function AppContent() {
                 onRefreshSubscription={syncCoachWorkspace}
                 professionalAffiliate={professionalAffiliate}
                 nativeIosEntitlement={nativeIosEntitlement}
-                onNativeEntitlementChange={setNativeIosEntitlement}
+                onNativeEntitlementChange={handleVerifiedIosSubscription}
                 accountId={data.session?.user?.id || ''}
               />
             )}
