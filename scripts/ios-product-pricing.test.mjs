@@ -53,9 +53,9 @@ test('Brazilian interface never displays a USD numeric price as a BRL plan', () 
     { planId: 'semestral', displayPrice: 'US$ 49,99', currencyCode: 'USD', storefrontCountryCode: 'BR' },
     { planId: 'anual', displayPrice: 'US$ 99,99', currencyCode: 'USD', storefrontCountryCode: '' },
   ], { locale: 'pt-BR' })
-  assert.ok(cards.every((card) => card.currencyMismatch))
-  assert.ok(cards.every((card) => card.available))
-  assert.ok(cards.every((card) => card.displayPrice === 'Confira o preço na App Store'))
+  assert.deepEqual(cards.map((card) => card.displayPrice), ['R$ 9,90', 'R$ 239,90', 'R$ 359,00'])
+  assert.ok(cards.every((card) => card.currencyMismatch && card.referencePriceUsed && card.available))
+  assert.equal(cards[0].renewalText, 'Depois, R$ 49,90/mês')
   assert.equal(cards[0].storefrontCountryCode, 'US')
   assert.equal(cards[1].storefrontCountryCode, 'BR')
 })
@@ -64,11 +64,14 @@ test('Brazilian prices from StoreKit are displayed as returned, without guessing
   const [card] = buildIosSubscriptionCards([
     { planId: 'mensal', displayPrice: 'R$ 49,90', currencyCode: 'BRL', storefrontCountryCode: 'BR', introductoryDisplayPrice: 'R$ 9,90' },
   ], { locale: 'pt-BR' })
-  assert.equal(card.displayPrice, 'R$ 49,90')
+  assert.equal(card.displayPrice, 'R$ 9,90')
+  assert.equal(card.renewalText, 'Depois, R$ 49,90/mês')
+  assert.equal(card.priceDescription, 'Primeiro mês para novos assinantes elegíveis')
+  assert.equal(card.referencePriceUsed, false)
   assert.equal(card.currencyCode, 'BRL')
   assert.equal(card.storefrontCountryCode, 'BR')
   assert.equal(card.currencyMismatch, false)
-  assert.equal(card.introductoryDisplayPrice, null)
+  assert.equal(card.introductoryDisplayPrice, 'R$ 9,90')
 })
 
 test('A US storefront with USD is displayed correctly to an English US user', () => {
@@ -123,8 +126,8 @@ test('The three TestFlight prices in the report are never shown as numeric price
   ]
   for (const locale of ['pt-BR', 'pt_BR', 'pt', 'pt-BR-u-nu-latn']) {
     const cards = buildIosSubscriptionCards(products, { locale })
-    assert.ok(cards.every((card) => card.currencyMismatch && card.available))
-    assert.ok(cards.every((card) => card.displayPrice === 'Confira o preço na App Store'))
+    assert.ok(cards.every((card) => card.currencyMismatch && card.referencePriceUsed && card.available))
+    assert.deepEqual(cards.map((card) => card.displayPrice), ['R$ 9,90', 'R$ 239,90', 'R$ 359,00'])
     assert.ok(cards.every((card) => card.currencyCode === 'USD'))
   }
 })
@@ -135,7 +138,8 @@ test('BRL product amounts with Apple BRA metadata are displayed exactly as suppl
     planId: ['mensal', 'semestral', 'anual'][index], displayPrice,
     currencyCode: 'BRL', storefrontCountryCode: 'BRA',
   })), { locale: 'pt-BR' })
-  assert.deepEqual(cards.map((card) => card.displayPrice), values)
+  assert.deepEqual(cards.map((card) => card.displayPrice), ['R$ 9,90', 'R$ 239,40', 'R$ 358,80'])
+  assert.equal(cards[0].renewalText, 'Depois, R$\u00a049,90/mês')
   assert.ok(cards.every((card) => !card.currencyMismatch && card.available))
 })
 
@@ -144,7 +148,8 @@ test('A USD price string is not trusted even if the bridge incorrectly labels it
     { planId: 'mensal', displayPrice: 'US$ 7,99', currencyCode: 'BRL', storefrontCountryCode: 'BRA' },
   ], { locale: 'pt-BR' })
   assert.equal(card.currencyMismatch, true)
-  assert.equal(card.displayPrice, 'Confira o preço na App Store')
+  assert.equal(card.referencePriceUsed, true)
+  assert.equal(card.displayPrice, 'R$ 9,90')
 })
 
 test('A BRL-looking price is not trusted when the actual product currency is USD', () => {
@@ -169,7 +174,8 @@ test('A bare dollar symbol without reliable currency metadata is not presented a
     { planId: 'mensal', displayPrice: '$7.99', storefrontCountryCode: 'BRA' },
   ], { locale: 'pt-BR' })
   assert.equal(card.currencyMismatch, true)
-  assert.equal(card.displayPrice, 'Confira o preço na App Store')
+  assert.equal(card.referencePriceUsed, true)
+  assert.equal(card.displayPrice, 'R$ 9,90')
 })
 
 test('USD ISO currency text after the number is detected when bridge currency metadata is missing', () => {
@@ -185,7 +191,8 @@ test('Other foreign currencies also require honest confirmation in the Brazilian
     { planId: 'mensal', displayPrice: '€7,99', currencyCode: 'EUR', storefrontCountryCode: 'DEU' },
   ], { locale: 'pt-BR' })
   assert.equal(card.currencyMismatch, true)
-  assert.equal(card.displayPrice, 'Confira o preço na App Store')
+  assert.equal(card.referencePriceUsed, true)
+  assert.equal(card.displayPrice, 'R$ 9,90')
 })
 
 test('Foreign prices remain untouched in a matching non-Brazilian app and storefront', () => {
@@ -194,4 +201,37 @@ test('Foreign prices remain untouched in a matching non-Brazilian app and storef
   ], { locale: 'en-US' })
   assert.equal(card.currencyMismatch, false)
   assert.equal(card.displayPrice, '$7.99')
+})
+
+test('Brazil price fallback remains informational when App Store has no available products', () => {
+  const cards = buildIosSubscriptionCards([], { locale: 'pt-BR' })
+  assert.deepEqual(cards.map((card) => card.displayPrice), ['R$ 9,90', 'R$ 239,90', 'R$ 359,00'])
+  assert.ok(cards.every((card) => !card.available))
+  assert.ok(cards.every((card) => card.referencePriceUsed))
+})
+
+test('Native introductory price overrides Brazil reference only if verified as BRL metadata', () => {
+  const [card] = buildIosSubscriptionCards([{
+    planId: 'mensal',
+    displayPrice: 'R$ 49,90',
+    introductoryDisplayPrice: 'R$ 12,90',
+    currencyCode: 'BRL',
+    storefrontCountryCode: 'BRA',
+  }], { locale: 'pt-BR' })
+  assert.equal(card.displayPrice, 'R$ 12,90')
+  assert.equal(card.renewalText, 'Depois, R$ 49,90/mês')
+  assert.equal(card.referencePriceUsed, false)
+})
+
+test('Brazil reference prices stay explicit when native introductory offer is quoted in USD', () => {
+  const [card] = buildIosSubscriptionCards([{
+    planId: 'mensal',
+    displayPrice: 'US$ 7.99',
+    introductoryDisplayPrice: 'US$ 1.99',
+    currencyCode: 'USD',
+    storefrontCountryCode: 'BRA',
+  }], { locale: 'pt-BR' })
+  assert.equal(card.displayPrice, 'R$ 9,90')
+  assert.equal(card.renewalText, 'Depois, R$ 49,90/mês')
+  assert.equal(card.referencePriceUsed, true)
 })
