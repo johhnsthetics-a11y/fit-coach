@@ -291,7 +291,14 @@ export default function NativeIosSubscriptionPanel({
               aria-label={`Assinar plano ${selectedPlan?.title} pela App Store`}>
               {processing && processing !== 'restore' ? 'Aguarde...' : `Assinar ${selectedPlan?.title || 'plano'}`}
             </button>
-            <p className="subscription-small-print">A oferta mensal é válida para novos assinantes elegíveis. O preço final é confirmado pela Apple antes de autorizar o pagamento. Selecionar um plano não gera cobrança.</p>
+            <p className="subscription-small-print">
+              {selectedPlan?.planId === 'mensal' && selectedPlan?.introEligibility === 'eligible'
+                ? 'A Apple indicou que esta conta é elegível à oferta introdutória. Confira o primeiro mês e a renovação na confirmação antes de autorizar.'
+                : selectedPlan?.planId === 'mensal' && selectedPlan?.introEligibility === 'ineligible'
+                  ? 'A Apple informou que esta conta não é elegível à oferta introdutória. Será apresentado o preço mensal normal.'
+                  : 'O preço e eventuais ofertas dependem da conta Apple e serão confirmados antes da compra.'}
+              {' '}Selecionar um plano não gera cobrança.
+            </p>
           </div>
         </section>
       ))}
