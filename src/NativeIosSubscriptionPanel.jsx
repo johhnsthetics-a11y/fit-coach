@@ -39,8 +39,23 @@ export default function NativeIosSubscriptionPanel({
     setMessage('')
   }, [accountId])
 
-  const cards = buildIosSubscriptionCards(products)
-  const dollarPricing = cards.some((plan) => plan.available && plan.currencyCode === 'USD')
+  // Refresh StoreKit prices after returning from a purchase sheet or changing
+  // the Apple/Sandbox storefront. This also prevents stale USD product cards.
+  useEffect(() => {
+    const refreshOnReturn = () => {
+      if (!document.hidden) setReloadCount((count) => count + 1)
+    }
+    document.addEventListener('visibilitychange', refreshOnReturn)
+    window.addEventListener('focus', refreshOnReturn)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshOnReturn)
+      window.removeEventListener('focus', refreshOnReturn)
+    }
+  }, [])
+
+  const cards = buildIosSubscriptionCards(products, { locale: typeof navigator !== 'undefined' ? navigator.language : '' })
+  const currencyMismatch = cards.some((plan) => plan.currencyMismatch)
+  const reportedStorefrontCountry = cards.find((plan) => plan.storefrontCountryCode)?.storefrontCountryCode || ''
   const accountValid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(accountId || ''))
 
   async function purchase(plan) {
@@ -48,6 +63,22 @@ export default function NativeIosSubscriptionPanel({
     setProcessing(plan.planId)
     setMessage('Abrindo a confirmação de pagamento da App Store...')
     try {
+      // Price/region may have changed since this card loaded. Require another
+      // deliberate tap if any currently displayed product data is stale.
+      const freshProducts = await loadIosProducts()
+      const current = freshProducts.find((item) => item.planId === plan.planId)
+      const previous = products.find((item) => item.planId === plan.planId)
+      if (!current?.displayPrice) {
+        setMessage('Não foi possível confirmar o preço deste plano na App Store. Atualize os preços e tente novamente.')
+        return
+      }
+      if (current.displayPrice !== previous?.displayPrice
+        || current.currencyCode !== previous?.currencyCode
+        || current.storefrontCountryCode !== previous?.storefrontCountryCode) {
+        setProducts(freshProducts)
+        setMessage('A App Store atualizou o preço ou a região da loja. Confira a informação exibida e toque novamente para continuar.')
+        return
+      }
       const result = await purchaseIosPlan(plan.planId, accountId)
       if (result.cancelled) {
         setMessage('Compra cancelada. Nenhuma cobrança foi concluída.')
@@ -101,10 +132,12 @@ export default function NativeIosSubscriptionPanel({
         </div>
       ) : null}
 
-      {!loading && dollarPricing && (
-        <div className="native-ios-currency-warning" role="status">
-          <strong>Preços em dólar informados pela App Store</strong>
-          <p>Os produtos estão retornando valores em USD. Para exibir preços em reais, confira o País/Região da conta Apple usada para compras (inclusive a conta de teste, se houver) e os preços das assinaturas no App Store Connect. O aplicativo não altera a moeda nem converte valores, pois a confirmação de pagamento da Apple determina a cobrança.</p>
+      {!loading && currencyMismatch && (
+        <div className="native-ios-currency-warning" role="status" aria-live="polite">
+          <strong>Preço disponível para confirmação na App Store</strong>
+          <p>Encontramos uma diferença entre a moeda dos produtos e a interface brasileira. Para evitar valores incorretos, consulte o preço definitivo na janela de confirmação da Apple antes de autorizar a assinatura.</p>
+          <p>Região informada pelo StoreKit: {reportedStorefrontCountry || 'não identificada'}.</p>
+          <button type="button" className="native-ios-restore" onClick={() => setReloadCount((count) => count + 1)}>Atualizar preços</button>
         </div>
       )}
 
@@ -114,7 +147,7 @@ export default function NativeIosSubscriptionPanel({
             <article className="native-ios-plan-card" key={plan.planId}>
               <span className="native-ios-plan-cycle">{plan.cycleLabel}</span>
               <h3>{plan.title}</h3>
-              <p className="native-ios-plan-price">{plan.displayPrice}</p>
+              <p className={`native-ios-plan-price${plan.currencyMismatch ? ' native-ios-plan-price--verify' : ''}`}>{plan.displayPrice}</p>
               <p className="native-ios-plan-note">Cobrança recorrente. Confira o valor, a periodicidade e ofertas aplicáveis na confirmação da App Store.</p>
               {!subscriptionActive && (
                 <button
@@ -124,7 +157,7 @@ export default function NativeIosSubscriptionPanel({
                   disabled={!accountValid || !plan.available || Boolean(processing)}
                   aria-label={`Assinar plano ${plan.title} pela App Store`}
                 >
-                  {processing === plan.planId ? 'Aguarde...' : `Assinar ${plan.title}`}
+                  {processing === plan.planId ? 'Aguarde...' : plan.currencyMismatch ? `Conferir preço e assinar ${plan.title}` : `Assinar ${plan.title}`}
                 </button>
               )}
             </article>
