@@ -235,3 +235,50 @@ test('Brazil reference prices stay explicit when native introductory offer is qu
   assert.equal(card.renewalText, 'Depois, R$ 49,90/mês')
   assert.equal(card.referencePriceUsed, true)
 })
+
+test('Apple-confirmed ineligible account sees regular R$ 49,90 rather than an advertised introductory charge', () => {
+  const [plan] = buildIosSubscriptionCards([{
+    planId: 'mensal', displayPrice: 'R$ 49,90',
+    introductoryDisplayPrice: 'R$ 9,90', introductoryEligible: false,
+    currencyCode: 'BRL', storefrontCountryCode: 'BRA',
+  }], { locale: 'pt-BR' })
+  assert.equal(plan.displayPrice, 'R$ 49,90')
+  assert.equal(plan.introductoryOfferIneligible, true)
+  assert.equal(plan.introductoryEligible, false)
+  assert.equal(plan.renewalText, '')
+  assert.equal(plan.introductoryDisplayPrice, null)
+  assert.match(plan.priceDescription, /Valor mensal padrão/)
+  assert.equal(plan.referencePriceUsed, false)
+})
+
+test('Apple-confirmed eligible account sees its actual R$ 9,90 first-month introductory price', () => {
+  const [plan] = buildIosSubscriptionCards([{
+    planId: 'mensal', displayPrice: 'R$ 49,90',
+    introductoryDisplayPrice: 'R$ 9,90', introductoryEligible: true,
+    currencyCode: 'BRL', storefrontCountryCode: 'BRA',
+  }], { locale: 'pt-BR' })
+  assert.equal(plan.displayPrice, 'R$ 9,90')
+  assert.equal(plan.introductoryOfferConfirmed, true)
+  assert.equal(plan.introductoryEligible, true)
+  assert.equal(plan.renewalText, 'Depois, R$ 49,90/mês')
+  assert.equal(plan.introductoryDisplayPrice, 'R$ 9,90')
+})
+
+test('Apple product without an introductory offer never mislabels standard charge as a promotion', () => {
+  const [plan] = buildIosSubscriptionCards([{
+    planId: 'mensal', displayPrice: 'R$ 49,90',
+    introductoryEligible: false,
+    currencyCode: 'BRL', storefrontCountryCode: 'BRA',
+  }], { locale: 'pt-BR' })
+  assert.equal(plan.displayPrice, 'R$ 49,90')
+  assert.equal(plan.introductoryOfferIneligible, true)
+})
+
+test('Eligibility is isolated to monthly: the semiannual and annual Apple recurring prices are preserved', () => {
+  const plans = buildIosSubscriptionCards([
+    { planId: 'mensal', displayPrice: 'R$ 49,90', introductoryEligible: false, currencyCode: 'BRL' },
+    { planId: 'semestral', displayPrice: 'R$ 239,90', currencyCode: 'BRL' },
+    { planId: 'anual', displayPrice: 'R$ 359,00', currencyCode: 'BRL' },
+  ], { locale: 'pt-BR' })
+  assert.deepEqual(plans.map(plan => plan.displayPrice), ['R$ 49,90', 'R$ 239,90', 'R$ 359,00'])
+})
