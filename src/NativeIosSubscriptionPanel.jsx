@@ -65,7 +65,7 @@ export default function NativeIosSubscriptionPanel({
     try {
       // StoreKit purchase() retrieves the selected product again and displays
       // Apple's authoritative amount. Do not block its sheet behind a second
-      // JS pricing/storefront fetch: TestFlight metadata can change between
+      // JS pricing/storefront fetch: test-store metadata can change between
       // calls and the reference-priced monthly card must remain actionable.
       const result = await purchaseIosPlan(plan.planId, accountId)
       if (result.cancelled) {
