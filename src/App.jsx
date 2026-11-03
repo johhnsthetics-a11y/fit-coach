@@ -16297,13 +16297,14 @@ function getStudentDietWeekDays() {
   })
 }
 
-function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
+function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater, previewMode = false, showPdfAction = true }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const weekDays = useMemo(() => getStudentDietWeekDays(), [])
   const todayWeekIndex = Math.max(0, weekDays.findIndex((day) => day.active))
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const favoriteStorageKey = `coachfitpro-student-diet-favorites-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const [completedMealIds, setCompletedMealIds] = useState(() => {
+    if (previewMode) return []
     try {
       const saved = window.localStorage.getItem(storageKey)
       return saved ? JSON.parse(saved) : []
@@ -16314,22 +16315,26 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const [selectedMealId, setSelectedMealId] = useState(meals[0]?.id || '')
   const [selectedWeekDayIndex, setSelectedWeekDayIndex] = useState(todayWeekIndex)
   const [favoriteMeals, setFavoriteMeals] = useState(() => {
+    if (previewMode) return { meals: [], days: [] }
     try {
       const saved = JSON.parse(window.localStorage.getItem(favoriteStorageKey) || '{}')
       return { meals: Array.isArray(saved.meals) ? saved.meals : [], days: Array.isArray(saved.days) ? saved.days : [] }
     } catch { return { meals: [], days: [] } }
   })
+  const [previewWaterMl, setPreviewWaterMl] = useState(0)
 
   useEffect(() => {
+    if (previewMode) return
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(completedMealIds))
     } catch {
       // A private browsing context may block localStorage; the screen remains usable.
     }
-  }, [completedMealIds, storageKey])
+  }, [completedMealIds, previewMode, storageKey]
   useEffect(() => {
+    if (previewMode) return
     try { window.localStorage.setItem(favoriteStorageKey, JSON.stringify(favoriteMeals)) } catch {}
-  }, [favoriteMeals, favoriteStorageKey])
+  }, [favoriteMeals, favoriteStorageKey, previewMode]
 
   function toggleMeal(meal) {
     const mealId = String(meal?.id || meal?.name || '')
@@ -16347,7 +16352,8 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const completedCount = meals.filter((meal) => completedMealIds.includes(String(meal.id || meal.name))).length
   const progress = meals.length ? Math.round((completedCount / meals.length) * 100) : 0
   const safeWaterGoal = Math.max(500, Number(waterGoalMl || 2500))
-  const safeWater = Math.max(0, Math.min(Number(waterMl || 0), safeWaterGoal))
+  const displayedWaterMl = previewMode ? previewWaterMl : waterMl
+  const safeWater = Math.max(0, Math.min(Number(displayedWaterMl || 0), safeWaterGoal))
   const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
   const waterLiters = (safeWater / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
@@ -16357,6 +16363,16 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const isFavoriteDay = favoriteMeals.days.includes(selectedDayId)
   function toggleFavoriteDay() {
     setFavoriteMeals((current) => ({ ...current, days: current.days.includes(selectedDayId) ? current.days.filter((id) => id !== selectedDayId) : [...current.days, selectedDayId] }))
+  }
+  function addWater(amount = 250) {
+    if (!previewMode) {
+      onAddWater?.(amount)
+      return
+    }
+    setPreviewWaterMl(current => Math.min(safeWaterGoal, current + Math.max(0, Number(amount) || 250)))
+  }
+  function openWater() {
+    if (!previewMode) onOpenWater?.()
   }
 
   return (
@@ -16433,13 +16449,13 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <strong>{waterLiters} L <small>/ {waterGoalLiters} L</small></strong>
       </div>
       <div className="student-diet-water-v1">
-        <button type="button" className="student-diet-water-icon-v1" onClick={onOpenWater} aria-label="Abrir hidratação"><NavIcon name="water" className="h-5 w-5" /></button>
+        <button type="button" className="student-diet-water-icon-v1" onClick={openWater} aria-label={previewMode ? "Na área do paciente, abrir a aba Água" : "Abrir hidratação"}><NavIcon name="water" className="h-5 w-5" /></button>
         <div className="student-diet-water-copy-v1"><div><strong>{waterPercent}% da meta</strong><span>{Math.max(0, safeWaterGoal - safeWater)} ml restantes</span></div><div className="student-diet-water-track-v1"><span style={{ width: `${Math.max(waterPercent, safeWater ? 0 : 4)}%` }} /></div><small>Registre sua água para acompanhar o ritmo de hoje.</small></div>
-        <button type="button" className="student-diet-water-add-v1" onClick={() => onAddWater?.(250)} aria-label="Adicionar 250 ml de água"><NavIcon name="plus" className="h-5 w-5" /></button>
+        <button type="button" className="student-diet-water-add-v1" onClick={() => addWater(250)} aria-label="Adicionar 250 ml de água"><NavIcon name="plus" className="h-5 w-5" /></button>
       </div>
 
       {stripNutritionPlanMetadata(plan?.notes) ? <aside className="student-diet-note-v1"><NavIcon name="sparkles" className="h-5 w-5" /><div><span>ORIENTAÇÃO DO SEU PROFISSIONAL</span><p>{stripNutritionPlanMetadata(plan.notes)}</p><small>{professional?.publicName || 'Equipe Coach Fit'}</small></div></aside> : null}
-      <button type="button" className="student-diet-pdf-v1" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button>
+      {showPdfAction ? <button type="button" className="student-diet-pdf-v1" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button> : null}
     </section>
   )
 }
