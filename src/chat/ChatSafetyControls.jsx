@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const REASONS = [
   ['harassment', 'Assédio ou ofensas'],
@@ -68,7 +69,7 @@ export function ChatSafetyReportDialog({ target, onClose, onSend }) {
     }
   }
 
-  return (
+  return createPortal(
     <div className="chat-safety-overlay">
       <section role="dialog" aria-modal="true" aria-labelledby="chat-safety-report-title" className="chat-safety-dialog">
         <header>
@@ -93,6 +94,7 @@ export function ChatSafetyReportDialog({ target, onClose, onSend }) {
           </footer>
         </form>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
