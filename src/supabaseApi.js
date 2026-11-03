@@ -1790,6 +1790,12 @@ export async function deleteRemoteStudentMessage(inviteCode, messageId) {
 }
 
 export async function saveRemoteMessage(message) {
+  // Avoid orphaned media while blocked; SQL and the upload Edge Function
+  // independently enforce this even for requests made outside the app.
+  if (message.attachmentFile) {
+    const safety = await loadRemoteChatSafetyStatus(message.studentId, message.inviteCode || '')
+    if (safety?.blocked) throw new Error('Conversa bloqueada. Desbloqueie antes de enviar arquivos.')
+  }
   const attachmentUrl = message.attachmentFile
     ? await uploadMessageAttachment(message.attachmentFile, message.studentId, message.inviteCode, message.clientMessageId)
     : message.attachmentUrl || ''
