@@ -66,14 +66,11 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
       : (currencyMismatch ? 'Confira o preço na App Store' : (rawPrice || 'Preço indisponível'))
     const referencePriceUsed = Boolean(brazilReference && !validAppleBRL)
     const displayPrice = showIntro ? offer.price : standardPrice
-    let priceDescription = brazilReference?.renewalLabel || ''
-    if (monthlyPlan) {
-      priceDescription = showIntro ? offer.terms
-        : offer.status === 'ineligible' ? 'Preço normal: a conta Apple não é elegível à oferta introdutória'
-          : offer.status === 'unavailable' ? 'Preço normal: a Apple não retornou oferta para este produto e loja'
-            : offer.status === 'eligible' ? 'Elegibilidade indicada, mas preço ou período da oferta ainda não confirmado'
-              : 'Preço normal: desconto ainda não confirmado pela Apple'
-    }
+    // Only disclose introductory terms when StoreKit confirmed an eligible,
+    // complete offer. Otherwise display the regular billing cycle normally.
+    const priceDescription = monthlyPlan && showIntro
+      ? offer.terms
+      : (brazilReference?.renewalLabel || detail.cycleLabel)
     return {
       ...detail, available: Boolean(product && rawPrice), currencyCode, storefrontCountryCode,
       currencyMismatch, referencePriceUsed,
