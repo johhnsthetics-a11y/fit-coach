@@ -18,7 +18,7 @@ export function useChatSafety({ studentId, viewerRole, inviteCode = '' }) {
   const lastRefresh = useRef(0)
   const activeKey = useRef(key)
   activeKey.current = key
-  const enabled = Boolean(supabaseEnabled && studentId && (viewerRole === 'coach' || viewerRole === 'student'))
+  const enabled = Boolean(supabaseEnabled && studentId && (viewerRole === 'coach' || (viewerRole === 'student' && inviteCode)))
 
   const refresh = useCallback(async () => {
     if (!enabled) return EMPTY
