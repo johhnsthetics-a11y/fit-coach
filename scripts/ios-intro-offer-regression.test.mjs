@@ -50,7 +50,12 @@ test('UI reports changed offer without calling access callback or buying a secon
   const changed = panel.slice(panel.indexOf('if (result.offerChanged)'), panel.indexOf('} else if (result.cancelled)'))
   assert.match(changed, /Nenhuma compra foi iniciada/)
   assert.doesNotMatch(changed, /onNativeEntitlementChange|purchaseIosPlan/)
-  assert.match(panel, /regularMonthlyNeedsConsent \|\| allowRegularMonthly/)
+  // The redundant pre-purchase checkbox is removed. The Apple payment
+  // confirmation remains responsible for final amount/offer disclosure.
+  assert.doesNotMatch(panel, /Entendi que o desconto não está confirmado/)
+  assert.doesNotMatch(panel, /allowRegularMonthly|regularMonthlyNeedsConsent/)
+  assert.match(panel, /const canPurchase = accountValid && !hasAccess/)
+  assert.match(panel, /purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
   assert.match(panel, /Criar outra conta Coach Fit Pro não reinicia/)
   assert.match(panel, /getIosOfferDiagnostics\(monthlyProduct\)/)
 })
