@@ -67,6 +67,30 @@ Deno.serve(async request => {
     }
     const body=await request.json().catch(()=>({})) as Record<string,unknown>
     const action=String(body.action||'')
+    // Professional cleanup uses the bearer JWT and verifies the student is
+    // actually assigned to this coach. It is called BEFORE deleting the
+    // student record, so it can safely remove private storage objects.
+    if (action==='cleanup-student') {
+      const token=(request.headers.get('authorization')||'').replace(/^Bearer\\s+/i,'').trim()
+      if (!token) return response({error:'Sessão profissional necessária.'},401)
+      const {data:identity,error:authError}=await admin.auth.getUser(token)
+      const userId=identity?.user?.id || ''
+      if (authError || !uuid(userId)) return response({error:'Sessão inválida.'},403)
+      const studentId=String(body.studentId||'')
+      if (!uuid(studentId)) return response({error:'Aluno inválido.'},400)
+      const {data:student,error:studentError}=await admin.from('students')
+        .select('id').eq('id',studentId).eq('coach_id',userId).maybeSingle()
+      if (studentError || !student) return response({error:'Aluno não autorizado.'},403)
+      const {data:logs,error:logsError}=await admin.from('student_meal_logs')
+        .select('photo_path').eq('coach_id',userId).eq('student_id',studentId)
+      if (logsError) return response({error:'Falha ao consultar as fotos privadas.'},503)
+      const paths=(logs||[]).map(x=>String(x.photo_path||'')).filter(Boolean)
+      for (let offset=0; offset<paths.length; offset+=100) {
+        const {error:removeError}=await admin.storage.from(BUCKET).remove(paths.slice(offset,offset+100))
+        if (removeError) return response({error:'Falha ao remover as fotos privadas.'},502)
+      }
+      return response({ok:true,removed:paths.length})
+    }
     if (!['sign','remove'].includes(action)) return response({error:'Ação inválida.'},400)
     const actor=await access(admin,String(body.inviteCode||'').trim())
     if (!actor) return response({error:'Acesso não autorizado.'},403)
