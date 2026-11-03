@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-ios-intro-eligibility-build11-20261102'
+const CACHE_NAME = 'coach-fit-pro-ios-chat-safety-build13-20261103'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 
 self.addEventListener('install', (event) => {
