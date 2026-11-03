@@ -56,8 +56,12 @@ test('UI reports changed offer without calling access callback or buying a secon
   assert.doesNotMatch(panel, /allowRegularMonthly|regularMonthlyNeedsConsent/)
   assert.match(panel, /const canPurchase = accountValid && !hasAccess/)
   assert.match(panel, /purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
-  assert.match(panel, /Criar outra conta Coach Fit Pro não reinicia/)
-  assert.match(panel, /getIosOfferDiagnostics\(monthlyProduct\)/)
+  // No mention of unavailable/ineligible promotions in regular price UI.
+  assert.doesNotMatch(panel, /Sobre a oferta do primeiro mês|Atualizar oferta Apple|Ver detalhes da oferta/)
+  assert.doesNotMatch(panel, /não é elegível à oferta introdutória|Criar outra conta Coach Fit Pro não reinicia/)
+  assert.doesNotMatch(panel, /getIosOfferDiagnostics|subscription-offer-status|monthlyProduct/)
+  assert.match(panel, /selectedPlan\?\.introAppliedToDisplay \?/)
+  assert.match(panel, /Confira a renovação e o valor final na Apple/)
 })
 test('Offer-change and pending results cannot grant access in the bridge', () => {
   const ios = read('src/iosStoreKit.js')
