@@ -29,7 +29,6 @@ export default function NativeIosSubscriptionPanel({
   const [reloadCount, setReloadCount] = useState(0)
   const [processing, setProcessing] = useState('')
   const [message, setMessage] = useState('')
-  const [allowRegularMonthly, setAllowRegularMonthly] = useState(false)
   const [diagnosticsCopied, setDiagnosticsCopied] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState(() => readPendingPlan(accountId) || 'mensal')
   const [pendingPlanId, setPendingPlanId] = useState(() => readPendingPlan(accountId))
@@ -57,7 +56,6 @@ export default function NativeIosSubscriptionPanel({
   }, [accountId])
 
   useEffect(() => {
-    setAllowRegularMonthly(false)
     setDiagnosticsCopied(false)
   }, [accountId, products])
 
@@ -124,7 +122,6 @@ export default function NativeIosSubscriptionPanel({
   const selectedPlan = cards.find(plan => plan.planId === selectedPlanId) || cards[0]
   const monthlyProduct = products.find(product => product.planId === 'mensal')
   const monthlyPlan = cards.find(plan => plan.planId === 'mensal')
-  const regularMonthlyNeedsConsent = selectedPlanId === 'mensal' && !monthlyPlan?.introAppliedToDisplay
   const accountSnapshot = snapshot.accountId === accountId ? snapshot : { status: 'loading', entitlements: [], error: '' }
   const currentPlan = getVerifiedIosSubscription(accountSnapshot.entitlements, accountId, IOS_PRODUCT_IDS, clock)
   const externalSummary = getWebSubscriptionSummary(subscription, { affiliate: professionalAffiliate, now: clock })
@@ -132,7 +129,7 @@ export default function NativeIosSubscriptionPanel({
   const hasAccess = nativeConfirmed || externalSummary.active
   const checking = accountSnapshot.status === 'loading'
   const canPurchase = accountValid && !hasAccess && !loading && !processing && !pendingPlanId && !operationRef.current
-    && (!regularMonthlyNeedsConsent || allowRegularMonthly)
+
 
   async function purchase(plan) {
     if (!accountValid || !plan || !canPurchase || operationRef.current) return
@@ -325,9 +322,6 @@ export default function NativeIosSubscriptionPanel({
             <span className="native-ios-eyebrow">Plano selecionado · ainda não contratado</span>
             <div><h4>{selectedPlan?.title}</h4><strong>{selectedPlan?.displayPrice}</strong></div>
             <p className="native-ios-help">{selectedPlan?.introAppliedToDisplay ? `${selectedPlan.introductoryTerms}. ${selectedPlan.renewalText}.` : `${SUBSCRIPTION_CYCLES[selectedPlan?.planId]?.cycle || 'Ciclo'} por assinatura. Confira a renovação e o valor final na Apple.`}</p>
-            {regularMonthlyNeedsConsent && <label className="subscription-regular-consent"><input type="checkbox" checked={allowRegularMonthly}
-              onChange={event => { setAllowRegularMonthly(event.target.checked) }} />
-              <span>Entendi que o desconto não está confirmado. Quero continuar para conferir o plano mensal sem oferta na Apple.</span></label>}
             <button type="button" className="native-ios-purchase-button" onClick={() => purchase(selectedPlan)}
               disabled={!canPurchase}
               aria-label={`Assinar plano ${selectedPlan?.title} pela App Store`}>
