@@ -133,6 +133,7 @@ import { addBillingCycle, getFirstName, getLocalGreeting, isSubscriptionCurrent,
 import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
 import { ChatConversation } from './chat/ChatConversation'
+import AdminChatReports from './chat/AdminChatReports'
 import { ConversationList } from './chat/ConversationList'
 import {
   buildConversationRows,
@@ -23607,7 +23608,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         </div>
       </section>
 
-      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-2" aria-label="Páginas do Admin Master">
+      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-3" aria-label="Páginas do Admin Master">
         <button
           type="button"
           onClick={() => setActivePage('settings')}
@@ -23624,10 +23625,20 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         >
           Acessos gratuitos
         </button>
+        <button
+          type="button"
+          onClick={() => setActivePage('chat-reports')}
+          aria-current={activePage === 'chat-reports' ? 'page' : undefined}
+          className={`min-h-12 rounded-xl px-4 text-sm font-black transition ${activePage === 'chat-reports' ? 'bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'text-zinc-300 hover:bg-white/[0.05]'}`}
+        >
+          Denúncias do chat
+        </button>
       </nav>
 
       {activePage === 'free-access' ? (
         <AdminStudentFreeAccess />
+      ) : activePage === 'chat-reports' ? (
+        <AdminChatReports />
       ) : (
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
         <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
