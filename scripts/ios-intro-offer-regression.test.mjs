@@ -69,7 +69,7 @@ test('Offer-change and pending results cannot grant access in the bridge', () =>
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-student-wellness-chat-safety-build13-20261103'
+  const current = 'coach-fit-pro-patient-diet-preview-chat-safety-build14-20261103'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
