@@ -52,19 +52,3 @@ export function getIosPurchaseOfferExpectation(product) {
     periodCount: Number.isSafeInteger(offer.periodCount) ? offer.periodCount : 0,
   }
 }
-
-export function getIosOfferDiagnostics(product) {
-  const offer = getIosIntroOffer(product)
-  return [
-    'Coach Fit Pro — oferta Apple — build 12',
-    `Produto: ${text(product?.id) || 'não carregado'}`,
-    `Grupo: ${text(product?.subscriptionGroupId) || 'não informado'}`,
-    `Loja: ${text(product?.storefrontCountryCode) || 'não informada'}`,
-    `Preço regular Apple: ${text(product?.displayPrice) || 'não informado'}`,
-    `Oferta retornada: ${offer.available ? 'sim' : 'não'}`,
-    `Elegibilidade Apple: ${offer.eligibility === 'eligible' ? 'elegível' : offer.eligibility === 'ineligible' ? 'não elegível' : 'não confirmada'}`,
-    `Preço introdutório Apple: ${offer.price || 'não informado'}`,
-    `Condições: ${offer.terms || 'período/modalidade não confirmados'}`,
-    'A conta Coach Fit Pro não reinicia a elegibilidade da conta Apple.',
-  ].join('\n')
-}
