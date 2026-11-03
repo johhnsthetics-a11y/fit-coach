@@ -11092,22 +11092,6 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: rgba(0, 156, 134, 0.18) !important;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18) !important;
 }
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel h3,
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel h4,
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel strong {
-  color: var(--app-light-title, #13201d) !important;
-  -webkit-text-fill-color: currentColor !important;
-}
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel p,
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel small {
-  color: var(--app-light-body, #47615b) !important;
-  -webkit-text-fill-color: currentColor !important;
-}
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel article,
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel .rounded-2xl {
-  background: rgba(248, 251, 250, 0.96) !important;
-  border-color: rgba(0, 156, 134, 0.13) !important;
-}
 
 /* sales-app-modern-showcase-v1 */
 .sales-app-modern-showcase-v1,
@@ -11316,11 +11300,6 @@ html[data-theme="dark"] body { background: #05070d; }
   .sales-showcase-static-v2 .sales-phone-screen {
     min-height: 392px;
   }
-}
-.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-panel button {
-  color: var(--app-light-title, #13201d) !important;
-  border-color: rgba(0, 156, 134, 0.16) !important;
-  background: rgba(255, 255, 255, 0.86) !important;
 }
 .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel {
   background: #090f12 !important;
@@ -14396,18 +14375,17 @@ html[data-theme="dark"] body { background: #05070d; }
 
 @container (max-width: 560px) {
   .nutrition-plan-card-v6 .sm\:flex-row,
-  .nutrition-student-preview-panel article > .flex,
   .student-questionnaire-title-row-v1,
   .student-questionnaire-field-head {
     flex-direction: column;
     align-items: stretch;
   }
   .nutrition-plan-card-v6 .sm\:grid-cols-3,
-  .nutrition-student-preview-panel > .sm\:grid-cols-3 {
+  .nutrition-student-preview-static-panel > .sm\:grid-cols-3 {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
   .nutrition-plan-meal-card-v6 span,
-  .nutrition-student-preview-panel article span {
+  .nutrition-student-preview-static-panel article span {
     max-width: 100%;
     white-space: normal;
     text-align: left;
@@ -21672,7 +21650,6 @@ html[data-theme="dark"] body { background: #05070d; }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-progress-charts-v1 { background: #050807; border-color: rgba(0,210,178,.2); box-shadow: 0 18px 40px rgba(0,0,0,.3); }
 .student-mobile-shell.app-theme-dark:has(.student-diet-experience-v1) .student-progress-chart-card-v1 { background: #080d0c; border-color: rgba(0,210,178,.18); }
 .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel { background: #050807 !important; border-color: rgba(0,210,178,.24) !important; }
-.nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel article, .nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-panel .rounded-2xl { background: #080d0c !important; border-color: rgba(0,210,178,.16) !important; }
 
 /* student-diet-favorites-layout-v2 */
 .student-diet-meal-head-v1 { width: 100%; max-width: 100%; overflow: hidden; }
@@ -22157,4 +22134,22 @@ html[data-theme="dark"] body { background: #05070d; }
   .coach-auth-shell .nutrition-form-shell .nutrition-meal-card,
   .coach-auth-shell .nutrition-plan-card-v6,
   .coach-auth-shell .nutrition-questionnaire-polish-v1 button { animation: none !important; transition: none !important; }
+}
+
+
+/* nutrition-preview-patient-diet-parity-v1 */
+.nutrition-student-preview-faithful-panel { border-radius: 1.4rem; }
+.nutrition-student-preview-toolbar-v1 { background: rgba(7, 15, 14, .98); }
+.nutrition-student-preview-content { overscroll-behavior: contain; }
+.nutrition-student-preview-device { min-height: 100%; border-radius: 1.15rem; padding: .4rem; color: var(--student-title, #f8fafc); }
+.nutrition-student-preview-device .student-diet-experience-v1 { width: 100%; max-width: none; margin: 0; }
+.nutrition-student-preview-toolbar-v1 button:focus-visible { outline: 3px solid #73ffe8; outline-offset: 2px; }
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-toolbar-v1 { background: #ffffff; border-color: rgba(0, 156, 134, .14); }
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-toolbar-v1 h3 { color: #13201d; }
+.nutrition-student-preview-v2.app-theme-light .nutrition-student-preview-toolbar-v1 p { color: #526760; }
+.nutrition-student-preview-v2.app-theme-dark .nutrition-student-preview-toolbar-v1 { background: #090f12; }
+@media (max-width: 520px) {
+  .nutrition-student-preview-v2 { padding: 0; }
+  .nutrition-student-preview-faithful-panel { max-height: 96dvh; border-radius: 1.2rem 1.2rem 0 0; }
+  .nutrition-student-preview-content { padding: .65rem; }
 }
