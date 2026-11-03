@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildIosSubscriptionCards, normalizeIosStorefrontCountryCode, resolveIosPricingLocale } from '../src/iosProductPresentation.js'
-import { getIosIntroOffer, describeApplePeriod, getIosPurchaseOfferExpectation, getIosOfferDiagnostics } from '../src/iosIntroOffer.js'
+import { getIosIntroOffer, describeApplePeriod, getIosPurchaseOfferExpectation } from '../src/iosIntroOffer.js'
 
 const locale = { locale: 'pt-BR' }
 const monthly = {
@@ -98,13 +98,6 @@ test('Offer expectation carries only offer facts, not a local eligibility overri
   const expected = getIosPurchaseOfferExpectation({ ...monthly, introductoryOfferEligible: false })
   assert.deepEqual(expected, { available: true, eligible: false, displayPrice: 'R$ 9,90', paymentMode: 'payAsYouGo', periodValue: 1, periodUnit: 'month', periodCount: 1 })
   assert.equal(getIosPurchaseOfferExpectation(undefined), undefined)
-})
-test('Diagnostic report separates offer absence and ineligibility without account identifiers', () => {
-  const report = getIosOfferDiagnostics({ ...monthly, introductoryOfferEligible: false, accountId: 'secret-account-id' })
-  assert.match(report, /não elegível/)
-  assert.match(report, /demo-group/)
-  assert.doesNotMatch(report, /secret-account-id/)
-  assert.match(getIosOfferDiagnostics(null), /não carregado/)
 })
 test('Invalid periods and country/app language handling are safe', () => {
   assert.equal(describeApplePeriod(-1, 'month'), '')

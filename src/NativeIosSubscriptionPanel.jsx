@@ -224,7 +224,7 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel subscription-workspace" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-12">
+    <section className="native-ios-subscription-panel subscription-workspace" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-15">
       <header className="native-ios-subscription-heading subscription-page-heading">
         <span className="native-ios-eyebrow">Coach Fit Pro · sua conta</span>
         <h2>Minha assinatura</h2>
@@ -298,12 +298,7 @@ export default function NativeIosSubscriptionPanel({
               aria-label={`Assinar plano ${selectedPlan?.title} pela App Store`}>
               {processing && processing !== 'restore' ? 'Aguarde...' : `Assinar ${selectedPlan?.title || 'plano'}`}
             </button>
-            <p className="subscription-small-print">
-              {selectedPlan?.planId === 'mensal' && selectedPlan?.introAppliedToDisplay
-                ? 'A Apple indicou que esta conta é elegível à oferta introdutória. Confira o primeiro mês e a renovação na confirmação antes de autorizar.'
-                : 'O preço, o ciclo e a renovação serão confirmados pela App Store antes da compra.'}
-              {' '}Selecionar um plano não gera cobrança.
-            </p>
+            <p className="subscription-small-print">O preço, o ciclo e a renovação apresentados pela App Store serão confirmados antes da autorização. Selecionar um plano não gera cobrança.</p>
           </div>
         </section>
       ))}

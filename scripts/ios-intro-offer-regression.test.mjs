@@ -61,6 +61,9 @@ test('UI reports changed offer without calling access callback or buying a secon
   assert.doesNotMatch(panel, /não é elegível à oferta introdutória|Criar outra conta Coach Fit Pro não reinicia/)
   assert.doesNotMatch(panel, /getIosOfferDiagnostics|subscription-offer-status|monthlyProduct/)
   assert.match(panel, /selectedPlan\?\.introAppliedToDisplay \?/)
+  assert.doesNotMatch(panel, /A Apple indicou que esta conta é elegível à oferta introdutória|oferta Apple — build 12/)
+  assert.match(panel, /O preço, o ciclo e a renovação apresentados pela App Store serão confirmados antes da autorização/)
+  assert.match(panel, /data-subscription-ui="build-15"/)
   assert.match(panel, /Confira a renovação e o valor final na Apple/)
 })
 test('Offer-change and pending results cannot grant access in the bridge', () => {
@@ -73,7 +76,7 @@ test('Offer-change and pending results cannot grant access in the bridge', () =>
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-patient-diet-preview-chat-safety-build14-20261103'
+  const current = 'coach-fit-pro-subscription-copy-clean-build15-20261103'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
