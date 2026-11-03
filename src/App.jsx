@@ -1,5 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import WorkoutCompletionRating from './WorkoutCompletionRating'
+import StudentMealPhotoJournal from './StudentMealPhotoJournal'
 import { swapShowcasePositions } from './showcaseCarousel'
 import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
@@ -54,6 +56,7 @@ import {
   loadRemoteMessages,
   loadRemoteNotifications,
   loadRemoteStudentMessagesByInvite,
+  loadRemoteStudentMealLogs,
   loadRemoteStudentByInvite,
   loadRemoteWorkoutSession,
   markRemoteStudentMessagesRead,
@@ -85,6 +88,8 @@ import {
   saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
   saveRemoteWorkoutEarlyEnd,
+  saveRemoteWorkoutRating,
+  saveRemoteStudentMealLog,
   saveRemoteWorkoutSession,
   setSupabaseSession,
   signInCoach,
@@ -184,7 +189,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'ios-chat-safety-build13-20261103'
+const COACH_FIT_PRO_BUILD_MARKER = 'student-wellness-chat-safety-build13-20261103'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -13897,7 +13902,7 @@ export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -14510,6 +14515,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setError('')
   }
 
+  async function submitWorkoutRating(rating) {
+    if (!completedLog?.id || !onRateWorkout) throw new Error('Não foi possível salvar sua avaliação agora.')
+    const saved = await onRateWorkout(completedLog.id, rating)
+    if (!saved?.id) throw new Error('O servidor não confirmou a avaliação do treino.')
+    return { ...saved, rating: saved.rating || rating }
+  }
+
   if (completedLog && daySelected) {
     return (
       <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 ' + (compact ? 'is-compact' : '')}>
@@ -14537,6 +14549,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         ) : null}
+        {!preview && !completedLog?.endedEarly ? <WorkoutCompletionRating key={completedLog.id} log={completedLog} onSubmit={submitWorkoutRating} /> : null}
         {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
         <div className="mobile-workout-summary-actions-v4">
           {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
@@ -18451,6 +18464,16 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     ) : Promise.resolve(session)
   ), [inviteCode])
 
+  const rateStudentWorkout = useCallback((workoutLogId, rating) => (
+    saveRemoteWorkoutRating(inviteCode, workoutLogId, rating)
+  ), [inviteCode])
+  const loadStudentMealLogs = useCallback(() => (
+    supabaseEnabled ? loadRemoteStudentMealLogs(inviteCode) : Promise.resolve([])
+  ), [inviteCode])
+  const saveStudentMealLog = useCallback((mealLog) => (
+    saveRemoteStudentMealLog(inviteCode, mealLog)
+  ), [inviteCode])
+
   function sendStudentMessage(message) {
     return onSendMessage({ ...message, inviteCode })
   }
@@ -18500,8 +18523,11 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
       toggleUiTheme={toggleUiTheme}
       onCompleteWorkout={completeStudentWorkout}
       onEndWorkout={endStudentWorkout}
+      onRateWorkout={rateStudentWorkout}
       onLoadWorkoutSession={loadStudentWorkoutSession}
       onSaveWorkoutSession={saveStudentWorkoutSession}
+      onLoadMealLogs={loadStudentMealLogs}
+      onSaveMealLog={saveStudentMealLog}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
       onEditMessage={onEditMessage}
@@ -18517,7 +18543,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onLoadMealLogs, onSaveMealLog, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
   const patientMode = professionalType === 'nutritionist'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -18533,6 +18559,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
+  const [studentMealLogs, setStudentMealLogs] = useState([])
+  const [studentMealLogsLoading, setStudentMealLogsLoading] = useState(false)
+  const [studentMealLogsError, setStudentMealLogsError] = useState('')
+  const [mealLogsReloadVersion, setMealLogsReloadVersion] = useState(0)
   const avatarInputRef = useRef(null)
   const studentFirstName = getFirstName(student?.name)
   const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
@@ -18654,6 +18684,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   useEffect(() => {
     persistStudentTab(student?.id, activeTab)
   }, [activeTab, student?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'dieta' || !student?.id || !onLoadMealLogs) return undefined
+    let active = true
+    setStudentMealLogs([])
+    setStudentMealLogsLoading(true)
+    setStudentMealLogsError('')
+    Promise.resolve()
+      .then(() => onLoadMealLogs())
+      .then((logs) => { if (active) setStudentMealLogs(Array.isArray(logs) ? logs : []) })
+      .catch((error) => { if (active) setStudentMealLogsError(error?.message || 'Não foi possível carregar os registros de refeição.') })
+      .finally(() => { if (active) setStudentMealLogsLoading(false) })
+    return () => { active = false }
+  }, [activeTab, mealLogsReloadVersion, onLoadMealLogs, student?.id])
 
   useEffect(() => {
     const nextId = selectedStudentWorkout?.id ? String(selectedStudentWorkout.id) : ''
@@ -18826,6 +18870,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     } finally {
       setAvatarUploading(false)
     }
+  }
+
+  async function saveStudentMealPhoto(mealLog) {
+    if (!onSaveMealLog) throw new Error('O registro de refeições não está disponível agora.')
+    const saved = await onSaveMealLog(mealLog)
+    if (!saved?.id) throw new Error('O servidor não confirmou o registro da refeição.')
+    setStudentMealLogs((current) => [saved, ...current.filter((item) => String(item.id) !== String(saved.id))].slice(0, 50))
+    setStudentMealLogsError('')
+    return saved
   }
 
   function toggleWorkoutTimer() {
@@ -19015,6 +19068,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 }}
                 onCompleteWorkout={completeWorkoutFromStudent}
                 onEndWorkout={endWorkoutFromStudent}
+                onRateWorkout={onRateWorkout}
                 onLoadWorkoutSession={onLoadWorkoutSession}
                 onSaveWorkoutSession={onSaveWorkoutSession}
                 onSessionHydrated={(session) => {
@@ -19053,6 +19107,14 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             questionnaires={nutritionQuestionnaires}
             assignments={studentQuestionnaireAssignments}
             onSubmitQuestionnaire={onSubmitQuestionnaire}
+          />
+          <StudentMealPhotoJournal
+            logs={studentMealLogs}
+            loading={studentMealLogsLoading}
+            loadError={studentMealLogsError}
+            nutritionPlanId={studentNutritionPlans.length === 1 ? studentNutritionPlans[0]?.id || '' : ''}
+            onSave={saveStudentMealPhoto}
+            onRefresh={() => setMealLogsReloadVersion((current) => current + 1)}
           />
           {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} showHeading={false} waterMl={waterMl} waterGoalMl={waterGoalMl} onAddWater={addWater} onOpenWater={() => openTab('agua')} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
         </StudentAppSection>

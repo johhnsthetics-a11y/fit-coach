@@ -1,6 +1,7 @@
 // StoreKit supplies the authoritative checkout prices. Brazilian marketing prices
 // are owner-provided references only, not converted USD or guaranteed charges.
 import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
+import { getIosIntroOffer } from './iosIntroOffer.js'
 
 export const IOS_PLAN_DETAILS = Object.freeze([
   { planId: 'mensal', title: 'Mensal', cycleLabel: 'Renovação mensal' },
@@ -9,7 +10,6 @@ export const IOS_PLAN_DETAILS = Object.freeze([
 ])
 
 const ISO_CURRENCY = /^[A-Z]{3}$/i
-// StoreKit uses ISO alpha-3 (BRA); older bridge/test data may use alpha-2 (BR).
 const ISO_COUNTRY = /^(?:[A-Z]{2}|[A-Z]{3})$/i
 
 export function normalizeIosStorefrontCountryCode(value) {
@@ -18,20 +18,13 @@ export function normalizeIosStorefrontCountryCode(value) {
 }
 
 export function resolveIosPricingLocale(appLocale = '') {
-  // This panel follows the app's HTML language, not the iPhone's preferred
-  // language. The shipped interface is Brazilian Portuguese even on an
-  // English-language device. A missing/generic Portuguese app locale is pt-BR.
   const locale = String(appLocale || 'pt-BR').trim().replaceAll('_', '-')
   if (/^pt$/i.test(locale)) return 'pt-BR'
-  try {
-    return Intl.getCanonicalLocales(locale)[0] || 'pt-BR'
-  } catch {
-    return 'pt-BR'
-  }
+  try { return Intl.getCanonicalLocales(locale)[0] || 'pt-BR' }
+  catch { return 'pt-BR' }
 }
 
 function displayedCurrency(price) {
-  // Inspect a normalized copy; never rewrite Apple's actual price string.
   const text = price.replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
     .replace(/[\u00a0\u202f]/g, ' ').trim()
   if (/US\s*\$|(?:^|[^A-Z])USD(?:$|[^A-Z])/i.test(text)) return 'USD'
@@ -44,82 +37,55 @@ function displayedCurrency(price) {
 export function buildIosSubscriptionCards(products = [], options = {}) {
   const locale = options.locale ? resolveIosPricingLocale(options.locale) : ''
   const brazilianInterface = /^pt-BR(?:-|$)/i.test(locale)
-  const byPlan = new Map(
-    (Array.isArray(products) ? products : [])
-      .filter((product) => product && typeof product.planId === 'string')
-      .map((product) => [product.planId, product]),
-  )
-
-  return IOS_PLAN_DETAILS.map((detail) => {
+  const byPlan = new Map((Array.isArray(products) ? products : [])
+    .filter(product => product && typeof product.planId === 'string')
+    .map(product => [product.planId, product]))
+  return IOS_PLAN_DETAILS.map(detail => {
     const product = byPlan.get(detail.planId)
     const rawPrice = typeof product?.displayPrice === 'string' ? product.displayPrice.trim() : ''
     const priceCurrencyCode = displayedCurrency(rawPrice)
     const currencyCode = typeof product?.currencyCode === 'string' && ISO_CURRENCY.test(product.currencyCode.trim())
-      ? product.currencyCode.trim().toUpperCase()
-      : priceCurrencyCode
+      ? product.currencyCode.trim().toUpperCase() : priceCurrencyCode
     const storefrontCountryCode = normalizeIosStorefrontCountryCode(product?.storefrontCountryCode)
     const brazilianStorefront = ['BR', 'BRA'].includes(storefrontCountryCode)
-
-    // The UI language cannot select a storefront or convert Apple's price.
-    // TestFlight may return USD metadata while the purchase sheet uses BRL.
-    // In that case show an honest confirmation prompt, never a guessed amount.
     const storefrontConflict = brazilianStorefront && currencyCode !== '' && currencyCode !== 'BRL'
     const textMetadataConflict = priceCurrencyCode !== '' && currencyCode !== '' && priceCurrencyCode !== currencyCode
     const foreignInterfacePrice = brazilianInterface && currencyCode !== '' && currencyCode !== 'BRL'
-    const ambiguousDollar = (brazilianInterface || brazilianStorefront)
-      && rawPrice.includes('$') && priceCurrencyCode !== 'BRL' && currencyCode === ''
+    const ambiguousDollar = (brazilianInterface || brazilianStorefront) && rawPrice.includes('$') && priceCurrencyCode !== 'BRL' && currencyCode === ''
     const mislabeledReal = currencyCode === 'BRL' && rawPrice.includes('$') && priceCurrencyCode !== 'BRL'
-    const currencyMismatch = Boolean(rawPrice)
-      && (storefrontConflict || textMetadataConflict || foreignInterfacePrice || ambiguousDollar || mislabeledReal)
-
+    const currencyMismatch = Boolean(rawPrice) && (storefrontConflict || textMetadataConflict || foreignInterfacePrice || ambiguousDollar || mislabeledReal)
     const brazilReference = brazilianInterface ? IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId] : null
-    const validAppleBRL = Boolean(rawPrice && currencyCode === 'BRL'
-      && priceCurrencyCode === 'BRL' && !currencyMismatch)
-    const appleIntro = typeof product?.introductoryDisplayPrice === 'string'
-      ? product.introductoryDisplayPrice.trim() : ''
-    const validAppleIntro = Boolean(validAppleBRL && displayedCurrency(appleIntro) === 'BRL')
-
-    // Introductory offers are limited by Apple's Apple Account/group
-    // eligibility. The existence of a configured offer does not grant it.
-    // Unknown eligibility must never be advertised as a guaranteed discount.
-    const monthlyPlan = detail.planId === 'mensal' && Boolean(brazilReference)
-    const introEligibility = monthlyPlan && product?.introductoryOfferAvailable === true
-      ? (product?.introductoryOfferEligible === true ? 'eligible'
-        : product?.introductoryOfferEligible === false ? 'ineligible' : 'unknown')
-      : 'unknown'
-    const showIntro = monthlyPlan && introEligibility === 'eligible'
-    const referencePriceUsed = Boolean(brazilReference && (showIntro
-      ? !validAppleIntro : !validAppleBRL))
-    const standardPrice = brazilReference
-      ? (validAppleBRL ? rawPrice : brazilReference.recurringPrice)
+    const validAppleBRL = Boolean(rawPrice && currencyCode === 'BRL' && priceCurrencyCode === 'BRL' && !currencyMismatch)
+    const offer = getIosIntroOffer(product)
+    const monthlyPlan = detail.planId === 'mensal'
+    const introCurrency = displayedCurrency(offer.price)
+    const validAppleIntro = Boolean(rawPrice && !currencyMismatch && offer.price
+      && (currencyCode === 'BRL' ? introCurrency === 'BRL' : currencyCode && (!introCurrency || introCurrency === currencyCode)))
+    const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
+    const standardPrice = brazilReference ? (validAppleBRL ? rawPrice : brazilReference.recurringPrice)
       : (currencyMismatch ? 'Confira o preço na App Store' : (rawPrice || 'Preço indisponível'))
-    const displayPrice = showIntro
-      ? (validAppleIntro ? appleIntro : brazilReference.introductoryPrice)
-      : standardPrice
-
-    const renewalPrice = monthlyPlan
-      ? (validAppleBRL ? rawPrice : brazilReference.recurringPrice) : ''
-
+    const referencePriceUsed = Boolean(brazilReference && !validAppleBRL)
+    const displayPrice = showIntro ? offer.price : standardPrice
+    let priceDescription = brazilReference?.renewalLabel || ''
+    if (monthlyPlan) {
+      priceDescription = showIntro ? offer.terms
+        : offer.status === 'ineligible' ? 'Preço normal: a conta Apple não é elegível à oferta introdutória'
+          : offer.status === 'unavailable' ? 'Preço normal: a Apple não retornou oferta para este produto e loja'
+            : offer.status === 'eligible' ? 'Elegibilidade indicada, mas preço ou período da oferta ainda não confirmado'
+              : 'Preço normal: desconto ainda não confirmado pela Apple'
+    }
     return {
-      ...detail,
-      available: Boolean(product && rawPrice),
-      currencyCode,
-      storefrontCountryCode,
-      currencyMismatch,
-      referencePriceUsed,
-      introEligibility,
-      introductoryOfferAvailable: product?.introductoryOfferAvailable === true,
-      displayPrice,
-      pricePeriod: brazilReference?.periodLabel || '',
-      priceDescription: showIntro
-        ? 'Oferta introdutória disponível para esta conta Apple'
-        : monthlyPlan && introEligibility === 'ineligible'
-          ? 'Preço normal: oferta de primeiro mês indisponível para esta conta Apple'
-          : monthlyPlan
-            ? 'Oferta de primeiro mês sujeita à elegibilidade confirmada pela Apple'
-            : (brazilReference?.renewalLabel || ''),
-      renewalText: showIntro ? `Depois, ${renewalPrice}/mês` : '',
-      introductoryDisplayPrice: showIntro && validAppleIntro ? appleIntro : null,
+      ...detail, available: Boolean(product && rawPrice), currencyCode, storefrontCountryCode,
+      currencyMismatch, referencePriceUsed,
+      introEligibility: monthlyPlan ? offer.eligibility : 'unknown',
+      introStatus: monthlyPlan ? offer.status : 'unavailable',
+      introductoryOfferAvailable: offer.available,
+      displayPrice, standardPrice, pricePeriod: brazilReference?.periodLabel || '', priceDescription,
+      renewalText: showIntro ? `Depois, ${standardPrice}/mês` : '',
+      introductoryDisplayPrice: showIntro ? offer.price : null,
+      introductoryTerms: showIntro ? offer.terms : '',
+      introductoryPeriod: showIntro ? offer.totalPeriod : '',
+      introAppliedToDisplay: showIntro,
     }
   })
 }

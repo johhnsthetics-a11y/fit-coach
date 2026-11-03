@@ -10,6 +10,7 @@ import { establishStudentPersonalPassword } from './studentFirstPassword'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
+const MEAL_PHOTO_BUCKET = 'meal-photos'
 const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
 const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
@@ -975,6 +976,9 @@ export async function deleteRemoteStudent(studentId) {
     (checkin.checkin_photos ?? []).map((photo) => photo.storage_url).filter(Boolean)
   ))
 
+  // Delete private meal photos first, using the professional JWT and
+  // server-side ownership validation, while student permissions still exist.
+  await functionRequest('meal-photo', { action: 'cleanup-student', studentId })
   const rows = await request(`students?id=eq.${studentId}`, { method: 'DELETE' })
   const deleted = rows?.[0]
   if (!deleted?.id) throw new Error('O Supabase não confirmou a exclusão do aluno.')
@@ -1079,6 +1083,28 @@ async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
   }
 
   return safeName
+}
+
+async function uploadStudentMealPhoto(file, inviteCode, recordId) {
+  const allowedTypes = new Set(['image/jpeg','image/png','image/webp','image/heic','image/heif','image/avif'])
+  if (!file || !allowedTypes.has(String(file.type || '').toLowerCase()) || file.size < 1 || file.size > 10 * 1024 * 1024) {
+    throw new Error('A foto deve ser uma imagem válida com até 10 MB.')
+  }
+  const form = new FormData()
+  form.append('inviteCode', inviteCode)
+  form.append('recordId', recordId)
+  form.append('file', file)
+  const result = await functionFormRequest('meal-photo', form)
+  if (!result?.ok) throw new Error('O servidor não confirmou o envio da imagem.')
+}
+
+async function removeStudentMealPhotoObject(inviteCode, recordId) {
+  return functionRequest('meal-photo', { action: 'remove', inviteCode, recordId })
+}
+
+async function signStudentMealPhoto(inviteCode, recordId) {
+  const result = await functionRequest('meal-photo', { action: 'sign', inviteCode, recordId })
+  return result?.signedUrl || ''
 }
 
 async function uploadWorkoutVideo(file, workoutId, exerciseIndex) {
@@ -1711,6 +1737,71 @@ function fromWorkoutSessionRow(row) {
     status: row.status || 'in_progress',
     updatedAt: row.updated_at || execution.updatedAt || '',
   }
+}
+
+export async function saveRemoteWorkoutRating(inviteCode, workoutLogId, rating) {
+  if (!inviteCode || !isUuid(workoutLogId)) throw new Error('Não foi possível identificar o treino concluído.')
+  const value = Number(rating)
+  if (!Number.isInteger(value) || value < 1 || value > 5) throw new Error('Escolha uma avaliação entre uma e cinco estrelas.')
+  const result = await rpcRequest('rate_student_workout_log', {
+    invite_code: inviteCode,
+    selected_workout_log_id: workoutLogId,
+    rating_value: value,
+  })
+  const payload = Array.isArray(result) ? result[0] : result
+  return fromWorkoutLogRow(payload?.workout_log || payload)
+}
+
+export async function loadRemoteStudentMealLogs(inviteCode) {
+  if (!inviteCode) throw new Error('Não foi possível identificar o acesso do aluno.')
+  const result = await rpcRequest('get_student_meal_logs', { invite_code: inviteCode })
+  const rows = Array.isArray(result) ? result : Array.isArray(result?.meal_logs) ? result.meal_logs : []
+  return Promise.all(rows.slice(0, 6).map(async (row) => {
+    const mealLog = fromStudentMealLogRow(row)
+    const photoUrl = mealLog.id ? await signStudentMealPhoto(inviteCode, mealLog.id).catch(() => '') : ''
+    return { ...mealLog, photoUrl }
+  }))
+}
+
+export async function saveRemoteStudentMealLog(inviteCode, mealLog) {
+  if (!inviteCode) throw new Error('Não foi possível identificar o acesso do aluno.')
+  const mealName = String(mealLog?.mealName || '').trim()
+  const note = String(mealLog?.notes || '').trim()
+  const photoFile = mealLog?.photoFile
+  const photoMime = String(photoFile?.type || '').toLowerCase()
+  const extensionByMime = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'image/heic': 'heic', 'image/heif': 'heif', 'image/avif': 'avif',
+  }
+  const photoExtension = extensionByMime[photoMime]
+  if (!mealName || mealName.length > 80 || note.length > 240) throw new Error('Confira o nome e a observação da refeição.')
+  if (!photoFile || !photoExtension || photoFile.size < 1 || photoFile.size > 10 * 1024 * 1024) {
+    throw new Error('Escolha uma foto compatível e otimizada com até 10 MB.')
+  }
+  const result = await rpcRequest('create_student_meal_log', {
+    invite_code: inviteCode,
+    selected_nutrition_plan_id: isUuid(mealLog?.nutritionPlanId) ? mealLog.nutritionPlanId : null,
+    meal_name: mealName,
+    note_value: note,
+    photo_mime_value: photoMime,
+    photo_size_bytes_value: photoFile.size,
+    photo_extension: photoExtension,
+  })
+  const payload = Array.isArray(result) ? result[0] : result
+  const row = payload?.meal_log || payload
+  if (!row?.id || !row?.photo_path) throw new Error('O servidor não confirmou o registro da refeição.')
+  try {
+    await uploadStudentMealPhoto(photoFile, inviteCode, row.id)
+  } catch (uploadError) {
+    await removeStudentMealPhotoObject(inviteCode, row.id).catch(() => {})
+    await rpcRequest('delete_student_meal_log', {
+      invite_code: inviteCode,
+      selected_meal_log_id: row.id,
+    }).catch(() => {})
+    throw uploadError
+  }
+  const photoUrl = await signStudentMealPhoto(inviteCode, row.id).catch(() => '')
+  return { ...fromStudentMealLogRow(row), photoUrl }
 }
 
 export async function loadRemoteWorkoutSession(inviteCode, workoutId) {
@@ -2497,6 +2588,24 @@ function fromWorkoutLogRow(row) {
       .trim(),
     completedAt: row.completed_at ?? row.created_at,
     endedEarly: WORKOUT_ENDED_EARLY_TOKEN_TEST.test(rawNotes),
+    rating: Number(row.rating) >= 1 && Number(row.rating) <= 5 ? Number(row.rating) : 0,
+    ratedAt: row.rated_at ?? '',
+  }
+}
+
+function fromStudentMealLogRow(row) {
+  return {
+    id: row?.id || '',
+    coachId: row?.coach_id || '',
+    studentId: row?.student_id || '',
+    nutritionPlanId: row?.nutrition_plan_id || '',
+    mealName: row?.meal_name || '',
+    notes: row?.note || '',
+    mealDate: row?.meal_date || '',
+    recordedAt: row?.recorded_at || row?.created_at || '',
+    photoPath: row?.photo_path || '',
+    photoMime: row?.photo_mime || '',
+    photoSizeBytes: Number(row?.photo_size_bytes) || 0,
   }
 }
 

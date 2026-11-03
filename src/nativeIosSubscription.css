@@ -230,3 +230,14 @@
   .subscription-workspace .native-ios-plan-card .native-ios-plan-price { text-align: left; align-self: start; max-width: none; }
 }
 @media (prefers-reduced-motion:reduce) { .subscription-workspace *, .subscription-workspace *::before, .subscription-workspace *::after { transition: none !important; } }
+
+/* Offer truth comes from StoreKit, never from the app-login marketing price. */
+.subscription-offer-status { margin-top: 1rem; padding: 1rem 1.1rem; border: 1px solid var(--ios-border); border-radius: 16px; background: var(--ios-card); display: grid; gap: .8rem; }
+.subscription-offer-status h3 { color: var(--ios-text); font-size: 1rem; font-weight: 800; }
+.subscription-offer-status p { color: var(--ios-muted); font-size: .83rem; line-height: 1.65; }
+.subscription-offer-status > button { justify-self: start; font-size: .82rem; }
+.subscription-offer-status summary { min-height: 44px; padding: .7rem 0; cursor: pointer; color: var(--ios-accent); font-size: .85rem; font-weight: 750; }
+.subscription-offer-status pre { margin: .8rem 0; padding: .8rem; border-radius: 10px; background: var(--ios-surface); color: var(--ios-muted); font-size: .72rem; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.subscription-regular-consent { display: flex; align-items: flex-start; gap: .7rem; padding: .9rem; border-radius: 12px; border: 1px solid var(--ios-border); background: var(--ios-surface); font-size: .82rem; line-height: 1.6; color: var(--ios-text); cursor: pointer; }
+.subscription-regular-consent input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: .1rem; accent-color: var(--ios-accent); }
+.subscription-regular-consent:focus-within, .subscription-offer-status summary:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }

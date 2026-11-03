@@ -60,7 +60,7 @@ test('iOS uses an isolated Apple-priced subscription view while web keeps Cartpa
   assert.match(native, /restoreIosPurchases\(/)
   assert.match(native, /buildIosSubscriptionCards\(/)
   assert.match(native, /purchaseIosPlan\(/)
-  assert.match(native, /purchaseIosPlan\(plan\.planId, accountId\)/)
+  assert.match(native, /purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
   assert.match(native, /restoreIosPurchases\(accountId\)/)
   assert.match(native, /Restaurar compras/)
   assert.match(source, /getIosEntitlements\(data\.session\.user\.id\)/)

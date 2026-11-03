@@ -51,6 +51,25 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     return
                 }
 
+                // Reuse the native product lookup, not a second JS price gate.
+                // If an advertised introductory condition changed, return the
+                // updated offer for review instead of falling back silently.
+                if let expected = call.getObject("expectedIntroductoryOffer") {
+                    let current = await productDictionary(product)
+                    if introductoryOfferChanged(expected, current) {
+                        let storefront = await Storefront.current
+                        call.resolve([
+                            "purchased": false, "cancelled": false, "pending": false,
+                            "offerChanged": true, "products": [current],
+                            "storefrontCountryCode": storefront?.countryCode.uppercased() ?? ""
+                        ])
+                        return
+                    }
+                }
+
+                // Introductory offers are applied by Apple automatically for
+                // eligible Apple Accounts. appAccountToken binds our account;
+                // it does not reset or override introductory-offer eligibility.
                 switch try await product.purchase(options: [.appAccountToken(accountToken)]) {
                 case .success(let verification):
                     switch verification {
@@ -133,6 +152,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         if let subscription = product.subscription {
             value["subscriptionPeriodValue"] = subscription.subscriptionPeriod.value
             value["subscriptionPeriodUnit"] = String(describing: subscription.subscriptionPeriod.unit)
+            value["subscriptionGroupId"] = subscription.subscriptionGroupID
             if let offer = subscription.introductoryOffer {
                 // StoreKit determines eligibility for the Apple Account and
                 // subscription group. A listed offer is NOT proof of eligibility.
@@ -142,12 +162,37 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 value["introductoryDisplayPrice"] = offer.displayPrice
                 value["introductoryPeriodCount"] = offer.periodCount
                 value["introductoryPaymentMode"] = String(describing: offer.paymentMode)
+                value["introductoryPeriodValue"] = offer.period.value
+                value["introductoryPeriodUnit"] = String(describing: offer.period.unit)
             } else {
                 value["introductoryOfferAvailable"] = false
                 value["introductoryOfferEligible"] = false
             }
         }
         return value
+    }
+
+    private func introductoryOfferChanged(_ expected: JSObject, _ current: [String: Any]) -> Bool {
+        let wasAvailable = expected["available"] as? Bool ?? false
+        let isAvailable = current["introductoryOfferAvailable"] as? Bool ?? false
+        let wasEligible = expected["eligible"] as? Bool ?? false
+        let isEligible = current["introductoryOfferEligible"] as? Bool ?? false
+        if wasAvailable != isAvailable || wasEligible != isEligible { return true }
+        guard isAvailable else { return false }
+        for (before, after) in [
+            ("displayPrice", "introductoryDisplayPrice"),
+            ("paymentMode", "introductoryPaymentMode"),
+            ("periodUnit", "introductoryPeriodUnit")
+        ] {
+            if (expected[before] as? String ?? "") != (current[after] as? String ?? "") { return true }
+        }
+        for (before, after) in [
+            ("periodValue", "introductoryPeriodValue"),
+            ("periodCount", "introductoryPeriodCount")
+        ] {
+            if (expected[before] as? Int ?? 0) != (current[after] as? Int ?? 0) { return true }
+        }
+        return false
     }
 
     private func transactionDictionary(_ transaction: Transaction) -> [String: Any] {
@@ -160,6 +205,20 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         ]
         if let expirationDate = transaction.expirationDate {
             value["expirationDate"] = ISO8601DateFormatter().string(from: expirationDate)
+        }
+        // Never substitute Product.displayPrice for the signed transaction's
+        // amount. StoreKit Decimal is in currency units, not JWS milliunits.
+        if #available(iOS 17.2, *),
+           let price = transaction.price, let currency = transaction.currency {
+            value["transactionPrice"] = NSDecimalNumber(decimal: price).stringValue
+            value["transactionCurrencyCode"] = currency.identifier
+        }
+        if transaction.offerType == .introductory {
+            value["appliedOfferType"] = "introductory"
+        } else if transaction.offerType == nil {
+            value["appliedOfferType"] = "none"
+        } else {
+            value["appliedOfferType"] = "other"
         }
         return value
     }

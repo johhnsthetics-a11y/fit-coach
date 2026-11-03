@@ -61,7 +61,7 @@ test('New Minha Assinatura screens are present, and Apple purchase flow is still
   for (const label of ['Minha assinatura', 'Ciclo contratado', 'Acesso válido até', 'Gerenciar na Apple', 'Restaurar compras', 'Plano selecionado']) {
     assert.ok(panel.includes(label), label)
   }
-  assert.match(panel, /await purchaseIosPlan\(plan\.planId, accountId\)/)
+  assert.match(panel, /await purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
   assert.doesNotMatch(panel.slice(panel.indexOf('async function purchase(plan)'), panel.indexOf('async function restore()')), /await loadIosProducts\(\)/)
   assert.match(app, /onNativeEntitlementChange=\{handleVerifiedIosSubscription\}/)
   assert.match(web, /Escolha seu ciclo/)

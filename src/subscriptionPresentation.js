@@ -18,6 +18,17 @@ export function formatSubscriptionDate(value) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date))
 }
 
+export function formatVerifiedAppleAmount(transaction) {
+  const price = transaction?.transactionPrice
+  const currency = transaction?.transactionCurrencyCode
+  if (typeof price !== 'string' || !/^\d+(?:\.\d+)?$/.test(price)
+    || typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return ''
+  const amount = Number(price)
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1e12) return ''
+  try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(amount) }
+  catch { return '' }
+}
+
 // Presentation only. Trust only Apple's verified account-bound active entitlements.
 export function getVerifiedIosSubscription(entitlements, accountId, productIds, now = Date.now()) {
   const id = String(accountId || '').trim().toLowerCase()
@@ -35,6 +46,8 @@ export function getVerifiedIosSubscription(entitlements, accountId, productIds, 
   const planId = planByProductId[transaction.productId]
   return { planId, ...SUBSCRIPTION_CYCLES[planId], productId: transaction.productId,
     purchaseDate: validSubscriptionDate(transaction.purchaseDate),
+    transactionAmount: formatVerifiedAppleAmount(transaction),
+    appliedOfferType: ['introductory', 'none', 'other'].includes(transaction.appliedOfferType) ? transaction.appliedOfferType : 'unknown',
     expiresAt: validSubscriptionDate(transaction.expirationDate), provider: 'App Store' }
 }
 
