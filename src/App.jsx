@@ -17844,6 +17844,7 @@ function StudentMessagePanel({ student, coachId, contact, inviteCode = '', messa
     <ChatConversation
       viewerRole="student"
       studentId={student.id}
+      inviteCode={inviteCode}
       contact={contact}
       messages={messages}
       onSendMessage={onSendMessage}
@@ -20429,6 +20430,7 @@ function StudentChatScreen({ student, coachId, coachSettings, inviteCode = '', m
   return (
     <StudentMessagePanel
       student={student}
+      inviteCode={inviteCode}
       coachId={coachId}
       contact={{ name: contactName, avatarUrl: coachSettings?.profilePhotoUrl, subtitle: 'Seu acompanhamento direto e seguro' }}
       messages={messages}
