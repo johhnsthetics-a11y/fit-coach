@@ -57,7 +57,7 @@ export function ChatLoadState({ loading = false, loadError = '', connectionState
   return null
 }
 
-export function MessageBubble({ message, own = false, isFirst = true, isLast = true, renderAttachment, renderActions, onRetryMessage }) {
+export function MessageBubble({ message, own = false, isFirst = true, isLast = true, renderAttachment, renderActions, onRetryMessage, onReportMessage }) {
   const status = deliveryLabel(message, own)
   const time = formatChatTime(message?.createdAt)
 
@@ -85,6 +85,10 @@ export function MessageBubble({ message, own = false, isFirst = true, isLast = t
         </button>
       ) : null}
       {renderActions?.(message)}
+      {!own && !message?.deletedAt && message?.id && onReportMessage ? (
+        <button type="button" className="chat-report-message" onClick={() => onReportMessage(message)}
+          aria-label="Denunciar esta mensagem">Denunciar</button>
+      ) : null}
     </article>
   )
 }
@@ -105,6 +109,7 @@ export function ChatMessageList({
   ownSender,
   renderAttachment,
   renderActions,
+  onReportMessage,
   emptyText = 'Inicie a conversa',
   loading = false,
   loadError = '',
@@ -141,6 +146,7 @@ export function ChatMessageList({
                   isLast={item.isLast}
                   renderAttachment={renderAttachment}
                   renderActions={renderActions}
+                  onReportMessage={onReportMessage}
                   onRetryMessage={onRetryMessage}
                 />
               )

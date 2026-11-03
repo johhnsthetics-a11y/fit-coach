@@ -133,6 +133,7 @@ import { addBillingCycle, getFirstName, getLocalGreeting, isSubscriptionCurrent,
 import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
 import { ChatConversation } from './chat/ChatConversation'
+import AdminChatReports from './chat/AdminChatReports'
 import { ConversationList } from './chat/ConversationList'
 import {
   buildConversationRows,
@@ -183,7 +184,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'ios-intro-eligibility-build11-20261102'
+const COACH_FIT_PRO_BUILD_MARKER = 'ios-chat-safety-build13-20261103'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -17816,7 +17817,7 @@ function MessageActions({ message, canManage = false, onEdit, onDelete }) {
   )
 }
 
-function StudentMessagePanel({ student, coachId, contact, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onBack, onRefresh, syncError = '', fullScreen = false }) {
+function StudentMessagePanel({ student, coachId, contact, inviteCode = '', messages = [], onSendMessage, onEditMessage, onDeleteMessage, onBack, onRefresh, syncError = '', fullScreen = false }) {
   const buildPayload = useCallback(({ body, attachmentFile, attachmentPreview }) => ({
     coachId,
     studentId: student.id,
@@ -17844,6 +17845,7 @@ function StudentMessagePanel({ student, coachId, contact, messages = [], onSendM
     <ChatConversation
       viewerRole="student"
       studentId={student.id}
+      inviteCode={inviteCode}
       contact={contact}
       messages={messages}
       onSendMessage={onSendMessage}
@@ -19067,7 +19069,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'mensagens') {
-      return <StudentChatScreen student={student} coachId={coachId} coachSettings={coachSettings} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} externalSyncError={chatSyncError} onBack={closeStudentChat} />
+      return <StudentChatScreen student={student} coachId={coachId} coachSettings={coachSettings} inviteCode={inviteCode} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} externalSyncError={chatSyncError} onBack={closeStudentChat} />
     }
 
     if (activeTab === 'pagamentos') {
@@ -20400,7 +20402,7 @@ function escapeStatementHtml(value) {
     .replace(/'/g, '&#039;')
 }
 
-function StudentChatScreen({ student, coachId, coachSettings, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages, externalSyncError = '', onBack }) {
+function StudentChatScreen({ student, coachId, coachSettings, inviteCode = '', messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages, externalSyncError = '', onBack }) {
   const [syncError, setSyncError] = useState('')
   const refreshHandlerRef = useRef(onRefreshMessages)
 
@@ -20429,6 +20431,7 @@ function StudentChatScreen({ student, coachId, coachSettings, messages = [], onS
   return (
     <StudentMessagePanel
       student={student}
+      inviteCode={inviteCode}
       coachId={coachId}
       contact={{ name: contactName, avatarUrl: coachSettings?.profilePhotoUrl, subtitle: 'Seu acompanhamento direto e seguro' }}
       messages={messages}
@@ -23605,7 +23608,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         </div>
       </section>
 
-      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-2" aria-label="Páginas do Admin Master">
+      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-3" aria-label="Páginas do Admin Master">
         <button
           type="button"
           onClick={() => setActivePage('settings')}
@@ -23622,10 +23625,20 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         >
           Acessos gratuitos
         </button>
+        <button
+          type="button"
+          onClick={() => setActivePage('chat-reports')}
+          aria-current={activePage === 'chat-reports' ? 'page' : undefined}
+          className={`min-h-12 rounded-xl px-4 text-sm font-black transition ${activePage === 'chat-reports' ? 'bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'text-zinc-300 hover:bg-white/[0.05]'}`}
+        >
+          Denúncias do chat
+        </button>
       </nav>
 
       {activePage === 'free-access' ? (
         <AdminStudentFreeAccess />
+      ) : activePage === 'chat-reports' ? (
+        <AdminChatReports />
       ) : (
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
         <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
