@@ -51,10 +51,10 @@ test('Panel calls native purchase immediately without a second storefront-price 
   const restoreStart = panel.indexOf('async function restore()', clickStart)
   assert.ok(clickStart >= 0 && restoreStart > clickStart)
   const click = panel.slice(clickStart, restoreStart)
-  assert.match(click, /await purchaseIosPlan\(plan\.planId, accountId\)/)
+  assert.match(click, /await purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
   assert.doesNotMatch(click, /await loadIosProducts\(\)/)
   assert.doesNotMatch(click, /!plan\.available/)
-  assert.match(panel, /disabled=\{!accountValid \|\| Boolean\(processing\) \|\| Boolean\(pendingPlanId\) \|\| hasAccess\}/)
+  assert.match(panel, /disabled=\{!canPurchase\}/)
 })
 
 test('Signed Apple purchase returns verified account-bound proof and rejects expired subscriptions', () => {
