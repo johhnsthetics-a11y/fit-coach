@@ -99,6 +99,7 @@ export function ChatConversation({
   const safety = useChatSafety({ studentId, viewerRole, inviteCode })
   const [reportTarget, setReportTarget] = useState(null)
   const [safetyNotice, setSafetyNotice] = useState('')
+  useEffect(() => { setReportTarget(null); setSafetyNotice('') }, [studentId, inviteCode, viewerRole])
   const sendingDisabled = safety.enabled && (safety.phase !== 'ready' || safety.blocked || safety.busy)
 
   const guardedSend = useCallback(async (payload) => {
