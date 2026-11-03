@@ -64,12 +64,12 @@ test('Offer-change and pending results cannot grant access in the bridge', () =>
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-ios-intro-offer-build12-20261102'
+  const current = 'coach-fit-pro-student-wellness-chat-safety-build13-20261103'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
     caches: {
-      keys: async () => [current, 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
+      keys: async () => [current, 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
       delete: async key => { deleted.push(key); return true },
       match: async () => { throw Error('Global cache lookup must never be used') },
       open: async key => { opened.push(key); return { match: async () => new Response('current-build'), put: async () => {} } },
@@ -84,7 +84,7 @@ test('Service worker removes its known old caches without erasing other apps', a
   let wait
   w.handlers.activate({ waitUntil: promise => { wait = promise } })
   await wait
-  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-old', 'fit-coach-app-v2'])
+  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2'])
 })
 test('Offline HTML and assets read only the current build cache, never global legacy cache', async () => {
   for (const mode of ['navigate', 'cors']) {
