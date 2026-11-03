@@ -13,11 +13,12 @@ const EMPTY = Object.freeze({ blocked: false, blockedByYou: false, blockedByOthe
 export function useChatSafety({ studentId, viewerRole, inviteCode = '' }) {
   const key = `${viewerRole || ''}:${studentId || ''}:${inviteCode || ''}`
   const [snapshot, setSnapshot] = useState({ key: '', phase: 'loading', value: EMPTY, error: '' })
-  const [busy, setBusy] = useState(false)
+  const [busyKey, setBusyKey] = useState('')
   const requestId = useRef(0)
   const lastRefresh = useRef(0)
   const activeKey = useRef(key)
   activeKey.current = key
+  const busy = busyKey === key
   const enabled = Boolean(supabaseEnabled && studentId && (viewerRole === 'coach' || (viewerRole === 'student' && inviteCode)))
 
   const refresh = useCallback(async () => {
@@ -70,7 +71,7 @@ export function useChatSafety({ studentId, viewerRole, inviteCode = '' }) {
   const setBlocked = useCallback(async (blocked) => {
     if (!enabled || status.phase !== 'ready' || busy) throw new Error('Aguarde a verificação da conversa.')
     const operationKey = key
-    setBusy(true)
+    setBusyKey(operationKey)
     try {
       const updated = await setRemoteChatBlock(studentId, Boolean(blocked), viewerRole === 'student' ? inviteCode : '')
       if (activeKey.current === operationKey) {
@@ -81,7 +82,7 @@ export function useChatSafety({ studentId, viewerRole, inviteCode = '' }) {
       if (activeKey.current === operationKey) await refresh().catch(() => undefined)
       throw error
     } finally {
-      if (activeKey.current === operationKey) setBusy(false)
+      setBusyKey(current => current === operationKey ? '' : current)
     }
   }, [enabled, status.phase, busy, key, studentId, viewerRole, inviteCode, refresh])
 
