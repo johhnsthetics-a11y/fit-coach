@@ -16330,11 +16330,11 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
     } catch {
       // A private browsing context may block localStorage; the screen remains usable.
     }
-  }, [completedMealIds, previewMode, storageKey]
+  }, [completedMealIds, previewMode, storageKey])
   useEffect(() => {
     if (previewMode) return
     try { window.localStorage.setItem(favoriteStorageKey, JSON.stringify(favoriteMeals)) } catch {}
-  }, [favoriteMeals, favoriteStorageKey, previewMode]
+  }, [favoriteMeals, favoriteStorageKey, previewMode])
 
   function toggleMeal(meal) {
     const mealId = String(meal?.id || meal?.name || '')
