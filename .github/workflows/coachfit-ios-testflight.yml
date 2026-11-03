@@ -36,10 +36,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 13)"
+        description: "Build INEDITO para esta versao (ex.: 14)"
         type: string
         required: true
-        default: "13"
+        default: "14"
 
 permissions:
   contents: read
@@ -56,7 +56,7 @@ jobs:
     env:
       APP_ID: br.com.coachfitpro.ios
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ inputs.build_number || '13' }}
+      IOS_BUILD: ${{ inputs.build_number || '14' }}
 
     steps:
       - name: Checkout
@@ -108,7 +108,7 @@ jobs:
       - name: Validate source and StoreKit bridge
         run: |
           set -euo pipefail
-          node --test scripts/ios-storekit-package.test.mjs scripts/ios-product-pricing.test.mjs scripts/ios-purchase-verification.test.mjs scripts/subscription-presentation.test.mjs scripts/ios-intro-offer-regression.test.mjs scripts/chat-safety-contract.test.mjs scripts/chat-enhancements.test.mjs scripts/student-workout-rating.test.mjs scripts/student-meal-photo.test.mjs
+          node --test scripts/ios-storekit-package.test.mjs scripts/ios-product-pricing.test.mjs scripts/ios-purchase-verification.test.mjs scripts/subscription-presentation.test.mjs scripts/ios-intro-offer-regression.test.mjs scripts/chat-safety-contract.test.mjs scripts/chat-enhancements.test.mjs scripts/student-workout-rating.test.mjs scripts/student-meal-photo.test.mjs scripts/nutrition-patient-preview.test.mjs
 
       - name: Build web assets
         run: pnpm run build
