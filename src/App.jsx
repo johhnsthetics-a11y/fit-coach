@@ -189,7 +189,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'student-wellness-chat-safety-build13-20261103'
+const COACH_FIT_PRO_BUILD_MARKER = 'patient-diet-preview-chat-safety-build14-20261103'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -4891,6 +4891,7 @@ function AppContent() {
                 nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 professional={data.user}
+                appAdminSettings={appAdminSettings}
                 onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveNutritionPlan={archiveNutritionPlan}
                 onSaveQuestionnaire={saveNutritionQuestionnaire}
@@ -15017,7 +15018,7 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
+function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, appAdminSettings = defaultAppAdminSettings, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [nutritionTab, setNutritionTab] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search)
@@ -15113,7 +15114,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${editorStudent?.name ?? 'Paciente'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
+              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} themeSettings={appAdminSettings} />
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -15319,7 +15320,7 @@ function NutritionDraftQuality({ meals = [], totals }) {
   )
 }
 
-function NutritionForm({ students = [], selectedStudent, anamneses = [], questionnaireAssignments = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionForm({ students = [], selectedStudent, anamneses = [], questionnaireAssignments = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME, themeSettings = defaultAppAdminSettings }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -15360,6 +15361,8 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
   const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
   const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
+    id: editingPlan?.id || 'nutrition-preview-draft',
+    studentId: formStudent?.id || '',
     title: titleDraft || 'Plano alimentar',
     calories: `${Math.round(planTotals.calories)} kcal`,
     protein: `${roundMacro(planTotals.protein)} g`,
@@ -15368,8 +15371,10 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
     meals: meals
       .filter((meal) => meal.name.trim())
       .map((meal) => ({
+        id: meal.id,
         name: meal.name,
         time: meal.time,
+        items: meal.items.map((item) => ({ ...item })),
         foods: meal.items
           .filter((item) => item.foodName && Number(item.grams) > 0)
           .map(formatStudentFoodServing)
@@ -15592,7 +15597,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
       </div>
 
       {previewOpen ? (
-        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} professional={professional} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
+        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} professional={professional} theme={uiTheme} themeSettings={themeSettings} onClose={() => setPreviewOpen(false)} />
       ) : null}
 
       <input type="hidden" name="studentId" value={formStudent?.id || ''} />
@@ -15857,61 +15862,26 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
   pdfWindow.document.close()
 }
 
-function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, onClose }) {
-  const meals = Array.isArray(plan?.meals) ? plan.meals : []
-  const canDownloadPdf = canPatientDownloadNutritionPdf(plan)
+function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, themeSettings = defaultAppAdminSettings, onClose }) {
   const nutritionist = isNutritionistUser(professional)
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
-
+  const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
   return createPortal((
     <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label={`Visão do ${clientLabel} da dieta`}>
-      <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
-        <div className="flex items-start justify-between gap-3">
+      <div className="nutrition-student-preview-panel nutrition-student-preview-faithful-panel scrollbar-soft flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-emerald-300/20 bg-zinc-950 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl">
+        <header className="nutrition-student-preview-toolbar-v1 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do {clientLabel}</p>
-            <h3 className="mt-1 break-words text-2xl font-black text-white">{plan?.title || 'Plano alimentar'}</h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || (nutritionist ? 'Paciente' : 'Aluno')} verá refeições, horários e macros de forma simples.</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-300">Prévia fiel da área do {clientLabel}</p>
+            <h3 className="mt-0.5 text-lg font-black text-white">Minha dieta</h3>
+            <p className="mt-0.5 truncate text-xs text-zinc-400">{student?.name || (nutritionist ? 'Paciente' : 'Aluno')} · interações demonstrativas, sem salvar progresso</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label={`Fechar visão do ${clientLabel}`}>
-            <NavIcon name="close" className="h-5 w-5" />
-          </button>
-        </div>
-
-        {canDownloadPdf ? (
-          <button type="button" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
-            <NavIcon name="download" className="h-4 w-4" />
-            Baixar PDF da dieta
-          </button>
-        ) : null}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <NutritionQuickStat icon="chart" label="Calorias" value={plan?.calories || '-'} detail="por dia" />
-          <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan?.protein || '-'} detail="estimada" />
-          <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
-        </div>
-
-        {plan?.notes ? (
-          <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
+          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label={`Fechar visão do ${clientLabel}`}><NavIcon name="close" className="h-5 w-5" /></button>
+        </header>
+        <div className="nutrition-student-preview-content scrollbar-soft min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
+          <div className={`student-mobile-shell fit-gradient-bg nutrition-student-preview-device app-theme-${theme} mx-auto w-full max-w-xl`} style={mergeThemeStyle(themeSettings, theme)} data-preview="patient-diet">
+            <StudentDietExperience plan={plan} student={student} professional={professional} showHeading={false}
+              waterMl={0} waterGoalMl={waterGoalMl} onOpenWater={() => {}} showPdfAction={canPatientDownloadNutritionPdf(plan)} previewMode />
           </div>
-        ) : null}
-
-        <div className="mt-4 grid gap-3">
-          {meals.length ? meals.map((meal, index) => (
-            <article key={meal.name || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-200">{meal.time || 'Horário livre'}</p>
-                  <h4 className="mt-1 break-words text-lg font-black text-white">{meal.name}</h4>
-                  <NutritionMealFoodList meal={meal} />
-                </div>
-                <span className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-right text-xs font-black leading-5 text-emerald-100">{meal.macros || 'Macros'}</span>
-              </div>
-            </article>
-          )) : (
-            <Empty text={`Adicione refeições para visualizar a dieta como o ${clientLabel} verá.`} />
-          )}
         </div>
       </div>
     </div>
