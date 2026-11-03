@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { IOS_PRODUCT_IDS, getIosEntitlements, loadIosProducts, purchaseIosPlan, restoreIosPurchases } from './iosStoreKit'
 import { buildIosSubscriptionCards, resolveIosPricingLocale } from './iosProductPresentation'
 import { formatSubscriptionDate, getVerifiedIosSubscription, getWebSubscriptionSummary, SUBSCRIPTION_CYCLES } from './subscriptionPresentation'
-import { getIosOfferDiagnostics } from './iosIntroOffer'
 import './nativeIosSubscription.css'
 
 function readPendingPlan(accountId) {
@@ -29,7 +28,6 @@ export default function NativeIosSubscriptionPanel({
   const [reloadCount, setReloadCount] = useState(0)
   const [processing, setProcessing] = useState('')
   const [message, setMessage] = useState('')
-  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState(() => readPendingPlan(accountId) || 'mensal')
   const [pendingPlanId, setPendingPlanId] = useState(() => readPendingPlan(accountId))
   const [snapshot, setSnapshot] = useState({ accountId: '', status: 'loading', entitlements: [], error: '' })
@@ -54,10 +52,6 @@ export default function NativeIosSubscriptionPanel({
     setSelectedPlanId(readPendingPlan(accountId) || 'mensal')
     setPendingPlanId(readPendingPlan(accountId))
   }, [accountId])
-
-  useEffect(() => {
-    setDiagnosticsCopied(false)
-  }, [accountId, products])
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 60_000)
@@ -120,8 +114,6 @@ export default function NativeIosSubscriptionPanel({
   const pricingLocale = resolveIosPricingLocale(typeof document !== 'undefined' ? document.documentElement.lang : '')
   const cards = buildIosSubscriptionCards(products, { locale: pricingLocale })
   const selectedPlan = cards.find(plan => plan.planId === selectedPlanId) || cards[0]
-  const monthlyProduct = products.find(product => product.planId === 'mensal')
-  const monthlyPlan = cards.find(plan => plan.planId === 'mensal')
   const accountSnapshot = snapshot.accountId === accountId ? snapshot : { status: 'loading', entitlements: [], error: '' }
   const currentPlan = getVerifiedIosSubscription(accountSnapshot.entitlements, accountId, IOS_PRODUCT_IDS, clock)
   const externalSummary = getWebSubscriptionSummary(subscription, { affiliate: professionalAffiliate, now: clock })
@@ -136,7 +128,7 @@ export default function NativeIosSubscriptionPanel({
     operationRef.current = true
     const operationAccount = accountId
     setProcessing(plan.planId)
-    setMessage('Conferindo as condições da oferta na Apple...')
+    setMessage('Abrindo a confirmação da assinatura pela Apple...')
     try {
       // Swift reuses its product lookup to compare the introductory terms.
       // No duplicate JS price/storefront fetch and no eligibility override.
@@ -146,7 +138,7 @@ export default function NativeIosSubscriptionPanel({
       if (result.offerChanged) {
         const updated = result.products || []
         setProducts(previous => [...previous.filter(product => !updated.some(item => item.planId === product.planId)), ...updated])
-        setMessage('As condições da oferta mudaram na Apple. Nenhuma compra foi iniciada. Revise o preço e a elegibilidade atualizados antes de continuar.')
+        setMessage('Os valores ou as condições da assinatura foram atualizados pela Apple. Nenhuma compra foi iniciada. Confira o preço antes de continuar.')
       } else if (result.cancelled) {
         setMessage('Compra cancelada. Nenhuma cobrança foi concluída.')
       } else if (result.pending) {
@@ -195,13 +187,6 @@ export default function NativeIosSubscriptionPanel({
       operationRef.current = false
       setProcessing('')
     }
-  }
-
-  async function copyOfferDiagnostics() {
-    try {
-      await navigator.clipboard.writeText(getIosOfferDiagnostics(monthlyProduct))
-      setDiagnosticsCopied(true)
-    } catch { setMessage('Não foi possível copiar. Os dados técnicos estão visíveis abaixo.') }
   }
 
   const title = currentPlan ? `Plano ${currentPlan.title}` : nativeConfirmed ? 'Assinatura ativa'
@@ -266,7 +251,6 @@ export default function NativeIosSubscriptionPanel({
             <div><dt>Acesso válido até</dt><dd>{formatSubscriptionDate(validity)}</dd></div>
             <div><dt>Gerenciado por</dt><dd>{nativeConfirmed ? 'App Store' : externalSummary.provider}</dd></div>
             {currentPlan && <div><dt>Última transação Apple</dt><dd>{currentPlan.transactionAmount || 'Valor não informado pela Apple'}</dd></div>}
-            {currentPlan && <div><dt>Oferta na última transação</dt><dd>{currentPlan.appliedOfferType === 'introductory' ? 'Introdutória aplicada' : currentPlan.appliedOfferType === 'none' ? 'Sem oferta aplicada' : currentPlan.appliedOfferType === 'other' ? 'Outra oferta Apple' : 'Não informado pela Apple'}</dd></div>}
           </dl>
         )}
         {hasAccess && <p className="subscription-small-print">{nativeConfirmed
@@ -305,19 +289,6 @@ export default function NativeIosSubscriptionPanel({
         <section className="subscription-plan-section" aria-label="Escolher plano">
           <div className="subscription-section-title"><h3>Escolha seu ciclo</h3><p>O mesmo acesso profissional. Você escolhe a duração.</p></div>
           {renderPlans()}
-          {selectedPlanId === 'mensal' && <section className="subscription-offer-status" aria-label="Oferta introdutória mensal">
-            <h3>{monthlyPlan.introAppliedToDisplay ? 'Oferta introdutória confirmada pela Apple' : 'Sobre a oferta do primeiro mês'}</h3>
-            <p>{monthlyPlan.introAppliedToDisplay ? `${monthlyPlan.introductoryTerms}. ${monthlyPlan.renewalText}.`
-              : monthlyPlan.introStatus === 'ineligible' ? 'A Apple informou que esta conta Apple não é elegível neste grupo de assinaturas. Criar outra conta Coach Fit Pro não reinicia o benefício.'
-                : monthlyPlan.introStatus === 'unavailable' ? 'A Apple não retornou uma oferta introdutória para o produto mensal nesta loja. Confira a vigência, o país e o produto na App Store Connect.'
-                  : 'Ainda não há confirmação completa do desconto pela Apple. Atualize a oferta antes de contratar se você está esperando o preço introdutório.'}</p>
-            <button type="button" className="native-ios-restore" onClick={() => setReloadCount(count => count + 1)} disabled={Boolean(processing) || loading}>Atualizar oferta Apple</button>
-            <details><summary>Ver detalhes da oferta</summary>
-              <p>A elegibilidade pertence à conta Apple de compras, não ao login do aplicativo. Uma conta de teste pode ter consumido uma oferta neste grupo antes.</p>
-              <pre>{getIosOfferDiagnostics(monthlyProduct)}</pre>
-              <button type="button" className="native-ios-restore" onClick={copyOfferDiagnostics}>{diagnosticsCopied ? 'Detalhes copiados' : 'Copiar detalhes da oferta'}</button>
-            </details>
-          </section>}
           <div className="subscription-selection-summary" aria-label="Resumo do plano selecionado">
             <span className="native-ios-eyebrow">Plano selecionado · ainda não contratado</span>
             <div><h4>{selectedPlan?.title}</h4><strong>{selectedPlan?.displayPrice}</strong></div>
@@ -330,9 +301,7 @@ export default function NativeIosSubscriptionPanel({
             <p className="subscription-small-print">
               {selectedPlan?.planId === 'mensal' && selectedPlan?.introAppliedToDisplay
                 ? 'A Apple indicou que esta conta é elegível à oferta introdutória. Confira o primeiro mês e a renovação na confirmação antes de autorizar.'
-                : selectedPlan?.planId === 'mensal' && selectedPlan?.introEligibility === 'ineligible'
-                  ? 'A Apple informou que esta conta não é elegível à oferta introdutória. Será apresentado o preço mensal normal.'
-                  : 'O preço e eventuais ofertas dependem da conta Apple e serão confirmados antes da compra.'}
+                : 'O preço, o ciclo e a renovação serão confirmados pela App Store antes da compra.'}
               {' '}Selecionar um plano não gera cobrança.
             </p>
           </div>
