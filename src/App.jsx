@@ -17816,7 +17816,7 @@ function MessageActions({ message, canManage = false, onEdit, onDelete }) {
   )
 }
 
-function StudentMessagePanel({ student, coachId, contact, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onBack, onRefresh, syncError = '', fullScreen = false }) {
+function StudentMessagePanel({ student, coachId, contact, inviteCode = '', messages = [], onSendMessage, onEditMessage, onDeleteMessage, onBack, onRefresh, syncError = '', fullScreen = false }) {
   const buildPayload = useCallback(({ body, attachmentFile, attachmentPreview }) => ({
     coachId,
     studentId: student.id,
@@ -19067,7 +19067,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'mensagens') {
-      return <StudentChatScreen student={student} coachId={coachId} coachSettings={coachSettings} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} externalSyncError={chatSyncError} onBack={closeStudentChat} />
+      return <StudentChatScreen student={student} coachId={coachId} coachSettings={coachSettings} inviteCode={inviteCode} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} externalSyncError={chatSyncError} onBack={closeStudentChat} />
     }
 
     if (activeTab === 'pagamentos') {
@@ -20400,7 +20400,7 @@ function escapeStatementHtml(value) {
     .replace(/'/g, '&#039;')
 }
 
-function StudentChatScreen({ student, coachId, coachSettings, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages, externalSyncError = '', onBack }) {
+function StudentChatScreen({ student, coachId, coachSettings, inviteCode = '', messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages, externalSyncError = '', onBack }) {
   const [syncError, setSyncError] = useState('')
   const refreshHandlerRef = useRef(onRefreshMessages)
 
