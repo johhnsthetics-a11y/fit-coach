@@ -1,6 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import { normalizeIosStorefrontCountryCode } from './iosProductPresentation'
 import { isVerifiedIosSubscriptionPurchase } from './iosPurchaseVerification'
+import { getIosPurchaseOfferExpectation } from './iosIntroOffer'
 
 export const IOS_PRODUCT_IDS = Object.freeze({
   mensal: 'br.com.coachfitpro.ios.profissional.mensal',
@@ -25,6 +26,10 @@ function requireNativeIos() {
 export async function loadIosProducts() {
   requireNativeIos()
   const result = await CoachFitStoreKit.getProducts({ productIds: Object.values(IOS_PRODUCT_IDS) })
+  return normalizeIosProducts(result)
+}
+
+function normalizeIosProducts(result) {
   const storefrontCountryCode = normalizeIosStorefrontCountryCode(result.storefrontCountryCode)
   return (result.products ?? []).map((product) => ({
     ...product,
@@ -52,13 +57,16 @@ export async function getIosEntitlements(accountId) {
   }
 }
 
-export async function purchaseIosPlan(planId, accountId) {
+export async function purchaseIosPlan(planId, accountId, displayedProduct) {
   requireNativeIos()
   const id = requireCoachAccountId(accountId)
   const productId = IOS_PRODUCT_IDS[planId]
   if (!productId) throw new Error('Plano da App Store inválido.')
 
-  const purchase = await CoachFitStoreKit.purchase({ productId, accountId: id })
+  const expectedIntroductoryOffer = planId === 'mensal' ? getIosPurchaseOfferExpectation(displayedProduct) : undefined
+  const purchase = await CoachFitStoreKit.purchase({ productId, accountId: id,
+    ...(expectedIntroductoryOffer ? { expectedIntroductoryOffer } : {}) })
+  if (purchase.offerChanged) return { ...purchase, products: normalizeIosProducts(purchase) }
   if (purchase.cancelled || purchase.pending) return purchase
   const verifiedPurchase = isVerifiedIosSubscriptionPurchase(purchase, id, productId)
 
@@ -70,13 +78,24 @@ export async function purchaseIosPlan(planId, accountId) {
     return {
       ...purchase,
       active: entitlement.active || verifiedPurchase,
-      entitlements: entitlement.entitlements,
+      entitlements: mergeVerifiedPurchaseEntitlement(entitlement.entitlements, purchase, verifiedPurchase),
       awaitingEntitlementSync: verifiedPurchase && !entitlement.active,
     }
   } catch (error) {
     if (!verifiedPurchase) throw error
-    return { ...purchase, active: true, entitlements: [], awaitingEntitlementSync: true }
+    return { ...purchase, active: true,
+      entitlements: mergeVerifiedPurchaseEntitlement([], purchase, verifiedPurchase), awaitingEntitlementSync: true }
   }
+}
+
+// The plugin has verified signature, account, product and validity already.
+// Preserve the signed purchase details if the current-entitlements API lags.
+export function mergeVerifiedPurchaseEntitlement(entitlements, purchase, verifiedPurchase) {
+  const items = Array.isArray(entitlements) ? entitlements : []
+  if (!verifiedPurchase) return items
+  const transaction = purchase.transaction
+  const others = items.filter(item => item.id !== transaction.id)
+  return [{ ...transaction, active: true, revoked: false }, ...others]
 }
 
 export async function restoreIosPurchases(accountId) {
