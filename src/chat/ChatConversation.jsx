@@ -136,6 +136,7 @@ export function ChatConversation({
   }
 
   async function submitReport(payload) {
+    if (reportTarget?.studentId !== studentId) throw new Error('A conversa mudou. Abra a denúncia novamente.')
     await safety.report(payload)
     setSafetyNotice('Denúncia enviada para análise confidencial.')
   }
@@ -171,11 +172,11 @@ export function ChatConversation({
         <>
           {wallpaperAction}
           {safety.enabled ? (
-            <ChatSafetyMenu
+            <ChatSafetyMenu key={conversationId}
               phase={safety.phase}
               busy={safety.busy}
               blockedByYou={safety.blockedByYou}
-              onReportContact={() => setReportTarget({})}
+              onReportContact={() => setReportTarget({ studentId })}
               onToggleBlock={toggleBlock}
             />
           ) : null}
@@ -204,7 +205,7 @@ export function ChatConversation({
         renderAttachment={(message) => <AttachmentMessage message={message} />}
         renderActions={renderActions}
         onReportMessage={safety.enabled && safety.phase === 'ready'
-          ? (message) => setReportTarget({ messageId: message.id }) : null}
+          ? (message) => setReportTarget({ messageId: message.id, studentId }) : null}
         onRetryMessage={sendingDisabled ? null : guardedRetry}
         loading={loading}
         loadError={loadError}
@@ -221,7 +222,7 @@ export function ChatConversation({
         Icon={Icon}
         suggestion={suggestion}
       />
-      {reportTarget !== null ? (
+      {reportTarget !== null && reportTarget.studentId === studentId ? (
         <ChatSafetyReportDialog key={reportTarget.messageId || 'contact'} target={reportTarget}
           onClose={() => setReportTarget(null)} onSend={submitReport} />
       ) : null}
