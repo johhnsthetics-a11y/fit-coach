@@ -29,6 +29,8 @@ test('A new app account cannot override an ineligible Apple Account', () => {
   assert.equal(plan.introStatus, 'ineligible')
   assert.equal(plan.renewalText, '')
   assert.equal(plan.introductoryDisplayPrice, null)
+  assert.equal(plan.priceDescription, 'Renovação mensal')
+  assert.doesNotMatch(plan.priceDescription, /oferta|desconto|elegib/i)
 })
 test('Unknown eligibility and absent offer are distinct and cannot promise promotion', () => {
   const unknown = card()
@@ -38,6 +40,10 @@ test('Unknown eligibility and absent offer are distinct and cannot promise promo
   assert.equal(absent.displayPrice, 'R$ 49,90')
   assert.equal(absent.introStatus, 'unavailable')
   assert.equal(absent.introEligibility, 'unknown')
+  for (const plan of [unknown, absent]) {
+    assert.equal(plan.priceDescription, 'Renovação mensal')
+    assert.doesNotMatch(plan.priceDescription, /oferta|desconto|elegib/i)
+  }
 })
 test('Apple price different from marketing reference remains authoritative', () => {
   assert.equal(card({ introductoryOfferEligible: true, introductoryDisplayPrice: 'R$ 12,90' }).displayPrice, 'R$ 12,90')
