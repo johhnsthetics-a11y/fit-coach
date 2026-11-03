@@ -889,6 +889,46 @@ export async function loadRemoteStudentMessagesByInvite(inviteCode) {
   const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
   return Promise.all((Array.isArray(result) ? result : []).map((row) => hydrateMessageRow(row, { inviteCode })))
 }
+ 
+// Security-sensitive chat actions are bound to the current auth identity or
+// existing student invite token by PostgreSQL functions. The client never
+// supplies a user role or coach ID, and must not write moderation tables.
+export async function loadRemoteChatSafetyStatus(studentId, inviteCode = '') {
+  if (!isUuid(studentId)) throw new Error('Conversa inválida.')
+  return rpcRequest('chat_safety_status', {
+    p_student_id: studentId,
+    p_invite_code: inviteCode || null,
+  })
+}
+
+export async function setRemoteChatBlock(studentId, blocked, inviteCode = '') {
+  if (!isUuid(studentId) || typeof blocked !== 'boolean') throw new Error('Bloqueio inválido.')
+  return rpcRequest('chat_safety_set_block', {
+    p_student_id: studentId, p_blocked: blocked, p_invite_code: inviteCode || null,
+  })
+}
+
+export async function sendRemoteChatReport(studentId, { reason, details = '', messageId = null } = {}, inviteCode = '') {
+  if (!isUuid(studentId)) throw new Error('Conversa inválida.')
+  return rpcRequest('chat_safety_submit_report', {
+    p_student_id: studentId,
+    p_reason: reason,
+    p_details: String(details || '').trim().slice(0, 500),
+    p_message_id: messageId || null,
+    p_invite_code: inviteCode || null,
+  })
+}
+
+export async function loadRemoteChatReportsForAdmin() {
+  const response = await rpcRequest('chat_safety_admin_list_reports', { p_limit: 60 })
+  return Array.isArray(response) ? response : []
+}
+
+export async function updateRemoteChatReportForAdmin(reportId, status) {
+  if (!isUuid(reportId)) throw new Error('Denúncia inválida.')
+  return rpcRequest('chat_safety_admin_update_report', { p_report_id: reportId, p_status: status })
+}
+
 
 export async function fetchRemoteExerciseMedia(query) {
   const search = String(query || '').trim()
