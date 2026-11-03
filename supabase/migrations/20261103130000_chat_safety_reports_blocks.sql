@@ -23,6 +23,7 @@ create table if not exists public.chat_safety_reports (
   reporter_role text not null check (reporter_role in ('coach','student')),
   reason text not null check (reason in ('harassment','spam','sexual_content','privacy','hate_or_abuse','other')),
   details text not null default '' check (char_length(details) <= 500),
+  message_excerpt text check (char_length(message_excerpt) <= 240),
   status text not null default 'open' check (status in ('open','reviewing','resolved')),
   created_at timestamptz not null default now(),
   reviewed_at timestamptz,
@@ -132,6 +133,7 @@ declare
   v_actor text;
   v_coach_id uuid;
   v_sender text;
+  v_message_excerpt text;
   v_report_id uuid;
 begin
   v_actor := public.chat_safety_actor(p_student_id,p_invite_code);
@@ -145,7 +147,7 @@ begin
   end if;
   select coach_id into v_coach_id from public.students where id=p_student_id;
   if p_message_id is not null then
-    select sender into v_sender from public.messages
+    select sender, left(coalesce(body,''),240) into v_sender,v_message_excerpt from public.messages
     where id = p_message_id and student_id=p_student_id and coach_id=v_coach_id;
     if v_sender is null or v_sender = v_actor then
       raise exception 'Mensagem nao pertence ao contato informado' using errcode='42501';
@@ -157,8 +159,8 @@ begin
     raise exception 'Limite de denuncias atingido. Contate o suporte.' using errcode='22023';
   end if;
   insert into public.chat_safety_reports(
-    coach_id,student_id,message_id,reporter_role,reason,details
-  ) values (v_coach_id,p_student_id,p_message_id,v_actor,p_reason,coalesce(btrim(p_details),''))
+    coach_id,student_id,message_id,reporter_role,reason,details,message_excerpt
+  ) values (v_coach_id,p_student_id,p_message_id,v_actor,p_reason,coalesce(btrim(p_details),''),v_message_excerpt)
   on conflict (message_id,reporter_role) do update set id = public.chat_safety_reports.id
   returning id into v_report_id;
   return v_report_id;
@@ -194,7 +196,7 @@ begin
   into v_result from (
     select c.id, c.created_at, c.status, c.reporter_role,
       c.reason, c.details, c.student_id, c.coach_id,
-      st.name as student_name, left(coalesce(m.body,''),240) as message_excerpt
+      st.name as student_name, coalesce(c.message_excerpt,left(coalesce(m.body,''),240)) as message_excerpt
     from public.chat_safety_reports c
     left join public.students st on st.id=c.student_id
     left join public.messages m on m.id=c.message_id
