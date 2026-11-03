@@ -68,8 +68,8 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const displayPrice = showIntro ? offer.price : standardPrice
     // Only disclose introductory terms when StoreKit confirmed an eligible,
     // complete offer. Otherwise display the regular billing cycle normally.
-    const priceDescription = monthlyPlan && showIntro
-      ? offer.terms
+    const priceDescription = monthlyPlan
+      ? (showIntro ? offer.terms : detail.cycleLabel)
       : (brazilReference?.renewalLabel || detail.cycleLabel)
     return {
       ...detail, available: Boolean(product && rawPrice), currencyCode, storefrontCountryCode,
