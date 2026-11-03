@@ -114,14 +114,19 @@ try {
   await as('anon')
   await rpc('select public.chat_safety_set_block($1::uuid,false,$2) as value',[student,invite])
   await rpc('select public.student_send_stub($1,$2) as id',[invite,'Depois de desbloquear'])
+  await as('authenticated',coach)
   const before=(await db.query("select id from public.messages where sender='coach' limit 1")).rows[0].id
+  await as('anon')
   await assert.rejects(
     rpc("select public.chat_safety_submit_report($1::uuid,'harassment','', $2::uuid,$3) as id",[student,before+'bad',invite]),/invalid input syntax/i
   )
   const report=await rpc("select public.chat_safety_submit_report($1::uuid,'harassment','Texto inadequado',$2::uuid,$3) as id",[student,before,invite])
   assert.ok(report.id)
+  await as('authenticated',coach)
+  const ownStudentMessage=(await db.query("select id from public.messages where sender='student' limit 1")).rows[0].id
+  await as('anon')
   await assert.rejects(
-    rpc("select public.chat_safety_submit_report($1::uuid,'spam','', $2::uuid,$3) as id",[student,(await db.query("select id from public.messages where sender='student' limit 1")).rows[0].id,invite]),
+    rpc("select public.chat_safety_submit_report($1::uuid,'spam','', $2::uuid,$3) as id",[student,ownStudentMessage,invite]),
     /nao pertence/i
   )
   await as('authenticated',outsider)
