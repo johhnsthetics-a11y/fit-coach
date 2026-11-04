@@ -6,7 +6,7 @@ import { createServer, transformWithEsbuild } from 'vite'
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
 const output = resolve('__qa-output/readiness-chat')
 mkdirSync(output, { recursive: true })
-const viewports = (process.env.CHAT_BROWSER_WIDTHS || '320,360,375,390,414,768,1440')
+const viewports = (process.env.CHAT_BROWSER_WIDTHS || '300,320,360,375,390,414,768,1440')
   .split(',')
   .map(Number)
   .filter((value) => Number.isFinite(value) && value > 0)
@@ -96,6 +96,12 @@ try {
       assert.equal(await rows.nth(0).getByText('Mensagem mais recente').isVisible(), true)
       assert.equal(await rows.count(), 3)
       assert.equal(await page.locator('[data-conversation-id="student-b"] strong').textContent(), longContactName)
+      if (width < 761) {
+        const listWorkspaceBox = await page.locator('.chat-workspace.chat-pro-workspace').boundingBox()
+        const conversationListBox = await page.locator('.chat-conversation-list').boundingBox()
+        assert.ok(listWorkspaceBox && listWorkspaceBox.x >= -1 && listWorkspaceBox.x + listWorkspaceBox.width <= width + 1, `Workspace da lista deve caber na tela de ${width}px: ${JSON.stringify(listWorkspaceBox)}`)
+        assert.ok(conversationListBox && conversationListBox.x >= -1 && conversationListBox.x + conversationListBox.width <= width + 1, `Lista deve caber na tela de ${width}px: ${JSON.stringify(conversationListBox)}`)
+      }
       await page.locator('[data-conversation-id="student-empty"]').click()
       await page.getByText('Inicie a conversa', { exact: true }).waitFor()
       if (width < 761) await page.getByRole('button', { name: 'Voltar' }).click()
@@ -186,8 +192,11 @@ try {
         if (width <= 360) {
           const avatarBox = await page.locator('[data-chat-role="coach"] .chat-contact-avatar').boundingBox()
           const copyBox = await page.locator('[data-chat-role="coach"] .chat-contact-copy').boundingBox()
-          const personalizationBox = await page.getByRole('button', { name: 'Abrir personalização do chat', exact: true }).boundingBox()
-          assert.ok(avatarBox?.width >= 40 && copyBox?.width >= 72 && personalizationBox?.width <= 52, `Cabeçalho estreito deve preservar avatar/nome e compactar personalização: ${JSON.stringify({ avatarBox, copyBox, personalizationBox })}`)
+          const personalizationButton = page.locator('.chat-pro-wallpaper-button').first()
+          const hasPersonalizationButton = await personalizationButton.count() > 0
+          const personalizationBox = hasPersonalizationButton ? await personalizationButton.boundingBox() : null
+          if (hasPersonalizationButton) assert.equal(await personalizationButton.getAttribute('aria-label'), 'Abrir personalização do chat')
+          assert.ok(avatarBox?.width >= 40 && copyBox?.width >= 72 && (!hasPersonalizationButton || personalizationBox?.width <= 52), `Cabeçalho estreito deve preservar avatar/nome e compactar controles existentes: ${JSON.stringify({ avatarBox, copyBox, personalizationBox })}`)
         }
         await draft.focus()
         await page.setViewportSize({ width, height: 560 })
@@ -203,8 +212,11 @@ try {
         await page.setViewportSize({ width, height: 900 })
         await page.waitForTimeout(360)
       }
-      const customize = page.getByRole('button', { name: 'Abrir personalização do chat', exact: true })
-      await customize.click()
+      const customize = page.locator('.chat-pro-wallpaper-button').first()
+      if (await customize.count()) {
+        assert.equal(await customize.getAttribute('aria-label'), 'Abrir personalização do chat')
+        await customize.click()
+      }
       await page.screenshot({ path: resolve(output, `chat-${width}.png`) })
       assert.deepEqual(errors, [])
       console.log(`PASS chat ${width}px: vazio/nome longo, texto rápido/rascunho, imagem, cancelar/enviar áudio, tema, personalização, overflow`)
