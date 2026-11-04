@@ -12,8 +12,7 @@ function readPendingPlan(accountId) {
   } catch { return '' }
 }
 
-// Visual overhaul from the uploaded Minha Assinatura package, combined with
-// the verified purchase fix of build 9. No UI selection ever grants access.
+// Native iOS subscription screen. Access is granted only after a verified Apple transaction.
 export default function NativeIosSubscriptionPanel({
   accountId,
   subscriptionActive = false,
@@ -133,7 +132,7 @@ export default function NativeIosSubscriptionPanel({
     const operationAccount = accountId
     setProcessing(plan.planId)
     setPriceReviewPlanId('')
-    setMessage('Conectando à App Store para confirmar seu plano...')
+    setMessage('Conectando à App Store...')
     try {
       const currentDisplayedProduct = products.find(product => product.planId === plan.planId)
       const result = await purchaseIosPlan(plan.planId, accountId, currentDisplayedProduct)
@@ -231,12 +230,19 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel subscription-workspace" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-18">
-      <header className="native-ios-subscription-heading subscription-page-heading">
-        <span className="native-ios-eyebrow">Coach Fit Pro · sua conta</span>
-        <h2>Minha assinatura</h2>
-        <p>Veja seu plano, acompanhe seu acesso e gerencie sua assinatura em um só lugar.</p>
+    <section className="native-ios-subscription-panel subscription-workspace native-ios-subscription-screen" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-21">
+      <header className="subscription-brand-row" aria-label="Marca Coach Fit Pro">
+        <div className="subscription-brand-lockup"><img src="/assets/fit-coach-logo.png" alt="Coach Fit Pro" /></div>
+        <span>Área profissional</span>
       </header>
+      <header className="native-ios-subscription-heading subscription-page-heading">
+        <div className="subscription-page-heading-copy">
+          <span className="native-ios-eyebrow">Coach Fit Pro · sua conta</span>
+          <h2>Minha assinatura</h2>
+          <p>Veja seu plano, acompanhe seu acesso e gerencie sua assinatura em um só lugar.</p>
+        </div>
+      </header>
+      <div className="subscription-main-grid">
       <section className={`subscription-current-card${hasAccess ? ' is-active' : ''}`} aria-label="Resumo da assinatura atual" aria-busy={checking}>
         <div className="subscription-current-topline">
           <span className="native-ios-eyebrow">{hasAccess ? 'Seu plano atual' : 'Status da conta'}</span>
@@ -261,14 +267,15 @@ export default function NativeIosSubscriptionPanel({
           </dl>
         )}
         {hasAccess && <p className="subscription-small-print">{nativeConfirmed
-          ? 'O valor acima vem da transação verificada, não do catálogo. Em ambiente de teste não representa cobrança real. Uma renovação pode já ter o preço normal. Consulte o recibo e gerencie a assinatura na Apple.'
-          : 'O acesso está confirmado por outro canal; isso não comprova uma compra na App Store.'}</p>}
+          ? 'Sua assinatura é gerenciada pela App Store. Consulte a área de Assinaturas do iPhone para ver as condições de renovação.'
+          : 'Esta assinatura foi ativada por outro canal. Gerencie a cobrança pela plataforma onde foi contratada.'}</p>}
         <div className="subscription-summary-actions">
           {nativeConfirmed && <a className="subscription-manage-link" href="https://apps.apple.com/account/subscriptions" target="_blank" rel="noopener noreferrer">Gerenciar na Apple</a>}
           <button type="button" className="native-ios-restore" onClick={() => setReloadCount(count => count + 1)} disabled={checking || Boolean(processing)}>{checking ? 'Atualizando...' : 'Atualizar status'}</button>
         </div>
       </section>
 
+      <div className="subscription-purchase-column">
       {accountSnapshot.error && <p className="native-ios-feedback" role="alert">{accountSnapshot.error}</p>}
       {pendingPlanId && !hasAccess && (
         <div className="native-ios-feedback" role="status">
@@ -301,27 +308,41 @@ export default function NativeIosSubscriptionPanel({
             <button type="button" className="native-ios-purchase-button" onClick={() => purchase(selectedPlan)}
               disabled={!canPurchase}
               aria-label={`Assinar plano ${selectedPlan?.title} pela App Store`}>
-              {processing && processing !== 'restore' ? 'Conferindo preço…' : !selectedPlan?.available ? 'Plano indisponível agora' : !selectedPlan?.purchaseAvailable ? 'Preço não confirmado' : priceReviewPlanId === selectedPlan?.planId ? 'Rever preço e continuar' : `Assinar ${selectedPlan?.title || 'plano'}`}
+              {processing && processing !== 'restore' ? 'Conectando à App Store…' : !selectedPlan?.available ? 'Plano indisponível agora' : !selectedPlan?.purchaseAvailable ? 'Preço não confirmado' : priceReviewPlanId === selectedPlan?.planId ? 'Rever preço e continuar' : `Assinar ${selectedPlan?.title || 'plano'}`}
             </button>
-            <p className="subscription-small-print">O app confere novamente preço, moeda e condições com a App Store antes de abrir a confirmação. Se algo tiver mudado, atualiza este resumo e aguarda você revisar; se a folha Apple ainda divergir, cancele sem autorizar.</p>
           </div>
         </section>
       ))}
+      </div>
+      </div>
       <details className="subscription-secondary-details">
         <summary>O que está incluído</summary>
         <section className="subscription-included" aria-label="Recursos do acesso profissional">
-          <p>Seu painel profissional inclui:</p>
-          <ul><li>{professionalType === 'nutritionist' ? 'Pacientes e acompanhamento' : 'Alunos e acompanhamento'}</li>
-            <li>{professionalType === 'nutritionist' ? 'Questionários e avaliações' : 'Treinos e prescrições'}</li>
-            <li>Dietas e planos alimentares</li><li>Agenda, mensagens e check-ins</li></ul>
+          <header className="subscription-included-heading">
+            <span className="native-ios-eyebrow">Acesso profissional</span>
+            <h3>Ferramentas para atender com mais organização</h3>
+            <p>Reúna acompanhamento e rotina de atendimento em um só painel Coach Fit Pro.</p>
+          </header>
+          <ul className="subscription-benefit-grid">
+            <li><div><strong>{professionalType === 'nutritionist' ? 'Pacientes acompanhados' : 'Alunos acompanhados'}</strong><span>Organize vínculos e acompanhe a evolução de cada pessoa.</span></div></li>
+            <li><div><strong>{professionalType === 'nutritionist' ? 'Questionários e avaliações' : 'Treinos e prescrições'}</strong><span>{professionalType === 'nutritionist' ? 'Estruture avaliações e orientações com clareza.' : 'Monte e acompanhe rotinas de treino no mesmo espaço.'}</span></div></li>
+            <li><div><strong>Dietas e planos alimentares</strong><span>Mantenha as orientações alimentares organizadas.</span></div></li>
+            <li><div><strong>Agenda e comunicação</strong><span>Use mensagens, check-ins e agenda para acompanhar sua rotina.</span></div></li>
+          </ul>
         </section>
       </details>
       <details className="subscription-secondary-details">
         <summary>Já assinou ou precisa de ajuda?</summary>
         <section className="subscription-support" aria-label="Ajuda com a assinatura">
-          <div><p>Use a mesma conta Apple da compra e restaure o acesso. Se já pagou, não compre novamente para resolver falhas de atualização.</p></div>
-          <button className="native-ios-restore" type="button" onClick={restore} disabled={!accountValid || Boolean(processing)}>{processing === 'restore' ? 'Verificando compras...' : 'Restaurar compras'}</button>
-          <p className="native-ios-help">Para gerenciar ou cancelar: Ajustes do iPhone → seu nome → Assinaturas.</p>
+          <div className="subscription-support-copy">
+            <h3>Recupere seu acesso com segurança</h3>
+            <p>Use a mesma conta Apple da compra e toque em Restaurar compras. Se já pagou, não assine novamente para resolver uma falha de atualização.</p>
+            <p className="subscription-account-link-help"><strong>Compra vinculada a outra conta Coach Fit Pro?</strong> Entre no login usado originalmente. Se não reconhecer esse vínculo, fale com o suporte antes de tentar outra compra; pagamentos de outra conta não podem ser transferidos automaticamente.</p>
+          </div>
+          <div className="subscription-support-actions">
+            <button className="native-ios-restore" type="button" onClick={restore} disabled={!accountValid || Boolean(processing)}>{processing === 'restore' ? 'Verificando compras...' : 'Restaurar compras'}</button>
+            <p className="native-ios-help">Para gerenciar ou cancelar: Ajustes do iPhone → seu nome → Assinaturas.</p>
+          </div>
         </section>
       </details>
       <nav className="native-ios-legal" aria-label="Informações legais das assinaturas">

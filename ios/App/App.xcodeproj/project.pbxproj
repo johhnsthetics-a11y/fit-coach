@@ -295,15 +295,15 @@
 			name = Release;
 		};
 			504EC3171FED79650016851F /* Debug */ = {
-				isa = XCBuildConfiguration;
-				baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
-				buildSettings = {
-					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 18;
-				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
+					isa = XCBuildConfiguration;
+					baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
+					buildSettings = {
+						ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+						CODE_SIGN_STYLE = Automatic;
+						CURRENT_PROJECT_VERSION = 21;
+						INFOPLIST_FILE = App/Info.plist;
+						IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+						LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
@@ -318,14 +318,14 @@
 			name = Debug;
 		};
 			504EC3181FED79650016851F /* Release */ = {
-				isa = XCBuildConfiguration;
-				buildSettings = {
-					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-					CODE_SIGN_STYLE = Automatic;
-					CURRENT_PROJECT_VERSION = 18;
-				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
+					isa = XCBuildConfiguration;
+					buildSettings = {
+						ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+						CODE_SIGN_STYLE = Automatic;
+						CURRENT_PROJECT_VERSION = 21;
+						INFOPLIST_FILE = App/Info.plist;
+						IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+						LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);

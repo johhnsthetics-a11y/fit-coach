@@ -1,5 +1,7 @@
 // StoreKit is the authority for offer availability, eligibility, duration and price.
-// App login/account age and marketing prices never grant an Apple discount.
+// App login/account age and marketing references never grant an Apple discount.
+import { formatStoreKitPrice } from './iosStoreKitPrice.js'
+
 const units = { day: ['dia', 'dias'], week: ['semana', 'semanas'], month: ['mês', 'meses'], year: ['ano', 'anos'] }
 const modes = new Set(['payAsYouGo', 'payUpFront', 'freeTrial'])
 const text = value => typeof value === 'string' ? value.trim() : ''
@@ -10,14 +12,16 @@ export function describeApplePeriod(value, unit) {
   return `${count} ${units[unit][count === 1 ? 0 : 1]}`
 }
 
-export function getIosIntroOffer(product) {
+export function getIosIntroOffer(product, options = {}) {
   const available = product?.introductoryOfferAvailable === true
   const eligibility = available
     ? product?.introductoryOfferEligible === true ? 'eligible'
       : product?.introductoryOfferEligible === false ? 'ineligible' : 'unknown'
     : 'unknown'
   const status = available ? eligibility : product ? 'unavailable' : 'loading'
-  const price = text(product?.introductoryDisplayPrice)
+  const currencyCode = text(product?.currencyCode).toUpperCase()
+  const formattedAmount = formatStoreKitPrice(product?.introductoryPriceAmount, currencyCode, options.locale || 'pt-BR')
+  const price = formattedAmount || text(product?.introductoryDisplayPrice)
   const paymentMode = text(product?.introductoryPaymentMode)
   const value = Number(product?.introductoryPeriodValue)
   const unit = text(product?.introductoryPeriodUnit)
@@ -33,13 +37,12 @@ export function getIosIntroOffer(product) {
           : `${price} a cada ${period}, durante ${totalPeriod}`
   }
   return { status, eligibility, available, complete, price, paymentMode, period, totalPeriod,
-    periodValue: value, periodUnit: unit, periodCount: count, terms,
+    amount: text(product?.introductoryPriceAmount), periodValue: value, periodUnit: unit, periodCount: count, terms,
     showIntro: eligibility === 'eligible' && complete }
 }
 
-
-// Snapshot of the exact Apple terms presented in the UI. The native bridge
-// compares it with a fresh StoreKit Product before starting the system sheet.
+// Snapshot of the exact structured Apple quote presented in the UI. The native
+// bridge compares amounts/currency/period/eligibility with a fresh StoreKit Product.
 export function getIosPurchaseTermsExpectation(product) {
   if (!product || typeof product.displayPrice !== 'string') return null
   const safeCount = value => {
@@ -50,6 +53,7 @@ export function getIosPurchaseTermsExpectation(product) {
   return {
     id: text(product.id),
     displayPrice: text(product.displayPrice),
+    priceAmount: text(product.priceAmount),
     currencyCode: text(product.currencyCode).toUpperCase(),
     storefrontCountryCode: text(product.storefrontCountryCode).toUpperCase(),
     subscriptionPeriodValue: safeCount(product.subscriptionPeriodValue),
@@ -57,6 +61,7 @@ export function getIosPurchaseTermsExpectation(product) {
     introductoryOfferAvailable: hasOffer,
     introductoryOfferEligible: hasOffer && product.introductoryOfferEligible === true,
     introductoryDisplayPrice: hasOffer ? text(product.introductoryDisplayPrice) : '',
+    introductoryPriceAmount: hasOffer ? text(product.introductoryPriceAmount) : '',
     introductoryPaymentMode: hasOffer ? text(product.introductoryPaymentMode) : '',
     introductoryPeriodValue: hasOffer ? safeCount(product.introductoryPeriodValue) : 0,
     introductoryPeriodUnit: hasOffer ? text(product.introductoryPeriodUnit) : '',

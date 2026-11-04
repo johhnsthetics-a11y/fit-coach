@@ -41,6 +41,9 @@ test('StoreKit starts purchase only when the fresh price/offer still matches the
   const panel = read('src/NativeIosSubscriptionPanel.jsx')
   assert.match(swift, /call\.getObject\("expectedProductTerms"\)/)
   assert.match(swift, /purchaseTermsChanged\(expectedProductTerms, currentProduct\)/)
+  assert.match(swift, /hasActiveCoachFitSubscriptionLinkedToAnotherAccount\(accountToken\)/)
+  assert.match(swift, /apple_account_mismatch/)
+  assert.match(swift, /\"priceAmount\", \"introductoryPriceAmount\"/)
   assert.match(swift, /"priceChanged": true/)
   const compare = swift.indexOf('purchaseTermsChanged(expectedProductTerms, currentProduct)')
   const purchase = swift.indexOf('switch try await product.purchase(options: [.appAccountToken(accountToken)])')
@@ -64,7 +67,7 @@ test('UI shows only confirmed StoreKit prices and refreshes/reviews a changed qu
   assert.match(panel, /result\.priceChanged/)
   assert.match(panel, /Nenhuma compra foi iniciada/)
   assert.match(panel, /selectedPlan\.purchaseBlockReason/)
-  assert.match(panel, /O app confere novamente preço, moeda e condições/)
+  assert.doesNotMatch(panel, /O app confere novamente preço, moeda e condições|Em ambiente de teste não representa cobrança real|protótipo|prototype/i)
   assert.match(panel, /disabled=\{!canPurchase\}/)
   assert.match(panel, /Confirmei que foi cancelada — tentar novamente/)
   assert.match(panel, /Plano indisponível agora/)
@@ -75,7 +78,8 @@ test('UI shows only confirmed StoreKit prices and refreshes/reviews a changed qu
   assert.doesNotMatch(panel, /getIosOfferDiagnostics|subscription-offer-status|monthlyProduct/)
   assert.match(panel, /selectedPlan\?\.introAppliedToDisplay \?/)
   assert.doesNotMatch(panel, /A Apple indicou que esta conta é elegível à oferta introdutória|oferta Apple — build 12/)
-  assert.match(panel, /data-subscription-ui="build-18"/)
+  assert.match(panel, /data-subscription-ui="build-21"/)
+  assert.match(panel, /Compra vinculada a outra conta Coach Fit Pro/)
 })
 test('Pending results cannot grant access in the bridge and the pending state is visible', () => {
   const ios = read('src/iosStoreKit.js')
@@ -87,12 +91,12 @@ test('Pending results cannot grant access in the bridge and the pending state is
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-price-parity-build18-20261103'
+  const current = 'coach-fit-pro-subscription-clean-copy-build21-20261104'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
     caches: {
-      keys: async () => [current, 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
+      keys: async () => [current, 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
       delete: async key => { deleted.push(key); return true },
       match: async () => { throw Error('Global cache lookup must never be used') },
       open: async key => { opened.push(key); return { match: async () => new Response('current-build'), put: async () => {} } },
@@ -107,7 +111,7 @@ test('Service worker removes its known old caches without erasing other apps', a
   let wait
   w.handlers.activate({ waitUntil: promise => { wait = promise } })
   await wait
-  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'coach-fit-pro-subscription-sheet-build17-20261103', 'fit-coach-app-v2'])
+  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-subscription-sheet-build17-20261103', 'fit-coach-app-v2'])
 })
 test('Offline HTML and assets read only the current build cache, never global legacy cache', async () => {
   for (const mode of ['navigate', 'cors']) {

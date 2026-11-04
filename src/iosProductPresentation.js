@@ -1,6 +1,8 @@
-// The UI displays only current StoreKit price/offer terms; marketing references
-// are never substituted for the amount and currency Apple will bill.
+// Price amounts and ISO currency come from StoreKit. Brazil reference values
+// are used only to block a mismatched quote, never to invent a displayed charge.
+import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
 import { getIosIntroOffer } from './iosIntroOffer.js'
+import { formatStoreKitPrice, normalizeStoreKitAmount } from './iosStoreKitPrice.js'
 
 export const IOS_PLAN_DETAILS = Object.freeze([
   { planId: 'mensal', title: 'Mensal', cycleLabel: 'Renovação mensal' },
@@ -23,47 +25,48 @@ export function resolveIosPricingLocale(appLocale = '') {
   catch { return 'pt-BR' }
 }
 
-function displayedCurrency(price) {
-  const text = price.replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
-    .replace(/[\u00a0\u202f]/g, ' ').trim()
-  if (/US\s*\$|(?:^|[^A-Z])USD(?:$|[^A-Z])/i.test(text)) return 'USD'
-  if (/R\s*\$|(?:^|[^A-Z])BRL(?:$|[^A-Z])/i.test(text)) return 'BRL'
-  if (text.includes('€')) return 'EUR'
-  if (text.includes('£')) return 'GBP'
-  return ''
-}
-
 export function buildIosSubscriptionCards(products = [], options = {}) {
-  const locale = options.locale ? resolveIosPricingLocale(options.locale) : ''
+  const locale = options.locale ? resolveIosPricingLocale(options.locale) : 'pt-BR'
   const brazilianInterface = /^pt-BR(?:-|$)/i.test(locale)
   const byPlan = new Map((Array.isArray(products) ? products : [])
     .filter(product => product && typeof product.planId === 'string')
     .map(product => [product.planId, product]))
   return IOS_PLAN_DETAILS.map(detail => {
     const product = byPlan.get(detail.planId)
-    const rawPrice = typeof product?.displayPrice === 'string' ? product.displayPrice.trim() : ''
-    const priceCurrencyCode = displayedCurrency(rawPrice)
-    const currencyCode = typeof product?.currencyCode === 'string' && ISO_CURRENCY.test(product.currencyCode.trim())
-      ? product.currencyCode.trim().toUpperCase() : priceCurrencyCode
+    const rawDisplayPrice = typeof product?.displayPrice === 'string' ? product.displayPrice.trim() : ''
+    const amount = normalizeStoreKitAmount(product?.priceAmount)
+    const rawCurrency = typeof product?.currencyCode === 'string' ? product.currencyCode.trim() : ''
+    const currencyCode = ISO_CURRENCY.test(rawCurrency) ? rawCurrency.toUpperCase() : ''
     const storefrontCountryCode = normalizeIosStorefrontCountryCode(product?.storefrontCountryCode)
     const brazilianStorefront = ['BR', 'BRA'].includes(storefrontCountryCode)
-    const storefrontConflict = brazilianStorefront && currencyCode !== '' && currencyCode !== 'BRL'
-    const textMetadataConflict = priceCurrencyCode !== '' && currencyCode !== '' && priceCurrencyCode !== currencyCode
-    const ambiguousDollar = (brazilianInterface || brazilianStorefront) && rawPrice.includes('$') && priceCurrencyCode !== 'BRL' && currencyCode === ''
-    const mislabeledReal = currencyCode === 'BRL' && rawPrice.includes('$') && priceCurrencyCode !== 'BRL'
-    const currencyMismatch = Boolean(rawPrice) && (storefrontConflict || textMetadataConflict || ambiguousDollar || mislabeledReal)
-    const priceConfirmed = Boolean(product && rawPrice && currencyCode && !currencyMismatch)
-    const offer = getIosIntroOffer(product)
+    const brazilPricingExpected = brazilianInterface || brazilianStorefront
+    const regionCurrencyMismatch = brazilPricingExpected && currencyCode !== 'BRL'
+    const expectedAmount = IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId]?.recurringAmount || ''
+    const recurringPriceMismatch = brazilPricingExpected && currencyCode === 'BRL'
+      && amount !== normalizeStoreKitAmount(expectedAmount)
+    const amountConfirmed = Boolean(amount && Number(amount) > 0)
+    const priceConfirmed = Boolean(product && rawDisplayPrice && amountConfirmed && currencyCode
+      && !regionCurrencyMismatch && !recurringPriceMismatch)
+    const offer = getIosIntroOffer(product, { locale })
     const monthlyPlan = detail.planId === 'mensal'
-    const introCurrency = displayedCurrency(offer.price)
-    const validAppleIntro = Boolean(priceConfirmed && offer.price && (!introCurrency || introCurrency === currencyCode))
-    const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
-    const standardPrice = priceConfirmed ? rawPrice : rawPrice ? 'Preço não confirmado' : 'Preço indisponível'
+    const introAmount = normalizeStoreKitAmount(offer.amount)
+    const expectedIntroAmount = normalizeStoreKitAmount(IOS_BRAZIL_PLAN_PRICE_REFERENCE.mensal.introductoryAmount)
+    const introductoryPriceMismatch = brazilPricingExpected && monthlyPlan && offer.eligibility === 'eligible'
+      && offer.paymentMode !== 'freeTrial'
+      && currencyCode === 'BRL' && introAmount !== expectedIntroAmount
+    const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount
+      && (!brazilPricingExpected || currencyCode === 'BRL'))
+    const showIntro = monthlyPlan && offer.showIntro && validAppleIntro && !introductoryPriceMismatch
+    const standardPrice = priceConfirmed
+      ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice ? 'Preço não confirmado' : 'Preço indisponível'
     const displayPrice = showIntro ? offer.price : standardPrice
     let purchaseBlockReason = ''
-    if (!product || !rawPrice) purchaseBlockReason = 'A Apple ainda não carregou o preço deste ciclo. Atualize os planos antes de assinar.'
-    else if (!currencyCode || currencyMismatch) purchaseBlockReason = 'A moeda ou o preço retornado pela App Store não pôde ser confirmado. Nenhuma compra será iniciada com um valor incerto.'
+    if (!product || !rawDisplayPrice || !amountConfirmed) purchaseBlockReason = 'A Apple ainda não carregou um preço estruturado para este ciclo. Atualize os planos antes de assinar.'
+    else if (!currencyCode) purchaseBlockReason = 'A moeda retornada pela App Store não pôde ser confirmada. Nenhuma compra será iniciada com um valor incerto.'
+    else if (regionCurrencyMismatch) purchaseBlockReason = 'A loja Apple desta conta está em outra moeda. Para manter os valores em reais e evitar divergência na cobrança, use uma conta Apple configurada para a loja do Brasil.'
+    else if (recurringPriceMismatch) purchaseBlockReason = `O preço da App Store diverge do valor esperado para a loja brasileira (${IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId].recurringPrice}). A compra fica bloqueada até corrigir o preço no App Store Connect.`
     else if (offer.available && offer.eligibility === 'unknown') purchaseBlockReason = 'A Apple ainda não confirmou as condições deste plano. Atualize os preços antes de assinar.'
+    else if (introductoryPriceMismatch) purchaseBlockReason = `O preço introdutório da App Store diverge do valor esperado (${IOS_BRAZIL_PLAN_PRICE_REFERENCE.mensal.introductoryPrice}). A compra fica bloqueada até corrigir a oferta no App Store Connect.`
     else if (offer.available && offer.eligibility === 'eligible' && (!monthlyPlan || !offer.complete || !validAppleIntro)) {
       purchaseBlockReason = 'A Apple sinalizou uma condição promocional, mas não forneceu todos os termos para conferir o valor. Nenhuma compra será iniciada.'
     }
@@ -71,8 +74,9 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
       ? (showIntro ? offer.terms : detail.cycleLabel)
       : detail.cycleLabel
     return {
-      ...detail, available: Boolean(product && rawPrice), purchaseAvailable: !purchaseBlockReason,
-      purchaseBlockReason, currencyCode, storefrontCountryCode, currencyMismatch,
+      ...detail, available: Boolean(product && rawDisplayPrice), purchaseAvailable: !purchaseBlockReason,
+      purchaseBlockReason, currencyCode, storefrontCountryCode, currencyMismatch: regionCurrencyMismatch,
+      recurringPriceMismatch, introductoryPriceMismatch,
       introEligibility: monthlyPlan ? offer.eligibility : 'unknown',
       introStatus: monthlyPlan ? offer.status : 'unavailable',
       introductoryOfferAvailable: offer.available,

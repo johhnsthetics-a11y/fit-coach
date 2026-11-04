@@ -68,6 +68,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     return
                 }
 
+                if await hasActiveCoachFitSubscriptionLinkedToAnotherAccount(accountToken) {
+                    call.reject("Esta Apple ID já possui uma assinatura ativa do Coach Fit Pro que não está vinculada à conta do app conectada. Entre na conta usada originalmente ou fale com o suporte antes de tentar novamente. Nenhuma nova compra foi iniciada.", "apple_account_mismatch")
+                    return
+                }
+
                 // Introductory offers are applied by Apple automatically for
                 // eligible Apple Accounts. appAccountToken binds our account;
                 // it does not reset or override introductory-offer eligibility.
@@ -77,8 +82,12 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 case .success(let verification):
                     switch verification {
                     case .verified(let transaction):
-                        guard transaction.appAccountToken == accountToken else {
-                            call.reject("A compra não pertence à conta Coach Fit Pro conectada.")
+                        guard let transactionAccountToken = transaction.appAccountToken else {
+                            call.reject("A App Store não vinculou esta transação à conta Coach Fit Pro conectada. O acesso não foi liberado; não tente comprar novamente e fale com o suporte.", "apple_account_token_missing")
+                            return
+                        }
+                        guard transactionAccountToken == accountToken else {
+                            call.reject("A assinatura retornada pela Apple está vinculada a outra conta Coach Fit Pro. O acesso não foi liberado; entre na conta usada originalmente ou fale com o suporte antes de outra tentativa.", "apple_account_token_mismatch")
                             return
                         }
                         // Only a live, Apple-verified subscription for this
@@ -149,6 +158,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             "displayName": product.displayName,
             "description": product.description,
             "displayPrice": product.displayPrice,
+            "priceAmount": NSDecimalNumber(decimal: product.price).stringValue,
             "currencyCode": product.priceFormatStyle.currencyCode,
             "type": String(describing: product.type)
         ]
@@ -163,6 +173,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 value["introductoryOfferAvailable"] = true
                 value["introductoryOfferEligible"] = eligible
                 value["introductoryDisplayPrice"] = offer.displayPrice
+                value["introductoryPriceAmount"] = NSDecimalNumber(decimal: offer.price).stringValue
                 value["introductoryPeriodCount"] = offer.periodCount
                 value["introductoryPaymentMode"] = String(describing: offer.paymentMode)
                 value["introductoryPeriodValue"] = offer.period.value
@@ -170,6 +181,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             } else {
                 value["introductoryOfferAvailable"] = false
                 value["introductoryOfferEligible"] = false
+                value["introductoryPriceAmount"] = ""
             }
         }
         return value
@@ -177,12 +189,24 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func purchaseTermsChanged(_ expected: JSObject, _ current: [String: Any]) -> Bool {
         let stringFields = [
-            "id", "displayPrice", "currencyCode", "storefrontCountryCode",
-            "subscriptionPeriodUnit", "introductoryDisplayPrice",
-            "introductoryPaymentMode", "introductoryPeriodUnit"
+            "id", "currencyCode", "storefrontCountryCode",
+            "subscriptionPeriodUnit", "introductoryPaymentMode",
+            "introductoryPeriodUnit"
         ]
         for key in stringFields {
             if (expected[key] as? String ?? "") != (current[key] as? String ?? "") { return true }
+        }
+
+        for key in ["priceAmount", "introductoryPriceAmount"] {
+            let expectedRaw = expected[key] as? String ?? ""
+            let currentRaw = current[key] as? String ?? ""
+            if expectedRaw.isEmpty != currentRaw.isEmpty { return true }
+            if !expectedRaw.isEmpty {
+                let locale = Locale(identifier: "en_US_POSIX")
+                guard let expectedAmount = Decimal(string: expectedRaw, locale: locale),
+                      let currentAmount = Decimal(string: currentRaw, locale: locale),
+                      expectedAmount == currentAmount else { return true }
+            }
         }
 
         let booleanFields = ["introductoryOfferAvailable", "introductoryOfferEligible"]
@@ -195,6 +219,20 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             let expectedValue = (expected[key] as? NSNumber)?.intValue ?? 0
             let currentValue = (current[key] as? NSNumber)?.intValue ?? 0
             if expectedValue != currentValue { return true }
+        }
+        return false
+    }
+
+    private func hasActiveCoachFitSubscriptionLinkedToAnotherAccount(_ accountToken: UUID) async -> Bool {
+        let now = Date()
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.productID.hasPrefix("br.com.coachfitpro.ios.profissional."),
+                  transaction.appAccountToken != accountToken,
+                  transaction.revocationDate == nil,
+                  let expiry = transaction.expirationDate,
+                  expiry > now else { continue }
+            return true
         }
         return false
     }
