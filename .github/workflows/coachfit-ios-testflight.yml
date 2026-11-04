@@ -36,10 +36,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 18)"
+        description: "Build INEDITO para esta versao (ex.: 21)"
         type: string
         required: true
-        default: "18"
+        default: "21"
 
 permissions:
   contents: read
@@ -56,11 +56,31 @@ jobs:
     env:
       APP_ID: br.com.coachfitpro.ios
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ inputs.build_number || '18' }}
+      IOS_BUILD: ${{ inputs.build_number || '21' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply reviewed Build 21 source overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f build21.patch ]]; then
+            echo "::error::Build 21 patch missing. Upload build21.patch to the root of branch work/build21-minha-assinatura-final-20261104 before running this workflow."
+            exit 1
+          fi
+          EXPECTED="c7f92ac9f0e2a6d458c67f05f44f150e30ed1dfceffae2c778b2378facd80ca8"
+          ACTUAL="$(shasum -a 256 build21.patch | awk '{print $1}')"
+          if [[ "$ACTUAL" != "$EXPECTED" ]]; then
+            echo "::error::Build 21 patch SHA-256 mismatch. Do not proceed with modified patch."
+            exit 1
+          fi
+          git apply --check build21.patch
+          git apply build21.patch
+          grep -q 'CURRENT_PROJECT_VERSION = 21;' ios/App/App.xcodeproj/project.pbxproj
+          grep -q 'data-subscription-ui="build-21"' src/NativeIosSubscriptionPanel.jsx
+          echo "Reviewed Coach Fit Pro Build 21 source applied."
 
       - name: Validate public Supabase client configuration
         shell: bash
