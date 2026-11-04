@@ -1,5 +1,5 @@
-// StoreKit is the authority for offer availability, eligibility, duration and price.
-// App login/account age and marketing references never grant an Apple discount.
+// StoreKit is the authority for configured offer terms and Apple Account eligibility.
+// A displayed offer is conditional when the current Apple Account is ineligible or unknown.
 import { formatStoreKitPrice } from './iosStoreKitPrice.js'
 
 const units = { day: ['dia', 'dias'], week: ['semana', 'semanas'], month: ['mês', 'meses'], year: ['ano', 'anos'] }
@@ -29,6 +29,8 @@ export function getIosIntroOffer(product, options = {}) {
   const period = describeApplePeriod(value, unit)
   const totalPeriod = Number.isSafeInteger(count) && count > 0 ? describeApplePeriod(value * count, unit) : ''
   const complete = Boolean(price && period && totalPeriod && modes.has(paymentMode))
+  const eligibilityNotice = eligibility === 'eligible' ? ''
+    : 'A oferta introdutória depende da elegibilidade da Apple ID; a App Store confirma o preço aplicável antes da compra.'
   let terms = ''
   if (complete) {
     terms = paymentMode === 'freeTrial' ? `Teste gratuito por ${totalPeriod}`
@@ -38,7 +40,7 @@ export function getIosIntroOffer(product, options = {}) {
   }
   return { status, eligibility, available, complete, price, paymentMode, period, totalPeriod,
     amount: text(product?.introductoryPriceAmount), periodValue: value, periodUnit: unit, periodCount: count, terms,
-    showIntro: eligibility === 'eligible' && complete }
+    eligibilityNotice, showIntro: available && complete }
 }
 
 // Snapshot of the exact structured Apple quote presented in the UI. The native

@@ -230,7 +230,7 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel subscription-workspace native-ios-subscription-screen" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-24">
+    <section className="native-ios-subscription-panel subscription-workspace native-ios-subscription-screen" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-25">
       <header className="subscription-brand-row" aria-label="Marca Coach Fit Pro">
         <div className="subscription-brand-lockup"><img src="/assets/fit-coach-logo.png" alt="Coach Fit Pro" /></div>
         <span>Área profissional</span>
@@ -261,7 +261,7 @@ export default function NativeIosSubscriptionPanel({
         {hasAccess && (
           <dl className="subscription-current-facts">
             <div><dt>Ciclo contratado</dt><dd>{currentPlan?.cycle || (externalSummary.active ? externalSummary.cycle : 'A confirmar na App Store')}</dd></div>
-            <div><dt>Acesso válido até</dt><dd>{formatSubscriptionDate(validity)}</dd></div>
+            <div><dt>Acesso válido até</dt><dd>{currentPlan?.inAppleGracePeriod ? 'Em período de tolerância da Apple' : formatSubscriptionDate(validity)}</dd></div>
             <div><dt>Gerenciado por</dt><dd>{nativeConfirmed ? 'App Store' : externalSummary.provider}</dd></div>
             {currentPlan && <div><dt>Última transação Apple</dt><dd>{currentPlan.transactionAmount || 'Valor não informado pela Apple'}</dd></div>}
           </dl>
@@ -302,6 +302,7 @@ export default function NativeIosSubscriptionPanel({
           <div className="subscription-selection-summary" aria-label="Resumo do plano selecionado">
             <div className="subscription-selection-heading"><div><span className="native-ios-eyebrow">Resumo do plano</span><h4>{selectedPlan?.title || 'Plano mensal'}</h4></div><strong>{selectedPlan?.displayPrice || 'Preço indisponível'}</strong></div>
             <p className="subscription-selection-terms">{selectedPlan?.introAppliedToDisplay ? `${selectedPlan.introductoryTerms}. ${selectedPlan.renewalText}.` : `${selectedPlan?.displayPrice || 'Preço indisponível'} — ${selectedPlan?.priceDescription || SUBSCRIPTION_CYCLES[selectedPlan?.planId]?.charge || 'ciclo selecionado'}.`}</p>
+            {selectedPlan?.introEligibilityNotice && <p className="subscription-small-print">{selectedPlan.introEligibilityNotice}</p>}
             {message && <p className="native-ios-feedback subscription-operation-message" role="status" aria-live="polite">{message}</p>}
             {!selectedPlan?.available && !loading && <p className="subscription-purchase-blocked" role="status">Este ciclo não foi carregado pela App Store. Atualize os planos antes de tentar assinar.</p>}
             {selectedPlan?.available && !selectedPlan.purchaseAvailable && !loading && <p className="subscription-purchase-blocked" role="status">{selectedPlan.purchaseBlockReason}</p>}

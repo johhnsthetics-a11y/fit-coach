@@ -50,7 +50,7 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const monthlyPlan = detail.planId === 'mensal'
     const introAmount = normalizeStoreKitAmount(offer.amount)
     const expectedIntroAmount = normalizeStoreKitAmount(IOS_BRAZIL_PLAN_PRICE_REFERENCE.mensal.introductoryAmount)
-    const introductoryPriceMismatch = brazilPricingExpected && monthlyPlan && offer.eligibility === 'eligible'
+    const introductoryPriceMismatch = brazilPricingExpected && monthlyPlan && offer.available
       && offer.paymentMode !== 'freeTrial'
       && currencyCode === 'BRL' && introAmount !== expectedIntroAmount
     const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount
@@ -76,6 +76,7 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
       renewalText: showIntro ? `Depois, ${standardPrice}/mês` : '',
       introductoryDisplayPrice: showIntro ? offer.price : null,
       introductoryTerms: showIntro ? offer.terms : '',
+      introEligibilityNotice: showIntro ? offer.eligibilityNotice : '',
       introductoryPeriod: showIntro ? offer.totalPeriod : '',
       introAppliedToDisplay: showIntro,
     }

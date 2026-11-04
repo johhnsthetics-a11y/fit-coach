@@ -26,20 +26,22 @@ test('Brazil StoreKit decimal/currency formats a raw dollar displayPrice as R$ w
   assert.equal(priceText(plan.introductoryTerms), 'R$ 9,90 pelo período inicial de 1 mês')
 })
 
-test('An ineligible Apple Account sees the exact regular StoreKit price', () => {
+test('An ineligible Apple Account sees the configured introductory quote with a clear eligibility note', () => {
   const plan = card({ introductoryOfferEligible: false })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
+  assert.equal(priceText(plan.displayPrice), 'R$ 9,90')
   assert.equal(plan.introEligibility, 'ineligible')
   assert.equal(plan.purchaseAvailable, true)
-  assert.equal(plan.renewalText, '')
+  assert.equal(priceText(plan.renewalText), 'Depois, R$ 49,90/mês')
+  assert.match(plan.introEligibilityNotice, /elegibilidade da Apple ID/)
 })
 
-test('Unknown eligibility allows Apple to confirm the purchase terms', () => {
+test('Unknown eligibility shows the configured offer conditionally and lets Apple confirm the terms', () => {
   const plan = card({ introductoryOfferEligible: undefined })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
+  assert.equal(priceText(plan.displayPrice), 'R$ 9,90')
   assert.equal(plan.introStatus, 'unknown')
   assert.equal(plan.purchaseAvailable, true)
   assert.equal(plan.purchaseBlockReason, '')
+  assert.match(plan.introEligibilityNotice, /elegibilidade da Apple ID/)
 })
 
 test('If no introductory offer exists, the current Apple price remains purchasable', () => {

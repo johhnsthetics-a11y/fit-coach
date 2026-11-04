@@ -37,18 +37,23 @@ export function getVerifiedIosSubscription(entitlements, accountId, productIds, 
   const verified = entitlements.filter(item => {
     if (!item || item.active !== true || item.revoked === true) return false
     if (String(item.accountId || '').toLowerCase() !== id || !planByProductId[item.productId]) return false
-    // Subscriptions have an expiration date; never treat incomplete proofs as active.
-    if (!validSubscriptionDate(item.expirationDate) || Date.parse(item.expirationDate) <= now) return false
+    const currentEntitlement = item.currentEntitlement === true
+    const expirationDate = validSubscriptionDate(item.expirationDate)
+    // Apple includes subscriptions in grace period in currentEntitlements, even
+    // when the transaction's original expiration date has passed.
+    if (!currentEntitlement && (!expirationDate || Date.parse(expirationDate) <= now)) return false
     return true
   }).sort((a, b) => (Date.parse(b.purchaseDate) || 0) - (Date.parse(a.purchaseDate) || 0))
   if (!verified.length) return null
   const transaction = verified[0]
   const planId = planByProductId[transaction.productId]
+  const expiresAt = validSubscriptionDate(transaction.expirationDate)
+  const inAppleGracePeriod = transaction.currentEntitlement === true && expiresAt && Date.parse(expiresAt) <= now
   return { planId, ...SUBSCRIPTION_CYCLES[planId], productId: transaction.productId,
     purchaseDate: validSubscriptionDate(transaction.purchaseDate),
     transactionAmount: formatVerifiedAppleAmount(transaction),
     appliedOfferType: ['introductory', 'none', 'other'].includes(transaction.appliedOfferType) ? transaction.appliedOfferType : 'unknown',
-    expiresAt: validSubscriptionDate(transaction.expirationDate), provider: 'App Store' }
+    expiresAt: inAppleGracePeriod ? '' : expiresAt, inAppleGracePeriod: Boolean(inAppleGracePeriod), provider: 'App Store' }
 }
 
 // Calendar cycles come from confirmed backend periods, never local plan selections.

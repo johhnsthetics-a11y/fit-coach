@@ -67,7 +67,8 @@ test('Signed Apple purchase returns verified account-bound proof and rejects exp
   assert.match(swift, /transaction\.productID == productId/)
   assert.match(swift, /transaction\.revocationDate == nil/)
   assert.match(swift, /let expiry = transaction\.expirationDate/)
-  assert.match(swift, /expiry > Date\(\)/)
+  assert.match(swift, /expiry\.map \{ \$0 > Date\(\) \}/)
+  assert.match(swift, /currentEntitlement\(for: productId, accountToken: accountToken\)/)
   assert.match(swift, /"verified": true/)
 })
 

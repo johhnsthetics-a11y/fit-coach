@@ -93,8 +93,9 @@ export async function purchaseIosPlan(planId, accountId, displayedProduct) {
   }
 }
 
-// The plugin has verified signature, account, product and validity already.
-// Preserve the signed purchase details if the current-entitlements API lags.
+// The plugin has verified the signature, account, product and either a live
+// transaction or Apple's current entitlement. Preserve that proof if the
+// current-entitlements lookup briefly lags after purchase.
 export function mergeVerifiedPurchaseEntitlement(entitlements, purchase, verifiedPurchase) {
   const items = Array.isArray(entitlements) ? entitlements : []
   if (!verifiedPurchase) return items
