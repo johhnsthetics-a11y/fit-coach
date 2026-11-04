@@ -106,6 +106,6 @@ export function mergeVerifiedPurchaseEntitlement(entitlements, purchase, verifie
 export async function restoreIosPurchases(accountId) {
   requireNativeIos()
   const id = requireCoachAccountId(accountId)
-  await CoachFitStoreKit.restorePurchases()
+  await CoachFitStoreKit.restorePurchases({ accountId: id })
   return getIosEntitlements(id)
 }

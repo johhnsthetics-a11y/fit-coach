@@ -127,7 +127,7 @@ test('Native subscription CTA uses green accessible styling and discloses Apple 
   assert.match(css, /subscription-account-link-help/)
   assert.doesNotMatch(css, /margin-bottom: calc\(9rem/)
   assert.match(panel, /Compra vinculada a outra conta Coach Fit Pro/)
-  assert.match(panel, /data-subscription-ui="build-23"/)
+  assert.match(panel, /data-subscription-ui="build-24"/)
   assert.match(swift, /\"priceChanged\": true/)
   assert.match(swift, /storefrontCountryCode/)
   assert.match(read('src/iosStoreKit.js'), /storefrontCountryCode/)

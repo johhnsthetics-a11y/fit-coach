@@ -81,3 +81,16 @@ test('Verified purchases navigate to workspace and protect short entitlement pro
   assert.match(ios, /entitlement\.active \|\| verifiedPurchase/)
   assert.match(ios, /isVerifiedIosSubscriptionPurchase\(purchase, id, productId\)/)
 })
+
+test('Native test-session reuse requires Apple sandbox environment and explicit purchase or restore', () => {
+  const swift = fs.readFileSync(new URL('../plugins/coachfit-storekit/ios/Sources/CoachFitStoreKit/CoachFitStoreKitPlugin.swift', import.meta.url), 'utf8')
+  const bridge = fs.readFileSync(new URL('../src/iosStoreKit.js', import.meta.url), 'utf8')
+  assert.match(swift, /return transaction.environment == .sandbox/)
+  assert.match(swift, /if #available\(iOS 16.0, \*\)/)
+  assert.match(swift, /!isSandboxTransaction\(transaction\)/)
+  assert.match(swift, /transactionAccountToken == accountToken \|\| isSandboxTransaction\(transaction\)/)
+  assert.match(swift, /await sandboxSession.allow\(accountToken\)/)
+  assert.match(swift, /isSandboxTransaction\(transaction\) && sandboxAllowed/)
+  assert.match(swift, /value\["originalAccountId"\]/)
+  assert.match(bridge, /restorePurchases\(\{ accountId: id \}\)/)
+})

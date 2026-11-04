@@ -78,7 +78,7 @@ test('UI shows only confirmed StoreKit prices and refreshes/reviews a changed qu
   assert.doesNotMatch(panel, /getIosOfferDiagnostics|subscription-offer-status|monthlyProduct/)
   assert.match(panel, /selectedPlan\?\.introAppliedToDisplay \?/)
   assert.doesNotMatch(panel, /A Apple indicou que esta conta é elegível à oferta introdutória|oferta Apple — build 12/)
-  assert.match(panel, /data-subscription-ui="build-23"/)
+  assert.match(panel, /data-subscription-ui="build-24"/)
   assert.match(panel, /Compra vinculada a outra conta Coach Fit Pro/)
 })
 test('Pending results cannot grant access in the bridge and the pending state is visible', () => {
