@@ -194,6 +194,13 @@ test('layout mobile do chat usa uma única coluna flexível estável com visualV
   assert.match(conversationSource, /visualViewport/)
 })
 
+test('lista mobile do chat ocupa uma coluna fluida e quebra erros longos sem vazar', () => {
+  const mobileChatCss = chatCss.match(/@media \(max-width: 760px\) \{([\s\S]*?)\n\}/)?.[1] ?? ''
+  assert.match(mobileChatCss, /\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important/)
+  assert.match(mobileChatCss, /\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\s*\{[\s\S]*?width:\s*100%\s*!important/)
+  assert.match(chatCss, /\.chat-send-error > span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/)
+})
+
 test('chat mobile mantém o compositor acima do teclado e remove a navegação concorrente', () => {
   assert.match(conversationSource, /chat-keyboard-open/)
   assert.match(conversationSource, /keyboardOpen/)

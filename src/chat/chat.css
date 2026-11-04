@@ -745,6 +745,19 @@ html[data-theme="dark"] .chat-connection-state,
     display: none !important;
   }
 
+  .coach-auth-shell .chat-workspace.chat-pro-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .coach-auth-shell .chat-workspace.chat-pro-workspace > .chat-conversation-list,
+  .coach-auth-shell .chat-workspace.chat-pro-workspace > .chat-conversation,
+  .coach-auth-shell .chat-workspace.chat-pro-workspace > .chat-workspace-empty {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .coach-auth-shell .chat-workspace.chat-pro-workspace.chat-pro-mobile-conversation-open {
     position: relative !important;
     z-index: 1;
@@ -1022,6 +1035,11 @@ html[data-theme="dark"] .chat-connection-state,
   background: color-mix(in srgb, var(--chat-danger) 7%, var(--chat-surface));
   color: var(--chat-danger);
   padding: 0.55rem 0.65rem;
+}
+
+.chat-send-error > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .chat-send-error button {

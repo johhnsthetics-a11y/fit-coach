@@ -72,6 +72,12 @@ test('late image layout changes are observable without moving the reader', () =>
   assert.match(attachment, /height="240"/)
 })
 
+test('student access forwards its invite code through the mobile chat screen', () => {
+  assert.match(app, /function StudentAccessApp\([\s\S]*?const inviteCode = access\.invite\.code[\s\S]*?<StudentMobileApp[\s\S]*?inviteCode=\{inviteCode\}/)
+  assert.match(app, /export function StudentMobileApp\(\{[^\n]*\binviteCode = ''/)
+  assert.match(app, /StudentChatScreen student=\{student\}[^>]*inviteCode=\{inviteCode\}/)
+})
+
 test('trainer mobile conversation stays in app flow instead of becoming a global overlay', () => {
   const mobileCoachRule = css.match(/\.coach-auth-shell \.chat-workspace\.chat-pro-workspace\.chat-pro-mobile-conversation-open \{([\s\S]*?)\n\s*\}/)?.[1] || ''
   assert.match(mobileCoachRule, /position:\s*relative/)

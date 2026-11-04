@@ -189,7 +189,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'subscription-copy-clean-build15-20261103'
+const COACH_FIT_PRO_BUILD_MARKER = 'student-demo-build16-20261103'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -18501,6 +18501,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
       freeAccessGranted={access.freeAccessGranted}
+      inviteCode={inviteCode}
       paymentReturnPending={paymentReturnPending}
       professionalType={access.professionalType}
       questionnaireError={access.questionnaireError || ''}
@@ -18529,7 +18530,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onLoadMealLogs, onSaveMealLog, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, inviteCode = '', financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onLoadMealLogs, onSaveMealLog, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
   const patientMode = professionalType === 'nutritionist'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)

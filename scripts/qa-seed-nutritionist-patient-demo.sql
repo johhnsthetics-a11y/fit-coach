@@ -1,8 +1,8 @@
 -- Coach Fit Pro: fixture de teste intencional, NUNCA executar como migração.
 -- PRÉ-REQUISITO: criar os dois usuários em Supabase > Authentication > Users
 -- pelo sistema Auth oficial, com email confirmado:
--- nutricionista.teste.cfp.20261103@example.com
--- aluno.teste.cfp.20261103@example.com
+-- nutri.demo@example.com
+-- aluno.demo@example.com
 -- Este arquivo NUNCA cria usuários em auth nem define senhas.
 -- Acesso demonstrativo por 30 dias, sem cobrança ou recibo de compra da Apple.
 
@@ -12,8 +12,8 @@ declare
   v_aluno_auth uuid;
   v_aluno uuid;
   v_dieta uuid;
-  v_nutri_email constant text := 'nutricionista.teste.cfp.20261103@example.com';
-  v_aluno_email constant text := 'aluno.teste.cfp.20261103@example.com';
+  v_nutri_email constant text := 'nutri.demo@example.com';
+  v_aluno_email constant text := 'aluno.demo@example.com';
 begin
   select id into v_nutri from auth.users
     where lower(email) = v_nutri_email and email_confirmed_at is not null;
@@ -110,8 +110,8 @@ $qa$;
 
 -- Verificações de leitura, sem retornar identificadores de login ou senhas:
 select
-  (select count(*) from public.users where email='nutricionista.teste.cfp.20261103@example.com' and role='Nutricionista') as nutricionista,
-  (select count(*) from public.students where email='aluno.teste.cfp.20261103@example.com' and auth_user_id is not null) as aluno_vinculado,
+  (select count(*) from public.users where email='nutri.demo@example.com' and role='Nutricionista') as nutricionista,
+  (select count(*) from public.students where email='aluno.demo@example.com' and auth_user_id is not null) as aluno_vinculado,
   (select count(*) from public.nutrition_meals m join public.nutrition_plans p on p.id=m.nutrition_plan_id
     join public.students s on s.id=p.student_id
-    where s.email='aluno.teste.cfp.20261103@example.com') as refeicoes_ficticias;
+    where s.email='aluno.demo@example.com') as refeicoes_ficticias;
