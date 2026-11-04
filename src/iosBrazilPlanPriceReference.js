@@ -1,5 +1,5 @@
-// Brazil amounts supplied by the owner. They validate the StoreKit quote only;
-// they are never used to replace the amount presented/charged by the App Store.
+// Original Brazilian catalog amounts supplied by the owner.
+// Display values only: StoreKit controls the actual purchase and charge.
 export const IOS_BRAZIL_PLAN_PRICE_REFERENCE = Object.freeze({
   mensal: Object.freeze({
     introductoryAmount: '9.90',

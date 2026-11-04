@@ -1,5 +1,5 @@
-// StoreKit supplies prices and purchase terms. Local reference values are
-// diagnostic only; Apple confirms the final charge in its purchase sheet.
+// The Brazilian catalog uses the original reais amounts. StoreKit metadata
+// stays unchanged; Apple controls the final purchase sheet and charge.
 import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
 import { getIosIntroOffer } from './iosIntroOffer.js'
 import { formatStoreKitPrice, normalizeStoreKitAmount } from './iosStoreKitPrice.js'
@@ -53,10 +53,12 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const introductoryPriceMismatch = brazilPricingExpected && monthlyPlan && offer.eligibility === 'eligible'
       && offer.paymentMode !== 'freeTrial'
       && currencyCode === 'BRL' && introAmount !== expectedIntroAmount
-    const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount)
+    const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount
+      && (!brazilPricingExpected || (currencyCode === 'BRL' && !introductoryPriceMismatch)))
     const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
-    const standardPrice = priceConfirmed
-      ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice || 'Preço indisponível'
+    const standardPrice = !product || !rawDisplayPrice ? 'Preço indisponível' : brazilPricingExpected
+      ? IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId].recurringPrice
+      : priceConfirmed ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice || 'Preço indisponível'
     const displayPrice = showIntro ? offer.price : standardPrice
     const purchaseBlockReason = product && rawDisplayPrice ? ''
       : 'Este ciclo não foi carregado pela App Store. Atualize os planos antes de assinar.'
