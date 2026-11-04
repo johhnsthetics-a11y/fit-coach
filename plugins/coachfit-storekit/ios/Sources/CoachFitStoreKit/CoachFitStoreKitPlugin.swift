@@ -43,6 +43,10 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Entre na sua conta Coach Fit Pro antes de assinar pela App Store.")
             return
         }
+        guard let expectedProductTerms = call.getObject("expectedProductTerms") else {
+            call.reject("Atualize os preços da App Store antes de continuar. Nenhuma compra foi iniciada.")
+            return
+        }
 
         Task {
             do {
@@ -51,25 +55,24 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     return
                 }
 
-                // Reuse the native product lookup, not a second JS price gate.
-                // If an advertised introductory condition changed, return the
-                // updated offer for review instead of falling back silently.
-                if let expected = call.getObject("expectedIntroductoryOffer") {
-                    let current = await productDictionary(product)
-                    if introductoryOfferChanged(expected, current) {
-                        let storefront = await Storefront.current
-                        call.resolve([
-                            "purchased": false, "cancelled": false, "pending": false,
-                            "offerChanged": true, "products": [current],
-                            "storefrontCountryCode": storefront?.countryCode.uppercased() ?? ""
-                        ])
-                        return
-                    }
+                let storefront = await Storefront.current
+                var currentProduct = await productDictionary(product)
+                let storefrontCountryCode = storefront?.countryCode.uppercased() ?? ""
+                currentProduct["storefrontCountryCode"] = storefrontCountryCode
+                guard !purchaseTermsChanged(expectedProductTerms, currentProduct) else {
+                    call.resolve([
+                        "priceChanged": true,
+                        "products": [currentProduct],
+                        "storefrontCountryCode": storefrontCountryCode
+                    ])
+                    return
                 }
 
                 // Introductory offers are applied by Apple automatically for
                 // eligible Apple Accounts. appAccountToken binds our account;
                 // it does not reset or override introductory-offer eligibility.
+                // Purchase uses this same Product instance that matched the
+                // terms shown in the app; Apple remains the final confirmation.
                 switch try await product.purchase(options: [.appAccountToken(accountToken)]) {
                 case .success(let verification):
                     switch verification {
@@ -172,25 +175,26 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         return value
     }
 
-    private func introductoryOfferChanged(_ expected: JSObject, _ current: [String: Any]) -> Bool {
-        let wasAvailable = expected["available"] as? Bool ?? false
-        let isAvailable = current["introductoryOfferAvailable"] as? Bool ?? false
-        let wasEligible = expected["eligible"] as? Bool ?? false
-        let isEligible = current["introductoryOfferEligible"] as? Bool ?? false
-        if wasAvailable != isAvailable || wasEligible != isEligible { return true }
-        guard isAvailable else { return false }
-        for (before, after) in [
-            ("displayPrice", "introductoryDisplayPrice"),
-            ("paymentMode", "introductoryPaymentMode"),
-            ("periodUnit", "introductoryPeriodUnit")
-        ] {
-            if (expected[before] as? String ?? "") != (current[after] as? String ?? "") { return true }
+    private func purchaseTermsChanged(_ expected: JSObject, _ current: [String: Any]) -> Bool {
+        let stringFields = [
+            "id", "displayPrice", "currencyCode", "storefrontCountryCode",
+            "subscriptionPeriodUnit", "introductoryDisplayPrice",
+            "introductoryPaymentMode", "introductoryPeriodUnit"
+        ]
+        for key in stringFields {
+            if (expected[key] as? String ?? "") != (current[key] as? String ?? "") { return true }
         }
-        for (before, after) in [
-            ("periodValue", "introductoryPeriodValue"),
-            ("periodCount", "introductoryPeriodCount")
-        ] {
-            if (expected[before] as? Int ?? 0) != (current[after] as? Int ?? 0) { return true }
+
+        let booleanFields = ["introductoryOfferAvailable", "introductoryOfferEligible"]
+        for key in booleanFields {
+            if (expected[key] as? Bool ?? false) != (current[key] as? Bool ?? false) { return true }
+        }
+
+        let numberFields = ["subscriptionPeriodValue", "introductoryPeriodValue", "introductoryPeriodCount"]
+        for key in numberFields {
+            let expectedValue = (expected[key] as? NSNumber)?.intValue ?? 0
+            let currentValue = (current[key] as? NSNumber)?.intValue ?? 0
+            if expectedValue != currentValue { return true }
         }
         return false
     }

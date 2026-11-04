@@ -1,6 +1,5 @@
-// StoreKit supplies the authoritative checkout prices. Brazilian marketing prices
-// are owner-provided references only, not converted USD or guaranteed charges.
-import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
+// The UI displays only current StoreKit price/offer terms; marketing references
+// are never substituted for the amount and currency Apple will bill.
 import { getIosIntroOffer } from './iosIntroOffer.js'
 
 export const IOS_PLAN_DETAILS = Object.freeze([
@@ -50,34 +49,34 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const brazilianStorefront = ['BR', 'BRA'].includes(storefrontCountryCode)
     const storefrontConflict = brazilianStorefront && currencyCode !== '' && currencyCode !== 'BRL'
     const textMetadataConflict = priceCurrencyCode !== '' && currencyCode !== '' && priceCurrencyCode !== currencyCode
-    const foreignInterfacePrice = brazilianInterface && currencyCode !== '' && currencyCode !== 'BRL'
     const ambiguousDollar = (brazilianInterface || brazilianStorefront) && rawPrice.includes('$') && priceCurrencyCode !== 'BRL' && currencyCode === ''
     const mislabeledReal = currencyCode === 'BRL' && rawPrice.includes('$') && priceCurrencyCode !== 'BRL'
-    const currencyMismatch = Boolean(rawPrice) && (storefrontConflict || textMetadataConflict || foreignInterfacePrice || ambiguousDollar || mislabeledReal)
-    const brazilReference = brazilianInterface ? IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId] : null
-    const validAppleBRL = Boolean(rawPrice && currencyCode === 'BRL' && priceCurrencyCode === 'BRL' && !currencyMismatch)
+    const currencyMismatch = Boolean(rawPrice) && (storefrontConflict || textMetadataConflict || ambiguousDollar || mislabeledReal)
+    const priceConfirmed = Boolean(product && rawPrice && currencyCode && !currencyMismatch)
     const offer = getIosIntroOffer(product)
     const monthlyPlan = detail.planId === 'mensal'
     const introCurrency = displayedCurrency(offer.price)
-    const validAppleIntro = Boolean(rawPrice && !currencyMismatch && offer.price
-      && (currencyCode === 'BRL' ? introCurrency === 'BRL' : currencyCode && (!introCurrency || introCurrency === currencyCode)))
+    const validAppleIntro = Boolean(priceConfirmed && offer.price && (!introCurrency || introCurrency === currencyCode))
     const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
-    const standardPrice = brazilReference ? (validAppleBRL ? rawPrice : brazilReference.recurringPrice)
-      : (currencyMismatch ? 'Confira o preço na App Store' : (rawPrice || 'Preço indisponível'))
-    const referencePriceUsed = Boolean(brazilReference && !validAppleBRL)
+    const standardPrice = priceConfirmed ? rawPrice : rawPrice ? 'Preço não confirmado' : 'Preço indisponível'
     const displayPrice = showIntro ? offer.price : standardPrice
-    // Only disclose introductory terms when StoreKit confirmed an eligible,
-    // complete offer. Otherwise display the regular billing cycle normally.
+    let purchaseBlockReason = ''
+    if (!product || !rawPrice) purchaseBlockReason = 'A Apple ainda não carregou o preço deste ciclo. Atualize os planos antes de assinar.'
+    else if (!currencyCode || currencyMismatch) purchaseBlockReason = 'A moeda ou o preço retornado pela App Store não pôde ser confirmado. Nenhuma compra será iniciada com um valor incerto.'
+    else if (offer.available && offer.eligibility === 'unknown') purchaseBlockReason = 'A Apple ainda não confirmou as condições deste plano. Atualize os preços antes de assinar.'
+    else if (offer.available && offer.eligibility === 'eligible' && (!monthlyPlan || !offer.complete || !validAppleIntro)) {
+      purchaseBlockReason = 'A Apple sinalizou uma condição promocional, mas não forneceu todos os termos para conferir o valor. Nenhuma compra será iniciada.'
+    }
     const priceDescription = monthlyPlan
       ? (showIntro ? offer.terms : detail.cycleLabel)
-      : (brazilReference?.renewalLabel || detail.cycleLabel)
+      : detail.cycleLabel
     return {
-      ...detail, available: Boolean(product && rawPrice), currencyCode, storefrontCountryCode,
-      currencyMismatch, referencePriceUsed,
+      ...detail, available: Boolean(product && rawPrice), purchaseAvailable: !purchaseBlockReason,
+      purchaseBlockReason, currencyCode, storefrontCountryCode, currencyMismatch,
       introEligibility: monthlyPlan ? offer.eligibility : 'unknown',
       introStatus: monthlyPlan ? offer.status : 'unavailable',
       introductoryOfferAvailable: offer.available,
-      displayPrice, standardPrice, pricePeriod: brazilReference?.periodLabel || '', priceDescription,
+      displayPrice, standardPrice, pricePeriod: '', priceDescription,
       renewalText: showIntro ? `Depois, ${standardPrice}/mês` : '',
       introductoryDisplayPrice: showIntro ? offer.price : null,
       introductoryTerms: showIntro ? offer.terms : '',

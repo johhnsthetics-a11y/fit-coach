@@ -58,10 +58,10 @@ test('New Minha Assinatura screens are present, and Apple purchase flow is still
   const panel = fs.readFileSync(new URL('../src/NativeIosSubscriptionPanel.jsx', import.meta.url), 'utf8')
   const app = fs.readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const web = fs.readFileSync(new URL('../src/WebSubscriptionPanel.jsx', import.meta.url), 'utf8')
-  for (const label of ['Minha assinatura', 'Ciclo contratado', 'Acesso válido até', 'Gerenciar na Apple', 'Restaurar compras', 'Plano selecionado']) {
+  for (const label of ['Minha assinatura', 'Ciclo contratado', 'Acesso válido até', 'Gerenciar na Apple', 'Restaurar compras', 'Resumo do plano']) {
     assert.ok(panel.includes(label), label)
   }
-  assert.match(panel, /await purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
+  assert.match(panel, /await purchaseIosPlan\(plan\.planId, accountId, currentDisplayedProduct\)/)
   assert.doesNotMatch(panel.slice(panel.indexOf('async function purchase(plan)'), panel.indexOf('async function restore()')), /await loadIosProducts\(\)/)
   assert.match(app, /onNativeEntitlementChange=\{handleVerifiedIosSubscription\}/)
   assert.match(web, /Escolha seu ciclo/)

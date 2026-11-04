@@ -1,7 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import { normalizeIosStorefrontCountryCode } from './iosProductPresentation'
 import { isVerifiedIosSubscriptionPurchase } from './iosPurchaseVerification'
-import { getIosPurchaseOfferExpectation } from './iosIntroOffer'
+import { getIosPurchaseTermsExpectation } from './iosIntroOffer'
 
 export const IOS_PRODUCT_IDS = Object.freeze({
   mensal: 'br.com.coachfitpro.ios.profissional.mensal',
@@ -63,10 +63,15 @@ export async function purchaseIosPlan(planId, accountId, displayedProduct) {
   const productId = IOS_PRODUCT_IDS[planId]
   if (!productId) throw new Error('Plano da App Store inválido.')
 
-  const expectedIntroductoryOffer = planId === 'mensal' ? getIosPurchaseOfferExpectation(displayedProduct) : undefined
-  const purchase = await CoachFitStoreKit.purchase({ productId, accountId: id,
-    ...(expectedIntroductoryOffer ? { expectedIntroductoryOffer } : {}) })
-  if (purchase.offerChanged) return { ...purchase, products: normalizeIosProducts(purchase) }
+  const expectedProductTerms = getIosPurchaseTermsExpectation(displayedProduct)
+  if (!expectedProductTerms || expectedProductTerms.id !== productId) {
+    throw new Error('Atualize os preços da App Store antes de continuar. Nenhuma compra foi iniciada.')
+  }
+  // Native StoreKit compares a fresh Product with these exact displayed terms.
+  // If the quote changed, it returns a refreshed price for the user to review.
+  const nativePurchase = await CoachFitStoreKit.purchase({ productId, accountId: id, expectedProductTerms })
+  if (nativePurchase.priceChanged) return { ...nativePurchase, products: normalizeIosProducts(nativePurchase) }
+  const purchase = nativePurchase
   if (purchase.cancelled || purchase.pending) return purchase
   const verifiedPurchase = isVerifiedIosSubscriptionPurchase(purchase, id, productId)
 

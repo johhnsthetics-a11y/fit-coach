@@ -35,53 +35,64 @@ test('Introductory eligibility is queried only from Apple, not overwritten from 
   assert.doesNotMatch(swift, /introductoryOfferEligibility\(/)
   assert.match(swift, /product\.purchase\(options: \[\.appAccountToken\(accountToken\)\]\)/)
 })
-test('Native offer change returns a no-purchase result before opening Apple payment', () => {
+test('StoreKit starts purchase only when the fresh price/offer still matches the displayed quote', () => {
   const swift = read('plugins/coachfit-storekit/ios/Sources/CoachFitStoreKit/CoachFitStoreKitPlugin.swift')
-  assert.ok(swift.indexOf('introductoryOfferChanged(expected, current)') < swift.indexOf('product.purchase('))
-  assert.match(swift, /"offerChanged": true/)
-  assert.match(swift, /wasAvailable != isAvailable \|\| wasEligible != isEligible/)
-  assert.match(swift, /\("periodCount", "introductoryPeriodCount"\)/)
+  const bridge = read('src/iosStoreKit.js')
+  const panel = read('src/NativeIosSubscriptionPanel.jsx')
+  assert.match(swift, /call\.getObject\("expectedProductTerms"\)/)
+  assert.match(swift, /purchaseTermsChanged\(expectedProductTerms, currentProduct\)/)
+  assert.match(swift, /"priceChanged": true/)
+  const compare = swift.indexOf('purchaseTermsChanged(expectedProductTerms, currentProduct)')
+  const purchase = swift.indexOf('switch try await product.purchase(options: [.appAccountToken(accountToken)])')
+  assert.ok(compare >= 0 && purchase > compare, 'changed terms must return before product.purchase')
+  assert.match(bridge, /expectedProductTerms/)
+  assert.match(bridge, /nativePurchase\.priceChanged/)
+  assert.match(panel, /purchaseIosPlan\(plan\.planId, accountId, currentDisplayedProduct\)/)
+  assert.match(panel, /result\.priceChanged/)
+  assert.match(panel, /Rever preço e continuar/)
+  assert.doesNotMatch(swift, /introductoryOfferChanged|expectedIntroductoryOffer|offerChanged/)
   assert.match(swift, /transaction\.price/)
   assert.match(swift, /transaction\.currency/)
   assert.match(swift, /transaction\.offerType == \.introductory/)
 })
-test('UI reports changed offer without calling access callback or buying a second time', () => {
+test('UI shows only confirmed StoreKit prices and refreshes/reviews a changed quote before purchase', () => {
   const panel = read('src/NativeIosSubscriptionPanel.jsx')
-  const changed = panel.slice(panel.indexOf('if (result.offerChanged)'), panel.indexOf('} else if (result.cancelled)'))
-  assert.match(changed, /Nenhuma compra foi iniciada/)
-  assert.doesNotMatch(changed, /onNativeEntitlementChange|purchaseIosPlan/)
-  // The redundant pre-purchase checkbox is removed. The Apple payment
-  // confirmation remains responsible for final amount/offer disclosure.
   assert.doesNotMatch(panel, /Entendi que o desconto não está confirmado/)
   assert.doesNotMatch(panel, /allowRegularMonthly|regularMonthlyNeedsConsent/)
-  assert.match(panel, /const canPurchase = accountValid && !hasAccess/)
-  assert.match(panel, /purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
-  // No mention of unavailable/ineligible promotions in regular price UI.
+  assert.match(panel, /const canPurchase = accountValid && Boolean\(selectedPlan\?\.purchaseAvailable\)/)
+  assert.match(panel, /purchaseIosPlan\(plan\.planId, accountId, currentDisplayedProduct\)/)
+  assert.match(panel, /result\.priceChanged/)
+  assert.match(panel, /Nenhuma compra foi iniciada/)
+  assert.match(panel, /selectedPlan\.purchaseBlockReason/)
+  assert.match(panel, /O app confere novamente preço, moeda e condições/)
+  assert.match(panel, /disabled=\{!canPurchase\}/)
+  assert.match(panel, /Confirmei que foi cancelada — tentar novamente/)
+  assert.match(panel, /Plano indisponível agora/)
+  assert.match(panel, /Preço não confirmado/)
+  assert.doesNotMatch(panel, /referencePriceUsed/)
   assert.doesNotMatch(panel, /Sobre a oferta do primeiro mês|Atualizar oferta Apple|Ver detalhes da oferta/)
   assert.doesNotMatch(panel, /não é elegível à oferta introdutória|Criar outra conta Coach Fit Pro não reinicia/)
   assert.doesNotMatch(panel, /getIosOfferDiagnostics|subscription-offer-status|monthlyProduct/)
   assert.match(panel, /selectedPlan\?\.introAppliedToDisplay \?/)
   assert.doesNotMatch(panel, /A Apple indicou que esta conta é elegível à oferta introdutória|oferta Apple — build 12/)
-  assert.match(panel, /O preço, o ciclo e a renovação apresentados pela App Store serão confirmados antes da autorização/)
-  assert.match(panel, /data-subscription-ui="build-15"/)
-  assert.match(panel, /Confira a renovação e o valor final na Apple/)
+  assert.match(panel, /data-subscription-ui="build-18"/)
 })
-test('Offer-change and pending results cannot grant access in the bridge', () => {
+test('Pending results cannot grant access in the bridge and the pending state is visible', () => {
   const ios = read('src/iosStoreKit.js')
-  assert.ok(ios.indexOf('if (purchase.offerChanged)') < ios.indexOf('const verifiedPurchase'))
-  assert.match(ios, /mergeVerifiedPurchaseEntitlement\(entitlement.entitlements, purchase, verifiedPurchase\)/)
+  assert.match(ios, /mergeVerifiedPurchaseEntitlement\(entitlement\.entitlements, purchase, verifiedPurchase\)/)
   assert.match(ios, /if \(!verifiedPurchase\) return items/)
+  assert.match(read('src/NativeIosSubscriptionPanel.jsx'), /A Apple ainda não aprovou esta tentativa/)
 })
 
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-student-demo-build16-20261103'
+  const current = 'coach-fit-pro-price-parity-build18-20261103'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
     caches: {
-      keys: async () => [current, 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
+      keys: async () => [current, 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
       delete: async key => { deleted.push(key); return true },
       match: async () => { throw Error('Global cache lookup must never be used') },
       open: async key => { opened.push(key); return { match: async () => new Response('current-build'), put: async () => {} } },
@@ -96,7 +107,7 @@ test('Service worker removes its known old caches without erasing other apps', a
   let wait
   w.handlers.activate({ waitUntil: promise => { wait = promise } })
   await wait
-  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'fit-coach-app-v2'])
+  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'coach-fit-pro-subscription-sheet-build17-20261103', 'fit-coach-app-v2'])
 })
 test('Offline HTML and assets read only the current build cache, never global legacy cache', async () => {
   for (const mode of ['navigate', 'cors']) {

@@ -37,18 +37,29 @@ export function getIosIntroOffer(product) {
     showIntro: eligibility === 'eligible' && complete }
 }
 
-// Compare only offer terms natively before presenting payment. This is not an
-// eligibility override or a request to change Apple's charge.
-export function getIosPurchaseOfferExpectation(product) {
-  if (!product) return undefined
-  const offer = getIosIntroOffer(product)
+
+// Snapshot of the exact Apple terms presented in the UI. The native bridge
+// compares it with a fresh StoreKit Product before starting the system sheet.
+export function getIosPurchaseTermsExpectation(product) {
+  if (!product || typeof product.displayPrice !== 'string') return null
+  const safeCount = value => {
+    const number = Number(value)
+    return Number.isSafeInteger(number) && number > 0 ? number : 0
+  }
+  const hasOffer = product.introductoryOfferAvailable === true
   return {
-    available: offer.available,
-    eligible: product.introductoryOfferEligible === true,
-    displayPrice: offer.price,
-    paymentMode: offer.paymentMode,
-    periodValue: Number.isSafeInteger(offer.periodValue) ? offer.periodValue : 0,
-    periodUnit: offer.periodUnit,
-    periodCount: Number.isSafeInteger(offer.periodCount) ? offer.periodCount : 0,
+    id: text(product.id),
+    displayPrice: text(product.displayPrice),
+    currencyCode: text(product.currencyCode).toUpperCase(),
+    storefrontCountryCode: text(product.storefrontCountryCode).toUpperCase(),
+    subscriptionPeriodValue: safeCount(product.subscriptionPeriodValue),
+    subscriptionPeriodUnit: text(product.subscriptionPeriodUnit),
+    introductoryOfferAvailable: hasOffer,
+    introductoryOfferEligible: hasOffer && product.introductoryOfferEligible === true,
+    introductoryDisplayPrice: hasOffer ? text(product.introductoryDisplayPrice) : '',
+    introductoryPaymentMode: hasOffer ? text(product.introductoryPaymentMode) : '',
+    introductoryPeriodValue: hasOffer ? safeCount(product.introductoryPeriodValue) : 0,
+    introductoryPeriodUnit: hasOffer ? text(product.introductoryPeriodUnit) : '',
+    introductoryPeriodCount: hasOffer ? safeCount(product.introductoryPeriodCount) : 0,
   }
 }

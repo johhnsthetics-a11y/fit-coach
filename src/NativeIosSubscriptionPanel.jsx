@@ -28,6 +28,7 @@ export default function NativeIosSubscriptionPanel({
   const [reloadCount, setReloadCount] = useState(0)
   const [processing, setProcessing] = useState('')
   const [message, setMessage] = useState('')
+  const [priceReviewPlanId, setPriceReviewPlanId] = useState('')
   const [selectedPlanId, setSelectedPlanId] = useState(() => readPendingPlan(accountId) || 'mensal')
   const [pendingPlanId, setPendingPlanId] = useState(() => readPendingPlan(accountId))
   const [snapshot, setSnapshot] = useState({ accountId: '', status: 'loading', entitlements: [], error: '' })
@@ -49,6 +50,7 @@ export default function NativeIosSubscriptionPanel({
 
   useEffect(() => {
     setMessage('')
+    setPriceReviewPlanId('')
     setSelectedPlanId(readPendingPlan(accountId) || 'mensal')
     setPendingPlanId(readPendingPlan(accountId))
   }, [accountId])
@@ -120,7 +122,9 @@ export default function NativeIosSubscriptionPanel({
   const nativeConfirmed = Boolean(currentPlan || subscriptionActive)
   const hasAccess = nativeConfirmed || externalSummary.active
   const checking = accountSnapshot.status === 'loading'
-  const canPurchase = accountValid && !hasAccess && !loading && !processing && !pendingPlanId && !operationRef.current
+  const displayedProduct = products.find(product => product.planId === selectedPlan?.planId)
+  const canPurchase = accountValid && Boolean(selectedPlan?.purchaseAvailable) && Boolean(displayedProduct)
+    && !hasAccess && !loading && !processing && !pendingPlanId && !operationRef.current
 
 
   async function purchase(plan) {
@@ -128,18 +132,25 @@ export default function NativeIosSubscriptionPanel({
     operationRef.current = true
     const operationAccount = accountId
     setProcessing(plan.planId)
-    setMessage('Abrindo a confirmação da assinatura pela Apple...')
+    setPriceReviewPlanId('')
+    setMessage('Conectando à App Store para confirmar seu plano...')
     try {
-      // Swift reuses its product lookup to compare the introductory terms.
-      // No duplicate JS price/storefront fetch and no eligibility override.
-      const displayedProduct = products.find(product => product.planId === plan.planId)
-      const result = await purchaseIosPlan(plan.planId, accountId, displayedProduct)
+      const currentDisplayedProduct = products.find(product => product.planId === plan.planId)
+      const result = await purchaseIosPlan(plan.planId, accountId, currentDisplayedProduct)
       if (accountRef.current !== operationAccount) return
-      if (result.offerChanged) {
-        const updated = result.products || []
-        setProducts(previous => [...previous.filter(product => !updated.some(item => item.planId === product.planId)), ...updated])
-        setMessage('Os valores ou as condições da assinatura foram atualizados pela Apple. Nenhuma compra foi iniciada. Confira o preço antes de continuar.')
+      if (result.priceChanged) {
+        const updatedProducts = Array.isArray(result.products) ? result.products : []
+        if (updatedProducts.length) {
+          const updatedIds = new Set(updatedProducts.map(product => product.id))
+          setProducts(previous => [...previous.filter(product => !updatedIds.has(product.id)), ...updatedProducts])
+          setPriceReviewPlanId(plan.planId)
+          setMessage('A App Store atualizou o preço ou as condições. O resumo acima foi renovado; confira-o e toque em “Rever preço e continuar”. Nenhuma compra foi iniciada.')
+        } else {
+          setReloadCount(count => count + 1)
+          setMessage('Os preços mudaram na App Store. Eles estão sendo atualizados; confira o resumo antes de tentar novamente.')
+        }
       } else if (result.cancelled) {
+        rememberPendingPlan('')
         setMessage('Compra cancelada. Nenhuma cobrança foi concluída.')
       } else if (result.pending) {
         rememberPendingPlan(plan.planId)
@@ -194,37 +205,33 @@ export default function NativeIosSubscriptionPanel({
       : 'Seu próximo passo começa aqui'
   const validity = currentPlan?.expiresAt || (externalSummary.active ? externalSummary.expiresAt : '')
 
-  function renderPlans() {
+  function renderPlans(interactive = !hasAccess) {
     return (
-      <div className="native-ios-plan-grid" role="group" aria-label="Ciclos de assinatura">
+      <div className={`subscription-cycle-picker${interactive ? ' is-interactive' : ' is-readonly'}`} role={interactive ? 'radiogroup' : 'group'} aria-label="Ciclos de assinatura">
         {cards.map(plan => {
-          const selected = !hasAccess && selectedPlanId === plan.planId
+          const selected = interactive ? selectedPlanId === plan.planId : currentPlan?.planId === plan.planId
           const isCurrent = currentPlan?.planId === plan.planId
           const cycle = SUBSCRIPTION_CYCLES[plan.planId]
-          return (
-            <article className={`native-ios-plan-card${selected ? ' is-selected' : ''}${isCurrent ? ' is-current' : ''}`} key={plan.planId}>
-              {!hasAccess ? (
-                <label className="subscription-plan-option">
-                  <input type="radio" name="ios-subscription-plan" value={plan.planId}
-                    checked={selected} onChange={() => { setSelectedPlanId(plan.planId); setMessage('') }}
-                    disabled={Boolean(processing) || Boolean(pendingPlanId)} />
-                  <span className="subscription-plan-option-title">{plan.title}<span>{cycle.cycle} de acesso por ciclo</span></span>
-                </label>
-              ) : <div className="subscription-plan-option-title">{plan.title}<span>{cycle.cycle} por ciclo</span></div>}
-              <span className="subscription-plan-badge">{isCurrent ? 'Seu plano atual' : selected ? 'Selecionado' : 'Mesmo acesso, outro ciclo'}</span>
-              <p className="native-ios-plan-price">{plan.displayPrice}</p>
-              <p className="native-ios-plan-note">{plan.priceDescription || cycle.charge}</p>
-              {plan.referencePriceUsed ? <p className="native-ios-plan-note">Preço de referência para o Brasil — não é um valor confirmado pela Apple.</p> : null}
-              {plan.renewalText ? <p className="native-ios-renewal-note">{plan.renewalText}</p> : null}
-            </article>
-          )
+          const className = `subscription-cycle-option${selected ? ' is-selected' : ''}${isCurrent ? ' is-current' : ''}${plan.purchaseAvailable ? '' : ' is-unavailable'}`
+          const price = plan.available ? plan.displayPrice : 'Indisponível'
+          if (!interactive) return <article className={className} key={plan.planId}>
+            <span className="subscription-cycle-title">{plan.title}</span><strong>{price}</strong>
+            <small>{cycle.cycle}</small>{isCurrent && <span className="subscription-cycle-current">Seu plano atual</span>}
+          </article>
+          return <label className={className} key={plan.planId}>
+            <input type="radio" name="ios-subscription-plan" value={plan.planId} checked={selected}
+              onChange={() => { setSelectedPlanId(plan.planId); setMessage(''); setPriceReviewPlanId('') }}
+              disabled={Boolean(processing) || Boolean(pendingPlanId) || !plan.purchaseAvailable} />
+            <span className="subscription-cycle-title">{plan.title}</span><strong>{price}</strong>
+            <small>{cycle.cycle}</small>{isCurrent && <span className="subscription-cycle-current">Seu plano atual</span>}
+          </label>
         })}
       </div>
     )
   }
 
   return (
-    <section className="native-ios-subscription-panel subscription-workspace" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-15">
+    <section className="native-ios-subscription-panel subscription-workspace" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-18">
       <header className="native-ios-subscription-heading subscription-page-heading">
         <span className="native-ios-eyebrow">Coach Fit Pro · sua conta</span>
         <h2>Minha assinatura</h2>
@@ -263,16 +270,12 @@ export default function NativeIosSubscriptionPanel({
       </section>
 
       {accountSnapshot.error && <p className="native-ios-feedback" role="alert">{accountSnapshot.error}</p>}
-      {message && <p className="native-ios-feedback subscription-operation-message" role="status" aria-live="polite">{message}</p>}
       {pendingPlanId && !hasAccess && (
         <div className="native-ios-feedback" role="status">
           <strong>Plano {SUBSCRIPTION_CYCLES[pendingPlanId]?.title} aguardando aprovação</strong>
-          <p>A Apple ainda não aprovou a compra. Atualize o status antes de tentar outra contratação.</p>
-          <details>
-            <summary>A compra foi recusada ou cancelada na Apple?</summary>
-            <p>Inicie outra tentativa somente depois de confirmar que a compra anterior foi encerrada na Apple.</p>
-            <button type="button" className="native-ios-restore" onClick={() => { rememberPendingPlan(''); setMessage('Nova tentativa liberada. Revise os valores antes de contratar.') }} disabled={Boolean(processing)}>Já conferi na Apple: tentar novamente</button>
-          </details>
+          <p>A Apple ainda não aprovou esta tentativa. Não inicie outra compra enquanto ela estiver pendente.</p>
+          <button type="button" className="native-ios-restore" onClick={() => { rememberPendingPlan(''); setMessage('Nova tentativa liberada. Confira o resumo antes de abrir a Apple.') }} disabled={Boolean(processing)}>Confirmei que foi cancelada — tentar novamente</button>
+          <p className="subscription-pending-help">Use esta opção somente depois de confirmar que a solicitação anterior foi encerrada pela Apple.</p>
         </div>
       )}
       {!accountValid && <div className="native-ios-availability" role="alert"><strong>Entre novamente na sua conta.</strong><p>Precisamos identificar sua conta profissional para verificar uma assinatura.</p></div>}
@@ -283,37 +286,44 @@ export default function NativeIosSubscriptionPanel({
         <details className="subscription-plan-comparison">
           <summary>Comparar os ciclos disponíveis</summary>
           <p className="native-ios-help">Os preços abaixo são de novas contratações. Para alterar uma assinatura Apple, use Gerenciar na Apple.</p>
-          {renderPlans()}
+          {renderPlans(false)}
         </details>
       ) : (
         <section className="subscription-plan-section" aria-label="Escolher plano">
-          <div className="subscription-section-title"><h3>Escolha seu ciclo</h3><p>O mesmo acesso profissional. Você escolhe a duração.</p></div>
+          <div className="subscription-section-title"><div><h3>Escolha seu ciclo</h3><p>Um único plano profissional, com a duração que preferir.</p></div><span className="subscription-apple-mark">App Store</span></div>
           {renderPlans()}
           <div className="subscription-selection-summary" aria-label="Resumo do plano selecionado">
-            <span className="native-ios-eyebrow">Plano selecionado · ainda não contratado</span>
-            <div><h4>{selectedPlan?.title}</h4><strong>{selectedPlan?.displayPrice}</strong></div>
-            <p className="native-ios-help">{selectedPlan?.introAppliedToDisplay ? `${selectedPlan.introductoryTerms}. ${selectedPlan.renewalText}.` : `${SUBSCRIPTION_CYCLES[selectedPlan?.planId]?.cycle || 'Ciclo'} por assinatura. Confira a renovação e o valor final na Apple.`}</p>
+            <div className="subscription-selection-heading"><div><span className="native-ios-eyebrow">Resumo do plano</span><h4>{selectedPlan?.title || 'Plano mensal'}</h4></div><strong>{selectedPlan?.displayPrice || 'Preço indisponível'}</strong></div>
+            <p className="subscription-selection-terms">{selectedPlan?.introAppliedToDisplay ? `${selectedPlan.introductoryTerms}. ${selectedPlan.renewalText}.` : `${selectedPlan?.displayPrice || 'Preço indisponível'} — ${selectedPlan?.priceDescription || SUBSCRIPTION_CYCLES[selectedPlan?.planId]?.charge || 'ciclo selecionado'}.`}</p>
+            {message && <p className="native-ios-feedback subscription-operation-message" role="status" aria-live="polite">{message}</p>}
+            {!selectedPlan?.available && !loading && <p className="subscription-purchase-blocked" role="status">Este ciclo não foi carregado pela App Store. Atualize os planos antes de tentar assinar.</p>}
+            {selectedPlan?.available && !selectedPlan.purchaseAvailable && !loading && <p className="subscription-purchase-blocked" role="status">{selectedPlan.purchaseBlockReason}</p>}
             <button type="button" className="native-ios-purchase-button" onClick={() => purchase(selectedPlan)}
               disabled={!canPurchase}
               aria-label={`Assinar plano ${selectedPlan?.title} pela App Store`}>
-              {processing && processing !== 'restore' ? 'Aguarde...' : `Assinar ${selectedPlan?.title || 'plano'}`}
+              {processing && processing !== 'restore' ? 'Conferindo preço…' : !selectedPlan?.available ? 'Plano indisponível agora' : !selectedPlan?.purchaseAvailable ? 'Preço não confirmado' : priceReviewPlanId === selectedPlan?.planId ? 'Rever preço e continuar' : `Assinar ${selectedPlan?.title || 'plano'}`}
             </button>
-            <p className="subscription-small-print">O preço, o ciclo e a renovação apresentados pela App Store serão confirmados antes da autorização. Selecionar um plano não gera cobrança.</p>
+            <p className="subscription-small-print">O app confere novamente preço, moeda e condições com a App Store antes de abrir a confirmação. Se algo tiver mudado, atualiza este resumo e aguarda você revisar; se a folha Apple ainda divergir, cancele sem autorizar.</p>
           </div>
         </section>
       ))}
-      <section className="subscription-included" aria-label="Recursos do acesso profissional">
-        <h3>Seu painel profissional</h3>
-        <p>Organize seu atendimento com as ferramentas do Coach Fit Pro.</p>
-        <ul><li>{professionalType === 'nutritionist' ? 'Pacientes e acompanhamento' : 'Alunos e acompanhamento'}</li>
-          <li>{professionalType === 'nutritionist' ? 'Questionários e avaliações' : 'Treinos e prescrições'}</li>
-          <li>Dietas e planos alimentares</li><li>Agenda, mensagens e check-ins</li></ul>
-      </section>
-      <section className="subscription-support" aria-label="Ajuda com a assinatura">
-        <div><h3>Já assinou antes?</h3><p>Use a mesma conta Coach Fit Pro da compra e restaure o acesso. Não compre novamente para resolver falhas de atualização.</p></div>
-        <button className="native-ios-restore" type="button" onClick={restore} disabled={!accountValid || Boolean(processing)}>{processing === 'restore' ? 'Verificando compras...' : 'Restaurar compras'}</button>
-      </section>
-      <p className="native-ios-help">Para gerenciar ou cancelar: Ajustes do iPhone → seu nome → Assinaturas.</p>
+      <details className="subscription-secondary-details">
+        <summary>O que está incluído</summary>
+        <section className="subscription-included" aria-label="Recursos do acesso profissional">
+          <p>Seu painel profissional inclui:</p>
+          <ul><li>{professionalType === 'nutritionist' ? 'Pacientes e acompanhamento' : 'Alunos e acompanhamento'}</li>
+            <li>{professionalType === 'nutritionist' ? 'Questionários e avaliações' : 'Treinos e prescrições'}</li>
+            <li>Dietas e planos alimentares</li><li>Agenda, mensagens e check-ins</li></ul>
+        </section>
+      </details>
+      <details className="subscription-secondary-details">
+        <summary>Já assinou ou precisa de ajuda?</summary>
+        <section className="subscription-support" aria-label="Ajuda com a assinatura">
+          <div><p>Use a mesma conta Apple da compra e restaure o acesso. Se já pagou, não compre novamente para resolver falhas de atualização.</p></div>
+          <button className="native-ios-restore" type="button" onClick={restore} disabled={!accountValid || Boolean(processing)}>{processing === 'restore' ? 'Verificando compras...' : 'Restaurar compras'}</button>
+          <p className="native-ios-help">Para gerenciar ou cancelar: Ajustes do iPhone → seu nome → Assinaturas.</p>
+        </section>
+      </details>
       <nav className="native-ios-legal" aria-label="Informações legais das assinaturas">
         <a href="https://app.coachfitpro.com.br/termos-de-uso" target="_blank" rel="noopener noreferrer">Termos de Uso</a>
         <a href="https://app.coachfitpro.com.br/politica-de-privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>

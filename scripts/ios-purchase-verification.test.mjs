@@ -45,15 +45,18 @@ test('Expired or non-expiring proof cannot unlock professional tools', () => {
   }
 })
 
-test('Panel calls native purchase immediately without a second storefront-price veto', () => {
+test('Panel sends the selected available StoreKit product to native purchase and blocks missing products', () => {
   const panel = fs.readFileSync(new URL('../src/NativeIosSubscriptionPanel.jsx', import.meta.url), 'utf8')
   const clickStart = panel.indexOf('async function purchase(plan)')
   const restoreStart = panel.indexOf('async function restore()', clickStart)
   assert.ok(clickStart >= 0 && restoreStart > clickStart)
   const click = panel.slice(clickStart, restoreStart)
-  assert.match(click, /await purchaseIosPlan\(plan\.planId, accountId, displayedProduct\)/)
+  assert.match(click, /await purchaseIosPlan\(plan\.planId, accountId, currentDisplayedProduct\)/)
   assert.doesNotMatch(click, /await loadIosProducts\(\)/)
-  assert.doesNotMatch(click, /!plan\.available/)
+  assert.match(panel, /const canPurchase = accountValid && Boolean\(selectedPlan\?\.purchaseAvailable\)/)
+  assert.match(panel, /disabled=\{Boolean\(processing\) \|\| Boolean\(pendingPlanId\) \|\| !plan\.purchaseAvailable\}/)
+  assert.match(panel, /Este ciclo não foi carregado pela App Store/)
+  assert.match(panel, /selectedPlan\.purchaseBlockReason/)
   assert.match(panel, /disabled=\{!canPurchase\}/)
 })
 

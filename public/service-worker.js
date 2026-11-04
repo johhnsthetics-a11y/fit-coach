@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-student-demo-build16-20261103'
+const CACHE_NAME = 'coach-fit-pro-price-parity-build18-20261103'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 // Older Coach Fit Pro cache names predating the coach-fit-pro- prefix.
 const LEGACY_APP_CACHES = new Set(['fit-coach-app-v2'])

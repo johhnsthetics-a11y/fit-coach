@@ -1,105 +1,134 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildIosSubscriptionCards, normalizeIosStorefrontCountryCode, resolveIosPricingLocale } from '../src/iosProductPresentation.js'
-import { getIosIntroOffer, describeApplePeriod, getIosPurchaseOfferExpectation } from '../src/iosIntroOffer.js'
+import { getIosIntroOffer, getIosPurchaseTermsExpectation, describeApplePeriod } from '../src/iosIntroOffer.js'
 
 const locale = { locale: 'pt-BR' }
 const monthly = {
   id: 'br.com.coachfitpro.ios.profissional.mensal', planId: 'mensal',
   displayPrice: 'R$ 49,90', currencyCode: 'BRL', storefrontCountryCode: 'BRA',
-  subscriptionGroupId: 'demo-group', introductoryOfferAvailable: true,
+  subscriptionGroupId: 'demo-group', subscriptionPeriodValue: 1, subscriptionPeriodUnit: 'month',
+  introductoryOfferAvailable: true, introductoryOfferEligible: true,
   introductoryDisplayPrice: 'R$ 9,90', introductoryPaymentMode: 'payAsYouGo',
   introductoryPeriodValue: 1, introductoryPeriodUnit: 'month', introductoryPeriodCount: 1,
 }
-const card = (overrides = {}) => buildIosSubscriptionCards([{ ...monthly, ...overrides }], locale)[0]
+const card = (overrides = {}, options = locale) => buildIosSubscriptionCards([{ ...monthly, ...overrides }], options)[0]
 
-test('Eligible Apple Account sees the actual introductory price and renewal separately', () => {
+test('Eligible Apple Account sees the actual intro charge and the exact renewal separately', () => {
   const plan = card({ introductoryOfferEligible: true })
   assert.equal(plan.displayPrice, 'R$ 9,90')
+  assert.equal(plan.standardPrice, 'R$ 49,90')
   assert.equal(plan.renewalText, 'Depois, R$ 49,90/mês')
   assert.equal(plan.introEligibility, 'eligible')
   assert.equal(plan.introAppliedToDisplay, true)
+  assert.equal(plan.purchaseAvailable, true)
   assert.match(plan.introductoryTerms, /R\$ 9,90 pelo período inicial de 1 mês/)
-  assert.equal(plan.referencePriceUsed, false)
 })
-test('A new app account cannot override an ineligible Apple Account', () => {
-  const plan = card({ introductoryOfferEligible: false, accountCreatedAt: new Date().toISOString(), isNewUser: true })
+
+test('An ineligible Apple Account sees the exact regular StoreKit price', () => {
+  const plan = card({ introductoryOfferEligible: false })
   assert.equal(plan.displayPrice, 'R$ 49,90')
   assert.equal(plan.introEligibility, 'ineligible')
-  assert.equal(plan.introStatus, 'ineligible')
+  assert.equal(plan.purchaseAvailable, true)
   assert.equal(plan.renewalText, '')
-  assert.equal(plan.introductoryDisplayPrice, null)
-  assert.equal(plan.priceDescription, 'Renovação mensal')
-  assert.doesNotMatch(plan.priceDescription, /oferta|desconto|elegib/i)
 })
-test('Unknown eligibility and absent offer are distinct and cannot promise promotion', () => {
-  const unknown = card()
-  assert.equal(unknown.displayPrice, 'R$ 49,90')
-  assert.equal(unknown.introStatus, 'unknown')
-  const absent = card({ introductoryOfferAvailable: false, introductoryOfferEligible: true })
-  assert.equal(absent.displayPrice, 'R$ 49,90')
-  assert.equal(absent.introStatus, 'unavailable')
-  assert.equal(absent.introEligibility, 'unknown')
-  for (const plan of [unknown, absent]) {
-    assert.equal(plan.priceDescription, 'Renovação mensal')
-    assert.doesNotMatch(plan.priceDescription, /oferta|desconto|elegib/i)
-  }
+
+test('Unknown eligibility cannot display a presumed regular charge as purchasable', () => {
+  const plan = card({ introductoryOfferEligible: undefined })
+  assert.equal(plan.displayPrice, 'R$ 49,90')
+  assert.equal(plan.introStatus, 'unknown')
+  assert.equal(plan.purchaseAvailable, false)
+  assert.match(plan.purchaseBlockReason, /Apple ainda não confirmou/)
 })
-test('Apple price different from marketing reference remains authoritative', () => {
-  assert.equal(card({ introductoryOfferEligible: true, introductoryDisplayPrice: 'R$ 12,90' }).displayPrice, 'R$ 12,90')
+
+test('If no introductory offer exists, the current Apple price remains purchasable', () => {
+  const plan = card({ introductoryOfferAvailable: false, introductoryOfferEligible: false })
+  assert.equal(plan.displayPrice, 'R$ 49,90')
+  assert.equal(plan.introStatus, 'unavailable')
+  assert.equal(plan.purchaseAvailable, true)
 })
-test('USD metadata never becomes an allegedly confirmed BRL intro price', () => {
-  for (const eligible of [false, true]) {
-    const plan = card({ displayPrice: 'US$ 7.99', introductoryDisplayPrice: 'US$ 1.99', currencyCode: 'USD', introductoryOfferEligible: eligible })
-    assert.equal(plan.displayPrice, 'R$ 49,90')
-    assert.equal(plan.currencyMismatch, true)
-    assert.equal(plan.referencePriceUsed, true)
-    assert.equal(plan.introAppliedToDisplay, false)
-    assert.equal(plan.introductoryDisplayPrice, null)
-  }
+
+test('StoreKit price wins over a marketing reference', () => {
+  const plan = card({ displayPrice: 'R$ 12,90', introductoryOfferAvailable: false })
+  assert.equal(plan.displayPrice, 'R$ 12,90')
+  assert.equal(plan.purchaseAvailable, true)
 })
-test('A mixed intro and regular currency cannot be a guaranteed offer', () => {
-  assert.equal(card({ introductoryOfferEligible: true, introductoryDisplayPrice: 'US$ 1.99' }).introAppliedToDisplay, false)
+
+test('A Brazilian storefront with inconsistent USD metadata cannot start checkout or show a guessed BRL price', () => {
+  const plan = card({ displayPrice: 'US$ 7.99', introductoryDisplayPrice: 'US$ 1.99', currencyCode: 'USD', introductoryOfferEligible: true })
+  assert.equal(plan.displayPrice, 'Preço não confirmado')
+  assert.equal(plan.currencyMismatch, true)
+  assert.equal(plan.introAppliedToDisplay, false)
+  assert.equal(plan.purchaseAvailable, false)
 })
-test('Missing duration or unknown mode cannot be described as first month', () => {
+
+test('A real foreign storefront shows its own StoreKit currency, even in the Portuguese app', () => {
+  const plan = card({ displayPrice: 'US$ 7.99', introductoryDisplayPrice: 'US$ 1.99', currencyCode: 'USD', storefrontCountryCode: 'USA', introductoryOfferEligible: true })
+  assert.equal(plan.displayPrice, 'US$ 1.99')
+  assert.equal(plan.currencyMismatch, false)
+  assert.equal(plan.purchaseAvailable, true)
+})
+
+test('Unknown currency metadata does not fall back to a reference amount', () => {
+  const plan = card({ displayPrice: '49.90', currencyCode: '', storefrontCountryCode: '' })
+  assert.equal(plan.displayPrice, 'Preço não confirmado')
+  assert.equal(plan.purchaseAvailable, false)
+})
+
+test('A mismatched intro currency is blocked instead of displaying only the regular price', () => {
+  const plan = card({ introductoryOfferEligible: true, introductoryDisplayPrice: 'US$ 1.99' })
+  assert.equal(plan.displayPrice, 'R$ 49,90')
+  assert.equal(plan.introAppliedToDisplay, false)
+  assert.equal(plan.purchaseAvailable, false)
+})
+
+test('Incomplete eligible-offer terms are blocked until StoreKit provides a matching quote', () => {
   for (const override of [{ introductoryPeriodValue: undefined }, { introductoryPeriodUnit: '' }, { introductoryPeriodCount: 0 }, { introductoryPaymentMode: 'unknown' }]) {
     const plan = card({ introductoryOfferEligible: true, ...override })
     assert.equal(plan.introAppliedToDisplay, false)
     assert.equal(plan.displayPrice, 'R$ 49,90')
+    assert.equal(plan.purchaseAvailable, false)
   }
 })
-test('Pay up front and pay as you go retain real duration and number of periods', () => {
+
+test('Pay-up-front and free-trial terms remain explicit and price aligned', () => {
   assert.match(getIosIntroOffer({ ...monthly, introductoryOfferEligible: true, introductoryPeriodCount: 3 }).terms, /a cada 1 mês, durante 3 meses/)
   assert.match(getIosIntroOffer({ ...monthly, introductoryOfferEligible: true, introductoryPaymentMode: 'payUpFront', introductoryPeriodValue: 2 }).terms, /pelo período inicial de 2 meses/)
+  const trial = card({ introductoryOfferEligible: true, introductoryPaymentMode: 'freeTrial', introductoryDisplayPrice: 'R$ 0,00', introductoryPeriodValue: 7, introductoryPeriodUnit: 'day' })
+  assert.equal(trial.displayPrice, 'R$ 0,00')
+  assert.match(trial.introductoryTerms, /Teste gratuito por 7 dias/)
+  assert.equal(trial.renewalText, 'Depois, R$ 49,90/mês')
 })
-test('Free trial is not mislabeled as the owners paid first-month offer', () => {
-  const plan = card({ introductoryOfferEligible: true, introductoryPaymentMode: 'freeTrial', introductoryDisplayPrice: 'R$ 0,00', introductoryPeriodValue: 7, introductoryPeriodUnit: 'day' })
-  assert.equal(plan.displayPrice, 'R$ 0,00')
-  assert.match(plan.introductoryTerms, /Teste gratuito por 7 dias/)
-  assert.equal(plan.renewalText, 'Depois, R$ 49,90/mês')
-})
-test('No products are never claimed available or offered at guaranteed intro price', () => {
+
+test('No products have no price and cannot open purchase', () => {
   const cards = buildIosSubscriptionCards([], locale)
-  assert.equal(cards[0].displayPrice, 'R$ 49,90')
+  assert.equal(cards[0].displayPrice, 'Preço indisponível')
   assert.equal(cards[0].introStatus, 'loading')
-  assert.equal(cards[0].referencePriceUsed, true)
-  assert.ok(cards.every(plan => !plan.available))
+  assert.ok(cards.every(plan => !plan.available && !plan.purchaseAvailable))
 })
-test('Other plans retain native BRL prices and labels', () => {
-  const cards = buildIosSubscriptionCards([{ planId: 'semestral', displayPrice: 'R$ 239,90', currencyCode: 'BRL' }, { planId: 'anual', displayPrice: 'R$ 359,00', currencyCode: 'BRL' }], locale)
+
+test('Other plans retain their exact native StoreKit prices', () => {
+  const cards = buildIosSubscriptionCards([
+    { planId: 'semestral', displayPrice: 'R$ 239,90', currencyCode: 'BRL', storefrontCountryCode: 'BRA' },
+    { planId: 'anual', displayPrice: 'R$ 359,00', currencyCode: 'BRL', storefrontCountryCode: 'BRA' },
+  ], locale)
   assert.deepEqual(cards.slice(1).map(x => x.displayPrice), ['R$ 239,90', 'R$ 359,00'])
+  assert.ok(cards.slice(1).every(plan => plan.purchaseAvailable))
 })
-test('Non-Brazil locale may display its real eligible Apple offer, never a BRL reference', () => {
-  const [plan] = buildIosSubscriptionCards([{ ...monthly, displayPrice: 'US$ 7.99', introductoryDisplayPrice: 'US$ 1.99', currencyCode: 'USD', storefrontCountryCode: 'USA', introductoryOfferEligible: true }], { locale: 'en-US' })
-  assert.equal(plan.displayPrice, 'US$ 1.99')
-  assert.equal(plan.referencePriceUsed, false)
+
+test('Purchase snapshot contains exact standard/introductory prices and storefront', () => {
+  const terms = getIosPurchaseTermsExpectation(monthly)
+  assert.equal(terms.id, monthly.id)
+  assert.equal(terms.displayPrice, 'R$ 49,90')
+  assert.equal(terms.currencyCode, 'BRL')
+  assert.equal(terms.storefrontCountryCode, 'BRA')
+  assert.equal(terms.introductoryOfferEligible, true)
+  assert.equal(terms.introductoryDisplayPrice, 'R$ 9,90')
+  assert.equal(terms.introductoryPeriodCount, 1)
+  assert.equal(getIosPurchaseTermsExpectation(null), null)
 })
-test('Offer expectation carries only offer facts, not a local eligibility override', () => {
-  const expected = getIosPurchaseOfferExpectation({ ...monthly, introductoryOfferEligible: false })
-  assert.deepEqual(expected, { available: true, eligible: false, displayPrice: 'R$ 9,90', paymentMode: 'payAsYouGo', periodValue: 1, periodUnit: 'month', periodCount: 1 })
-  assert.equal(getIosPurchaseOfferExpectation(undefined), undefined)
-})
-test('Invalid periods and country/app language handling are safe', () => {
+
+test('Periods and storefront normalization reject malformed values', () => {
   assert.equal(describeApplePeriod(-1, 'month'), '')
   assert.equal(describeApplePeriod(1, 'bad'), '')
   assert.equal(normalizeIosStorefrontCountryCode(' bra '), 'BRA')
