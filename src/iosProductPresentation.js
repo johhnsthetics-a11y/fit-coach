@@ -1,5 +1,5 @@
-// Price amounts and ISO currency come from StoreKit. Brazil reference values
-// are used only to block a mismatched quote, never to invent a displayed charge.
+// StoreKit supplies prices and purchase terms. Local reference values are
+// diagnostic only; Apple confirms the final charge in its purchase sheet.
 import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
 import { getIosIntroOffer } from './iosIntroOffer.js'
 import { formatStoreKitPrice, normalizeStoreKitAmount } from './iosStoreKitPrice.js'
@@ -45,8 +45,7 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const recurringPriceMismatch = brazilPricingExpected && currencyCode === 'BRL'
       && amount !== normalizeStoreKitAmount(expectedAmount)
     const amountConfirmed = Boolean(amount && Number(amount) > 0)
-    const priceConfirmed = Boolean(product && rawDisplayPrice && amountConfirmed && currencyCode
-      && !regionCurrencyMismatch && !recurringPriceMismatch)
+    const priceConfirmed = Boolean(product && rawDisplayPrice && amountConfirmed && currencyCode)
     const offer = getIosIntroOffer(product, { locale })
     const monthlyPlan = detail.planId === 'mensal'
     const introAmount = normalizeStoreKitAmount(offer.amount)
@@ -54,22 +53,13 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const introductoryPriceMismatch = brazilPricingExpected && monthlyPlan && offer.eligibility === 'eligible'
       && offer.paymentMode !== 'freeTrial'
       && currencyCode === 'BRL' && introAmount !== expectedIntroAmount
-    const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount
-      && (!brazilPricingExpected || currencyCode === 'BRL'))
-    const showIntro = monthlyPlan && offer.showIntro && validAppleIntro && !introductoryPriceMismatch
+    const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount)
+    const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
     const standardPrice = priceConfirmed
-      ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice ? 'Preço não confirmado' : 'Preço indisponível'
+      ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice || 'Preço indisponível'
     const displayPrice = showIntro ? offer.price : standardPrice
-    let purchaseBlockReason = ''
-    if (!product || !rawDisplayPrice || !amountConfirmed) purchaseBlockReason = 'A Apple ainda não carregou um preço estruturado para este ciclo. Atualize os planos antes de assinar.'
-    else if (!currencyCode) purchaseBlockReason = 'A moeda retornada pela App Store não pôde ser confirmada. Nenhuma compra será iniciada com um valor incerto.'
-    else if (regionCurrencyMismatch) purchaseBlockReason = 'A loja Apple desta conta está em outra moeda. Para manter os valores em reais e evitar divergência na cobrança, use uma conta Apple configurada para a loja do Brasil.'
-    else if (recurringPriceMismatch) purchaseBlockReason = `O preço da App Store diverge do valor esperado para a loja brasileira (${IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId].recurringPrice}). A compra fica bloqueada até corrigir o preço no App Store Connect.`
-    else if (offer.available && offer.eligibility === 'unknown') purchaseBlockReason = 'A Apple ainda não confirmou as condições deste plano. Atualize os preços antes de assinar.'
-    else if (introductoryPriceMismatch) purchaseBlockReason = `O preço introdutório da App Store diverge do valor esperado (${IOS_BRAZIL_PLAN_PRICE_REFERENCE.mensal.introductoryPrice}). A compra fica bloqueada até corrigir a oferta no App Store Connect.`
-    else if (offer.available && offer.eligibility === 'eligible' && (!monthlyPlan || !offer.complete || !validAppleIntro)) {
-      purchaseBlockReason = 'A Apple sinalizou uma condição promocional, mas não forneceu todos os termos para conferir o valor. Nenhuma compra será iniciada.'
-    }
+    const purchaseBlockReason = product && rawDisplayPrice ? ''
+      : 'Este ciclo não foi carregado pela App Store. Atualize os planos antes de assinar.'
     const priceDescription = monthlyPlan
       ? (showIntro ? offer.terms : detail.cycleLabel)
       : detail.cycleLabel

@@ -34,12 +34,12 @@ test('An ineligible Apple Account sees the exact regular StoreKit price', () => 
   assert.equal(plan.renewalText, '')
 })
 
-test('Unknown eligibility cannot display a presumed regular charge as purchasable', () => {
+test('Unknown eligibility allows Apple to confirm the purchase terms', () => {
   const plan = card({ introductoryOfferEligible: undefined })
   assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
   assert.equal(plan.introStatus, 'unknown')
-  assert.equal(plan.purchaseAvailable, false)
-  assert.match(plan.purchaseBlockReason, /Apple ainda não confirmou/)
+  assert.equal(plan.purchaseAvailable, true)
+  assert.equal(plan.purchaseBlockReason, '')
 })
 
 test('If no introductory offer exists, the current Apple price remains purchasable', () => {
@@ -49,43 +49,43 @@ test('If no introductory offer exists, the current Apple price remains purchasab
   assert.equal(plan.purchaseAvailable, true)
 })
 
-test('A Brazilian recurring price different from the requested catalog is blocked, never substituted', () => {
+test('Apple recurring price remains purchasable when the local reference differs', () => {
   const plan = card({ displayPrice: 'R$ 12,90', priceAmount: '12.90', introductoryOfferAvailable: false })
-  assert.equal(plan.displayPrice, 'Preço não confirmado')
+  assert.equal(priceText(plan.displayPrice), 'R$ 12,90')
   assert.equal(plan.recurringPriceMismatch, true)
-  assert.equal(plan.purchaseAvailable, false)
-  assert.match(plan.purchaseBlockReason, /R\$ 49,90/)
+  assert.equal(plan.purchaseAvailable, true)
+  assert.equal(plan.purchaseBlockReason, '')
 })
 
-test('The Brazilian interface never shows or opens a USD quote', () => {
+test('Apple storefront currency remains purchasable in a Portuguese interface', () => {
   const plan = card({ displayPrice: 'US$ 49.90', priceAmount: '49.90', introductoryDisplayPrice: 'US$ 9.90', currencyCode: 'USD', storefrontCountryCode: 'USA' })
-  assert.equal(plan.displayPrice, 'Preço não confirmado')
+  assert.equal(priceText(plan.displayPrice), 'US$ 9,90')
   assert.equal(plan.currencyMismatch, true)
-  assert.equal(plan.purchaseAvailable, false)
-  assert.doesNotMatch(plan.displayPrice, /\$|USD/)
+  assert.equal(plan.purchaseAvailable, true)
+  assert.match(plan.displayPrice, /US\$/)
 })
 
-test('An unexpected introductory amount is blocked before purchase', () => {
+test('Apple introductory amount is displayed without enforcing local reference', () => {
   const plan = card({ introductoryPriceAmount: '1.99', introductoryDisplayPrice: '$1.99' })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
-  assert.equal(plan.introAppliedToDisplay, false)
+  assert.equal(priceText(plan.displayPrice), 'R$ 1,99')
+  assert.equal(plan.introAppliedToDisplay, true)
   assert.equal(plan.introductoryPriceMismatch, true)
-  assert.equal(plan.purchaseAvailable, false)
-  assert.match(plan.purchaseBlockReason, /R\$ 9,90/)
+  assert.equal(plan.purchaseAvailable, true)
+  assert.equal(plan.purchaseBlockReason, '')
 })
 
-test('Unknown currency metadata does not fall back to a reference amount', () => {
+test('Missing currency metadata preserves Apple display price and opens confirmation', () => {
   const plan = card({ displayPrice: '49.90', currencyCode: '', storefrontCountryCode: '' })
-  assert.equal(plan.displayPrice, 'Preço não confirmado')
-  assert.equal(plan.purchaseAvailable, false)
+  assert.equal(plan.displayPrice, '49.90')
+  assert.equal(plan.purchaseAvailable, true)
 })
 
-test('Incomplete eligible-offer terms are blocked until StoreKit provides a matching quote', () => {
+test('Incomplete offer terms do not block Apple purchase confirmation', () => {
   for (const override of [{ introductoryPeriodValue: undefined }, { introductoryPeriodUnit: '' }, { introductoryPeriodCount: 0 }, { introductoryPaymentMode: 'unknown' }]) {
     const plan = card({ introductoryOfferEligible: true, ...override })
     assert.equal(plan.introAppliedToDisplay, false)
     assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
-    assert.equal(plan.purchaseAvailable, false)
+    assert.equal(plan.purchaseAvailable, true)
   }
 })
 

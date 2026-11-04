@@ -230,7 +230,7 @@ export default function NativeIosSubscriptionPanel({
   }
 
   return (
-    <section className="native-ios-subscription-panel subscription-workspace native-ios-subscription-screen" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-21">
+    <section className="native-ios-subscription-panel subscription-workspace native-ios-subscription-screen" aria-label="Minha assinatura pela App Store" data-subscription-ui="build-22">
       <header className="subscription-brand-row" aria-label="Marca Coach Fit Pro">
         <div className="subscription-brand-lockup"><img src="/assets/fit-coach-logo.png" alt="Coach Fit Pro" /></div>
         <span>Área profissional</span>
