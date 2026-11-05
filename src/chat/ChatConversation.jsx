@@ -4,8 +4,11 @@ import { ChatSafetyMenu, ChatSafetyReportDialog } from './ChatSafetyControls'
 import { AttachmentMessage } from './AttachmentMessage'
 import { ChatComposer } from './ChatComposer'
 import { ChatHeader } from './ChatHeader'
+import { ChatPushControl } from './ChatPushControl'
 import { ChatMessageList } from './ChatTimeline'
 import { getChatViewportMetrics } from './chatViewportModel'
+
+const MIN_VALID_CHAT_VIEWPORT_HEIGHT = 160
 
 function useChatVisualViewport() {
   useEffect(() => {
@@ -14,31 +17,64 @@ function useChatVisualViewport() {
     const viewport = window.visualViewport
     let frameId = 0
     let settleTimer = 0
-    let baselineHeight = Math.max(
+    const initialHeight = Math.max(
       Number(window.innerHeight) || 0,
       (Number(viewport?.height) || 0) + Math.max(Number(viewport?.offsetTop) || 0, 0),
     )
+    let baselineHeight = initialHeight
+    let lastValidHeight = initialHeight
+    let keyboardPinned = false
 
-    const hasTextInputFocus = () => {
+    const hasChatComposerFocus = () => {
       const active = document.activeElement
-      if (!active) return false
+      if (!active?.closest?.('.chat-compose')) return false
       return active.matches?.('textarea, input:not([type="button"]):not([type="submit"]):not([type="file"]), [contenteditable="true"]') || false
     }
 
     const applyMetrics = () => {
       frameId = 0
-      const visualExtent = (Number(viewport?.height) || 0) + Math.max(Number(viewport?.offsetTop) || 0, 0)
-      if (!hasTextInputFocus()) baselineHeight = Math.max(Number(window.innerHeight) || 0, visualExtent)
-      const { height, offsetTop, keyboardHeight, keyboardOpen } = getChatViewportMetrics({
+      const visualHeight = Number(viewport?.height) || Number(window.innerHeight) || 0
+      const visualExtent = visualHeight + Math.max(Number(viewport?.offsetTop) || 0, 0)
+      const composerFocused = hasChatComposerFocus()
+      const metrics = getChatViewportMetrics({
         visualViewport: viewport,
         innerHeight: window.innerHeight,
         baselineHeight,
       })
 
-      if (height > 0) root.style.setProperty('--chat-pro-visual-height', `${height}px`)
-      root.style.setProperty('--chat-pro-visual-offset-top', `${offsetTop}px`)
-      root.style.setProperty('--chat-pro-keyboard-height', `${keyboardHeight}px`)
-      root.classList.toggle('chat-keyboard-open', keyboardOpen)
+      if (!composerFocused && metrics.keyboardHeight < 120 && visualExtent > 0) {
+        baselineHeight = Math.max(Number(window.innerHeight) || 0, visualExtent)
+      }
+
+      const { height, offsetTop, keyboardHeight } = getChatViewportMetrics({
+        visualViewport: viewport,
+        innerHeight: window.innerHeight,
+        baselineHeight,
+      })
+      const keyboardOpen = composerFocused && keyboardHeight >= 120
+      keyboardPinned = keyboardOpen || (keyboardPinned && keyboardHeight >= 120)
+
+      let stableHeight = height
+      if (stableHeight >= MIN_VALID_CHAT_VIEWPORT_HEIGHT) {
+        lastValidHeight = stableHeight
+      } else {
+        const estimatedHeight = Math.max(
+          MIN_VALID_CHAT_VIEWPORT_HEIGHT,
+          Math.min(baselineHeight || lastValidHeight, (baselineHeight || lastValidHeight) - keyboardHeight),
+        )
+        stableHeight = lastValidHeight >= MIN_VALID_CHAT_VIEWPORT_HEIGHT ? lastValidHeight : estimatedHeight
+      }
+
+      if (stableHeight > 0) root.style.setProperty('--chat-pro-visual-height', `${Math.round(stableHeight)}px`)
+      root.style.setProperty('--chat-pro-visual-offset-top', `${Math.max(0, Math.round(offsetTop))}px`)
+      root.style.setProperty('--chat-pro-keyboard-height', `${keyboardPinned ? keyboardHeight : 0}px`)
+      root.classList.toggle('chat-keyboard-open', keyboardPinned)
+
+      if (!composerFocused && keyboardHeight < 120 && keyboardPinned) {
+        keyboardPinned = false
+        root.style.setProperty('--chat-pro-keyboard-height', '0px')
+        root.classList.remove('chat-keyboard-open')
+      }
     }
 
     const updateMetrics = () => {
@@ -56,6 +92,7 @@ function useChatVisualViewport() {
     viewport?.addEventListener('resize', updateMetrics)
     viewport?.addEventListener('scroll', updateMetrics)
     window.addEventListener('resize', updateMetrics)
+    window.addEventListener('orientationchange', updateAfterKeyboardTransition)
     document.addEventListener('focusin', updateAfterKeyboardTransition)
     document.addEventListener('focusout', updateAfterKeyboardTransition)
     return () => {
@@ -64,6 +101,7 @@ function useChatVisualViewport() {
       viewport?.removeEventListener('resize', updateMetrics)
       viewport?.removeEventListener('scroll', updateMetrics)
       window.removeEventListener('resize', updateMetrics)
+      window.removeEventListener('orientationchange', updateAfterKeyboardTransition)
       document.removeEventListener('focusin', updateAfterKeyboardTransition)
       document.removeEventListener('focusout', updateAfterKeyboardTransition)
       root.style.removeProperty('--chat-pro-visual-height')
@@ -170,6 +208,7 @@ export function ChatConversation({
     >
       <ChatHeader contact={contact} onBack={onBack} Icon={Icon} actions={(
         <>
+          <ChatPushControl viewerRole={viewerRole} studentId={studentId} inviteCode={inviteCode} Icon={Icon} />
           {wallpaperAction}
           {safety.enabled ? (
             <ChatSafetyMenu key={conversationId}

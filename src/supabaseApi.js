@@ -880,6 +880,41 @@ export async function loadRemoteNotifications() {
   return rows.map(fromNotificationRow)
 }
 
+export async function getRemoteChatPushAvailability({ actorType, studentId = '', inviteCode = '' } = {}) {
+  return functionRequest('chat-push-device', {
+    action: 'status',
+    actorType,
+    studentId,
+    inviteCode,
+  })
+}
+
+export async function registerRemoteChatPushDevice({ token, actorType, studentId = '', inviteCode = '' } = {}) {
+  return functionRequest('chat-push-device', {
+    action: 'register',
+    token,
+    actorType,
+    studentId,
+    inviteCode,
+  })
+}
+
+export async function sendRemoteChatMessagePush({ messageId, actorType, inviteCode = '' } = {}) {
+  return functionRequest('chat-message-push', {
+    messageId,
+    actorType,
+    inviteCode,
+  })
+}
+
+export async function sendRemoteWorkoutCompletionPush({ workoutLogId, inviteCode = '' } = {}) {
+  if (!isUuid(workoutLogId) || !String(inviteCode || '').trim()) return null
+  return functionRequest('workout-completion-push', {
+    workoutLogId,
+    inviteCode: String(inviteCode).trim(),
+  })
+}
+
 export async function loadRemoteStudentMessages(studentId) {
   if (!isUuid(studentId)) return []
   return loadRemoteMessages(studentId)
@@ -964,6 +999,18 @@ export async function saveRemoteStudent(student, coachId) {
 
   const saved = rows?.[0]
   if (!saved?.id) throw new Error('O Supabase não confirmou o cadastro do aluno.')
+  return fromStudentRow(saved)
+}
+
+export async function updateRemoteStudentWorkoutFinishPreference(studentId, enabled, coachId) {
+  if (!isUuid(studentId)) throw new Error('Aluno inválido para atualizar as notificações de treino.')
+  const ownerId = requireCoachId(coachId)
+  const rows = await request(`students?id=eq.${studentId}&coach_id=eq.${ownerId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ notify_coach_on_workout_finish: enabled !== false }),
+  })
+  const saved = rows?.[0]
+  if (!saved?.id) throw new Error('O Supabase não confirmou a preferência de notificação deste aluno.')
   return fromStudentRow(saved)
 }
 
@@ -1903,14 +1950,20 @@ export async function saveRemoteMessage(message) {
   const body = message.body?.trim() || (attachmentUrl ? (attachmentType.startsWith('audio/') ? 'Áudio enviado' : 'Foto enviada') : '')
 
   if (message.inviteCode && message.sender === 'student') {
-    const result = await rpcRequest('submit_student_message', {
-      invite_code: message.inviteCode,
-      message_body: body,
-      attachment_url: attachmentUrl || null,
-      attachment_type: attachmentType || null,
-      attachment_name: attachmentName || null,
-      client_message_id: message.clientMessageId || null,
-    })
+    const result = message.messageKind === 'workout_completion'
+      ? await rpcRequest('submit_student_workout_completion_message', {
+        invite_code: message.inviteCode,
+        message_body: body,
+        client_message_id: message.clientMessageId || null,
+      })
+      : await rpcRequest('submit_student_message', {
+        invite_code: message.inviteCode,
+        message_body: body,
+        attachment_url: attachmentUrl || null,
+        attachment_type: attachmentType || null,
+        attachment_name: attachmentName || null,
+        client_message_id: message.clientMessageId || null,
+      })
     return hydrateMessageRow(Array.isArray(result) ? result[0] : result, { inviteCode: message.inviteCode })
   }
 
@@ -2202,6 +2255,7 @@ function fromStudentRow(row, avatarUrl = '') {
     workout: row.workout ?? '',
     lastMessage: row.last_message ?? '',
     requireAnamnesis: row.require_anamnesis !== false,
+    notifyCoachOnWorkoutFinish: row.notify_coach_on_workout_finish !== false,
     accessOverrideUntil: row.access_override_until ?? '',
     loadNotes: row.load_notes ?? '',
     waterGoalMl: row.water_goal_ml ?? '',
@@ -2238,6 +2292,7 @@ function toStudentRow(student, coachId) {
     workout: student.workout,
     last_message: student.lastMessage,
     require_anamnesis: student.requireAnamnesis !== false,
+    notify_coach_on_workout_finish: student.notifyCoachOnWorkoutFinish !== false,
     access_override_until: student.accessOverrideUntil || null,
     load_notes: student.loadNotes || null,
     water_goal_ml: nullableNumber(student.waterGoalMl),
@@ -2624,6 +2679,7 @@ function fromMessageRow(row) {
     coachId: row.coach_id,
     studentId: row.student_id,
     sender: row.sender ?? 'coach',
+    messageKind: row.message_kind ?? 'chat',
     body: deletedAt ? 'Mensagem apagada' : (row.body ?? ''),
     read: Boolean(row.read),
     attachmentUrl: deletedAt ? '' : (row.attachment_url ?? ''),

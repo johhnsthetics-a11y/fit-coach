@@ -12,7 +12,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.5.3"),
-        .package(name: "CoachfitStorekit", path: "../../../node_modules/.pnpm/@coachfit+storekit@file+plugins+coachfit-storekit_@capacitor+core@8.5.3/node_modules/@coachfit/storekit")
+        .package(name: "CoachfitStorekit", path: "../../../node_modules/.pnpm/@coachfit+storekit@file+plugins+coachfit-storekit_@capacitor+core@8.5.3/node_modules/@coachfit/storekit"),
+        .package(name: "CapacitorPushNotifications", path: "../../../node_modules/.pnpm/@capacitor+push-notifications@8.1.3_@capacitor+core@8.5.3/node_modules/@capacitor/push-notifications")
     ],
     targets: [
         .target(
@@ -20,7 +21,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
-                .product(name: "CoachfitStorekit", package: "CoachfitStorekit")
+                .product(name: "CoachfitStorekit", package: "CoachfitStorekit"),
+                .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications")
             ]
         )
     ]

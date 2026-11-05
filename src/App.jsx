@@ -91,6 +91,8 @@ import {
   saveRemoteWorkoutRating,
   saveRemoteStudentMealLog,
   saveRemoteWorkoutSession,
+  sendRemoteChatMessagePush,
+  sendRemoteWorkoutCompletionPush,
   setSupabaseSession,
   signInCoach,
   signOutCoach,
@@ -102,11 +104,17 @@ import {
   updateRemoteInvoiceStatus,
   updateRemoteCheckinState,
   updateRemotePayment,
+  updateRemoteStudentWorkoutFinishPreference,
   updateRecoveredPassword,
   uploadRemoteProfessionalAvatar,
   uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
+import {
+  addChatPushActionListener,
+  consumePendingChatPushAction,
+  storePendingChatPushAction,
+} from './chat/chatPushNotifications'
 import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import {
@@ -189,7 +197,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'subscription-clean-copy-build21-20261104'
+const COACH_FIT_PRO_BUILD_MARKER = 'notifications-message-fix-build27-20261105'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -2184,6 +2192,30 @@ function AppContent() {
   }, [activeView, nutritionDraftDirty, setActiveViewSafely])
 
   useEffect(() => {
+    let mounted = true
+    let listener = null
+    addChatPushActionListener((payload) => {
+      if (payload?.recipientRole === 'student') {
+        storePendingChatPushAction(payload)
+        return
+      }
+      if (payload?.recipientRole === 'coach' && payload?.studentId) {
+        openStudentConversation(payload.studentId)
+      }
+    }).then((handle) => {
+      if (!mounted) {
+        void handle?.remove().catch(() => undefined)
+        return
+      }
+      listener = handle
+    }).catch(() => undefined)
+    return () => {
+      mounted = false
+      if (listener) void listener.remove().catch(() => undefined)
+    }
+  }, [openStudentConversation])
+
+  useEffect(() => {
     if (data.session?.access_token) {
       setSupabaseSession(data.session.access_token)
     }
@@ -2729,10 +2761,17 @@ function AppContent() {
         if (!active) return
         const nextMessages = mergeRecords(previousMessages, latestMessages)
         const navigation = coachNavigationRef.current
+        const previousMessageIds = new Set((previousMessages ?? []).map((message) => String(message?.id || '')))
         const incomingMessage = inviteCode ? null : findLatestIncomingStudentMessage(previousMessages, nextMessages, {
           activeView: navigation.activeView,
           activeStudentId: navigation.selectedStudentId,
         })
+        const incomingWorkoutCompletion = !inviteCode && nextMessages.some((message) => (
+          message?.sender === 'student'
+          && message?.messageKind === 'workout_completion'
+          && message?.id
+          && !previousMessageIds.has(String(message.id))
+        ))
         messageSnapshotRef.current = nextMessages
         setChatSyncError('')
         setData((current) => ({ ...current, messages: mergeRecords(current.messages, latestMessages) }))
@@ -2740,19 +2779,21 @@ function AppContent() {
           setStudentAccess((current) => current?.invite?.code === inviteCode
             ? { ...current, messages: mergeRecords(current.messages, latestMessages) }
             : current)
-        } else if (incomingMessage) {
-          const alert = buildIncomingMessageAlert(
-            incomingMessage,
-            coachAudienceRef.current.students,
-            { professionalType: coachAudienceRef.current.professionalType },
-          )
-          if (alert) {
-            setIncomingMessageAlert(alert)
-            const notificationUrl = `${window.location.pathname}?area=mensagens&student=${encodeURIComponent(alert.studentId)}`
-            sendLocalNotification(alert.title, alert.body, {
-              tag: `student-message-${alert.id}`,
-              data: { url: notificationUrl, studentId: alert.studentId },
-            }).catch(() => false)
+        } else if (incomingMessage || incomingWorkoutCompletion) {
+          if (incomingMessage) {
+            const alert = buildIncomingMessageAlert(
+              incomingMessage,
+              coachAudienceRef.current.students,
+              { professionalType: coachAudienceRef.current.professionalType },
+            )
+            if (alert) {
+              setIncomingMessageAlert(alert)
+              const notificationUrl = `${window.location.pathname}?area=mensagens&student=${encodeURIComponent(alert.studentId)}`
+              sendLocalNotification(alert.title, alert.body, {
+                tag: `student-message-${alert.id}`,
+                data: { url: notificationUrl, studentId: alert.studentId },
+              }).catch(() => false)
+            }
           }
           loadRemoteNotifications().then((notifications) => {
             if (active) setData((current) => ({ ...current, notifications }))
@@ -3112,6 +3153,22 @@ function AppContent() {
     })
     setSelectedStudentId(savedStudent.id)
     return { student: savedStudent, invite: null, invitePromise }
+  }
+
+  async function updateStudentWorkoutFinishPreference(studentId, enabled) {
+    const currentStudent = data.students.find((item) => sameId(item.id, studentId))
+    if (!currentStudent) throw new Error('Selecione um aluno válido.')
+    let savedStudent = { ...currentStudent, notifyCoachOnWorkoutFinish: Boolean(enabled) }
+    if (supabaseEnabled) {
+      savedStudent = await updateRemoteStudentWorkoutFinishPreference(studentId, enabled, activeCoachId)
+      setRemoteStatus('Preferência de notificação atualizada')
+      setRemoteError('')
+    }
+    setData((current) => ({
+      ...current,
+      students: current.students.map((item) => sameId(item.id, savedStudent.id) ? savedStudent : item),
+    }))
+    return savedStudent
   }
 
   async function importStudents(rows) {
@@ -3739,6 +3796,10 @@ function AppContent() {
       workoutLogs: [savedLog, ...(current.workoutLogs ?? []).filter((item) => !sameId(item.id, savedLog.id))],
     }))
 
+    if (supabaseEnabled && log.inviteCode && savedLog?.id) {
+      void sendRemoteWorkoutCompletionPush({ workoutLogId: savedLog.id, inviteCode: log.inviteCode }).catch(() => undefined)
+    }
+
     return savedLog
   }
 
@@ -3760,6 +3821,10 @@ function AppContent() {
       ...current,
       workoutLogs: [savedLog, ...(current.workoutLogs ?? []).filter((item) => !sameId(item.id, savedLog.id))],
     }))
+
+    if (supabaseEnabled && log.inviteCode && savedLog?.id) {
+      void sendRemoteWorkoutCompletionPush({ workoutLogId: savedLog.id, inviteCode: log.inviteCode }).catch(() => undefined)
+    }
 
     return savedLog
   }
@@ -4079,6 +4144,10 @@ function AppContent() {
       deliveryState: 'sending',
       createdAt: new Date().toISOString(),
     }
+    const workoutCompletionEvent = localMessage.messageKind === 'workout_completion'
+    const shouldCreateLocalNotification = localMessage.sender === 'student'
+      && !supabaseEnabled
+      && !(workoutCompletionEvent && message.notifyCoachOnWorkoutFinish === false)
 
     setData((current) => {
       const existing = (current.messages ?? []).some((item) => String(item.id) === String(clientMessageId))
@@ -4096,7 +4165,7 @@ function AppContent() {
       try {
         const remoteMessage = await saveRemoteMessage(localMessage)
         if (requestId !== portalRequestRef.current) throw new Error('Sua sessão mudou. Entre novamente antes de enviar mensagens.')
-        savedMessage = { ...remoteMessage, clientMessageId, deliveryState: 'sent' }
+        savedMessage = { ...remoteMessage, clientMessageId, messageKind: localMessage.messageKind, deliveryState: 'sent' }
         setRemoteStatus('Mensagem enviada')
         setRemoteError('')
       } catch (error) {
@@ -4126,21 +4195,29 @@ function AppContent() {
           ? { ...student, lastMessage: savedMessage.body }
           : student
       )),
-      notifications: savedMessage.sender === 'student' && !supabaseEnabled
+      notifications: shouldCreateLocalNotification
         ? [
           {
             id: Date.now() + 1,
-            title: 'Nova mensagem recebida',
+            title: workoutCompletionEvent ? 'Treino encerrado' : 'Nova mensagem recebida',
             body: savedMessage.body,
             read: false,
             studentId: savedMessage.studentId,
-            eventType: 'student_message',
+            eventType: workoutCompletionEvent ? 'student_workout_finished' : 'student_message',
             entityId: savedMessage.id,
           },
           ...current.notifications,
         ]
         : current.notifications,
     }))
+
+    if (supabaseEnabled && savedMessage?.id && ['coach', 'student'].includes(savedMessage.sender) && !workoutCompletionEvent) {
+      void sendRemoteChatMessagePush({
+        messageId: savedMessage.id,
+        actorType: savedMessage.sender,
+        inviteCode: message.inviteCode || '',
+      }).catch(() => undefined)
+    }
 
     if (
       supabaseEnabled
@@ -4872,6 +4949,7 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentIdSafely}
                 onSave={saveStudent}
+                onUpdateWorkoutFinishPreference={updateStudentWorkoutFinishPreference}
                 onImport={importStudents}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateCredentials={generateStudentCredentials}
@@ -7591,7 +7669,7 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onUpdateWorkoutFinishPreference, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
   const [studentSection, setStudentSection] = useState('wallet')
   const [walletMobileView, setWalletMobileView] = useState('list')
   const [editing, setEditing] = useState(null)
@@ -7601,6 +7679,8 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const [deletingStudentId, setDeletingStudentId] = useState('')
   const [walletFeedback, setWalletFeedback] = useState(null)
   const [deleteError, setDeleteError] = useState('')
+  const [workoutNotificationSaving, setWorkoutNotificationSaving] = useState(false)
+  const [workoutNotificationError, setWorkoutNotificationError] = useState('')
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
   const [accessError, setAccessError] = useState('')
   const [generatedCredentials, setGeneratedCredentials] = useState(null)
@@ -7622,7 +7702,21 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     setGeneratedCredentials(null)
     setCredentialsMessage('')
     setAnamnesisEditorOpen(false)
+    setWorkoutNotificationError('')
   }, [selectedStudent?.id])
+
+  async function updateWorkoutFinishPreference(enabled) {
+    if (!selectedStudent || !onUpdateWorkoutFinishPreference || workoutNotificationSaving) return
+    setWorkoutNotificationSaving(true)
+    setWorkoutNotificationError('')
+    try {
+      await onUpdateWorkoutFinishPreference(selectedStudent.id, Boolean(enabled))
+    } catch (error) {
+      setWorkoutNotificationError(error?.message || 'Não foi possível atualizar os avisos deste aluno.')
+    } finally {
+      setWorkoutNotificationSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (!anamnesisEditorOpen) return undefined
@@ -7955,6 +8049,26 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                   availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: selectedStudent.billingCycle || 'mensal' }]}
                   payment={selectedStudent.payment}
                 />
+                {!nutritionist ? (
+                  <section className="student-wallet-access-panel student-workout-notification-preference" aria-label={`Avisos de treino para ${selectedStudent.name}`}>
+                    <div className="student-workout-notification-preference__copy">
+                      <p>Notificação de treino</p>
+                      <span>Avise-me quando este aluno encerrar uma sessão de treino.</span>
+                      <small>{workoutNotificationSaving ? 'Salvando preferência…' : 'O aviso chega aos dispositivos do treinador com notificações autorizadas.'}</small>
+                    </div>
+                    <div className="student-workout-notification-preference__control">
+                      <span>{selectedStudent.notifyCoachOnWorkoutFinish !== false ? 'Ativa' : 'Desativada'}</span>
+                      <button type="button" role="switch" aria-checked={selectedStudent.notifyCoachOnWorkoutFinish !== false}
+                        aria-label={`Notificar quando ${selectedStudent.name} encerrar um treino`}
+                        className="student-workout-notification-switch"
+                        disabled={workoutNotificationSaving || !onUpdateWorkoutFinishPreference}
+                        onClick={() => updateWorkoutFinishPreference(selectedStudent.notifyCoachOnWorkoutFinish === false)}>
+                        <span className="student-workout-notification-switch__track" aria-hidden="true"><span /></span>
+                      </button>
+                    </div>
+                    {workoutNotificationError ? <strong className="student-wallet-inline-error" role="alert">{workoutNotificationError}</strong> : null}
+                  </section>
+                ) : null}
                 <div className="student-wallet-detail-grid">
                   <StudentWalletDetailSection
                     title="Cadastro e contato"
@@ -18571,7 +18685,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
   ), [inviteCode])
 
   function sendStudentMessage(message) {
-    return onSendMessage({ ...message, inviteCode })
+    return onSendMessage({ ...message, inviteCode, notifyCoachOnWorkoutFinish: student.notifyCoachOnWorkoutFinish !== false })
   }
 
   async function createStudentActivationCheckout() {
@@ -18777,6 +18891,34 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   useEffect(() => {
     setActiveTab(resolveStudentPortalTab(professionalType, getInitialStudentTab(student?.id)))
   }, [professionalType, student?.id])
+
+  useEffect(() => {
+    let mounted = true
+    let listener = null
+    const openMessagesFromPush = () => {
+      if (activeTab !== 'mensagens') previousStudentTabRef.current = activeTab || 'inicio'
+      setWorkoutPage('main')
+      setActiveTab('mensagens')
+      setMenuOpen(false)
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+    if (consumePendingChatPushAction('student', student?.id)) openMessagesFromPush()
+    addChatPushActionListener((payload) => {
+      if (payload?.recipientRole !== 'student' || String(payload?.studentId || '') !== String(student?.id || '')) return
+      storePendingChatPushAction(payload)
+      if (consumePendingChatPushAction('student', student?.id)) openMessagesFromPush()
+    }).then((handle) => {
+      if (!mounted) {
+        void handle?.remove().catch(() => undefined)
+        return
+      }
+      listener = handle
+    }).catch(() => undefined)
+    return () => {
+      mounted = false
+      if (listener) void listener.remove().catch(() => undefined)
+    }
+  }, [activeTab, student?.id])
 
   useEffect(() => {
     persistStudentTab(student?.id, activeTab)
@@ -19007,6 +19149,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       await onSendMessage?.({
         studentId: student.id,
         sender: 'student',
+        messageKind: 'workout_completion',
         body: `${student.name} concluiu o treino ${log.title}. Esforço: ${log.effort}.${log.notes ? ` Observação: ${log.notes}` : ''}`,
       }).catch(() => {})
     }
@@ -19029,6 +19172,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     await onSendMessage?.({
       studentId: student.id,
       sender: 'student',
+      messageKind: 'workout_completion',
       body: `${student.name} encerrou o treino ${log.title}. O progresso realizado até aqui foi mantido.`,
     }).catch(() => {})
     setWorkoutStartedAt(null)
@@ -24962,6 +25106,7 @@ function createBlankStudent() {
     workout: '',
     lastMessage: 'Cadastro concluído. Acompanhamento aguardando configuração.',
     requireAnamnesis: true,
+    notifyCoachOnWorkoutFinish: true,
     accessOverrideUntil: '',
     loadNotes: '',
     waterGoalMl: '2500',

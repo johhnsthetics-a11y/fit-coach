@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-subscription-clean-copy-build21-20261104'
+const CACHE_NAME = 'coach-fit-pro-notifications-message-fix-build27-20261105'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 // Older Coach Fit Pro cache names predating the coach-fit-pro- prefix.
 const LEGACY_APP_CACHES = new Set(['fit-coach-app-v2'])
