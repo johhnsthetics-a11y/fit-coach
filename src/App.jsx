@@ -3029,22 +3029,49 @@ function AppContent() {
     const studentId = student.id || Date.now()
     const isNewStudent = !student.id
     let savedStudent = { ...student, id: studentId }
-    let createdInvite = null
+    let invitePromise = null
+    const notificationId = Date.now() + 1
 
     if (supabaseEnabled) {
       try {
         savedStudent = await saveRemoteStudent(student, activeCoachId)
+        setRemoteStatus(isNewStudent ? 'Aluno cadastrado' : 'Supabase conectado')
+        setRemoteError('')
         if (isNewStudent) {
-          try {
-            createdInvite = await createRemoteStudentInvite(savedStudent.id, activeCoachId)
-          } catch (inviteError) {
-            setRemoteStatus('Aluno salvo, mas o código não foi gerado')
-            setRemoteError(inviteError.message)
-          }
-        }
-        if (createdInvite || !isNewStudent) {
-          setRemoteStatus('Supabase conectado')
-          setRemoteError('')
+          // The student row is now saved. Finish the screen immediately and
+          // prepare the invite in the background; a brand-new student cannot
+          // already have an active invite, so skip the redundant lookup.
+          invitePromise = createRemoteStudentInvite(savedStudent.id, activeCoachId, { skipActiveInviteLookup: true })
+            .then((createdInvite) => {
+              setRemoteStatus('Supabase conectado')
+              setRemoteError('')
+              setData((current) => ({
+                ...current,
+                invites: [
+                  createdInvite,
+                  ...(current.invites ?? []).filter((invite) => String(invite.id) !== String(createdInvite.id)),
+                ],
+                notifications: (current.notifications ?? []).map((notification) => (
+                  String(notification.id) === String(notificationId)
+                    ? { ...notification, body: `${student.name} - código ${createdInvite.code}` }
+                    : notification
+                )),
+              }))
+              return createdInvite
+            })
+            .catch((inviteError) => {
+              setRemoteStatus('Aluno salvo, mas o código não foi gerado')
+              setRemoteError(inviteError.message)
+              setData((current) => ({
+                ...current,
+                notifications: (current.notifications ?? []).map((notification) => (
+                  String(notification.id) === String(notificationId)
+                    ? { ...notification, body: `${student.name} cadastrado. Gere o acesso pela ficha do aluno.` }
+                    : notification
+                )),
+              }))
+              return null
+            })
         }
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar aluno')
@@ -3066,7 +3093,6 @@ function AppContent() {
       return {
         ...current,
         students,
-        invites: createdInvite ? [createdInvite, ...(current.invites ?? [])] : current.invites ?? [],
         notifications: [
           ...(planChanged ? [{
             id: Date.now() + 2,
@@ -3075,9 +3101,9 @@ function AppContent() {
             read: false,
           }] : []),
           {
-            id: Date.now() + 1,
+            id: notificationId,
             title: exists ? 'Aluno atualizado' : 'Aluno cadastrado',
-            body: createdInvite ? `${student.name} - código ${createdInvite.code}` : student.name,
+            body: isNewStudent && supabaseEnabled ? `${student.name} cadastrado. Preparando acesso.` : student.name,
             read: false,
           },
           ...current.notifications,
@@ -3085,7 +3111,7 @@ function AppContent() {
       }
     })
     setSelectedStudentId(savedStudent.id)
-    return { student: savedStudent, invite: createdInvite }
+    return { student: savedStudent, invite: null, invitePromise }
   }
 
   async function importStudents(rows) {
@@ -3222,11 +3248,11 @@ function AppContent() {
   }
 
   async function deleteStudent(studentId) {
+    let cleanupWarning = ''
     if (supabaseEnabled) {
       try {
-        await deleteRemoteStudent(studentId)
-        setRemoteStatus('Aluno excluído')
-        setRemoteError('')
+        const result = await deleteRemoteStudent(studentId)
+        cleanupWarning = result?.cleanupWarning || ''
       } catch (error) {
         handleRemoteError(error, 'Erro ao excluir aluno')
         throw error
@@ -3254,6 +3280,9 @@ function AppContent() {
     }))
     const remainingStudents = data.students.filter((student) => String(student.id) !== String(studentId))
     setSelectedStudentId(remainingStudents[0]?.id ?? null)
+    setRemoteStatus(cleanupWarning ? 'Aluno excluído; limpeza de fotos pendente' : 'Aluno excluído')
+    setRemoteError(cleanupWarning)
+    return { cleanupWarning }
   }
 
   async function addCheckin(checkin) {
@@ -7569,6 +7598,9 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [deletingStudentId, setDeletingStudentId] = useState('')
+  const [walletFeedback, setWalletFeedback] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
   const [accessError, setAccessError] = useState('')
   const [generatedCredentials, setGeneratedCredentials] = useState(null)
@@ -7577,8 +7609,12 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const appLoginUrl = OFFICIAL_APP_LOGIN_URL
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
-  const visibleStudents = useMemo(() => filterStudents(students, studentSearch), [students, studentSearch])
-  const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
+  const displayedStudents = useMemo(
+    () => students.filter((student) => String(student.id) !== deletingStudentId),
+    [students, deletingStudentId],
+  )
+  const visibleStudents = useMemo(() => filterStudents(displayedStudents, studentSearch), [displayedStudents, studentSearch])
+  const ranking = buildCoachStudentRanking(displayedStudents, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
   useEffect(() => {
@@ -7655,29 +7691,57 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   }
 
   function handleWalletStudentSelect(studentId) {
+    setWalletFeedback(null)
+    setDeleteError('')
     setSelectedStudentId(studentId)
     setEditing(null)
     setWalletMobileView('detail')
   }
 
   function handleCreateStudent() {
+    setWalletFeedback(null)
+    setDeleteError('')
     setEditing(createBlankStudent())
     setWalletMobileView('detail')
   }
 
+  async function copyStudentInviteCode(code) {
+    const inviteUrl = new URL(window.location.pathname, window.location.origin)
+    inviteUrl.searchParams.set('invite', code)
+    try {
+      await navigator.clipboard.writeText(inviteUrl.toString())
+      setWalletFeedback((current) => current?.inviteCode === code
+        ? { ...current, copyMessage: 'Link do aluno copiado.' }
+        : current)
+    } catch {
+      setWalletFeedback((current) => current?.inviteCode === code
+        ? { ...current, copyMessage: 'Não foi possível copiar automaticamente. Copie o código exibido.' }
+        : current)
+    }
+  }
+
   async function deleteSelectedStudent() {
     if (!selectedStudent) return
-    const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
+    const studentToDelete = selectedStudent
+    const confirmed = window.confirm(`Excluir ${studentToDelete.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
     if (!confirmed) return
+    setDeletingStudentId(String(studentToDelete.id))
     setDeleting(true)
-    setAccessError('')
+    setDeleteError('')
+    setWalletFeedback({ status: 'pending', message: `Excluindo ${clientLabel} e registros vinculados…` })
+    setWalletMobileView('list')
     try {
-      await onDelete(selectedStudent.id)
-      setWalletMobileView('list')
+      const result = await onDelete(studentToDelete.id)
+      setWalletFeedback(result?.cleanupWarning
+        ? { status: 'warning', message: `${studentToDelete.name} foi excluído, mas a limpeza de algumas fotos não foi confirmada.` }
+        : { status: 'success', message: `${studentToDelete.name} foi excluído com sucesso.` })
     } catch (error) {
-      setAccessError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
+      setDeleteError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
+      setWalletFeedback({ status: 'error', message: `Não foi possível excluir ${studentToDelete.name}.` })
+      setWalletMobileView('detail')
     } finally {
       setDeleting(false)
+      setDeletingStudentId('')
     }
   }
 
@@ -7731,9 +7795,36 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       <div id="students-panel-wallet" role="tabpanel" aria-labelledby="students-tab-wallet" tabIndex={0} hidden={studentSection !== 'wallet'} className="student-wallet-workspace grid gap-4 lg:gap-6">
         <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
+        {walletFeedback ? (
+          <div
+            role={walletFeedback.status === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+            className={`flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
+              walletFeedback.status === 'error'
+                ? 'border-rose-300/25 bg-rose-400/10 text-rose-100'
+                : walletFeedback.status === 'warning'
+                  ? 'border-amber-300/25 bg-amber-400/10 text-amber-100'
+                  : walletFeedback.status === 'pending'
+                    ? 'border-sky-300/25 bg-sky-400/10 text-sky-100'
+                    : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+            }`}
+          >
+            <span className="min-w-0 font-semibold">{walletFeedback.message}</span>
+            {walletFeedback.inviteCode ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <code className="max-w-full break-all rounded-md bg-black/20 px-2 py-1 text-xs">{walletFeedback.inviteCode}</code>
+                <button type="button" onClick={() => copyStudentInviteCode(walletFeedback.inviteCode)} className="min-h-10 rounded-md border border-white/20 px-3 text-xs font-black hover:bg-white/10">
+                  {walletFeedback.copyMessage === 'Link do aluno copiado.' ? 'Link copiado' : 'Copiar link'}
+                </button>
+              </div>
+            ) : null}
+            {walletFeedback.copyMessage ? <span className="text-xs">{walletFeedback.copyMessage}</span> : null}
+          </div>
+        ) : null}
+
       <div className="student-wallet-columns" data-mobile-view={walletMobileView}>
         <aside className="student-wallet-directory" aria-label={nutritionist ? 'Lista de pacientes' : 'Lista de alunos'}>
-          <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
+          <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${displayedStudents.length}`}>
             <div className="student-wallet-directory__actions">
               <button type="button" onClick={handleCreateStudent} className="student-wallet-primary-action">
                 <NavIcon name="plus" className="h-4 w-4" />
@@ -7821,12 +7912,26 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                 onSaveCoachPlan={onSaveCoachPlan}
                 onCancel={() => setEditing(null)}
                 onSave={async (student) => {
-                  await onSave(student)
+                  const result = await onSave(student)
                   setEditing(null)
+                  const operationId = `${result?.student?.id || student.id || 'student'}-${Date.now()}`
+                  setWalletFeedback(result?.invitePromise
+                    ? { status: 'pending', message: `${student.name} cadastrado. Preparando o acesso…`, operationId }
+                    : { status: 'success', message: `${student.name} salvo com sucesso.` })
+                  if (result?.invitePromise) {
+                    result.invitePromise.then((invite) => {
+                      setWalletFeedback((current) => current?.operationId === operationId
+                        ? invite
+                          ? { status: 'success', message: `${student.name} cadastrado. Convite pronto:`, inviteCode: invite.code, operationId }
+                          : { status: 'warning', message: `${student.name} foi cadastrado, mas o acesso não ficou pronto. Gere-o pela ficha do aluno.`, operationId }
+                        : current)
+                    })
+                  }
                 }}
               />
             ) : selectedStudent ? (
               <>
+                {deleteError ? <p role="alert" className="mb-4 rounded-md border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-sm font-semibold text-rose-100">{deleteError}</p> : null}
                 <StudentSnapshot
                   student={selectedStudent}
                   actions={(
@@ -8171,7 +8276,7 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
   }
 
   return (
-    <form onSubmit={handleSubmit} className="workout-builder grid gap-4">
+    <form onSubmit={handleSubmit} className="workout-builder grid gap-4" aria-busy={saving}>
       <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-4 transition ${
         continuingStudent
           ? 'border-emerald-300/40 bg-emerald-300/10'
@@ -8312,12 +8417,17 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
 
         <StudentPlanPreview plan={activePlanPreview} availablePlans={planMode === 'new' ? [activePlanPreview] : coachPlans} />
       </div>
-      {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
+      {saving ? (
+        <p role="status" aria-live="polite" className="rounded-md border border-sky-300/25 bg-sky-400/10 p-3 text-sm font-semibold text-sky-100">
+          Salvando o cadastro com segurança. Esta tela será atualizada assim que o servidor confirmar.
+        </p>
+      ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
           {saving ? 'Salvando...' : nutritionist ? 'Salvar paciente' : 'Salvar aluno'}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+        <button type="button" disabled={saving} onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50">
           Cancelar
         </button>
       </div>

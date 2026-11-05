@@ -969,33 +969,39 @@ export async function saveRemoteStudent(student, coachId) {
 
 export async function deleteRemoteStudent(studentId) {
   if (!isUuid(studentId)) throw new Error('Aluno inválido para exclusão.')
-  const checkins = await request(
-    `checkins?student_id=eq.${studentId}&select=checkin_photos(storage_url)`,
-  )
+  const [checkins] = await Promise.all([
+    request(`checkins?student_id=eq.${studentId}&select=checkin_photos(storage_url)`),
+    // This cleanup does not depend on the check-in photo lookup. Run both
+    // preparations together to avoid serial network round trips.
+    functionRequest('meal-photo', { action: 'cleanup-student', studentId }),
+  ])
   const photoPaths = checkins.flatMap((checkin) => (
     (checkin.checkin_photos ?? []).map((photo) => photo.storage_url).filter(Boolean)
   ))
-
-  // Delete private meal photos first, using the professional JWT and
-  // server-side ownership validation, while student permissions still exist.
-  await functionRequest('meal-photo', { action: 'cleanup-student', studentId })
   const rows = await request(`students?id=eq.${studentId}`, { method: 'DELETE' })
   const deleted = rows?.[0]
   if (!deleted?.id) throw new Error('O Supabase não confirmou a exclusão do aluno.')
 
+  let cleanupWarning = ''
   if (photoPaths.length) {
-    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
-      method: 'DELETE',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ prefixes: photoPaths }),
-    })
-    if (!response.ok) {
-      const message = await response.text()
-      throw serviceError(response.status, message || 'Erro ao excluir fotos do aluno')
+    try {
+      const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
+        method: 'DELETE',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ prefixes: photoPaths }),
+      })
+      if (!response.ok) {
+        const message = await response.text()
+        throw serviceError(response.status, message || 'Erro ao excluir fotos do aluno')
+      }
+    } catch (error) {
+      // The student row is already deleted. Do not report the whole operation
+      // as failed and restore a profile that no longer exists in the database.
+      cleanupWarning = error?.message || 'Não foi possível remover todas as fotos do aluno.'
     }
   }
 
-  return fromStudentRow(deleted)
+  return { student: fromStudentRow(deleted), cleanupWarning }
 }
 
 export async function saveRemoteCheckin(checkin) {
@@ -1181,15 +1187,17 @@ export async function markRemoteNotificationsRead() {
   })
 }
 
-export async function createRemoteStudentInvite(studentId, coachId) {
+export async function createRemoteStudentInvite(studentId, coachId, { skipActiveInviteLookup = false } = {}) {
   const safeCoachId = requireCoachId(coachId)
-  const now = encodeURIComponent(new Date().toISOString())
-  const activeInvites = await request(
-    `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(safeCoachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
-  )
+  if (!skipActiveInviteLookup) {
+    const now = encodeURIComponent(new Date().toISOString())
+    const activeInvites = await request(
+      `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(safeCoachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
+    )
 
-  if (activeInvites[0]) {
-    return fromInviteRow(activeInvites[0])
+    if (activeInvites[0]) {
+      return fromInviteRow(activeInvites[0])
+    }
   }
 
   const code = createInviteCode()
