@@ -16,10 +16,14 @@ let server
 let App
 let getExerciseLibrary
 let getExercisePickerResults
+let filterMobileWorkouts
+let sortWorkoutsByUpdatedAt
 let getStudentWorkoutExercises
 let buildWorkoutStudentPreviewState
 let StudentWorkoutExecution
 let StudentMobileApp
+let TrainerExerciseLibrary
+let getExerciseLibrarySyncCopy
 let getExerciseFallbackImage
 let buildWorkoutCompletionPayload
 let buildWorkoutExecutionSummary
@@ -39,7 +43,8 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, StudentWorkoutProgress, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, buildStudentExerciseProgressModel, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, filterMobileWorkouts, sortWorkoutsByUpdatedAt, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, StudentWorkoutProgress, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, buildStudentExerciseProgressModel, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: TrainerExerciseLibrary, getExerciseLibrarySyncCopy } = await server.ssrLoadModule('/src/TrainerExerciseLibrary.jsx'))
 })
 
 test('evolucao dos exercicios usa apenas treinos concluidos do aluno e calcula volume real', () => {
@@ -253,6 +258,18 @@ test('rascunho persistido pode ser retomado sem ressuscitar treino arquivado', (
   assert.doesNotMatch(draftCards.join(''), /Treino Arquivado/)
 })
 
+test('busca e filtros de Planos incluem aluno e exercícios de rascunho local', () => {
+  const targetStudent = { id: 'student-filter', name: 'Mariana Silva' }
+  const localDraft = {
+    id: 'local-filtered-draft', studentId: targetStudent.id, title: 'Rascunho semanal', focus: 'Hipertrofia', status: 'Rascunho',
+    days: [{ day: 'Segunda-feira', exercises: [{ name: 'Levantamento terra' }] }],
+  }
+  assert.equal(filterMobileWorkouts([localDraft], 'Mariana', 'todos', [targetStudent]).length, 1)
+  assert.equal(filterMobileWorkouts([localDraft], 'Levantamento terra', 'todos', [targetStudent]).length, 1)
+  assert.equal(filterMobileWorkouts([localDraft], 'Mariana', 'publicado', [targetStudent]).length, 0)
+  assert.equal(filterMobileWorkouts([localDraft], 'não existe', 'todos', [targetStudent]).length, 0)
+})
+
 test('aluno escolhe entre vários treinos publicados na tela real', () => {
   const storage = new Map()
   globalThis.window = {
@@ -312,6 +329,68 @@ test('biblioteca real continua disponível quando a API retorna uma lista vazia'
   assert.ok(results.some((exercise) => exercise.name === 'Supino reto com barra'))
 })
 
+test('biblioteca do treinador separa objetivo, categoria, equipamento e fonte', () => {
+  const html = renderToString(React.createElement(TrainerExerciseLibrary, {
+    library: [
+      { name: 'Supino com halteres', group: 'Peito', equipment: 'Halteres', objective: 'Força', category: 'Composto' },
+      { name: 'Mobilidade de quadril', group: 'Quadril', equipment: 'Peso corporal', objective: 'Mobilidade', category: 'Aquecimento', isCustom: true, source: 'coach_custom' },
+      { name: 'Remada externa', group: 'Costas', equipment: 'Elástico', objective: 'Estabilidade', category: 'Preparação', provider: 'ascendapi', source: 'ascendapi' },
+    ],
+    syncStatus: { status: 'empty', remoteCount: 0 },
+  }))
+  const objectiveControl = html.match(/<label>Objetivo[\s\S]*?<\/label>/)?.[0] || ''
+  const categoryControl = html.match(/<label>Categoria[\s\S]*?<\/label>/)?.[0] || ''
+  const sourceControl = html.match(/<label>Origem[\s\S]*?<\/label>/)?.[0] || ''
+
+  assert.match(objectiveControl, /Força/)
+  assert.match(objectiveControl, /Mobilidade/)
+  assert.doesNotMatch(objectiveControl, /Composto|Aquecimento/)
+  assert.match(categoryControl, /Composto/)
+  assert.match(categoryControl, /Aquecimento/)
+  assert.doesNotMatch(categoryControl, /Força|Mobilidade/)
+  assert.match(html, /Equipamento/)
+  assert.match(html, /Coach Fit Pro/)
+  assert.match(html, /Meus exercícios/)
+  assert.match(sourceControl, /Coach Fit Pro/)
+  assert.match(sourceControl, /Ascendapi/)
+  assert.match(sourceControl, /Meus exercícios/)
+})
+
+test('biblioteca distingue sincronizado, remoto vazio, indisponível e erro com fallback verdadeiro', () => {
+  assert.match(getExerciseLibrarySyncCopy({ status: 'ready', remoteCount: 2 }, 92).title, /remoto disponível/)
+  assert.match(getExerciseLibrarySyncCopy({ status: 'empty', remoteCount: 0 }, 92).detail, /local continua disponível/)
+  assert.match(getExerciseLibrarySyncCopy({ status: 'unavailable', remoteCount: 0 }, 92).title, /indisponível/)
+  assert.match(getExerciseLibrarySyncCopy({ status: 'error', remoteCount: 0 }, 92).detail, /consulta falhou/)
+})
+
+test('cópias de treino preservam a origem analítica e não publicam no atalho', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(appSource, /analyticsSource: isEditingExistingWorkout \? 'mobile_workout_edit' : 'mobile_library_duplicate'/)
+  assert.match(appSource, /source: draft\.analyticsSource \|\| \(isEditingWorkout \? 'mobile_workout_edit' : 'mobile_workout_manager'\)/)
+  assert.match(appSource, /function useWorkoutAsBase\([\s\S]*?mode: 'copy'/)
+})
+
+test('perfil selecionado na biblioteca mantém vídeo da sessão e taxonomia sem persisti-los como arquivo local', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const exerciseDraftSource = appSource.match(/function createExerciseDraft\([\s\S]*?\n\}/)?.[0] || ''
+  const storageSanitizerSource = appSource.match(/function sanitizeWorkoutDaysForStorage\([\s\S]*?\n\}/)?.[0] || ''
+  assert.match(exerciseDraftSource, /videoFile: profile\?\.videoFile \?\? null/)
+  assert.match(exerciseDraftSource, /videoFileName: profile\?\.videoFileName \?\? ''/)
+  assert.match(exerciseDraftSource, /category: profile\?\.category/)
+  assert.match(exerciseDraftSource, /objective: profile\?\.objective \?\? profile\?\.goal/)
+  assert.match(storageSanitizerSource, /videoFileName: ''/)
+  assert.match(appSource, /durableExercise\.videoFileName = ''/)
+})
+
+test('mapper remoto lê fonte e taxonomia existentes sem exigir coluna nova', async () => {
+  const apiSource = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
+  const mapper = apiSource.match(/function fromExerciseLibraryRow\(row\) \{[\s\S]*?\n\}/)?.[0] || ''
+  assert.match(mapper, /row\.source_payload/)
+  assert.match(mapper, /row\.provider/)
+  assert.match(mapper, /category: row\.category \?\? sourcePayload\.category/)
+  assert.match(mapper, /objective: row\.objective \?\? sourcePayload\.objective/)
+})
+
 test('filtro Peitoral encontra exercícios cadastrados como Peito', () => {
   const results = getExercisePickerResults({
     library: [
@@ -324,17 +403,46 @@ test('filtro Peitoral encontra exercícios cadastrados como Peito', () => {
   assert.deepEqual(results.map((exercise) => exercise.name), ['Supino reto com barra'])
 })
 
-test('filtro Treino em Casa encontra exercícios compatíveis da biblioteca', () => {
+test('filtro de equipamento não se mistura com categoria/objetivo', () => {
   const results = getExercisePickerResults({
     library: [
-      { name: 'Flexão de braços', group: 'Peitoral', equipment: 'Peso corporal' },
-      { name: 'Remada com elástico', group: 'Costas', equipment: 'Elástico' },
-      { name: 'Leg press 45°', group: 'Quadríceps', equipment: 'Máquina' },
+      { name: 'Flexão de braços', group: 'Peitoral', equipment: 'Peso corporal', category: 'Treino em casa' },
+      { name: 'Remada com elástico', group: 'Costas', equipment: 'Elástico', category: 'Treino em casa' },
+      { name: 'Supino com halteres', group: 'Peitoral', equipment: 'Halteres', category: 'Musculação' },
     ],
-    categoryFilter: 'Treino em Casa',
+    equipmentFilter: 'Halteres',
   })
 
-  assert.deepEqual(results.map((exercise) => exercise.name), ['Flexão de braços', 'Remada com elástico'])
+  assert.deepEqual(results.map((exercise) => exercise.name), ['Supino com halteres'])
+  assert.deepEqual(getExercisePickerResults({
+    library: [{ name: 'Supino com halteres', equipment: 'Halteres' }],
+    categoryFilter: 'Halteres',
+  }), [])
+})
+
+test('picker do editor filtra categoria, objetivo e equipamento de forma independente', () => {
+  const library = [
+    { name: 'Supino com barra', category: 'Composto', objective: 'Força', equipment: 'Barra' },
+    { name: 'Elevação lateral', category: 'Isolado', objective: 'Hipertrofia', equipment: 'Halteres' },
+  ]
+
+  assert.deepEqual(getExercisePickerResults({ library, categoryFilter: 'Composto' }).map((item) => item.name), ['Supino com barra'])
+  assert.deepEqual(getExercisePickerResults({ library, objectiveFilter: 'Força' }).map((item) => item.name), ['Supino com barra'])
+  assert.deepEqual(getExercisePickerResults({ library, categoryFilter: 'Força' }), [])
+  assert.deepEqual(getExercisePickerResults({ library, equipmentFilter: 'Halteres' }).map((item) => item.name), ['Elevação lateral'])
+})
+
+test('planos do aluno são ordenados pela atualização mais recente com desempate estável', () => {
+  const workouts = [
+    { id: 'mais-antigo', createdAt: '2026-01-01T10:00:00Z' },
+    { id: 'mais-recente', updatedAt: '2026-02-03T10:00:00Z' },
+    { id: 'sem-data-a' },
+    { id: 'sem-data-b' },
+  ]
+
+  assert.deepEqual(sortWorkoutsByUpdatedAt(workouts).map((item) => item.id), [
+    'mais-recente', 'mais-antigo', 'sem-data-a', 'sem-data-b',
+  ])
 })
 
 test('visão do aluno exibe exercícios de todos os dias da rotina', () => {
@@ -423,11 +531,12 @@ test('ações do treino publicado mantêm contraste profissional no tema claro',
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
   const managerSource = appSource.match(/function MobileWorkoutManager[\s\S]*?\r?\n}\r?\n\r?\nfunction createExerciseDraft/)?.[0] || ''
 
-  assert.match(managerSource, /className="is-secondary"[\s\S]*?Duplicar treino/)
+  assert.match(managerSource, /className="is-secondary"[\s\S]*?Usar como base/)
   assert.match(managerSource, /className="is-accent"[\s\S]*?Adicionar exercício/)
   assert.match(cssSource, /\.app-theme-light \.mobile-workout-action-bar button\.is-secondary\s*\{[^}]*background:\s*#[0-9a-f]{6}[^}]*color:\s*#[0-9a-f]{6}/i)
   assert.match(cssSource, /\.app-theme-light \.mobile-workout-action-bar button\.is-accent\s*\{[^}]*background:\s*#[0-9a-f]{6}[^}]*color:\s*#fff(?:fff)?/i)
-  assert.match(managerSource, /formatCount\(days\.length \|\| 1, 'dia'\)\} · \{formatCount\(exerciseCount, 'exercício'\)/)
+  assert.match(managerSource, /formatCount\(days\.length, 'dia'\)\} · \{formatCount\(exerciseCount, 'exercício'\)/)
+  assert.doesNotMatch(managerSource, /formatCount\(days\.length \|\| 1, 'dia'\)/)
 })
 
 test('treinador e aluno compartilham a experiência completa de execução', () => {
@@ -537,7 +646,8 @@ test('publicação exige seleção explícita e edição preserva o aluno associ
   assert.match(managerSource, /Selecione o aluno/)
   assert.match(managerSource, /isEditingExistingWorkout \? workout\?\.studentId/)
   assert.match(managerSource, /if \(targetStudentId\) setSelectedStudentId\(targetStudentId\)/)
-  assert.match(managerSource, /resetDraftFromWorkout\(null,\s*\{\s*studentId:\s*student\.id\s*\}\)/)
+  assert.match(managerSource, /beginNewWorkout\(student\.id\)/)
+  assert.match(managerSource, /function useWorkoutAsBase\([\s\S]*?mode:\s*'copy'[\s\S]*?if \(opened\) setMessage/)
   assert.doesNotMatch(managerSource, /const studentId = selectedStudentId \|\| selectedStudent\?\.id \|\| students\[0\]\?\.id/)
 })
 
@@ -990,4 +1100,43 @@ test('controles do treino centralizam textos e preservam ação verde no tema cl
   assert.match(cssSource, /\.mobile-workout-navigation-premium-v13 button\s*\{[\s\S]*display:\s*inline-flex[\s\S]*justify-content:\s*center[\s\S]*text-align:\s*center/)
   assert.match(cssSource, /\.mobile-workout-set-open-v11\s*\{[\s\S]*place-items:\s*center[\s\S]*text-align:\s*center/)
   assert.match(cssSource, /\.student-mobile-shell\.app-theme-light[\s\S]*\.mobile-workout-set-card-v11:not\(\.is-complete\)[\s\S]*\.mobile-workout-set-fields-v12 > button:not\(:disabled\)[\s\S]*background:\s*#087d6c !important[\s\S]*color:\s*#fff !important/)
+})
+
+
+test('execução real do aluno mostra série atual, progresso do exercício e próxima ação contextual', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const executionCss = await readFile(new URL('../src/student-workout-execution-build29.css', import.meta.url), 'utf8')
+  const liveWorkout = {
+    id: 'build29-live-series-workout', studentId: student.id, title: 'Treino de força',
+    days: [{ day: 'Segunda-feira', focus: 'Peito', exercises: [{ name: 'Supino reto com barra', sets: '3', reps: '10', rest: '60s' }] }],
+  }
+  const storageKey = getStudentWorkoutExecutionStorageKey(student.id, liveWorkout.id)
+  const savedSession = {
+    completionToken: 'build29-live-series-session', activeDayIndex: 0, activeExerciseIndex: 0,
+    setLogs: { '0-0-1': { load: '40', reps: '10', completed: true } }, cardioLogs: {},
+    effort: 'Moderado', sessionNotes: '', durationSeconds: 125, timerStartedAt: '',
+  }
+  const previousWindow = globalThis.window
+  globalThis.window = { localStorage: { getItem: (key) => key === storageKey ? JSON.stringify(savedSession) : null } }
+  try {
+    const html = renderToString(React.createElement(StudentWorkoutExecution, {
+      student, workout: liveWorkout, preview: false,
+    }))
+    assert.match(html, /data-preview="false"/)
+    assert.match(html, /mobile-workout-execution-v29/)
+    assert.match(html, /1 de 3 séries/)
+    assert.match(html, /aria-valuenow="1"/)
+    assert.match(html, /Série atual/)
+    assert.match(html, /Concluir série 2/)
+    assert.match(html, /mobile-workout-execution-actionbar-v29/)
+
+    const completeSetSource = appSource.match(/function completeSet\(setItem\) \{[\s\S]*?\n  \}/)?.[0] || ''
+    assert.match(completeSetSource, /focusedField\.blur\(\)/)
+    assert.doesNotMatch(completeSetSource, /getElementById\('workout-set-load-' \+ nextSet\.key\)\?\.focus/)
+    assert.match(appSource, /onFocus=\{\(\) => setEntryFieldFocused\(true\)\}/)
+    assert.match(executionCss, /mobile-workout-execution-v29\.is-entry-focused \.mobile-workout-execution-actionbar-v29/)
+    assert.match(executionCss, /env\(safe-area-inset-bottom/)
+  } finally {
+    globalThis.window = previousWindow
+  }
 })
