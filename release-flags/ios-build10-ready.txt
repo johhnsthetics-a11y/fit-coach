@@ -1,0 +1,5 @@
+Coach Fit Pro iOS TestFlight release 1.0 (10)
+Source: release/ios-build10-minha-assinatura-20261102
+Changes: merged Minha Assinatura design from uploaded build 7 into build 9 native purchase fix
+Official app icon preserved; payments and verified account entitlements preserved
+Quality checks: passed

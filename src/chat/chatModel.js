@@ -111,7 +111,7 @@ export function buildConversationRows(students = [], messages = []) {
 export function findLatestIncomingStudentMessage(previousMessages = [], nextMessages = [], { activeView = '', activeStudentId = '' } = {}) {
   const knownIds = new Set((Array.isArray(previousMessages) ? previousMessages : []).map((message) => String(message?.id || '')))
   const incoming = (Array.isArray(nextMessages) ? nextMessages : [])
-    .filter((message) => message?.sender === 'student' && message?.id && !knownIds.has(String(message.id)))
+    .filter((message) => message?.sender === 'student' && message?.messageKind !== 'workout_completion' && message?.id && !knownIds.has(String(message.id)))
     .sort((a, b) => timestampOf(b.createdAt) - timestampOf(a.createdAt))[0]
 
   if (!incoming) return null

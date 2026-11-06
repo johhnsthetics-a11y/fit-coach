@@ -1,5 +1,7 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import WorkoutCompletionRating from './WorkoutCompletionRating'
+import StudentMealPhotoJournal from './StudentMealPhotoJournal'
 import { swapShowcasePositions } from './showcaseCarousel'
 import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
@@ -54,6 +56,7 @@ import {
   loadRemoteMessages,
   loadRemoteNotifications,
   loadRemoteStudentMessagesByInvite,
+  loadRemoteStudentMealLogs,
   loadRemoteStudentByInvite,
   loadRemoteWorkoutSession,
   markRemoteStudentMessagesRead,
@@ -85,7 +88,11 @@ import {
   saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
   saveRemoteWorkoutEarlyEnd,
+  saveRemoteWorkoutRating,
+  saveRemoteStudentMealLog,
   saveRemoteWorkoutSession,
+  sendRemoteChatMessagePush,
+  sendRemoteWorkoutCompletionPush,
   setSupabaseSession,
   signInCoach,
   signOutCoach,
@@ -97,11 +104,17 @@ import {
   updateRemoteInvoiceStatus,
   updateRemoteCheckinState,
   updateRemotePayment,
+  updateRemoteStudentWorkoutFinishPreference,
   updateRecoveredPassword,
   uploadRemoteProfessionalAvatar,
   uploadRemoteStudentAvatar,
   upsertRemoteUser,
 } from './supabaseApi'
+import {
+  addChatPushActionListener,
+  consumePendingChatPushAction,
+  storePendingChatPushAction,
+} from './chat/chatPushNotifications'
 import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import {
@@ -133,6 +146,7 @@ import { addBillingCycle, getFirstName, getLocalGreeting, isSubscriptionCurrent,
 import WelcomeHeader from './WelcomeHeader'
 import { buildProfileContextLine } from './profileGreeting'
 import { ChatConversation } from './chat/ChatConversation'
+import AdminChatReports from './chat/AdminChatReports'
 import { ConversationList } from './chat/ConversationList'
 import {
   buildConversationRows,
@@ -149,6 +163,9 @@ import {
   purchaseIosPlan,
   restoreIosPurchases,
 } from './iosStoreKit'
+import NativeIosSubscriptionPanel from './NativeIosSubscriptionPanel'
+import WebSubscriptionPanel from './WebSubscriptionPanel'
+import { getSafeSubscriptionCheckoutUrl } from './subscriptionPresentation'
 import {
   ADMIN_SETTINGS_REFRESH_INTERVAL_MS,
   STUDENT_PORTAL_REFRESH_INTERVAL_MS,
@@ -180,7 +197,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'student-import-20261027'
+const COACH_FIT_PRO_BUILD_MARKER = 'workout-preview-notifications-build28-20261106'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1879,7 +1896,24 @@ function AppContent() {
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [incomingMessageAlert, setIncomingMessageAlert] = useState(null)
   const [billingClock, setBillingClock] = useState(Date.now())
-  const [nativeIosEntitlement, setNativeIosEntitlement] = useState(false)
+  const [nativeIosAccess, setNativeIosAccess] = useState({ accountId: '', active: false })
+  const recentVerifiedIosPurchaseUntil = useRef(0)
+  const nativeIosEntitlement = Boolean(
+    data.session?.user?.id && nativeIosAccess.accountId === data.session.user.id && nativeIosAccess.active
+  )
+  const setNativeIosEntitlement = useCallback((active) => {
+    setNativeIosAccess({ accountId: data.session?.user?.id || '', active: Boolean(active) })
+  }, [data.session?.user?.id])
+  // Only called after native StoreKit has verified an active subscription.
+  // Navigate away from the paywall instead of leaving the buyer in "Assinatura".
+  const handleVerifiedIosSubscription = useCallback((active) => {
+    setNativeIosEntitlement(active)
+    if (active) {
+      recentVerifiedIosPurchaseUntil.current = Date.now() + 25_000
+      setActiveView('visao')
+      setMobileMenuOpen(false)
+    }
+  }, [setNativeIosEntitlement])
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   useEffect(() => {
     document.documentElement.dataset.theme = uiTheme
@@ -1979,16 +2013,29 @@ function AppContent() {
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
 
   const refreshNativeIosEntitlement = useCallback(async () => {
-    if (!isNativeIosApp()) return false
+    if (!isNativeIosApp() || !data.session?.access_token || !data.session?.user?.id) {
+      setNativeIosEntitlement(false)
+      return false
+    }
     try {
-      const result = await getIosEntitlements()
-      setNativeIosEntitlement(Boolean(result.active))
-      return Boolean(result.active)
+      const result = await getIosEntitlements(data.session.user.id)
+      if (result.active) {
+        recentVerifiedIosPurchaseUntil.current = 0
+        setNativeIosEntitlement(true)
+        return true
+      }
+      // After a signed purchase, StoreKit.currentEntitlements can lag for a
+      // few seconds. Do not immediately re-lock the verified buyer on focus.
+      if (Date.now() < recentVerifiedIosPurchaseUntil.current) return true
+      setNativeIosEntitlement(false)
+      return false
     } catch (error) {
+      if (Date.now() < recentVerifiedIosPurchaseUntil.current) return true
+      setNativeIosEntitlement(false)
       console.warn('Não foi possível validar a assinatura da App Store.', error)
       return false
     }
-  }, [])
+  }, [data.session?.user?.id, data.session?.access_token, setNativeIosEntitlement])
 
   useEffect(() => {
     if (!isNativeIosApp()) return undefined
@@ -2003,6 +2050,17 @@ function AppContent() {
       document.removeEventListener('visibilitychange', refreshOnResume)
     }
   }, [refreshNativeIosEntitlement])
+  // On app restart, open the workspace when an existing verified App Store
+  // entitlement is restored. Do not redirect an already active user who
+  // deliberately opens "Assinatura" later to manage purchases.
+  const previousNativeIosEntitlement = useRef(false)
+  useEffect(() => {
+    if (nativeIosEntitlement && !previousNativeIosEntitlement.current && activeView === 'assinatura') {
+      setActiveView('visao')
+    }
+    previousNativeIosEntitlement.current = nativeIosEntitlement
+  }, [nativeIosEntitlement, activeView])
+
   const visibleNavItems = useMemo(() => {
     const professionalItems = navItems.filter((item) => (
       professionalAffiliate ? item.id !== 'assinatura' : item.id !== 'comissoes'
@@ -2132,6 +2190,30 @@ function AppContent() {
       // A navegação continua funcionando mesmo se o histórico estiver indisponível.
     }
   }, [activeView, nutritionDraftDirty, setActiveViewSafely])
+
+  useEffect(() => {
+    let mounted = true
+    let listener = null
+    addChatPushActionListener((payload) => {
+      if (payload?.recipientRole === 'student') {
+        storePendingChatPushAction(payload)
+        return
+      }
+      if (payload?.recipientRole === 'coach' && payload?.studentId) {
+        openStudentConversation(payload.studentId)
+      }
+    }).then((handle) => {
+      if (!mounted) {
+        void handle?.remove().catch(() => undefined)
+        return
+      }
+      listener = handle
+    }).catch(() => undefined)
+    return () => {
+      mounted = false
+      if (listener) void listener.remove().catch(() => undefined)
+    }
+  }, [openStudentConversation])
 
   useEffect(() => {
     if (data.session?.access_token) {
@@ -2679,10 +2761,17 @@ function AppContent() {
         if (!active) return
         const nextMessages = mergeRecords(previousMessages, latestMessages)
         const navigation = coachNavigationRef.current
+        const previousMessageIds = new Set((previousMessages ?? []).map((message) => String(message?.id || '')))
         const incomingMessage = inviteCode ? null : findLatestIncomingStudentMessage(previousMessages, nextMessages, {
           activeView: navigation.activeView,
           activeStudentId: navigation.selectedStudentId,
         })
+        const incomingWorkoutCompletion = !inviteCode && nextMessages.some((message) => (
+          message?.sender === 'student'
+          && message?.messageKind === 'workout_completion'
+          && message?.id
+          && !previousMessageIds.has(String(message.id))
+        ))
         messageSnapshotRef.current = nextMessages
         setChatSyncError('')
         setData((current) => ({ ...current, messages: mergeRecords(current.messages, latestMessages) }))
@@ -2690,19 +2779,21 @@ function AppContent() {
           setStudentAccess((current) => current?.invite?.code === inviteCode
             ? { ...current, messages: mergeRecords(current.messages, latestMessages) }
             : current)
-        } else if (incomingMessage) {
-          const alert = buildIncomingMessageAlert(
-            incomingMessage,
-            coachAudienceRef.current.students,
-            { professionalType: coachAudienceRef.current.professionalType },
-          )
-          if (alert) {
-            setIncomingMessageAlert(alert)
-            const notificationUrl = `${window.location.pathname}?area=mensagens&student=${encodeURIComponent(alert.studentId)}`
-            sendLocalNotification(alert.title, alert.body, {
-              tag: `student-message-${alert.id}`,
-              data: { url: notificationUrl, studentId: alert.studentId },
-            }).catch(() => false)
+        } else if (incomingMessage || incomingWorkoutCompletion) {
+          if (incomingMessage) {
+            const alert = buildIncomingMessageAlert(
+              incomingMessage,
+              coachAudienceRef.current.students,
+              { professionalType: coachAudienceRef.current.professionalType },
+            )
+            if (alert) {
+              setIncomingMessageAlert(alert)
+              const notificationUrl = `${window.location.pathname}?area=mensagens&student=${encodeURIComponent(alert.studentId)}`
+              sendLocalNotification(alert.title, alert.body, {
+                tag: `student-message-${alert.id}`,
+                data: { url: notificationUrl, studentId: alert.studentId },
+              }).catch(() => false)
+            }
           }
           loadRemoteNotifications().then((notifications) => {
             if (active) setData((current) => ({ ...current, notifications }))
@@ -2979,22 +3070,49 @@ function AppContent() {
     const studentId = student.id || Date.now()
     const isNewStudent = !student.id
     let savedStudent = { ...student, id: studentId }
-    let createdInvite = null
+    let invitePromise = null
+    const notificationId = Date.now() + 1
 
     if (supabaseEnabled) {
       try {
         savedStudent = await saveRemoteStudent(student, activeCoachId)
+        setRemoteStatus(isNewStudent ? 'Aluno cadastrado' : 'Supabase conectado')
+        setRemoteError('')
         if (isNewStudent) {
-          try {
-            createdInvite = await createRemoteStudentInvite(savedStudent.id, activeCoachId)
-          } catch (inviteError) {
-            setRemoteStatus('Aluno salvo, mas o código não foi gerado')
-            setRemoteError(inviteError.message)
-          }
-        }
-        if (createdInvite || !isNewStudent) {
-          setRemoteStatus('Supabase conectado')
-          setRemoteError('')
+          // The student row is now saved. Finish the screen immediately and
+          // prepare the invite in the background; a brand-new student cannot
+          // already have an active invite, so skip the redundant lookup.
+          invitePromise = createRemoteStudentInvite(savedStudent.id, activeCoachId, { skipActiveInviteLookup: true })
+            .then((createdInvite) => {
+              setRemoteStatus('Supabase conectado')
+              setRemoteError('')
+              setData((current) => ({
+                ...current,
+                invites: [
+                  createdInvite,
+                  ...(current.invites ?? []).filter((invite) => String(invite.id) !== String(createdInvite.id)),
+                ],
+                notifications: (current.notifications ?? []).map((notification) => (
+                  String(notification.id) === String(notificationId)
+                    ? { ...notification, body: `${student.name} - código ${createdInvite.code}` }
+                    : notification
+                )),
+              }))
+              return createdInvite
+            })
+            .catch((inviteError) => {
+              setRemoteStatus('Aluno salvo, mas o código não foi gerado')
+              setRemoteError(inviteError.message)
+              setData((current) => ({
+                ...current,
+                notifications: (current.notifications ?? []).map((notification) => (
+                  String(notification.id) === String(notificationId)
+                    ? { ...notification, body: `${student.name} cadastrado. Gere o acesso pela ficha do aluno.` }
+                    : notification
+                )),
+              }))
+              return null
+            })
         }
       } catch (error) {
         handleRemoteError(error, 'Erro ao salvar aluno')
@@ -3016,7 +3134,6 @@ function AppContent() {
       return {
         ...current,
         students,
-        invites: createdInvite ? [createdInvite, ...(current.invites ?? [])] : current.invites ?? [],
         notifications: [
           ...(planChanged ? [{
             id: Date.now() + 2,
@@ -3025,9 +3142,9 @@ function AppContent() {
             read: false,
           }] : []),
           {
-            id: Date.now() + 1,
+            id: notificationId,
             title: exists ? 'Aluno atualizado' : 'Aluno cadastrado',
-            body: createdInvite ? `${student.name} - código ${createdInvite.code}` : student.name,
+            body: isNewStudent && supabaseEnabled ? `${student.name} cadastrado. Preparando acesso.` : student.name,
             read: false,
           },
           ...current.notifications,
@@ -3035,7 +3152,23 @@ function AppContent() {
       }
     })
     setSelectedStudentId(savedStudent.id)
-    return { student: savedStudent, invite: createdInvite }
+    return { student: savedStudent, invite: null, invitePromise }
+  }
+
+  async function updateStudentWorkoutFinishPreference(studentId, enabled) {
+    const currentStudent = data.students.find((item) => sameId(item.id, studentId))
+    if (!currentStudent) throw new Error('Selecione um aluno válido.')
+    let savedStudent = { ...currentStudent, notifyCoachOnWorkoutFinish: Boolean(enabled) }
+    if (supabaseEnabled) {
+      savedStudent = await updateRemoteStudentWorkoutFinishPreference(studentId, enabled, activeCoachId)
+      setRemoteStatus('Preferência de notificação atualizada')
+      setRemoteError('')
+    }
+    setData((current) => ({
+      ...current,
+      students: current.students.map((item) => sameId(item.id, savedStudent.id) ? savedStudent : item),
+    }))
+    return savedStudent
   }
 
   async function importStudents(rows) {
@@ -3172,11 +3305,11 @@ function AppContent() {
   }
 
   async function deleteStudent(studentId) {
+    let cleanupWarning = ''
     if (supabaseEnabled) {
       try {
-        await deleteRemoteStudent(studentId)
-        setRemoteStatus('Aluno excluído')
-        setRemoteError('')
+        const result = await deleteRemoteStudent(studentId)
+        cleanupWarning = result?.cleanupWarning || ''
       } catch (error) {
         handleRemoteError(error, 'Erro ao excluir aluno')
         throw error
@@ -3204,6 +3337,9 @@ function AppContent() {
     }))
     const remainingStudents = data.students.filter((student) => String(student.id) !== String(studentId))
     setSelectedStudentId(remainingStudents[0]?.id ?? null)
+    setRemoteStatus(cleanupWarning ? 'Aluno excluído; limpeza de fotos pendente' : 'Aluno excluído')
+    setRemoteError(cleanupWarning)
+    return { cleanupWarning }
   }
 
   async function addCheckin(checkin) {
@@ -3660,6 +3796,10 @@ function AppContent() {
       workoutLogs: [savedLog, ...(current.workoutLogs ?? []).filter((item) => !sameId(item.id, savedLog.id))],
     }))
 
+    if (supabaseEnabled && log.inviteCode && savedLog?.id) {
+      void sendRemoteWorkoutCompletionPush({ workoutLogId: savedLog.id, inviteCode: log.inviteCode }).catch(() => undefined)
+    }
+
     return savedLog
   }
 
@@ -3681,6 +3821,10 @@ function AppContent() {
       ...current,
       workoutLogs: [savedLog, ...(current.workoutLogs ?? []).filter((item) => !sameId(item.id, savedLog.id))],
     }))
+
+    if (supabaseEnabled && log.inviteCode && savedLog?.id) {
+      void sendRemoteWorkoutCompletionPush({ workoutLogId: savedLog.id, inviteCode: log.inviteCode }).catch(() => undefined)
+    }
 
     return savedLog
   }
@@ -4000,6 +4144,10 @@ function AppContent() {
       deliveryState: 'sending',
       createdAt: new Date().toISOString(),
     }
+    const workoutCompletionEvent = localMessage.messageKind === 'workout_completion'
+    const shouldCreateLocalNotification = localMessage.sender === 'student'
+      && !supabaseEnabled
+      && !(workoutCompletionEvent && message.notifyCoachOnWorkoutFinish === false)
 
     setData((current) => {
       const existing = (current.messages ?? []).some((item) => String(item.id) === String(clientMessageId))
@@ -4017,7 +4165,7 @@ function AppContent() {
       try {
         const remoteMessage = await saveRemoteMessage(localMessage)
         if (requestId !== portalRequestRef.current) throw new Error('Sua sessão mudou. Entre novamente antes de enviar mensagens.')
-        savedMessage = { ...remoteMessage, clientMessageId, deliveryState: 'sent' }
+        savedMessage = { ...remoteMessage, clientMessageId, messageKind: localMessage.messageKind, deliveryState: 'sent' }
         setRemoteStatus('Mensagem enviada')
         setRemoteError('')
       } catch (error) {
@@ -4047,21 +4195,29 @@ function AppContent() {
           ? { ...student, lastMessage: savedMessage.body }
           : student
       )),
-      notifications: savedMessage.sender === 'student' && !supabaseEnabled
+      notifications: shouldCreateLocalNotification
         ? [
           {
             id: Date.now() + 1,
-            title: 'Nova mensagem recebida',
+            title: workoutCompletionEvent ? 'Treino encerrado' : 'Nova mensagem recebida',
             body: savedMessage.body,
             read: false,
             studentId: savedMessage.studentId,
-            eventType: 'student_message',
+            eventType: workoutCompletionEvent ? 'student_workout_finished' : 'student_message',
             entityId: savedMessage.id,
           },
           ...current.notifications,
         ]
         : current.notifications,
     }))
+
+    if (supabaseEnabled && savedMessage?.id && ['coach', 'student'].includes(savedMessage.sender) && !workoutCompletionEvent) {
+      void sendRemoteChatMessagePush({
+        messageId: savedMessage.id,
+        actorType: savedMessage.sender,
+        inviteCode: message.inviteCode || '',
+      }).catch(() => undefined)
+    }
 
     if (
       supabaseEnabled
@@ -4741,7 +4897,9 @@ function AppContent() {
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
-                Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.
+                {isNativeIosApp()
+                  ? 'Para liberar o painel no iPhone, escolha um plano na seção Assinatura e confirme a compra pela App Store. A verificação da Apple determinará o acesso.'
+                  : 'Conclua o pagamento usando o mesmo e-mail da conta. Ao voltar do checkout, o Coach Fit Pro verifica automaticamente a confirmação e libera o painel assim que a Cartpanda aprovar.'}
               </p>
             </div>
           ) : null}
@@ -4791,6 +4949,7 @@ function AppContent() {
                 selectedStudent={selectedStudent}
                 setSelectedStudentId={setSelectedStudentIdSafely}
                 onSave={saveStudent}
+                onUpdateWorkoutFinishPreference={updateStudentWorkoutFinishPreference}
                 onImport={importStudents}
                 onSaveCoachPlan={saveCoachPlan}
                 onGenerateCredentials={generateStudentCredentials}
@@ -4839,6 +4998,7 @@ function AppContent() {
                 nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
                 questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
                 professional={data.user}
+                appAdminSettings={appAdminSettings}
                 onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveNutritionPlan={archiveNutritionPlan}
                 onSaveQuestionnaire={saveNutritionQuestionnaire}
@@ -4886,8 +5046,10 @@ function AppContent() {
                 appAdminSettings={appAdminSettings}
                 onRefreshSubscription={syncCoachWorkspace}
                 professionalAffiliate={professionalAffiliate}
+                professionalType={nutritionistUser ? 'nutritionist' : 'trainer'}
                 nativeIosEntitlement={nativeIosEntitlement}
-                onNativeEntitlementChange={setNativeIosEntitlement}
+                onNativeEntitlementChange={handleVerifiedIosSubscription}
+                accountId={data.session?.user?.id || ''}
               />
             )}
             {activeView === 'admin-affiliate-finance' && masterAdmin && (
@@ -5131,7 +5293,8 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
 }
 
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
-  const isLoginRoute = window.location.pathname.toLowerCase() === '/login'
+  const nativeIosApp = isNativeIosApp()
+  const isLoginRoute = nativeIosApp || window.location.pathname.toLowerCase() === '/login'
   const initialMode = new URLSearchParams(window.location.search).get('mode')
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
@@ -5167,7 +5330,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [salesPlans])
   const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
   const signupPlan = orderedSalesPlans.find((plan) => plan.id === signupPlanId) || orderedSalesPlans[0]
-  const signupTitle = mode === 'signup'
+  const signupTitle = nativeIosApp && mode === 'signup'
+    ? 'Criar conta'
+    : mode === 'signup'
     ? signupPlan?.id === 'mensal'
       ? 'Começar por R$ 9,90'
       : `Criar conta para o plano ${signupPlan?.name || 'selecionado'}`
@@ -5176,7 +5341,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       : mode === 'forgot'
         ? 'Recuperar senha'
         : 'Entrar no painel'
-  const signupDescription = mode === 'signup'
+  const signupDescription = nativeIosApp && mode === 'signup'
+    ? 'Crie sua conta profissional e escolha a assinatura pela App Store após entrar no aplicativo.'
+    : mode === 'signup'
     ? signupPlan?.id === 'mensal'
       ? 'Crie sua conta e ative o primeiro mês promocional por R$ 9,90 usando o mesmo e-mail no checkout.'
       : `Crie sua conta e siga para o checkout do plano ${signupPlan?.name || 'selecionado'} usando o mesmo e-mail cadastrado.`
@@ -5473,7 +5640,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }
 
   return (
-    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
+    <div id="sales-page" className={`sales-page sales-page-condensed fit-gradient-bg sales-theme-${salesTheme} min-h-screen text-zinc-100 ${isLoginRoute ? 'sales-login-route' : ''} ${nativeIosApp ? 'native-ios-entry' : ''}`} data-theme={salesTheme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(salesSettings, salesTheme)}>
       <div className="sales-progress" aria-hidden="true" />
       <header className="sales-header sticky top-0 z-40 border-b border-white/5 bg-transparent backdrop-blur-xl">
         <div className="sales-header-inner mx-auto grid max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 sm:px-6 lg:py-3">
@@ -7502,13 +7669,18 @@ function Agenda({ students = [], appointments = [], onSaveAppointment, onUpdateS
   )
 }
 
-function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
+function Students({ nutritionist = false, students = [], workoutLogs = [], questionnaires = [], questionnaireAssignments = [], anamneses = [], selectedStudent, setSelectedStudentId, onSave, onUpdateWorkoutFinishPreference, onImport, onSaveCoachPlan, onGenerateCredentials, onSaveAnamnesis, onSaveQuestionnaire, onAssignAnamnesis, onDelete, coachPlans = plans, professionalAffiliate = false, uiTheme = DEFAULT_UI_THEME }) {
   const [studentSection, setStudentSection] = useState('wallet')
   const [walletMobileView, setWalletMobileView] = useState('list')
   const [editing, setEditing] = useState(null)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [studentSearch, setStudentSearch] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [deletingStudentId, setDeletingStudentId] = useState('')
+  const [walletFeedback, setWalletFeedback] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [workoutNotificationSaving, setWorkoutNotificationSaving] = useState(false)
+  const [workoutNotificationError, setWorkoutNotificationError] = useState('')
   const [anamnesisEditorOpen, setAnamnesisEditorOpen] = useState(false)
   const [accessError, setAccessError] = useState('')
   const [generatedCredentials, setGeneratedCredentials] = useState(null)
@@ -7517,8 +7689,12 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const appLoginUrl = OFFICIAL_APP_LOGIN_URL
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
-  const visibleStudents = useMemo(() => filterStudents(students, studentSearch), [students, studentSearch])
-  const ranking = buildCoachStudentRanking(students, workoutLogs, questionnaireAssignments)
+  const displayedStudents = useMemo(
+    () => students.filter((student) => String(student.id) !== deletingStudentId),
+    [students, deletingStudentId],
+  )
+  const visibleStudents = useMemo(() => filterStudents(displayedStudents, studentSearch), [displayedStudents, studentSearch])
+  const ranking = buildCoachStudentRanking(displayedStudents, workoutLogs, questionnaireAssignments)
   const selectedStudentPlan = coachPlans.find((plan) => plan.name === selectedStudent?.plan) || null
 
   useEffect(() => {
@@ -7526,7 +7702,21 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
     setGeneratedCredentials(null)
     setCredentialsMessage('')
     setAnamnesisEditorOpen(false)
+    setWorkoutNotificationError('')
   }, [selectedStudent?.id])
+
+  async function updateWorkoutFinishPreference(enabled) {
+    if (!selectedStudent || !onUpdateWorkoutFinishPreference || workoutNotificationSaving) return
+    setWorkoutNotificationSaving(true)
+    setWorkoutNotificationError('')
+    try {
+      await onUpdateWorkoutFinishPreference(selectedStudent.id, Boolean(enabled))
+    } catch (error) {
+      setWorkoutNotificationError(error?.message || 'Não foi possível atualizar os avisos deste aluno.')
+    } finally {
+      setWorkoutNotificationSaving(false)
+    }
+  }
 
   useEffect(() => {
     if (!anamnesisEditorOpen) return undefined
@@ -7595,29 +7785,57 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   }
 
   function handleWalletStudentSelect(studentId) {
+    setWalletFeedback(null)
+    setDeleteError('')
     setSelectedStudentId(studentId)
     setEditing(null)
     setWalletMobileView('detail')
   }
 
   function handleCreateStudent() {
+    setWalletFeedback(null)
+    setDeleteError('')
     setEditing(createBlankStudent())
     setWalletMobileView('detail')
   }
 
+  async function copyStudentInviteCode(code) {
+    const inviteUrl = new URL(window.location.pathname, window.location.origin)
+    inviteUrl.searchParams.set('invite', code)
+    try {
+      await navigator.clipboard.writeText(inviteUrl.toString())
+      setWalletFeedback((current) => current?.inviteCode === code
+        ? { ...current, copyMessage: 'Link do aluno copiado.' }
+        : current)
+    } catch {
+      setWalletFeedback((current) => current?.inviteCode === code
+        ? { ...current, copyMessage: 'Não foi possível copiar automaticamente. Copie o código exibido.' }
+        : current)
+    }
+  }
+
   async function deleteSelectedStudent() {
     if (!selectedStudent) return
-    const confirmed = window.confirm(`Excluir ${selectedStudent.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
+    const studentToDelete = selectedStudent
+    const confirmed = window.confirm(`Excluir ${studentToDelete.name} e todos os registros vinculados? Esta ação não pode ser desfeita.`)
     if (!confirmed) return
+    setDeletingStudentId(String(studentToDelete.id))
     setDeleting(true)
-    setAccessError('')
+    setDeleteError('')
+    setWalletFeedback({ status: 'pending', message: `Excluindo ${clientLabel} e registros vinculados…` })
+    setWalletMobileView('list')
     try {
-      await onDelete(selectedStudent.id)
-      setWalletMobileView('list')
+      const result = await onDelete(studentToDelete.id)
+      setWalletFeedback(result?.cleanupWarning
+        ? { status: 'warning', message: `${studentToDelete.name} foi excluído, mas a limpeza de algumas fotos não foi confirmada.` }
+        : { status: 'success', message: `${studentToDelete.name} foi excluído com sucesso.` })
     } catch (error) {
-      setAccessError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
+      setDeleteError(error?.message || `Não foi possível excluir o ${clientLabel}.`)
+      setWalletFeedback({ status: 'error', message: `Não foi possível excluir ${studentToDelete.name}.` })
+      setWalletMobileView('detail')
     } finally {
       setDeleting(false)
+      setDeletingStudentId('')
     }
   }
 
@@ -7671,9 +7889,36 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       <div id="students-panel-wallet" role="tabpanel" aria-labelledby="students-tab-wallet" tabIndex={0} hidden={studentSection !== 'wallet'} className="student-wallet-workspace grid gap-4 lg:gap-6">
         <StudentRankingPanel nutritionist={nutritionist} ranking={ranking} onSelectStudent={setSelectedStudentId} selectedStudentId={selectedStudent?.id} />
 
+        {walletFeedback ? (
+          <div
+            role={walletFeedback.status === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+            className={`flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${
+              walletFeedback.status === 'error'
+                ? 'border-rose-300/25 bg-rose-400/10 text-rose-100'
+                : walletFeedback.status === 'warning'
+                  ? 'border-amber-300/25 bg-amber-400/10 text-amber-100'
+                  : walletFeedback.status === 'pending'
+                    ? 'border-sky-300/25 bg-sky-400/10 text-sky-100'
+                    : 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100'
+            }`}
+          >
+            <span className="min-w-0 font-semibold">{walletFeedback.message}</span>
+            {walletFeedback.inviteCode ? (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <code className="max-w-full break-all rounded-md bg-black/20 px-2 py-1 text-xs">{walletFeedback.inviteCode}</code>
+                <button type="button" onClick={() => copyStudentInviteCode(walletFeedback.inviteCode)} className="min-h-10 rounded-md border border-white/20 px-3 text-xs font-black hover:bg-white/10">
+                  {walletFeedback.copyMessage === 'Link do aluno copiado.' ? 'Link copiado' : 'Copiar link'}
+                </button>
+              </div>
+            ) : null}
+            {walletFeedback.copyMessage ? <span className="text-xs">{walletFeedback.copyMessage}</span> : null}
+          </div>
+        ) : null}
+
       <div className="student-wallet-columns" data-mobile-view={walletMobileView}>
         <aside className="student-wallet-directory" aria-label={nutritionist ? 'Lista de pacientes' : 'Lista de alunos'}>
-          <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${students.length}`}>
+          <Panel title={nutritionist ? 'Carteira de pacientes' : 'Carteira de alunos'} action={`${visibleStudents.length} de ${displayedStudents.length}`}>
             <div className="student-wallet-directory__actions">
               <button type="button" onClick={handleCreateStudent} className="student-wallet-primary-action">
                 <NavIcon name="plus" className="h-4 w-4" />
@@ -7761,12 +8006,26 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                 onSaveCoachPlan={onSaveCoachPlan}
                 onCancel={() => setEditing(null)}
                 onSave={async (student) => {
-                  await onSave(student)
+                  const result = await onSave(student)
                   setEditing(null)
+                  const operationId = `${result?.student?.id || student.id || 'student'}-${Date.now()}`
+                  setWalletFeedback(result?.invitePromise
+                    ? { status: 'pending', message: `${student.name} cadastrado. Preparando o acesso…`, operationId }
+                    : { status: 'success', message: `${student.name} salvo com sucesso.` })
+                  if (result?.invitePromise) {
+                    result.invitePromise.then((invite) => {
+                      setWalletFeedback((current) => current?.operationId === operationId
+                        ? invite
+                          ? { status: 'success', message: `${student.name} cadastrado. Convite pronto:`, inviteCode: invite.code, operationId }
+                          : { status: 'warning', message: `${student.name} foi cadastrado, mas o acesso não ficou pronto. Gere-o pela ficha do aluno.`, operationId }
+                        : current)
+                    })
+                  }
                 }}
               />
             ) : selectedStudent ? (
               <>
+                {deleteError ? <p role="alert" className="mb-4 rounded-md border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-sm font-semibold text-rose-100">{deleteError}</p> : null}
                 <StudentSnapshot
                   student={selectedStudent}
                   actions={(
@@ -7790,6 +8049,26 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
                   availablePlans={selectedStudentPlan ? coachPlans : [selectedStudentPlan || { name: selectedStudent.plan || 'Plano não definido', price: '0', cycle: selectedStudent.billingCycle || 'mensal' }]}
                   payment={selectedStudent.payment}
                 />
+                {!nutritionist ? (
+                  <section className="student-wallet-access-panel student-workout-notification-preference" aria-label={`Avisos de treino para ${selectedStudent.name}`}>
+                    <div className="student-workout-notification-preference__copy">
+                      <p>Notificação de treino</p>
+                      <span>Avise-me quando este aluno encerrar uma sessão de treino.</span>
+                      <small>{workoutNotificationSaving ? 'Salvando preferência…' : 'O aviso chega aos dispositivos do treinador com notificações autorizadas.'}</small>
+                    </div>
+                    <div className="student-workout-notification-preference__control">
+                      <span>{selectedStudent.notifyCoachOnWorkoutFinish !== false ? 'Ativa' : 'Desativada'}</span>
+                      <button type="button" role="switch" aria-checked={selectedStudent.notifyCoachOnWorkoutFinish !== false}
+                        aria-label={`Notificar quando ${selectedStudent.name} encerrar um treino`}
+                        className="student-workout-notification-switch"
+                        disabled={workoutNotificationSaving || !onUpdateWorkoutFinishPreference}
+                        onClick={() => updateWorkoutFinishPreference(selectedStudent.notifyCoachOnWorkoutFinish === false)}>
+                        <span className="student-workout-notification-switch__track" aria-hidden="true"><span /></span>
+                      </button>
+                    </div>
+                    {workoutNotificationError ? <strong className="student-wallet-inline-error" role="alert">{workoutNotificationError}</strong> : null}
+                  </section>
+                ) : null}
                 <div className="student-wallet-detail-grid">
                   <StudentWalletDetailSection
                     title="Cadastro e contato"
@@ -8111,7 +8390,7 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
   }
 
   return (
-    <form onSubmit={handleSubmit} className="workout-builder grid gap-4">
+    <form onSubmit={handleSubmit} className="workout-builder grid gap-4" aria-busy={saving}>
       <label className={`flex cursor-pointer items-start gap-3 rounded-md border p-4 transition ${
         continuingStudent
           ? 'border-emerald-300/40 bg-emerald-300/10'
@@ -8252,12 +8531,17 @@ function StudentForm({ nutritionist = false, student, coachPlans = plans, onSave
 
         <StudentPlanPreview plan={activePlanPreview} availablePlans={planMode === 'new' ? [activePlanPreview] : coachPlans} />
       </div>
-      {error ? <p className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-md border border-red-300/30 bg-red-300/10 p-3 text-sm font-bold text-red-100">{error}</p> : null}
+      {saving ? (
+        <p role="status" aria-live="polite" className="rounded-md border border-sky-300/25 bg-sky-400/10 p-3 text-sm font-semibold text-sky-100">
+          Salvando o cadastro com segurança. Esta tela será atualizada assim que o servidor confirmar.
+        </p>
+      ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-60">
           {saving ? 'Salvando...' : nutritionist ? 'Salvar paciente' : 'Salvar aluno'}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100">
+        <button type="button" disabled={saving} onClick={onCancel} className="rounded-md border border-white/10 px-4 py-3 text-sm font-black text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50">
           Cancelar
         </button>
       </div>
@@ -10792,7 +11076,42 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   )
 }
 
+const WORKOUT_PREVIEW_STAGES = [
+  { id: 'overview', label: 'Visão geral' },
+  { id: 'plan', label: 'Plano' },
+  { id: 'execution', label: 'Execução' },
+  { id: 'summary', label: 'Resumo' },
+]
+const WORKOUT_PREVIEW_STAGE_IDS = new Set(WORKOUT_PREVIEW_STAGES.map((stage) => stage.id))
+
+function resolveWorkoutPreviewStage(stage) {
+  return WORKOUT_PREVIEW_STAGE_IDS.has(stage) ? stage : 'execution'
+}
+
+function WorkoutPreviewStageTabs({ stage = 'overview', onChange }) {
+  return (
+    <div className="workout-preview-stage-tabs-v25" role="tablist" aria-label="Etapas da jornada do aluno">
+      {WORKOUT_PREVIEW_STAGES.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          role="tab"
+          aria-selected={stage === item.id}
+          aria-pressed={stage === item.id}
+          data-preview-step={item.id}
+          className={stage === item.id ? 'is-active' : ''}
+          onClick={() => onChange?.(item.id)}
+        >
+          <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+          <strong>{item.label}</strong>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, library = exerciseLibrary, theme = DEFAULT_UI_THEME }) {
+  const [previewStage, setPreviewStage] = useState('overview')
   return (
     <aside className="mobile-workout-live-preview" aria-label="Visão do aluno">
       <div className="mobile-workout-live-preview-heading">
@@ -10803,8 +11122,13 @@ export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, libr
         <span><i aria-hidden="true" />Prévia ao vivo</span>
       </div>
       <div className="mobile-workout-live-preview-body" role="region" aria-label="Simulação interativa do treino" tabIndex={0}>
+        <div className="coach-workout-preview-flow-v25">
+          <div><strong>Jornada do aluno</strong><span>Prévia ao vivo do treino selecionado</span></div>
+          <WorkoutPreviewStageTabs stage={previewStage} onChange={setPreviewStage} />
+          <p>Visualização local: a sessão e a avaliação não são enviadas ao histórico.</p>
+        </div>
         <div className={`mobile-workout-live-preview-device student-mobile-shell app-theme-${theme}`}>
-          <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} />
+          <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} previewStage={previewStage} onPreviewStageChange={setPreviewStage} uiTheme={theme} />
         </div>
       </div>
     </aside>
@@ -10893,6 +11217,7 @@ function MobileWorkoutEditableDay({
   onEditDay,
 }) {
   const [studentPreviewOpen, setStudentPreviewOpen] = useState(false)
+  const [studentPreviewStage, setStudentPreviewStage] = useState('overview')
   const dayExercises = getWorkoutExercisesArray(day?.exercises).map((exercise) => enrichExercise(exercise))
 
   return (
@@ -10911,9 +11236,9 @@ function MobileWorkoutEditableDay({
         <button type="button" className="mobile-workout-primary mobile-workout-add-exercise-cta" onClick={() => openExercisePicker(dayIndex)}>
           {dayExercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
         </button>
-        <button type="button" onClick={() => setStudentPreviewOpen(true)}>
+        <button type="button" onClick={() => { setStudentPreviewStage('overview'); setStudentPreviewOpen(true) }}>
           <NavIcon name="eye" className="h-4 w-4" />
-          Ver como o aluno verá este dia
+          Prévia completa do aluno
         </button>
         <button type="button" onClick={onEditDay}>Editar dia</button>
       </div>
@@ -11023,10 +11348,15 @@ function MobileWorkoutEditableDay({
     </section>
     {studentPreviewOpen ? createPortal((
       <div className={`workout-day-preview-portal-v1 mobile-workout-day-preview-portal app-theme-${theme}`} role="presentation" onClick={() => setStudentPreviewOpen(false)}>
-        <div className="mobile-workout-day-preview-panel" role="dialog" aria-modal="true" aria-label="Ver como o aluno verá este dia" onClick={(event) => event.stopPropagation()}>
+        <div className="mobile-workout-day-preview-panel" role="dialog" aria-modal="true" aria-label="Prévia completa da jornada do aluno" onClick={(event) => event.stopPropagation()}>
           <div className="mobile-workout-day-preview-head-v2">
-            <div><p>Visão fiel do aluno</p><strong>{day?.day || `Dia ${dayIndex + 1}`}</strong></div>
+            <div><p>Visão fiel do aluno</p><strong>{workout?.title || day?.day || `Dia ${dayIndex + 1}`}</strong></div>
             <button type="button" onClick={() => setStudentPreviewOpen(false)}>Fechar</button>
+          </div>
+          <div className="coach-workout-preview-flow-v25">
+            <div><strong>Jornada completa</strong><span>O rascunho atual · {student?.name || 'Aluno selecionado'}</span></div>
+            <WorkoutPreviewStageTabs stage={studentPreviewStage} onChange={setStudentPreviewStage} />
+            <p>Somente visualização. Nenhuma sessão ou avaliação altera o histórico do aluno.</p>
           </div>
           <div className={`mobile-workout-day-preview-student-shell student-mobile-shell app-theme-${theme}`}>
             <StudentWorkoutExecution
@@ -11036,6 +11366,9 @@ function MobileWorkoutEditableDay({
               workoutLogs={workoutLogs}
               dayIndex={dayIndex}
               preview
+              previewStage={studentPreviewStage}
+              onPreviewStageChange={setStudentPreviewStage}
+              uiTheme={theme}
             />
           </div>
         </div>
@@ -11223,6 +11556,7 @@ function formatCount(total, singular, plural = `${singular}s`) {
 }
 
 function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, theme = DEFAULT_UI_THEME, onBack }) {
+  const [previewStage, setPreviewStage] = useState('overview')
   const canStudentDownloadPdf = Boolean(workout?.allowStudentPdfDownload)
   return createPortal((
     <div className={`workout-student-preview-portal-v1 mobile-workout-student-preview-portal app-theme-${theme}`} role="presentation" onClick={onBack}>
@@ -11232,7 +11566,7 @@ function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerc
         <div>
           <p>Visão fiel do aluno</p>
           <h4>{workout?.title || 'Treino selecionado'}</h4>
-          <span>{student?.name || 'Aluno selecionado'} poderá registrar cada série, carga e repetição.</span>
+          <span>{student?.name || 'Aluno selecionado'} · visão completa do programa à conclusão.</span>
         </div>
         {canStudentDownloadPdf ? (
           <button type="button" className="mobile-workout-pdf-action" onClick={() => window.print()}>
@@ -11240,8 +11574,13 @@ function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerc
           </button>
         ) : null}
       </div>
+      <div className="coach-workout-preview-flow-v25">
+        <div><strong>Jornada do aluno</strong><span>Programa, plano, execução e resumo</span></div>
+        <WorkoutPreviewStageTabs stage={previewStage} onChange={setPreviewStage} />
+        <p>Prévia somente de leitura. O progresso e a avaliação reais permanecem no app do aluno.</p>
+      </div>
       <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
-        <StudentWorkoutExecution student={student} workout={workout} preview workoutLogs={workoutLogs} exerciseLibraryItems={exerciseLibraryItems} />
+        <StudentWorkoutExecution student={student} workout={workout} preview previewStage={previewStage} onPreviewStageChange={setPreviewStage} workoutLogs={workoutLogs} exerciseLibraryItems={exerciseLibraryItems} uiTheme={theme} />
       </div>
     </section>
     </div>
@@ -13843,7 +14182,7 @@ export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, previewStage = 'execution', onPreviewStageChange, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -14027,7 +14366,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     </div>
   ) : null
 
-  const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length)
+  const previewModeStage = preview ? resolveWorkoutPreviewStage(previewStage) : ''
+  const daySelected = preview ? previewModeStage !== 'overview' : (activeDayIndex >= 0 && activeDayIndex < days.length)
 
   const safeDayIndex = Math.min(Math.max(activeDayIndex, 0), Math.max(days.length - 1, 0))
   const activeDay = days[safeDayIndex]
@@ -14093,7 +14433,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       ? 'Em andamento'
       : 'Não iniciado'
 
-  const sessionStarted = preview || Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
+  const sessionStarted = preview
+    ? previewModeStage === 'execution' || previewModeStage === 'summary'
+    : Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
   const dayCanFinish = dayTotalSets > 0 && dayCompletedSets === dayTotalSets
   const dayRemainingSets = Math.max(0, dayTotalSets - dayCompletedSets)
   const previousExerciseSession = exercise ? getPreviousExerciseSession(workoutLogs, workout?.id, exercise.name) : null
@@ -14258,7 +14600,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }
 
   function selectDay(nextDayIndex) {
-    if (nextDayIndex !== activeDayIndex) onSelectDay?.(nextDayIndex)
+    if (nextDayIndex !== activeDayIndex) {
+      if (!preview) onSelectDay?.(nextDayIndex)
+      if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     setActiveDayIndex(nextDayIndex)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
@@ -14267,6 +14612,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setEndConfirmOpen(false)
     setMessage('')
     setError('')
+    if (preview) onPreviewStageChange?.('plan')
   }
 
   function moveExercise(direction) {
@@ -14322,8 +14668,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           })
       }
     }
-    if (timerStartedAt && onToggleTimer) onToggleTimer()
-    onSelectDay?.(-1)
+    if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
+    if (preview) onPreviewStageChange?.('overview')
+    else onSelectDay?.(-1)
+    if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
     setActiveDayIndex(-1)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
@@ -14395,9 +14743,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       const previousXp = buildStudentRewardStats(rewardInput).xp
       const xpAwarded = Math.max(0, buildStudentRewardStats({ ...rewardInput, workoutLogs: [...workoutLogs, savedLog] }).xp - previousXp)
       setCompletedLog({ ...savedLog, durationSeconds: payload.durationSeconds, xpAwarded })
-      if (timerStartedAt && onToggleTimer) onToggleTimer()
+      if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
+      if (preview) onPreviewStageChange?.('summary')
       setMessage(preview
-        ? `Simulação concluída. Este treino renderia ${xpAwarded} XP na conta do aluno.`
+        ? 'Simulação concluída. Nenhuma sessão ou pontuação foi salva no histórico do aluno.'
         : xpAwarded ? `Treino salvo. ${xpAwarded} XP registrados no histórico.` : 'Treino salvo. A pontuação desta sessão já estava registrada.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
@@ -14429,8 +14778,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       }
       setCompletedLog({ ...savedLog, endedEarly: true, durationSeconds: payload.durationSeconds })
       setEndConfirmOpen(false)
-      if (timerStartedAt && onToggleTimer) onToggleTimer()
-      setMessage('Treino encerrado. Seu progresso realizado até aqui foi mantido no histórico.')
+      if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
+      if (preview) onPreviewStageChange?.('summary')
+      setMessage(preview ? 'Simulação de encerramento concluída. O histórico do aluno não foi alterado.' : 'Treino encerrado. Seu progresso realizado até aqui foi mantido no histórico.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível encerrar o treino.')
     } finally {
@@ -14441,7 +14791,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function startNewWorkoutSession() {
     setActiveDayIndex(preview ? 0 : -1)
-    onSelectDay?.(preview ? 0 : -1, { reset: true })
+    if (preview) onPreviewStageChange?.('overview')
+    else onSelectDay?.(-1, { reset: true })
     setActiveExerciseIndex(0)
     setSetLogs({})
     setCardioLogs({})
@@ -14456,25 +14807,37 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setError('')
   }
 
-  if (completedLog && daySelected) {
+  async function submitWorkoutRating(rating) {
+    if (!completedLog?.id || !onRateWorkout) throw new Error('Não foi possível salvar sua avaliação agora.')
+    const saved = await onRateWorkout(completedLog.id, rating)
+    if (!saved?.id) throw new Error('O servidor não confirmou a avaliação do treino.')
+    return { ...saved, rating: saved.rating || rating }
+  }
+
+  const showSummary = preview ? previewModeStage === 'summary' : Boolean(completedLog && daySelected)
+  const summaryLog = completedLog || (preview ? { id: 'preview-summary', endedEarly: false, durationSeconds: null, xpAwarded: null } : null)
+  const summaryIsIllustrative = preview && !completedLog
+
+  if (showSummary && daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 ' + (compact ? 'is-compact' : '')}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 mobile-workout-design-v24 mobile-workout-summary-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
-        <header className="mobile-workout-student-experience-head-v2">
+        <header className="mobile-workout-student-experience-head-v2 mobile-workout-summary-head-v24">
           <div>
-            <p>{completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído'}</p>
+            <p>{preview ? (completedLog?.endedEarly ? 'Encerramento simulado' : completedLog ? 'Conclusão simulada' : 'Resumo demonstrativo') : (completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído')}</p>
             <h3>{activeDay?.focus || activeDay?.day || workout.title || 'Sessão finalizada'}</h3>
-            <span>{(activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
+            <span>{preview ? (summaryIsIllustrative ? 'Os indicadores reais aparecem após o aluno concluir a sessão.' : 'Registros temporários desta simulação; o histórico real não foi alterado.') : (activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
           </div>
-          <strong>{completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded == null ? 'XP registrado' : completedLog.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'XP já registrado'}</strong>
+          <strong>{preview ? 'Prévia' : completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded == null ? 'XP registrado' : completedLog.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'XP já registrado'}</strong>
         </header>
-        <div className="mobile-workout-summary-grid-v4">
-          <div><span>Duração</span><strong>{formatWorkoutTimer(completedLog?.durationSeconds ?? durationSeconds)}</strong></div>
-          <div><span>Exercícios</span><strong>{completedExercises + '/' + exercises.length}</strong></div>
-          <div><span>Séries</span><strong>{dayCompletedSets}</strong></div>
-          <div><span>Volume</span><strong>{Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
+        <div className="mobile-workout-summary-grid-v4 mobile-workout-summary-grid-v24">
+          <div><span>Duração</span><strong>{summaryIsIllustrative ? '—' : formatWorkoutTimer(summaryLog?.durationSeconds ?? durationSeconds)}</strong></div>
+          <div><span>Exercícios concluídos</span><strong>{summaryIsIllustrative ? '—' : completedExercises + '/' + exercises.length}</strong></div>
+          <div><span>Séries concluídas</span><strong>{summaryIsIllustrative ? '—' : dayCompletedSets}</strong></div>
+          <div><span>Volume</span><strong>{summaryIsIllustrative ? '—' : Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
         </div>
-        {(loadImprovements || repImprovements) ? (
+        {summaryIsIllustrative ? <p className="mobile-workout-summary-preview-note-v25">Plano previsto: <strong>{exercises.length} exercícios</strong> e <strong>{dayTotalSets} séries</strong>. A execução real preencherá os indicadores.</p> : null}
+        {!summaryIsIllustrative && (loadImprovements || repImprovements) ? (
           <div className="mobile-workout-summary-evolution-v4">
             <strong>Evolução nesta sessão</strong>
             <div>
@@ -14483,9 +14846,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         ) : null}
-        {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
-        <div className="mobile-workout-summary-actions-v4">
-          {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
+        {!summaryLog?.endedEarly ? <WorkoutCompletionRating key={summaryLog.id} log={summaryLog} onSubmit={preview ? undefined : submitWorkoutRating} preview={preview} /> : null}
+        {message ? <div className="mobile-workout-student-success-v2"><strong>{preview ? 'Simulação' : completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
+        <div className="mobile-workout-summary-actions-v4 mobile-workout-summary-actions-v24">
+          {!preview && onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
           <button type="button" onClick={startNewWorkoutSession}>Voltar aos treinos</button>
         </div>
       </section>
@@ -14494,9 +14858,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} aria-busy={syncState === 'loading'}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-design-v24 mobile-workout-overview-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined} aria-busy={syncState === 'loading'}>
         {sessionSyncFeedback}
-        <header className="mobile-workout-student-experience-head-v2">
+        <header className="mobile-workout-student-experience-head-v2 mobile-workout-overview-heading-v24">
           <div>
             <p>Programa atual</p>
             <h3>{workout.title || 'Treinos'}</h3>
@@ -14505,25 +14869,25 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <strong>{formatCount(days.length, 'dia')}</strong>
         </header>
 
-        <div className="mobile-workout-program-card-v4">
+        <div className="mobile-workout-program-card-v4 mobile-workout-program-card-v24">
           <div><span>Objetivo</span><strong>{workout.focus || student?.goal || 'Personalizado'}</strong></div>
           {workout.level || student?.level ? <div><span>Nível</span><strong>{workout.level || student?.level}</strong></div> : null}
           {workout.frequency ? <div><span>Frequência</span><strong>{workout.frequency}</strong></div> : null}
         </div>
 
-        {onOpenProgress ? <button type="button" className="student-workout-open-progress-v13" aria-label="Minha evolução" onClick={onOpenProgress}><NavIcon name="chart" className="h-5 w-5" /><span><strong>Minha evolução</strong><small>Cargas, repetições e recordes dos exercícios</small></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
+        {!preview && onOpenProgress ? <button type="button" className="student-workout-open-progress-v13" aria-label="Minha evolução" onClick={onOpenProgress}><NavIcon name="chart" className="h-5 w-5" /><span><strong>Minha evolução</strong><small>Cargas, repetições e recordes dos exercícios</small></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
 
-        <div id="student-workout-day-selector" className="mobile-workout-day-list-v4">
+        <div id="student-workout-day-selector" className="mobile-workout-day-list-v4 mobile-workout-day-list-v24">
           {days.map((day, index) => {
             const dayExercises = getWorkoutExercisesArray(day.exercises)
             const lastLog = getWorkoutDayLastLog(workoutLogs, workout?.id, dayExercises)
             return (
-              <article key={day.id || day.day + '-' + index} className="mobile-workout-day-card-v4">
+              <article key={day.id || day.day + '-' + index} className="mobile-workout-day-card-v4 mobile-workout-day-card-v24">
                 <div>
                   <span>{'Dia ' + (index + 1)}</span>
                   <h4>{day.day || 'Treino'}</h4>
                   <p>{day.focus || workout.focus || 'Treino personalizado'}</p>
-                  <small>{lastLog ? 'Concluído anteriormente' : 'Ainda não realizado'}</small>
+                  <small>{lastLog ? 'Concluído anteriormente' : 'Ainda não realizado'} · {formatCount(dayExercises.length, 'exercício')}</small>
                 </div>
                 <div className="mobile-workout-day-card-actions-v4">
                   <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Abrir treino</button>
@@ -14538,9 +14902,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!sessionStarted) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 mobile-workout-design-v24 mobile-workout-plan-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
-        <div className="mobile-workout-day-detail-head-v4">
+        <div className="mobile-workout-day-detail-head-v4 mobile-workout-day-detail-head-v24">
           <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
           <div>
             <p>{activeDay?.day || 'Treino do dia'}</p>
@@ -14548,16 +14912,16 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           </div>
           <span>{formatCount(exercises.length, 'exercício')}</span>
         </div>
-        <div className="mobile-workout-preview-notice-v4">
-          <strong>Modo de visualização</strong>
-          <p>Revise os exercícios abaixo. Inicie o treino para registrar sua sessão.</p>
+        <div className="mobile-workout-preview-notice-v4 mobile-workout-preview-notice-v24">
+          <strong>Antes de começar</strong>
+          <p>Confira a sequência e as orientações do treinador. Ao iniciar, você poderá registrar sua sessão.</p>
         </div>
-        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" disabled={syncState === 'loading'} onClick={onToggleTimer}>▶ Iniciar sessão</button> : null}
-        <div className="mobile-workout-day-exercise-list-v4">
+        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4 mobile-workout-start-session-v24" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : onToggleTimer}>▶ Iniciar sessão</button> : null}
+        <div className="mobile-workout-day-exercise-list-v4 mobile-workout-day-exercise-list-v24">
           {exercises.map((currentExercise, index) => {
             const profile = getExerciseMuscleProfile(currentExercise)
             return (
-              <article key={currentExercise.id || currentExercise.name + '-' + index}>
+              <article key={currentExercise.id || currentExercise.name + '-' + index} className="mobile-workout-day-exercise-v24">
                 <span className="mobile-workout-day-exercise-muscle-v4"><MuscleMapMini exercise={currentExercise} className="h-12 w-12" /></span>
                 <div>
                   <small>{'Exercício ' + (index + 1)}</small>
@@ -14637,15 +15001,15 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   ) : null
 
   return (
-    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
-      <div className="mobile-workout-command-v12">
-        <div className="mobile-workout-execution-head-v4">
+      <div className="mobile-workout-command-v12 mobile-workout-command-v24">
+        <div className="mobile-workout-execution-head-v4 mobile-workout-execution-head-v24">
           <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
           <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
           {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar sessão</button> : null}
         </div>
-        <div className="mobile-workout-exercise-progress-v3">
+        <div className="mobile-workout-exercise-progress-v3 mobile-workout-exercise-progress-v24">
           <div className="mobile-workout-exercise-progress-head-v3">
             <div><span>Progresso do treino</span><strong>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</strong></div>
             <small>{completedExercises + ' concluídos · ' + remainingExercises + ' restantes'}</small>
@@ -14655,8 +15019,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           </div>
           <div className="mobile-workout-exercise-switcher-v4" aria-label="Exercícios deste treino">
             {exercises.map((item, index) => (
-              <button key={item.id || item.name + '-' + index} type="button" className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
-                {index + 1}
+              <button key={item.id || item.name + '-' + index} type="button" aria-label={`Exercício ${index + 1}: ${item.name}`} aria-current={index === safeExerciseIndex ? 'step' : undefined} title={item.name} className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
+                <span className="mobile-workout-step-index-v24">{index + 1}</span>
+                <span className="mobile-workout-step-name-v24">{item.name}</span>
               </button>
             ))}
           </div>
@@ -14664,7 +15029,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       </div>
 
       {exercise ? (
-        <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2 mobile-workout-focus-v12">
+        <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2 mobile-workout-focus-v12 mobile-workout-focus-v24">
           <div className="mobile-workout-current-heading-v5">
             <div>
               <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
@@ -14770,7 +15135,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           )}
 
 
-          <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13">
+          <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13 mobile-workout-navigation-v24">
             <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>Concluir exercício</button>
             {hasPreviousExercise ? <button type="button" className="is-secondary" aria-label="Exercício anterior" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }}>← <span>Exercício anterior</span></button> : null}
           </div>
@@ -14783,7 +15148,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
 
       {isLastExercise ? (
-        <footer id="student-workout-finish" className="mobile-workout-student-finish-v2">
+        <footer id="student-workout-finish" className="mobile-workout-student-finish-v2 mobile-workout-finish-v24">
           <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
           <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
           <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
@@ -14950,7 +15315,7 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
+function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, appAdminSettings = defaultAppAdminSettings, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const [nutritionTab, setNutritionTab] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search)
@@ -15046,7 +15411,7 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${editorStudent?.name ?? 'Paciente'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} />
+              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} themeSettings={appAdminSettings} />
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -15252,7 +15617,7 @@ function NutritionDraftQuality({ meals = [], totals }) {
   )
 }
 
-function NutritionForm({ students = [], selectedStudent, anamneses = [], questionnaireAssignments = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME }) {
+function NutritionForm({ students = [], selectedStudent, anamneses = [], questionnaireAssignments = [], editingPlan = null, professional = {}, onStartNewPlan, onSaveNutritionPlan, onSaved, onDirtyChange, uiTheme = DEFAULT_UI_THEME, themeSettings = defaultAppAdminSettings }) {
   const [meals, setMeals] = useState(() => createNutritionDefaultMeals())
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -15293,6 +15658,8 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
   const assistantSteps = ['Escolha o alimento', 'Defina a porção', 'Confira os macros']
   const assistantStepIndex = totalItems > 0 ? 2 : totalMeals > 0 ? 1 : 0
   const previewPlan = {
+    id: editingPlan?.id || 'nutrition-preview-draft',
+    studentId: formStudent?.id || '',
     title: titleDraft || 'Plano alimentar',
     calories: `${Math.round(planTotals.calories)} kcal`,
     protein: `${roundMacro(planTotals.protein)} g`,
@@ -15301,8 +15668,10 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
     meals: meals
       .filter((meal) => meal.name.trim())
       .map((meal) => ({
+        id: meal.id,
         name: meal.name,
         time: meal.time,
+        items: meal.items.map((item) => ({ ...item })),
         foods: meal.items
           .filter((item) => item.foodName && Number(item.grams) > 0)
           .map(formatStudentFoodServing)
@@ -15525,7 +15894,7 @@ function NutritionForm({ students = [], selectedStudent, anamneses = [], questio
       </div>
 
       {previewOpen ? (
-        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} professional={professional} theme={uiTheme} onClose={() => setPreviewOpen(false)} />
+        <NutritionStudentDietPreview plan={previewPlan} student={formStudent} professional={professional} theme={uiTheme} themeSettings={themeSettings} onClose={() => setPreviewOpen(false)} />
       ) : null}
 
       <input type="hidden" name="studentId" value={formStudent?.id || ''} />
@@ -15790,61 +16159,26 @@ function openNutritionPlanPdf(plan, student = {}, professional = {}) {
   pdfWindow.document.close()
 }
 
-function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, onClose }) {
-  const meals = Array.isArray(plan?.meals) ? plan.meals : []
-  const canDownloadPdf = canPatientDownloadNutritionPdf(plan)
+function NutritionStudentDietPreview({ plan, student, professional = {}, theme = DEFAULT_UI_THEME, themeSettings = defaultAppAdminSettings, onClose }) {
   const nutritionist = isNutritionistUser(professional)
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
-
+  const waterGoalMl = Math.max(500, Number(student?.waterGoalMl || 2500))
   return createPortal((
     <div className={`nutrition-student-preview-v1 nutrition-student-preview-v2 app-theme-${theme} fixed inset-0 z-[120] grid place-items-end bg-black/55 p-0 backdrop-blur-sm sm:place-items-center sm:p-5`} role="dialog" aria-modal="true" aria-label={`Visão do ${clientLabel} da dieta`}>
-      <div className="nutrition-student-preview-panel scrollbar-soft max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-emerald-300/20 bg-zinc-950 p-4 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl sm:p-5">
-        <div className="flex items-start justify-between gap-3">
+      <div className="nutrition-student-preview-panel nutrition-student-preview-faithful-panel scrollbar-soft flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-emerald-300/20 bg-zinc-950 shadow-2xl shadow-black/35 sm:max-w-2xl sm:rounded-3xl">
+        <header className="nutrition-student-preview-toolbar-v1 flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Visão do {clientLabel}</p>
-            <h3 className="mt-1 break-words text-2xl font-black text-white">{plan?.title || 'Plano alimentar'}</h3>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">{student?.name || (nutritionist ? 'Paciente' : 'Aluno')} verá refeições, horários e macros de forma simples.</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-300">Prévia fiel da área do {clientLabel}</p>
+            <h3 className="mt-0.5 text-lg font-black text-white">Minha dieta</h3>
+            <p className="mt-0.5 truncate text-xs text-zinc-400">{student?.name || (nutritionist ? 'Paciente' : 'Aluno')} · interações demonstrativas, sem salvar progresso</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label={`Fechar visão do ${clientLabel}`}>
-            <NavIcon name="close" className="h-5 w-5" />
-          </button>
-        </div>
-
-        {canDownloadPdf ? (
-          <button type="button" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }} className="nutrition-pdf-action-v1 mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300/25 bg-emerald-300/12 px-4 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-300/18 sm:w-auto">
-            <NavIcon name="download" className="h-4 w-4" />
-            Baixar PDF da dieta
-          </button>
-        ) : null}
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <NutritionQuickStat icon="chart" label="Calorias" value={plan?.calories || '-'} detail="por dia" />
-          <NutritionQuickStat icon="dumbbell" label="Proteína" value={plan?.protein || '-'} detail="estimada" />
-          <NutritionQuickStat icon="calendar" label="Refeições" value={meals.length || '-'} detail="organizadas" />
-        </div>
-
-        {plan?.notes ? (
-          <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
-            <p className="text-xs font-black uppercase text-emerald-200">{nutritionist ? 'Orientação da nutricionista' : 'Orientação do treinador'}</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-300">{stripNutritionPlanMetadata(plan.notes)}</p>
+          <button type="button" onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:border-emerald-300/35 hover:bg-emerald-300/10" aria-label={`Fechar visão do ${clientLabel}`}><NavIcon name="close" className="h-5 w-5" /></button>
+        </header>
+        <div className="nutrition-student-preview-content scrollbar-soft min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
+          <div className={`student-mobile-shell fit-gradient-bg nutrition-student-preview-device app-theme-${theme} mx-auto w-full max-w-xl`} style={mergeThemeStyle(themeSettings, theme)} data-preview="patient-diet">
+            <StudentDietExperience plan={plan} student={student} professional={professional} showHeading={false}
+              waterMl={0} waterGoalMl={waterGoalMl} onOpenWater={() => {}} showPdfAction={canPatientDownloadNutritionPdf(plan)} previewMode />
           </div>
-        ) : null}
-
-        <div className="mt-4 grid gap-3">
-          {meals.length ? meals.map((meal, index) => (
-            <article key={meal.name || index} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-emerald-200">{meal.time || 'Horário livre'}</p>
-                  <h4 className="mt-1 break-words text-lg font-black text-white">{meal.name}</h4>
-                  <NutritionMealFoodList meal={meal} />
-                </div>
-                <span className="shrink-0 rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-right text-xs font-black leading-5 text-emerald-100">{meal.macros || 'Macros'}</span>
-              </div>
-            </article>
-          )) : (
-            <Empty text={`Adicione refeições para visualizar a dieta como o ${clientLabel} verá.`} />
-          )}
         </div>
       </div>
     </div>
@@ -16260,13 +16594,14 @@ function getStudentDietWeekDays() {
   })
 }
 
-function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
+function StudentDietExperience({ plan, student, professional = {}, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater, previewMode = false, showPdfAction = true }) {
   const meals = Array.isArray(plan?.meals) ? plan.meals : []
   const weekDays = useMemo(() => getStudentDietWeekDays(), [])
   const todayWeekIndex = Math.max(0, weekDays.findIndex((day) => day.active))
   const storageKey = `coachfitpro-student-diet-completed-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const favoriteStorageKey = `coachfitpro-student-diet-favorites-${student?.id || 'student'}-${plan?.id || 'plan'}`
   const [completedMealIds, setCompletedMealIds] = useState(() => {
+    if (previewMode) return []
     try {
       const saved = window.localStorage.getItem(storageKey)
       return saved ? JSON.parse(saved) : []
@@ -16277,22 +16612,26 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const [selectedMealId, setSelectedMealId] = useState(meals[0]?.id || '')
   const [selectedWeekDayIndex, setSelectedWeekDayIndex] = useState(todayWeekIndex)
   const [favoriteMeals, setFavoriteMeals] = useState(() => {
+    if (previewMode) return { meals: [], days: [] }
     try {
       const saved = JSON.parse(window.localStorage.getItem(favoriteStorageKey) || '{}')
       return { meals: Array.isArray(saved.meals) ? saved.meals : [], days: Array.isArray(saved.days) ? saved.days : [] }
     } catch { return { meals: [], days: [] } }
   })
+  const [previewWaterMl, setPreviewWaterMl] = useState(0)
 
   useEffect(() => {
+    if (previewMode) return
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(completedMealIds))
     } catch {
       // A private browsing context may block localStorage; the screen remains usable.
     }
-  }, [completedMealIds, storageKey])
+  }, [completedMealIds, previewMode, storageKey])
   useEffect(() => {
+    if (previewMode) return
     try { window.localStorage.setItem(favoriteStorageKey, JSON.stringify(favoriteMeals)) } catch {}
-  }, [favoriteMeals, favoriteStorageKey])
+  }, [favoriteMeals, favoriteStorageKey, previewMode])
 
   function toggleMeal(meal) {
     const mealId = String(meal?.id || meal?.name || '')
@@ -16310,7 +16649,8 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const completedCount = meals.filter((meal) => completedMealIds.includes(String(meal.id || meal.name))).length
   const progress = meals.length ? Math.round((completedCount / meals.length) * 100) : 0
   const safeWaterGoal = Math.max(500, Number(waterGoalMl || 2500))
-  const safeWater = Math.max(0, Math.min(Number(waterMl || 0), safeWaterGoal))
+  const displayedWaterMl = previewMode ? previewWaterMl : waterMl
+  const safeWater = Math.max(0, Math.min(Number(displayedWaterMl || 0), safeWaterGoal))
   const waterPercent = Math.round((safeWater / safeWaterGoal) * 100)
   const waterLiters = (safeWater / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
   const waterGoalLiters = (safeWaterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
@@ -16320,6 +16660,16 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
   const isFavoriteDay = favoriteMeals.days.includes(selectedDayId)
   function toggleFavoriteDay() {
     setFavoriteMeals((current) => ({ ...current, days: current.days.includes(selectedDayId) ? current.days.filter((id) => id !== selectedDayId) : [...current.days, selectedDayId] }))
+  }
+  function addWater(amount = 250) {
+    if (!previewMode) {
+      onAddWater?.(amount)
+      return
+    }
+    setPreviewWaterMl(current => Math.min(safeWaterGoal, current + Math.max(0, Number(amount) || 250)))
+  }
+  function openWater() {
+    if (!previewMode) onOpenWater?.()
   }
 
   return (
@@ -16396,13 +16746,13 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
         <strong>{waterLiters} L <small>/ {waterGoalLiters} L</small></strong>
       </div>
       <div className="student-diet-water-v1">
-        <button type="button" className="student-diet-water-icon-v1" onClick={onOpenWater} aria-label="Abrir hidratação"><NavIcon name="water" className="h-5 w-5" /></button>
+        <button type="button" className="student-diet-water-icon-v1" onClick={openWater} aria-label={previewMode ? "Na área do paciente, abrir a aba Água" : "Abrir hidratação"}><NavIcon name="water" className="h-5 w-5" /></button>
         <div className="student-diet-water-copy-v1"><div><strong>{waterPercent}% da meta</strong><span>{Math.max(0, safeWaterGoal - safeWater)} ml restantes</span></div><div className="student-diet-water-track-v1"><span style={{ width: `${Math.max(waterPercent, safeWater ? 0 : 4)}%` }} /></div><small>Registre sua água para acompanhar o ritmo de hoje.</small></div>
-        <button type="button" className="student-diet-water-add-v1" onClick={() => onAddWater?.(250)} aria-label="Adicionar 250 ml de água"><NavIcon name="plus" className="h-5 w-5" /></button>
+        <button type="button" className="student-diet-water-add-v1" onClick={() => addWater(250)} aria-label="Adicionar 250 ml de água"><NavIcon name="plus" className="h-5 w-5" /></button>
       </div>
 
       {stripNutritionPlanMetadata(plan?.notes) ? <aside className="student-diet-note-v1"><NavIcon name="sparkles" className="h-5 w-5" /><div><span>ORIENTAÇÃO DO SEU PROFISSIONAL</span><p>{stripNutritionPlanMetadata(plan.notes)}</p><small>{professional?.publicName || 'Equipe Coach Fit'}</small></div></aside> : null}
-      <button type="button" className="student-diet-pdf-v1" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button>
+      {showPdfAction ? <button type="button" className="student-diet-pdf-v1" onClick={() => { try { openNutritionPlanPdf(plan, student, professional) } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível abrir o PDF. Permita pop-ups e tente novamente.') } }}><NavIcon name="download" className="h-4 w-4" />Baixar minha dieta em PDF</button> : null}
     </section>
   )
 }
@@ -17462,13 +17812,13 @@ function StudentPortalPreview({
   invoices = [],
   assessments = [],
   coachSettings = null,
-  onCompleteWorkout,
   onSendMessage,
   coachId,
   professionalType = 'trainer',
   onRemoteStatus,
   onRemoteError,
   canGenerateInvite = true,
+  theme = DEFAULT_UI_THEME,
 }) {
   const nutritionist = professionalType === 'nutritionist'
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
@@ -17498,7 +17848,12 @@ function StudentPortalPreview({
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
   const [invite, setInvite] = useState(null)
   const [creatingInvite, setCreatingInvite] = useState(false)
+  const [workoutPreviewStage, setWorkoutPreviewStage] = useState('overview')
   const inviteUrl = invite ? `${window.location.origin}${window.location.pathname}?invite=${invite.code}` : ''
+
+  useEffect(() => {
+    setWorkoutPreviewStage('overview')
+  }, [student?.id, studentWorkouts[0]?.id])
 
   if (!student) {
     return <Empty text={`Cadastre ou selecione um ${clientLabel} para visualizar a área do ${clientLabel}.`} />
@@ -17631,16 +17986,26 @@ function StudentPortalPreview({
             <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
               <p className="text-xs font-black uppercase text-emerald-200">O que o aluno enxerga</p>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Esta prévia mostra a tela de execução do treino com vídeo, orientação e campo de carga que o aluno registra no celular.
+                Confira todas as etapas da mesma interface do aluno: visão geral do programa, plano do dia, execução e resumo.
               </p>
             </div>
-        <StudentWorkoutExecution
-          student={student}
-          workout={studentWorkouts[0]}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onCompleteWorkout={onCompleteWorkout}
-          preview
-        />
+            <div className="coach-workout-preview-flow-v25">
+              <div><strong>Jornada do aluno</strong><span>Programa, plano, execução e resumo</span></div>
+              <WorkoutPreviewStageTabs stage={workoutPreviewStage} onChange={setWorkoutPreviewStage} />
+              <p>Prévia somente de leitura. A sessão e a avaliação reais permanecem no app do aluno.</p>
+            </div>
+            <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
+              <StudentWorkoutExecution
+                student={student}
+                workout={studentWorkouts[0]}
+                workoutLogs={studentWorkoutLogs}
+                exerciseLibraryItems={availableExerciseLibrary}
+                preview
+                previewStage={workoutPreviewStage}
+                onPreviewStageChange={setWorkoutPreviewStage}
+                uiTheme={theme}
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -17763,7 +18128,7 @@ function MessageActions({ message, canManage = false, onEdit, onDelete }) {
   )
 }
 
-function StudentMessagePanel({ student, coachId, contact, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onBack, onRefresh, syncError = '', fullScreen = false }) {
+function StudentMessagePanel({ student, coachId, contact, inviteCode = '', messages = [], onSendMessage, onEditMessage, onDeleteMessage, onBack, onRefresh, syncError = '', fullScreen = false }) {
   const buildPayload = useCallback(({ body, attachmentFile, attachmentPreview }) => ({
     coachId,
     studentId: student.id,
@@ -17791,6 +18156,7 @@ function StudentMessagePanel({ student, coachId, contact, messages = [], onSendM
     <ChatConversation
       viewerRole="student"
       studentId={student.id}
+      inviteCode={inviteCode}
       contact={contact}
       messages={messages}
       onSendMessage={onSendMessage}
@@ -18396,11 +18762,24 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     ) : Promise.resolve(session)
   ), [inviteCode])
 
+  const rateStudentWorkout = useCallback((workoutLogId, rating) => (
+    saveRemoteWorkoutRating(inviteCode, workoutLogId, rating)
+  ), [inviteCode])
+  const loadStudentMealLogs = useCallback(() => (
+    supabaseEnabled ? loadRemoteStudentMealLogs(inviteCode) : Promise.resolve([])
+  ), [inviteCode])
+  const saveStudentMealLog = useCallback((mealLog) => (
+    saveRemoteStudentMealLog(inviteCode, mealLog)
+  ), [inviteCode])
+
   function sendStudentMessage(message) {
-    return onSendMessage({ ...message, inviteCode })
+    return onSendMessage({ ...message, inviteCode, notifyCoachOnWorkoutFinish: student.notifyCoachOnWorkoutFinish !== false })
   }
 
   async function createStudentActivationCheckout() {
+    if (isNativeIosApp()) {
+      throw new Error('O pagamento externo não é disponibilizado dentro do aplicativo para iPhone. Entre em contato com seu profissional.')
+    }
     const session = await createRemoteStudentCheckoutSessionByInvite(inviteCode)
     const checkoutBaseUrl = resolveAudienceCheckoutUrl({
       nutritionist: access.professionalType === 'nutritionist',
@@ -18434,6 +18813,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
       freeAccessGranted={access.freeAccessGranted}
+      inviteCode={inviteCode}
       paymentReturnPending={paymentReturnPending}
       professionalType={access.professionalType}
       questionnaireError={access.questionnaireError || ''}
@@ -18442,8 +18822,11 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
       toggleUiTheme={toggleUiTheme}
       onCompleteWorkout={completeStudentWorkout}
       onEndWorkout={endStudentWorkout}
+      onRateWorkout={rateStudentWorkout}
       onLoadWorkoutSession={loadStudentWorkoutSession}
       onSaveWorkoutSession={saveStudentWorkoutSession}
+      onLoadMealLogs={loadStudentMealLogs}
+      onSaveMealLog={saveStudentMealLog}
       onAddCheckin={addStudentCheckin}
       onSendMessage={sendStudentMessage}
       onEditMessage={onEditMessage}
@@ -18459,7 +18842,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, inviteCode = '', financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onLoadMealLogs, onSaveMealLog, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
   const patientMode = professionalType === 'nutritionist'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -18475,6 +18858,10 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [feedbackPrompt, setFeedbackPrompt] = useState(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
+  const [studentMealLogs, setStudentMealLogs] = useState([])
+  const [studentMealLogsLoading, setStudentMealLogsLoading] = useState(false)
+  const [studentMealLogsError, setStudentMealLogsError] = useState('')
+  const [mealLogsReloadVersion, setMealLogsReloadVersion] = useState(0)
   const avatarInputRef = useRef(null)
   const studentFirstName = getFirstName(student?.name)
   const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
@@ -18594,8 +18981,50 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }, [professionalType, student?.id])
 
   useEffect(() => {
+    let mounted = true
+    let listener = null
+    const openMessagesFromPush = () => {
+      if (activeTab !== 'mensagens') previousStudentTabRef.current = activeTab || 'inicio'
+      setWorkoutPage('main')
+      setActiveTab('mensagens')
+      setMenuOpen(false)
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+    if (consumePendingChatPushAction('student', student?.id)) openMessagesFromPush()
+    addChatPushActionListener((payload) => {
+      if (payload?.recipientRole !== 'student' || String(payload?.studentId || '') !== String(student?.id || '')) return
+      storePendingChatPushAction(payload)
+      if (consumePendingChatPushAction('student', student?.id)) openMessagesFromPush()
+    }).then((handle) => {
+      if (!mounted) {
+        void handle?.remove().catch(() => undefined)
+        return
+      }
+      listener = handle
+    }).catch(() => undefined)
+    return () => {
+      mounted = false
+      if (listener) void listener.remove().catch(() => undefined)
+    }
+  }, [activeTab, student?.id])
+
+  useEffect(() => {
     persistStudentTab(student?.id, activeTab)
   }, [activeTab, student?.id])
+
+  useEffect(() => {
+    if (activeTab !== 'dieta' || !student?.id || !onLoadMealLogs) return undefined
+    let active = true
+    setStudentMealLogs([])
+    setStudentMealLogsLoading(true)
+    setStudentMealLogsError('')
+    Promise.resolve()
+      .then(() => onLoadMealLogs())
+      .then((logs) => { if (active) setStudentMealLogs(Array.isArray(logs) ? logs : []) })
+      .catch((error) => { if (active) setStudentMealLogsError(error?.message || 'Não foi possível carregar os registros de refeição.') })
+      .finally(() => { if (active) setStudentMealLogsLoading(false) })
+    return () => { active = false }
+  }, [activeTab, mealLogsReloadVersion, onLoadMealLogs, student?.id])
 
   useEffect(() => {
     const nextId = selectedStudentWorkout?.id ? String(selectedStudentWorkout.id) : ''
@@ -18770,6 +19199,15 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
   }
 
+  async function saveStudentMealPhoto(mealLog) {
+    if (!onSaveMealLog) throw new Error('O registro de refeições não está disponível agora.')
+    const saved = await onSaveMealLog(mealLog)
+    if (!saved?.id) throw new Error('O servidor não confirmou o registro da refeição.')
+    setStudentMealLogs((current) => [saved, ...current.filter((item) => String(item.id) !== String(saved.id))].slice(0, 50))
+    setStudentMealLogsError('')
+    return saved
+  }
+
   function toggleWorkoutTimer() {
     if (workoutStartedAt) {
       setWorkoutElapsedSeconds((current) => current + Math.floor((Date.now() - workoutStartedAt) / 1000))
@@ -18799,6 +19237,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       await onSendMessage?.({
         studentId: student.id,
         sender: 'student',
+        messageKind: 'workout_completion',
         body: `${student.name} concluiu o treino ${log.title}. Esforço: ${log.effort}.${log.notes ? ` Observação: ${log.notes}` : ''}`,
       }).catch(() => {})
     }
@@ -18821,6 +19260,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     await onSendMessage?.({
       studentId: student.id,
       sender: 'student',
+      messageKind: 'workout_completion',
       body: `${student.name} encerrou o treino ${log.title}. O progresso realizado até aqui foi mantido.`,
     }).catch(() => {})
     setWorkoutStartedAt(null)
@@ -18957,6 +19397,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 }}
                 onCompleteWorkout={completeWorkoutFromStudent}
                 onEndWorkout={endWorkoutFromStudent}
+                onRateWorkout={onRateWorkout}
                 onLoadWorkoutSession={onLoadWorkoutSession}
                 onSaveWorkoutSession={onSaveWorkoutSession}
                 onSessionHydrated={(session) => {
@@ -18996,6 +19437,14 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             assignments={studentQuestionnaireAssignments}
             onSubmitQuestionnaire={onSubmitQuestionnaire}
           />
+          <StudentMealPhotoJournal
+            logs={studentMealLogs}
+            loading={studentMealLogsLoading}
+            loadError={studentMealLogsError}
+            nutritionPlanId={studentNutritionPlans.length === 1 ? studentNutritionPlans[0]?.id || '' : ''}
+            onSave={saveStudentMealPhoto}
+            onRefresh={() => setMealLogsReloadVersion((current) => current + 1)}
+          />
           {studentNutritionPlans.length ? <NutritionPlanList key={student.id} plans={studentNutritionPlans} selectedStudent={student} showHeading={false} waterMl={waterMl} waterGoalMl={waterGoalMl} onAddWater={addWater} onOpenWater={() => openTab('agua')} /> : <Empty text={patientMode ? 'Seu plano alimentar ainda não foi liberado pela nutricionista.' : 'Sua dieta ainda não foi liberada pelo treinador.'} />}
         </StudentAppSection>
       )
@@ -19011,7 +19460,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     }
 
     if (activeTab === 'mensagens') {
-      return <StudentChatScreen student={student} coachId={coachId} coachSettings={coachSettings} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} externalSyncError={chatSyncError} onBack={closeStudentChat} />
+      return <StudentChatScreen student={student} coachId={coachId} coachSettings={coachSettings} inviteCode={inviteCode} messages={studentMessages} onSendMessage={onSendMessage} onEditMessage={onEditMessage} onDeleteMessage={onDeleteMessage} onRefreshMessages={onRefreshMessages} externalSyncError={chatSyncError} onBack={closeStudentChat} />
     }
 
     if (activeTab === 'pagamentos') {
@@ -19968,6 +20417,7 @@ function StudentHydrationPage({ goalMl, currentMl, entries = [], celebration = f
 }
 
 function StudentPaymentLock({ student, coachSettings, professionalType = 'trainer', paymentReturnPending = false, onActivateAccess, onOpenPayments, onOpenChat }) {
+  const nativeIosApp = isNativeIosApp()
   const billingBrand = getBillingBrand(coachSettings)
   const professionalPaymentCurrent = student?.payment === 'Pago'
   const appPaymentCurrent = student?.appPaymentStatus === 'active'
@@ -19978,7 +20428,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
   const professionalBillingLabel = getProfessionalBillingLabel(professionalType)
 
   async function activateAccess() {
-    if (!onActivateAccess || activating) return
+    if (nativeIosApp || !onActivateAccess || activating) return
     setActivating(true)
     setActivationError('')
     try {
@@ -20014,7 +20464,7 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        {lockState?.canOpenCheckout ? (
+        {lockState?.canOpenCheckout && !nativeIosApp ? (
           <button type="button" disabled={activating || paymentReturnPending || !onActivateAccess} onClick={activateAccess} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {paymentReturnPending ? 'Confirmando pagamento...' : activating ? 'Abrindo checkout...' : lockState.actionLabel}
           </button>
@@ -20035,7 +20485,8 @@ function StudentPaymentLock({ student, coachSettings, professionalType = 'traine
       </div>
       {activationError ? <p role="alert" className="mt-3 rounded-md border border-rose-300/30 bg-rose-300/10 p-3 text-sm font-bold text-rose-100">{activationError}</p> : null}
       {paymentReturnPending ? <p role="status" className="mt-3 text-xs leading-5 text-emerald-100">Retorno do checkout identificado. Estamos confirmando a liberação segura do seu acesso.</p> : null}
-      {lockState?.canOpenCheckout ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout && !nativeIosApp ? <p className="mt-3 text-xs leading-5 text-zinc-400">Após o pagamento, volte para esta tela. A liberação é confirmada automaticamente pela Cartpanda, sem novo login.</p> : null}
+      {lockState?.canOpenCheckout && nativeIosApp ? <p className="mt-3 text-xs leading-5 text-zinc-400">A ativação do acesso do aluno ou paciente não é oferecida para compra dentro do aplicativo iOS. Fale com seu profissional para verificar seu cadastro.</p> : null}
     </StudentAppSection>
   )
 }
@@ -20342,7 +20793,7 @@ function escapeStatementHtml(value) {
     .replace(/'/g, '&#039;')
 }
 
-function StudentChatScreen({ student, coachId, coachSettings, messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages, externalSyncError = '', onBack }) {
+function StudentChatScreen({ student, coachId, coachSettings, inviteCode = '', messages = [], onSendMessage, onEditMessage, onDeleteMessage, onRefreshMessages, externalSyncError = '', onBack }) {
   const [syncError, setSyncError] = useState('')
   const refreshHandlerRef = useRef(onRefreshMessages)
 
@@ -20371,6 +20822,7 @@ function StudentChatScreen({ student, coachId, coachSettings, messages = [], onS
   return (
     <StudentMessagePanel
       student={student}
+      inviteCode={inviteCode}
       coachId={coachId}
       contact={{ name: contactName, avatarUrl: coachSettings?.profilePhotoUrl, subtitle: 'Seu acompanhamento direto e seguro' }}
       messages={messages}
@@ -20532,13 +20984,15 @@ function CheckinForm({ students = [], onAddCheckin, audienceLabel = 'Aluno', sch
   )
 }
 
-function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange }) {
+function CoachSubscription({ students = [], invoices = [], subscription, userCreatedAt, coachPlans = plans, appAdminSettings = defaultAppAdminSettings, onRefreshSubscription, professionalAffiliate = false, nativeIosEntitlement = false, onNativeEntitlementChange, professionalType = 'trainer', accountId = '' }) {
   const [showDetails, setShowDetails] = useState(false)
   const [copied, setCopied] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const [checkoutStarted, setCheckoutStarted] = useState(false)
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [paymentMessage, setPaymentMessage] = useState('')
+  const [retryCheckoutConfirmed, setRetryCheckoutConfirmed] = useState(false)
+  const webCheckoutRequestRef = useRef(false)
   const [nativeProducts, setNativeProducts] = useState([])
   const [nativePurchasePending, setNativePurchasePending] = useState(false)
   const nativeIosApp = isNativeIosApp()
@@ -20639,7 +21093,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       if (stopped || busy) return
       busy = true
       attempts += 1
-      const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+      const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: false })
       if (stopped) return
       if (result?.active) {
         setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
@@ -20701,7 +21155,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     if (!onRefreshSubscription) return
     setCheckingPayment(true)
     if (!silent) setPaymentMessage('Verificando pagamento...')
-    const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: true })
+    const result = await onRefreshSubscription({ status: 'Verificando pagamento', silent: true, goToOverviewOnActive: false })
     if (result?.active) {
       setPaymentMessage('Pagamento confirmado pelo Admin Master. O painel foi liberado com segurança.')
       recordLeadEvent('payment_confirmed', { planId: selectedCheckoutPlanId })
@@ -20765,6 +21219,59 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       setNativePurchasePending(false)
     }
   }
+
+  if (nativeIosApp) {
+    return (
+      <NativeIosSubscriptionPanel
+        key={accountId}
+        accountId={accountId}
+        subscriptionActive={nativeIosEntitlement}
+        subscription={subscription}
+        professionalAffiliate={professionalAffiliate}
+        professionalType={professionalType}
+        onNativeEntitlementChange={onNativeEntitlementChange}
+      />
+    )
+  }
+
+  const safeCheckoutPlans = checkoutPlans.map((item) => ({
+    ...item,
+    checkoutUrl: getSafeSubscriptionCheckoutUrl(item.checkoutUrl),
+  }))
+  const pendingProviderStatus = ['pending','pendente','waiting_payment','aguardando_pagamento']
+    .includes(String(subscription?.status || '').toLowerCase())
+  return (
+    <WebSubscriptionPanel
+      subscription={subscription}
+      professionalAffiliate={professionalAffiliate}
+      professionalType={professionalType}
+      plans={safeCheckoutPlans}
+      selectedPlanId={selectedCheckoutPlanId}
+      onSelectPlan={chooseCheckoutPlan}
+      onCheckout={(planId) => {
+        const selected = safeCheckoutPlans.find(item => item.id === planId)
+        if (webCheckoutRequestRef.current || checkoutStarted || subscriptionActive ||
+          (pendingProviderStatus && !retryCheckoutConfirmed) || !selected?.checkoutUrl) return false
+        webCheckoutRequestRef.current = true
+        handleCheckoutClick(planId)
+        return true
+      }}
+      onRefresh={() => checkPaymentStatus(false)}
+      checking={checkingPayment}
+      paymentMessage={paymentMessage}
+      checkoutStarted={checkoutStarted}
+      retryCheckoutConfirmed={retryCheckoutConfirmed}
+      onRetryCheckout={() => {
+        webCheckoutRequestRef.current = false
+        setCheckoutStarted(false)
+        setRetryCheckoutConfirmed(true)
+        setPaymentMessage('Nova tentativa liberada. Continue apenas se a anterior foi cancelada ou recusada.')
+      }}
+      copied={copied}
+      onCopy={copyBillingSummary}
+      now={currentTime}
+    />
+  )
 
   if (!subscriptionActive) {
     return (
@@ -23492,7 +23999,7 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         </div>
       </section>
 
-      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-2" aria-label="Páginas do Admin Master">
+      <nav className="grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 p-2 sm:grid-cols-3" aria-label="Páginas do Admin Master">
         <button
           type="button"
           onClick={() => setActivePage('settings')}
@@ -23509,10 +24016,20 @@ function AdminMaster({ settings, onSave, remoteStatus, remoteError }) {
         >
           Acessos gratuitos
         </button>
+        <button
+          type="button"
+          onClick={() => setActivePage('chat-reports')}
+          aria-current={activePage === 'chat-reports' ? 'page' : undefined}
+          className={`min-h-12 rounded-xl px-4 text-sm font-black transition ${activePage === 'chat-reports' ? 'bg-emerald-400 text-zinc-950 shadow-lg shadow-emerald-950/25' : 'text-zinc-300 hover:bg-white/[0.05]'}`}
+        >
+          Denúncias do chat
+        </button>
       </nav>
 
       {activePage === 'free-access' ? (
         <AdminStudentFreeAccess />
+      ) : activePage === 'chat-reports' ? (
+        <AdminChatReports />
       ) : (
       <form onSubmit={handleSubmit} className="grid gap-5 lg:gap-6">
         <AdminAccordionSection title="Saúde do sistema" action="Diagnóstico rápido" open={openSections.health} onToggle={() => toggleSection('health')}>
@@ -24677,6 +25194,7 @@ function createBlankStudent() {
     workout: '',
     lastMessage: 'Cadastro concluído. Acompanhamento aguardando configuração.',
     requireAnamnesis: true,
+    notifyCoachOnWorkoutFinish: true,
     accessOverrideUntil: '',
     loadNotes: '',
     waterGoalMl: '2500',

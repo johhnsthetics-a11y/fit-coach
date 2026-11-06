@@ -5,5 +5,10 @@
   "ios": {
     "contentInset": "automatic",
     "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "banner", "list"]
+    }
   }
 }

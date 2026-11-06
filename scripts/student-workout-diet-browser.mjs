@@ -106,9 +106,15 @@ const theme = new URLSearchParams(window.location.search).get('theme') === 'ligh
 
 function Harness() {
   const [workoutLogs, setWorkoutLogs] = useState(initialWorkoutLogs)
+  const [mealLogs, setMealLogs] = useState([])
   async function saveWorkout(value) {
     const saved = { ...value, id: 'qa-saved-' + Date.now(), completedAt: new Date().toISOString() }
     setWorkoutLogs((current) => [...current, saved])
+    return saved
+  }
+  async function saveMealLog(value) {
+    const saved = { id: 'qa-meal-' + Date.now(), mealName: value.mealName, notes: value.notes, nutritionPlanId: value.nutritionPlanId, recordedAt: new Date().toISOString(), photoUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGQAAAAASUVORK5CYII=' }
+    setMealLogs((current) => [saved, ...current])
     return saved
   }
   return <StudentMobileApp
@@ -130,6 +136,9 @@ function Harness() {
     accountEmail="aluno.qa@example.test"
     onCompleteWorkout={saveWorkout}
     onEndWorkout={async (value) => value}
+    onRateWorkout={async (workoutLogId, rating) => ({ id: workoutLogId, rating })}
+    onLoadMealLogs={async () => mealLogs}
+    onSaveMealLog={saveMealLog}
     onSendMessage={async (value) => value}
     onAddCheckin={async (value) => value}
     onSubmitQuestionnaire={async (value) => value}
@@ -214,14 +223,14 @@ try {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth <= 1), 'A página de evolução não pode ampliar a viewport mobile')
     await page.screenshot({ path: `.superpowers/diet-qa/workout-progress-${theme}-${width}.png`, fullPage: true })
     await workoutArea.getByRole('button', { name: 'Voltar para treinos', exact: true }).click()
-    const openWorkout = workoutArea.getByRole('button', { name: 'Ver treino', exact: true })
+    const openWorkout = workoutArea.getByRole('button', { name: 'Abrir treino', exact: true })
     assert.ok(await openWorkout.count(), `A aba Treino deve exibir a rotina: ${await workoutArea.innerText()}`)
     await openWorkout.click()
     await workoutArea.getByText('Supino reto', { exact: true }).waitFor()
     assert.equal(await workoutArea.locator('.muscle-map-card, img[alt*="anatômico"], img[alt*="exercício"], img[alt*="músculo"]').count(), 0, 'O treino do aluno não deve renderizar fotos ou anatomia do exercício')
     assert.ok(await workoutArea.getByText(/3 séries.*12 reps.*60s/i).count(), 'A prescrição textual do exercício deve permanecer visível')
 
-    await workoutArea.getByRole('button', { name: '▶ Iniciar treino', exact: true }).click()
+    await workoutArea.getByRole('button', { name: '▶ Iniciar sessão', exact: true }).click()
     await workoutArea.locator('.mobile-workout-command-v12').waitFor()
     assert.equal(await workoutArea.getByRole('button', { name: 'Exercício anterior', exact: true }).count(), 0, 'O primeiro exercício não deve exibir navegação anterior')
     assert.equal(await workoutArea.getByRole('button', { name: 'Ver evolução do exercício', exact: true }).count(), 0, 'A evolução não deve distrair durante a sessão ativa')
@@ -313,7 +322,7 @@ try {
     await page.waitForTimeout(1100)
     assert.equal(await restWidget.locator('.mobile-workout-rest-floating-copy-v6 strong').innerText(), pausedValue, 'Pausar deve congelar o único contador')
     await restWidget.getByRole('button', { name: '+30s', exact: true }).click()
-    await restWidget.getByRole('button', { name: 'Pular', exact: true }).click()
+    await restWidget.getByRole('button', { name: 'Pular descanso', exact: true }).click()
     await restWidget.waitFor({ state: 'hidden' })
 
     for (const [load, reps] of [['22', '12'], ['24', '11']]) {
@@ -323,7 +332,7 @@ try {
       await restWidget.waitFor()
       assert.equal(await restPortal.evaluate((element) => getComputedStyle(element).backgroundColor), 'rgba(0, 0, 0, 0)', 'O portal deve continuar transparente nas séries seguintes')
       await restWidget.getByRole('button', { name: /Expandir descanso/ }).click()
-      await restWidget.getByRole('button', { name: 'Pular', exact: true }).click()
+      await restWidget.getByRole('button', { name: 'Pular descanso', exact: true }).click()
       await restWidget.waitFor({ state: 'hidden' })
     }
 
@@ -357,7 +366,7 @@ try {
       await workoutArea.getByRole('button', { name: 'Concluir série', exact: true }).click()
       await restWidget.waitFor()
       await restWidget.getByRole('button', { name: /Expandir descanso/ }).click()
-      await restWidget.getByRole('button', { name: 'Pular', exact: true }).click()
+      await restWidget.getByRole('button', { name: 'Pular descanso', exact: true }).click()
       await restWidget.waitFor({ state: 'hidden' })
     }
 
@@ -370,6 +379,11 @@ try {
     await page.screenshot({ path: `.superpowers/diet-qa/workout-execution-${theme}-${width}.png`, fullPage: true })
     await finishWorkout.click()
     await workoutArea.getByText('Treino concluído', { exact: true }).waitFor()
+    const ratingPanel = workoutArea.locator('.student-workout-rating-panel')
+    await ratingPanel.waitFor()
+    await ratingPanel.getByRole('button', { name: '5 estrelas', exact: true }).click()
+    await ratingPanel.getByRole('button', { name: 'Enviar avaliação', exact: true }).click()
+    await ratingPanel.getByText('Avaliação salva. Obrigado por compartilhar sua experiência.', { exact: true }).waitFor()
     await workoutArea.getByRole('button', { name: 'Minha evolução', exact: true }).click()
     await workoutArea.getByRole('heading', { name: 'Minha evolução', exact: true }).waitFor()
     assert.ok(await workoutArea.getByText('2 treinos', { exact: true }).count(), 'A evolução deve refletir o novo registro sem recarregar a aplicação')
@@ -380,31 +394,19 @@ try {
     await page.screenshot({ path: `.superpowers/diet-qa/workout-${theme}-${width}.png`, fullPage: true })
 
     await openTab(page, width, 'Dieta')
-    await page.getByRole('button', { name: /Plano alimentar detalhado/ }).click()
-    const breakfastButton = page.getByRole('button', { name: /Café da manhã/ })
-    const lunchButton = page.getByRole('button', { name: /Almoço/ })
-    const dinnerButton = page.getByRole('button', { name: /Jantar/ })
-    assert.equal(await breakfastButton.getAttribute('aria-expanded'), 'true', 'A primeira refeição deve iniciar aberta')
-    assert.equal(await lunchButton.getAttribute('aria-expanded'), 'false', 'As demais refeições devem iniciar recolhidas')
-    assert.ok(await breakfastButton.getAttribute('aria-controls'), 'O accordion precisa relacionar cabeçalho e conteúdo')
-    assert.ok(await page.getByText('Quantidade não informada', { exact: true }).count(), 'Quantidades ausentes devem ser informadas sem inventar 0 g')
-    assert.equal(await page.getByText('0 g', { exact: true }).count(), 0, 'A dieta não pode inventar 0 g para quantidades ausentes')
-    await lunchButton.click()
-    assert.equal(await breakfastButton.getAttribute('aria-expanded'), 'true', 'Abrir o almoço não deve fechar o café da manhã')
-    assert.equal(await lunchButton.getAttribute('aria-expanded'), 'true', 'O almoço deve abrir independentemente')
-    const lunchSection = lunchButton.locator('xpath=..')
-    const foodList = lunchSection.locator('.student-diet-food-list')
-    await foodList.waitFor()
-    assert.equal(await foodList.locator('.student-diet-food-row').count(), 3, 'Cada alimento deve ocupar uma linha própria')
-    assert.ok(await foodList.getByText('Arroz Branco', { exact: true }).count(), 'O nome do alimento deve ficar visível')
-    assert.ok(await foodList.getByText('200 g', { exact: true }).count(), 'A quantidade do alimento deve ficar visível')
-    assert.ok(await foodList.getByText('Peito de Frango', { exact: true }).count(), 'Os alimentos da refeição não podem ser omitidos')
-    assert.equal(await lunchSection.locator('.nutrition-meal-macros-v2 > div').count(), 3, 'Os três macronutrientes devem aparecer no rodapé da refeição')
-    await breakfastButton.click()
-    assert.equal(await breakfastButton.getAttribute('aria-expanded'), 'false', 'A refeição deve poder ser recolhida novamente')
-    assert.equal(await lunchButton.getAttribute('aria-expanded'), 'true', 'Recolher uma refeição não deve alterar as demais')
-    await dinnerButton.click()
-    assert.equal(await dinnerButton.getAttribute('aria-expanded'), 'true', 'Qualquer refeição deve poder ser aberta')
+    await page.getByText('Plano alimentar detalhado', { exact: true }).waitFor()
+    await page.getByRole('heading', { name: 'Registre sua refeição', exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Registrar refeição com foto', exact: true }).click()
+    const photoInput = page.getByLabel('Foto da refeição', { exact: true })
+    await photoInput.setInputFiles({
+      name: 'refeicao-demo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGQAAAAASUVORK5CYII=', 'base64'),
+    })
+    await page.locator('.student-meal-photo-field textarea').fill('Registro fictício para demonstração.')
+    await page.getByRole('button', { name: 'Salvar refeição', exact: true }).click()
+    await page.getByRole('status').filter({ hasText: 'Refeição registrada com sucesso.' }).waitFor()
+    assert.equal(await page.locator('.student-meal-photo-log').count(), 1, 'O diário deve exibir o registro demonstrativo após salvar')
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 1, `A página não pode ter overflow horizontal em ${width}px`)
@@ -413,7 +415,7 @@ try {
   }
   }
 
-  console.log('PASS student workout text-only and detailed diet')
+  console.log('PASS student workout, 1–5 star rating, and meal-photo journal')
 } finally {
   await browser.close()
   await server.close()

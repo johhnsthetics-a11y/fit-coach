@@ -1,0 +1,58 @@
+.student-meal-photo-journal { display: grid; gap: .85rem; margin: .25rem 0 1.15rem; border: 1px solid rgba(0, 210, 178, .22); border-radius: 1.15rem; background: radial-gradient(circle at 100% 0, rgba(0, 210, 178, .1), transparent 44%), linear-gradient(145deg, rgba(11, 25, 25, .98), rgba(8, 15, 17, .98)); padding: 1rem; box-shadow: 0 15px 38px rgba(0, 0, 0, .13); }
+.student-meal-photo-heading { display: flex; align-items: center; gap: .75rem; }
+.student-meal-photo-heading-icon { display: grid; flex: 0 0 auto; width: 2.8rem; height: 2.8rem; place-items: center; border: 1px solid rgba(0, 210, 178, .26); border-radius: 1rem; background: rgba(0, 210, 178, .1); color: #73ffe8; font-size: 1.35rem; }
+.student-meal-photo-heading > div { display: grid; gap: .15rem; }
+.student-meal-photo-heading p { margin: 0; color: #73ffe8; font-size: .63rem; font-weight: 950; letter-spacing: .12em; }
+.student-meal-photo-heading h4 { margin: 0; color: #f8fffd; font-size: 1rem; font-weight: 950; }
+.student-meal-photo-heading > div > span { color: #9fb2ab; font-size: .77rem; line-height: 1.4; }
+.student-meal-photo-open, .student-meal-photo-choose { display: flex; width: 100%; min-height: 3rem; align-items: center; justify-content: center; gap: .55rem; border: 1px solid rgba(0, 210, 178, .34); border-radius: .9rem; background: linear-gradient(135deg, rgba(0, 210, 178, .18), rgba(0, 135, 119, .15)); color: #9fffee; cursor: pointer; font-size: .86rem; font-weight: 950; }
+.student-meal-photo-open > span:first-child { font-size: 1.35rem; line-height: 1; }
+.student-meal-photo-open:hover, .student-meal-photo-choose:hover:not(:disabled) { background: rgba(0, 210, 178, .22); }
+.student-meal-photo-form { display: grid; gap: .75rem; border: 1px solid rgba(255, 255, 255, .09); border-radius: 1rem; background: rgba(0, 0, 0, .14); padding: .8rem; }
+.student-meal-photo-field { display: grid; gap: .35rem; color: #d8e5df; font-size: .76rem; font-weight: 850; }
+.student-meal-photo-field > span { display: flex; align-items: baseline; gap: .35rem; }
+.student-meal-photo-field small { color: #8fa6a0; font-size: .69rem; font-weight: 600; }
+.student-meal-photo-field select, .student-meal-photo-field textarea { width: 100%; min-height: 2.75rem; border: 1px solid rgba(255, 255, 255, .13); border-radius: .75rem; background: rgba(3, 9, 10, .75); padding: .65rem .75rem; color: #f4fbf8; font: inherit; font-size: .83rem; }
+.student-meal-photo-field textarea { min-height: 4rem; resize: vertical; }
+.student-meal-photo-field select:focus-visible, .student-meal-photo-field textarea:focus-visible, .student-meal-photo-open:focus-visible, .student-meal-photo-choose:focus-visible, .student-meal-photo-preview > button:focus-visible, .student-meal-photo-actions button:focus-visible, .student-meal-photo-history-heading button:focus-visible, .student-meal-photo-error button:focus-visible { outline: 3px solid #73ffe8; outline-offset: 2px; }
+.student-meal-photo-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+.student-meal-photo-hint, .student-meal-photo-muted { margin: 0; color: #8fa6a0; font-size: .72rem; line-height: 1.45; }
+.student-meal-photo-preview { display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; align-items: center; gap: .6rem; border: 1px solid rgba(0, 210, 178, .16); border-radius: .8rem; padding: .45rem; }
+.student-meal-photo-preview img { width: 4rem; height: 4rem; border-radius: .55rem; object-fit: cover; }
+.student-meal-photo-preview > span { overflow: hidden; color: #d8e5df; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.student-meal-photo-preview > button { border: 0; background: transparent; color: #ffb6bf; cursor: pointer; font-size: .7rem; font-weight: 850; }
+.student-meal-photo-actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: .55rem; }
+.student-meal-photo-actions button { min-height: 2.75rem; border: 1px solid transparent; border-radius: .8rem; cursor: pointer; font-size: .8rem; font-weight: 950; }
+.student-meal-photo-actions .is-secondary { border-color: rgba(255, 255, 255, .12); background: transparent; color: #d5e2dd; }
+.student-meal-photo-actions .is-primary { border-color: rgba(0, 210, 178, .34); background: #14bda5; color: #06201b; }
+.student-meal-photo-actions button:disabled { cursor: not-allowed; opacity: .5; }
+.student-meal-photo-history { display: grid; gap: .6rem; border-top: 1px solid rgba(255, 255, 255, .08); padding-top: .75rem; }
+.student-meal-photo-history-heading { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.student-meal-photo-history-heading strong { color: #dce9e4; font-size: .78rem; font-weight: 950; }
+.student-meal-photo-history-heading button { border: 0; background: transparent; color: #73ffe8; cursor: pointer; font-size: .7rem; font-weight: 850; }
+.student-meal-photo-history-heading button:disabled { cursor: wait; opacity: .6; }
+.student-meal-photo-log-list { display: grid; gap: .55rem; }
+.student-meal-photo-log { display: grid; grid-template-columns: 4.25rem minmax(0, 1fr); align-items: center; gap: .7rem; border: 1px solid rgba(255, 255, 255, .08); border-radius: .85rem; background: rgba(255, 255, 255, .035); padding: .5rem; }
+.student-meal-photo-log > img, .student-meal-photo-missing { display: grid; width: 4.25rem; height: 4.25rem; place-items: center; border-radius: .65rem; background: rgba(0, 210, 178, .08); color: #73ffe8; object-fit: cover; font-size: 1.35rem; }
+.student-meal-photo-log > div { display: grid; min-width: 0; gap: .16rem; }
+.student-meal-photo-log strong { color: #f4fbf8; font-size: .8rem; font-weight: 950; }
+.student-meal-photo-log time { color: #91a69e; font-size: .68rem; }
+.student-meal-photo-log p { margin: .1rem 0 0; color: #c2d0ca; font-size: .72rem; line-height: 1.4; overflow-wrap: anywhere; }
+.student-meal-photo-error, .student-meal-photo-success { margin: 0; border-radius: .75rem; padding: .65rem .75rem; font-size: .74rem; line-height: 1.45; }
+.student-meal-photo-error { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid rgba(244, 63, 94, .3); background: rgba(244, 63, 94, .08); color: #fecdd3; }
+.student-meal-photo-error button { flex: 0 0 auto; border: 0; background: transparent; color: inherit; cursor: pointer; font-weight: 900; }
+.student-meal-photo-success { border: 1px solid rgba(0, 210, 178, .22); background: rgba(0, 210, 178, .08); color: #73ffe8; }
+.student-mobile-shell.app-theme-light .student-meal-photo-journal { border-color: rgba(0, 156, 134, .18); background: radial-gradient(circle at 100% 0, rgba(0, 210, 178, .1), transparent 44%), linear-gradient(145deg, #ffffff, #f5fbf9); box-shadow: 0 12px 30px rgba(15, 23, 42, .06); }
+.student-mobile-shell.app-theme-light .student-meal-photo-heading h4, .student-mobile-shell.app-theme-light .student-meal-photo-history-heading strong, .student-mobile-shell.app-theme-light .student-meal-photo-log strong { color: #13201d; }
+.student-mobile-shell.app-theme-light .student-meal-photo-heading > div > span, .student-mobile-shell.app-theme-light .student-meal-photo-hint, .student-mobile-shell.app-theme-light .student-meal-photo-muted, .student-mobile-shell.app-theme-light .student-meal-photo-log time { color: #61706b; }
+.student-mobile-shell.app-theme-light .student-meal-photo-open, .student-mobile-shell.app-theme-light .student-meal-photo-choose { border-color: rgba(0, 156, 134, .25); background: #eafaf6; color: #007d6c; }
+.student-mobile-shell.app-theme-light .student-meal-photo-form { border-color: rgba(0, 156, 134, .12); background: rgba(245, 251, 249, .8); }
+.student-mobile-shell.app-theme-light .student-meal-photo-field { color: #273631; }
+.student-mobile-shell.app-theme-light .student-meal-photo-field select, .student-mobile-shell.app-theme-light .student-meal-photo-field textarea { border-color: rgba(15, 23, 42, .14); background: #ffffff; color: #13201d; }
+.student-mobile-shell.app-theme-light .student-meal-photo-preview > span, .student-mobile-shell.app-theme-light .student-meal-photo-log p { color: #3d4a47; }
+.student-mobile-shell.app-theme-light .student-meal-photo-history { border-color: rgba(15, 23, 42, .08); }
+.student-mobile-shell.app-theme-light .student-meal-photo-log { border-color: rgba(15, 23, 42, .08); background: #ffffff; }
+.student-mobile-shell.app-theme-light .student-meal-photo-log > img, .student-mobile-shell.app-theme-light .student-meal-photo-missing { background: #effaf7; color: #007d6c; }
+.student-mobile-shell.app-theme-light .student-meal-photo-hint { color: #65736e; }
+@media (max-width: 360px) { .student-meal-photo-journal { padding: .8rem; } .student-meal-photo-preview { grid-template-columns: 3.5rem minmax(0, 1fr) auto; } .student-meal-photo-preview img { width: 3.5rem; height: 3.5rem; } }
+@media (prefers-reduced-motion: reduce) { .student-meal-photo-open, .student-meal-photo-choose { transition: none; } }

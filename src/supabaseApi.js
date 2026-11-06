@@ -10,6 +10,7 @@ import { establishStudentPersonalPassword } from './studentFirstPassword'
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const PHOTO_BUCKET = 'checkin-photos'
+const MEAL_PHOTO_BUCKET = 'meal-photos'
 const WORKOUT_VIDEO_BUCKET = 'workout-videos'
 const MESSAGE_ATTACHMENT_BUCKET = 'message-attachments'
 const NUTRITION_PLAN_METADATA_PREFIX = '[coachfitpro-nutrition-meta]'
@@ -879,6 +880,41 @@ export async function loadRemoteNotifications() {
   return rows.map(fromNotificationRow)
 }
 
+export async function getRemoteChatPushAvailability({ actorType, studentId = '', inviteCode = '' } = {}) {
+  return functionRequest('chat-push-device', {
+    action: 'status',
+    actorType,
+    studentId,
+    inviteCode,
+  })
+}
+
+export async function registerRemoteChatPushDevice({ token, actorType, studentId = '', inviteCode = '' } = {}) {
+  return functionRequest('chat-push-device', {
+    action: 'register',
+    token,
+    actorType,
+    studentId,
+    inviteCode,
+  })
+}
+
+export async function sendRemoteChatMessagePush({ messageId, actorType, inviteCode = '' } = {}) {
+  return functionRequest('chat-message-push', {
+    messageId,
+    actorType,
+    inviteCode,
+  })
+}
+
+export async function sendRemoteWorkoutCompletionPush({ workoutLogId, inviteCode = '' } = {}) {
+  if (!isUuid(workoutLogId) || !String(inviteCode || '').trim()) return null
+  return functionRequest('workout-completion-push', {
+    workoutLogId,
+    inviteCode: String(inviteCode).trim(),
+  })
+}
+
 export async function loadRemoteStudentMessages(studentId) {
   if (!isUuid(studentId)) return []
   return loadRemoteMessages(studentId)
@@ -889,6 +925,46 @@ export async function loadRemoteStudentMessagesByInvite(inviteCode) {
   const result = await rpcRequest('get_student_messages', { invite_code: inviteCode })
   return Promise.all((Array.isArray(result) ? result : []).map((row) => hydrateMessageRow(row, { inviteCode })))
 }
+ 
+// Security-sensitive chat actions are bound to the current auth identity or
+// existing student invite token by PostgreSQL functions. The client never
+// supplies a user role or coach ID, and must not write moderation tables.
+export async function loadRemoteChatSafetyStatus(studentId, inviteCode = '') {
+  if (!isUuid(studentId)) throw new Error('Conversa inválida.')
+  return rpcRequest('chat_safety_status', {
+    p_student_id: studentId,
+    p_invite_code: inviteCode || null,
+  })
+}
+
+export async function setRemoteChatBlock(studentId, blocked, inviteCode = '') {
+  if (!isUuid(studentId) || typeof blocked !== 'boolean') throw new Error('Bloqueio inválido.')
+  return rpcRequest('chat_safety_set_block', {
+    p_student_id: studentId, p_blocked: blocked, p_invite_code: inviteCode || null,
+  })
+}
+
+export async function sendRemoteChatReport(studentId, { reason, details = '', messageId = null } = {}, inviteCode = '') {
+  if (!isUuid(studentId)) throw new Error('Conversa inválida.')
+  return rpcRequest('chat_safety_submit_report', {
+    p_student_id: studentId,
+    p_reason: reason,
+    p_details: String(details || '').trim().slice(0, 500),
+    p_message_id: messageId || null,
+    p_invite_code: inviteCode || null,
+  })
+}
+
+export async function loadRemoteChatReportsForAdmin() {
+  const response = await rpcRequest('chat_safety_admin_list_reports', { p_limit: 60 })
+  return Array.isArray(response) ? response : []
+}
+
+export async function updateRemoteChatReportForAdmin(reportId, status) {
+  if (!isUuid(reportId)) throw new Error('Denúncia inválida.')
+  return rpcRequest('chat_safety_admin_update_report', { p_report_id: reportId, p_status: status })
+}
+
 
 export async function fetchRemoteExerciseMedia(query) {
   const search = String(query || '').trim()
@@ -926,32 +1002,53 @@ export async function saveRemoteStudent(student, coachId) {
   return fromStudentRow(saved)
 }
 
+export async function updateRemoteStudentWorkoutFinishPreference(studentId, enabled, coachId) {
+  if (!isUuid(studentId)) throw new Error('Aluno inválido para atualizar as notificações de treino.')
+  const ownerId = requireCoachId(coachId)
+  const rows = await request(`students?id=eq.${studentId}&coach_id=eq.${ownerId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ notify_coach_on_workout_finish: enabled !== false }),
+  })
+  const saved = rows?.[0]
+  if (!saved?.id) throw new Error('O Supabase não confirmou a preferência de notificação deste aluno.')
+  return fromStudentRow(saved)
+}
+
 export async function deleteRemoteStudent(studentId) {
   if (!isUuid(studentId)) throw new Error('Aluno inválido para exclusão.')
-  const checkins = await request(
-    `checkins?student_id=eq.${studentId}&select=checkin_photos(storage_url)`,
-  )
+  const [checkins] = await Promise.all([
+    request(`checkins?student_id=eq.${studentId}&select=checkin_photos(storage_url)`),
+    // This cleanup does not depend on the check-in photo lookup. Run both
+    // preparations together to avoid serial network round trips.
+    functionRequest('meal-photo', { action: 'cleanup-student', studentId }),
+  ])
   const photoPaths = checkins.flatMap((checkin) => (
     (checkin.checkin_photos ?? []).map((photo) => photo.storage_url).filter(Boolean)
   ))
-
   const rows = await request(`students?id=eq.${studentId}`, { method: 'DELETE' })
   const deleted = rows?.[0]
   if (!deleted?.id) throw new Error('O Supabase não confirmou a exclusão do aluno.')
 
+  let cleanupWarning = ''
   if (photoPaths.length) {
-    const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
-      method: 'DELETE',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ prefixes: photoPaths }),
-    })
-    if (!response.ok) {
-      const message = await response.text()
-      throw serviceError(response.status, message || 'Erro ao excluir fotos do aluno')
+    try {
+      const response = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}`, {
+        method: 'DELETE',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ prefixes: photoPaths }),
+      })
+      if (!response.ok) {
+        const message = await response.text()
+        throw serviceError(response.status, message || 'Erro ao excluir fotos do aluno')
+      }
+    } catch (error) {
+      // The student row is already deleted. Do not report the whole operation
+      // as failed and restore a profile that no longer exists in the database.
+      cleanupWarning = error?.message || 'Não foi possível remover todas as fotos do aluno.'
     }
   }
 
-  return fromStudentRow(deleted)
+  return { student: fromStudentRow(deleted), cleanupWarning }
 }
 
 export async function saveRemoteCheckin(checkin) {
@@ -1041,6 +1138,28 @@ async function uploadCheckinPhoto(file, checkinId, inviteCode = '') {
   return safeName
 }
 
+async function uploadStudentMealPhoto(file, inviteCode, recordId) {
+  const allowedTypes = new Set(['image/jpeg','image/png','image/webp','image/heic','image/heif','image/avif'])
+  if (!file || !allowedTypes.has(String(file.type || '').toLowerCase()) || file.size < 1 || file.size > 10 * 1024 * 1024) {
+    throw new Error('A foto deve ser uma imagem válida com até 10 MB.')
+  }
+  const form = new FormData()
+  form.append('inviteCode', inviteCode)
+  form.append('recordId', recordId)
+  form.append('file', file)
+  const result = await functionFormRequest('meal-photo', form)
+  if (!result?.ok) throw new Error('O servidor não confirmou o envio da imagem.')
+}
+
+async function removeStudentMealPhotoObject(inviteCode, recordId) {
+  return functionRequest('meal-photo', { action: 'remove', inviteCode, recordId })
+}
+
+async function signStudentMealPhoto(inviteCode, recordId) {
+  const result = await functionRequest('meal-photo', { action: 'sign', inviteCode, recordId })
+  return result?.signedUrl || ''
+}
+
 async function uploadWorkoutVideo(file, workoutId, exerciseIndex) {
   if (!file) return ''
   if (!file.type?.startsWith('video/')) {
@@ -1115,15 +1234,17 @@ export async function markRemoteNotificationsRead() {
   })
 }
 
-export async function createRemoteStudentInvite(studentId, coachId) {
+export async function createRemoteStudentInvite(studentId, coachId, { skipActiveInviteLookup = false } = {}) {
   const safeCoachId = requireCoachId(coachId)
-  const now = encodeURIComponent(new Date().toISOString())
-  const activeInvites = await request(
-    `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(safeCoachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
-  )
+  if (!skipActiveInviteLookup) {
+    const now = encodeURIComponent(new Date().toISOString())
+    const activeInvites = await request(
+      `student_invites?student_id=eq.${encodeURIComponent(studentId)}&coach_id=eq.${encodeURIComponent(safeCoachId)}&status=eq.active&expires_at=gt.${now}&order=created_at.desc&limit=1`,
+    )
 
-  if (activeInvites[0]) {
-    return fromInviteRow(activeInvites[0])
+    if (activeInvites[0]) {
+      return fromInviteRow(activeInvites[0])
+    }
   }
 
   const code = createInviteCode()
@@ -1673,6 +1794,71 @@ function fromWorkoutSessionRow(row) {
   }
 }
 
+export async function saveRemoteWorkoutRating(inviteCode, workoutLogId, rating) {
+  if (!inviteCode || !isUuid(workoutLogId)) throw new Error('Não foi possível identificar o treino concluído.')
+  const value = Number(rating)
+  if (!Number.isInteger(value) || value < 1 || value > 5) throw new Error('Escolha uma avaliação entre uma e cinco estrelas.')
+  const result = await rpcRequest('rate_student_workout_log', {
+    invite_code: inviteCode,
+    selected_workout_log_id: workoutLogId,
+    rating_value: value,
+  })
+  const payload = Array.isArray(result) ? result[0] : result
+  return fromWorkoutLogRow(payload?.workout_log || payload)
+}
+
+export async function loadRemoteStudentMealLogs(inviteCode) {
+  if (!inviteCode) throw new Error('Não foi possível identificar o acesso do aluno.')
+  const result = await rpcRequest('get_student_meal_logs', { invite_code: inviteCode })
+  const rows = Array.isArray(result) ? result : Array.isArray(result?.meal_logs) ? result.meal_logs : []
+  return Promise.all(rows.slice(0, 6).map(async (row) => {
+    const mealLog = fromStudentMealLogRow(row)
+    const photoUrl = mealLog.id ? await signStudentMealPhoto(inviteCode, mealLog.id).catch(() => '') : ''
+    return { ...mealLog, photoUrl }
+  }))
+}
+
+export async function saveRemoteStudentMealLog(inviteCode, mealLog) {
+  if (!inviteCode) throw new Error('Não foi possível identificar o acesso do aluno.')
+  const mealName = String(mealLog?.mealName || '').trim()
+  const note = String(mealLog?.notes || '').trim()
+  const photoFile = mealLog?.photoFile
+  const photoMime = String(photoFile?.type || '').toLowerCase()
+  const extensionByMime = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'image/heic': 'heic', 'image/heif': 'heif', 'image/avif': 'avif',
+  }
+  const photoExtension = extensionByMime[photoMime]
+  if (!mealName || mealName.length > 80 || note.length > 240) throw new Error('Confira o nome e a observação da refeição.')
+  if (!photoFile || !photoExtension || photoFile.size < 1 || photoFile.size > 10 * 1024 * 1024) {
+    throw new Error('Escolha uma foto compatível e otimizada com até 10 MB.')
+  }
+  const result = await rpcRequest('create_student_meal_log', {
+    invite_code: inviteCode,
+    selected_nutrition_plan_id: isUuid(mealLog?.nutritionPlanId) ? mealLog.nutritionPlanId : null,
+    meal_name: mealName,
+    note_value: note,
+    photo_mime_value: photoMime,
+    photo_size_bytes_value: photoFile.size,
+    photo_extension: photoExtension,
+  })
+  const payload = Array.isArray(result) ? result[0] : result
+  const row = payload?.meal_log || payload
+  if (!row?.id || !row?.photo_path) throw new Error('O servidor não confirmou o registro da refeição.')
+  try {
+    await uploadStudentMealPhoto(photoFile, inviteCode, row.id)
+  } catch (uploadError) {
+    await removeStudentMealPhotoObject(inviteCode, row.id).catch(() => {})
+    await rpcRequest('delete_student_meal_log', {
+      invite_code: inviteCode,
+      selected_meal_log_id: row.id,
+    }).catch(() => {})
+    throw uploadError
+  }
+  const photoUrl = await signStudentMealPhoto(inviteCode, row.id).catch(() => '')
+  return { ...fromStudentMealLogRow(row), photoUrl }
+}
+
 export async function loadRemoteWorkoutSession(inviteCode, workoutId) {
   if (!inviteCode || !isUuid(workoutId)) return null
   const result = await rpcRequest('get_student_workout_session', {
@@ -1750,6 +1936,12 @@ export async function deleteRemoteStudentMessage(inviteCode, messageId) {
 }
 
 export async function saveRemoteMessage(message) {
+  // Avoid orphaned media while blocked; SQL and the upload Edge Function
+  // independently enforce this even for requests made outside the app.
+  if (message.attachmentFile) {
+    const safety = await loadRemoteChatSafetyStatus(message.studentId, message.inviteCode || '')
+    if (safety?.blocked) throw new Error('Conversa bloqueada. Desbloqueie antes de enviar arquivos.')
+  }
   const attachmentUrl = message.attachmentFile
     ? await uploadMessageAttachment(message.attachmentFile, message.studentId, message.inviteCode, message.clientMessageId)
     : message.attachmentUrl || ''
@@ -1758,14 +1950,20 @@ export async function saveRemoteMessage(message) {
   const body = message.body?.trim() || (attachmentUrl ? (attachmentType.startsWith('audio/') ? 'Áudio enviado' : 'Foto enviada') : '')
 
   if (message.inviteCode && message.sender === 'student') {
-    const result = await rpcRequest('submit_student_message', {
-      invite_code: message.inviteCode,
-      message_body: body,
-      attachment_url: attachmentUrl || null,
-      attachment_type: attachmentType || null,
-      attachment_name: attachmentName || null,
-      client_message_id: message.clientMessageId || null,
-    })
+    const result = message.messageKind === 'workout_completion'
+      ? await rpcRequest('submit_student_workout_completion_message', {
+        invite_code: message.inviteCode,
+        message_body: body,
+        client_message_id: message.clientMessageId || null,
+      })
+      : await rpcRequest('submit_student_message', {
+        invite_code: message.inviteCode,
+        message_body: body,
+        attachment_url: attachmentUrl || null,
+        attachment_type: attachmentType || null,
+        attachment_name: attachmentName || null,
+        client_message_id: message.clientMessageId || null,
+      })
     return hydrateMessageRow(Array.isArray(result) ? result[0] : result, { inviteCode: message.inviteCode })
   }
 
@@ -2057,6 +2255,7 @@ function fromStudentRow(row, avatarUrl = '') {
     workout: row.workout ?? '',
     lastMessage: row.last_message ?? '',
     requireAnamnesis: row.require_anamnesis !== false,
+    notifyCoachOnWorkoutFinish: row.notify_coach_on_workout_finish !== false,
     accessOverrideUntil: row.access_override_until ?? '',
     loadNotes: row.load_notes ?? '',
     waterGoalMl: row.water_goal_ml ?? '',
@@ -2093,6 +2292,7 @@ function toStudentRow(student, coachId) {
     workout: student.workout,
     last_message: student.lastMessage,
     require_anamnesis: student.requireAnamnesis !== false,
+    notify_coach_on_workout_finish: student.notifyCoachOnWorkoutFinish !== false,
     access_override_until: student.accessOverrideUntil || null,
     load_notes: student.loadNotes || null,
     water_goal_ml: nullableNumber(student.waterGoalMl),
@@ -2451,6 +2651,24 @@ function fromWorkoutLogRow(row) {
       .trim(),
     completedAt: row.completed_at ?? row.created_at,
     endedEarly: WORKOUT_ENDED_EARLY_TOKEN_TEST.test(rawNotes),
+    rating: Number(row.rating) >= 1 && Number(row.rating) <= 5 ? Number(row.rating) : 0,
+    ratedAt: row.rated_at ?? '',
+  }
+}
+
+function fromStudentMealLogRow(row) {
+  return {
+    id: row?.id || '',
+    coachId: row?.coach_id || '',
+    studentId: row?.student_id || '',
+    nutritionPlanId: row?.nutrition_plan_id || '',
+    mealName: row?.meal_name || '',
+    notes: row?.note || '',
+    mealDate: row?.meal_date || '',
+    recordedAt: row?.recorded_at || row?.created_at || '',
+    photoPath: row?.photo_path || '',
+    photoMime: row?.photo_mime || '',
+    photoSizeBytes: Number(row?.photo_size_bytes) || 0,
   }
 }
 
@@ -2461,6 +2679,7 @@ function fromMessageRow(row) {
     coachId: row.coach_id,
     studentId: row.student_id,
     sender: row.sender ?? 'coach',
+    messageKind: row.message_kind ?? 'chat',
     body: deletedAt ? 'Mensagem apagada' : (row.body ?? ''),
     read: Boolean(row.read),
     attachmentUrl: deletedAt ? '' : (row.attachment_url ?? ''),

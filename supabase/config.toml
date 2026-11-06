@@ -8,3 +8,12 @@ verify_jwt = true
 
 [functions.delete-coach-account]
 verify_jwt = true
+
+[functions.chat-push-device]
+verify_jwt = false
+
+[functions.chat-message-push]
+verify_jwt = false
+
+[functions.workout-completion-push]
+verify_jwt = false

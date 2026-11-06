@@ -1,0 +1,959 @@
+/* Native subscription view: isolated from Cartpanda and web marketing styles. */
+.native-ios-subscription-panel {
+  --ios-surface: #0b1516;
+  --ios-card: #111e20;
+  --ios-border: rgba(130, 232, 213, 0.20);
+  --ios-text: #f4fffd;
+  --ios-muted: #a7bdba;
+  --ios-accent: #4ee9d0;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  width: 100%;
+  color: var(--ios-text);
+  border: 1px solid var(--ios-border);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  margin-bottom: 1rem;
+}
+.native-ios-subscription-heading { display: grid; gap: .5rem; }
+.native-ios-eyebrow { font-size: .76rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ios-accent); }
+.native-ios-subscription-heading h2 { font-size: clamp(1.45rem, 5vw, 2rem); font-weight: 800; line-height: 1.16; }
+.native-ios-subscription-heading p,
+.native-ios-plan-note,
+.native-ios-help,
+.native-ios-availability p { color: var(--ios-muted); font-size: .875rem; line-height: 1.6; }
+.native-ios-plan-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .75rem; }
+.native-ios-plan-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: 1rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 16px;
+  background: var(--ios-card);
+}
+.native-ios-plan-cycle { color: var(--ios-accent); font-size: .7rem; text-transform: uppercase; font-weight: 800; }
+.native-ios-plan-card h3 { font-size: 1.05rem; font-weight: 800; }
+.native-ios-plan-price { font-size: clamp(1.25rem, 3.5vw, 1.85rem); font-weight: 900; line-height: 1.3; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.native-ios-price-details {
+  display: grid;
+  align-content: start;
+  gap: .35rem;
+  min-height: 116px;
+}
+.native-ios-price-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: .35rem;
+  row-gap: .1rem;
+}
+.native-ios-price-period { color: var(--ios-muted); font-weight: 700; font-size: .86rem; }
+.native-ios-renewal-note { color: var(--ios-text); font-size: .82rem; font-weight: 700; line-height: 1.45; }
+.native-ios-price-disclaimer { color: var(--ios-muted); font-size: .78rem; line-height: 1.55; margin: 0; }
+.native-ios-plan-card .native-ios-plan-note { margin: 0; }
+
+.native-ios-availability { border: 1px solid var(--ios-border); border-radius: 15px; padding: 1rem; display: grid; gap: .5rem; }
+.native-ios-availability strong { color: var(--ios-accent); font-size: .9rem; }
+/* Green, high-contrast primary purchase action in both light and dark modes. */
+.native-ios-subscription-panel .native-ios-purchase-button {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  margin-top: auto;
+  padding: .8rem 1rem;
+  border: 1px solid #0aab8b;
+  border-radius: 14px;
+  background: #22d7ad;
+  color: #052b23;
+  font: inherit;
+  font-weight: 850;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(12, 170, 131, .16);
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:hover:not(:disabled) {
+  background: #48eac2;
+  border-color: #0f997f;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:active:not(:disabled) {
+  background: #16bf9e;
+  box-shadow: none;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+  box-shadow: none;
+}
+.native-ios-subscription-panel .native-ios-purchase-button:focus-visible {
+  outline: 3px solid var(--ios-accent);
+  outline-offset: 3px;
+}
+/* Secondary actions remain outlined instead of competing with the purchase CTA. */
+.native-ios-restore,
+.native-ios-feedback button {
+  min-height: 48px;
+  border-radius: 13px;
+  border: 1px solid var(--ios-border);
+  padding: .75rem 1rem;
+  color: var(--ios-text);
+  background: var(--ios-card);
+  font-weight: 800;
+  cursor: pointer;
+}
+.native-ios-restore:focus-visible,
+.native-ios-feedback button:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
+.native-ios-restore:disabled { cursor: wait; opacity: .6; }
+.native-ios-feedback { border: 1px solid var(--ios-border); border-radius: 13px; padding: 1rem; background: var(--ios-card); font-size: .9rem; }
+.native-ios-feedback p { margin-bottom: .65rem; }
+.coach-auth-shell.app-theme-light .native-ios-subscription-panel {
+  --ios-surface: #fff;
+  --ios-card: #f5faf9;
+  --ios-border: rgba(5,118,101,.18);
+  --ios-text: #0d2523;
+  --ios-muted: #425c58;
+  --ios-accent: #087f72;
+}
+@media (max-width: 700px) {
+  .native-ios-plan-grid { grid-template-columns: 1fr; }
+  .native-ios-subscription-panel { border-radius: 16px; padding: 1rem; }
+}
+@media (max-width: 767px) {
+  .coach-auth-shell .coach-mobile-header { padding-top: max(.5rem, env(safe-area-inset-top, 0px)); }
+  .coach-auth-shell .native-ios-subscription-panel {
+    margin-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .coach-auth-shell .native-ios-subscription-panel { margin-bottom: 1rem; }
+}
+
+.native-ios-legal { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; font-size: .82rem; }
+.native-ios-legal a { color: var(--ios-accent); text-decoration: underline; text-underline-offset: 3px; }
+.native-ios-legal a:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
+
+/* Keep native first-launch focused on authentication. The sales landing page,
+   Cartpanda offers and web promotional prices remain exclusively on the web. */
+.native-ios-entry main > :not(#acesso) { display: none !important; }
+.native-ios-entry .sales-header-nav { display: none !important; }
+.native-ios-entry .sales-header-actions > button:last-child:not(.sales-theme-toggle) { display: none !important; }
+.native-ios-entry .sales-header { padding-top: env(safe-area-inset-top, 0px); }
+.native-ios-entry #acesso {
+  min-height: calc(100dvh - 5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Price is intentionally not guessed when Apple's returned currency conflicts with pt-BR. */
+.native-ios-plan-price--verify { font-size: clamp(1rem, 3vw, 1.2rem); line-height: 1.45; }
+.native-ios-currency-warning .native-ios-restore { justify-self: start; margin-top: .5rem; }
+
+
+/* Minha Assinatura: new status-first layout from the uploaded build-7 design. */
+.subscription-workspace { max-width: 1120px; gap: 1.5rem; border: 0; background: transparent; padding: 0; font-family: inherit; }
+.subscription-workspace h2, .subscription-workspace h3, .subscription-workspace h4 { color: var(--ios-text); letter-spacing: -.025em; }
+.subscription-page-heading { padding: .25rem .125rem; }
+.subscription-page-heading h2 { font-size: clamp(1.8rem, 5vw, 2.4rem); }
+.subscription-current-card { min-width: 0; border: 1px solid var(--ios-border); border-radius: 22px; padding: clamp(1.1rem, 3vw, 1.75rem); background: var(--ios-card); box-shadow: 0 12px 36px rgba(0,0,0,.1); }
+.subscription-current-card.is-active { border-color: color-mix(in srgb, var(--ios-accent) 46%, transparent); background: linear-gradient(120deg, color-mix(in srgb, var(--ios-accent) 9%, var(--ios-card)), var(--ios-card)); }
+.subscription-current-topline { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.subscription-status-badge { display: inline-flex; align-items: center; gap: .45rem; width: fit-content; border-radius: 100px; padding: .35rem .7rem; color: var(--ios-muted); background: var(--ios-surface); border: 1px solid var(--ios-border); font-size: .73rem; font-weight: 800; }
+.subscription-status-badge > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.subscription-status-badge.is-active { color: var(--ios-accent); }
+.subscription-current-card h3 { margin: 1rem 0 .5rem; font-size: clamp(1.55rem, 4vw, 2.15rem); font-weight: 850; line-height: 1.2; }
+.subscription-summary-note { max-width: 68ch; color: var(--ios-muted); font-size: .9rem; line-height: 1.65; }
+.subscription-current-facts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .8rem; margin: 1.3rem 0 1rem; }
+.subscription-current-facts > div { min-width: 0; padding: .9rem 1rem; border: 1px solid var(--ios-border); border-radius: 14px; background: var(--ios-surface); }
+.subscription-current-facts dt { color: var(--ios-muted); font-size: .74rem; line-height: 1.4; }
+.subscription-current-facts dd { margin-top: .45rem; color: var(--ios-text); font-size: 1rem; line-height: 1.45; font-weight: 800; overflow-wrap: anywhere; }
+.subscription-small-print { color: var(--ios-muted); font-size: .77rem; line-height: 1.65; }
+.subscription-summary-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1.15rem; }
+.subscription-summary-actions > * { flex: 1 1 160px; text-align: center; font-size: .85rem; }
+.subscription-manage-link { display: grid; place-items: center; min-height: 48px; border-radius: 13px; padding: .75rem 1rem; color: #052b23; background: #22d7ad; font-weight: 800; text-decoration: none; }
+.subscription-manage-link:focus-visible { outline: 3px solid var(--ios-accent); outline-offset: 3px; }
+.subscription-section-title { margin-bottom: 1rem; }
+.subscription-section-title h3, .subscription-included h3, .subscription-support h3 { font-size: 1.07rem; font-weight: 850; }
+.subscription-section-title p, .subscription-included > p, .subscription-support p { color: var(--ios-muted); font-size: .85rem; line-height: 1.65; margin-top: .3rem; }
+.subscription-workspace .native-ios-plan-card { position: relative; padding: 1.1rem; border-radius: 18px; gap: .65rem; transition: border-color .16s ease, background-color .16s ease; }
+.subscription-workspace .native-ios-plan-card.is-selected, .subscription-workspace .native-ios-plan-card.is-current { border-color: var(--ios-accent); background: color-mix(in srgb, var(--ios-accent) 7%, var(--ios-card)); box-shadow: inset 0 0 0 1px var(--ios-accent); }
+.subscription-plan-option { display: flex; align-items: flex-start; gap: .65rem; cursor: pointer; }
+.subscription-plan-option::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.subscription-plan-option input { position: relative; z-index: 1; width: 19px; height: 19px; margin: .13rem 0 0; flex: 0 0 auto; accent-color: var(--ios-accent); }
+.subscription-plan-option input:disabled { opacity: .5; cursor: not-allowed; }
+.subscription-plan-option-title { font-size: 1.1rem; font-weight: 850; line-height: 1.3; color: var(--ios-text); }
+.subscription-plan-option-title > span { display: block; font-size: .76rem; font-weight: 500; color: var(--ios-muted); margin-top: .3rem; }
+.subscription-plan-badge { width: fit-content; padding: .25rem .55rem; font-size: .66rem; font-weight: 750; border-radius: 100px; border: 1px solid var(--ios-border); color: var(--ios-muted); }
+.is-selected .subscription-plan-badge, .is-current .subscription-plan-badge { color: var(--ios-accent); border-color: var(--ios-accent); }
+.subscription-workspace .native-ios-plan-price { font-size: clamp(1.2rem, 3vw, 1.65rem); margin-top: .25rem; }
+.subscription-workspace .native-ios-plan-note { font-size: .77rem; }
+.subscription-workspace .native-ios-plan-card:focus-within { outline: 3px solid var(--ios-accent); outline-offset: 4px; }
+.subscription-selection-summary { margin-top: 1rem; padding: 1.2rem; border: 1px solid var(--ios-border); border-radius: 18px; background: var(--ios-card); display: grid; gap: .85rem; }
+.subscription-selection-summary > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.subscription-selection-summary h4 { font-size: 1.25rem; font-weight: 850; }
+.subscription-selection-summary strong { font-size: 1.3rem; font-weight: 850; line-height: 1.35; overflow-wrap: anywhere; }
+.subscription-selection-summary .native-ios-purchase-button { margin-top: .2rem; text-decoration: none; }
+.subscription-plan-comparison { border: 1px solid var(--ios-border); border-radius: 18px; padding: 1.05rem 1.2rem; background: var(--ios-card); }
+.subscription-plan-comparison summary { min-height: 30px; display: list-item; font-size: .94rem; line-height: 1.6; font-weight: 800; cursor: pointer; }
+.subscription-plan-comparison[open] summary { margin-bottom: .8rem; }
+.subscription-plan-comparison > p { margin-bottom: 1rem; }
+.subscription-included { display: grid; gap: 1rem; border: 1px solid var(--ios-border); border-radius: 18px; padding: clamp(.9rem, 3vw, 1.25rem); background: var(--ios-card); }
+.subscription-included-heading { display: grid; gap: .35rem; }
+.subscription-included-heading h3 { max-width: 32ch; font-size: clamp(1.05rem, 3.5vw, 1.32rem); font-weight: 850; line-height: 1.3; }
+.subscription-included-heading p { max-width: 62ch; margin: 0; color: var(--ios-muted); font-size: .84rem; line-height: 1.55; }
+.subscription-included .subscription-benefit-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .65rem; margin: 0; padding: 0; list-style: none; }
+.subscription-included .subscription-benefit-grid li { display: flex; min-width: 0; gap: .65rem; border: 1px solid var(--ios-border); border-radius: 14px; padding: .8rem; background: var(--ios-surface); color: var(--ios-text); font-size: .82rem; line-height: 1.5; }
+.subscription-included .subscription-benefit-grid li::before { content: '✓'; display: grid; place-items: center; width: 1.35rem; height: 1.35rem; flex: 0 0 auto; border-radius: 50%; background: color-mix(in srgb, var(--ios-accent) 14%, transparent); color: var(--ios-accent); font-size: .76rem; font-weight: 900; }
+.subscription-benefit-grid li div { display: grid; min-width: 0; gap: .24rem; }
+.subscription-benefit-grid strong { font-size: .84rem; line-height: 1.35; overflow-wrap: anywhere; }
+.subscription-benefit-grid span { color: var(--ios-muted); font-size: .74rem; line-height: 1.45; overflow-wrap: anywhere; }
+.subscription-support { border-top: 1px solid var(--ios-border); padding-top: 1rem; display: grid; grid-template-columns: minmax(0,1fr) minmax(180px,.46fr); align-items: start; gap: 1rem; }
+.subscription-support-copy { display: grid; min-width: 0; gap: .45rem; }
+.subscription-support-copy h3 { font-size: 1rem; font-weight: 850; line-height: 1.35; }
+.subscription-support-copy p { margin: 0; color: var(--ios-muted); font-size: .82rem; line-height: 1.55; overflow-wrap: anywhere; }
+.subscription-account-link-help { padding: .7rem; border: 1px solid var(--ios-border); border-radius: 12px; background: var(--ios-surface); }
+.subscription-account-link-help strong { color: var(--ios-text); }
+.subscription-support-actions { display: grid; align-content: start; gap: .5rem; min-width: 0; }
+.subscription-support-actions button { width: 100%; min-height: 48px; font-size: .85rem; }
+.subscription-support-actions .native-ios-help { margin: .1rem 0; font-size: .74rem; line-height: 1.45; }
+.subscription-steps { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .85rem; margin-top: 1.25rem; }
+.subscription-steps li { display: flex; gap: .65rem; min-width: 0; }
+.subscription-steps li > span { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: var(--ios-card); border: 1px solid var(--ios-border); color: var(--ios-accent); flex: 0 0 auto; font-size: .75rem; font-weight: 800; }
+.subscription-steps strong { color: var(--ios-text); font-size: .81rem; }
+.subscription-steps p { font-size: .75rem; color: var(--ios-muted); line-height: 1.6; margin-top: .2rem; }
+.subscription-workspace .native-ios-feedback { font-size: .85rem; line-height: 1.6; overflow-wrap: anywhere; }
+.subscription-operation-message { border-left: 3px solid var(--ios-accent); }
+.coach-auth-shell.app-theme-light .subscription-workspace { background: transparent; }
+@media (max-width:700px) {
+  .subscription-current-facts { grid-template-columns: 1fr; gap: .55rem; }
+  .subscription-current-facts > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; padding: .8rem .9rem; }
+  .subscription-current-facts dd { margin: 0; font-size: .92rem; }
+  .subscription-workspace .native-ios-plan-grid { grid-template-columns: 1fr; gap: .7rem; }
+  .subscription-workspace .native-ios-plan-card { display: grid; grid-template-columns: 1fr auto; gap: .45rem .8rem; }
+  .subscription-workspace .native-ios-plan-card .subscription-plan-option, .subscription-workspace .native-ios-plan-card .subscription-plan-option-title { grid-column: 1; }
+  .subscription-workspace .native-ios-plan-card .subscription-plan-badge { grid-column: 1; }
+  .subscription-workspace .native-ios-plan-card .native-ios-plan-price { grid-column: 2; grid-row: 1 / span 2; text-align: right; align-self: center; max-width: 9rem; font-size: 1.3rem; margin: 0; }
+  .subscription-workspace .native-ios-plan-card .native-ios-plan-note { grid-column: 1 / -1; }
+  .subscription-steps { grid-template-columns: 1fr; }
+  .subscription-included .subscription-benefit-grid { grid-template-columns: minmax(0,1fr); }
+  .subscription-support { grid-template-columns: minmax(0,1fr); }
+  .subscription-support-actions { width: 100%; }
+}
+@media (max-width:380px) {
+  .subscription-included ul { grid-template-columns: 1fr; }
+  .subscription-workspace .native-ios-plan-card { display: flex; }
+  .subscription-workspace .native-ios-plan-card .native-ios-plan-price { text-align: left; align-self: start; max-width: none; }
+}
+@media (prefers-reduced-motion:reduce) { .subscription-workspace *, .subscription-workspace *::before, .subscription-workspace *::after { transition: none !important; } }
+
+/* Offer truth comes from StoreKit, never from the app-login marketing price. */
+.subscription-offer-status { margin-top: 1rem; padding: 1rem 1.1rem; border: 1px solid var(--ios-border); border-radius: 16px; background: var(--ios-card); display: grid; gap: .8rem; }
+.subscription-offer-status h3 { color: var(--ios-text); font-size: 1rem; font-weight: 800; }
+.subscription-offer-status p { color: var(--ios-muted); font-size: .83rem; line-height: 1.65; }
+.subscription-offer-status > button { justify-self: start; font-size: .82rem; }
+.subscription-offer-status summary { min-height: 44px; padding: .7rem 0; cursor: pointer; color: var(--ios-accent); font-size: .85rem; font-weight: 750; }
+.subscription-offer-status pre { margin: .8rem 0; padding: .8rem; border-radius: 10px; background: var(--ios-surface); color: var(--ios-muted); font-size: .72rem; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.subscription-regular-consent { display: flex; align-items: flex-start; gap: .7rem; padding: .9rem; border-radius: 12px; border: 1px solid var(--ios-border); background: var(--ios-surface); font-size: .82rem; line-height: 1.6; color: var(--ios-text); cursor: pointer; }
+.subscription-regular-consent input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: .1rem; accent-color: var(--ios-accent); }
+.subscription-regular-consent:focus-within, .subscription-offer-status summary:focus-visible { outline: 2px solid var(--ios-accent); outline-offset: 3px; }
+
+
+/* Build 17: compact, status-first subscription flow with clear App Store action. */
+.subscription-workspace .subscription-page-heading { gap: .32rem; }
+.subscription-workspace .subscription-page-heading p { max-width: 62ch; margin: 0; font-size: .84rem; line-height: 1.45; }
+.subscription-workspace .subscription-current-card { padding: 1rem 1.1rem; border-radius: 18px; }
+.subscription-workspace .subscription-current-card h3 { margin: .55rem 0 .3rem; font-size: clamp(1.15rem, 4vw, 1.55rem); }
+.subscription-workspace .subscription-summary-note { font-size: .82rem; line-height: 1.45; margin: 0; }
+.subscription-workspace .subscription-summary-actions { margin-top: .7rem; }
+.subscription-plan-section { display: grid; gap: .72rem; min-width: 0; }
+.subscription-workspace .subscription-section-title { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin: 0; }
+.subscription-workspace .subscription-section-title h3 { font-size: 1.12rem; font-weight: 850; }
+.subscription-workspace .subscription-section-title p { margin-top: .18rem; font-size: .78rem; line-height: 1.45; }
+.subscription-apple-mark { flex: 0 0 auto; padding: .33rem .58rem; border: 1px solid var(--ios-border); border-radius: 99px; color: var(--ios-accent); font-size: .68rem; font-weight: 800; letter-spacing: .02em; }
+.subscription-cycle-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .48rem; min-width: 0; }
+.subscription-cycle-option { position: relative; display: flex; min-width: 0; min-height: 82px; flex-direction: column; justify-content: center; gap: .18rem; padding: .64rem .55rem; border: 1px solid var(--ios-border); border-radius: 14px; background: var(--ios-card); color: var(--ios-text); text-align: center; }
+.subscription-cycle-picker.is-interactive .subscription-cycle-option { cursor: pointer; transition: border-color .16s ease, background-color .16s ease, transform .16s ease; }
+.subscription-cycle-picker.is-interactive .subscription-cycle-option:hover:not(.is-unavailable) { border-color: color-mix(in srgb, var(--ios-accent) 75%, var(--ios-border)); }
+.subscription-cycle-option.is-selected, .subscription-cycle-option.is-current { border-color: var(--ios-accent); background: color-mix(in srgb, var(--ios-accent) 10%, var(--ios-card)); box-shadow: inset 0 0 0 1px var(--ios-accent); }
+.subscription-cycle-option input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); border: 0; }
+.subscription-cycle-option:focus-within { outline: 3px solid var(--ios-accent); outline-offset: 3px; }
+.subscription-cycle-option .subscription-cycle-title { color: var(--ios-text); font-size: .78rem; font-weight: 800; line-height: 1.2; }
+.subscription-cycle-option strong { color: var(--ios-text); font-size: clamp(.76rem, 3.4vw, .94rem); font-weight: 900; line-height: 1.25; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.subscription-cycle-option small { color: var(--ios-muted); font-size: .67rem; line-height: 1.2; }
+.subscription-cycle-option.is-unavailable { opacity: .58; }
+.subscription-cycle-current { color: var(--ios-accent); font-size: .62rem; font-weight: 800; }
+.subscription-workspace .subscription-selection-summary { position: relative; gap: .55rem; margin: 0; padding: .85rem .95rem; border-radius: 16px; box-shadow: 0 10px 28px rgba(0,0,0,.10); }
+.subscription-selection-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
+.subscription-selection-heading h4 { margin-top: .16rem; font-size: 1.03rem; line-height: 1.2; }
+.subscription-selection-heading > strong { color: var(--ios-text); text-align: right; font-size: clamp(1.2rem, 4.7vw, 1.55rem); font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.subscription-selection-terms { color: var(--ios-text); font-size: .8rem; line-height: 1.45; }
+.subscription-price-reference, .subscription-pending-help { color: var(--ios-muted); font-size: .73rem; line-height: 1.45; }
+.subscription-purchase-blocked { color: #ffcf9d; font-size: .8rem; line-height: 1.45; }
+.coach-auth-shell.app-theme-light .subscription-purchase-blocked { color: #8a4c06; }
+.subscription-workspace .subscription-operation-message { margin: 0; padding: .68rem .78rem; font-size: .78rem; line-height: 1.45; }
+.subscription-workspace .native-ios-purchase-button { min-height: 50px; margin-top: .1rem; border-radius: 13px; font-size: .96rem; letter-spacing: .005em; }
+.subscription-workspace .subscription-small-print { font-size: .68rem; line-height: 1.4; }
+.subscription-secondary-details { border: 1px solid var(--ios-border); border-radius: 15px; padding: .1rem .85rem; background: var(--ios-card); }
+.subscription-secondary-details > summary { display: flex; min-height: 44px; align-items: center; color: var(--ios-text); font-size: .83rem; font-weight: 800; cursor: pointer; }
+.subscription-secondary-details[open] > summary { margin-bottom: .5rem; color: var(--ios-accent); }
+.subscription-secondary-details .subscription-included, .subscription-secondary-details .subscription-support { border: 0; border-top: 1px solid var(--ios-border); border-radius: 0; padding: .8rem 0; background: transparent; }
+.subscription-secondary-details .subscription-included ul { margin-top: .55rem; }
+.subscription-secondary-details .subscription-support { gap: .55rem; }
+.subscription-secondary-details .subscription-support button { justify-self: stretch; }
+.subscription-secondary-details .native-ios-help { margin: .15rem 0; font-size: .74rem; }
+.subscription-workspace .subscription-plan-comparison { padding: .75rem .9rem; }
+.subscription-workspace .subscription-plan-comparison .subscription-cycle-picker { margin-top: .7rem; }
+.subscription-pending-help { margin-top: -.25rem; }
+@media (max-width: 360px) {
+  .subscription-cycle-picker { gap: .34rem; }
+  .subscription-cycle-option { min-height: 76px; padding-inline: .34rem; }
+  .subscription-cycle-option .subscription-cycle-title { font-size: .72rem; }
+  .subscription-cycle-option strong { font-size: .72rem; }
+  .subscription-cycle-option small { font-size: .62rem; }
+  .subscription-workspace .subscription-section-title p { max-width: 25ch; }
+}
+
+
+/* Native iOS subscription styles, isolated from the web billing panel. */
+.native-ios-subscription-panel.native-ios-subscription-screen {
+  --ios-surface: #0b1516;
+  --ios-card: #111e20;
+  --ios-surface-soft: #0f1b1c;
+  --ios-border: rgba(135, 224, 209, .16);
+  --ios-text: #f4fffd;
+  --ios-muted: #a7bdb8;
+  --ios-accent: #4ee9d0;
+  --ios-accent-strong: #31d9bd;
+  --ios-accent-ink: #062821;
+  --ios-soft-glow: rgba(42, 223, 190, .12);
+  --ios-shadow: 0 22px 54px rgba(0, 0, 0, .22);
+  display: block;
+  width: min(1120px, 100%);
+  max-width: 1120px;
+  min-width: 0;
+  margin: 0 auto 1rem;
+  padding: clamp(1rem, 3.2vw, 2.1rem);
+  border: 1px solid var(--ios-border);
+  border-radius: 28px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+  color: var(--ios-text);
+  font-family: inherit;
+}
+
+.coach-auth-shell.app-theme-light .native-ios-subscription-panel.native-ios-subscription-screen {
+  --ios-surface: #fff;
+  --ios-card: #f7fbfa;
+  --ios-surface-soft: #eff7f4;
+  --ios-border: rgba(5, 118, 101, .15);
+  --ios-text: #0d2523;
+  --ios-muted: #4b625e;
+  --ios-accent: #087f72;
+  --ios-accent-strong: #00695e;
+  --ios-accent-ink: #fff;
+  --ios-soft-glow: rgba(8, 127, 114, .08);
+  --ios-shadow: 0 22px 54px rgba(18, 54, 47, .08);
+}
+
+.native-ios-subscription-screen,
+.native-ios-subscription-screen * { box-sizing: border-box; }
+.native-ios-subscription-screen h2,
+.native-ios-subscription-screen h3,
+.native-ios-subscription-screen h4,
+.native-ios-subscription-screen p { text-wrap: pretty; }
+.native-ios-subscription-screen h2,
+.native-ios-subscription-screen h3,
+.native-ios-subscription-screen h4 { color: var(--ios-text); }
+
+.native-ios-subscription-screen .subscription-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--ios-border);
+}
+.native-ios-subscription-screen .subscription-brand-lockup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: .4rem .6rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 14px;
+  background: var(--ios-surface-soft);
+}
+.native-ios-subscription-screen .subscription-brand-lockup img {
+  display: block;
+  width: min(180px, 48vw);
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.native-ios-subscription-screen .subscription-brand-row > span {
+  color: var(--ios-muted);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.native-ios-subscription-screen .subscription-page-heading {
+  display: block;
+  min-width: 0;
+  padding: 1.7rem .1rem 1.35rem;
+}
+.native-ios-subscription-screen .subscription-page-heading .native-ios-eyebrow {
+  display: block;
+  margin-bottom: .45rem;
+  font-size: .68rem;
+  letter-spacing: .13em;
+}
+.native-ios-subscription-screen .subscription-page-heading h2 {
+  margin: 0 0 .4rem;
+  font-size: clamp(1.9rem, 5vw, 2.5rem);
+  font-weight: 850;
+  line-height: 1.05;
+  letter-spacing: -.045em;
+}
+.native-ios-subscription-screen .subscription-page-heading p {
+  max-width: 58ch;
+  margin: 0;
+  color: var(--ios-muted);
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.native-ios-subscription-screen .subscription-main-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, .78fr) minmax(0, 1.5fr);
+  align-items: stretch;
+  gap: 1rem;
+  min-width: 0;
+}
+.native-ios-subscription-screen .subscription-purchase-column {
+  display: grid;
+  align-content: start;
+  gap: .85rem;
+  min-width: 0;
+  container-type: inline-size;
+}
+.native-ios-subscription-screen .subscription-current-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--ios-border);
+  border-radius: 20px;
+  background: var(--ios-card);
+  box-shadow: var(--ios-shadow);
+}
+.native-ios-subscription-screen .subscription-current-card.is-active {
+  border-color: color-mix(in srgb, var(--ios-accent) 42%, var(--ios-border));
+  background: linear-gradient(145deg, var(--ios-soft-glow), var(--ios-card) 54%);
+}
+.native-ios-subscription-screen .subscription-current-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+}
+.native-ios-subscription-screen .subscription-current-topline .native-ios-eyebrow { font-size: .68rem; }
+.native-ios-subscription-screen .subscription-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: .42rem .65rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 999px;
+  background: var(--ios-surface);
+  color: var(--ios-muted);
+  font-size: .7rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.native-ios-subscription-screen .subscription-status-badge > span {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+.native-ios-subscription-screen .subscription-status-badge.is-active { color: var(--ios-accent); }
+.native-ios-subscription-screen .subscription-current-card h3 {
+  margin: 1rem 0 .5rem;
+  font-size: clamp(1.45rem, 3.2vw, 1.9rem);
+  font-weight: 850;
+  line-height: 1.14;
+  letter-spacing: -.035em;
+}
+.native-ios-subscription-screen .subscription-summary-note {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--ios-muted);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+.native-ios-subscription-screen .subscription-current-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: .55rem;
+  margin: 1rem 0 .5rem;
+}
+.native-ios-subscription-screen .subscription-current-facts > div {
+  min-width: 0;
+  padding: .72rem .8rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 13px;
+  background: var(--ios-surface);
+}
+.native-ios-subscription-screen .subscription-current-facts dt {
+  color: var(--ios-muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.native-ios-subscription-screen .subscription-current-facts dd {
+  margin: .25rem 0 0;
+  color: var(--ios-text);
+  font-size: .88rem;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.native-ios-subscription-screen .subscription-small-print {
+  margin: .55rem 0 0;
+  color: var(--ios-muted);
+  font-size: .75rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.native-ios-subscription-screen .subscription-summary-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .55rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+.native-ios-subscription-screen .subscription-manage-link {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  padding: .7rem .9rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 13px;
+  background: var(--ios-surface);
+  color: var(--ios-text);
+  font-size: .82rem;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+.native-ios-subscription-screen .subscription-manage-link:hover { border-color: var(--ios-accent); }
+.native-ios-subscription-screen .subscription-manage-link:focus-visible {
+  outline: 3px solid var(--ios-accent);
+  outline-offset: 3px;
+}
+.native-ios-subscription-screen .subscription-current-card .native-ios-restore { width: 100%; }
+
+.native-ios-subscription-screen .subscription-plan-section,
+.native-ios-subscription-screen .subscription-plan-comparison {
+  display: grid;
+  gap: .9rem;
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 1.45rem);
+  border: 1px solid var(--ios-border);
+  border-radius: 20px;
+  background: var(--ios-card);
+  box-shadow: var(--ios-shadow);
+}
+.native-ios-subscription-screen .subscription-section-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .8rem;
+  min-width: 0;
+  margin: 0;
+}
+.native-ios-subscription-screen .subscription-section-title > div { min-width: 0; }
+.native-ios-subscription-screen .subscription-section-title h3 {
+  margin: 0 0 .3rem;
+  font-size: clamp(1.12rem, 2.5vw, 1.3rem);
+  font-weight: 850;
+  line-height: 1.2;
+}
+.native-ios-subscription-screen .subscription-section-title p {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--ios-muted);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.native-ios-subscription-screen .subscription-apple-mark {
+  flex: 0 0 auto;
+  padding: .42rem .62rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 999px;
+  color: var(--ios-accent);
+  font-size: .67rem;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.native-ios-subscription-screen .subscription-cycle-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+  min-width: 0;
+}
+.native-ios-subscription-screen .subscription-cycle-option {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 98px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: .34rem;
+  padding: .8rem .7rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 15px;
+  background: var(--ios-surface);
+  color: var(--ios-text);
+  text-align: left;
+  transition: border-color .16s ease, background-color .16s ease, transform .16s ease;
+}
+.native-ios-subscription-screen .subscription-cycle-picker.is-interactive .subscription-cycle-option { cursor: pointer; }
+.native-ios-subscription-screen .subscription-cycle-picker.is-interactive .subscription-cycle-option:hover:not(.is-unavailable) {
+  transform: translateY(-1px);
+  border-color: var(--ios-accent);
+}
+.native-ios-subscription-screen .subscription-cycle-option.is-selected,
+.native-ios-subscription-screen .subscription-cycle-option.is-current {
+  border-color: var(--ios-accent);
+  background: var(--ios-surface-soft);
+  box-shadow: inset 0 0 0 1px var(--ios-accent);
+}
+.native-ios-subscription-screen .subscription-cycle-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
+}
+.native-ios-subscription-screen .subscription-cycle-option:focus-within {
+  outline: 3px solid var(--ios-accent);
+  outline-offset: 3px;
+}
+.native-ios-subscription-screen .subscription-cycle-title {
+  color: var(--ios-muted);
+  font-size: .68rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.native-ios-subscription-screen .subscription-cycle-option strong {
+  color: var(--ios-text);
+  font-size: clamp(.78rem, 2.3vw, .98rem);
+  font-weight: 900;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.native-ios-subscription-screen .subscription-cycle-option small {
+  color: var(--ios-muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+.native-ios-subscription-screen .subscription-cycle-option.is-unavailable { opacity: .62; }
+.native-ios-subscription-screen .subscription-cycle-current { color: var(--ios-accent); font-size: .64rem; font-weight: 800; }
+.native-ios-subscription-screen .subscription-selection-summary {
+  display: grid;
+  gap: .65rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 16px;
+  background: var(--ios-surface);
+}
+.native-ios-subscription-screen .subscription-selection-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  min-width: 0;
+}
+.native-ios-subscription-screen .subscription-selection-heading > div { min-width: 0; }
+.native-ios-subscription-screen .subscription-selection-heading h4 {
+  margin: .18rem 0 0;
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.3;
+}
+.native-ios-subscription-screen .subscription-selection-heading > strong {
+  color: var(--ios-text);
+  font-size: clamp(1.18rem, 3.5vw, 1.55rem);
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.native-ios-subscription-screen .subscription-selection-terms {
+  margin: 0;
+  color: var(--ios-text);
+  font-size: .83rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.native-ios-subscription-screen .subscription-price-reference,
+.native-ios-subscription-screen .subscription-pending-help {
+  color: var(--ios-muted);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.native-ios-subscription-screen .subscription-purchase-blocked {
+  margin: 0;
+  color: #ffcf9d;
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.coach-auth-shell.app-theme-light .native-ios-subscription-screen .subscription-purchase-blocked { color: #8a4c06; }
+.native-ios-subscription-screen .subscription-operation-message {
+  margin: 0;
+  padding: .75rem .85rem;
+  border-left: 3px solid var(--ios-accent);
+  font-size: .82rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.native-ios-subscription-panel.native-ios-subscription-screen .native-ios-purchase-button {
+  min-height: 52px;
+  margin-top: .1rem;
+  padding: .82rem 1rem;
+  border: 1px solid var(--ios-accent-strong);
+  border-radius: 14px;
+  background: linear-gradient(100deg, var(--ios-accent-strong), var(--ios-accent));
+  color: var(--ios-accent-ink);
+  font-size: .96rem;
+  font-weight: 850;
+  letter-spacing: .005em;
+  box-shadow: 0 8px 22px var(--ios-soft-glow);
+}
+.native-ios-subscription-panel.native-ios-subscription-screen .native-ios-purchase-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.native-ios-subscription-panel.native-ios-subscription-screen .native-ios-purchase-button:active:not(:disabled) { transform: translateY(0); }
+.native-ios-subscription-panel.native-ios-subscription-screen .native-ios-purchase-button:disabled { opacity: .52; }
+
+.native-ios-subscription-screen .subscription-plan-comparison > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ios-text);
+  font-size: .88rem;
+  font-weight: 800;
+}
+.native-ios-subscription-screen .subscription-plan-comparison > summary::-webkit-details-marker,
+.native-ios-subscription-screen .subscription-secondary-details > summary::-webkit-details-marker { display: none; }
+.native-ios-subscription-screen .subscription-plan-comparison > summary::after { content: '+'; color: var(--ios-accent); font-size: 1.2rem; }
+.native-ios-subscription-screen .subscription-plan-comparison[open] > summary::after { content: '−'; }
+.native-ios-subscription-screen .subscription-plan-comparison > p { margin: 0; }
+.native-ios-subscription-screen .subscription-plan-comparison .subscription-cycle-picker { margin-top: .65rem; }
+.native-ios-subscription-screen .subscription-secondary-details {
+  min-width: 0;
+  margin-top: .85rem;
+  padding: .12rem .95rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 16px;
+  background: var(--ios-card);
+}
+.native-ios-subscription-screen .subscription-secondary-details > summary {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  list-style: none;
+  color: var(--ios-text);
+  font-size: .9rem;
+  font-weight: 820;
+  cursor: pointer;
+}
+.native-ios-subscription-screen .subscription-secondary-details > summary::after { content: '+'; color: var(--ios-accent); font-size: 1.25rem; font-weight: 500; }
+.native-ios-subscription-screen .subscription-secondary-details[open] > summary { margin-bottom: .15rem; color: var(--ios-accent); }
+.native-ios-subscription-screen .subscription-secondary-details[open] > summary::after { content: '−'; }
+.native-ios-subscription-screen .subscription-secondary-details .subscription-included,
+.native-ios-subscription-screen .subscription-secondary-details .subscription-support {
+  border: 0;
+  border-top: 1px solid var(--ios-border);
+  border-radius: 0;
+  padding: 1rem 0;
+  background: transparent;
+}
+.native-ios-subscription-screen .subscription-included { display: grid; gap: .9rem; }
+.native-ios-subscription-screen .subscription-included-heading { display: grid; gap: .35rem; }
+.native-ios-subscription-screen .subscription-included-heading h3 { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.native-ios-subscription-screen .subscription-included-heading p { margin: 0; color: var(--ios-muted); font-size: .84rem; line-height: 1.55; }
+.native-ios-subscription-screen .subscription-included .subscription-benefit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.native-ios-subscription-screen .subscription-benefit-grid li {
+  display: flex;
+  min-width: 0;
+  gap: .65rem;
+  padding: .85rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 14px;
+  background: var(--ios-surface);
+  color: var(--ios-text);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.native-ios-subscription-screen .subscription-benefit-grid li::before {
+  content: '✓';
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ios-soft-glow);
+  color: var(--ios-accent);
+  font-size: .76rem;
+  font-weight: 900;
+}
+.native-ios-subscription-screen .subscription-benefit-grid li div { display: grid; min-width: 0; gap: .25rem; }
+.native-ios-subscription-screen .subscription-benefit-grid strong { font-size: .86rem; line-height: 1.35; overflow-wrap: anywhere; }
+.native-ios-subscription-screen .subscription-benefit-grid span { color: var(--ios-muted); font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
+.native-ios-subscription-screen .subscription-support {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, .48fr);
+  align-items: start;
+  gap: 1rem;
+}
+.native-ios-subscription-screen .subscription-support-copy { display: grid; min-width: 0; gap: .5rem; }
+.native-ios-subscription-screen .subscription-support-copy h3 { margin: 0; font-size: 1rem; font-weight: 850; line-height: 1.35; }
+.native-ios-subscription-screen .subscription-support-copy p { margin: 0; color: var(--ios-muted); font-size: .84rem; line-height: 1.55; overflow-wrap: anywhere; }
+.native-ios-subscription-screen .subscription-account-link-help {
+  padding: .8rem;
+  border: 1px solid var(--ios-border);
+  border-radius: 12px;
+  background: var(--ios-surface);
+}
+.native-ios-subscription-screen .subscription-account-link-help strong { color: var(--ios-text); }
+.native-ios-subscription-screen .subscription-support-actions { display: grid; align-content: start; gap: .55rem; min-width: 0; }
+.native-ios-subscription-screen .subscription-support-actions button { width: 100%; min-height: 48px; font-size: .84rem; }
+.native-ios-subscription-screen .subscription-support-actions .native-ios-help { margin: 0; font-size: .77rem; line-height: 1.5; }
+.native-ios-subscription-screen .native-ios-availability,
+.native-ios-subscription-screen .native-ios-feedback { overflow-wrap: anywhere; }
+.native-ios-subscription-screen .subscription-purchase-column > .native-ios-feedback,
+.native-ios-subscription-screen .subscription-purchase-column > .native-ios-availability { margin: 0; }
+.native-ios-subscription-screen .subscription-pending-help { margin: -.2rem 0 0; }
+.native-ios-subscription-screen .native-ios-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem 1.1rem;
+  margin-top: 1rem;
+  padding: 1rem .1rem 0;
+  border-top: 1px solid var(--ios-border);
+  font-size: .82rem;
+}
+.native-ios-subscription-screen .native-ios-legal a { color: var(--ios-accent); text-underline-offset: 3px; }
+
+@container (max-width: 560px) {
+  .native-ios-subscription-screen .subscription-cycle-picker { gap: .42rem; }
+  .native-ios-subscription-screen .subscription-cycle-option { min-height: 90px; padding: .72rem .55rem; }
+  .native-ios-subscription-screen .subscription-cycle-option strong { font-size: clamp(.75rem, 3.2cqw, .94rem); }
+}
+@media (max-width: 780px) {
+  .native-ios-subscription-screen .subscription-main-grid { grid-template-columns: minmax(0, 1fr); }
+  .native-ios-subscription-screen .subscription-current-card { min-height: auto; }
+}
+@media (max-width: 700px) {
+  .native-ios-subscription-screen .subscription-included .subscription-benefit-grid { grid-template-columns: minmax(0, 1fr); }
+  .native-ios-subscription-screen .subscription-support { grid-template-columns: minmax(0, 1fr); }
+  .native-ios-subscription-screen .subscription-current-facts > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; }
+  .native-ios-subscription-screen .subscription-current-facts dd { margin: 0; text-align: right; }
+}
+@media (max-width: 440px) {
+  .native-ios-subscription-panel.native-ios-subscription-screen { padding: 15px; border-radius: 21px; }
+  .native-ios-subscription-screen .subscription-brand-row { padding-bottom: .9rem; }
+  .native-ios-subscription-screen .subscription-brand-lockup { padding: .36rem .48rem; }
+  .native-ios-subscription-screen .subscription-brand-lockup img { width: min(148px, 45vw); }
+  .native-ios-subscription-screen .subscription-brand-row > span { font-size: .61rem; }
+  .native-ios-subscription-screen .subscription-page-heading { display: grid; gap: .1rem; padding: 1.25rem .05rem 1rem; }
+  .native-ios-subscription-screen .subscription-page-heading h2 { font-size: clamp(1.8rem, 8vw, 2.15rem); }
+  .native-ios-subscription-screen .subscription-page-heading p { font-size: .82rem; }
+  .native-ios-subscription-screen .subscription-main-grid { gap: .7rem; }
+  .native-ios-subscription-screen .subscription-current-card { padding: 1rem; border-radius: 17px; }
+  .native-ios-subscription-screen .subscription-current-card h3 { margin: .8rem 0 .4rem; font-size: 1.48rem; }
+  .native-ios-subscription-screen .subscription-summary-note { font-size: .84rem; }
+  .native-ios-subscription-screen .subscription-plan-section,
+  .native-ios-subscription-screen .subscription-plan-comparison { gap: .72rem; padding: .95rem; border-radius: 17px; }
+  .native-ios-subscription-screen .subscription-section-title h3 { font-size: 1.12rem; }
+  .native-ios-subscription-screen .subscription-section-title p { font-size: .78rem; }
+  .native-ios-subscription-screen .subscription-apple-mark { padding: .35rem .5rem; font-size: .62rem; }
+  .native-ios-subscription-screen .subscription-cycle-picker { gap: .38rem; }
+  .native-ios-subscription-screen .subscription-cycle-option { min-height: 86px; padding: .62rem .42rem; border-radius: 12px; }
+  .native-ios-subscription-screen .subscription-cycle-title { font-size: .62rem; }
+  .native-ios-subscription-screen .subscription-cycle-option strong { font-size: clamp(.7rem, 3.25vw, .88rem); }
+  .native-ios-subscription-screen .subscription-cycle-option small { font-size: .62rem; }
+  .native-ios-subscription-screen .subscription-selection-summary { gap: .55rem; padding: .85rem; border-radius: 14px; }
+  .native-ios-subscription-screen .subscription-selection-heading h4 { font-size: .95rem; }
+  .native-ios-subscription-screen .subscription-selection-heading > strong { font-size: clamp(1.05rem, 5vw, 1.38rem); }
+  .native-ios-subscription-screen .subscription-selection-terms { font-size: .78rem; }
+  .native-ios-subscription-screen .subscription-small-print { font-size: .74rem; }
+  .native-ios-subscription-screen .native-ios-purchase-button { min-height: 50px; font-size: .92rem; }
+  .native-ios-subscription-screen .subscription-secondary-details { margin-top: .65rem; padding-inline: .8rem; }
+  .native-ios-subscription-screen .subscription-secondary-details > summary { min-height: 48px; font-size: .84rem; }
+  .native-ios-subscription-screen .subscription-secondary-details .subscription-included,
+  .native-ios-subscription-screen .subscription-secondary-details .subscription-support { padding: .8rem 0; }
+}
+@media (max-width: 350px) {
+  .native-ios-subscription-screen .subscription-brand-row > span { letter-spacing: .06em; }
+  .native-ios-subscription-screen .subscription-cycle-picker { gap: .3rem; }
+  .native-ios-subscription-screen .subscription-cycle-option { padding-inline: .32rem; }
+  .native-ios-subscription-screen .subscription-cycle-title { font-size: .58rem; }
+  .native-ios-subscription-screen .subscription-cycle-option strong { font-size: .7rem; }
+  .native-ios-subscription-screen .subscription-cycle-option small { font-size: .59rem; }
+  .native-ios-subscription-screen .subscription-cycle-option.is-unavailable > strong { font-size: .62rem; white-space: nowrap; overflow-wrap: normal; }
+  .native-ios-subscription-screen .subscription-selection-heading { align-items: flex-start; }
+  .native-ios-subscription-screen .subscription-selection-heading > strong { max-width: 45%; }
+}
+@media (max-width: 767px) {
+  .coach-auth-shell .native-ios-subscription-panel.native-ios-subscription-screen {
+    margin-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .coach-auth-shell .native-ios-subscription-panel.native-ios-subscription-screen { margin-bottom: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .native-ios-subscription-screen *,
+  .native-ios-subscription-screen *::before,
+  .native-ios-subscription-screen *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

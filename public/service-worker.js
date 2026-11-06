@@ -1,5 +1,7 @@
-const CACHE_NAME = 'coach-fit-pro-student-import-20261027'
+const CACHE_NAME = 'coach-fit-pro-workout-preview-notifications-build28-20261106'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
+// Older Coach Fit Pro cache names predating the coach-fit-pro- prefix.
+const LEGACY_APP_CACHES = new Set(['fit-coach-app-v2'])
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -12,7 +14,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('coach-fit-pro-') && key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME && (key.startsWith('coach-fit-pro-') || LEGACY_APP_CACHES.has(key))).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   )
 })
@@ -36,7 +38,7 @@ self.addEventListener('fetch', (event) => {
           event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy)))
           return response
         })
-        .catch(async () => (await caches.match('/index.html')) || new Response('Sem conexão. Reconecte para abrir o aplicativo.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
+        .catch(async () => (await caches.open(CACHE_NAME).then((cache) => cache.match('/index.html'))) || new Response('Sem conexão. Reconecte para abrir o aplicativo.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
     )
     return
   }
@@ -44,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   // Cache only public build assets, never API responses, invitations or user data.
   if (request.headers.has('Authorization') || url.search || !(/\.(?:js|css|png|jpg|jpeg|webp|svg|woff2?)$/.test(url.pathname))) return
   event.respondWith(
-    caches.match(request).then((cached) => {
+    caches.open(CACHE_NAME).then((cache) => cache.match(request)).then((cached) => {
       if (cached) return cached
       return fetch(request).then((response) => {
         if (!response.ok || response.type === 'opaque') return response

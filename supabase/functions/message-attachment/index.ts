@@ -50,6 +50,18 @@ async function uploadAttachment(request: Request, admin: ReturnType<typeof creat
   const access = await resolveConversationAccess(request, admin, inviteCode, requestedStudentId)
   if (!access) return jsonResponse({ error: 'Conversa não autorizada.' }, 403)
 
+  // Service-role storage uploads bypass message RLS. Block them explicitly
+  // before reading any bytes so a blocked user cannot create orphaned media.
+  // Signing existing attachments remains available to preserve the history.
+  const { data: blocks, error: blockError } = await admin
+    .from('chat_safety_blocks')
+    .select('blocked_by')
+    .eq('coach_id', access.coachId)
+    .eq('student_id', access.studentId)
+    .limit(1)
+  if (blockError) return jsonResponse({ error: 'Não foi possível verificar a segurança da conversa.' }, 503)
+  if (blocks?.length) return jsonResponse({ error: 'Conversa bloqueada. Anexos não podem ser enviados.' }, 403)
+
   const extension = safeExtension(file.name, mimeType)
   const path = `messages/${access.coachId}/${access.studentId}/${messageId}-${crypto.randomUUID()}.${extension}`
   const bytes = new Uint8Array(await file.arrayBuffer())
