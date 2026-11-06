@@ -80,7 +80,7 @@ const checks = [
   ['Workout quick flow avoids inline empty-state text collisions', css.includes('workout-empty-state-spacing-v3') && css.includes('.mobile-workout-empty strong,') && css.includes('display: block')],
   ['Workout quick flow guards horizontal overflow', css.includes('workout-no-horizontal-overflow-v3') && css.includes('.mobile-workout-manager *') && css.includes('overflow-x: clip')],
   ['Notification shortcut keeps fixed size on desktop', css.includes('notification-shortcut-responsive-v2') && css.includes('.coach-page-notification-shortcut') && css.includes('flex: 0 0 44px')],
-  ['Student save uses authenticated coach id', app.includes('const activeCoachId = data.session?.user?.id || data.user?.id') && app.includes('saveRemoteStudent(student, activeCoachId)') && app.includes('createRemoteStudentInvite(savedStudent.id, activeCoachId)')],
+  ['Student save uses authenticated coach id', app.includes('const activeCoachId = data.session?.user?.id || data.user?.id') && app.includes('saveRemoteStudent(student, activeCoachId)') && (app.includes('createRemoteStudentInvite(savedStudent.id, activeCoachId)') || app.includes('createRemoteStudentInvite(savedStudent.id, activeCoachId,'))],
   ['Student rows reject missing coach id before hitting RLS', api.includes('function requireCoachId') && api.includes('coach_id: requireCoachId(coachId)')],
   ['Nutrition has professional food expansion', app.includes('nutrition-professional-food-expansion-v1') && app.includes('foodSource:')],
   ['Nutrition suggestions search aliases and preparation tags', app.includes('getFoodSearchTerms') && app.includes('preparation') && app.includes('servings')],

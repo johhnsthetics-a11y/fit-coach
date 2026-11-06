@@ -111,7 +111,7 @@ test('Service worker removes its known old caches without erasing other apps', a
   let wait
   w.handlers.activate({ waitUntil: promise => { wait = promise } })
   await wait
-  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-old', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-subscription-clean-copy-build21-20261104', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-subscription-sheet-build17-20261103', 'fit-coach-app-v2'])
+  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-notifications-message-fix-build27-20261105', 'coach-fit-pro-old', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-subscription-clean-copy-build21-20261104', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-subscription-sheet-build17-20261103', 'fit-coach-app-v2'])
 })
 test('Offline HTML and assets read only the current build cache, never global legacy cache', async () => {
   for (const mode of ['navigate', 'cors']) {
