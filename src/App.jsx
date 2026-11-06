@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import TrainerExerciseLibrary from './TrainerExerciseLibrary'
 import WorkoutCompletionRating from './WorkoutCompletionRating'
 import StudentMealPhotoJournal from './StudentMealPhotoJournal'
 import { swapShowcasePositions } from './showcaseCarousel'
@@ -197,7 +198,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'workout-preview-notifications-build28-20261106'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-trainer-student-execution-build29-hotfix1-20261106'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -4979,6 +4980,7 @@ function AppContent() {
                 workoutLogs={data.workoutLogs ?? []}
                 progressionDecisions={data.workoutProgressionDecisions ?? []}
                 exerciseLibraryItems={data.exerciseLibrary ?? []}
+                exerciseLibrarySync={data.exerciseLibrarySync}
                 onSaveWorkout={saveWorkout}
                 onSaveNutritionPlan={saveNutritionPlan}
                 onArchiveWorkout={archiveWorkout}
@@ -9331,7 +9333,7 @@ function parseMacroSummary(value = '') {
   }
 }
 
-function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], exerciseLibraryItems = [], onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
+function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], exerciseLibraryItems = [], exerciseLibrarySync = null, onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
@@ -9347,12 +9349,18 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       workoutLogs={workoutLogs}
       studentWorkouts={studentWorkouts}
       exerciseLibraryItems={availableExerciseLibrary}
+      exerciseLibrarySync={exerciseLibrarySync}
       onSaveWorkout={onSaveWorkout}
       onArchiveWorkout={onArchiveWorkout}
       uiTheme={uiTheme}
     />
 
-    <div className="hidden gap-4 md:grid lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
+    <details className="trainer-workout-secondary-tools">
+      <summary>
+        <span>Outras ferramentas de treino</span>
+        <small>Criação expressa, formulário clássico, evolução e histórico</small>
+      </summary>
+      <div className="trainer-workout-secondary-grid grid gap-4 md:grid-cols-2 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
       <div className="xl:col-span-2">
         <ExpressCreationModule
           selectedStudent={selectedStudent}
@@ -9397,7 +9405,8 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
       <Panel title="Histórico de execução" action={`${studentLogs.length} registros`}>
         <WorkoutLogList logs={studentLogs} />
       </Panel>
-    </div>
+      </div>
+    </details>
     </>
   )
 }
@@ -9418,6 +9427,7 @@ function sanitizeWorkoutDaysForStorage(days = []) {
         ...safeExercise,
         id: safeExercise.id || `${normalizeText(safeExercise.name || 'exercicio')}-${exerciseIndex + 1}`,
         videoFile: undefined,
+        videoFileName: '',
         videoPreviewUrl: '',
       }
     }),
@@ -9473,11 +9483,14 @@ function recoverStoredWorkoutDraft(studentId, library = exerciseLibrary) {
   }
 }
 
-function persistWorkoutDraft(studentId, draft) {
+function persistWorkoutDraft(studentId, draft, editingWorkoutId = '', progress = {}) {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(getWorkoutDraftStorageKey(studentId), JSON.stringify({
       ...draft,
+      editingWorkoutId: editingWorkoutId || '',
+      creatorStep: ['info', 'days', 'exercises', 'review'].includes(progress.creatorStep) ? progress.creatorStep : 'info',
+      activeDayIndex: Number.isInteger(progress.activeDayIndex) ? progress.activeDayIndex : null,
       days: sanitizeWorkoutDaysForStorage(draft.days || []),
       updatedAt: new Date().toISOString(),
     }))
@@ -9590,11 +9603,18 @@ function useModalFocusTrap(isOpen, onClose) {
   return dialogRef
 }
 
-function MobileWorkoutManager({ selectedStudent, students, workouts = [], workoutLogs = [], studentWorkouts = [], exerciseLibraryItems = [], onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
+function MobileWorkoutManager({ selectedStudent, students, workouts = [], workoutLogs = [], studentWorkouts = [], exerciseLibraryItems = [], exerciseLibrarySync = null, onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
     try {
-      return JSON.parse(window.localStorage.getItem('coachfitpro-custom-exercise-library') || '[]')
+      const stored = JSON.parse(window.localStorage.getItem('coachfitpro-custom-exercise-library') || '[]')
+      return Array.isArray(stored) ? stored.map((exercise) => {
+        const durableExercise = { ...exercise }
+        delete durableExercise.videoFile
+        durableExercise.videoFileName = ''
+        delete durableExercise.videoPreviewUrl
+        return durableExercise
+      }) : []
     } catch {
       return []
     }
@@ -9603,8 +9623,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   const [tab, setTab] = useState('library')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('todos')
+  const [librarySelectedExerciseNames, setLibrarySelectedExerciseNames] = useState([])
+  const [expandedStudentId, setExpandedStudentId] = useState('')
+  const [pendingDraftRecovery, setPendingDraftRecovery] = useState(null)
+  const [publishConfirmationOpen, setPublishConfirmationOpen] = useState(false)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState(studentWorkouts[0]?.id || workouts.find((workout) => workout.active !== false)?.id || '')
-  const [selectedStudentId, setSelectedStudentId] = useState(selectedStudent?.id || students[0]?.id || '')
+  const [selectedStudentId, setSelectedStudentId] = useState(selectedStudent?.id || '')
   const [expandedDay, setExpandedDay] = useState(0)
   const [showCreator, setShowCreator] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -9620,6 +9644,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   const [exercisePickerTab, setExercisePickerTab] = useState('coachfit')
   const [exercisePickerMuscleFilter, setExercisePickerMuscleFilter] = useState('todos')
   const [exercisePickerObjectiveFilter, setExercisePickerObjectiveFilter] = useState('todos')
+  const [exercisePickerCategoryFilter, setExercisePickerCategoryFilter] = useState('todos')
+  const [exercisePickerEquipmentFilter, setExercisePickerEquipmentFilter] = useState('todos')
   const [exercisePickerPreview, setExercisePickerPreview] = useState(null)
   const exercisePickerResultsRef = useRef(null)
   const [exercisePickerHasMore, setExercisePickerHasMore] = useState(false)
@@ -9628,6 +9654,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   const [addingExerciseKey, setAddingExerciseKey] = useState('')
   const [customExerciseDraft, setCustomExerciseDraft] = useState(() => createExerciseDraft(''))
   const [isCreatingCustomExercise, setIsCreatingCustomExercise] = useState(false)
+  const [editingCustomExerciseName, setEditingCustomExerciseName] = useState('')
   const [favoriteExerciseNames, setFavoriteExerciseNames] = useState(() => {
     try {
       return JSON.parse(window.localStorage.getItem('coachfitpro-favorite-exercises') || '[]')
@@ -9643,10 +9670,19 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     }
   })
   const dayEditorDialogRef = useModalFocusTrap(Boolean(dayEditor), () => setDayEditor(null))
+  const draftRecoveryDialogRef = useModalFocusTrap(Boolean(pendingDraftRecovery), () => setPendingDraftRecovery(null))
+  const publishConfirmationDialogRef = useModalFocusTrap(publishConfirmationOpen, () => setPublishConfirmationOpen(false))
 
   useEffect(() => {
     try {
-      window.localStorage.setItem('coachfitpro-custom-exercise-library', JSON.stringify(customExerciseLibrary.slice(0, 500)))
+      const durableLibrary = customExerciseLibrary.slice(0, 500).map((exercise) => {
+        const durableExercise = { ...exercise }
+        delete durableExercise.videoFile
+        durableExercise.videoFileName = ''
+        delete durableExercise.videoPreviewUrl
+        return durableExercise
+      })
+      window.localStorage.setItem('coachfitpro-custom-exercise-library', JSON.stringify(durableLibrary))
     } catch {
       // A biblioteca personalizada continua funcionando na sessão mesmo sem localStorage.
     }
@@ -9678,11 +9714,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     setSelectedStudentId((current) => (
       students.some((student) => String(student.id) === String(current))
         ? current
-        : String(selectedStudent?.id || students[0]?.id || '')
+        : String(selectedStudent?.id || '')
     ))
   }, [availableStudentIdsKey, selectedStudent?.id])
 
-  const firstStudentWorkoutId = studentWorkouts[0]?.id || ''
+  const firstStudentWorkoutId = sortWorkoutsByUpdatedAt(studentWorkouts)[0]?.id || ''
 
   useEffect(() => {
     if (firstStudentWorkoutId) setSelectedWorkoutId(firstStudentWorkoutId)
@@ -9694,24 +9730,53 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
 
   useEffect(() => {
     if (!showCreator) return
-    persistWorkoutDraft(selectedStudentId || selectedStudent?.id || '', draft)
-  }, [draft, selectedStudent?.id, selectedStudentId, showCreator])
+    persistWorkoutDraft(selectedStudentId || selectedStudent?.id || '', draft, editingWorkoutId, { creatorStep, activeDayIndex })
+  }, [activeDayIndex, creatorStep, draft, editingWorkoutId, selectedStudent?.id, selectedStudentId, showCreator])
 
   const activeWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'published' && workout.active !== false),
+    () => sortWorkoutsByUpdatedAt((workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'published' && workout.active !== false)),
     [workoutLogs, workouts],
   )
   const draftWorkouts = useMemo(
-    () => (workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'draft'),
+    () => sortWorkoutsByUpdatedAt((workouts || []).filter((workout) => getWorkoutPublicationStatus(workout, workoutLogs) === 'draft')),
     [workoutLogs, workouts],
   )
-  const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter), [activeWorkouts, search, filter])
+  const filteredWorkouts = useMemo(() => filterMobileWorkouts(activeWorkouts, search, filter, students), [activeWorkouts, search, filter, students])
   const filteredDraftWorkouts = useMemo(
-    () => (filter === 'publicado' ? [] : filterMobileWorkouts(draftWorkouts, search, filter)),
-    [draftWorkouts, search, filter],
+    () => (filter === 'publicado' ? [] : filterMobileWorkouts(draftWorkouts, search, filter, students)),
+    [draftWorkouts, search, filter, students],
   )
-  const selectedWorkout = activeWorkouts.find((workout) => String(workout.id) === String(selectedWorkoutId)) || studentWorkouts[0] || filteredWorkouts[0] || activeWorkouts[0] || null
+  const localDraftSummaries = useMemo(() => {
+    const studentIds = Array.from(new Set([
+      selectedStudentId,
+      selectedStudent?.id ? String(selectedStudent.id) : '',
+      ...students.map((student) => String(student.id || '')),
+    ]))
+    return studentIds
+      .map((studentId) => {
+        const localDraft = recoverStoredWorkoutDraft(studentId, availableExerciseLibrary)
+        if (!localDraft) return null
+        return {
+          studentId,
+          student: students.find((student) => String(student.id) === String(studentId)) || null,
+          draft: localDraft,
+        }
+      })
+      .filter(Boolean)
+      .sort((left, right) => getWorkoutSortTimestamp(right.draft) - getWorkoutSortTimestamp(left.draft))
+  }, [availableExerciseLibrary, draft, editingWorkoutId, selectedStudent?.id, selectedStudentId, showCreator, students])
+  const filteredLocalDraftSummaries = useMemo(() => localDraftSummaries.filter(({ studentId, student, draft: localDraft }) => (
+    filterMobileWorkouts([{
+      ...localDraft,
+      studentId,
+      studentName: student?.name || '',
+      status: 'Rascunho',
+    }], search, filter, students).length > 0
+  )), [filter, localDraftSummaries, search, students])
+  const selectedWorkout = activeWorkouts.find((workout) => String(workout.id) === String(selectedWorkoutId)) || sortWorkoutsByUpdatedAt(studentWorkouts)[0] || filteredWorkouts[0] || activeWorkouts[0] || null
   const selectedWorkoutDays = useMemo(() => buildMobileWorkoutDays(selectedWorkout, availableExerciseLibrary), [selectedWorkout, availableExerciseLibrary])
+  const editingWorkout = useMemo(() => workouts.find((workout) => String(workout.id) === String(editingWorkoutId)) || null, [editingWorkoutId, workouts])
+  const isEditingPublishedWorkout = Boolean(editingWorkout && getWorkoutPublicationStatus(editingWorkout, workoutLogs) === 'published' && editingWorkout.active !== false)
   const selectedWorkoutStudent = useMemo(
     () => students.find((student) => String(student.id) === String(selectedWorkout?.studentId || selectedStudentId)) || selectedStudent || students[0] || null,
     [selectedStudent, selectedStudentId, selectedWorkout?.studentId, students],
@@ -9724,16 +9789,17 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   )
   const studentWorkoutRows = useMemo(
     () => students.map((student) => {
-      const assigned = activeWorkouts.filter((workout) => String(workout.studentId) === String(student.id))
+      const assigned = sortWorkoutsByUpdatedAt(activeWorkouts.filter((workout) => String(workout.studentId) === String(student.id)))
       const latest = assigned[0] || null
       return { student, assigned, latest }
-    }),
+    }).sort((left, right) => getWorkoutSortTimestamp(right.latest) - getWorkoutSortTimestamp(left.latest) || String(left.student.name || '').localeCompare(String(right.student.name || ''), 'pt-BR')),
     [students, activeWorkouts],
   )
   const filteredStudentRows = useMemo(() => {
     const normalized = normalizeText(search)
-    return studentWorkoutRows.filter(({ student, latest }) => {
-      const matchesSearch = !normalized || normalizeText(student.name).includes(normalized) || normalizeText(latest?.title || '').includes(normalized)
+    return studentWorkoutRows.filter(({ student, latest, assigned }) => {
+      const planText = assigned.map((workout) => `${workout.title || ''} ${workout.focus || ''}`).join(' ')
+      const matchesSearch = !normalized || normalizeText(`${student.name || ''} ${planText}`).includes(normalized)
       if (!matchesSearch) return false
       if (filter === 'sem-treino') return !latest
       if (filter === 'com-treino') return Boolean(latest)
@@ -9742,27 +9808,33 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   }, [studentWorkoutRows, search, filter])
   const exercisePickerMuscleOptions = useMemo(() => {
     const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.group || exercise.muscleGroup || exercise.primaryMuscle).filter(Boolean)))
-    return ['todos', ...values.slice(0, 18)]
+    return ['todos', ...values.sort((left, right) => String(left).localeCompare(String(right), 'pt-BR'))]
   }, [availableExerciseLibrary])
   const exercisePickerObjectiveOptions = useMemo(() => {
-    const defaults = ['Treino em Casa', 'Mobilidade', 'Alongamento', 'Pilates Solo', 'MAT Pilates', 'Elástico', 'Laboral', 'Funcional', 'Aquecimento', 'Cardio', 'Peso Corporal', 'Reabilitação', 'Máquina', 'Barra', 'Halteres', 'Cabos', 'Kettlebell', 'TRX']
-    const values = Array.from(new Set([
-      ...defaults,
-      ...availableExerciseLibrary.flatMap((exercise) => [exercise.category, exercise.equipment]).filter(Boolean),
-    ]))
-    return ['todos', ...values.slice(0, 22)]
+    const values = Array.from(new Set(availableExerciseLibrary.flatMap((exercise) => [exercise.objective, exercise.goal]).filter(Boolean)))
+    return ['todos', ...values.sort((left, right) => String(left).localeCompare(String(right), 'pt-BR'))]
+  }, [availableExerciseLibrary])
+  const exercisePickerCategoryOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.category).filter(Boolean)))
+    return ['todos', ...values.sort((left, right) => String(left).localeCompare(String(right), 'pt-BR'))]
+  }, [availableExerciseLibrary])
+  const exercisePickerEquipmentOptions = useMemo(() => {
+    const values = Array.from(new Set(availableExerciseLibrary.map((exercise) => exercise.equipment).filter(Boolean)))
+    return ['todos', ...values.sort((left, right) => String(left).localeCompare(String(right), 'pt-BR'))]
   }, [availableExerciseLibrary])
   const exercisePickerResults = useMemo(() => {
     return getExercisePickerResults({
       library: availableExerciseLibrary,
       search: exercisePickerSearch,
       muscleFilter: exercisePickerMuscleFilter,
-      categoryFilter: exercisePickerObjectiveFilter,
+      categoryFilter: exercisePickerCategoryFilter,
+      objectiveFilter: exercisePickerObjectiveFilter,
+      equipmentFilter: exercisePickerEquipmentFilter,
       tab: exercisePickerTab,
       favorites: favoriteExerciseNames,
       recent: recentExerciseNames,
     })
-  }, [availableExerciseLibrary, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
+  }, [availableExerciseLibrary, exercisePickerCategoryFilter, exercisePickerEquipmentFilter, exercisePickerMuscleFilter, exercisePickerObjectiveFilter, exercisePickerSearch, exercisePickerTab, favoriteExerciseNames, recentExerciseNames])
   useEffect(() => {
     if (exercisePickerDayIndex === null) return undefined
     const frame = window.requestAnimationFrame(() => {
@@ -9775,38 +9847,148 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   const exercisePickerSummaryExercises = getWorkoutExercisesArray(exercisePickerCurrentDay?.exercises)
     .map((exercise) => normalizeWorkoutExerciseInput(exercise).name)
 
+  function createFreshWorkoutDraftForStudent(studentId = '', initialExerciseNames = []) {
+    const targetStudentId = String(studentId || '')
+    const targetStudent = students.find((student) => String(student.id) === targetStudentId) || null
+    const baseDraft = createMobileWorkoutDraft(targetStudent, availableExerciseLibrary)
+    const uniqueExerciseNames = initialExerciseNames.filter((name, index, names) => (
+      names.findIndex((item) => normalizeText(item) === normalizeText(name)) === index
+    ))
+    const initialDays = uniqueExerciseNames.length
+      ? [{
+          id: `library-${Date.now()}`,
+          day: inferNextWorkoutDay(0, baseDraft.organization),
+          focus: 'Treino principal',
+          guidance: '',
+          exercises: uniqueExerciseNames.map((name) => createExerciseDraft(name, {}, availableExerciseLibrary)),
+        }]
+      : baseDraft.days
+
+    setSelectedStudentId(targetStudentId)
+    setDraft({ ...baseDraft, days: initialDays })
+    setEditingWorkoutId('')
+    setShowCreator(true)
+    setCreatorStep('info')
+    setActiveDayIndex(uniqueExerciseNames.length ? 0 : null)
+    setExpandedExerciseKey('')
+    changeManagerTab('library')
+    setError('')
+    setMessage('')
+    setLibrarySelectedExerciseNames([])
+  }
+
+  function beginNewWorkout(studentId = '', initialExerciseNames = []) {
+    const targetStudentId = String(studentId || '')
+    const storedDraft = recoverStoredWorkoutDraft(targetStudentId, availableExerciseLibrary)
+    if (storedDraft) {
+      setPendingDraftRecovery({ studentId: targetStudentId, draft: storedDraft, initialExerciseNames, nextWorkout: null })
+      return
+    }
+    createFreshWorkoutDraftForStudent(targetStudentId, initialExerciseNames)
+  }
+
+  function resumePendingDraftRecovery(candidate = pendingDraftRecovery) {
+    if (!candidate) return
+    const recovered = candidate.draft
+    const targetStudentId = String(candidate.studentId || '')
+    const targetStudent = students.find((student) => String(student.id) === targetStudentId) || null
+    const existingWorkoutId = recovered.editingWorkoutId
+      && workouts.some((workout) => String(workout.id) === String(recovered.editingWorkoutId))
+      ? recovered.editingWorkoutId
+      : ''
+    const recoveredDays = sanitizeWorkoutDaysForStorage(recovered.days || []).map((day) => ({
+      ...day,
+      exercises: getWorkoutExercisesArray(day.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary)),
+    }))
+    const recoveredStep = ['info', 'days', 'exercises', 'review'].includes(recovered.creatorStep) ? recovered.creatorStep : 'info'
+    const recoveredDayIndex = Number.isInteger(recovered.activeDayIndex) && recovered.activeDayIndex >= 0 && recovered.activeDayIndex < recoveredDays.length
+      ? recovered.activeDayIndex
+      : null
+    setSelectedStudentId(targetStudentId)
+    setDraft({
+      ...createMobileWorkoutDraft(targetStudent, availableExerciseLibrary),
+      ...recovered,
+      clientRequestId: recovered.clientRequestId || createWorkoutCompletionToken(),
+      status: 'Rascunho',
+      days: recoveredDays,
+    })
+    setEditingWorkoutId(existingWorkoutId)
+    setShowCreator(true)
+    setCreatorStep(recoveredStep)
+    setActiveDayIndex(recoveredDayIndex)
+    setExpandedDay(recoveredDayIndex ?? 0)
+    setExpandedExerciseKey('')
+    changeManagerTab('library')
+    setPendingDraftRecovery(null)
+    setLibrarySelectedExerciseNames([])
+    setError('')
+    setMessage('Rascunho deste dispositivo recuperado. O treino publicado, se houver, permanece inalterado até a confirmação de atualização.')
+  }
+
+  function discardPendingDraftAndStartNew() {
+    if (!pendingDraftRecovery) return
+    const { studentId: targetStudentId, initialExerciseNames = [], nextWorkout = null } = pendingDraftRecovery
+    clearStoredWorkoutDraft(targetStudentId)
+    setPendingDraftRecovery(null)
+    if (nextWorkout?.workout) {
+      resetDraftFromWorkout(nextWorkout.workout, { mode: nextWorkout.mode || 'copy', studentId: targetStudentId })
+    } else {
+      createFreshWorkoutDraftForStudent(targetStudentId, initialExerciseNames)
+    }
+  }
+
   function resetDraftFromWorkout(workout = null, { mode = 'copy', studentId = '' } = {}) {
-    const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+    if (!workout) {
+      beginNewWorkout(studentId || selectedStudent?.id || '')
+      return false
+    }
     const isEditingExistingWorkout = mode === 'edit' && workout?.id
     const targetStudentId = String(studentId || (isEditingExistingWorkout ? workout?.studentId : '') || selectedStudentId || selectedStudent?.id || '')
+    const storedDraft = recoverStoredWorkoutDraft(targetStudentId, availableExerciseLibrary)
+    const isSameLocalEdit = Boolean(storedDraft?.editingWorkoutId && String(storedDraft.editingWorkoutId) === String(workout.id))
+    if (storedDraft && isSameLocalEdit && isEditingExistingWorkout) {
+      resumePendingDraftRecovery({ studentId: targetStudentId, draft: storedDraft, initialExerciseNames: [] })
+      return true
+    }
+    if (storedDraft) {
+      setPendingDraftRecovery({
+        studentId: targetStudentId,
+        draft: storedDraft,
+        initialExerciseNames: [],
+        nextWorkout: { workout, mode },
+      })
+      return false
+    }
+    const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
     const targetStudent = students.find((student) => String(student.id) === targetStudentId) || selectedStudent
-    const storedDraft = !workout ? recoverStoredWorkoutDraft(targetStudentId, availableExerciseLibrary) : null
     if (targetStudentId) setSelectedStudentId(targetStudentId)
     setDraft({
-      ...(storedDraft || {}),
-      clientRequestId: storedDraft?.clientRequestId || createWorkoutCompletionToken(),
-      title: storedDraft?.title || (workout?.title ? (isEditingExistingWorkout ? workout.title : `${workout.title} - cópia`) : 'Novo treino'),
-      focus: storedDraft?.focus || workout?.focus || targetStudent?.goal || 'Hipertrofia',
-      level: storedDraft?.level || workout?.level || targetStudent?.level || 'Intermediário',
-      frequency: storedDraft?.frequency || inferWorkoutFrequency(workout),
-      organization: storedDraft?.organization || workout?.organization || 'Dias da semana',
-      displayMode: storedDraft?.displayMode || workout?.displayMode || 'Sempre visível para o aluno',
-      guidance: storedDraft?.guidance || workout?.guidance || stripWorkoutMetadata(workout?.notes || '') || '',
-      allowStudentPdfDownload: Boolean(storedDraft?.allowStudentPdfDownload ?? workout?.allowStudentPdfDownload),
+      clientRequestId: createWorkoutCompletionToken(),
+      title: workout?.title ? (isEditingExistingWorkout ? workout.title : `${workout.title} - cópia`) : 'Novo treino',
+      focus: workout?.focus || targetStudent?.goal || 'Hipertrofia',
+      level: workout?.level || targetStudent?.level || 'Intermediário',
+      analyticsSource: isEditingExistingWorkout ? 'mobile_workout_edit' : 'mobile_library_duplicate',
+      frequency: workout?.frequency || inferWorkoutFrequency(workout),
+      organization: workout?.organization || 'Dias da semana',
+      displayMode: workout?.displayMode || 'Sempre visível para o aluno',
+      guidance: workout?.guidance || stripWorkoutMetadata(workout?.notes || '') || '',
+      allowStudentPdfDownload: Boolean(workout?.allowStudentPdfDownload),
       status: 'Rascunho',
-      days: storedDraft?.days?.length ? storedDraft.days : (days.length ? days.map((day) => ({ ...day, id: isEditingExistingWorkout ? day.id : `${day.id}-copy-${Date.now()}` })) : []),
+      days: days.length ? days.map((day) => ({ ...day, id: isEditingExistingWorkout ? day.id : `${day.id}-copy-${Date.now()}` })) : [],
     })
     setEditingWorkoutId(isEditingExistingWorkout ? workout.id : '')
     setShowCreator(true)
-    setTab('library')
-    setCreatorStep(workout ? 'days' : 'info')
+    changeManagerTab('library')
+    setCreatorStep('days')
     setActiveDayIndex(null)
     setExpandedExerciseKey('')
-    setMessage(storedDraft ? 'Rascunho recuperado. Continue de onde parou.' : (workout ? (isEditingExistingWorkout ? 'Treino aberto para edição. As alterações serão salvas nesta rotina.' : 'Modelo carregado como cópia. Revise e publique quando estiver pronto.') : ''))
+    setMessage(isEditingExistingWorkout ? 'Treino aberto para edição. A versão publicada permanece ativa até confirmar a atualização.' : 'Plano aberto como cópia local. Revise o destinatário e publique somente após a confirmação.')
+    return true
   }
 
   function editSelectedWorkoutAtExercises(workout) {
-    resetDraftFromWorkout(workout, { mode: 'edit' })
+    const opened = resetDraftFromWorkout(workout, { mode: 'edit' })
+    if (!opened) return
     setCreatorStep('exercises')
     setActiveDayIndex(0)
     setExpandedDay(0)
@@ -10010,6 +10192,8 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     setExercisePickerTab('coachfit')
     setExercisePickerMuscleFilter('todos')
     setExercisePickerObjectiveFilter('todos')
+    setExercisePickerCategoryFilter('todos')
+    setExercisePickerEquipmentFilter('todos')
     setCustomExerciseDraft(createExerciseDraft(''))
     setIsCreatingCustomExercise(false)
   }
@@ -10018,7 +10202,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     setExercisePickerDayIndex(null)
     setExercisePickerSearch('')
     setExercisePickerPreview(null)
+    setExercisePickerMuscleFilter('todos')
+    setExercisePickerObjectiveFilter('todos')
+    setExercisePickerCategoryFilter('todos')
+    setExercisePickerEquipmentFilter('todos')
     setIsCreatingCustomExercise(false)
+    setEditingCustomExerciseName('')
   }
 
   function rememberRecentExercises(names = []) {
@@ -10054,6 +10243,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       isCustom: true,
       source: 'coach_custom',
     })
+    setEditingCustomExerciseName(exercise?.name || '')
     setExercisePickerTab('mine')
     setIsCreatingCustomExercise(true)
     setMessage('Edite o exercício personalizado e salve novamente.')
@@ -10167,6 +10357,25 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       source: 'coach_custom',
       updatedAt: new Date().toISOString(),
     }, availableExerciseLibrary)
+    if (editingCustomExerciseName) {
+      const originalKey = normalizeText(editingCustomExerciseName)
+      const nextKey = normalizeText(name)
+      const nameCollision = customExerciseLibrary.some((item) => (
+        normalizeText(item.name) === nextKey && normalizeText(item.name) !== originalKey
+      ))
+      if (nameCollision) {
+        setError('Já existe um exercício personalizado com esse nome.')
+        return
+      }
+      setCustomExerciseLibrary((current) => [customExercise, ...current.filter((item) => {
+        const key = normalizeText(item.name)
+        return key !== originalKey && key !== nextKey
+      })].slice(0, 500))
+      setEditingCustomExerciseName('')
+      setMessage('Exercício atualizado na biblioteca. As prescrições já copiadas para os dias foram preservadas.')
+      closeExercisePicker()
+      return
+    }
     const targetDay = draft.days[exercisePickerDayIndex]
     if (isExerciseAlreadyInDraftDay(targetDay, name)) {
       setMessage('Este exercício personalizado já está neste dia.')
@@ -10216,8 +10425,20 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       return
     }
     if (creatorStep === 'review') {
-      if (!window.confirm('Publicar este treino para o aluno?')) return
-      saveDraft('Publicado')
+      if (!draft.days.length) {
+        setError('Adicione pelo menos um dia antes de publicar.')
+        setCreatorStep('days')
+        return
+      }
+      const emptyDayIndex = draft.days.findIndex((day) => !getWorkoutDayExerciseCount(day))
+      if (emptyDayIndex >= 0) {
+        setError(`O dia ${draft.days[emptyDayIndex].day || emptyDayIndex + 1} está vazio. Adicione um exercício ou remova esse dia antes de publicar.`)
+        setActiveDayIndex(emptyDayIndex)
+        setCreatorStep('days')
+        return
+      }
+      setError('')
+      setPublishConfirmationOpen(true)
     }
   }
 
@@ -10226,7 +10447,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     if (creatorStep === 'info') return 'Continuar'
     if (creatorStep === 'days') return draft.days.length ? 'Continuar para exercícios' : 'Adicionar primeiro dia'
     if (creatorStep === 'exercises') return 'Revisar treino'
-    return 'Publicar treino'
+    return isEditingPublishedWorkout ? 'Revisar atualização' : 'Publicar treino'
   }
 
   function duplicateDraftExercise(dayIndex, exerciseIndex) {
@@ -10285,6 +10506,18 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
       setError('Cadastre ou selecione um aluno antes de publicar o treino.')
       return
     }
+    if (status === 'Rascunho' && isEditingPublishedWorkout) {
+      persistWorkoutDraft(studentId, draft, editingWorkoutId, { creatorStep, activeDayIndex })
+      setError('')
+      setMessage('Edição guardada neste dispositivo. A versão publicada continua ativa para o aluno até você confirmar uma atualização.')
+      setShowCreator(false)
+      return
+    }
+    const emptyDays = draft.days.filter((day) => !getWorkoutDayExerciseCount(day))
+    if (status !== 'Rascunho' && emptyDays.length) {
+      setError(`Complete ou remova ${formatCount(emptyDays.length, 'dia')} sem exercícios antes de publicar.`)
+      return
+    }
     if (!filledExercises.length && status !== 'Rascunho') {
       setError('Adicione pelo menos um exercício antes de salvar.')
       return
@@ -10311,11 +10544,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
         notes: buildWorkoutNotesWithMetadata(draft),
         days: draft.days,
         exercises: filledExercises,
-        source: isEditingWorkout ? 'mobile_workout_edit' : 'mobile_workout_manager',
+        source: draft.analyticsSource || (isEditingWorkout ? 'mobile_workout_edit' : 'mobile_workout_manager'),
       })
       setSelectedWorkoutId(saved?.id || selectedWorkoutId)
       clearStoredWorkoutDraft(studentId)
       setEditingWorkoutId('')
+      setPublishConfirmationOpen(false)
       setMessage(isEditingWorkout ? 'Treino atualizado para este aluno.' : (status === 'Rascunho' ? 'Rascunho salvo para continuar depois.' : 'Treino publicado e atribuído ao aluno.'))
       setShowCreator(false)
     } catch (saveError) {
@@ -10325,31 +10559,13 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     }
   }
 
-  async function duplicateForSelectedStudent(workout) {
+  function useWorkoutAsBase(workout, studentId = '') {
     if (!workout) return
-    const studentId = selectedStudentId
-    if (!studentId) {
-      setError('Selecione um aluno para atribuir este treino.')
-      return
-    }
-    setSaving(true)
-    setError('')
-    setMessage('')
-    try {
-      const saved = await onSaveWorkout?.({
-        ...workout,
-        id: undefined,
-        studentId,
-        title: `${workout.title || 'Treino'} - personalizado`,
-        source: 'mobile_library_duplicate',
-      })
-      setSelectedWorkoutId(saved?.id || '')
-      setMessage('Treino duplicado e atribuído ao aluno selecionado.')
-    } catch (saveError) {
-      setError(saveError?.message || 'Não foi possível duplicar este treino.')
-    } finally {
-      setSaving(false)
-    }
+    const opened = resetDraftFromWorkout(workout, {
+      mode: 'copy',
+      studentId: String(studentId || selectedStudentId || selectedStudent?.id || ''),
+    })
+    if (opened) setMessage('Cópia aberta como rascunho. Revise o aluno, personalize e publique somente após a confirmação final.')
   }
 
   async function archiveSelectedWorkout(workout) {
@@ -10368,6 +10584,74 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     }
   }
 
+  function changeManagerTab(nextTab) {
+    setTab(nextTab)
+    setSearch('')
+    setFilter('todos')
+    setExpandedStudentId('')
+    setWorkoutStudentPreviewOpen(false)
+    setExercisePickerPreview(null)
+  }
+
+  function startCustomExerciseEntry() {
+    setCustomExerciseDraft(createExerciseDraft(''))
+    setEditingCustomExerciseName('')
+    setIsCreatingCustomExercise(true)
+    setError('')
+    setMessage('')
+  }
+
+  function cancelCustomExerciseEntry() {
+    setIsCreatingCustomExercise(false)
+    setEditingCustomExerciseName('')
+    setCustomExerciseDraft(createExerciseDraft(''))
+    setError('')
+  }
+
+  function saveCustomExerciseToLibrary() {
+    const name = customExerciseDraft.name?.trim()
+    if (!name) {
+      setError('Informe o nome do exercício personalizado.')
+      return
+    }
+    const originalKey = normalizeText(editingCustomExerciseName)
+    const nextKey = normalizeText(name)
+    const nameCollision = customExerciseLibrary.some((item) => (
+      normalizeText(item.name) === nextKey && normalizeText(item.name) !== originalKey
+    ))
+    if (nameCollision) {
+      setError('Já existe um exercício personalizado com esse nome.')
+      return
+    }
+    const customExercise = enrichExercise({
+      ...customExerciseDraft,
+      name,
+      group: customExerciseDraft.group || customExerciseDraft.muscleGroup || customExerciseDraft.primaryMuscle || 'Personalizado',
+      muscleGroup: customExerciseDraft.muscleGroup || customExerciseDraft.group || customExerciseDraft.primaryMuscle || 'Personalizado',
+      primaryMuscle: customExerciseDraft.primaryMuscle || customExerciseDraft.muscleGroup || customExerciseDraft.group || '',
+      isCustom: true,
+      source: 'coach_custom',
+      updatedAt: new Date().toISOString(),
+    }, availableExerciseLibrary)
+    setCustomExerciseLibrary((current) => [customExercise, ...current.filter((item) => {
+      const key = normalizeText(item.name)
+      return key !== originalKey && key !== nextKey
+    })].slice(0, 500))
+    rememberRecentExercises([name])
+    const wasEditing = Boolean(editingCustomExerciseName)
+    setEditingCustomExerciseName('')
+    setIsCreatingCustomExercise(false)
+    setCustomExerciseDraft(createExerciseDraft(''))
+    setError('')
+    setMessage(wasEditing
+      ? 'Exercício atualizado na biblioteca. Prescrições já copiadas para os dias foram preservadas.'
+      : 'Exercício salvo na biblioteca desta conta. Escolha um dia no editor para prescrevê-lo.')
+  }
+
+  function startWorkoutWithLibrarySelection(names = []) {
+    beginNewWorkout(selectedStudentId || selectedStudent?.id || '', names)
+  }
+
   const creatorSteps = [
     ['info', 'Aluno'],
     ['days', 'Dias'],
@@ -10375,7 +10659,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     ['review', 'Revisar'],
   ]
   const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
-  const selectedDraftStudent = students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || students[0]
+  const selectedDraftStudent = students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || null
 
   return (
     <section className="mobile-workout-manager">
@@ -10383,37 +10667,91 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
         <>
       <div className="mobile-workout-hero">
         <div>
+          <p className="trainer-workout-eyebrow">WORKSPACE DE PRESCRIÇÃO</p>
           <h3>Treinos</h3>
+          <span>Monte planos, organize exercícios e acompanhe alunos em um só lugar.</span>
         </div>
-        <button type="button" onClick={() => resetDraftFromWorkout(null)} className="mobile-workout-primary">
+        <button type="button" onClick={() => beginNewWorkout(selectedStudentId || selectedStudent?.id || '')} className="mobile-workout-primary">
           <NavIcon name="plus" className="h-4 w-4" />
           Criar treino
         </button>
       </div>
 
       <div className="mobile-workout-tabs" role="tablist" aria-label="Treinos">
-        <button type="button" aria-selected={tab === 'library'} onClick={() => setTab('library')} className={tab === 'library' ? 'is-active' : ''}>Biblioteca</button>
-        <button type="button" aria-selected={tab === 'students'} onClick={() => setTab('students')} className={tab === 'students' ? 'is-active' : ''}>Alunos</button>
+        <button type="button" role="tab" aria-selected={tab === 'library'} onClick={() => changeManagerTab('library')} className={tab === 'library' ? 'is-active' : ''}>Planos</button>
+        <button type="button" role="tab" aria-selected={tab === 'exercises'} onClick={() => changeManagerTab('exercises')} className={tab === 'exercises' ? 'is-active' : ''}>Exercícios</button>
+        <button type="button" role="tab" aria-selected={tab === 'students'} onClick={() => changeManagerTab('students')} className={tab === 'students' ? 'is-active' : ''}>Alunos</button>
       </div>
 
-      <div className="mobile-workout-search">
-        <NavIcon name="chart" className="h-4 w-4" />
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === 'library' ? 'Buscar treino, foco ou objetivo' : 'Buscar aluno ou treino'} />
-      </div>
+      {tab !== 'exercises' ? (
+        <div className="mobile-workout-search">
+          <NavIcon name="chart" className="h-4 w-4" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === 'library' ? 'Buscar plano, foco, objetivo ou aluno' : 'Buscar nome do aluno ou título de qualquer plano'} />
+        </div>
+      ) : null}
 
-      <div className="mobile-workout-filters">
-        {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
-          <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
-            {formatUiText(item)}
-          </button>
-        ))}
-        {filter !== 'todos' || search ? (
-          <button type="button" onClick={() => { setFilter('todos'); setSearch('') }}>Limpar</button>
-        ) : null}
-      </div>
+      {tab !== 'exercises' ? (
+        <div className="mobile-workout-filters">
+          {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
+            <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
+              {formatUiText(item)}
+            </button>
+          ))}
+          {filter !== 'todos' || search ? (
+            <button type="button" onClick={() => { setFilter('todos'); setSearch('') }}>Limpar filtros</button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {tab === 'exercises' ? (
+        <TrainerExerciseLibrary
+          library={availableExerciseLibrary}
+          favorites={favoriteExerciseNames}
+          recent={recentExerciseNames}
+          selectedNames={librarySelectedExerciseNames}
+          onSelectionChange={setLibrarySelectedExerciseNames}
+          onToggleFavorite={toggleFavoriteExercise}
+          onPreview={setExercisePickerPreview}
+          onEditCustom={editCustomExercise}
+          onDeleteCustom={removeCustomExercise}
+          onStartWorkout={startWorkoutWithLibrarySelection}
+          syncStatus={exerciseLibrarySync}
+          customDraft={customExerciseDraft}
+          customFormOpen={isCreatingCustomExercise}
+          editingName={editingCustomExerciseName}
+          onStartCustomExercise={startCustomExerciseEntry}
+          onUpdateCustomField={updateCustomExerciseDraft}
+          onUpdateCustomVideoFile={updateCustomExerciseVideoFile}
+          onSaveCustomExercise={saveCustomExerciseToLibrary}
+          onCancelCustomExercise={cancelCustomExerciseEntry}
+        />
+      ) : null}
 
       {tab === 'library' ? (
         <div className="mobile-workout-stack">
+          {filteredLocalDraftSummaries.length ? (
+            <>
+              <div className="mobile-workout-section-title">
+                <span>Rascunhos neste dispositivo</span>
+                <small>{formatCount(filteredLocalDraftSummaries.length, 'rascunho')}</small>
+              </div>
+              {filteredLocalDraftSummaries.map(({ studentId, student, draft: localDraft }) => (
+                <article key={`local-${studentId || 'sem-aluno'}`} className="mobile-workout-card is-draft trainer-local-draft-card">
+                  <div className="mobile-workout-card-main">
+                    <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
+                    <span>
+                      <strong>{localDraft.title || 'Treino sem nome'}</strong>
+                      <small>{localDraft.editingWorkoutId ? 'Edição local pendente' : 'Rascunho privado neste dispositivo'}{student?.name ? ` · ${student.name}` : ' · Sem aluno vinculado'}</small>
+                      <small>{formatCount(localDraft.days?.length || 0, 'dia')} · {formatCount((localDraft.days || []).reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0), 'exercício')} · {formatShortDate(localDraft.updatedAt)}</small>
+                    </span>
+                  </div>
+                  <button type="button" onClick={() => resumePendingDraftRecovery({ studentId, draft: localDraft, initialExerciseNames: [] })} className="mobile-workout-mini-action">
+                    Continuar rascunho
+                  </button>
+                </article>
+              ))}
+            </>
+          ) : null}
           {filteredDraftWorkouts.length ? (
             <>
               <div className="mobile-workout-section-title">
@@ -10431,7 +10769,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
                       <span>
                         <strong>{workout.title || 'Treino sem nome'}</strong>
                         <small>Rascunho privado{workoutStudent?.name ? ` · ${workoutStudent.name}` : ''}</small>
-                        <small>{formatCount(days.length || 1, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                        <small>{formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
                       </span>
                     </div>
                     <button type="button" onClick={() => resetDraftFromWorkout(workout, { mode: 'edit' })} className="mobile-workout-mini-action">
@@ -10443,7 +10781,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             </>
           ) : null}
           <div className="mobile-workout-section-title">
-            <span>Modelos e treinos recentes</span>
+            <span>Treinos publicados</span>
             <small>{filteredWorkouts.length} encontrados</small>
           </div>
           {filteredWorkouts.length ? filteredWorkouts.slice(0, 10).map((workout) => {
@@ -10452,20 +10790,20 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             const isSelected = String(selectedWorkout?.id) === String(workout.id)
             return (
               <article key={workout.id} className={`mobile-workout-card ${isSelected ? 'is-selected' : ''}`}>
-                <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setShowCreator(false) }} className="mobile-workout-card-main">
+                <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setSelectedStudentId(String(workout.studentId || '')); setShowCreator(false) }} className="mobile-workout-card-main">
                   <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
                   <span>
                     <strong>{workout.title || 'Treino sem nome'}</strong>
                     <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)}</small>
-                    <small>{formatCount(days.length || 1, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                    <small>{formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
                   </span>
                 </button>
                 <details className="mobile-workout-menu">
                   <summary aria-label="Abrir ações do treino">⋮</summary>
                   <div>
-                    <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setShowCreator(false) }}>Abrir</button>
-                    <button type="button" onClick={() => resetDraftFromWorkout(workout)}>Duplicar e editar</button>
-                    <button type="button" onClick={() => duplicateForSelectedStudent(workout)}>Atribuir ao aluno</button>
+                    <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setSelectedStudentId(String(workout.studentId || '')); setShowCreator(false) }}>Abrir</button>
+                    <button type="button" onClick={() => editSelectedWorkoutAtExercises(workout)}>Editar plano</button>
+                    <button type="button" onClick={() => useWorkoutAsBase(workout, workout.studentId)}>Usar como base</button>
                     <button type="button" onClick={() => archiveSelectedWorkout(workout)}>Arquivar</button>
                   </div>
                 </details>
@@ -10478,41 +10816,67 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             </div>
           )}
         </div>
-      ) : (
+      ) : tab === 'students' ? (
         <div className="mobile-workout-stack">
           <div className="mobile-workout-section-title">
-            <span>Treinos dos alunos</span>
+            <span>Planos por aluno</span>
             <small>{formatCount(filteredStudentRows.length, 'aluno')}</small>
           </div>
-          <label className="mobile-workout-select-label">
-            Aluno para novas atribuições
-            <select value={selectedStudentId} onChange={(event) => setSelectedStudentId(event.target.value)}>
-              {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
-            </select>
-          </label>
-          {filteredStudentRows.map(({ student, latest, assigned }) => (
-            <article key={student.id} className="mobile-workout-card">
-              <button type="button" onClick={() => { if (latest) { setSelectedWorkoutId(latest.id); setTab('library') } }} className="mobile-workout-card-main">
-                {student.photo ? (
-                  <img src={student.photo} alt={`Foto de ${student.name}`} className="mobile-workout-avatar object-cover" />
-                ) : (
-                  <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
-                )}
-                <span>
-                  <strong>{student.name}</strong>
-                  <small>{latest?.title || 'Sem treino ativo'}</small>
-                  <small>{formatCount(assigned.length, 'treino')} · {latest ? formatShortDate(latest.updatedAt || latest.createdAt) : 'atribua um modelo'}</small>
-                </span>
-              </button>
-              <button type="button" onClick={() => { latest ? editSelectedWorkoutAtExercises(latest) : resetDraftFromWorkout(null, { studentId: student.id }) }} className="mobile-workout-mini-action">
-                {latest ? 'Personalizar' : 'Criar'}
-              </button>
-            </article>
-          ))}
+          {filteredStudentRows.length ? filteredStudentRows.map(({ student, latest, assigned }) => {
+            const isExpanded = String(expandedStudentId) === String(student.id)
+            return (
+              <article key={student.id} className={`mobile-workout-student-card ${isExpanded ? 'is-expanded' : ''}`}>
+                <div className="mobile-workout-student-summary">
+                  <button type="button" aria-expanded={isExpanded} onClick={() => setExpandedStudentId(isExpanded ? '' : String(student.id))} className="mobile-workout-card-main">
+                    {student.photo ? (
+                      <img src={student.photo} alt={`Foto de ${student.name}`} className="mobile-workout-avatar object-cover" />
+                    ) : (
+                      <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
+                    )}
+                    <span>
+                      <strong>{student.name}</strong>
+                      <small>{latest?.title || 'Nenhum plano publicado'}</small>
+                      <small>{formatCount(assigned.length, 'treino')} · {latest ? `Atualizado ${formatShortDate(latest.updatedAt || latest.createdAt)}` : 'Crie ou use um plano como base'}</small>
+                    </span>
+                  </button>
+                  <div className="mobile-workout-student-actions">
+                    <button type="button" className="mobile-workout-mini-action" onClick={() => beginNewWorkout(student.id)}>Criar treino</button>
+                    {assigned.length ? <button type="button" className="mobile-workout-student-expand" aria-expanded={isExpanded} onClick={() => setExpandedStudentId(isExpanded ? '' : String(student.id))}>{isExpanded ? 'Ocultar planos' : `Ver planos (${assigned.length})`}</button> : null}
+                  </div>
+                </div>
+                {isExpanded ? (
+                  <div className="mobile-workout-student-plans">
+                    {assigned.length ? assigned.map((workout) => {
+                      const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+                      const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
+                      return (
+                        <article key={workout.id} className="mobile-workout-student-plan">
+                          <div>
+                            <strong>{workout.title || 'Treino sem nome'}</strong>
+                            <small>{workout.focus || 'Objetivo não informado'} · {formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')}</small>
+                            <small>Publicado · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                          </div>
+                          <div className="mobile-workout-student-plan-actions">
+                            <button type="button" onClick={() => { setSelectedStudentId(String(student.id)); setSelectedWorkoutId(workout.id); changeManagerTab('library') }}>Abrir</button>
+                            <button type="button" onClick={() => editSelectedWorkoutAtExercises(workout)}>Editar</button>
+                            <button type="button" onClick={() => useWorkoutAsBase(workout, student.id)}>Usar como base</button>
+                          </div>
+                        </article>
+                      )
+                    }) : (
+                      <div className="mobile-workout-empty"><strong>Nenhum plano publicado.</strong><span>Este aluno ainda não tem treino ativo. Use “Criar treino” para começar um rascunho direcionado.</span></div>
+                    )}
+                  </div>
+                ) : null}
+              </article>
+            )
+          }) : (
+            <div className="mobile-workout-empty"><strong>Nenhum aluno encontrado.</strong><span>Altere a busca ou limpe os filtros para ver a lista completa.</span></div>
+          )}
         </div>
-      )}
+      ) : null}
 
-      {selectedWorkout && !showCreator ? (
+      {tab === 'library' && selectedWorkout && !showCreator ? (
         <div className="mobile-workout-detail">
           <div className="mobile-workout-student-context">
             <div className="mobile-workout-student-avatar">
@@ -10539,9 +10903,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
               <NavIcon name="eye" className="h-4 w-4" />
               Visão do aluno
             </button>
-            <button type="button" className="is-secondary" onClick={() => resetDraftFromWorkout(selectedWorkout)}>
+            <button type="button" className="is-secondary" onClick={() => useWorkoutAsBase(selectedWorkout, selectedWorkout.studentId)}>
               <NavIcon name="layers" className="h-4 w-4" />
-              Duplicar treino
+              Usar como base
             </button>
             <button type="button" className="is-accent" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
               <NavIcon name="plus" className="h-4 w-4" />
@@ -10604,7 +10968,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
           </div>
         </div>
       ) : null}
-      {workoutStudentPreviewOpen && selectedWorkout && !showCreator ? (
+      {tab === 'library' && workoutStudentPreviewOpen && selectedWorkout && !showCreator ? (
         <MobileWorkoutStudentPreview
           student={selectedWorkoutStudent}
           workout={selectedWorkout}
@@ -10839,7 +11203,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
             </div>
           ) : null}
           <div className="mobile-workout-save-bar">
-            <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>Salvar rascunho</button>
+            <button type="button" disabled={saving} onClick={() => saveDraft('Rascunho')}>{isEditingPublishedWorkout ? 'Guardar edição neste dispositivo' : 'Salvar rascunho'}</button>
             <button type="button" disabled={saving} onClick={continueCreatorFlow}>{getCreatorPrimaryLabel()}</button>
           </div>
           </div>
@@ -10903,14 +11267,22 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
                 <option value="todos">Grupos musculares</option>
                 {exercisePickerMuscleOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
               </select>
-              <select value={exercisePickerObjectiveFilter} onChange={(event) => setExercisePickerObjectiveFilter(event.target.value)} aria-label="Filtrar por categoria">
-                <option value="todos">Categorias</option>
+              <select value={exercisePickerObjectiveFilter} onChange={(event) => setExercisePickerObjectiveFilter(event.target.value)} aria-label="Filtrar por objetivo">
+                <option value="todos">Objetivo</option>
                 {exercisePickerObjectiveOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <select value={exercisePickerCategoryFilter} onChange={(event) => setExercisePickerCategoryFilter(event.target.value)} aria-label="Filtrar por categoria">
+                <option value="todos">Categoria</option>
+                {exercisePickerCategoryOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
+              </select>
+              <select value={exercisePickerEquipmentFilter} onChange={(event) => setExercisePickerEquipmentFilter(event.target.value)} aria-label="Filtrar por equipamento">
+                <option value="todos">Equipamento</option>
+                {exercisePickerEquipmentOptions.filter((item) => item !== 'todos').map((item) => <option key={item} value={item}>{formatUiText(item)}</option>)}
               </select>
               <button type="button" className={exercisePickerTab === 'mine' ? 'is-active' : ''} onClick={() => setExercisePickerTab(exercisePickerTab === 'mine' ? 'coachfit' : 'mine')}>
                 Seus exercícios
               </button>
-              <button type="button" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
+              <button type="button" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerCategoryFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerSearch('') }}>Limpar</button>
             </div>
             <details
               className="mobile-workout-custom-exercise"
@@ -11000,7 +11372,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
                 <div className="mobile-workout-empty">
                   <strong>Nenhum exercício encontrado.</strong>
                   <span>Limpe os filtros ou crie um exercício personalizado no próprio dia do treino.</span>
-                  <button type="button" className="mobile-workout-primary" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerSearch('') }}>
+                  <button type="button" className="mobile-workout-primary" onClick={() => { setExercisePickerTab('coachfit'); setExercisePickerMuscleFilter('todos'); setExercisePickerObjectiveFilter('todos'); setExercisePickerCategoryFilter('todos'); setExercisePickerEquipmentFilter('todos'); setExercisePickerSearch('') }}>
                     Mostrar todos os exercícios
                   </button>
                 </div>
@@ -11056,12 +11428,69 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
               <span>{exercisePickerPreview.equipment || 'Equipamento livre'}</span>
               <small>{[exercisePickerPreview.level, exercisePickerPreview.mechanic || exercisePickerPreview.composition, exercisePickerPreview.laterality, exercisePickerPreview.movementType].filter(Boolean).join(' · ')}</small>
             </div>
-            <button type="button" className="mobile-workout-primary" disabled={isExerciseAlreadyInDraftDay(exercisePickerCurrentDay, exercisePickerPreview.name)} onClick={async () => {
+            <button type="button" className="mobile-workout-primary" disabled={exercisePickerDayIndex !== null && isExerciseAlreadyInDraftDay(exercisePickerCurrentDay, exercisePickerPreview.name)} onClick={async () => {
+              if (exercisePickerDayIndex === null) {
+                setLibrarySelectedExerciseNames((current) => current.some((name) => normalizeText(name) === normalizeText(exercisePickerPreview.name))
+                  ? current.filter((name) => normalizeText(name) !== normalizeText(exercisePickerPreview.name))
+                  : [...current, exercisePickerPreview.name])
+                setExercisePickerPreview(null)
+                return
+              }
               await addExercisesToCurrentDay([exercisePickerPreview.name])
               setExercisePickerPreview(null)
             }}>
-              {isExerciseAlreadyInDraftDay(exercisePickerCurrentDay, exercisePickerPreview.name) ? '✓ Adicionado' : 'Adicionar exercício'}
+              {exercisePickerDayIndex === null
+                ? librarySelectedExerciseNames.some((name) => normalizeText(name) === normalizeText(exercisePickerPreview.name)) ? 'Remover da seleção' : 'Selecionar para novo treino'
+                : isExerciseAlreadyInDraftDay(exercisePickerCurrentDay, exercisePickerPreview.name) ? '✓ Adicionado' : 'Adicionar exercício'}
             </button>
+          </section>
+        </div>
+      ), document.body) : null}
+
+      {pendingDraftRecovery ? createPortal((
+        <div className={`trainer-workout-confirm-backdrop app-theme-${uiTheme}`} role="presentation" onClick={() => setPendingDraftRecovery(null)}>
+          <section ref={draftRecoveryDialogRef} className="trainer-workout-confirm-dialog" role="dialog" aria-modal="true" aria-label="Escolher o que fazer com o rascunho salvo" onClick={(event) => event.stopPropagation()}>
+            <p>RASCUNHO NESTE DISPOSITIVO</p>
+            <h4>Já existe uma edição salva</h4>
+            <strong>{pendingDraftRecovery.draft.title || 'Treino sem nome'}</strong>
+            <span>Aluno: {students.find((student) => String(student.id) === String(pendingDraftRecovery.studentId))?.name || 'Sem aluno vinculado'}</span>
+            <span>{formatCount(pendingDraftRecovery.draft.days?.length || 0, 'dia')} · {formatCount((pendingDraftRecovery.draft.days || []).reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0), 'exercício')} · {formatShortDate(pendingDraftRecovery.draft.updatedAt)}</span>
+            <small>{pendingDraftRecovery.nextWorkout?.mode === 'edit'
+              ? 'Se continuar, você retoma esta edição local. Se abrir o plano escolhido, este único rascunho local do aluno será substituído; o plano publicado só muda depois de uma atualização confirmada.'
+              : pendingDraftRecovery.nextWorkout?.workout
+                ? 'Se continuar, você retoma esta edição local. Se usar o plano escolhido como base, este rascunho local será substituído e nenhuma atribuição/publicação ocorrerá agora.'
+                : 'Escolha conscientemente. Substituir este único rascunho local do contexto não altera o conteúdo publicado do aluno.'}</small>
+            <div className="trainer-workout-confirm-actions">
+              <button type="button" onClick={() => resumePendingDraftRecovery()}>Continuar rascunho</button>
+              <button type="button" className="is-danger" onClick={discardPendingDraftAndStartNew}>
+                {pendingDraftRecovery.nextWorkout?.mode === 'edit' ? 'Descartar e abrir este plano' : pendingDraftRecovery.nextWorkout?.workout ? 'Descartar e usar como base' : 'Descartar e começar outro'}
+              </button>
+              <button type="button" className="is-muted" onClick={() => setPendingDraftRecovery(null)}>Cancelar</button>
+            </div>
+          </section>
+        </div>
+      ), document.body) : null}
+
+      {publishConfirmationOpen ? createPortal((
+        <div className={`trainer-workout-confirm-backdrop app-theme-${uiTheme}`} role="presentation" onClick={() => setPublishConfirmationOpen(false)}>
+          <section ref={publishConfirmationDialogRef} className="trainer-workout-confirm-dialog" role="dialog" aria-modal="true" aria-label={isEditingPublishedWorkout ? 'Confirmar atualização do treino' : 'Confirmar publicação do treino'} onClick={(event) => event.stopPropagation()}>
+            <p>{isEditingPublishedWorkout ? 'ATUALIZAÇÃO DO TREINO' : 'REVISÃO FINAL'}</p>
+            <h4>{isEditingPublishedWorkout ? 'Atualizar o treino publicado?' : 'Publicar este treino?'}</h4>
+            <div className="trainer-workout-confirm-summary">
+              <span><small>Aluno</small><strong>{selectedDraftStudent?.name || 'Selecione um aluno'}</strong></span>
+              <span><small>Plano</small><strong>{draft.title || 'Treino sem nome'}</strong></span>
+              <span><small>Conteúdo</small><strong>{formatCount(draft.days.length, 'dia')} · {formatCount(draft.days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0), 'exercício')}</strong></span>
+            </div>
+            <small>{isEditingPublishedWorkout
+              ? 'A versão publicada atual continua disponível até a confirmação. Ao atualizar, o aluno receberá o conteúdo revisado deste plano.'
+              : `O treino será publicado para ${selectedDraftStudent?.name || 'o aluno selecionado'} conforme a configuração de exibição definida no editor.`}</small>
+            {error ? <p className="trainer-workout-confirm-error" role="alert">{error}</p> : null}
+            <div className="trainer-workout-confirm-actions">
+              <button type="button" className="is-muted" disabled={saving} onClick={() => setPublishConfirmationOpen(false)}>Voltar à revisão</button>
+              <button type="button" className="is-primary" disabled={saving} onClick={() => saveDraft('Publicado')}>
+                {saving ? 'Salvando...' : isEditingPublishedWorkout ? 'Atualizar treino' : 'Publicar treino'}
+              </button>
+            </div>
           </section>
         </div>
       ), document.body) : null}
@@ -11387,6 +11816,7 @@ function createMobileWorkoutDraft(student, library = exerciseLibrary) {
     frequency: '3x por semana',
     organization: 'Dias da semana',
     displayMode: 'Sempre visível para o aluno',
+    analyticsSource: 'mobile_workout_manager',
     guidance: '',
     allowStudentPdfDownload: false,
     status: 'Rascunho',
@@ -11498,8 +11928,22 @@ export function buildWorkoutStudentPreviewState(workout, dayIndex = 0, exerciseI
   }
 }
 
-function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
+function getWorkoutSortTimestamp(workout = {}) {
+  const value = workout?.updatedAt || workout?.createdAt || workout?.updated_at || workout?.created_at || ''
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+export function sortWorkoutsByUpdatedAt(workouts = []) {
+  return getWorkoutExercisesArray(workouts)
+    .map((workout, index) => ({ workout, index, timestamp: getWorkoutSortTimestamp(workout) }))
+    .sort((left, right) => right.timestamp - left.timestamp || left.index - right.index)
+    .map(({ workout }) => workout)
+}
+
+export function filterMobileWorkouts(workouts = [], search = '', filter = 'todos', students = []) {
   const normalizedSearch = normalizeText(search)
+  const studentNames = new Map((Array.isArray(students) ? students : []).map((student) => [String(student.id || ''), student.name || '']))
   return getWorkoutExercisesArray(workouts).filter((workout) => {
     if (!workout || typeof workout !== 'object') return false
     const text = normalizeText([
@@ -11508,7 +11952,10 @@ function filterMobileWorkouts(workouts = [], search = '', filter = 'todos') {
       workout.level,
       workout.status,
       workout.notes,
+      workout.studentName,
+      studentNames.get(String(workout.studentId || '')),
       ...getWorkoutExercisesArray(workout.exercises).map((exercise) => normalizeWorkoutExerciseInput(exercise).name),
+      ...getWorkoutExercisesArray(workout.days).flatMap((day) => getWorkoutExercisesArray(day?.exercises)).map((exercise) => normalizeWorkoutExerciseInput(exercise).name),
     ].filter(Boolean).join(' '))
     const matchesSearch = !normalizedSearch || text.includes(normalizedSearch)
     if (!matchesSearch) return false
@@ -12813,6 +13260,10 @@ export function getExerciseLibrary(remoteItems = []) {
       movementType: exercise.movementType || exercise.movement_type || exercise.movement || local.movementType || local.movement || '',
       movement: exercise.movement || exercise.movementType || exercise.movement_type || local.movement || local.movementType || '',
       objective: exercise.objective || exercise.goal || local.objective || local.goal || '',
+      goal: exercise.goal || local.goal || '',
+      category: exercise.category || local.category || '',
+      provider: exercise.provider || local.provider || '',
+      source: exercise.source || exercise.provider || local.source || local.provider || 'coachfit',
       level: exercise.level || local.level || '',
       mechanic: exercise.mechanic || exercise.mechanics || local.mechanic || local.mechanics || '',
       mechanics: exercise.mechanics || exercise.mechanic || local.mechanics || local.mechanic || '',
@@ -12946,6 +13397,8 @@ export function getExercisePickerResults({
   search = '',
   muscleFilter = 'todos',
   categoryFilter = 'todos',
+  objectiveFilter = 'todos',
+  equipmentFilter = 'todos',
   tab = 'coachfit',
   favorites = [],
   recent = [],
@@ -12956,13 +13409,14 @@ export function getExercisePickerResults({
   const normalizedMuscleFilter = normalizeText(muscleFilter)
   const canonicalMuscleFilter = normalizeMuscleName(muscleFilter)
   const normalizedCategoryFilter = normalizeText(categoryFilter)
-  const categoryAliases = normalizedCategoryFilter === 'treino em casa'
-    ? ['peso corporal', 'elastico', 'halteres', 'kettlebell', 'trx']
-    : []
+  const normalizedObjectiveFilter = normalizeText(objectiveFilter)
+  const normalizedEquipmentFilter = normalizeText(equipmentFilter)
 
   return buildExerciseSuggestions(library, search, 'todos', favorites, recent)
     .filter((exercise) => {
-      const categoryText = normalizeText(`${exercise.category || ''} ${exercise.objective || ''} ${exercise.equipment || ''} ${exercise.source || ''}`)
+      const categoryText = normalizeText(exercise.category)
+      const objectiveText = normalizeText(`${exercise.objective || ''} ${exercise.goal || ''}`)
+      const equipmentText = normalizeText(exercise.equipment)
       const isCustomExercise = exercise.isCustom || normalizeText(exercise.source).includes('custom')
       const muscleProfile = getExerciseMuscleProfile(exercise)
       const matchesMuscle = normalizedMuscleFilter === 'todos'
@@ -12970,10 +13424,12 @@ export function getExercisePickerResults({
         || getExerciseSearchText(exercise).includes(normalizedMuscleFilter)
       const matchesCategory = normalizedCategoryFilter === 'todos'
         || categoryText.includes(normalizedCategoryFilter)
-        || categoryAliases.some((alias) => categoryText.includes(alias))
+      const matchesObjective = normalizedObjectiveFilter === 'todos'
+        || objectiveText.includes(normalizedObjectiveFilter)
+      const matchesEquipment = normalizedEquipmentFilter === 'todos' || equipmentText === normalizedEquipmentFilter
       const matchesFavorites = !showFavoritesOnly || favoriteSet.has(normalizeText(exercise.name))
       const matchesMine = !showCustomOnly || isCustomExercise
-      return matchesMuscle && matchesCategory && matchesFavorites && matchesMine
+      return matchesMuscle && matchesCategory && matchesObjective && matchesEquipment && matchesFavorites && matchesMine
     })
 }
 
@@ -13015,7 +13471,12 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     secondaryMuscles: profile?.secondaryMuscles ?? [],
     equipment: profile?.equipment ?? '',
     movementType: profile?.movementType ?? profile?.movement ?? '',
-    objective: profile?.objective ?? profile?.category ?? '',
+    objective: profile?.objective ?? profile?.goal ?? '',
+    goal: profile?.goal ?? '',
+    category: profile?.category ?? '',
+    source: profile?.source ?? profile?.provider ?? '',
+    provider: profile?.provider ?? '',
+    isCustom: Boolean(profile?.isCustom),
     level: profile?.level ?? '',
     mechanic: profile?.mechanic ?? profile?.mechanics ?? '',
     laterality: profile?.laterality ?? '',
@@ -13027,8 +13488,9 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     videoUrl: profile?.videoUrl ?? '',
     thumbnailUrl: profile?.thumbnailUrl ?? '',
     imageUrl: profile?.imageUrl ?? profile?.thumbnailUrl ?? '',
-    videoFile: null,
-    videoFileName: '',
+    videoFile: profile?.videoFile ?? null,
+    videoFileName: profile?.videoFileName ?? '',
+    videoPreviewUrl: profile?.videoPreviewUrl ?? '',
     cadence: '',
     rir: '',
     rpe: '',
@@ -14201,6 +14663,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [restWidgetExpanded, setRestWidgetExpanded] = useState(false)
   const [restWidgetPosition, setRestWidgetPosition] = useState(null)
   const [expandedSetKey, setExpandedSetKey] = useState('')
+  const [seriesFeedback, setSeriesFeedback] = useState(null)
+  const [entryFieldFocused, setEntryFieldFocused] = useState(false)
   const [endConfirmOpen, setEndConfirmOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [remoteHydrated, setRemoteHydrated] = useState(preview || !onLoadWorkoutSession)
@@ -14220,6 +14684,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     const saved = preview ? null : normalizeWorkoutSession(loadStudentWorkoutExecution(student?.id, workout?.id))
     previousExecutionKeyRef.current = executionStorageKey
     skipNextPersistRef.current = true
+    setSeriesFeedback(null)
+    setEntryFieldFocused(false)
     setActiveDayIndex(saved?.activeDayIndex ?? (preview ? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)) : -1))
     setActiveExerciseIndex(saved?.activeExerciseIndex ?? 0)
     setSetLogs(saved?.setLogs || {})
@@ -14395,8 +14861,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       targetReps: getWorkoutSetTargetReps(exercise, index),
     }
   })
-  const nextPendingSetKey = currentSets.find((setItem) => !setItem.completed)?.key || ''
+  const nextPendingSet = currentSets.find((setItem) => !setItem.completed) || null
+  const nextPendingSetKey = nextPendingSet?.key || ''
   const activeSetKey = expandedSetKey || nextPendingSetKey
+  const isPendingSetExpanded = Boolean(nextPendingSet && nextPendingSet.key === activeSetKey)
 
   const exerciseStates = exercises.map((currentExercise, currentExerciseIndex) => {
     if (isCardioExercise(currentExercise)) {
@@ -14423,6 +14891,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const remainingExercises = Math.max(0, exercises.length - completedExercises)
   const currentExerciseState = exerciseStates[safeExerciseIndex] || { status: 'not-started', setCount: 0, completedSets: 0 }
   const currentExerciseCompleted = currentExerciseState.status === 'completed'
+  const currentExerciseProgressPercent = exerciseSetCount ? Math.round((currentExerciseState.completedSets / exerciseSetCount) * 100) : 0
   const dayTotalSets = exerciseStates.reduce((sum, item) => sum + item.setCount, 0)
   const dayCompletedSets = exerciseStates.reduce((sum, item) => sum + item.completedSets, 0)
   const dayProgress = exercises.length ? Math.round((completedExercises / exercises.length) * 100) : 0
@@ -14438,6 +14907,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     : Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
   const dayCanFinish = dayTotalSets > 0 && dayCompletedSets === dayTotalSets
   const dayRemainingSets = Math.max(0, dayTotalSets - dayCompletedSets)
+  const executionActionLabel = !completedLog
+    ? currentExerciseIsCardio
+      ? (currentExerciseCompleted && hasNextExercise ? 'Concluir exercício' : '')
+      : nextPendingSet
+        ? (isPendingSetExpanded ? `Concluir série ${nextPendingSet.number}` : `Registrar série ${nextPendingSet.number}`)
+        : currentExerciseCompleted && hasNextExercise ? 'Concluir exercício' : ''
+    : ''
   const previousExerciseSession = exercise ? getPreviousExerciseSession(workoutLogs, workout?.id, exercise.name) : null
   const previousSetRecords = previousExerciseSession?.sets || new Map()
   const dayVolume = exercises.reduce((sum, currentExercise, currentExerciseIndex) => {
@@ -14481,13 +14957,18 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       [setItem.key]: { ...setItem, ...current[setItem.key], completed: nextCompleted },
     }))
     if (nextCompleted) {
+      const nextPendingAfterCompletion = currentSets.find((item) => item.key !== setItem.key && !item.completed)
+      setSeriesFeedback({ exerciseKey: currentCardioKey, number: setItem.number, nextNumber: nextPendingAfterCompletion?.number || null })
       setRestRemaining(Math.max(0, Number.parseInt(exercise?.rest, 10) || 0))
       setRestPaused(false)
       setRestWidgetExpanded(false)
       const nextSet = currentSets.find((item) => item.number === setItem.number + 1)
       setExpandedSetKey(nextSet?.key || '')
-      if (nextSet) window.requestAnimationFrame(() => document.getElementById('workout-set-load-' + nextSet.key)?.focus())
+      const focusedField = document.activeElement
+      if (['INPUT', 'TEXTAREA'].includes(focusedField?.tagName)) focusedField.blur()
+      setEntryFieldFocused(false)
     } else {
+      setSeriesFeedback(null)
       setExpandedSetKey(setItem.key)
     }
   }
@@ -14609,6 +15090,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setRestRemaining(0)
     setRestPaused(false)
     setExpandedSetKey('')
+    setEntryFieldFocused(false)
     setEndConfirmOpen(false)
     setMessage('')
     setError('')
@@ -14623,6 +15105,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setRestRemaining(0)
     setRestPaused(false)
     setExpandedSetKey('')
+    setSeriesFeedback(null)
+    setEntryFieldFocused(false)
     setEndConfirmOpen(false)
   }
 
@@ -14643,6 +15127,21 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       return
     }
     scrollWorkoutTarget('student-workout-finish')
+  }
+
+  function handleExecutionPrimaryAction() {
+    if (currentExerciseCompleted) {
+      completeExerciseAndAdvance()
+      return
+    }
+    if (currentExerciseIsCardio || !nextPendingSet) return
+    if (nextPendingSet.key !== activeSetKey) {
+      setError('')
+      setExpandedSetKey(nextPendingSet.key)
+      window.requestAnimationFrame(() => document.getElementById('workout-set-load-' + nextPendingSet.key)?.focus())
+      return
+    }
+    completeSet(nextPendingSet)
   }
 
   function returnToDaySelection() {
@@ -14677,6 +15176,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setRestRemaining(0)
     setRestPaused(false)
     setExpandedSetKey('')
+    setEntryFieldFocused(false)
     setEndConfirmOpen(false)
     setError('')
   }
@@ -15001,7 +15501,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   ) : null
 
   return (
-    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 ' + (executionActionLabel ? 'has-actionbar ' : '') + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
       <div className="mobile-workout-command-v12 mobile-workout-command-v24">
         <div className="mobile-workout-execution-head-v4 mobile-workout-execution-head-v24">
@@ -15012,7 +15512,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         <div className="mobile-workout-exercise-progress-v3 mobile-workout-exercise-progress-v24">
           <div className="mobile-workout-exercise-progress-head-v3">
             <div><span>Progresso do treino</span><strong>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</strong></div>
-            <small>{completedExercises + ' concluídos · ' + remainingExercises + ' restantes'}</small>
+            <small>{completedExercises + ' exercícios concluídos · ' + dayCompletedSets + '/' + dayTotalSets + ' séries'}</small>
           </div>
           <div className="mobile-workout-exercise-dots-v3" role="progressbar" aria-label="Progresso dos exercícios" aria-valuemin="0" aria-valuemax={exercises.length} aria-valuenow={completedExercises}>
             {exerciseStates.map((state, index) => <span key={index} className={(state.status === 'completed' ? 'is-complete ' : '') + (index === safeExerciseIndex ? 'is-current' : '')} />)}
@@ -15105,26 +15605,41 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               <div className="mobile-workout-student-series-v2">
                 <div className="mobile-workout-student-series-head-v2">
                   <strong>Registrar séries</strong>
-                  <span>{dayCompletedSets + '/' + dayTotalSets + ' concluídas no dia'}</span>
+                  <span>{currentExerciseState.completedSets + '/' + exerciseSetCount + ' séries concluídas neste exercício'}</span>
                 </div>
+                <div className="mobile-workout-series-progress-v29">
+                  <div><strong>{currentExerciseState.completedSets} de {exerciseSetCount} séries</strong><small>{nextPendingSet ? 'Série ' + nextPendingSet.number + ' é a próxima' : 'Todas as séries deste exercício concluídas'}</small></div>
+                  <div className="mobile-workout-series-track-v29" role="progressbar" aria-label={'Progresso das séries de ' + (exercise?.name || 'exercício')} aria-valuemin={0} aria-valuemax={exerciseSetCount} aria-valuenow={currentExerciseState.completedSets} aria-valuetext={currentExerciseState.completedSets + ' de ' + exerciseSetCount + ' séries concluídas'}>
+                    <span style={{ width: currentExerciseProgressPercent + '%' }} />
+                  </div>
+                </div>
+                {seriesFeedback?.exerciseKey === currentCardioKey ? (
+                  <div className="mobile-workout-series-feedback-v29" role="status" aria-live="polite">
+                    <span aria-hidden="true">✓</span>
+                    <div><strong>Série {seriesFeedback.number} concluída</strong><small>{restRemaining > 0 ? (restPaused ? 'Descanso pausado' : 'Descanso em andamento') + ' · ' + formatWorkoutTimer(restRemaining) : seriesFeedback.nextNumber ? 'Próxima: série ' + seriesFeedback.nextNumber : 'Todas as séries deste exercício foram concluídas'}</small></div>
+                  </div>
+                ) : null}
+                {!nextPendingSet && currentExerciseCompleted && isLastExercise ? <p className="mobile-workout-series-finish-hint-v29">Todas as séries registradas. Revise esforço e observação abaixo para finalizar o treino.</p> : null}
                 {currentSets.map((setItem) => {
                   const previous = previousSetRecords.get(setItem.number)
                   const isExpanded = setItem.key === activeSetKey
+                  const isCurrent = setItem.key === nextPendingSet?.key
                   return (
-                    <div key={setItem.key} className={`mobile-workout-set-card-v11 ${setItem.completed ? 'is-complete' : ''} ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}>
+                    <div key={setItem.key} className={`mobile-workout-set-card-v11 mobile-workout-set-card-v29 ${setItem.completed ? 'is-complete' : 'is-pending'} ${isCurrent ? 'is-current' : ''} ${isExpanded ? 'is-expanded' : 'is-collapsed'}`} aria-current={isCurrent ? 'step' : undefined}>
                       <div className="mobile-workout-set-label-v4">
                         <strong>{'Série ' + setItem.number}</strong>
+                        <span className={'mobile-workout-set-state-v29 ' + (setItem.completed ? 'is-complete' : isCurrent ? 'is-current' : 'is-pending')}>{setItem.completed ? 'Concluída' : isCurrent ? 'Série atual' : 'Pendente'}</span>
                         <small>{'Meta: ' + (setItem.targetReps || 'livre') + ' reps'}</small>
                         {previous ? <em>{'Último: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : <em>Sem histórico anterior</em>}
                       </div>
                       {isExpanded ? <div className="mobile-workout-set-fields-v12">
-                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" enterKeyHint="next" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
-                        <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
-                        <button type="button" onClick={() => completeSet(setItem)}>{setItem.completed ? '✓ Série concluída' : 'Concluir série'}</button>
+                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" enterKeyHint="next" value={setItem.load} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
+                        <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
+                        <button type="button" className="mobile-workout-set-inline-action-v29" onClick={() => completeSet(setItem)}>{setItem.completed ? 'Reabrir série' : 'Concluir série'}</button>
                       </div> : (
                         <button type="button" className="mobile-workout-set-open-v11" onClick={() => setExpandedSetKey(setItem.key)}>
                           <span>{setItem.completed ? `${setItem.load || 0} kg × ${setItem.reps || '-'} reps` : 'Próxima etapa'}</span>
-                          <strong>{setItem.completed ? 'Revisar' : 'Abrir série'}</strong>
+                          <strong>{setItem.completed ? 'Revisar registro' : isCurrent ? 'Abrir série' : 'Em seguida'}</strong>
                         </button>
                       )}
                     </div>
@@ -15136,11 +15651,18 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
 
           <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13 mobile-workout-navigation-v24">
-            <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>Concluir exercício</button>
+            {currentExerciseCompleted ? <button type="button" className="is-primary mobile-workout-inline-advance-v29" onClick={completeExerciseAndAdvance}>Concluir exercício</button> : null}
             {hasPreviousExercise ? <button type="button" className="is-secondary" aria-label="Exercício anterior" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }}>← <span>Exercício anterior</span></button> : null}
           </div>
           {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">{currentExerciseIsCardio ? 'Finalize esta atividade cardiovascular para liberar o avanço rápido.' : 'Conclua todas as séries deste exercício para liberar o avanço rápido. Você também pode abrir outro exercício acima.'}</small> : null}
         </article>
+      ) : null}
+
+      {executionActionLabel ? (
+        <div className="mobile-workout-execution-actionbar-v29" role="region" aria-label="Próxima ação do treino">
+          <div><small>Próximo passo</small><strong>{nextPendingSet ? 'Série ' + nextPendingSet.number + ' de ' + exerciseSetCount + (isPendingSetExpanded ? ' · pronta para concluir' : ' · pronta para registrar') : 'Exercício concluído · avance quando estiver pronto'}</strong></div>
+          <button type="button" onClick={handleExecutionPrimaryAction} disabled={saving || Boolean(completedLog)}>{executionActionLabel}</button>
+        </div>
       ) : null}
 
       {restWidget ? (preview || typeof document === 'undefined' ? restWidget : createPortal(restWidget, document.body)) : null}
