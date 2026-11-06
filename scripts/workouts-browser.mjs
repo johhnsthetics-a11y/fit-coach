@@ -172,9 +172,10 @@ try {
           await picker.getByRole('button', { name: 'Fechar', exact: true }).click()
           assert.equal(await page.locator('.mobile-workout-live-preview').count(), 0, 'A montagem não deve manter uma prévia lateral concorrente')
           assert.equal(await page.locator('.mobile-workout-exercises .exercise-thumb').count(), 0, 'Exercícios adicionados não devem exibir miniaturas provisórias')
-          await page.getByRole('button', { name: 'Ver como o aluno verá este dia', exact: true }).click()
-          const preview = page.getByRole('dialog', { name: 'Ver como o aluno verá este dia', exact: true })
+          await page.getByRole('button', { name: 'Prévia completa do aluno', exact: true }).click()
+          const preview = page.getByRole('dialog', { name: 'Prévia completa da jornada do aluno', exact: true })
           await preview.waitFor({ state: 'visible' })
+          await preview.getByRole('tab', { name: 'Execução', exact: true }).click()
           assert.ok(await preview.getByRole('button', { name: 'Concluir série', exact: true }).count())
           assert.ok(await preview.getByLabel('Carga (kg)', { exact: true }).count())
           assert.ok(await preview.getByLabel('Repetições', { exact: true }).count())
@@ -228,6 +229,8 @@ try {
           }
           await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
           await preview.getByText(/Simulação concluída/).waitFor()
+          assert.equal(await preview.locator('.student-workout-rating-panel[data-preview-rating="true"]').count(), 1, 'O resumo deve mostrar a avaliação apenas como prévia')
+          assert.equal(await preview.locator('.student-workout-rating-submit').isDisabled(), true, 'A prévia não deve enviar a avaliação')
           assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fitcoach-ai-pro-v2')).workoutLogs.length), 0, 'Simulação não grava XP')
           await page.screenshot({ path: resolve(output, `builder-${viewport.width}.png`), fullPage: true })
           await preview.getByRole('button', { name: 'Fechar', exact: true }).click()
@@ -241,6 +244,7 @@ try {
           assert.equal(saved.exercises.length, 3)
           await page.getByRole('button', { name: 'Visão do aluno', exact: true }).click()
           const modal = page.getByRole('dialog', { name: 'Visão do aluno', exact: true })
+          await modal.getByRole('tab', { name: 'Execução', exact: true }).click()
           assert.equal(
             await modal.getByRole('button', { name: 'Finalizar treino', exact: true }).isDisabled(),
             true,

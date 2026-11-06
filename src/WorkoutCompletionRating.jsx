@@ -8,25 +8,25 @@ function readRating(log) {
   return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 0
 }
 
-export default function WorkoutCompletionRating({ log, onSubmit }) {
-  const [selectedRating, setSelectedRating] = useState(() => readRating(log))
-  const [savedRating, setSavedRating] = useState(() => readRating(log))
+export default function WorkoutCompletionRating({ log, onSubmit, preview = false }) {
+  const [selectedRating, setSelectedRating] = useState(() => preview ? 0 : readRating(log))
+  const [savedRating, setSavedRating] = useState(() => preview ? 0 : readRating(log))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [confirmation, setConfirmation] = useState('')
 
   useEffect(() => {
-    const nextRating = readRating(log)
+    const nextRating = preview ? 0 : readRating(log)
     setSelectedRating(nextRating)
     setSavedRating(nextRating)
     setError('')
     setConfirmation('')
-  }, [log?.id, log?.rating, log?.studentRating, log?.student_rating])
+  }, [log?.id, log?.rating, log?.studentRating, log?.student_rating, preview])
 
   if (!log?.id || log.endedEarly) return null
 
   async function saveRating() {
-    if (saving || selectedRating < 1 || selectedRating > 5) return
+    if (preview || saving || selectedRating < 1 || selectedRating > 5) return
     if (typeof onSubmit !== 'function') {
       setError('Não foi possível salvar sua avaliação agora. Tente novamente.')
       return
@@ -49,7 +49,7 @@ export default function WorkoutCompletionRating({ log, onSubmit }) {
   }
 
   return (
-    <section className="student-workout-rating-panel" aria-labelledby="student-workout-rating-title">
+    <section className="student-workout-rating-panel" aria-labelledby="student-workout-rating-title" data-preview-rating={preview ? 'true' : undefined}>
       <div className="student-workout-rating-heading">
         <span className="student-workout-rating-emblem" aria-hidden="true">★</span>
         <div>
@@ -80,13 +80,14 @@ export default function WorkoutCompletionRating({ log, onSubmit }) {
       <p className="student-workout-rating-caption" aria-live="polite">
         {selectedRating ? `${selectedRating} de 5 ${selectedRating === 1 ? 'estrela selecionada' : 'estrelas selecionadas'}` : 'Toque em uma estrela para avaliar'}
       </p>
+      {preview ? <p className="student-workout-rating-preview-note" role="note">A avaliação real será enviada pelo aluno no app.</p> : null}
       <button
         type="button"
         className="student-workout-rating-submit"
-        disabled={saving || selectedRating < 1}
-        onClick={saveRating}
+        disabled={preview || saving || selectedRating < 1}
+        onClick={preview ? undefined : saveRating}
       >
-        {saving ? 'Salvando avaliação…' : savedRating ? 'Atualizar avaliação' : 'Enviar avaliação'}
+        {preview ? 'Enviar avaliação pelo app do aluno' : saving ? 'Salvando avaliação…' : savedRating ? 'Atualizar avaliação' : 'Enviar avaliação'}
       </button>
       {confirmation ? <p className="student-workout-rating-confirmation" role="status">{confirmation}</p> : null}
       {error ? <p className="student-workout-rating-error" role="alert">{error}</p> : null}

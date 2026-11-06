@@ -7,12 +7,15 @@ const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'u
 const panel = await readFile(new URL('../src/WorkoutCompletionRating.jsx', import.meta.url), 'utf8')
 const migration = await readFile(new URL('../supabase/migrations/20261103131000_student_workout_rating_meal_photos.sql', import.meta.url), 'utf8')
 
-test('painel de estrelas aparece somente após treino completo fora da prévia e de encerramento parcial', () => {
-  assert.match(app, /!preview && !completedLog\?\.endedEarly[\s\S]{0,140}<WorkoutCompletionRating/)
+test('painel de estrelas aparece após treino completo e a prévia nunca envia avaliação', () => {
+  assert.match(app, /!summaryLog\?\.endedEarly \? <WorkoutCompletionRating[\s\S]{0,180}preview=\{preview\}/)
   assert.match(panel, /if \(!log\?\.id \|\| log\.endedEarly\) return null/)
   assert.match(panel, /onSubmit\(selectedRating\)/)
   assert.match(panel, /aria-pressed=\{selectedRating === value\}/)
   assert.match(panel, /Avalie o treino de uma a cinco estrelas/)
+  assert.match(panel, /if \(preview \|\| saving \|\| selectedRating < 1/)
+  assert.match(panel, /disabled=\{preview \|\| saving \|\| selectedRating < 1\}/)
+  assert.match(panel, /A avaliação real será enviada pelo aluno no app\./)
 })
 
 test('rating valida faixa, convite financeiro e log de conclusão real sem criar um segundo log', () => {

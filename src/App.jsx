@@ -197,7 +197,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'notifications-message-fix-build27-20261105'
+const COACH_FIT_PRO_BUILD_MARKER = 'workout-preview-notifications-build28-20261106'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -11076,7 +11076,42 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   )
 }
 
+const WORKOUT_PREVIEW_STAGES = [
+  { id: 'overview', label: 'Visão geral' },
+  { id: 'plan', label: 'Plano' },
+  { id: 'execution', label: 'Execução' },
+  { id: 'summary', label: 'Resumo' },
+]
+const WORKOUT_PREVIEW_STAGE_IDS = new Set(WORKOUT_PREVIEW_STAGES.map((stage) => stage.id))
+
+function resolveWorkoutPreviewStage(stage) {
+  return WORKOUT_PREVIEW_STAGE_IDS.has(stage) ? stage : 'execution'
+}
+
+function WorkoutPreviewStageTabs({ stage = 'overview', onChange }) {
+  return (
+    <div className="workout-preview-stage-tabs-v25" role="tablist" aria-label="Etapas da jornada do aluno">
+      {WORKOUT_PREVIEW_STAGES.map((item, index) => (
+        <button
+          key={item.id}
+          type="button"
+          role="tab"
+          aria-selected={stage === item.id}
+          aria-pressed={stage === item.id}
+          data-preview-step={item.id}
+          className={stage === item.id ? 'is-active' : ''}
+          onClick={() => onChange?.(item.id)}
+        >
+          <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+          <strong>{item.label}</strong>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, library = exerciseLibrary, theme = DEFAULT_UI_THEME }) {
+  const [previewStage, setPreviewStage] = useState('overview')
   return (
     <aside className="mobile-workout-live-preview" aria-label="Visão do aluno">
       <div className="mobile-workout-live-preview-heading">
@@ -11087,8 +11122,13 @@ export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, libr
         <span><i aria-hidden="true" />Prévia ao vivo</span>
       </div>
       <div className="mobile-workout-live-preview-body" role="region" aria-label="Simulação interativa do treino" tabIndex={0}>
+        <div className="coach-workout-preview-flow-v25">
+          <div><strong>Jornada do aluno</strong><span>Prévia ao vivo do treino selecionado</span></div>
+          <WorkoutPreviewStageTabs stage={previewStage} onChange={setPreviewStage} />
+          <p>Visualização local: a sessão e a avaliação não são enviadas ao histórico.</p>
+        </div>
         <div className={`mobile-workout-live-preview-device student-mobile-shell app-theme-${theme}`}>
-          <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} />
+          <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} previewStage={previewStage} onPreviewStageChange={setPreviewStage} uiTheme={theme} />
         </div>
       </div>
     </aside>
@@ -11177,6 +11217,7 @@ function MobileWorkoutEditableDay({
   onEditDay,
 }) {
   const [studentPreviewOpen, setStudentPreviewOpen] = useState(false)
+  const [studentPreviewStage, setStudentPreviewStage] = useState('overview')
   const dayExercises = getWorkoutExercisesArray(day?.exercises).map((exercise) => enrichExercise(exercise))
 
   return (
@@ -11195,9 +11236,9 @@ function MobileWorkoutEditableDay({
         <button type="button" className="mobile-workout-primary mobile-workout-add-exercise-cta" onClick={() => openExercisePicker(dayIndex)}>
           {dayExercises.length ? '+ Adicionar exercício' : 'Adicionar primeiro exercício'}
         </button>
-        <button type="button" onClick={() => setStudentPreviewOpen(true)}>
+        <button type="button" onClick={() => { setStudentPreviewStage('overview'); setStudentPreviewOpen(true) }}>
           <NavIcon name="eye" className="h-4 w-4" />
-          Ver como o aluno verá este dia
+          Prévia completa do aluno
         </button>
         <button type="button" onClick={onEditDay}>Editar dia</button>
       </div>
@@ -11307,10 +11348,15 @@ function MobileWorkoutEditableDay({
     </section>
     {studentPreviewOpen ? createPortal((
       <div className={`workout-day-preview-portal-v1 mobile-workout-day-preview-portal app-theme-${theme}`} role="presentation" onClick={() => setStudentPreviewOpen(false)}>
-        <div className="mobile-workout-day-preview-panel" role="dialog" aria-modal="true" aria-label="Ver como o aluno verá este dia" onClick={(event) => event.stopPropagation()}>
+        <div className="mobile-workout-day-preview-panel" role="dialog" aria-modal="true" aria-label="Prévia completa da jornada do aluno" onClick={(event) => event.stopPropagation()}>
           <div className="mobile-workout-day-preview-head-v2">
-            <div><p>Visão fiel do aluno</p><strong>{day?.day || `Dia ${dayIndex + 1}`}</strong></div>
+            <div><p>Visão fiel do aluno</p><strong>{workout?.title || day?.day || `Dia ${dayIndex + 1}`}</strong></div>
             <button type="button" onClick={() => setStudentPreviewOpen(false)}>Fechar</button>
+          </div>
+          <div className="coach-workout-preview-flow-v25">
+            <div><strong>Jornada completa</strong><span>O rascunho atual · {student?.name || 'Aluno selecionado'}</span></div>
+            <WorkoutPreviewStageTabs stage={studentPreviewStage} onChange={setStudentPreviewStage} />
+            <p>Somente visualização. Nenhuma sessão ou avaliação altera o histórico do aluno.</p>
           </div>
           <div className={`mobile-workout-day-preview-student-shell student-mobile-shell app-theme-${theme}`}>
             <StudentWorkoutExecution
@@ -11320,6 +11366,9 @@ function MobileWorkoutEditableDay({
               workoutLogs={workoutLogs}
               dayIndex={dayIndex}
               preview
+              previewStage={studentPreviewStage}
+              onPreviewStageChange={setStudentPreviewStage}
+              uiTheme={theme}
             />
           </div>
         </div>
@@ -11507,6 +11556,7 @@ function formatCount(total, singular, plural = `${singular}s`) {
 }
 
 function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, theme = DEFAULT_UI_THEME, onBack }) {
+  const [previewStage, setPreviewStage] = useState('overview')
   const canStudentDownloadPdf = Boolean(workout?.allowStudentPdfDownload)
   return createPortal((
     <div className={`workout-student-preview-portal-v1 mobile-workout-student-preview-portal app-theme-${theme}`} role="presentation" onClick={onBack}>
@@ -11516,7 +11566,7 @@ function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerc
         <div>
           <p>Visão fiel do aluno</p>
           <h4>{workout?.title || 'Treino selecionado'}</h4>
-          <span>{student?.name || 'Aluno selecionado'} poderá registrar cada série, carga e repetição.</span>
+          <span>{student?.name || 'Aluno selecionado'} · visão completa do programa à conclusão.</span>
         </div>
         {canStudentDownloadPdf ? (
           <button type="button" className="mobile-workout-pdf-action" onClick={() => window.print()}>
@@ -11524,8 +11574,13 @@ function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerc
           </button>
         ) : null}
       </div>
+      <div className="coach-workout-preview-flow-v25">
+        <div><strong>Jornada do aluno</strong><span>Programa, plano, execução e resumo</span></div>
+        <WorkoutPreviewStageTabs stage={previewStage} onChange={setPreviewStage} />
+        <p>Prévia somente de leitura. O progresso e a avaliação reais permanecem no app do aluno.</p>
+      </div>
       <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
-        <StudentWorkoutExecution student={student} workout={workout} preview workoutLogs={workoutLogs} exerciseLibraryItems={exerciseLibraryItems} />
+        <StudentWorkoutExecution student={student} workout={workout} preview previewStage={previewStage} onPreviewStageChange={setPreviewStage} workoutLogs={workoutLogs} exerciseLibraryItems={exerciseLibraryItems} uiTheme={theme} />
       </div>
     </section>
     </div>
@@ -14127,7 +14182,7 @@ export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, previewStage = 'execution', onPreviewStageChange, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -14311,7 +14366,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     </div>
   ) : null
 
-  const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length)
+  const previewModeStage = preview ? resolveWorkoutPreviewStage(previewStage) : ''
+  const daySelected = preview ? previewModeStage !== 'overview' : (activeDayIndex >= 0 && activeDayIndex < days.length)
 
   const safeDayIndex = Math.min(Math.max(activeDayIndex, 0), Math.max(days.length - 1, 0))
   const activeDay = days[safeDayIndex]
@@ -14377,7 +14433,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       ? 'Em andamento'
       : 'Não iniciado'
 
-  const sessionStarted = preview || Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
+  const sessionStarted = preview
+    ? previewModeStage === 'execution' || previewModeStage === 'summary'
+    : Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
   const dayCanFinish = dayTotalSets > 0 && dayCompletedSets === dayTotalSets
   const dayRemainingSets = Math.max(0, dayTotalSets - dayCompletedSets)
   const previousExerciseSession = exercise ? getPreviousExerciseSession(workoutLogs, workout?.id, exercise.name) : null
@@ -14542,7 +14600,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }
 
   function selectDay(nextDayIndex) {
-    if (nextDayIndex !== activeDayIndex) onSelectDay?.(nextDayIndex)
+    if (nextDayIndex !== activeDayIndex) {
+      if (!preview) onSelectDay?.(nextDayIndex)
+      if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     setActiveDayIndex(nextDayIndex)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
@@ -14551,6 +14612,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setEndConfirmOpen(false)
     setMessage('')
     setError('')
+    if (preview) onPreviewStageChange?.('plan')
   }
 
   function moveExercise(direction) {
@@ -14606,8 +14668,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           })
       }
     }
-    if (timerStartedAt && onToggleTimer) onToggleTimer()
-    onSelectDay?.(-1)
+    if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
+    if (preview) onPreviewStageChange?.('overview')
+    else onSelectDay?.(-1)
+    if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
     setActiveDayIndex(-1)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
@@ -14679,9 +14743,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       const previousXp = buildStudentRewardStats(rewardInput).xp
       const xpAwarded = Math.max(0, buildStudentRewardStats({ ...rewardInput, workoutLogs: [...workoutLogs, savedLog] }).xp - previousXp)
       setCompletedLog({ ...savedLog, durationSeconds: payload.durationSeconds, xpAwarded })
-      if (timerStartedAt && onToggleTimer) onToggleTimer()
+      if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
+      if (preview) onPreviewStageChange?.('summary')
       setMessage(preview
-        ? `Simulação concluída. Este treino renderia ${xpAwarded} XP na conta do aluno.`
+        ? 'Simulação concluída. Nenhuma sessão ou pontuação foi salva no histórico do aluno.'
         : xpAwarded ? `Treino salvo. ${xpAwarded} XP registrados no histórico.` : 'Treino salvo. A pontuação desta sessão já estava registrada.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível concluir o treino.')
@@ -14713,8 +14778,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       }
       setCompletedLog({ ...savedLog, endedEarly: true, durationSeconds: payload.durationSeconds })
       setEndConfirmOpen(false)
-      if (timerStartedAt && onToggleTimer) onToggleTimer()
-      setMessage('Treino encerrado. Seu progresso realizado até aqui foi mantido no histórico.')
+      if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
+      if (preview) onPreviewStageChange?.('summary')
+      setMessage(preview ? 'Simulação de encerramento concluída. O histórico do aluno não foi alterado.' : 'Treino encerrado. Seu progresso realizado até aqui foi mantido no histórico.')
     } catch (saveError) {
       setError(saveError?.message || 'Não foi possível encerrar o treino.')
     } finally {
@@ -14725,7 +14791,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function startNewWorkoutSession() {
     setActiveDayIndex(preview ? 0 : -1)
-    onSelectDay?.(preview ? 0 : -1, { reset: true })
+    if (preview) onPreviewStageChange?.('overview')
+    else onSelectDay?.(-1, { reset: true })
     setActiveExerciseIndex(0)
     setSetLogs({})
     setCardioLogs({})
@@ -14747,25 +14814,30 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     return { ...saved, rating: saved.rating || rating }
   }
 
-  if (completedLog && daySelected) {
+  const showSummary = preview ? previewModeStage === 'summary' : Boolean(completedLog && daySelected)
+  const summaryLog = completedLog || (preview ? { id: 'preview-summary', endedEarly: false, durationSeconds: null, xpAwarded: null } : null)
+  const summaryIsIllustrative = preview && !completedLog
+
+  if (showSummary && daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 ' + (compact ? 'is-compact' : '')}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 mobile-workout-design-v24 mobile-workout-summary-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
-        <header className="mobile-workout-student-experience-head-v2">
+        <header className="mobile-workout-student-experience-head-v2 mobile-workout-summary-head-v24">
           <div>
-            <p>{completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído'}</p>
+            <p>{preview ? (completedLog?.endedEarly ? 'Encerramento simulado' : completedLog ? 'Conclusão simulada' : 'Resumo demonstrativo') : (completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído')}</p>
             <h3>{activeDay?.focus || activeDay?.day || workout.title || 'Sessão finalizada'}</h3>
-            <span>{(activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
+            <span>{preview ? (summaryIsIllustrative ? 'Os indicadores reais aparecem após o aluno concluir a sessão.' : 'Registros temporários desta simulação; o histórico real não foi alterado.') : (activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
           </div>
-          <strong>{completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded == null ? 'XP registrado' : completedLog.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'XP já registrado'}</strong>
+          <strong>{preview ? 'Prévia' : completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded == null ? 'XP registrado' : completedLog.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'XP já registrado'}</strong>
         </header>
-        <div className="mobile-workout-summary-grid-v4">
-          <div><span>Duração</span><strong>{formatWorkoutTimer(completedLog?.durationSeconds ?? durationSeconds)}</strong></div>
-          <div><span>Exercícios</span><strong>{completedExercises + '/' + exercises.length}</strong></div>
-          <div><span>Séries</span><strong>{dayCompletedSets}</strong></div>
-          <div><span>Volume</span><strong>{Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
+        <div className="mobile-workout-summary-grid-v4 mobile-workout-summary-grid-v24">
+          <div><span>Duração</span><strong>{summaryIsIllustrative ? '—' : formatWorkoutTimer(summaryLog?.durationSeconds ?? durationSeconds)}</strong></div>
+          <div><span>Exercícios concluídos</span><strong>{summaryIsIllustrative ? '—' : completedExercises + '/' + exercises.length}</strong></div>
+          <div><span>Séries concluídas</span><strong>{summaryIsIllustrative ? '—' : dayCompletedSets}</strong></div>
+          <div><span>Volume</span><strong>{summaryIsIllustrative ? '—' : Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
         </div>
-        {(loadImprovements || repImprovements) ? (
+        {summaryIsIllustrative ? <p className="mobile-workout-summary-preview-note-v25">Plano previsto: <strong>{exercises.length} exercícios</strong> e <strong>{dayTotalSets} séries</strong>. A execução real preencherá os indicadores.</p> : null}
+        {!summaryIsIllustrative && (loadImprovements || repImprovements) ? (
           <div className="mobile-workout-summary-evolution-v4">
             <strong>Evolução nesta sessão</strong>
             <div>
@@ -14774,10 +14846,10 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           </div>
         ) : null}
-        {!preview && !completedLog?.endedEarly ? <WorkoutCompletionRating key={completedLog.id} log={completedLog} onSubmit={submitWorkoutRating} /> : null}
-        {message ? <div className="mobile-workout-student-success-v2"><strong>{completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
-        <div className="mobile-workout-summary-actions-v4">
-          {onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
+        {!summaryLog?.endedEarly ? <WorkoutCompletionRating key={summaryLog.id} log={summaryLog} onSubmit={preview ? undefined : submitWorkoutRating} preview={preview} /> : null}
+        {message ? <div className="mobile-workout-student-success-v2"><strong>{preview ? 'Simulação' : completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
+        <div className="mobile-workout-summary-actions-v4 mobile-workout-summary-actions-v24">
+          {!preview && onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
           <button type="button" onClick={startNewWorkoutSession}>Voltar aos treinos</button>
         </div>
       </section>
@@ -14786,9 +14858,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} aria-busy={syncState === 'loading'}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-design-v24 mobile-workout-overview-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined} aria-busy={syncState === 'loading'}>
         {sessionSyncFeedback}
-        <header className="mobile-workout-student-experience-head-v2">
+        <header className="mobile-workout-student-experience-head-v2 mobile-workout-overview-heading-v24">
           <div>
             <p>Programa atual</p>
             <h3>{workout.title || 'Treinos'}</h3>
@@ -14797,25 +14869,25 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <strong>{formatCount(days.length, 'dia')}</strong>
         </header>
 
-        <div className="mobile-workout-program-card-v4">
+        <div className="mobile-workout-program-card-v4 mobile-workout-program-card-v24">
           <div><span>Objetivo</span><strong>{workout.focus || student?.goal || 'Personalizado'}</strong></div>
           {workout.level || student?.level ? <div><span>Nível</span><strong>{workout.level || student?.level}</strong></div> : null}
           {workout.frequency ? <div><span>Frequência</span><strong>{workout.frequency}</strong></div> : null}
         </div>
 
-        {onOpenProgress ? <button type="button" className="student-workout-open-progress-v13" aria-label="Minha evolução" onClick={onOpenProgress}><NavIcon name="chart" className="h-5 w-5" /><span><strong>Minha evolução</strong><small>Cargas, repetições e recordes dos exercícios</small></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
+        {!preview && onOpenProgress ? <button type="button" className="student-workout-open-progress-v13" aria-label="Minha evolução" onClick={onOpenProgress}><NavIcon name="chart" className="h-5 w-5" /><span><strong>Minha evolução</strong><small>Cargas, repetições e recordes dos exercícios</small></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
 
-        <div id="student-workout-day-selector" className="mobile-workout-day-list-v4">
+        <div id="student-workout-day-selector" className="mobile-workout-day-list-v4 mobile-workout-day-list-v24">
           {days.map((day, index) => {
             const dayExercises = getWorkoutExercisesArray(day.exercises)
             const lastLog = getWorkoutDayLastLog(workoutLogs, workout?.id, dayExercises)
             return (
-              <article key={day.id || day.day + '-' + index} className="mobile-workout-day-card-v4">
+              <article key={day.id || day.day + '-' + index} className="mobile-workout-day-card-v4 mobile-workout-day-card-v24">
                 <div>
                   <span>{'Dia ' + (index + 1)}</span>
                   <h4>{day.day || 'Treino'}</h4>
                   <p>{day.focus || workout.focus || 'Treino personalizado'}</p>
-                  <small>{lastLog ? 'Concluído anteriormente' : 'Ainda não realizado'}</small>
+                  <small>{lastLog ? 'Concluído anteriormente' : 'Ainda não realizado'} · {formatCount(dayExercises.length, 'exercício')}</small>
                 </div>
                 <div className="mobile-workout-day-card-actions-v4">
                   <button type="button" disabled={syncState === 'loading'} onClick={() => selectDay(index)}>Abrir treino</button>
@@ -14830,9 +14902,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!sessionStarted) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 mobile-workout-design-v24 mobile-workout-plan-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
-        <div className="mobile-workout-day-detail-head-v4">
+        <div className="mobile-workout-day-detail-head-v4 mobile-workout-day-detail-head-v24">
           <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
           <div>
             <p>{activeDay?.day || 'Treino do dia'}</p>
@@ -14840,16 +14912,16 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           </div>
           <span>{formatCount(exercises.length, 'exercício')}</span>
         </div>
-        <div className="mobile-workout-preview-notice-v4">
-          <strong>Modo de visualização</strong>
-          <p>Revise os exercícios abaixo. Inicie o treino para registrar sua sessão.</p>
+        <div className="mobile-workout-preview-notice-v4 mobile-workout-preview-notice-v24">
+          <strong>Antes de começar</strong>
+          <p>Confira a sequência e as orientações do treinador. Ao iniciar, você poderá registrar sua sessão.</p>
         </div>
-        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4" disabled={syncState === 'loading'} onClick={onToggleTimer}>▶ Iniciar sessão</button> : null}
-        <div className="mobile-workout-day-exercise-list-v4">
+        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4 mobile-workout-start-session-v24" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : onToggleTimer}>▶ Iniciar sessão</button> : null}
+        <div className="mobile-workout-day-exercise-list-v4 mobile-workout-day-exercise-list-v24">
           {exercises.map((currentExercise, index) => {
             const profile = getExerciseMuscleProfile(currentExercise)
             return (
-              <article key={currentExercise.id || currentExercise.name + '-' + index}>
+              <article key={currentExercise.id || currentExercise.name + '-' + index} className="mobile-workout-day-exercise-v24">
                 <span className="mobile-workout-day-exercise-muscle-v4"><MuscleMapMini exercise={currentExercise} className="h-12 w-12" /></span>
                 <div>
                   <small>{'Exercício ' + (index + 1)}</small>
@@ -14929,15 +15001,15 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   ) : null
 
   return (
-    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'}>
+    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
-      <div className="mobile-workout-command-v12">
-        <div className="mobile-workout-execution-head-v4">
+      <div className="mobile-workout-command-v12 mobile-workout-command-v24">
+        <div className="mobile-workout-execution-head-v4 mobile-workout-execution-head-v24">
           <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
           <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
           {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar sessão</button> : null}
         </div>
-        <div className="mobile-workout-exercise-progress-v3">
+        <div className="mobile-workout-exercise-progress-v3 mobile-workout-exercise-progress-v24">
           <div className="mobile-workout-exercise-progress-head-v3">
             <div><span>Progresso do treino</span><strong>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</strong></div>
             <small>{completedExercises + ' concluídos · ' + remainingExercises + ' restantes'}</small>
@@ -14947,8 +15019,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           </div>
           <div className="mobile-workout-exercise-switcher-v4" aria-label="Exercícios deste treino">
             {exercises.map((item, index) => (
-              <button key={item.id || item.name + '-' + index} type="button" className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
-                {index + 1}
+              <button key={item.id || item.name + '-' + index} type="button" aria-label={`Exercício ${index + 1}: ${item.name}`} aria-current={index === safeExerciseIndex ? 'step' : undefined} title={item.name} className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
+                <span className="mobile-workout-step-index-v24">{index + 1}</span>
+                <span className="mobile-workout-step-name-v24">{item.name}</span>
               </button>
             ))}
           </div>
@@ -14956,7 +15029,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       </div>
 
       {exercise ? (
-        <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2 mobile-workout-focus-v12">
+        <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2 mobile-workout-focus-v12 mobile-workout-focus-v24">
           <div className="mobile-workout-current-heading-v5">
             <div>
               <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
@@ -15062,7 +15135,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           )}
 
 
-          <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13">
+          <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13 mobile-workout-navigation-v24">
             <button type="button" className="is-primary" onClick={completeExerciseAndAdvance} disabled={!currentExerciseCompleted}>Concluir exercício</button>
             {hasPreviousExercise ? <button type="button" className="is-secondary" aria-label="Exercício anterior" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }}>← <span>Exercício anterior</span></button> : null}
           </div>
@@ -15075,7 +15148,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
 
       {isLastExercise ? (
-        <footer id="student-workout-finish" className="mobile-workout-student-finish-v2">
+        <footer id="student-workout-finish" className="mobile-workout-student-finish-v2 mobile-workout-finish-v24">
           <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
           <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
           <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
@@ -17739,13 +17812,13 @@ function StudentPortalPreview({
   invoices = [],
   assessments = [],
   coachSettings = null,
-  onCompleteWorkout,
   onSendMessage,
   coachId,
   professionalType = 'trainer',
   onRemoteStatus,
   onRemoteError,
   canGenerateInvite = true,
+  theme = DEFAULT_UI_THEME,
 }) {
   const nutritionist = professionalType === 'nutritionist'
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
@@ -17775,7 +17848,12 @@ function StudentPortalPreview({
     .sort((a, b) => new Date(b.assessedAt) - new Date(a.assessedAt))
   const [invite, setInvite] = useState(null)
   const [creatingInvite, setCreatingInvite] = useState(false)
+  const [workoutPreviewStage, setWorkoutPreviewStage] = useState('overview')
   const inviteUrl = invite ? `${window.location.origin}${window.location.pathname}?invite=${invite.code}` : ''
+
+  useEffect(() => {
+    setWorkoutPreviewStage('overview')
+  }, [student?.id, studentWorkouts[0]?.id])
 
   if (!student) {
     return <Empty text={`Cadastre ou selecione um ${clientLabel} para visualizar a área do ${clientLabel}.`} />
@@ -17908,16 +17986,26 @@ function StudentPortalPreview({
             <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
               <p className="text-xs font-black uppercase text-emerald-200">O que o aluno enxerga</p>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                Esta prévia mostra a tela de execução do treino com vídeo, orientação e campo de carga que o aluno registra no celular.
+                Confira todas as etapas da mesma interface do aluno: visão geral do programa, plano do dia, execução e resumo.
               </p>
             </div>
-        <StudentWorkoutExecution
-          student={student}
-          workout={studentWorkouts[0]}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onCompleteWorkout={onCompleteWorkout}
-          preview
-        />
+            <div className="coach-workout-preview-flow-v25">
+              <div><strong>Jornada do aluno</strong><span>Programa, plano, execução e resumo</span></div>
+              <WorkoutPreviewStageTabs stage={workoutPreviewStage} onChange={setWorkoutPreviewStage} />
+              <p>Prévia somente de leitura. A sessão e a avaliação reais permanecem no app do aluno.</p>
+            </div>
+            <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
+              <StudentWorkoutExecution
+                student={student}
+                workout={studentWorkouts[0]}
+                workoutLogs={studentWorkoutLogs}
+                exerciseLibraryItems={availableExerciseLibrary}
+                preview
+                previewStage={workoutPreviewStage}
+                onPreviewStageChange={setWorkoutPreviewStage}
+                uiTheme={theme}
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

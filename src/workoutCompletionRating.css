@@ -25,3 +25,8 @@
 .student-mobile-shell.app-theme-light .student-workout-rating-error { color: #9f1239; }
 @media (max-width: 380px) { .student-workout-rating-panel { padding: .85rem; } .student-workout-rating-stars button { width: 2.5rem; height: 2.5rem; font-size: 1.45rem; } }
 @media (prefers-reduced-motion: reduce) { .student-workout-rating-stars button { transition: none; } }
+
+.student-workout-rating-preview-note { margin: 0; border: 1px solid rgba(0, 210, 178, .18); border-radius: .75rem; background: rgba(0, 210, 178, .06); padding: .65rem .75rem; color: #aebeb8; font-size: .75rem; line-height: 1.45; }
+.student-mobile-shell.app-theme-light .student-workout-rating-preview-note { border-color: rgba(8, 125, 108, .16); background: rgba(8, 125, 108, .055); color: #536a62; }
+.student-workout-rating-panel[data-preview-rating='true'] .student-workout-rating-submit { border: 1px solid rgba(130, 150, 143, .25); background: rgba(130, 150, 143, .12); color: #aebeb8; box-shadow: none; }
+.student-mobile-shell.app-theme-light .student-workout-rating-panel[data-preview-rating='true'] .student-workout-rating-submit { background: #e5eeea; color: #62776f; }
