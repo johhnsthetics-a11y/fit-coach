@@ -211,17 +211,6 @@ async function optionalTableRequest(path) {
   }
 }
 
-async function optionalTableRequestWithStatus(path) {
-  try {
-    const rows = await request(path)
-    const safeRows = Array.isArray(rows) ? rows : []
-    return { rows: safeRows, status: safeRows.length ? 'ready' : 'empty' }
-  } catch (error) {
-    const missingTable = /PGRST205|relation .* does not exist|table .* not found/i.test(error?.message || '')
-    return { rows: [], status: missingTable ? 'unavailable' : 'error' }
-  }
-}
-
 async function authRequest(path, body) {
   const revision = sessionRevision
   if (!supabaseEnabled) {
@@ -531,7 +520,7 @@ export async function loadRemoteData(currentUserId = '') {
     request('student_invites?select=*&order=created_at.desc'),
     request('student_anamneses?select=*&order=submitted_at.desc'),
     optionalTableRequest('coach_subscriptions?select=*&limit=1'),
-    optionalTableRequestWithStatus('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
+    optionalTableRequest('exercise_library?select=*&active=eq.true&order=muscle_group.asc,name.asc'),
     optionalTableRequest('workout_progression_decisions?select=*&order=created_at.desc'),
     loadRemoteAppAdminSettings().catch(() => null),
     loadRemoteCurrentProfessionalAffiliate().catch(() => false),
@@ -563,8 +552,7 @@ export async function loadRemoteData(currentUserId = '') {
     invites: invites.map(fromInviteRow),
     anamneses: anamneses.map(fromAnamnesisRow),
     coachSubscription: coachSubscriptions[0] ? fromCoachSubscriptionRow(coachSubscriptions[0]) : null,
-    exerciseLibrary: exerciseLibrary.rows.map(fromExerciseLibraryRow),
-    exerciseLibrarySync: { status: exerciseLibrary.status, remoteCount: exerciseLibrary.rows.length },
+    exerciseLibrary: exerciseLibrary.map(fromExerciseLibraryRow),
     workoutProgressionDecisions: workoutProgressionDecisions.map(fromWorkoutProgressionDecisionRow),
     appAdminSettings,
     professionalAffiliate,
@@ -2569,16 +2557,6 @@ function fromWorkoutRow(row) {
 }
 
 function fromExerciseLibraryRow(row) {
-  const sourcePayload = row.source_payload && typeof row.source_payload === 'object' && !Array.isArray(row.source_payload)
-    ? row.source_payload
-    : {}
-  const rowProvider = String(row.provider || '').trim()
-  const payloadProvider = String(sourcePayload.provider || '').trim()
-  const provider = String(
-    rowProvider && rowProvider.toLocaleLowerCase('pt-BR') !== 'coachfit'
-      ? rowProvider
-      : payloadProvider || rowProvider || 'coachfit',
-  ).trim() || 'coachfit'
   return {
     id: row.id,
     name: row.name ?? '',
@@ -2594,11 +2572,7 @@ function fromExerciseLibraryRow(row) {
     exerciseId: row.external_id ?? row.exercise_id ?? '',
     muscleMap: row.muscle_map ?? '',
     aliases: Array.isArray(row.aliases) ? row.aliases : [],
-    category: row.category ?? sourcePayload.category ?? sourcePayload.exercise_category ?? sourcePayload.category_name ?? '',
-    objective: row.objective ?? sourcePayload.objective ?? sourcePayload.goal ?? sourcePayload.training_goal ?? '',
-    goal: row.goal ?? sourcePayload.goal ?? sourcePayload.objective ?? sourcePayload.training_goal ?? '',
-    provider,
-    source: provider,
+    source: 'supabase',
   }
 }
 
