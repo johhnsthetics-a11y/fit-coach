@@ -1,0 +1,39 @@
+/* Figma workout flow: dark palette and edge-to-edge mobile layout. */
+:root {
+  --sw30-dark-surface: #122321;
+  --sw30-dark-card: #1a3832;
+  --sw30-dark-text: #f4fbf8;
+  --sw30-dark-muted: #9db5ad;
+  --sw30-dark-teal: #69d8bb;
+  --sw30-dark-line: rgba(145, 205, 194, 0.16);
+}
+
+@container student-workout-surface (max-width: 500px) {
+  .student-workout-build30-experience {
+    gap: 14px;
+    border: 0;
+    border-radius: 0;
+    background: var(--sw30-bg);
+    padding: 8px 12px 12px;
+    box-shadow: none;
+  }
+
+  .student-workout-build30-experience .mobile-workout-student-experience-head-v2 {
+    padding: 2px 0 12px;
+  }
+
+  .student-workout-build30-experience .mobile-workout-program-card-v24,
+  .student-workout-build30-experience .mobile-workout-day-card-v24,
+  .student-workout-build30-experience .mobile-workout-day-exercise-v24,
+  .student-workout-build30-experience .mobile-workout-student-success-v2 {
+    border-color: var(--sw30-line);
+    background: var(--sw30-surface);
+  }
+
+  .student-workout-build30-experience .mobile-workout-student-series-v2,
+  .student-workout-build30-experience .mobile-workout-set-card-v29,
+  .student-workout-build30-experience .mobile-workout-summary-card-v24 {
+    border-color: var(--sw30-line);
+    background: var(--sw30-card);
+  }
+}

@@ -10,6 +10,7 @@ import './chat/chat.css'
 import '../chat-wallpaper.css'
 import '../chat-wallpaper-theme.css'
 import './StudentAnamnesisWorkspace.css'
+import './student-workout-figma-dark.css'
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
