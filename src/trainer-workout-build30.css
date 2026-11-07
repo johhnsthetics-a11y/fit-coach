@@ -853,6 +853,192 @@
   }
 }
 
+/* BUILD31 — hierarchy and breathing room for the coach workspace */
+.mobile-workout-manager .trainer-workout-shell-head h3 {
+  font-size: clamp(1.72rem, 1.38rem + 0.9vw, 2.28rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.mobile-workout-manager .trainer-workout-shell-head > div > span {
+  font-size: clamp(0.94rem, 0.88rem + 0.15vw, 1.02rem);
+  line-height: 1.5;
+}
+
+.mobile-workout-manager .trainer-workout-section-heading h4,
+.mobile-workout-manager .trainer-workout-tool-panel-head h4,
+.mobile-workout-manager .trainer-evolution-card-head h5 {
+  font-size: clamp(1.22rem, 1.08rem + 0.48vw, 1.58rem);
+  font-weight: 780;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.mobile-workout-manager .trainer-workout-section-heading > div > span,
+.mobile-workout-manager .trainer-evolution-card-head > div > span {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.mobile-workout-manager .trainer-workout-area-nav {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  gap: clamp(0.45rem, 0.8vw, 0.75rem);
+  padding: 0.45rem;
+}
+
+.mobile-workout-manager .trainer-workout-area-nav button {
+  min-width: 0;
+  min-height: 4rem;
+  padding: 0.7rem clamp(0.7rem, 1vw, 1.1rem);
+  border-radius: 12px;
+  scroll-snap-align: start;
+}
+
+.mobile-workout-manager .trainer-workout-area-nav button strong {
+  font-size: clamp(0.94rem, 0.87rem + 0.17vw, 1.05rem);
+  font-weight: 800;
+  letter-spacing: -0.018em;
+  line-height: 1.16;
+}
+
+.mobile-workout-manager .trainer-workout-area-nav button small {
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.22;
+  opacity: 0.82;
+}
+
+@container (min-width: 900px) {
+  .mobile-workout-manager .trainer-workout-area-nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow: visible;
+    scrollbar-width: none;
+  }
+
+  .mobile-workout-manager .trainer-workout-area-nav button {
+    flex: initial;
+    min-height: 4.15rem;
+    padding-inline: clamp(0.8rem, 1.1vw, 1.25rem);
+  }
+}
+
+@container (min-width: 620px) and (max-width: 899px) {
+  .mobile-workout-manager .trainer-workout-area-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+    scrollbar-width: none;
+  }
+
+  .mobile-workout-manager .trainer-workout-area-nav button {
+    flex: initial;
+  }
+}
+
+@container (max-width: 619px) {
+  .mobile-workout-manager .trainer-workout-area-nav {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-workout-manager .trainer-workout-area-nav button {
+    flex: 0 0 clamp(8.4rem, 39vw, 9.8rem);
+    min-height: 3.7rem;
+    padding-inline: 0.75rem;
+  }
+
+  .mobile-workout-manager .trainer-workout-area-nav button strong {
+    font-size: 0.93rem;
+  }
+}
+
+/* BUILD32 — display typography, locally bundled for offline/iOS use */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/assets/fonts/barlow-condensed-latin-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/barlow-condensed-latin-700.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/assets/fonts/barlow-condensed-latin-800.woff2") format("woff2");
+}
+
+.mobile-workout-manager .trainer-workout-shell-head h3,
+.mobile-workout-manager .trainer-workout-section-heading h4,
+.mobile-workout-manager .trainer-workout-tool-panel-head h4,
+.mobile-workout-manager .trainer-evolution-card-head h5,
+.mobile-workout-manager .trainer-workout-detail-context h4,
+.mobile-workout-manager .trainer-workout-plan-row-main strong,
+.mobile-workout-manager .trainer-workout-draft-copy strong,
+.mobile-workout-manager .trainer-workout-toolbox > summary strong,
+.mobile-workout-manager .trainer-workout-area-nav button strong {
+  font-family: "Barlow Condensed", "Plus Jakarta Sans", "Inter", "Aptos", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+.mobile-workout-manager .trainer-workout-shell-head h3 {
+  font-size: clamp(2rem, 1.72rem + 1vw, 2.65rem);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.02;
+}
+
+.mobile-workout-manager .trainer-workout-section-heading h4,
+.mobile-workout-manager .trainer-workout-tool-panel-head h4,
+.mobile-workout-manager .trainer-evolution-card-head h5,
+.mobile-workout-manager .trainer-workout-detail-context h4 {
+  font-size: clamp(1.42rem, 1.28rem + 0.48vw, 1.78rem);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+}
+
+.mobile-workout-manager .trainer-workout-area-nav button strong {
+  font-size: clamp(1.02rem, 0.96rem + 0.15vw, 1.14rem);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.04;
+}
+
+.mobile-workout-manager .trainer-workout-plan-row-main strong,
+.mobile-workout-manager .trainer-workout-draft-copy strong,
+.mobile-workout-manager .trainer-workout-toolbox > summary strong {
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+}
+
+.mobile-workout-manager .trainer-workout-stat-strip strong {
+  font-family: "Barlow Condensed", "Plus Jakarta Sans", "Inter", "Aptos", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.08;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mobile-workout-manager button,
   .mobile-workout-manager * {

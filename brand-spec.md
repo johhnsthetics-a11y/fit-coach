@@ -19,7 +19,13 @@ A tela nativa usa o mesmo componente final da aplicação compilada.
 | Acento teal | `#4EE9D0` | `#087F72` |
 | Direção de fundo | verde-grafite | branco/mint suave |
 
-A identidade do ícone e dos logos usa uma gradação verde → teal. O acento ajuda a indicar seleção, acesso ativo e ação primária; não é usado como fundo de blocos de texto longos. A tipografia deve herdar a família já usada pela aplicação, sem introduzir uma fonte nova.
+A identidade do ícone e dos logos usa uma gradação verde → teal. O acento ajuda a indicar seleção, acesso ativo e ação primária; não é usado como fundo de blocos de texto longos. O corpo da aplicação continua herdando a família tipográfica global.
+
+## Tipografia de exibição da área Treinos
+
+Por solicitação explícita do usuário, a área profissional **Treinos** usa Barlow Condensed somente em títulos, rótulos das cinco áreas, nomes de planos e indicadores numéricos. Pesos 600, 700 e 800 ficam auto-hospedados em `public/assets/fonts/` para uso offline e no app iOS; títulos preservam boa leitura sem substituir a fonte do corpo. A licença SIL Open Font License 1.1 está incluída em `public/assets/fonts/OFL-Barlow.txt`.
+
+Fonte e projeto: [Google Fonts — Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) e [repositório Barlow com licença OFL 1.1](https://github.com/jpt/barlow).
 
 ## Restrições de marca e conteúdo
 

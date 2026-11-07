@@ -33,7 +33,7 @@ test('rating valida faixa, convite financeiro e log de conclusão real sem criar
 })
 
 
-test('BUILD30 usa somente estrelas na escala visual sem retirar nomes acessíveis ou valores internos', () => {
+test('BUILD32 usa somente estrelas na escala visual sem retirar nomes acessíveis ou valores internos', () => {
   assert.match(panel, /<span aria-hidden="true">★<\/span>/)
   assert.match(panel, /aria-label=\{`\$\{value\}/)
   assert.match(panel, /Avaliação selecionada\. Toque nas estrelas para ajustar\./)
