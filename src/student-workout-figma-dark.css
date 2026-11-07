@@ -278,3 +278,74 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+/* Rest is a focused full-screen state on mobile, like the Figma recovery step. */
+@container student-workout-surface (max-width: 500px) {
+  .student-workout-build30-rest-inline {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 22px;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 0;
+    background: var(--sw30-bg);
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+    box-shadow: none;
+  }
+
+  .student-workout-build30-rest-inline > div:first-child {
+    display: grid;
+    width: min(72vw, 280px);
+    aspect-ratio: 1;
+    align-content: center;
+    justify-items: center;
+    gap: 5px;
+    border: 3px solid var(--sw30-dark-teal);
+    border-radius: 50%;
+    background: transparent;
+    text-align: center;
+  }
+
+  .student-workout-build30-rest-inline > div:first-child small {
+    color: var(--sw30-muted);
+    font-size: 12px;
+  }
+
+  .student-workout-build30-rest-inline > div:first-child strong {
+    color: var(--sw30-text);
+    font-size: clamp(40px, 12vw, 56px);
+    font-weight: 450;
+    line-height: 1;
+  }
+
+  .student-workout-build30-rest-inline > div:first-child span {
+    color: var(--sw30-muted);
+    font-size: 11px;
+  }
+
+  .student-workout-build30-rest-inline > div:last-child {
+    display: flex;
+    width: min(100%, 360px);
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .student-workout-build30-rest-inline > div:last-child button {
+    min-height: 44px;
+    flex: 1 1 auto;
+    background: var(--sw30-surface);
+    color: var(--sw30-text);
+  }
+
+  .student-workout-build30-rest-inline > div:last-child button:last-child {
+    border-color: transparent;
+    background: var(--sw30-dark-teal);
+    color: #08201b;
+    font-weight: 850;
+  }
+}
