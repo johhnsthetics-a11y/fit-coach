@@ -34,6 +34,7 @@ let buildStudentWeekProgress
 let reconcileMessageDelivery
 let buildStudentExerciseProgressModel
 let StudentWorkoutProgress
+let getWorkoutPublicationStatus
 const originalWindow = globalThis.window
 
 before(async () => {
@@ -43,7 +44,7 @@ before(async () => {
     define: { 'import.meta.env.VITE_SUPABASE_URL': 'undefined', 'import.meta.env.VITE_SUPABASE_ANON_KEY': 'undefined' },
     server: { middlewareMode: true, hmr: false },
   })
-  ;({ default: App, getExerciseLibrary, getExercisePickerResults, filterMobileWorkouts, sortWorkoutsByUpdatedAt, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, StudentWorkoutProgress, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, buildStudentExerciseProgressModel, reconcileMessageDelivery } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ default: App, getExerciseLibrary, getExercisePickerResults, filterMobileWorkouts, sortWorkoutsByUpdatedAt, getStudentWorkoutExercises, buildWorkoutStudentPreviewState, StudentWorkoutExecution, StudentMobileApp, StudentWorkoutProgress, getExerciseFallbackImage, buildWorkoutCompletionPayload, buildWorkoutExecutionSummary, getStudentWorkoutExecutionStorageKey, buildStudentRewardStats, buildCoachStudentRanking, buildStudentWeekProgress, buildStudentExerciseProgressModel, reconcileMessageDelivery, getWorkoutPublicationStatus } = await server.ssrLoadModule('/src/App.jsx'))
   ;({ default: TrainerExerciseLibrary, getExerciseLibrarySyncCopy } = await server.ssrLoadModule('/src/TrainerExerciseLibrary.jsx'))
 })
 
@@ -215,10 +216,14 @@ for (const scenario of [
     assert.match(html, /mobile-workout-manager/)
     assert.doesNotMatch(html, /Algo saiu do lugar/)
     if (scenario.students.length) {
-      assert.match(html, /Nome do treino/)
-      assert.match(html, /<option value="student-regression" selected="">Aluno Regressão<\/option>/)
+      assert.match(html, /Criar treino/)
+      assert.match(html, /aria-label="Áreas de treinos"/)
     }
-    if (scenario.workouts.length) assert.match(html, /Rotina Regressão/)
+    if (scenario.workouts.some((item) => getWorkoutPublicationStatus(item, []) === 'published' && item.active !== false)) {
+      assert.match(html, /Rotina Regressão/)
+    } else {
+      assert.doesNotMatch(html, /Rotina Regressão/)
+    }
   })
 }
 
@@ -238,7 +243,7 @@ test('Treinos mostra filtros com capitalização profissional sem alterar os val
   }
 })
 
-test('rascunho persistido pode ser retomado sem ressuscitar treino arquivado', () => {
+test('rascunho persistido pode ser retomado sem ressuscitar treino arquivado', async () => {
   const draftWorkout = { ...workout, active: false, title: 'Rascunho Recuperável' }
   const archivedWorkout = { ...workout, id: 'workout-archived', active: false, title: 'Treino Arquivado' }
   const storage = new Map([['fitcoach-ai-pro-v2', JSON.stringify({
@@ -253,12 +258,17 @@ test('rascunho persistido pode ser retomado sem ressuscitar treino arquivado', (
   }
 
   const html = renderToString(React.createElement(App))
-  assert.match(html, /Rascunhos salvos/)
-  assert.match(html, /Rascunho Recuperável/)
-  assert.match(html, /Continuar rascunho/)
-  const draftCards = html.match(/<article class="mobile-workout-card is-draft">[\s\S]*?<\/article>/g) || []
-  assert.equal(draftCards.length, 1)
-  assert.doesNotMatch(draftCards.join(''), /Treino Arquivado/)
+  assert.match(html, /Rascunhos/)
+  assert.match(html, /aria-controls="trainer-workout-panel-drafts"/)
+  assert.doesNotMatch(html, /Rascunho Recuperável|Treino Arquivado/)
+  assert.equal(getWorkoutPublicationStatus(draftWorkout, []), 'draft')
+  assert.equal(getWorkoutPublicationStatus(archivedWorkout, [{ id: 'archived-log', workoutId: archivedWorkout.id }]), 'archived')
+  const managerSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  assert.match(managerSource, /const draftWorkouts = useMemo\([\s\S]{0,220}getWorkoutPublicationStatus\(workout, workoutLogs\) === 'draft'/)
+  assert.match(managerSource, /tab === 'drafts'/)
+  assert.match(managerSource, /filteredDraftWorkouts\.map\(\(workout\)/)
+  assert.match(managerSource, /filteredLocalDraftSummaries\.map/)
+  assert.match(managerSource, /Continuar rascunho/)
 })
 
 test('busca e filtros de Planos incluem aluno e exercícios de rascunho local', () => {
@@ -520,13 +530,14 @@ test('biblioteca no tema escuro mantém contraste e a prévia permite voltar à 
 
 test('prévia única usa em tempo real o mesmo executor, tema e biblioteca do aluno', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/student-workout-build30.css', import.meta.url), 'utf8')
   const editableDaySource = appSource.match(/function MobileWorkoutEditableDay[\s\S]*?\r?\n}\r?\n\r?\nfunction createMobileWorkoutDraft/)?.[0] || ''
 
-  assert.match(editableDaySource, /student-mobile-shell app-theme-\$\{theme\}/)
+  assert.match(editableDaySource, /student-mobile-shell student-workout-build30-device app-theme-\$\{theme\}/)
   assert.match(editableDaySource, /<StudentWorkoutExecution[\s\S]*workout=\{workout\}[\s\S]*exerciseLibraryItems=\{library\}[\s\S]*preview/)
-  assert.match(cssSource, /\.mobile-workout-day-preview-portal\.app-theme-light \.mobile-workout-day-preview-head-v2\s*\{[\s\S]*background:\s*#(?:f[0-9a-f]{5}|fff(?:fff)?)/i)
-  assert.doesNotMatch(cssSource, /\.mobile-workout-day-preview-portal\.app-theme-light \.mobile-workout-day-preview-head-v2\s*\{[^}]*background:\s*rgba\(7,\s*17,\s*15/i)
+  assert.match(cssSource, /\.student-workout-build30-preview-panel\s*\{[\s\S]*grid-template-columns:/)
+  assert.match(cssSource, /@container student-workout-stage \(max-width: 540px\)/)
+  assert.match(cssSource, /\.student-mobile-shell\.app-theme-light \.student-workout-build30-experience/)
 })
 
 test('ações do treino publicado mantêm contraste profissional no tema claro', async () => {
@@ -563,7 +574,8 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
   assert.match(html, /Músculo principal/)
   assert.match(html, /Peitoral/)
   assert.match(html, /Meta de reps/)
-  assert.doesNotMatch(html, /YouTube/)
+  assert.match(html, /YouTube/)
+  assert.doesNotMatch(html, /<iframe[^>]+youtube/i)
   assert.doesNotMatch(html, /muscle-map-region/)
   assert.doesNotMatch(html, /<img[^>]+Execução de Supino reto com barra/)
 })

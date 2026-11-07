@@ -31,3 +31,12 @@ test('rating valida faixa, convite financeiro e log de conclusão real sem criar
   assert.doesNotMatch(migration, /grant\s+(?:insert|update|all)[^;]*workout_logs[^;]*\bto\s+anon/i)
   assert.match(api, /rating: Number\(row\.rating\)[\s\S]{0,100}ratedAt: row\.rated_at/)
 })
+
+
+test('BUILD30 usa somente estrelas na escala visual sem retirar nomes acessíveis ou valores internos', () => {
+  assert.match(panel, /<span aria-hidden="true">★<\/span>/)
+  assert.match(panel, /aria-label=\{`\$\{value\}/)
+  assert.match(panel, /Avaliação selecionada\. Toque nas estrelas para ajustar\./)
+  assert.doesNotMatch(panel, /\$\{selectedRating\} de 5/)
+  assert.match(panel, /const STAR_VALUES = \[1, 2, 3, 4, 5\]/)
+})
