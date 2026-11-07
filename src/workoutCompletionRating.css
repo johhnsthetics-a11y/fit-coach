@@ -30,3 +30,10 @@
 .student-mobile-shell.app-theme-light .student-workout-rating-preview-note { border-color: rgba(8, 125, 108, .16); background: rgba(8, 125, 108, .055); color: #536a62; }
 .student-workout-rating-panel[data-preview-rating='true'] .student-workout-rating-submit { border: 1px solid rgba(130, 150, 143, .25); background: rgba(130, 150, 143, .12); color: #aebeb8; box-shadow: none; }
 .student-mobile-shell.app-theme-light .student-workout-rating-panel[data-preview-rating='true'] .student-workout-rating-submit { background: #e5eeea; color: #62776f; }
+
+/* BUILD30: recompensa visual discreta, sem números na escala. */
+.student-workout-rating-stars button { min-width: 44px; min-height: 44px; }
+.student-workout-rating-stars button.is-selected > span { animation: coachfit-star-confirm-v30 .28s ease-out; }
+.student-workout-rating-stars button:active:not(:disabled) { transform: scale(.94); }
+@keyframes coachfit-star-confirm-v30 { from { transform: scale(.8); } 65% { transform: scale(1.14); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .student-workout-rating-stars button, .student-workout-rating-stars button.is-selected > span { animation: none; transition: none; transform: none; } }

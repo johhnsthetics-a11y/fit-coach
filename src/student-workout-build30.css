@@ -1,0 +1,1553 @@
+/* CoachFit Build30 — Student workout redesign
+   Preserve mode: visual layer only. Existing class names remain aliases for selectors/tests. */
+:root {
+  --sw30-dark-bg: #0b1516;
+  --sw30-dark-surface: #111e20;
+  --sw30-dark-card: #152729;
+  --sw30-dark-text: #f4fffd;
+  --sw30-dark-muted: #a7bdba;
+  --sw30-dark-teal: #4ee9d0;
+  --sw30-dark-line: rgba(145, 205, 194, 0.18);
+  --sw30-light-bg: #f5faf9;
+  --sw30-light-surface: #ffffff;
+  --sw30-light-card: #edf7f4;
+  --sw30-light-text: #0d2523;
+  --sw30-light-muted: #425c58;
+  --sw30-light-teal: #087f72;
+  --sw30-light-line: rgba(8, 127, 114, 0.18);
+}
+
+/* Shared student surface: the real app and every coach preview use this layer. */
+.student-workout-build30-experience {
+  --sw30-bg: var(--sw30-dark-bg);
+  --sw30-surface: var(--sw30-dark-surface);
+  --sw30-card: var(--sw30-dark-card);
+  --sw30-text: var(--sw30-dark-text);
+  --sw30-muted: var(--sw30-dark-muted);
+  --sw30-teal: var(--sw30-dark-teal);
+  --sw30-line: var(--sw30-dark-line);
+  container: student-workout-surface / inline-size;
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--sw30-teal) 24%, transparent);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 4% 0%, color-mix(in srgb, var(--sw30-teal) 12%, transparent), transparent 34%),
+    var(--sw30-bg);
+  padding: 16px;
+  color: var(--sw30-text);
+  box-shadow: 0 22px 54px rgba(0, 18, 15, 0.2);
+  text-wrap: pretty;
+}
+
+.student-mobile-shell.app-theme-light .student-workout-build30-experience,
+.app-theme-light .student-workout-build30-experience {
+  --sw30-bg: var(--sw30-light-bg);
+  --sw30-surface: var(--sw30-light-surface);
+  --sw30-card: var(--sw30-light-card);
+  --sw30-text: var(--sw30-light-text);
+  --sw30-muted: var(--sw30-light-muted);
+  --sw30-teal: var(--sw30-light-teal);
+  --sw30-line: var(--sw30-light-line);
+  background: var(--sw30-bg);
+  border-color: var(--sw30-line);
+  box-shadow: 0 16px 40px rgba(15, 72, 61, 0.08);
+}
+
+.student-workout-build30-experience :is(h3, h4, p, span, strong, small) {
+  min-width: 0;
+  text-wrap: pretty;
+}
+
+.student-workout-build30-experience :is(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.student-workout-build30-experience button,
+.student-workout-build30-experience summary {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.student-workout-build30-experience button:focus-visible,
+.student-workout-build30-experience summary:focus-visible,
+.student-workout-build30-experience input:focus-visible,
+.student-workout-build30-experience select:focus-visible,
+.student-workout-build30-experience textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--sw30-teal) 78%, white);
+  outline-offset: 3px;
+}
+
+.student-workout-build30-experience :is(button, summary):active {
+  transform: translateY(1px);
+}
+
+/* Overview and plan: one calm next decision, no competing cards. */
+.student-workout-build30-experience .mobile-workout-student-experience-head-v2 {
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid var(--sw30-line);
+  padding: 2px 2px 14px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-experience-head-v2 p,
+.student-workout-build30-experience .mobile-workout-day-detail-head-v24 p,
+.student-workout-build30-experience .mobile-workout-current-heading-v5 p {
+  color: var(--sw30-teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-experience .mobile-workout-student-experience-head-v2 h3 {
+  max-width: 24ch;
+  margin-top: 4px;
+  color: var(--sw30-text);
+  font-size: clamp(22px, 4.8cqw, 30px);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.06;
+}
+
+.student-workout-build30-experience .mobile-workout-student-experience-head-v2 span {
+  margin-top: 6px;
+  color: var(--sw30-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.student-workout-build30-experience .mobile-workout-student-experience-head-v2 > strong {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--sw30-teal) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sw30-teal) 11%, transparent);
+  padding: 7px 10px;
+  color: var(--sw30-teal);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.student-workout-build30-experience .mobile-workout-program-card-v24 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 16px;
+  background: var(--sw30-surface);
+  padding: 10px;
+}
+
+.student-workout-build30-experience .mobile-workout-program-card-v24 > div {
+  min-width: 0;
+  border: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--sw30-card) 68%, transparent);
+  padding: 10px;
+}
+
+.student-workout-build30-experience .mobile-workout-program-card-v24 span,
+.student-workout-build30-experience .mobile-workout-program-card-v24 strong {
+  display: block;
+}
+
+.student-workout-build30-experience .mobile-workout-program-card-v24 span {
+  color: var(--sw30-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.student-workout-build30-experience .mobile-workout-program-card-v24 strong {
+  margin-top: 4px;
+  color: var(--sw30-text);
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.student-workout-build30-experience .mobile-workout-day-list-v24 {
+  display: grid;
+  gap: 8px;
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-v24 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 16px;
+  background: var(--sw30-surface);
+  padding: 13px;
+  transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-v24:hover {
+  border-color: color-mix(in srgb, var(--sw30-teal) 44%, var(--sw30-line));
+  background: color-mix(in srgb, var(--sw30-teal) 5%, var(--sw30-surface));
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-v24 > div:first-child > span {
+  color: var(--sw30-teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-v24 h4 {
+  margin: 4px 0 0;
+  color: var(--sw30-text);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-v24 p {
+  margin: 3px 0 0;
+  color: var(--sw30-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-v24 small {
+  display: block;
+  margin-top: 6px;
+  color: color-mix(in srgb, var(--sw30-muted) 78%, transparent);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.student-workout-build30-experience .mobile-workout-day-card-actions-v4 button,
+.student-workout-build30-experience .mobile-workout-start-session-v24,
+.student-workout-build30-experience .mobile-workout-finalize-primary-v5 {
+  min-height: 44px;
+  border: 1px solid var(--sw30-teal);
+  border-radius: 12px;
+  background: var(--sw30-teal);
+  padding: 10px 14px;
+  color: #061816;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--sw30-teal) 16%, transparent);
+}
+
+.student-mobile-shell.app-theme-light .student-workout-build30-experience .mobile-workout-day-card-actions-v4 button,
+.student-mobile-shell.app-theme-light .student-workout-build30-experience .mobile-workout-start-session-v24,
+.student-mobile-shell.app-theme-light .student-workout-build30-experience .mobile-workout-finalize-primary-v5 {
+  color: #ffffff;
+}
+
+.student-workout-build30-experience .mobile-workout-day-detail-head-v24 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--sw30-line);
+  padding-bottom: 12px;
+}
+
+.student-workout-build30-experience .mobile-workout-day-detail-head-v24 > button,
+.student-workout-build30-experience .mobile-workout-execution-head-v24 > button:first-child {
+  min-height: 44px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 12px;
+  background: var(--sw30-surface);
+  padding: 9px 11px;
+  color: var(--sw30-muted);
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.student-workout-build30-experience .mobile-workout-day-detail-head-v24 h3 {
+  margin-top: 4px;
+  color: var(--sw30-text);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.12;
+}
+
+.student-workout-build30-experience .mobile-workout-day-detail-head-v24 > span {
+  color: var(--sw30-teal);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.student-workout-build30-experience .mobile-workout-preview-notice-v24 {
+  border: 1px solid var(--sw30-line);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--sw30-teal) 7%, var(--sw30-surface));
+  padding: 12px;
+}
+
+.student-workout-build30-experience .mobile-workout-preview-notice-v24 strong {
+  color: var(--sw30-text);
+  font-size: 14px;
+}
+
+.student-workout-build30-experience .mobile-workout-preview-notice-v24 p {
+  margin-top: 5px;
+  color: var(--sw30-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.student-workout-build30-experience .mobile-workout-day-exercise-list-v24 {
+  display: grid;
+  gap: 7px;
+}
+
+.student-workout-build30-experience .mobile-workout-day-exercise-v24 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  border-top: 1px solid var(--sw30-line);
+  padding: 12px 2px 4px;
+}
+
+.student-workout-build30-experience .mobile-workout-day-exercise-v24 h4 {
+  margin-top: 3px;
+  color: var(--sw30-text);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.student-workout-build30-experience .mobile-workout-day-exercise-v24 p,
+.student-workout-build30-experience .mobile-workout-day-exercise-v24 > div > span,
+.student-workout-build30-experience .mobile-workout-day-exercise-v24 em {
+  display: block;
+  margin-top: 4px;
+  color: var(--sw30-muted);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+/* Execution: current exercise, current set, compact metrics. */
+.student-workout-build30-execution {
+  gap: 12px;
+}
+
+.student-workout-build30-execution .mobile-workout-command-v24 {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid var(--sw30-line);
+  padding-bottom: 12px;
+}
+
+.student-workout-build30-execution .mobile-workout-execution-head-v24 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.student-workout-build30-execution .mobile-workout-execution-head-v24 > div {
+  min-width: 0;
+}
+
+.student-workout-build30-execution .mobile-workout-execution-head-v24 > div > span {
+  display: block;
+  color: var(--sw30-teal);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-execution .mobile-workout-execution-head-v24 > div > strong {
+  display: block;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: var(--sw30-text);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.student-workout-build30-execution .mobile-workout-end-trigger-v5 {
+  min-height: 40px;
+  border: 1px solid rgba(220, 174, 92, 0.42);
+  border-radius: 10px;
+  background: rgba(220, 174, 92, 0.1);
+  padding: 8px 10px;
+  color: #f1cc85;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-progress-v24 {
+  display: grid;
+  gap: 7px;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-progress-head-v3 {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-progress-head-v3 > div {
+  display: grid;
+  gap: 3px;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-progress-head-v3 span,
+.student-workout-build30-execution .mobile-workout-exercise-progress-head-v3 small {
+  color: var(--sw30-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-progress-head-v3 strong {
+  color: var(--sw30-text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-dots-v3 {
+  display: flex;
+  gap: 4px;
+  height: 5px;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-dots-v3 span {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sw30-muted) 22%, transparent);
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-dots-v3 span.is-current {
+  background: color-mix(in srgb, var(--sw30-teal) 60%, var(--sw30-muted));
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-dots-v3 span.is-complete {
+  background: var(--sw30-teal);
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-switcher-v4 {
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 1px 0 3px;
+  scrollbar-width: thin;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-switcher-v4 button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 999px;
+  background: var(--sw30-surface);
+  padding: 6px 9px 6px 6px;
+  color: var(--sw30-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.student-workout-build30-execution .mobile-workout-step-index-v24 {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sw30-muted) 12%, transparent);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.student-workout-build30-execution .mobile-workout-step-name-v24 {
+  max-width: 17ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-switcher-v4 button.is-current {
+  border-color: color-mix(in srgb, var(--sw30-teal) 64%, transparent);
+  background: color-mix(in srgb, var(--sw30-teal) 12%, var(--sw30-surface));
+  color: var(--sw30-text);
+}
+
+.student-workout-build30-execution .mobile-workout-exercise-switcher-v4 button.is-current .mobile-workout-step-index-v24,
+.student-workout-build30-execution .mobile-workout-exercise-switcher-v4 button.is-complete .mobile-workout-step-index-v24 {
+  background: var(--sw30-teal);
+  color: #061816;
+}
+
+.student-workout-build30-execution .mobile-workout-student-current-exercise-v2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 12px;
+}
+
+.student-workout-build30-execution .mobile-workout-current-heading-v5 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.student-workout-build30-execution .mobile-workout-current-heading-v5 h4 {
+  max-width: 24ch;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--sw30-text);
+  font-size: clamp(24px, 6.8cqw, 36px);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+
+.student-workout-build30-execution .mobile-workout-current-heading-v5 span {
+  display: block;
+  margin-top: 5px;
+  color: var(--sw30-muted);
+  font-size: 13px;
+}
+
+.student-workout-build30-execution .mobile-workout-current-heading-v5 > strong {
+  border: 1px solid var(--sw30-line);
+  border-radius: 999px;
+  background: var(--sw30-surface);
+  padding: 6px 9px;
+  color: var(--sw30-muted);
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.student-workout-build30-execution .mobile-workout-current-heading-v5 > strong.is-in-progress,
+.student-workout-build30-execution .mobile-workout-current-heading-v5 > strong.is-completed {
+  border-color: color-mix(in srgb, var(--sw30-teal) 43%, transparent);
+  background: color-mix(in srgb, var(--sw30-teal) 11%, var(--sw30-surface));
+  color: var(--sw30-teal);
+}
+
+/* Mídia, anatomia and guidance are explicit, compact disclosures. */
+.student-workout-build30-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--sw30-line);
+  border-radius: 14px;
+  background: var(--sw30-surface);
+}
+
+.student-workout-build30-disclosure > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 12px;
+  color: var(--sw30-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.student-workout-build30-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.student-workout-build30-disclosure > summary::after {
+  content: '+';
+  color: var(--sw30-teal);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.student-workout-build30-disclosure[open] > summary::after {
+  content: '−';
+}
+
+.student-workout-build30-disclosure > :not(summary) {
+  margin: 0 12px 12px;
+}
+
+.student-workout-build30-media-disclosure :is(details, a, .grid) {
+  max-width: 100%;
+}
+
+.student-workout-build30-media-disclosure .overflow-hidden {
+  border-color: var(--sw30-line);
+  background: color-mix(in srgb, var(--sw30-card) 78%, transparent);
+}
+
+.student-workout-build30-media-disclosure .text-emerald-200,
+.student-workout-build30-media-disclosure .text-emerald-100 {
+  color: var(--sw30-teal) !important;
+}
+
+.student-workout-build30-anatomy-disclosure .exercise-target-text-summary {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 0 0;
+}
+
+.student-workout-build30-anatomy-disclosure .exercise-target-text-summary > div {
+  border-color: var(--sw30-line);
+  background: color-mix(in srgb, var(--sw30-card) 74%, transparent);
+}
+
+.student-workout-build30-anatomy-disclosure .exercise-target-text-summary span {
+  color: var(--sw30-muted);
+}
+
+.student-workout-build30-anatomy-disclosure .exercise-target-text-summary strong {
+  color: var(--sw30-text);
+}
+
+.student-workout-build30-orientations-disclosure {
+  border-color: color-mix(in srgb, var(--sw30-teal) 28%, var(--sw30-line));
+  background: color-mix(in srgb, var(--sw30-teal) 6%, var(--sw30-surface));
+}
+
+.student-workout-build30-orientations-disclosure > summary {
+  color: var(--sw30-teal);
+}
+
+.student-workout-build30-orientations-disclosure > p,
+.student-workout-build30-orientations-disclosure > small {
+  color: var(--sw30-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Compact metric strip and series rows. */
+.student-workout-build30-experience .mobile-workout-student-metrics-v2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-metrics-v2 > div {
+  min-width: 0;
+  border: 1px solid var(--sw30-line);
+  border-radius: 12px;
+  background: var(--sw30-surface);
+  padding: 9px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-metrics-v2 p:first-child {
+  color: var(--sw30-muted) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.02em;
+}
+
+.student-workout-build30-experience .mobile-workout-student-metrics-v2 p:last-child {
+  margin-top: 3px !important;
+  overflow-wrap: anywhere;
+  color: var(--sw30-text) !important;
+  font-size: 13px !important;
+  line-height: 1.2;
+}
+
+.student-workout-build30-experience .mobile-workout-student-series-v2 {
+  display: grid;
+  gap: 7px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-series-head-v2 {
+  align-items: baseline;
+  gap: 10px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-series-head-v2 strong {
+  color: var(--sw30-text);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.student-workout-build30-experience .mobile-workout-student-series-head-v2 span {
+  color: var(--sw30-teal);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.student-workout-build30-experience .mobile-workout-series-progress-v29 {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 13px;
+  background: var(--sw30-surface);
+  padding: 9px 10px;
+}
+
+.student-workout-build30-experience .mobile-workout-series-progress-v29 > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.student-workout-build30-experience .mobile-workout-series-progress-v29 strong {
+  color: var(--sw30-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.student-workout-build30-experience .mobile-workout-series-progress-v29 small {
+  color: var(--sw30-muted);
+  font-size: 11px;
+  text-align: right;
+}
+
+.student-workout-build30-experience .mobile-workout-series-track-v29 {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sw30-muted) 18%, transparent);
+}
+
+.student-workout-build30-experience .mobile-workout-series-track-v29 span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sw30-teal);
+  transition: width 160ms ease;
+}
+
+.student-workout-build30-experience .mobile-workout-series-feedback-v29 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--sw30-teal) 42%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--sw30-teal) 10%, var(--sw30-surface));
+  padding: 9px 10px;
+  animation: sw30-feedback-in 180ms ease both;
+}
+
+.student-workout-build30-experience .mobile-workout-series-feedback-v29 > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--sw30-teal);
+  color: #061816;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.student-workout-build30-experience .mobile-workout-series-feedback-v29 strong {
+  display: block;
+  color: var(--sw30-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.student-workout-build30-experience .mobile-workout-series-feedback-v29 small {
+  display: block;
+  margin-top: 2px;
+  color: var(--sw30-muted);
+  font-size: 11px;
+}
+
+.student-workout-build30-experience .mobile-workout-set-card-v29 {
+  min-width: 0;
+  border: 1px solid var(--sw30-line);
+  border-radius: 13px;
+  background: var(--sw30-surface);
+  padding: 9px 10px;
+}
+
+.student-workout-build30-experience .mobile-workout-set-card-v29.is-current {
+  border-color: color-mix(in srgb, var(--sw30-teal) 56%, transparent);
+  background: color-mix(in srgb, var(--sw30-teal) 8%, var(--sw30-surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw30-teal) 7%, transparent);
+}
+
+.student-workout-build30-experience .mobile-workout-set-card-v29.is-complete {
+  border-color: color-mix(in srgb, var(--sw30-teal) 30%, var(--sw30-line));
+  background: color-mix(in srgb, var(--sw30-teal) 5%, var(--sw30-surface));
+}
+
+.student-workout-build30-experience .mobile-workout-set-label-v4 {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 3px 7px;
+}
+
+.student-workout-build30-experience .mobile-workout-set-label-v4 > strong {
+  color: var(--sw30-text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.student-workout-build30-experience .mobile-workout-set-state-v29 {
+  width: fit-content;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sw30-muted) 12%, transparent);
+  padding: 3px 6px;
+  color: var(--sw30-muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.student-workout-build30-experience .mobile-workout-set-state-v29.is-current,
+.student-workout-build30-experience .mobile-workout-set-state-v29.is-complete {
+  background: color-mix(in srgb, var(--sw30-teal) 14%, transparent);
+  color: var(--sw30-teal);
+}
+
+.student-workout-build30-experience .mobile-workout-set-label-v4 > small,
+.student-workout-build30-experience .mobile-workout-set-label-v4 > em {
+  grid-column: 1 / -1;
+  color: var(--sw30-muted);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.3;
+}
+
+.student-workout-build30-experience .mobile-workout-set-label-v4 > em {
+  color: color-mix(in srgb, var(--sw30-muted) 76%, transparent);
+}
+
+.student-workout-build30-experience .mobile-workout-set-open-v11 {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sw30-card) 64%, transparent);
+  padding: 7px 9px;
+  color: var(--sw30-muted);
+  font-size: 11px;
+  text-align: left;
+}
+
+.student-workout-build30-experience .mobile-workout-set-open-v11 span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-workout-build30-experience .mobile-workout-set-open-v11 strong {
+  flex: 0 0 auto;
+  color: var(--sw30-teal);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.student-workout-build30-experience .mobile-workout-set-fields-v12 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.student-workout-build30-experience .mobile-workout-set-fields-v12 label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--sw30-muted);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.student-workout-build30-experience .mobile-workout-set-fields-v12 input,
+.student-workout-build30-experience .mobile-workout-finish-v24 select,
+.student-workout-build30-experience .mobile-workout-finish-v24 textarea,
+.student-workout-build30-experience .mobile-workout-student-finish-v2 select,
+.student-workout-build30-experience .mobile-workout-student-finish-v2 textarea {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--sw30-line) !important;
+  border-radius: 10px !important;
+  background: var(--sw30-bg) !important;
+  padding: 9px 10px !important;
+  color: var(--sw30-text) !important;
+  -webkit-text-fill-color: var(--sw30-text) !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+}
+
+.student-workout-build30-experience .mobile-workout-set-inline-action-v29 {
+  grid-column: 1 / -1;
+  min-height: 42px;
+  border: 1px solid var(--sw30-teal);
+  border-radius: 10px;
+  background: var(--sw30-teal);
+  color: #061816;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* One action surface: rest + next action, no second floating widget. */
+.student-workout-build30-rest-legacy {
+  display: none !important;
+}
+
+.student-workout-build30-actionbar {
+  position: sticky;
+  z-index: 4;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--sw30-teal) 31%, var(--sw30-line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--sw30-surface) 93%, transparent);
+  padding: 9px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+}
+
+.student-workout-build30-actionbar > .student-workout-build30-next-action {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.student-workout-build30-next-action small {
+  color: var(--sw30-teal);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-next-action strong {
+  overflow-wrap: anywhere;
+  color: var(--sw30-text);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.student-workout-build30-actionbar > button {
+  min-height: 44px;
+  border: 1px solid var(--sw30-teal);
+  border-radius: 11px;
+  background: var(--sw30-teal);
+  padding: 9px 12px;
+  color: #061816;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.student-workout-build30-rest-inline {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--sw30-line);
+  padding: 2px 0 9px;
+}
+
+.student-workout-build30-rest-inline > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.student-workout-build30-rest-inline small,
+.student-workout-build30-rest-inline span {
+  color: var(--sw30-muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.student-workout-build30-rest-inline small {
+  color: var(--sw30-teal);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-rest-inline strong {
+  color: var(--sw30-text);
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+
+.student-workout-build30-rest-inline > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.student-workout-build30-rest-inline button {
+  min-height: 36px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 9px;
+  background: var(--sw30-surface);
+  padding: 7px 8px;
+  color: var(--sw30-text);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.student-workout-build30-experience .mobile-workout-student-navigation-v24 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  border-top: 1px solid var(--sw30-line);
+  padding-top: 11px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-navigation-v24 button {
+  min-height: 42px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 11px;
+  background: var(--sw30-surface);
+  padding: 8px 11px;
+  color: var(--sw30-muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.student-workout-build30-experience .mobile-workout-student-navigation-v24 .is-primary {
+  border-color: var(--sw30-teal);
+  background: var(--sw30-teal);
+  color: #061816;
+}
+
+.student-workout-build30-experience .mobile-workout-next-hint-v3 {
+  color: var(--sw30-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.student-workout-build30-experience .mobile-workout-student-finish-v24 {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--sw30-line);
+  border-radius: 16px;
+  background: var(--sw30-surface);
+  padding: 12px;
+}
+
+.student-workout-build30-experience .mobile-workout-student-finish-v24 label {
+  display: grid;
+  gap: 5px;
+  color: var(--sw30-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.student-workout-build30-experience .mobile-workout-student-finish-v24 > small {
+  color: var(--sw30-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.student-workout-build30-experience .mobile-workout-end-secondary-v5 {
+  min-height: 42px;
+  border: 1px solid rgba(220, 174, 92, 0.42);
+  border-radius: 11px;
+  background: rgba(220, 174, 92, 0.1);
+  color: #f1cc85;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+/* Summary: concise celebration, no fabricated leaderboard or streak. */
+.student-workout-build30-summary .mobile-workout-summary-head-v24 {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-grid-v24 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-grid-v24 > div {
+  border: 1px solid var(--sw30-line);
+  border-radius: 13px;
+  background: var(--sw30-surface);
+  padding: 10px;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-grid-v24 span {
+  color: var(--sw30-muted);
+  font-size: 11px;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-grid-v24 strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--sw30-text);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-preview-note-v25,
+.student-workout-build30-summary .mobile-workout-student-success-v2 {
+  border-color: color-mix(in srgb, var(--sw30-teal) 30%, var(--sw30-line));
+  background: color-mix(in srgb, var(--sw30-teal) 8%, var(--sw30-surface));
+  color: var(--sw30-muted);
+}
+
+.student-workout-build30-summary .mobile-workout-student-success-v2 {
+  animation: sw30-success-in 220ms ease both;
+}
+
+.student-workout-build30-summary .mobile-workout-student-success-v2 strong {
+  color: var(--sw30-text);
+}
+
+.student-workout-build30-summary .mobile-workout-student-success-v2 span,
+.student-workout-build30-summary .mobile-workout-summary-preview-note-v25 strong {
+  color: var(--sw30-muted);
+}
+
+.student-workout-build30-summary .mobile-workout-summary-actions-v24 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-actions-v24 button {
+  min-height: 44px;
+  flex: 1 1 180px;
+  border: 1px solid var(--sw30-teal);
+  border-radius: 11px;
+  background: var(--sw30-teal);
+  padding: 10px 12px;
+  color: #061816;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.student-workout-build30-summary .mobile-workout-summary-actions-v24 button.is-secondary {
+  border-color: var(--sw30-line);
+  background: var(--sw30-surface);
+  color: var(--sw30-text);
+}
+
+@keyframes sw30-feedback-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sw30-success-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Coach preview shell: wide panel + external controls + phone-width surface. */
+.student-workout-build30-preview-shell {
+  container: student-workout-preview / inline-size;
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  border: 1px solid rgba(78, 233, 208, 0.2);
+  border-radius: 22px;
+  background: #0b1516;
+  padding: 12px;
+  color: #f4fffd;
+}
+
+.student-workout-build30-preview-shell .mobile-workout-live-preview-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2px 2px 4px;
+}
+
+.student-workout-build30-preview-shell .mobile-workout-live-preview-heading p {
+  color: #4ee9d0;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-preview-shell .mobile-workout-live-preview-heading h5 {
+  margin-top: 4px;
+  color: #f4fffd;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.student-workout-build30-preview-shell .mobile-workout-live-preview-heading > span {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(78, 233, 208, 0.24);
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #a7bdba;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.student-workout-build30-preview-shell .mobile-workout-live-preview-heading i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #4ee9d0;
+  box-shadow: 0 0 0 4px rgba(78, 233, 208, 0.12);
+}
+
+.student-workout-build30-preview-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.36fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+  container: student-workout-preview-body / inline-size;
+}
+
+.student-workout-build30-preview-flow {
+  grid-column: 1;
+  align-self: start;
+  min-width: 0;
+  margin: 0 !important;
+  container: student-workout-stage / inline-size;
+}
+
+.student-workout-build30-preview-body > .student-workout-build30-device {
+  grid-column: 2;
+  width: min(100%, 454px);
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.student-workout-build30-device {
+  min-width: 0;
+  container: student-workout-device / inline-size;
+  overflow: visible;
+}
+
+.student-workout-build30-device > .student-workout-build30-experience {
+  min-height: 0;
+  border-radius: 20px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.22);
+}
+
+.student-workout-build30-preview-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(3, 10, 10, 0.76);
+  backdrop-filter: blur(12px);
+}
+
+.student-workout-build30-preview-panel {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.36fr) minmax(0, 1fr);
+  grid-template-areas:
+    'head head'
+    'flow device';
+  align-content: start;
+  min-width: 0;
+  width: min(1180px, calc(100vw - 32px));
+  max-height: min(94dvh, 960px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  border: 1px solid rgba(78, 233, 208, 0.24);
+  border-radius: 24px;
+  background: #0b1516;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+}
+
+.student-workout-build30-preview-panel .mobile-workout-student-preview-head,
+.student-workout-build30-preview-panel .mobile-workout-day-preview-head-v2 {
+  grid-area: head;
+  min-width: 0;
+  border-color: rgba(78, 233, 208, 0.18);
+  background: rgba(11, 21, 22, 0.96);
+  padding: 14px 16px;
+}
+
+.student-workout-build30-preview-panel .mobile-workout-student-preview-head h4,
+.student-workout-build30-preview-panel .mobile-workout-day-preview-head-v2 strong {
+  color: #f4fffd;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.12;
+}
+
+.student-workout-build30-preview-panel .mobile-workout-student-preview-head p,
+.student-workout-build30-preview-panel .mobile-workout-day-preview-head-v2 p {
+  color: #4ee9d0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.student-workout-build30-preview-panel .mobile-workout-student-preview-head span {
+  color: #a7bdba;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.student-workout-build30-preview-panel > .student-workout-build30-preview-flow,
+.student-workout-build30-preview-panel > .coach-workout-preview-flow-v25 {
+  grid-area: flow;
+  min-width: 0;
+  margin: 0;
+  align-self: start;
+}
+
+.student-workout-build30-preview-panel > .student-workout-build30-device {
+  grid-area: device;
+  min-width: 0;
+  align-self: start;
+}
+
+.student-workout-build30-preview-panel > .student-workout-build30-device > .student-workout-build30-experience {
+  border-radius: 20px;
+}
+
+/* The portal in StudentPortalPreview lives inside a Panel, not a modal. */
+.student-workout-build30-portal-preview {
+  container: student-portal-preview / inline-size;
+  display: grid !important;
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1fr);
+  grid-template-areas:
+    'notice notice'
+    'flow device';
+  gap: 12px !important;
+  min-width: 0;
+}
+
+.student-workout-build30-portal-preview .student-workout-build30-preview-notice {
+  grid-area: notice;
+}
+
+.student-workout-build30-portal-preview > .student-workout-build30-preview-flow {
+  grid-area: flow;
+  min-width: 0;
+  margin: 0;
+}
+
+.student-workout-build30-portal-preview > .student-workout-build30-device {
+  grid-area: device;
+  width: min(100%, 454px);
+  min-width: 0;
+  margin: 0 auto;
+}
+
+/* Container queries, not viewport queries: a 430px coach panel never gets four squeezed tabs. */
+@container student-workout-stage (max-width: 540px) {
+  .student-workout-build30-stage-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .student-workout-build30-stage-tabs button {
+    justify-content: flex-start;
+    padding-inline: 8px;
+  }
+
+  .student-workout-build30-stage-tabs button > strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+@container student-workout-preview-body (max-width: 720px) {
+  .student-workout-build30-preview-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-workout-build30-preview-flow,
+  .student-workout-build30-preview-body > .student-workout-build30-device {
+    grid-column: 1;
+  }
+
+  .student-workout-build30-preview-body > .student-workout-build30-device {
+    width: min(100%, 454px);
+    margin-inline: auto;
+  }
+}
+
+@container student-portal-preview (max-width: 700px) {
+  .student-workout-build30-portal-preview {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'notice'
+      'flow'
+      'device';
+  }
+
+  .student-workout-build30-portal-preview > .student-workout-build30-device {
+    width: min(100%, 454px);
+  }
+}
+
+@container student-workout-surface (max-width: 500px) {
+  .student-workout-build30-experience {
+    border-radius: 18px;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .student-workout-build30-experience .mobile-workout-student-experience-head-v2 h3 {
+    font-size: 23px;
+  }
+
+  .student-workout-build30-experience .mobile-workout-program-card-v24 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-workout-build30-experience .mobile-workout-program-card-v24 > div:last-child:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .student-workout-build30-experience .mobile-workout-day-card-v24 {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .student-workout-build30-experience .mobile-workout-day-card-actions-v4 button {
+    width: 100%;
+  }
+
+  .student-workout-build30-experience .mobile-workout-day-detail-head-v24 {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .student-workout-build30-experience .mobile-workout-day-detail-head-v24 > span {
+    grid-column: 2;
+  }
+
+  .student-workout-build30-execution .mobile-workout-execution-head-v24 {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .student-workout-build30-execution .mobile-workout-end-trigger-v5 {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .student-workout-build30-execution .mobile-workout-current-heading-v5 h4 {
+    font-size: 27px;
+  }
+}
+
+@container student-workout-surface (max-width: 350px) {
+  .student-workout-build30-experience .mobile-workout-student-metrics-v2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-workout-build30-execution .mobile-workout-current-heading-v5 > strong {
+    padding-inline: 7px;
+    font-size: 10px;
+  }
+
+  .student-workout-build30-rest-inline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-workout-build30-rest-inline > div:last-child {
+    justify-content: flex-start;
+  }
+}
+
+@container student-workout-surface (min-width: 760px) {
+  .student-workout-build30-execution .mobile-workout-student-current-exercise-v2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .student-workout-build30-execution .mobile-workout-student-metrics-v2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .student-workout-build30-preview-portal {
+    display: block;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .student-workout-build30-preview-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'head'
+      'flow'
+      'device';
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+
+  .student-workout-build30-preview-panel .mobile-workout-student-preview-head,
+  .student-workout-build30-preview-panel .mobile-workout-day-preview-head-v2 {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
+
+  .student-workout-build30-preview-panel > .student-workout-build30-preview-flow,
+  .student-workout-build30-preview-panel > .student-workout-build30-device {
+    display: block;
+    width: 100%;
+  }
+
+  .student-workout-build30-preview-panel > .student-workout-build30-device > .student-workout-build30-experience {
+    border-radius: 18px;
+    box-shadow: none;
+  }
+
+  .student-workout-build30-preview-shell {
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-workout-build30-experience button,
+  .student-workout-build30-experience summary,
+  .student-workout-build30-experience .mobile-workout-series-track-v29 span {
+    transition: none !important;
+  }
+
+  .student-workout-build30-summary .mobile-workout-student-success-v2,
+  .student-workout-build30-experience .mobile-workout-series-feedback-v29 {
+    animation: none !important;
+  }
+}

@@ -78,7 +78,7 @@ export default function WorkoutCompletionRating({ log, onSubmit, preview = false
         ))}
       </div>
       <p className="student-workout-rating-caption" aria-live="polite">
-        {selectedRating ? `${selectedRating} de 5 ${selectedRating === 1 ? 'estrela selecionada' : 'estrelas selecionadas'}` : 'Toque em uma estrela para avaliar'}
+        {selectedRating ? 'Avaliação selecionada. Toque nas estrelas para ajustar.' : 'Toque em uma estrela para avaliar'}
       </p>
       {preview ? <p className="student-workout-rating-preview-note" role="note">A avaliação real será enviada pelo aluno no app.</p> : null}
       <button

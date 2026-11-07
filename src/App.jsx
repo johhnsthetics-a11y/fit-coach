@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import './student-workout-build30.css'
 import { createPortal } from 'react-dom'
 import TrainerExerciseLibrary from './TrainerExerciseLibrary'
 import WorkoutCompletionRating from './WorkoutCompletionRating'
@@ -198,7 +199,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-trainer-student-execution-build29-hotfix1-20261106'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build30-20261106'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -9338,76 +9339,27 @@ function Workouts({ selectedStudent, students = [], workouts = [], nutritionPlan
   const studentWorkouts = workouts.filter((workout) => (
     String(workout.studentId) === String(selectedStudent?.id) && workout.active !== false
   ))
-  const studentLogs = workoutLogs.filter((log) => String(log.studentId) === String(selectedStudent?.id))
 
   return (
-    <>
     <MobileWorkoutManager
       selectedStudent={selectedStudent}
       students={students}
       workouts={workouts}
+      nutritionPlans={nutritionPlans}
       workoutLogs={workoutLogs}
+      progressionDecisions={progressionDecisions}
       studentWorkouts={studentWorkouts}
       exerciseLibraryItems={availableExerciseLibrary}
       exerciseLibrarySync={exerciseLibrarySync}
       onSaveWorkout={onSaveWorkout}
+      onSaveNutritionPlan={onSaveNutritionPlan}
       onArchiveWorkout={onArchiveWorkout}
+      onApproveProgression={onApproveProgression}
+      onIgnoreProgression={onIgnoreProgression}
+      onUndoProgression={onUndoProgression}
+      onSaveStudent={onSaveStudent}
       uiTheme={uiTheme}
     />
-
-    <details className="trainer-workout-secondary-tools">
-      <summary>
-        <span>Outras ferramentas de treino</span>
-        <small>Criação expressa, formulário clássico, evolução e histórico</small>
-      </summary>
-      <div className="trainer-workout-secondary-grid grid gap-4 md:grid-cols-2 lg:gap-6 xl:grid-cols-[1.2fr_1fr]">
-      <div className="xl:col-span-2">
-        <ExpressCreationModule
-          selectedStudent={selectedStudent}
-          students={students}
-          workouts={workouts}
-          nutritionPlans={nutritionPlans}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onSaveWorkout={onSaveWorkout}
-          onSaveNutritionPlan={onSaveNutritionPlan}
-        />
-      </div>
-
-      <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
-        {students.length ? (
-          <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
-        ) : (
-          <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
-        )}
-      </Panel>
-
-      <Panel title="Treinos prescritos" action={`${studentWorkouts.length} ativos`}>
-        <WorkoutList workouts={studentWorkouts} fallbackTitle={selectedStudent?.workout} exerciseLibraryItems={availableExerciseLibrary} onArchive={onArchiveWorkout} />
-      </Panel>
-
-      <div className="xl:col-span-2">
-        <WorkoutProgressionRecommendations
-          student={selectedStudent}
-          workouts={studentWorkouts}
-          logs={studentLogs}
-          decisions={progressionDecisions.filter((decision) => String(decision.studentId) === String(selectedStudent?.id))}
-          exerciseLibraryItems={availableExerciseLibrary}
-          onApprove={onApproveProgression}
-          onIgnore={onIgnoreProgression}
-          onUndo={onUndoProgression}
-        />
-      </div>
-
-      <Panel title="Notas de carga" action="Progressão">
-        <LoadNotesPanel student={selectedStudent} logs={studentLogs} onSaveStudent={onSaveStudent} />
-      </Panel>
-
-      <Panel title="Histórico de execução" action={`${studentLogs.length} registros`}>
-        <WorkoutLogList logs={studentLogs} />
-      </Panel>
-      </div>
-    </details>
-    </>
   )
 }
 
@@ -9603,7 +9555,7 @@ function useModalFocusTrap(isOpen, onClose) {
   return dialogRef
 }
 
-function MobileWorkoutManager({ selectedStudent, students, workouts = [], workoutLogs = [], studentWorkouts = [], exerciseLibraryItems = [], exerciseLibrarySync = null, onSaveWorkout, onArchiveWorkout, uiTheme = DEFAULT_UI_THEME }) {
+function MobileWorkoutManager({ selectedStudent, students, workouts = [], nutritionPlans = [], workoutLogs = [], progressionDecisions = [], studentWorkouts = [], exerciseLibraryItems = [], exerciseLibrarySync = null, onSaveWorkout, onSaveNutritionPlan, onArchiveWorkout, onApproveProgression, onIgnoreProgression, onUndoProgression, onSaveStudent, uiTheme = DEFAULT_UI_THEME }) {
   const baseExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [customExerciseLibrary, setCustomExerciseLibrary] = useState(() => {
     try {
@@ -9620,7 +9572,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
     }
   })
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary([...baseExerciseLibrary, ...customExerciseLibrary]), [baseExerciseLibrary, customExerciseLibrary])
-  const [tab, setTab] = useState('library')
+  const [tab, setTab] = useState('plans')
+  const [planDetailOpen, setPlanDetailOpen] = useState(false)
+  const [toolMode, setToolMode] = useState('none')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('todos')
   const [librarySelectedExerciseNames, setLibrarySelectedExerciseNames] = useState([])
@@ -9672,6 +9626,10 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   const dayEditorDialogRef = useModalFocusTrap(Boolean(dayEditor), () => setDayEditor(null))
   const draftRecoveryDialogRef = useModalFocusTrap(Boolean(pendingDraftRecovery), () => setPendingDraftRecovery(null))
   const publishConfirmationDialogRef = useModalFocusTrap(publishConfirmationOpen, () => setPublishConfirmationOpen(false))
+
+  useEffect(() => {
+    import('./trainer-workout-build30.css').catch(() => {})
+  }, [])
 
   useEffect(() => {
     try {
@@ -10585,12 +10543,32 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   }
 
   function changeManagerTab(nextTab) {
-    setTab(nextTab)
+    const normalizedTab = nextTab === 'library' ? 'plans' : nextTab
+    setTab(normalizedTab)
     setSearch('')
     setFilter('todos')
     setExpandedStudentId('')
     setWorkoutStudentPreviewOpen(false)
     setExercisePickerPreview(null)
+    setToolMode('none')
+    if (normalizedTab !== 'plans') setPlanDetailOpen(false)
+  }
+
+  function openWorkoutDetail(workout) {
+    if (!workout) return
+    setSelectedWorkoutId(workout.id)
+    setSelectedStudentId(String(workout.studentId || ''))
+    setPlanDetailOpen(true)
+    setToolMode('none')
+    setWorkoutStudentPreviewOpen(false)
+    setTab('plans')
+  }
+
+  function closeWorkoutDetail() {
+    setPlanDetailOpen(false)
+    setWorkoutStudentPreviewOpen(false)
+    setActiveDayIndex(null)
+    setExpandedExerciseKey('')
   }
 
   function startCustomExerciseEntry() {
@@ -10660,331 +10638,409 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], workou
   ]
   const currentCreatorStepIndex = Math.max(0, creatorSteps.findIndex(([step]) => step === creatorStep))
   const selectedDraftStudent = students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || null
+  const evolutionStudent = students.find((student) => String(student.id) === String(selectedStudentId)) || selectedStudent || students[0] || null
+  const evolutionStudentId = String(evolutionStudent?.id || '')
+  const evolutionWorkouts = useMemo(
+    () => activeWorkouts.filter((workout) => String(workout.studentId) === evolutionStudentId),
+    [activeWorkouts, evolutionStudentId],
+  )
+  const evolutionLogs = useMemo(
+    () => workoutLogs.filter((log) => String(log.studentId) === evolutionStudentId),
+    [evolutionStudentId, workoutLogs],
+  )
+  const evolutionDecisions = useMemo(
+    () => progressionDecisions.filter((decision) => String(decision.studentId) === evolutionStudentId),
+    [evolutionStudentId, progressionDecisions],
+  )
 
   return (
     <section className="mobile-workout-manager">
       {!showCreator ? (
         <>
-      <div className="mobile-workout-hero">
-        <div>
-          <p className="trainer-workout-eyebrow">WORKSPACE DE PRESCRIÇÃO</p>
-          <h3>Treinos</h3>
-          <span>Monte planos, organize exercícios e acompanhe alunos em um só lugar.</span>
-        </div>
-        <button type="button" onClick={() => beginNewWorkout(selectedStudentId || selectedStudent?.id || '')} className="mobile-workout-primary">
-          <NavIcon name="plus" className="h-4 w-4" />
-          Criar treino
-        </button>
-      </div>
-
-      <div className="mobile-workout-tabs" role="tablist" aria-label="Treinos">
-        <button type="button" role="tab" aria-selected={tab === 'library'} onClick={() => changeManagerTab('library')} className={tab === 'library' ? 'is-active' : ''}>Planos</button>
-        <button type="button" role="tab" aria-selected={tab === 'exercises'} onClick={() => changeManagerTab('exercises')} className={tab === 'exercises' ? 'is-active' : ''}>Exercícios</button>
-        <button type="button" role="tab" aria-selected={tab === 'students'} onClick={() => changeManagerTab('students')} className={tab === 'students' ? 'is-active' : ''}>Alunos</button>
-      </div>
-
-      {tab !== 'exercises' ? (
-        <div className="mobile-workout-search">
-          <NavIcon name="chart" className="h-4 w-4" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === 'library' ? 'Buscar plano, foco, objetivo ou aluno' : 'Buscar nome do aluno ou título de qualquer plano'} />
-        </div>
-      ) : null}
-
-      {tab !== 'exercises' ? (
-        <div className="mobile-workout-filters">
-          {(tab === 'library' ? ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado'] : ['todos', 'com-treino', 'sem-treino']).map((item) => (
-            <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
-              {formatUiText(item)}
-            </button>
-          ))}
-          {filter !== 'todos' || search ? (
-            <button type="button" onClick={() => { setFilter('todos'); setSearch('') }}>Limpar filtros</button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {tab === 'exercises' ? (
-        <TrainerExerciseLibrary
-          library={availableExerciseLibrary}
-          favorites={favoriteExerciseNames}
-          recent={recentExerciseNames}
-          selectedNames={librarySelectedExerciseNames}
-          onSelectionChange={setLibrarySelectedExerciseNames}
-          onToggleFavorite={toggleFavoriteExercise}
-          onPreview={setExercisePickerPreview}
-          onEditCustom={editCustomExercise}
-          onDeleteCustom={removeCustomExercise}
-          onStartWorkout={startWorkoutWithLibrarySelection}
-          syncStatus={exerciseLibrarySync}
-          customDraft={customExerciseDraft}
-          customFormOpen={isCreatingCustomExercise}
-          editingName={editingCustomExerciseName}
-          onStartCustomExercise={startCustomExerciseEntry}
-          onUpdateCustomField={updateCustomExerciseDraft}
-          onUpdateCustomVideoFile={updateCustomExerciseVideoFile}
-          onSaveCustomExercise={saveCustomExerciseToLibrary}
-          onCancelCustomExercise={cancelCustomExerciseEntry}
-        />
-      ) : null}
-
-      {tab === 'library' ? (
-        <div className="mobile-workout-stack">
-          {filteredLocalDraftSummaries.length ? (
-            <>
-              <div className="mobile-workout-section-title">
-                <span>Rascunhos neste dispositivo</span>
-                <small>{formatCount(filteredLocalDraftSummaries.length, 'rascunho')}</small>
-              </div>
-              {filteredLocalDraftSummaries.map(({ studentId, student, draft: localDraft }) => (
-                <article key={`local-${studentId || 'sem-aluno'}`} className="mobile-workout-card is-draft trainer-local-draft-card">
-                  <div className="mobile-workout-card-main">
-                    <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
-                    <span>
-                      <strong>{localDraft.title || 'Treino sem nome'}</strong>
-                      <small>{localDraft.editingWorkoutId ? 'Edição local pendente' : 'Rascunho privado neste dispositivo'}{student?.name ? ` · ${student.name}` : ' · Sem aluno vinculado'}</small>
-                      <small>{formatCount(localDraft.days?.length || 0, 'dia')} · {formatCount((localDraft.days || []).reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0), 'exercício')} · {formatShortDate(localDraft.updatedAt)}</small>
-                    </span>
-                  </div>
-                  <button type="button" onClick={() => resumePendingDraftRecovery({ studentId, draft: localDraft, initialExerciseNames: [] })} className="mobile-workout-mini-action">
-                    Continuar rascunho
-                  </button>
-                </article>
-              ))}
-            </>
-          ) : null}
-          {filteredDraftWorkouts.length ? (
-            <>
-              <div className="mobile-workout-section-title">
-                <span>Rascunhos salvos</span>
-                <small>{formatCount(filteredDraftWorkouts.length, 'rascunho')}</small>
-              </div>
-              {filteredDraftWorkouts.slice(0, 10).map((workout) => {
-                const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
-                const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
-                const workoutStudent = students.find((student) => String(student.id) === String(workout.studentId))
-                return (
-                  <article key={workout.id} className="mobile-workout-card is-draft">
-                    <div className="mobile-workout-card-main">
-                      <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
-                      <span>
-                        <strong>{workout.title || 'Treino sem nome'}</strong>
-                        <small>Rascunho privado{workoutStudent?.name ? ` · ${workoutStudent.name}` : ''}</small>
-                        <small>{formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
-                      </span>
-                    </div>
-                    <button type="button" onClick={() => resetDraftFromWorkout(workout, { mode: 'edit' })} className="mobile-workout-mini-action">
-                      Continuar rascunho
-                    </button>
-                  </article>
-                )
-              })}
-            </>
-          ) : null}
-          <div className="mobile-workout-section-title">
-            <span>Treinos publicados</span>
-            <small>{filteredWorkouts.length} encontrados</small>
-          </div>
-          {filteredWorkouts.length ? filteredWorkouts.slice(0, 10).map((workout) => {
-            const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
-            const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
-            const isSelected = String(selectedWorkout?.id) === String(workout.id)
-            return (
-              <article key={workout.id} className={`mobile-workout-card ${isSelected ? 'is-selected' : ''}`}>
-                <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setSelectedStudentId(String(workout.studentId || '')); setShowCreator(false) }} className="mobile-workout-card-main">
-                  <span className="mobile-workout-avatar"><NavIcon name="muscle" className="h-5 w-5" /></span>
-                  <span>
-                    <strong>{workout.title || 'Treino sem nome'}</strong>
-                    <small>{workout.focus || 'Objetivo não informado'} · {inferWorkoutLevel(workout)}</small>
-                    <small>{formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')} · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
-                  </span>
-                </button>
-                <details className="mobile-workout-menu">
-                  <summary aria-label="Abrir ações do treino">⋮</summary>
-                  <div>
-                    <button type="button" onClick={() => { setSelectedWorkoutId(workout.id); setSelectedStudentId(String(workout.studentId || '')); setShowCreator(false) }}>Abrir</button>
-                    <button type="button" onClick={() => editSelectedWorkoutAtExercises(workout)}>Editar plano</button>
-                    <button type="button" onClick={() => useWorkoutAsBase(workout, workout.studentId)}>Usar como base</button>
-                    <button type="button" onClick={() => archiveSelectedWorkout(workout)}>Arquivar</button>
-                  </div>
-                </details>
-              </article>
-            )
-          }) : (
-            <div className="mobile-workout-empty">
-              <strong>Nenhum treino publicado encontrado.</strong>
-              <span>{filteredDraftWorkouts.length ? 'Seus rascunhos continuam disponíveis acima.' : 'Crie um novo treino ou limpe os filtros para ver todos.'}</span>
+          <header className="trainer-workout-shell-head">
+            <div>
+              <p className="trainer-workout-eyebrow">TREINOS DO TREINADOR</p>
+              <h3>Prescrição, acompanhamento e evolução</h3>
+              <span>Uma tarefa por área, com o próximo passo visível e os dados reais do aluno preservados.</span>
             </div>
-          )}
-        </div>
-      ) : tab === 'students' ? (
-        <div className="mobile-workout-stack">
-          <div className="mobile-workout-section-title">
-            <span>Planos por aluno</span>
-            <small>{formatCount(filteredStudentRows.length, 'aluno')}</small>
-          </div>
-          {filteredStudentRows.length ? filteredStudentRows.map(({ student, latest, assigned }) => {
-            const isExpanded = String(expandedStudentId) === String(student.id)
-            return (
-              <article key={student.id} className={`mobile-workout-student-card ${isExpanded ? 'is-expanded' : ''}`}>
-                <div className="mobile-workout-student-summary">
-                  <button type="button" aria-expanded={isExpanded} onClick={() => setExpandedStudentId(isExpanded ? '' : String(student.id))} className="mobile-workout-card-main">
-                    {student.photo ? (
-                      <img src={student.photo} alt={`Foto de ${student.name}`} className="mobile-workout-avatar object-cover" />
-                    ) : (
-                      <span className="mobile-workout-avatar">{getInitials(student.name)}</span>
-                    )}
-                    <span>
-                      <strong>{student.name}</strong>
-                      <small>{latest?.title || 'Nenhum plano publicado'}</small>
-                      <small>{formatCount(assigned.length, 'treino')} · {latest ? `Atualizado ${formatShortDate(latest.updatedAt || latest.createdAt)}` : 'Crie ou use um plano como base'}</small>
-                    </span>
-                  </button>
-                  <div className="mobile-workout-student-actions">
-                    <button type="button" className="mobile-workout-mini-action" onClick={() => beginNewWorkout(student.id)}>Criar treino</button>
-                    {assigned.length ? <button type="button" className="mobile-workout-student-expand" aria-expanded={isExpanded} onClick={() => setExpandedStudentId(isExpanded ? '' : String(student.id))}>{isExpanded ? 'Ocultar planos' : `Ver planos (${assigned.length})`}</button> : null}
-                  </div>
-                </div>
-                {isExpanded ? (
-                  <div className="mobile-workout-student-plans">
-                    {assigned.length ? assigned.map((workout) => {
-                      const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
-                      const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
-                      return (
-                        <article key={workout.id} className="mobile-workout-student-plan">
-                          <div>
-                            <strong>{workout.title || 'Treino sem nome'}</strong>
-                            <small>{workout.focus || 'Objetivo não informado'} · {formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')}</small>
-                            <small>Publicado · {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
-                          </div>
-                          <div className="mobile-workout-student-plan-actions">
-                            <button type="button" onClick={() => { setSelectedStudentId(String(student.id)); setSelectedWorkoutId(workout.id); changeManagerTab('library') }}>Abrir</button>
-                            <button type="button" onClick={() => editSelectedWorkoutAtExercises(workout)}>Editar</button>
-                            <button type="button" onClick={() => useWorkoutAsBase(workout, student.id)}>Usar como base</button>
-                          </div>
-                        </article>
-                      )
-                    }) : (
-                      <div className="mobile-workout-empty"><strong>Nenhum plano publicado.</strong><span>Este aluno ainda não tem treino ativo. Use “Criar treino” para começar um rascunho direcionado.</span></div>
-                    )}
-                  </div>
-                ) : null}
-              </article>
-            )
-          }) : (
-            <div className="mobile-workout-empty"><strong>Nenhum aluno encontrado.</strong><span>Altere a busca ou limpe os filtros para ver a lista completa.</span></div>
-          )}
-        </div>
-      ) : null}
+            <button type="button" onClick={() => beginNewWorkout(selectedStudentId || selectedStudent?.id || '')} className="trainer-workout-primary mobile-workout-primary">
+              <NavIcon name="plus" className="h-4 w-4" />
+              Criar treino
+            </button>
+          </header>
 
-      {tab === 'library' && selectedWorkout && !showCreator ? (
-        <div className="mobile-workout-detail">
-          <div className="mobile-workout-student-context">
-            <div className="mobile-workout-student-avatar">
-              {selectedWorkoutStudent?.photo ? (
-                <img src={selectedWorkoutStudent.photo} alt={`Foto de ${selectedWorkoutStudent.name}`} />
+          <nav className="trainer-workout-area-nav mobile-workout-tabs" role="tablist" aria-label="Áreas de treinos">
+            {[
+              ['plans', 'Planos', 'Ativos'],
+              ['drafts', 'Rascunhos', 'Continuar'],
+              ['exercises', 'Exercícios', 'Biblioteca'],
+              ['students', 'Alunos', 'Carteira'],
+              ['evolution', 'Evolução', 'Histórico'],
+            ].map(([id, label, hint]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                aria-controls={`trainer-workout-panel-${id}`}
+                onClick={() => changeManagerTab(id)}
+                className={tab === id ? 'is-active' : ''}
+              >
+                <strong>{label}</strong>
+                <small>{hint}</small>
+              </button>
+            ))}
+          </nav>
+
+          {['plans', 'drafts', 'students'].includes(tab) ? (
+            <div className="trainer-workout-toolbar">
+              <label className="mobile-workout-search trainer-workout-search">
+                <NavIcon name="chart" className="h-4 w-4" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={tab === 'students' ? 'Buscar aluno ou plano' : tab === 'drafts' ? 'Buscar rascunho, plano ou aluno' : 'Buscar plano, foco, objetivo ou aluno'}
+                  aria-label={tab === 'students' ? 'Buscar aluno ou plano' : 'Buscar treinos'}
+                />
+              </label>
+              <div className="mobile-workout-filters trainer-workout-filters" aria-label="Filtros da área">
+                {(tab === 'students'
+                  ? ['todos', 'com-treino', 'sem-treino']
+                  : tab === 'drafts'
+                    ? ['todos', 'hipertrofia', 'emagrecimento', 'força']
+                    : ['todos', 'hipertrofia', 'emagrecimento', 'força', 'publicado']
+                ).map((item) => (
+                  <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? 'is-active' : ''}>
+                    {formatUiText(item)}
+                  </button>
+                ))}
+                {filter !== 'todos' || search ? (
+                  <button type="button" onClick={() => { setFilter('todos'); setSearch('') }}>Limpar filtros</button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {tab === 'plans' ? (
+            <div id="trainer-workout-panel-plans" className="trainer-workout-area" role="tabpanel" aria-label="Planos">
+              {planDetailOpen && selectedWorkout ? (
+                <div className="trainer-workout-plan-detail">
+                  <div className="trainer-workout-detail-topline">
+                    <button type="button" className="trainer-workout-back-link mobile-workout-back-link" onClick={closeWorkoutDetail}>
+                      <NavIcon name="arrowLeft" className="h-4 w-4" />
+                      Voltar aos planos
+                    </button>
+                    <span className="trainer-workout-state-chip">Publicado</span>
+                  </div>
+                  <div className="mobile-workout-student-context trainer-workout-detail-context">
+                    <div className="mobile-workout-student-avatar">
+                      {selectedWorkoutStudent?.photo ? (
+                        <img src={selectedWorkoutStudent.photo} alt={`Foto de ${selectedWorkoutStudent.name}`} />
+                      ) : (
+                        <span>{getInitials(selectedWorkoutStudent?.name || 'Aluno')}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p>Plano de</p>
+                      <h4>{selectedWorkoutStudent?.name || 'Aluno selecionado'}</h4>
+                      <strong>{selectedWorkout.title || 'Treino selecionado'}</strong>
+                      <span>{formatCount(selectedWorkoutDays.length || 0, 'dia')} · {formatCount(selectedWorkoutExerciseCount, 'exercício')}</span>
+                    </div>
+                  </div>
+                  <div className="trainer-workout-stat-strip" aria-label={`Evolução de ${selectedWorkoutStudent?.name || 'aluno'}`}>
+                    <div><span>Concluídos</span><strong>{selectedStudentCompletedCount}</strong></div>
+                    <div><span>Semana</span><strong>{selectedStudentReward.completedThisWeek}/3</strong></div>
+                    <div><span>Evolução</span><strong>{selectedStudentReward.xp} XP</strong></div>
+                  </div>
+                  <div className="mobile-workout-action-bar trainer-workout-detail-actions" aria-label="Ações do plano">
+                    <button type="button" className="is-primary" onClick={() => setWorkoutStudentPreviewOpen(true)}>
+                      <NavIcon name="eye" className="h-4 w-4" />
+                      Visão do aluno
+                    </button>
+                    <button type="button" className="is-secondary" onClick={() => useWorkoutAsBase(selectedWorkout, selectedWorkout.studentId)}>
+                      <NavIcon name="layers" className="h-4 w-4" />
+                      Usar como base
+                    </button>
+                    <button type="button" className="is-accent" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
+                      <NavIcon name="plus" className="h-4 w-4" />
+                      Adicionar exercício
+                    </button>
+                  </div>
+                  <div className="mobile-workout-detail-head">
+                    <div>
+                      <p>{String(selectedWorkout.status || 'Publicado')}</p>
+                      <h4>{selectedWorkout.title || 'Treino selecionado'}</h4>
+                      <span>{selectedWorkout.focus || 'Objetivo não informado'} · {inferWorkoutFrequency(selectedWorkout)}</span>
+                    </div>
+                  </div>
+                  {activeDayIndex !== null && selectedWorkoutDays[activeDayIndex] ? (
+                    <MobileWorkoutDayScreen
+                      day={selectedWorkoutDays[activeDayIndex]}
+                      dayIndex={activeDayIndex}
+                      expandedExerciseKey={expandedExerciseKey}
+                      setExpandedExerciseKey={setExpandedExerciseKey}
+                      onEdit={() => editSelectedWorkoutAtExercises(selectedWorkout)}
+                      onBack={() => {
+                        setActiveDayIndex(null)
+                        setExpandedExerciseKey('')
+                      }}
+                    />
+                  ) : null}
+                  <details className="mobile-workout-routine-details">
+                    <summary>Detalhes da rotina</summary>
+                    <div>
+                      <span><strong>Frequência</strong><em>{inferWorkoutFrequency(selectedWorkout)}</em></span>
+                      <span><strong>Nível</strong><em>{inferWorkoutLevel(selectedWorkout)}</em></span>
+                      <span><strong>Dias</strong><em>{selectedWorkoutDays.length || 0}</em></span>
+                    </div>
+                  </details>
+                  <div className="mobile-workout-days trainer-workout-days">
+                    {selectedWorkoutDays.map((day, dayIndex) => (
+                      <article key={day.id || dayIndex} className="mobile-workout-day-card">
+                        <button type="button" onClick={() => {
+                          setActiveDayIndex(dayIndex)
+                          setExpandedDay(dayIndex)
+                          setExpandedExerciseKey('')
+                        }}>
+                          <span><strong>{day.day}</strong><small>{day.focus}</small></span>
+                          <span>{formatCount(getWorkoutDayExerciseCount(day), 'exercício')}</span>
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                  {workoutStudentPreviewOpen ? (
+                    <MobileWorkoutStudentPreview
+                      student={selectedWorkoutStudent}
+                      workout={selectedWorkout}
+                      workoutLogs={workoutLogs.filter((log) => String(log.studentId) === String(selectedWorkoutStudent?.id))}
+                      exerciseLibraryItems={availableExerciseLibrary}
+                      days={selectedWorkoutDays}
+                      exerciseCount={selectedWorkoutExerciseCount}
+                      expandedExerciseKey={expandedExerciseKey}
+                      setExpandedExerciseKey={setExpandedExerciseKey}
+                      theme={uiTheme}
+                      onBack={() => {
+                        setWorkoutStudentPreviewOpen(false)
+                        setExpandedExerciseKey('')
+                      }}
+                    />
+                  ) : null}
+                </div>
               ) : (
-                <span>{getInitials(selectedWorkoutStudent?.name || 'Aluno')}</span>
+                <div className="trainer-workout-list-area">
+                  <div className="trainer-workout-section-heading">
+                    <div>
+                      <p className="trainer-workout-eyebrow">PLANOS ATIVOS</p>
+                      <h4>Escolha um plano para abrir o detalhe</h4>
+                      <span>A lista permanece limpa até você pedir um plano específico.</span>
+                    </div>
+                    <strong>{formatCount(filteredWorkouts.length, 'plano')}</strong>
+                  </div>
+                  {filteredWorkouts.length ? (
+                    <div className="trainer-workout-plan-list">
+                      {filteredWorkouts.map((workout) => {
+                        const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+                        const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
+                        const workoutStudent = students.find((student) => String(student.id) === String(workout.studentId))
+                        return (
+                          <article key={workout.id} className="trainer-workout-plan-row">
+                            <button type="button" className="trainer-workout-plan-row-main" onClick={() => openWorkoutDetail(workout)}>
+                              {workoutStudent?.photo ? <img src={workoutStudent.photo} alt={`Foto de ${workoutStudent.name}`} /> : <span className="trainer-workout-avatar">{getInitials(workoutStudent?.name || 'Aluno')}</span>}
+                              <span>
+                                <strong>{workout.title || 'Treino sem nome'}</strong>
+                                <small>{workoutStudent?.name || 'Sem aluno vinculado'} · {workout.focus || 'Objetivo não informado'}</small>
+                                <small>{formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')} · Atualizado {formatShortDate(workout.updatedAt || workout.createdAt)}</small>
+                              </span>
+                            </button>
+                            <div className="trainer-workout-plan-row-actions">
+                              <span className="trainer-workout-state-chip">Publicado</span>
+                              <button type="button" onClick={() => editSelectedWorkoutAtExercises(workout)}>Editar</button>
+                              <button type="button" onClick={() => useWorkoutAsBase(workout, workout.studentId)}>Usar como base</button>
+                              <button type="button" onClick={() => archiveSelectedWorkout(workout)}>Arquivar</button>
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mobile-workout-empty trainer-workout-empty">
+                      <strong>Nenhum plano publicado encontrado.</strong>
+                      <span>Crie um treino ou limpe os filtros para ver os planos ativos.</span>
+                      <button type="button" className="trainer-workout-primary mobile-workout-primary" onClick={() => beginNewWorkout(selectedStudentId || selectedStudent?.id || '')}>Criar primeiro treino</button>
+                    </div>
+                  )}
+
+                  <details className="trainer-workout-toolbox">
+                    <summary>
+                      <span><strong>Ferramentas de criação</strong><small>Expressa ou clássica, abertas somente quando solicitadas</small></span>
+                      <NavIcon name="chevronDown" className="h-4 w-4" />
+                    </summary>
+                    <div className="trainer-workout-tool-actions">
+                      <button type="button" className={toolMode === 'express' ? 'is-active' : ''} onClick={() => setToolMode(toolMode === 'express' ? 'none' : 'express')}>
+                        <strong>Criação expressa</strong><span>Modelo rápido para treino e dieta</span>
+                      </button>
+                      <button type="button" className={toolMode === 'classic' ? 'is-active' : ''} onClick={() => setToolMode(toolMode === 'classic' ? 'none' : 'classic')}>
+                        <strong>Formulário clássico</strong><span>Prescrição manual com contrato existente</span>
+                      </button>
+                    </div>
+                  </details>
+                  {toolMode !== 'none' ? (
+                    <div className="trainer-workout-tool-panel">
+                      <div className="trainer-workout-tool-panel-head">
+                        <div><p className="trainer-workout-eyebrow">FERRAMENTA ATIVA</p><h4>{toolMode === 'express' ? 'Criação expressa' : 'Formulário clássico'}</h4></div>
+                        <button type="button" onClick={() => setToolMode('none')}>Fechar ferramenta</button>
+                      </div>
+                      {toolMode === 'express' ? (
+                        <ExpressCreationModule
+                          selectedStudent={selectedStudent}
+                          students={students}
+                          workouts={workouts}
+                          nutritionPlans={nutritionPlans}
+                          exerciseLibraryItems={availableExerciseLibrary}
+                          onSaveWorkout={onSaveWorkout}
+                          onSaveNutritionPlan={onSaveNutritionPlan}
+                        />
+                      ) : (
+                        <Panel title={`Prescrever treino - ${selectedStudent?.name ?? 'Aluno'}`} action="Novo plano">
+                          {students.length ? (
+                            <WorkoutForm students={students} selectedStudent={selectedStudent} exerciseLibraryItems={availableExerciseLibrary} onSaveWorkout={onSaveWorkout} />
+                          ) : (
+                            <Empty text="Cadastre um aluno antes de prescrever o primeiro treino." />
+                          )}
+                        </Panel>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               )}
             </div>
-            <div className="min-w-0">
-              <p>Treino de</p>
-              <h4>{selectedWorkoutStudent?.name || 'Aluno selecionado'}</h4>
-              <strong>{selectedWorkout.title || 'Treino selecionado'}</strong>
-              <span>{formatCount(selectedWorkoutDays.length || 0, 'dia')} • {formatCount(selectedWorkoutExerciseCount, 'exercício')}</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 rounded-lg border border-emerald-300/20 bg-emerald-300/[0.06] p-3 text-center" aria-label={`Evolução de ${selectedWorkoutStudent?.name || 'aluno'}`}>
-            <div><span className="block text-xs text-zinc-400">Concluídos</span><strong className="text-base font-black text-white">{selectedStudentCompletedCount}</strong></div>
-            <div><span className="block text-xs text-zinc-400">Semana</span><strong className="text-base font-black text-white">{selectedStudentReward.completedThisWeek}/3</strong></div>
-            <div><span className="block text-xs text-zinc-400">Evolução</span><strong className="text-base font-black text-emerald-200">{selectedStudentReward.xp} XP</strong></div>
-          </div>
-          <div className="mobile-workout-action-bar" aria-label="Ações do treino do aluno">
-            <button type="button" className="is-primary" onClick={() => setWorkoutStudentPreviewOpen(true)}>
-              <NavIcon name="eye" className="h-4 w-4" />
-              Visão do aluno
-            </button>
-            <button type="button" className="is-secondary" onClick={() => useWorkoutAsBase(selectedWorkout, selectedWorkout.studentId)}>
-              <NavIcon name="layers" className="h-4 w-4" />
-              Usar como base
-            </button>
-            <button type="button" className="is-accent" onClick={() => editSelectedWorkoutAtExercises(selectedWorkout)}>
-              <NavIcon name="plus" className="h-4 w-4" />
-              Adicionar exercício
-            </button>
-          </div>
-          <div className="mobile-workout-detail-head">
-            <div>
-              <p>{String(selectedWorkout.status || 'Publicado')}</p>
-              <h4>{selectedWorkout.title || 'Treino selecionado'}</h4>
-              <span>{selectedWorkout.focus || 'Objetivo não informado'} · {inferWorkoutFrequency(selectedWorkout)}</span>
-            </div>
-          </div>
-          {activeDayIndex !== null && selectedWorkoutDays[activeDayIndex] ? (
-            <MobileWorkoutDayScreen
-              day={selectedWorkoutDays[activeDayIndex]}
-              dayIndex={activeDayIndex}
-              expandedExerciseKey={expandedExerciseKey}
-              setExpandedExerciseKey={setExpandedExerciseKey}
-              onEdit={() => editSelectedWorkoutAtExercises(selectedWorkout)}
-              onBack={() => {
-                setActiveDayIndex(null)
-                setExpandedExerciseKey('')
-              }}
-            />
           ) : null}
-          <details className="mobile-workout-routine-details">
-            <summary>Detalhes da rotina</summary>
-            <div>
-              <span>
-                <strong>Frequência</strong>
-                <em>{inferWorkoutFrequency(selectedWorkout)}</em>
-              </span>
-              <span>
-                <strong>Nível</strong>
-                <em>{inferWorkoutLevel(selectedWorkout)}</em>
-              </span>
-              <span>
-                <strong>Dias</strong>
-                <em>{selectedWorkoutDays.length || 0}</em>
-              </span>
+
+          {tab === 'drafts' ? (
+            <div id="trainer-workout-panel-drafts" className="trainer-workout-area" role="tabpanel" aria-label="Rascunhos">
+              <div className="trainer-workout-section-heading">
+                <div><p className="trainer-workout-eyebrow">TRABALHOS EM ANDAMENTO</p><h4>Rascunhos locais e remotos</h4><span>Retome conscientemente. Publicar continua sendo uma ação separada.</span></div>
+                <button type="button" className="trainer-workout-primary mobile-workout-primary" onClick={() => beginNewWorkout(selectedStudentId || selectedStudent?.id || '')}>Novo rascunho</button>
+              </div>
+              {filteredLocalDraftSummaries.length ? (
+                <section className="trainer-workout-draft-section" aria-labelledby="local-drafts-heading">
+                  <div className="trainer-workout-subsection-heading"><h5 id="local-drafts-heading">Neste dispositivo</h5><span>{formatCount(filteredLocalDraftSummaries.length, 'rascunho')}</span></div>
+                  <div className="trainer-workout-draft-list">
+                    {filteredLocalDraftSummaries.map(({ studentId, student, draft: localDraft }) => (
+                      <article key={`local-${studentId || 'sem-aluno'}`} className="trainer-workout-draft-card">
+                        <div className="trainer-workout-draft-copy"><span className="trainer-workout-draft-mark is-local">LOCAL</span><div><strong>{localDraft.title || 'Treino sem nome'}</strong><small>{localDraft.editingWorkoutId ? 'Edição local pendente' : 'Rascunho privado neste dispositivo'}{student?.name ? ` · ${student.name}` : ' · Sem aluno vinculado'}</small><small>{formatCount(localDraft.days?.length || 0, 'dia')} · {formatCount((localDraft.days || []).reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0), 'exercício')} · {formatShortDate(localDraft.updatedAt)}</small></div></div>
+                        <button type="button" className="mobile-workout-mini-action" onClick={() => resumePendingDraftRecovery({ studentId, draft: localDraft, initialExerciseNames: [] })}>Continuar rascunho</button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+              {filteredDraftWorkouts.length ? (
+                <section className="trainer-workout-draft-section" aria-labelledby="remote-drafts-heading">
+                  <div className="trainer-workout-subsection-heading"><h5 id="remote-drafts-heading">Salvos na conta</h5><span>{formatCount(filteredDraftWorkouts.length, 'rascunho')}</span></div>
+                  <div className="trainer-workout-draft-list">
+                    {filteredDraftWorkouts.map((workout) => {
+                      const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+                      const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
+                      const workoutStudent = students.find((student) => String(student.id) === String(workout.studentId))
+                      return (
+                        <article key={workout.id} className="trainer-workout-draft-card">
+                          <div className="trainer-workout-draft-copy"><span className="trainer-workout-draft-mark is-remote">REMOTO</span><div><strong>{workout.title || 'Treino sem nome'}</strong><small>Rascunho salvo na conta{workoutStudent?.name ? ` · ${workoutStudent.name}` : ''}</small><small>{formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')} · Atualizado {formatShortDate(workout.updatedAt || workout.createdAt)}</small></div></div>
+                          <button type="button" className="mobile-workout-mini-action" onClick={() => resetDraftFromWorkout(workout, { mode: 'edit' })}>Continuar rascunho</button>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+              ) : null}
+              {!filteredLocalDraftSummaries.length && !filteredDraftWorkouts.length ? (
+                <div className="mobile-workout-empty trainer-workout-empty"><strong>Nenhum rascunho encontrado.</strong><span>Os rascunhos deste dispositivo e os salvos na conta aparecerão nesta área.</span><button type="button" className="trainer-workout-primary mobile-workout-primary" onClick={() => beginNewWorkout(selectedStudentId || selectedStudent?.id || '')}>Começar um rascunho</button></div>
+              ) : null}
             </div>
-          </details>
-          <div className="mobile-workout-days">
-            {selectedWorkoutDays.map((day, dayIndex) => (
-              <article key={day.id || dayIndex} className="mobile-workout-day-card">
-                <button type="button" onClick={() => {
-                  setActiveDayIndex(dayIndex)
-                  setExpandedDay(dayIndex)
-                  setExpandedExerciseKey('')
-                }}>
-                  <span>
-                    <strong>{day.day}</strong>
-                    <small>{day.focus}</small>
-                  </span>
-                  <span>{formatCount(getWorkoutDayExerciseCount(day), 'exercício')}</span>
-                </button>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {tab === 'library' && workoutStudentPreviewOpen && selectedWorkout && !showCreator ? (
-        <MobileWorkoutStudentPreview
-          student={selectedWorkoutStudent}
-          workout={selectedWorkout}
-          workoutLogs={workoutLogs.filter((log) => String(log.studentId) === String(selectedWorkoutStudent?.id))}
-          exerciseLibraryItems={availableExerciseLibrary}
-          days={selectedWorkoutDays}
-          exerciseCount={selectedWorkoutExerciseCount}
-          expandedExerciseKey={expandedExerciseKey}
-          setExpandedExerciseKey={setExpandedExerciseKey}
-          theme={uiTheme}
-          onBack={() => {
-            setWorkoutStudentPreviewOpen(false)
-            setExpandedExerciseKey('')
-          }}
-        />
-      ) : null}
+          ) : null}
+
+          {tab === 'exercises' ? (
+            <div id="trainer-workout-panel-exercises" className="trainer-workout-area" role="tabpanel" aria-label="Exercícios">
+              <TrainerExerciseLibrary
+                library={availableExerciseLibrary}
+                favorites={favoriteExerciseNames}
+                recent={recentExerciseNames}
+                selectedNames={librarySelectedExerciseNames}
+                onSelectionChange={setLibrarySelectedExerciseNames}
+                onToggleFavorite={toggleFavoriteExercise}
+                onPreview={setExercisePickerPreview}
+                onEditCustom={editCustomExercise}
+                onDeleteCustom={removeCustomExercise}
+                onStartWorkout={startWorkoutWithLibrarySelection}
+                syncStatus={exerciseLibrarySync}
+                customDraft={customExerciseDraft}
+                customFormOpen={isCreatingCustomExercise}
+                editingName={editingCustomExerciseName}
+                onStartCustomExercise={startCustomExerciseEntry}
+                onUpdateCustomField={updateCustomExerciseDraft}
+                onUpdateCustomVideoFile={updateCustomExerciseVideoFile}
+                onSaveCustomExercise={saveCustomExerciseToLibrary}
+                onCancelCustomExercise={cancelCustomExerciseEntry}
+              />
+            </div>
+          ) : null}
+
+          {tab === 'students' ? (
+            <div id="trainer-workout-panel-students" className="trainer-workout-area" role="tabpanel" aria-label="Alunos">
+              <div className="trainer-workout-section-heading"><div><p className="trainer-workout-eyebrow">CARTEIRA DE ALUNOS</p><h4>Planos por aluno</h4><span>Abra um aluno para ver seus planos e ações contextualizadas.</span></div><strong>{formatCount(filteredStudentRows.length, 'aluno')}</strong></div>
+              {filteredStudentRows.length ? (
+                <div className="mobile-workout-stack trainer-workout-student-list">
+                  {filteredStudentRows.map(({ student, latest, assigned }) => {
+                    const isExpanded = String(expandedStudentId) === String(student.id)
+                    return (
+                      <article key={student.id} className={`mobile-workout-student-card trainer-workout-student-card ${isExpanded ? 'is-expanded' : ''}`}>
+                        <div className="mobile-workout-student-summary">
+                          <button type="button" aria-expanded={isExpanded} onClick={() => setExpandedStudentId(isExpanded ? '' : String(student.id))} className="mobile-workout-card-main">
+                            {student.photo ? <img src={student.photo} alt={`Foto de ${student.name}`} className="mobile-workout-avatar object-cover" /> : <span className="mobile-workout-avatar">{getInitials(student.name)}</span>}
+                            <span><strong>{student.name}</strong><small>{latest?.title || 'Nenhum plano publicado'}</small><small>{formatCount(assigned.length, 'treino')} · {latest ? `Atualizado ${formatShortDate(latest.updatedAt || latest.createdAt)}` : 'Crie ou use um plano como base'}</small></span>
+                          </button>
+                          <div className="mobile-workout-student-actions"><button type="button" className="mobile-workout-mini-action" onClick={() => beginNewWorkout(student.id)}>Criar treino</button>{assigned.length ? <button type="button" className="mobile-workout-student-expand" aria-expanded={isExpanded} onClick={() => setExpandedStudentId(isExpanded ? '' : String(student.id))}>{isExpanded ? 'Ocultar planos' : `Ver planos (${assigned.length})`}</button> : null}</div>
+                        </div>
+                        {isExpanded ? (
+                          <div className="mobile-workout-student-plans">
+                            {assigned.length ? assigned.map((workout) => {
+                              const days = buildMobileWorkoutDays(workout, availableExerciseLibrary)
+                              const exerciseCount = days.reduce((total, day) => total + getWorkoutDayExerciseCount(day), 0)
+                              return (
+                                <article key={workout.id} className="mobile-workout-student-plan trainer-workout-student-plan">
+                                  <div><strong>{workout.title || 'Treino sem nome'}</strong><small>{workout.focus || 'Objetivo não informado'} · {formatCount(days.length, 'dia')} · {formatCount(exerciseCount, 'exercício')}</small><small>Publicado · {formatShortDate(workout.updatedAt || workout.createdAt)}</small></div>
+                                  <div className="mobile-workout-student-plan-actions"><button type="button" onClick={() => openWorkoutDetail(workout)}>Abrir plano</button><button type="button" onClick={() => editSelectedWorkoutAtExercises(workout)}>Editar</button><button type="button" onClick={() => useWorkoutAsBase(workout, student.id)}>Usar como base</button></div>
+                                </article>
+                              )
+                            }) : <div className="mobile-workout-empty"><strong>Nenhum plano publicado.</strong><span>Use “Criar treino” para começar um rascunho direcionado.</span></div>}
+                          </div>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : <div className="mobile-workout-empty trainer-workout-empty"><strong>Nenhum aluno encontrado.</strong><span>Altere a busca ou limpe os filtros para ver a lista completa.</span></div>}
+            </div>
+          ) : null}
+
+          {tab === 'evolution' ? (
+            <div id="trainer-workout-panel-evolution" className="trainer-workout-area trainer-workout-evolution" role="tabpanel" aria-label="Evolução">
+              <div className="trainer-workout-section-heading trainer-evolution-heading">
+                <div><p className="trainer-workout-eyebrow">ACOMPANHAMENTO</p><h4>Evolução do aluno</h4><span>Progressão, notas de carga e histórico ficam reunidos para uma pessoa por vez.</span></div>
+                <label className="trainer-workout-student-select"><span>Aluno analisado</span><select value={evolutionStudentId} onChange={(event) => { setSelectedStudentId(event.target.value); setPlanDetailOpen(false) }}><option value="">Selecione um aluno</option>{students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}</select></label>
+              </div>
+              {evolutionStudent ? (
+                <>
+                  <div className="trainer-evolution-context"><div className="trainer-workout-avatar">{evolutionStudent.photo ? <img src={evolutionStudent.photo} alt={`Foto de ${evolutionStudent.name}`} /> : getInitials(evolutionStudent.name)}</div><div><strong>{evolutionStudent.name}</strong><span>{formatCount(evolutionWorkouts.length, 'plano')} ativos · {formatCount(evolutionLogs.length, 'registro')} no histórico</span></div></div>
+                  <div className="trainer-evolution-grid">
+                    <section className="trainer-evolution-card trainer-evolution-card-wide"><div className="trainer-evolution-card-head"><div><p className="trainer-workout-eyebrow">PROGRESSÃO</p><h5>Recomendações para {evolutionStudent.name}</h5></div><span>{formatCount(evolutionDecisions.length, 'decisão')}</span></div><WorkoutProgressionRecommendations student={evolutionStudent} workouts={evolutionWorkouts} logs={evolutionLogs} decisions={evolutionDecisions} exerciseLibraryItems={availableExerciseLibrary} onApprove={onApproveProgression} onIgnore={onIgnoreProgression} onUndo={onUndoProgression} /></section>
+                    <section className="trainer-evolution-card"><div className="trainer-evolution-card-head"><div><p className="trainer-workout-eyebrow">NOTAS DE CARGA</p><h5>Observações do treinador</h5></div><span>{evolutionStudent.name}</span></div><LoadNotesPanel student={evolutionStudent} logs={evolutionLogs} onSaveStudent={onSaveStudent} /></section>
+                    <section className="trainer-evolution-card trainer-evolution-card-wide"><div className="trainer-evolution-card-head"><div><p className="trainer-workout-eyebrow">HISTÓRICO</p><h5>Execuções registradas</h5></div><span>{formatCount(evolutionLogs.length, 'registro')}</span></div><WorkoutLogList logs={evolutionLogs} /></section>
+                  </div>
+                </>
+              ) : <div className="mobile-workout-empty trainer-workout-empty"><strong>Selecione um aluno para acompanhar a evolução.</strong><span>Os componentes de progressão, notas e histórico aparecem depois da escolha explícita.</span></div>}
+            </div>
+          ) : null}
         </>
       ) : null}
 
@@ -11519,7 +11575,7 @@ function resolveWorkoutPreviewStage(stage) {
 
 function WorkoutPreviewStageTabs({ stage = 'overview', onChange }) {
   return (
-    <div className="workout-preview-stage-tabs-v25" role="tablist" aria-label="Etapas da jornada do aluno">
+    <div className="workout-preview-stage-tabs-v25 student-workout-build30-stage-tabs" role="tablist" aria-label="Etapas da jornada do aluno">
       {WORKOUT_PREVIEW_STAGES.map((item, index) => (
         <button
           key={item.id}
@@ -11539,10 +11595,10 @@ function WorkoutPreviewStageTabs({ stage = 'overview', onChange }) {
   )
 }
 
-export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, library = exerciseLibrary, theme = DEFAULT_UI_THEME }) {
+export function CoachWorkoutStudentPreview({ student, workout, dayIndex = 0, library = exerciseLibrary, theme = DEFAULT_UI_THEME }) {
   const [previewStage, setPreviewStage] = useState('overview')
   return (
-    <aside className="mobile-workout-live-preview" aria-label="Visão do aluno">
+    <aside className="mobile-workout-live-preview student-workout-build30-preview-shell" aria-label="Visão do aluno">
       <div className="mobile-workout-live-preview-heading">
         <div>
           <p>Visão do aluno</p>
@@ -11550,19 +11606,20 @@ export function WorkoutStudentLivePreview({ student, workout, dayIndex = 0, libr
         </div>
         <span><i aria-hidden="true" />Prévia ao vivo</span>
       </div>
-      <div className="mobile-workout-live-preview-body" role="region" aria-label="Simulação interativa do treino" tabIndex={0}>
-        <div className="coach-workout-preview-flow-v25">
+      <div className="mobile-workout-live-preview-body student-workout-build30-preview-body" role="region" aria-label="Simulação interativa do treino" tabIndex={0}>
+        <div className="coach-workout-preview-flow-v25 student-workout-build30-preview-flow">
           <div><strong>Jornada do aluno</strong><span>Prévia ao vivo do treino selecionado</span></div>
           <WorkoutPreviewStageTabs stage={previewStage} onChange={setPreviewStage} />
           <p>Visualização local: a sessão e a avaliação não são enviadas ao histórico.</p>
         </div>
-        <div className={`mobile-workout-live-preview-device student-mobile-shell app-theme-${theme}`}>
+        <div className={`mobile-workout-live-preview-device student-mobile-shell student-workout-build30-device app-theme-${theme}`}>
           <StudentWorkoutExecution student={student} workout={workout} exerciseLibraryItems={library} preview dayIndex={dayIndex} previewStage={previewStage} onPreviewStageChange={setPreviewStage} uiTheme={theme} />
         </div>
       </div>
     </aside>
   )
 }
+export const WorkoutStudentLivePreview = CoachWorkoutStudentPreview
 
 function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpandedExerciseKey, onBack, onEdit, previewMode = false }) {
   const dayExercises = getWorkoutExercisesArray(day?.exercises).map((exercise) => enrichExercise(exercise))
@@ -11776,18 +11833,18 @@ function MobileWorkoutEditableDay({
       </div>
     </section>
     {studentPreviewOpen ? createPortal((
-      <div className={`workout-day-preview-portal-v1 mobile-workout-day-preview-portal app-theme-${theme}`} role="presentation" onClick={() => setStudentPreviewOpen(false)}>
-        <div className="mobile-workout-day-preview-panel" role="dialog" aria-modal="true" aria-label="Prévia completa da jornada do aluno" onClick={(event) => event.stopPropagation()}>
+      <div className={`workout-day-preview-portal-v1 mobile-workout-day-preview-portal student-workout-build30-preview-portal app-theme-${theme}`} role="presentation" onClick={() => setStudentPreviewOpen(false)}>
+        <div className="mobile-workout-day-preview-panel student-workout-build30-preview-panel" role="dialog" aria-modal="true" aria-label="Prévia completa da jornada do aluno" onClick={(event) => event.stopPropagation()}>
           <div className="mobile-workout-day-preview-head-v2">
             <div><p>Visão fiel do aluno</p><strong>{workout?.title || day?.day || `Dia ${dayIndex + 1}`}</strong></div>
             <button type="button" onClick={() => setStudentPreviewOpen(false)}>Fechar</button>
           </div>
-          <div className="coach-workout-preview-flow-v25">
+          <div className="coach-workout-preview-flow-v25 student-workout-build30-preview-flow">
             <div><strong>Jornada completa</strong><span>O rascunho atual · {student?.name || 'Aluno selecionado'}</span></div>
             <WorkoutPreviewStageTabs stage={studentPreviewStage} onChange={setStudentPreviewStage} />
             <p>Somente visualização. Nenhuma sessão ou avaliação altera o histórico do aluno.</p>
           </div>
-          <div className={`mobile-workout-day-preview-student-shell student-mobile-shell app-theme-${theme}`}>
+          <div className={`mobile-workout-day-preview-student-shell student-mobile-shell student-workout-build30-device app-theme-${theme}`}>
             <StudentWorkoutExecution
               student={student}
               workout={workout}
@@ -12006,8 +12063,8 @@ function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerc
   const [previewStage, setPreviewStage] = useState('overview')
   const canStudentDownloadPdf = Boolean(workout?.allowStudentPdfDownload)
   return createPortal((
-    <div className={`workout-student-preview-portal-v1 mobile-workout-student-preview-portal app-theme-${theme}`} role="presentation" onClick={onBack}>
-    <section className="mobile-workout-student-preview mobile-workout-student-preview-panel" aria-label="Visão do aluno" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+    <div className={`workout-student-preview-portal-v1 mobile-workout-student-preview-portal student-workout-build30-preview-portal app-theme-${theme}`} role="presentation" onClick={onBack}>
+    <section className="mobile-workout-student-preview mobile-workout-student-preview-panel student-workout-build30-preview-panel" aria-label="Visão do aluno" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
       <div className="mobile-workout-student-preview-head">
         <button type="button" onClick={onBack}>← Voltar para edição</button>
         <div>
@@ -12021,12 +12078,12 @@ function MobileWorkoutStudentPreview({ student, workout, workoutLogs = [], exerc
           </button>
         ) : null}
       </div>
-      <div className="coach-workout-preview-flow-v25">
+      <div className="coach-workout-preview-flow-v25 student-workout-build30-preview-flow">
         <div><strong>Jornada do aluno</strong><span>Programa, plano, execução e resumo</span></div>
         <WorkoutPreviewStageTabs stage={previewStage} onChange={setPreviewStage} />
         <p>Prévia somente de leitura. O progresso e a avaliação reais permanecem no app do aluno.</p>
       </div>
-      <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
+      <div className={`mobile-workout-student-preview-device student-mobile-shell student-workout-build30-device app-theme-${theme}`}>
         <StudentWorkoutExecution student={student} workout={workout} preview previewStage={previewStage} onPreviewStageChange={setPreviewStage} workoutLogs={workoutLogs} exerciseLibraryItems={exerciseLibraryItems} uiTheme={theme} />
       </div>
     </section>
@@ -15112,7 +15169,18 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function scrollWorkoutTarget(id) {
     if (typeof window === 'undefined') return
-    window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(id)
+      if (!target) return
+      let scroller = target.parentElement
+      while (scroller && scroller !== document.body && scroller.scrollHeight <= scroller.clientHeight + 1) scroller = scroller.parentElement
+      if (scroller && scroller !== document.body && scroller.scrollHeight > scroller.clientHeight + 1) {
+        const targetTop = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+        scroller.scrollTo({ top: Math.max(0, scroller.scrollTop + targetTop - 16), behavior: 'smooth' })
+        return
+      }
+      window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - 16), behavior: 'smooth' })
+    })
   }
 
   function completeExerciseAndAdvance() {
@@ -15320,7 +15388,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (showSummary && daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 mobile-workout-design-v24 mobile-workout-summary-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 mobile-workout-design-v24 mobile-workout-summary-v24 student-workout-build30-experience student-workout-build30-summary ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
         <header className="mobile-workout-student-experience-head-v2 mobile-workout-summary-head-v24">
           <div>
@@ -15358,7 +15426,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-design-v24 mobile-workout-overview-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined} aria-busy={syncState === 'loading'}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-design-v24 mobile-workout-overview-v24 student-workout-build30-experience student-workout-build30-overview ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined} aria-busy={syncState === 'loading'}>
         {sessionSyncFeedback}
         <header className="mobile-workout-student-experience-head-v2 mobile-workout-overview-heading-v24">
           <div>
@@ -15402,7 +15470,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   if (!sessionStarted) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 mobile-workout-design-v24 mobile-workout-plan-v24 ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 mobile-workout-design-v24 mobile-workout-plan-v24 student-workout-build30-experience student-workout-build30-plan ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
         <div className="mobile-workout-day-detail-head-v4 mobile-workout-day-detail-head-v24">
           <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
@@ -15447,7 +15515,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   const restWidget = restRemaining ? (
     <div
-      className={preview ? 'mobile-workout-rest-preview-v12' : 'mobile-workout-rest-portal-v12'}
+      className={`${preview ? 'mobile-workout-rest-preview-v12' : 'mobile-workout-rest-portal-v12'} student-workout-build30-rest-legacy`}
       data-workout-theme={uiTheme}
     >
       <div
@@ -15501,7 +15569,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   ) : null
 
   return (
-    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 ' + (executionActionLabel ? 'has-actionbar ' : '') + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution ' + (executionActionLabel ? 'has-actionbar ' : '') + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
       <div className="mobile-workout-command-v12 mobile-workout-command-v24">
         <div className="mobile-workout-execution-head-v4 mobile-workout-execution-head-v24">
@@ -15539,10 +15607,18 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
           </div>
 
-          <MuscleMap exercise={exercise} compact className="mobile-workout-muscle-target-anatomy-v6" />
+          <details className="student-workout-build30-disclosure student-workout-build30-media-disclosure">
+            <summary>Ver execução e mídia</summary>
+            <ExerciseMedia exercise={exercise} compact />
+          </details>
+
+          <details className="student-workout-build30-disclosure student-workout-build30-anatomy-disclosure">
+            <summary>Ver anatomia e músculos-alvo</summary>
+            <MuscleMap exercise={exercise} compact className="mobile-workout-muscle-target-anatomy-v6" />
+          </details>
 
           {(exercise.cues || exercise.instructions || exercise.notes) ? (
-            <details className="mobile-workout-orientations-v4 mobile-workout-orientations-context-v13">
+            <details className="mobile-workout-orientations-v4 mobile-workout-orientations-context-v13 student-workout-build30-disclosure student-workout-build30-orientations-disclosure">
               <summary>Orientações do treinador</summary>
               <p>{exercise.cues || exercise.instructions || 'Siga a execução orientada pelo seu treinador.'}</p>
               {exercise.notes ? <small>{exercise.notes}</small> : null}
@@ -15659,8 +15735,18 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       ) : null}
 
       {executionActionLabel ? (
-        <div className="mobile-workout-execution-actionbar-v29" role="region" aria-label="Próxima ação do treino">
-          <div><small>Próximo passo</small><strong>{nextPendingSet ? 'Série ' + nextPendingSet.number + ' de ' + exerciseSetCount + (isPendingSetExpanded ? ' · pronta para concluir' : ' · pronta para registrar') : 'Exercício concluído · avance quando estiver pronto'}</strong></div>
+        <div className="mobile-workout-execution-actionbar-v29 student-workout-build30-actionbar" role="region" aria-label="Próxima ação do treino">
+          {restRemaining ? (
+            <div className="student-workout-build30-rest-inline" role="timer" aria-live="off" aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}>
+              <div><small>{restPaused ? 'Descanso pausado' : 'Descanso em andamento'}</small><strong>{formatWorkoutTimer(restRemaining)}</strong><span>{nextPendingSet ? 'Próximo: série ' + nextPendingSet.number : 'Próximo exercício quando estiver pronto'}</span></div>
+              <div>
+                <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
+                <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
+                <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular descanso</button>
+              </div>
+            </div>
+          ) : null}
+          <div className="student-workout-build30-next-action"><small>Próximo passo</small><strong>{nextPendingSet ? 'Série ' + nextPendingSet.number + ' de ' + exerciseSetCount + (isPendingSetExpanded ? ' · pronta para concluir' : ' · pronta para registrar') : 'Exercício concluído · avance quando estiver pronto'}</strong></div>
           <button type="button" onClick={handleExecutionPrimaryAction} disabled={saving || Boolean(completedLog)}>{executionActionLabel}</button>
         </div>
       ) : null}
@@ -18504,19 +18590,19 @@ function StudentPortalPreview({
 
       {!nutritionist ? <Panel title="Treino de hoje" action={studentWorkouts[0]?.title ?? student.workout}>
         {studentWorkouts.length ? (
-          <div className="grid gap-4">
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
+          <div className="grid gap-4 student-workout-build30-portal-preview">
+            <div className="student-workout-build30-preview-notice rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-4">
               <p className="text-xs font-black uppercase text-emerald-200">O que o aluno enxerga</p>
               <p className="mt-2 text-sm leading-6 text-zinc-300">
                 Confira todas as etapas da mesma interface do aluno: visão geral do programa, plano do dia, execução e resumo.
               </p>
             </div>
-            <div className="coach-workout-preview-flow-v25">
+            <div className="coach-workout-preview-flow-v25 student-workout-build30-preview-flow">
               <div><strong>Jornada do aluno</strong><span>Programa, plano, execução e resumo</span></div>
               <WorkoutPreviewStageTabs stage={workoutPreviewStage} onChange={setWorkoutPreviewStage} />
               <p>Prévia somente de leitura. A sessão e a avaliação reais permanecem no app do aluno.</p>
             </div>
-            <div className={`mobile-workout-student-preview-device student-mobile-shell app-theme-${theme}`}>
+            <div className={`mobile-workout-student-preview-device student-mobile-shell student-workout-build30-device app-theme-${theme}`}>
               <StudentWorkoutExecution
                 student={student}
                 workout={studentWorkouts[0]}
@@ -28113,14 +28199,6 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
-
-
-
-
-
-
-
-
 
 
 
