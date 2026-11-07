@@ -227,6 +227,32 @@ for (const scenario of [
   })
 }
 
+test('navegacao de Treinos expande no desktop e preserva scroll em contêiner estreito', async () => {
+  const cssSource = await readFile(new URL('../src/trainer-workout-build30.css', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /\.mobile-workout-manager \.trainer-workout-area-nav\s*\{[\s\S]{0,180}max-width:\s*none/)
+  assert.match(cssSource, /@container\s*\(min-width:\s*900px\)[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(cssSource, /@container\s*\(min-width:\s*620px\) and \(max-width:\s*899px\)[\s\S]*?grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(cssSource, /@container\s*\(max-width:\s*619px\)[\s\S]*?overflow-x:\s*auto/)
+  assert.match(cssSource, /trainer-workout-area-nav button strong\s*\{[\s\S]*?font-size:\s*clamp\(/)
+})
+
+test('tipografia esportiva usa fonte Barlow local apenas no display de Treinos', async () => {
+  const cssSource = await readFile(new URL('../src/trainer-workout-build30.css', import.meta.url), 'utf8')
+  const license = await readFile(new URL('../public/assets/fonts/OFL-Barlow.txt', import.meta.url), 'utf8')
+
+  assert.match(cssSource, /@font-face\s*\{[^}]*font-family:\s*"Barlow Condensed"[^}]*font-weight:\s*600[^}]*barlow-condensed-latin-600\.woff2/s)
+  assert.match(cssSource, /@font-face\s*\{[^}]*font-family:\s*"Barlow Condensed"[^}]*font-weight:\s*700[^}]*barlow-condensed-latin-700\.woff2/s)
+  assert.match(cssSource, /@font-face\s*\{[^}]*font-family:\s*"Barlow Condensed"[^}]*font-weight:\s*800[^}]*barlow-condensed-latin-800\.woff2/s)
+  assert.match(cssSource, /trainer-workout-shell-head h3[\s\S]*?font-family:\s*"Barlow Condensed"/)
+  assert.doesNotMatch(cssSource, /fonts\.googleapis\.com|fonts\.gstatic\.com/)
+  assert.match(license, /SIL OPEN FONT LICENSE/i)
+  for (const weight of [600, 700, 800]) {
+    const font = await readFile(new URL(`../public/assets/fonts/barlow-condensed-latin-${weight}.woff2`, import.meta.url))
+    assert.equal(font.subarray(0, 4).toString(), 'wOF2')
+  }
+})
+
 test('Treinos mostra filtros com capitalização profissional sem alterar os valores internos', () => {
   const storage = new Map([['fitcoach-ai-pro-v2', JSON.stringify({
     user: { id: 'coach-labels', name: 'Treinador de rótulos' },

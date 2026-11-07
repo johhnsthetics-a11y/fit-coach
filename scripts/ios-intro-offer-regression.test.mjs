@@ -91,12 +91,12 @@ test('Pending results cannot grant access in the bridge and the pending state is
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-workout-experience-build30-20261106'
+  const current = 'coach-fit-pro-workout-experience-build32-20261107'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
     caches: {
-      keys: async () => [current, 'coach-fit-pro-trainer-student-execution-build29-hotfix1-20261106', 'coach-fit-pro-workout-preview-notifications-build28-20261106', 'coach-fit-pro-trainer-workouts-workspace-build26-20261106', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-subscription-clean-copy-build21-20261104', 'coach-fit-pro-notifications-message-fix-build27-20261105', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
+      keys: async () => [current, 'coach-fit-pro-trainer-student-execution-build29-hotfix1-20261106', 'coach-fit-pro-workout-experience-build30-20261106', 'coach-fit-pro-workout-experience-build31-20261107', 'coach-fit-pro-workout-preview-notifications-build28-20261106', 'coach-fit-pro-trainer-workouts-workspace-build26-20261106', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-subscription-clean-copy-build21-20261104', 'coach-fit-pro-notifications-message-fix-build27-20261105', 'coach-fit-pro-old', 'fit-coach-app-v2', 'another-app-cache'],
       delete: async key => { deleted.push(key); return true },
       match: async () => { throw Error('Global cache lookup must never be used') },
       open: async key => { opened.push(key); return { match: async () => new Response('current-build'), put: async () => {} } },
@@ -111,7 +111,7 @@ test('Service worker removes its known old caches without erasing other apps', a
   let wait
   w.handlers.activate({ waitUntil: promise => { wait = promise } })
   await wait
-  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-notifications-message-fix-build27-20261105', 'coach-fit-pro-old', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-subscription-clean-copy-build21-20261104', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-trainer-student-execution-build29-hotfix1-20261106', 'coach-fit-pro-trainer-workouts-workspace-build26-20261106', 'coach-fit-pro-workout-preview-notifications-build28-20261106', 'fit-coach-app-v2'])
+  assert.deepEqual(w.deleted.sort(), ['coach-fit-pro-ios-intro-offer-build12-20261102', 'coach-fit-pro-notifications-message-fix-build27-20261105', 'coach-fit-pro-old', 'coach-fit-pro-price-parity-build18-20261103', 'coach-fit-pro-storefront-pricing-build19-20261104', 'coach-fit-pro-subscription-clean-copy-build21-20261104', 'coach-fit-pro-subscription-redesign-build20-20261104', 'coach-fit-pro-subscription-sheet-build17-20261103', 'coach-fit-pro-trainer-student-execution-build29-hotfix1-20261106', 'coach-fit-pro-trainer-workouts-workspace-build26-20261106', 'coach-fit-pro-workout-experience-build30-20261106', 'coach-fit-pro-workout-experience-build31-20261107', 'coach-fit-pro-workout-preview-notifications-build28-20261106', 'fit-coach-app-v2'])
 })
 test('Offline HTML and assets read only the current build cache, never global legacy cache', async () => {
   for (const mode of ['navigate', 'cors']) {
@@ -124,9 +124,9 @@ test('Offline HTML and assets read only the current build cache, never global le
 })
 
 
-test('workflow manual mantém upload explícito e usa build iOS 30 como default', () => {
+test('workflow manual mantém upload explícito e usa build iOS 32 como default', () => {
   const workflow = read('.github/workflows/coachfit-ios-testflight.yml')
   assert.match(workflow, /operation:[\s\S]*?default: verify[\s\S]*?options:[\s\S]*?- verify[\s\S]*?- testflight/)
-  assert.match(workflow, /build_number:[\s\S]*?default: "30"/)
-  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '30' \}\}/)
+  assert.match(workflow, /build_number:[\s\S]*?default: "32"/)
+  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '32' \}\}/)
 })
