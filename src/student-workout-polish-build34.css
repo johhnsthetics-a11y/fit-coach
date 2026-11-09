@@ -1,0 +1,259 @@
+/* BUILD34 — polish progressivo do executor do aluno. Sem novas cores ou dependências. */
+.student-workout-figma-screen {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  gap: clamp(14px, 3.5vw, 20px) !important;
+  text-wrap: pretty;
+}
+
+.student-workout-figma-screen :is(button, input, select, textarea) {
+  min-width: 0;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.student-workout-figma-screen svg {
+  display: block;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+.student-workout-figma-topbar > button,
+.student-workout-figma-execution-topbar > button {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.student-workout-figma-topbar > button:active,
+.student-workout-figma-execution-topbar > button:active,
+.student-workout-figma-rest-controls button:active,
+.student-workout-figma-edit-set:active {
+  transform: scale(.96);
+}
+
+.student-workout-figma-topbar > button:hover,
+.student-workout-figma-execution-topbar > button:hover {
+  border-color: color-mix(in srgb, var(--sw-accent) 46%, var(--sw-line));
+  color: var(--sw-accent);
+}
+
+.student-workout-figma-primary > span {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  font-size: inherit;
+}
+
+.student-workout-figma-warmup > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sw-accent-soft);
+  color: var(--sw-accent);
+}
+
+.student-workout-figma-rest-controls button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-color: var(--sw-line);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.student-workout-figma-rest-controls button:hover {
+  border-color: color-mix(in srgb, var(--sw-accent) 46%, var(--sw-line));
+  background: var(--sw-accent-soft);
+}
+
+.student-workout-figma-rest-controls button svg {
+  color: var(--sw-accent);
+}
+
+.student-workout-figma-set-record {
+  grid-template-columns: 22px minmax(4.5rem, auto) minmax(0, 1fr) 44px;
+  gap: 8px;
+  min-height: 52px;
+}
+
+.student-workout-figma-record-check {
+  width: 22px;
+  height: 22px;
+}
+
+.student-workout-figma-edit-set {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--sw-line);
+  border-radius: 12px;
+  background: var(--sw-panel-strong);
+  color: var(--sw-accent);
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.student-workout-figma-edit-set:hover {
+  border-color: var(--sw-accent);
+  background: var(--sw-accent-soft);
+}
+
+.student-workout-figma-record-edit button {
+  min-height: 44px;
+}
+
+.student-workout-figma-day-picker button {
+  min-height: 60px;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.student-workout-figma-day-picker button:active {
+  transform: scale(.99);
+}
+
+.student-workout-figma-complete-chip,
+.student-workout-figma-saved-chip {
+  min-height: 36px;
+}
+
+.student-workout-figma-complete-chip svg,
+.student-workout-figma-saved-chip svg {
+  color: var(--sw-accent);
+}
+
+.student-workout-figma-complete-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.student-workout-figma-execution .mobile-workout-series-feedback-v29 {
+  border-left: 3px solid var(--sw-accent);
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--sw-accent-soft) 72%, var(--sw-panel));
+  padding: 10px 12px;
+}
+
+.student-workout-figma-execution .mobile-workout-series-feedback-v29 > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sw-accent-soft);
+  color: var(--sw-accent);
+}
+
+.student-workout-figma-execution .mobile-workout-set-card-v29.is-current {
+  border-color: color-mix(in srgb, var(--sw-accent) 30%, var(--sw-line));
+}
+
+.student-workout-figma-screen .mobile-workout-student-error-v2[role="alert"] {
+  position: relative;
+  z-index: 8;
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.student-workout-figma-execution-actions {
+  isolation: isolate;
+  padding-top: 14px;
+}
+
+.student-workout-figma-primary:disabled {
+  filter: saturate(.6);
+  box-shadow: none;
+}
+
+@media (max-width: 360px) {
+  .student-workout-figma-screen:not(.is-compact) {
+    padding-inline: 16px !important;
+  }
+
+  .student-workout-figma-set-record {
+    grid-template-columns: 20px minmax(4rem, auto) minmax(0, 1fr) 44px;
+    gap: 5px;
+  }
+
+  .student-workout-figma-set-record > span:not(.student-workout-figma-record-check) {
+    font-size: 10px;
+  }
+
+  .student-workout-figma-rest-controls {
+    gap: 5px;
+  }
+
+  .student-workout-figma-rest-controls button {
+    gap: 4px;
+    padding-inline: 4px;
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 768px) {
+  .student-workout-figma-screen:not(.is-compact) {
+    width: min(100%, 760px);
+    min-height: min(900px, 100dvh);
+    gap: 20px !important;
+    border: 1px solid var(--sw-line) !important;
+    border-radius: 28px !important;
+    padding: 24px 32px calc(32px + env(safe-area-inset-bottom)) !important;
+    box-shadow: 0 22px 64px rgba(0, 0, 0, .22) !important;
+  }
+
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-overview-title h3,
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-rest-title h3,
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-exercise-complete-title h3,
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-summary-title h3 {
+    font-size: clamp(30px, 4vw, 38px);
+  }
+
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-media {
+    width: min(100%, 560px);
+    margin-inline: auto;
+  }
+
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-execution-actions {
+    margin-inline: -32px;
+    margin-bottom: calc(-32px - env(safe-area-inset-bottom));
+    padding: 16px 32px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-sequence-row {
+    grid-template-columns: 48px minmax(0, 1fr) minmax(140px, auto);
+    padding-block: 15px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .student-workout-figma-screen:not(.is-compact) {
+    width: min(100%, 820px);
+    padding-inline: 36px !important;
+  }
+
+  .student-workout-figma-screen:not(.is-compact) .student-workout-figma-execution-actions {
+    margin-inline: -36px;
+    padding-inline: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-workout-figma-screen *,
+  .student-workout-figma-screen *::before,
+  .student-workout-figma-screen *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
