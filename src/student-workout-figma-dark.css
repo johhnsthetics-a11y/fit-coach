@@ -356,3 +356,184 @@
 @media (prefers-reduced-motion: reduce) {
   .student-workout-figma-screen *, .student-workout-figma-screen *::before, .student-workout-figma-screen *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+
+/* BUILD33 — alinhamento ao dark oficial do Coach Fit Pro e progresso por séries do Figma. */
+.student-workout-figma-screen {
+  --sw-bg: #0B1516;
+  --sw-panel: #111E20;
+  --sw-panel-strong: #17282A;
+  --sw-line: rgba(167, 189, 186, .18);
+  --sw-text: #F4FFFD;
+  --sw-muted: #A7BDBA;
+  --sw-accent: #4EE9D0;
+  --sw-accent-strong: #4EE9D0;
+  --sw-accent-soft: rgba(78, 233, 208, .12);
+}
+
+.student-workout-figma-topbar,
+.student-workout-figma-execution-topbar {
+  min-height: 44px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+}
+.student-workout-figma-topbar > button,
+.student-workout-figma-execution-topbar > button {
+  width: 44px;
+  height: 44px;
+}
+
+.student-workout-figma-primary {
+  min-height: 56px;
+  border-color: var(--sw-accent);
+  background: var(--sw-accent);
+  color: #0B1516;
+  box-shadow: 0 10px 24px rgba(78, 233, 208, .16);
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+.student-workout-figma-primary:hover:not(:disabled) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(78, 233, 208, .22);
+}
+.student-workout-figma-primary:active:not(:disabled) { transform: translateY(0); }
+.student-workout-figma-primary:focus-visible {
+  outline-color: #F4FFFD;
+  outline-offset: 3px;
+}
+
+.student-workout-figma-progress-segments {
+  display: grid;
+  grid-template-columns: repeat(var(--sw-segment-count, 1), minmax(0, 1fr));
+  gap: 5px;
+  overflow: visible;
+  background: transparent;
+}
+.student-workout-figma-progress-segments > [data-progress-segment] {
+  display: block;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(167, 189, 186, .22);
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+.student-workout-figma-progress-segments > [data-progress-segment].is-complete {
+  background: var(--sw-accent);
+}
+.student-workout-figma-progress-track.student-workout-figma-progress-segments {
+  height: 5px;
+  overflow: visible;
+  background: transparent;
+}
+.student-workout-figma-overview-progress > .student-workout-figma-progress-segments {
+  height: 5px;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+}
+.student-workout-figma-progress-head,
+.student-workout-figma-sequence-target,
+.student-workout-figma-overview-stats,
+.student-workout-figma-summary-metrics {
+  font-variant-numeric: tabular-nums;
+}
+
+.student-workout-figma-rest-controls button { min-height: 44px; }
+.student-workout-figma-execution-actions { background: rgba(11, 21, 22, .97); }
+.student-workout-figma-execution .mobile-workout-series-track-v29 { background: rgba(167, 189, 186, .22); }
+.student-workout-figma-execution .mobile-workout-series-track-v29 > span { background: var(--sw-accent); }
+.student-workout-figma-summary .student-workout-rating-stars button.is-selected {
+  border-color: var(--sw-accent);
+  background: var(--sw-accent);
+  color: #0B1516;
+}
+.student-workout-figma-summary .student-workout-rating-submit {
+  border: 1px solid var(--sw-accent);
+  background: var(--sw-accent);
+  color: #0B1516;
+}
+.student-workout-figma-summary .student-workout-rating-stars button:focus-visible,
+.student-workout-figma-summary .student-workout-rating-submit:focus-visible {
+  outline-color: #F4FFFD;
+  outline-offset: 3px;
+}
+.student-workout-figma-empty-records {
+  margin: 8px 0 0;
+  border: 1px dashed var(--sw-line);
+  border-radius: 12px;
+  padding: 14px;
+  color: var(--sw-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.student-workout-figma-set-record > span:not(.student-workout-figma-record-check) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.student-workout-figma-execution .mobile-workout-set-fields-v12 input::placeholder {
+  color: var(--sw-muted);
+  opacity: .7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-workout-figma-primary,
+  .student-workout-figma-progress-segments > [data-progress-segment] {
+    transition-duration: .01ms;
+  }
+}
+
+
+/* BUILD33.1 — a tela Figma precisa vencer a superfície transparente legada. */
+.student-mobile-shell .mobile-workout-student-experience-v2:not(.is-compact).student-workout-figma-screen {
+  background: var(--sw-bg) !important;
+  color: var(--sw-text) !important;
+}
+.mobile-workout-live-preview-device.student-mobile-shell.app-theme-dark {
+  background-color: #0B1516 !important;
+}
+.mobile-workout-live-preview-device.student-mobile-shell.app-theme-light {
+  background-color: #FFFFFF !important;
+}
+
+/* A execução continua respeitando o tema selecionado no restante do app. */
+.student-mobile-shell.app-theme-light .mobile-workout-student-experience-v2:not(.is-compact).student-workout-figma-screen {
+  --sw-bg: #FFFFFF;
+  --sw-panel: #F5FAF9;
+  --sw-panel-strong: #F5FAF9;
+  --sw-line: rgba(66, 92, 88, .18);
+  --sw-text: #0D2523;
+  --sw-muted: #425C58;
+  --sw-accent: #087F72;
+  --sw-accent-strong: #087F72;
+  --sw-accent-soft: rgba(8, 127, 114, .10);
+  background: var(--sw-bg) !important;
+  color: var(--sw-text) !important;
+}
+.student-mobile-shell.app-theme-light .student-workout-figma-screen .student-workout-figma-primary,
+.student-mobile-shell.app-theme-light .student-workout-figma-summary .student-workout-rating-stars button.is-selected,
+.student-mobile-shell.app-theme-light .student-workout-figma-summary .student-workout-rating-submit {
+  color: #FFFFFF;
+}
+.student-mobile-shell.app-theme-light .student-workout-figma-execution-actions {
+  background: rgba(245, 250, 249, .97);
+}
+
+.student-mobile-shell.app-theme-light .mobile-workout-student-experience-v2 .student-workout-figma-primary,
+.student-mobile-shell.app-theme-light .student-workout-figma-summary .student-workout-rating-stars button.is-selected,
+.student-mobile-shell.app-theme-light .student-workout-figma-summary .student-workout-rating-submit {
+  border-color: #087F72 !important;
+  background: #087F72 !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
+
+/* O reset universal de botões light tem 4 :not(); este seletor mantém o CTA de marca acima dele. */
+html body .student-mobile-shell.app-theme-light .mobile-workout-student-experience-v2:not(.is-compact).student-workout-figma-screen .student-workout-figma-primary,
+html body .student-mobile-shell.app-theme-light .mobile-workout-student-experience-v2:not(.is-compact).student-workout-figma-screen .student-workout-figma-summary .student-workout-rating-stars button.is-selected,
+html body .student-mobile-shell.app-theme-light .mobile-workout-student-experience-v2:not(.is-compact).student-workout-figma-screen .student-workout-figma-summary .student-workout-rating-submit {
+  border-color: #087F72 !important;
+  background: #087F72 !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+}
