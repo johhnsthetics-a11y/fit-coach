@@ -4,6 +4,8 @@ import { test } from 'node:test'
 import { PGlite } from '@electric-sql/pglite'
 
 const migrationSql = await readFile(new URL('../supabase/migrations/20261103131000_student_workout_rating_meal_photos.sql', import.meta.url), 'utf8')
+const feedbackMigrationSql = await readFile(new URL('../supabase/migrations/20261109173700_student_workout_rating_feedback.sql', import.meta.url), 'utf8')
+const earlyEndFixMigrationSql = await readFile(new URL('../supabase/migrations/20261109173600_fix_early_end_session_parameter_scope.sql', import.meta.url), 'utf8')
 
 async function createDatabase() {
   const db = new PGlite()
@@ -30,6 +32,7 @@ async function createDatabase() {
     'create table public.workout_exercises (workout_id uuid, video_url text);',
   ].join('\n'))
   await db.exec(migrationSql)
+  await db.exec(feedbackMigrationSql)
   await db.exec([
     "insert into public.students (id,coach_id,auth_user_id) values ('11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222');",
     "insert into public.student_invites (code,status,created_at,coach_id,student_id) values ('invite-one','active',now(),'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111'),('invite-two','active',now(),'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222');",
@@ -57,6 +60,56 @@ test('rating aceita treino concluído e rejeita encerramento parcial e aluno dif
       db.query('select public.rate_student_workout_log($1,$2::uuid,$3::smallint)', ['invite-one','44444444-4444-4444-8444-444444444444',6]),
       /uma e cinco estrelas/,
     )
+  } finally { await db.close() }
+})
+
+test('rating com feedback salva texto no log real e limita o conteúdo a 500 caracteres', async () => {
+  const db = await createDatabase()
+  try {
+    const saved = await db.query('select public.rate_student_workout_log_with_feedback($1,$2::uuid,$3::smallint,$4) as log', [
+      'invite-one','44444444-4444-4444-8444-444444444444',5,'  Treino muito bom, consegui evoluir.  ',
+    ])
+    assert.equal(saved.rows[0].log.rating, 5)
+    assert.equal(saved.rows[0].log.rating_feedback, 'Treino muito bom, consegui evoluir.')
+    const updated = await db.query('select public.rate_student_workout_log_with_feedback($1,$2::uuid,$3::smallint,$4) as log', [
+      'invite-one','44444444-4444-4444-8444-444444444444',4,'x'.repeat(650),
+    ])
+    assert.equal(updated.rows[0].log.rating_feedback.length, 500)
+    assert.equal(updated.rows[0].log.rating, 4)
+  } finally { await db.close() }
+})
+
+test('migration BUILD36 remove o 42P01 causado pelo nome público antigo da função', async () => {
+  const db = new PGlite()
+  try {
+    await db.exec(`
+      create table public.workout_sessions (student_id uuid, completion_token text);
+      insert into public.workout_sessions values ('11111111-1111-4111-8111-111111111111', 'completion-token-36');
+      create function public.end_student_workout_session_unchecked(
+        invite_code text, selected_workout_id uuid, workout_title text, effort_value text,
+        notes_value text, completion_token text, duration_seconds_value integer, execution_value jsonb
+      ) returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+      declare
+        v_student_id uuid := '11111111-1111-4111-8111-111111111111';
+        v_session public.workout_sessions%rowtype;
+      begin
+        select workout_sessions.* into v_session
+        from public.workout_sessions
+        where workout_sessions.student_id = v_student_id
+          and workout_sessions.completion_token = end_student_workout_session.completion_token
+        limit 1;
+        return to_jsonb(v_session);
+      end;
+      $$;
+    `)
+    const args = ['invite-one','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Treino','Moderado','','completion-token-36',60,{}]
+    await assert.rejects(
+      db.query('select public.end_student_workout_session_unchecked($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb)', args),
+      /missing FROM-clause entry for table "end_student_workout_session"|42P01/i,
+    )
+    await db.exec(earlyEndFixMigrationSql)
+    const fixed = await db.query('select public.end_student_workout_session_unchecked($1,$2::uuid,$3,$4,$5,$6,$7,$8::jsonb) as result', args)
+    assert.equal(fixed.rows[0].result.completion_token, 'completion-token-36')
   } finally { await db.close() }
 })
 

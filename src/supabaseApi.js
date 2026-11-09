@@ -1806,14 +1806,15 @@ function fromWorkoutSessionRow(row) {
   }
 }
 
-export async function saveRemoteWorkoutRating(inviteCode, workoutLogId, rating) {
+export async function saveRemoteWorkoutRating(inviteCode, workoutLogId, rating, feedback = '') {
   if (!inviteCode || !isUuid(workoutLogId)) throw new Error('Não foi possível identificar o treino concluído.')
   const value = Number(rating)
   if (!Number.isInteger(value) || value < 1 || value > 5) throw new Error('Escolha uma avaliação entre uma e cinco estrelas.')
-  const result = await rpcRequest('rate_student_workout_log', {
+  const result = await rpcRequest('rate_student_workout_log_with_feedback', {
     invite_code: inviteCode,
     selected_workout_log_id: workoutLogId,
     rating_value: value,
+    feedback_value: String(feedback || '').trim().slice(0, 500),
   })
   const payload = Array.isArray(result) ? result[0] : result
   return fromWorkoutLogRow(payload?.workout_log || payload)
@@ -2678,6 +2679,7 @@ function fromWorkoutLogRow(row) {
     completedAt: row.completed_at ?? row.created_at,
     endedEarly: WORKOUT_ENDED_EARLY_TOKEN_TEST.test(rawNotes),
     rating: Number(row.rating) >= 1 && Number(row.rating) <= 5 ? Number(row.rating) : 0,
+    ratingFeedback: String(row.rating_feedback ?? ''),
     ratedAt: row.rated_at ?? '',
   }
 }
@@ -2802,4 +2804,3 @@ function createInviteCode() {
 function isUuid(value) {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
-

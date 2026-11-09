@@ -91,7 +91,7 @@ test('Pending results cannot grant access in the bridge and the pending state is
 const vm = await import('node:vm')
 function workerEnvironment() {
   const handlers = {}, deleted = [], opened = []
-  const current = 'coach-fit-pro-workout-experience-build35-20261109'
+  const current = 'coach-fit-pro-workout-experience-build36-20261109'
   const env = {
     URL, Response,
     self: { location: { origin: 'https://example.test' }, addEventListener: (name, fn) => { handlers[name] = fn }, clients: { claim: async () => {} } },
@@ -124,9 +124,9 @@ test('Offline HTML and assets read only the current build cache, never global le
 })
 
 
-test('workflow manual mantém upload explícito e usa build iOS 35 como default', () => {
+test('workflow manual mantém upload explícito e usa build iOS 36 como default', () => {
   const workflow = read('.github/workflows/coachfit-ios-testflight.yml')
   assert.match(workflow, /operation:[\s\S]*?default: verify[\s\S]*?options:[\s\S]*?- verify[\s\S]*?- testflight/)
-  assert.match(workflow, /build_number:[\s\S]*?default: "35"/)
-  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '35' \}\}/)
+  assert.match(workflow, /build_number:[\s\S]*?default: "36"/)
+  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '36' \}\}/)
 })

@@ -8,21 +8,26 @@ const panel = await readFile(new URL('../src/WorkoutCompletionRating.jsx', impor
 const mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
 const xpCelebrationCss = await readFile(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
 const migration = await readFile(new URL('../supabase/migrations/20261103131000_student_workout_rating_meal_photos.sql', import.meta.url), 'utf8')
+const feedbackMigration = await readFile(new URL('../supabase/migrations/20261109173700_student_workout_rating_feedback.sql', import.meta.url), 'utf8')
 
 test('painel de estrelas aparece após treino completo e a prévia nunca envia avaliação', () => {
   assert.match(app, /!summaryLog\?\.endedEarly \? <WorkoutCompletionRating[\s\S]{0,180}preview=\{preview\}/)
   assert.match(panel, /if \(!log\?\.id \|\| log\.endedEarly\) return null/)
-  assert.match(panel, /onSubmit\(selectedRating\)/)
+  assert.match(panel, /onSubmit\(selectedRating, feedbackToSave\)/)
   assert.match(panel, /aria-pressed=\{selectedRating === value\}/)
   assert.match(panel, /Avalie o treino de uma a cinco estrelas/)
+  assert.match(panel, /<textarea[\s\S]*?maxLength=\{MAX_FEEDBACK_LENGTH\}/)
+  assert.match(panel, /disabled=\{preview \|\| saving\}/)
+  assert.match(panel, /Esta prévia não salva estrelas nem feedback/)
   assert.match(panel, /if \(preview \|\| saving \|\| selectedRating < 1/)
   assert.match(panel, /disabled=\{preview \|\| saving \|\| selectedRating < 1\}/)
   assert.match(panel, /A avaliação real será enviada pelo aluno no app\./)
 })
 
 test('rating valida faixa, convite financeiro e log de conclusão real sem criar um segundo log', () => {
-  assert.match(api, /rpcRequest\('rate_student_workout_log'/)
+  assert.match(api, /rpcRequest\('rate_student_workout_log_with_feedback'/)
   assert.match(api, /selected_workout_log_id: workoutLogId/)
+  assert.match(api, /feedback_value: String\(feedback \|\| ''\)\.trim\(\)\.slice\(0, 500\)/)
   assert.match(migration, /add column if not exists rating smallint/i)
   assert.match(migration, /check \(rating is null or rating between 1 and 5\)/i)
   assert.match(migration, /public\.coachfit_student_financial_access_by_invite\(invite_code\)/i)
@@ -31,16 +36,20 @@ test('rating valida faixa, convite financeiro e log de conclusão real sem criar
   assert.match(migration, /position\('\[coachfitpro-ended-early:' in coalesce\(logs\.notes, ''\)\) = 0/i)
   assert.match(migration, /grant execute on function public\.rate_student_workout_log\(text, uuid, smallint\) to anon, authenticated/i)
   assert.doesNotMatch(migration, /grant\s+(?:insert|update|all)[^;]*workout_logs[^;]*\bto\s+anon/i)
-  assert.match(api, /rating: Number\(row\.rating\)[\s\S]{0,100}ratedAt: row\.rated_at/)
+  assert.match(feedbackMigration, /add column if not exists rating_feedback text not null default ''/i)
+  assert.match(feedbackMigration, /public\.rate_student_workout_log\(/i)
+  assert.match(feedbackMigration, /left\(btrim\(coalesce\(rate_student_workout_log_with_feedback\.feedback_value, ''\)\), 500\)/i)
+  assert.match(feedbackMigration, /grant execute on function public\.rate_student_workout_log_with_feedback\(text, uuid, smallint, text\) to anon, authenticated/i)
+  assert.match(api, /ratingFeedback: String\(row\.rating_feedback/)
 })
 
 test('BUILD35 só celebra XP real depois da confirmação do rating salvo', () => {
-  const handler = app.match(/async function submitWorkoutRating\(rating\) \{([\s\S]*?)\n  \}/)?.[1] || ''
+  const handler = app.match(/async function submitWorkoutRating\(rating, feedback = ''\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   const persistedRatingCheck = handler.indexOf('if (!saved?.id)')
   const celebrationStart = handler.indexOf('setXpCelebration({ xp: xpAwarded')
 
   assert.match(handler, /if \(preview\) throw new Error\('A prévia não salva avaliações do aluno\.'\)/)
-  assert.match(handler, /await onRateWorkout\(completedLog\.id, selectedRating\)/)
+  assert.match(handler, /await onRateWorkout\(completedLog\.id, selectedRating, feedbackToSave\)/)
   assert.ok(persistedRatingCheck >= 0 && celebrationStart > persistedRatingCheck, 'a celebração só pode abrir depois da confirmação de persistência')
   assert.match(handler, /const xpAwarded = Math\.max\(0, Math\.trunc\(Number\(completedLog\.xpAwarded\) \|\| 0\)\)/)
   assert.match(handler, /if \(xpAwarded > 0 && celebratedCompletionIdRef\.current !== completionId\)/)
@@ -58,7 +67,8 @@ test('BUILD35 só celebra XP real depois da confirmação do rating salvo', () =
 })
 
 test('BUILD32 usa somente estrelas na escala visual sem retirar nomes acessíveis ou valores internos', () => {
-  assert.match(panel, /<span aria-hidden="true">★<\/span>/)
+  assert.match(panel, /function RatingStarIcon\([\s\S]*?fill="currentColor"/)
+  assert.match(panel, /viewBox="0 0 24 24"/)
   assert.match(panel, /aria-label=\{`\$\{value\}/)
   assert.match(panel, /Avaliação selecionada\. Toque nas estrelas para ajustar\./)
   assert.doesNotMatch(panel, /\$\{selectedRating\} de 5/)

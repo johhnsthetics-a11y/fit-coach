@@ -9,6 +9,7 @@ const lifecycleMigrationSource = await readFile(new URL('../supabase/migrations/
 const lifecycleConsistencySource = await readFile(new URL('../supabase/migrations/20261012212459_workout_publication_consistency.sql', import.meta.url), 'utf8')
 const lifecyclePrivilegesSource = await readFile(new URL('../supabase/migrations/20261012230712_workout_publication_trigger_privileges.sql', import.meta.url), 'utf8')
 const renamedReferenceFixSource = await readFile(new URL('../supabase/migrations/20260925_fix_workout_session_renamed_refs.sql', import.meta.url), 'utf8').catch(() => '')
+const earlyEndReferenceFixSource = await readFile(new URL('../supabase/migrations/20261109173600_fix_early_end_session_parameter_scope.sql', import.meta.url), 'utf8')
 const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
 test('rascunho permanece privado e publicação fica disponível ao aluno', () => {
@@ -70,6 +71,14 @@ test('funções renomeadas de sessão não mantêm referências ao nome antigo',
   assert.match(renamedReferenceFixSource, /complete_student_workout_session_unchecked\.completion_token/)
   assert.doesNotMatch(renamedReferenceFixSource, /replace\([\s\S]*?'save_student_workout_session\.completion_token'[\s\S]*?'save_student_workout_session\.completion_token'/)
   assert.doesNotMatch(renamedReferenceFixSource, /replace\([\s\S]*?'complete_student_workout_session\.completion_token'[\s\S]*?'complete_student_workout_session\.completion_token'/)
+})
+
+test('BUILD36 corrige o alias interno da RPC de encerramento sem substituir o wrapper financeiro', () => {
+  assert.match(earlyEndReferenceFixSource, /end_student_workout_session_unchecked\.completion_token/)
+  assert.match(earlyEndReferenceFixSource, /'end_student_workout_session\.completion_token'/)
+  assert.match(earlyEndReferenceFixSource, /raise exception[\s\S]*Referencia esperada de completion_token nao encontrada/i)
+  assert.doesNotMatch(earlyEndReferenceFixSource, /create or replace function public\.end_student_workout_session\s*\(/i)
+  assert.match(apiSource, /rpcRequest\('end_student_workout_session'/)
 })
 
 test('conclusão de treino mantém recompensa visual de XP para o aluno', () => {
