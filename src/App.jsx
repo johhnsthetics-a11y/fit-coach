@@ -11563,8 +11563,9 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], nutrit
 
 const WORKOUT_PREVIEW_STAGES = [
   { id: 'overview', label: 'Visão geral' },
-  { id: 'plan', label: 'Plano' },
   { id: 'execution', label: 'Execução' },
+  { id: 'rest', label: 'Descanso' },
+  { id: 'exercise-complete', label: 'Exercício concluído' },
   { id: 'summary', label: 'Resumo' },
 ]
 const WORKOUT_PREVIEW_STAGE_IDS = new Set(WORKOUT_PREVIEW_STAGES.map((stage) => stage.id))
@@ -14170,11 +14171,11 @@ function getExerciseCommonMistake(exercise = {}) {
   return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execução prescrita.'
 }
 
-function ExerciseMedia({ exercise, compact = false }) {
+function ExerciseMedia({ exercise, compact = false, autoOpen = false, label = 'Ver execução' }) {
   if (exercise.videoPreviewUrl) {
     return (
-      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Prévia do vídeo do coach</summary>
+        <details className="student-workout-figma-media-details overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open={autoOpen || undefined}>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">{label} • Vídeo do coach</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <video
             src={exercise.videoPreviewUrl}
@@ -14193,8 +14194,8 @@ function ExerciseMedia({ exercise, compact = false }) {
 
   if (videoUrl && isDirectVideoUrl(videoUrl)) {
     return (
-      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
+      <details className="student-workout-figma-media-details overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open={autoOpen || undefined}>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">{label} • Vídeo do coach</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <video
             src={videoUrl}
@@ -14210,8 +14211,8 @@ function ExerciseMedia({ exercise, compact = false }) {
 
   if (embedUrl) {
     return (
-      <details className="overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">Ver execução dentro do app</summary>
+      <details className="student-workout-figma-media-details overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open={autoOpen || undefined}>
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">{label} • Vídeo do coach</summary>
         <div className="aspect-video border-t border-white/10 bg-black">
           <iframe
             src={embedUrl}
@@ -14232,23 +14233,30 @@ function ExerciseMedia({ exercise, compact = false }) {
         href={videoUrl}
         target="_blank"
         rel="noreferrer"
-        className={`inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
+        className={`student-workout-figma-media-link inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
       >
         Abrir vídeo indicado pelo coach
       </a>
     )
   }
 
-  return <ExerciseTechniqueCard exercise={exercise} compact={compact} />
+  return (
+    <div className="student-workout-figma-technique-preview">
+      <span className="student-workout-figma-technique-play" aria-hidden="true">▶</span>
+      <strong>{exercise.name || 'Execução do exercício'}</strong>
+      <small>{exercise.instructions || 'Confira a técnica indicada pelo treinador.'}</small>
+      <ExerciseTechniqueCard exercise={exercise} compact={compact} label={label} />
+    </div>
+  )
 }
 
-function ExerciseTechniqueCard({ exercise, compact = false }) {
+function ExerciseTechniqueCard({ exercise, compact = false, label = 'Ver execução' }) {
   return (
     <div className={`grid gap-2 rounded-md border border-white/10 bg-white/[0.035] ${compact ? 'p-3' : 'p-4'}`}>
-      <p className="text-xs font-black uppercase text-emerald-200">Execução do movimento</p>
-      <p className="text-sm leading-6 text-zinc-300">{exercise.instructions || 'Sem vídeo cadastrado. Confira a técnica com o treinador antes de aumentar a carga.'}</p>
-      <a href={getExerciseVideoUrl(exercise)} target="_blank" rel="noreferrer" className="w-fit text-xs font-black text-emerald-200 underline underline-offset-4">
-        Buscar execução no YouTube
+      <p className="student-workout-figma-technique-copy text-xs font-black uppercase text-emerald-200">Técnica do exercício</p>
+      <p className="student-workout-figma-technique-copy text-sm leading-6 text-zinc-300">{exercise.instructions || 'Confira a técnica indicada pelo treinador antes de aumentar a carga.'}</p>
+      <a href={getExerciseVideoUrl(exercise)} target="_blank" rel="noreferrer" className="student-workout-figma-technique-link w-fit text-xs font-black text-emerald-200 underline underline-offset-4">
+        {label} no YouTube
       </a>
     </div>
   )
@@ -14684,24 +14692,6 @@ export function StudentWorkoutProgress({ student, workoutLogs = [], workouts = [
   )
 }
 
-export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
-  const viewportWidth = Math.max(0, Number(bounds.viewportWidth) || 0)
-  const viewportHeight = Math.max(0, Number(bounds.viewportHeight) || 0)
-  const widgetWidth = Math.max(0, Number(bounds.widgetWidth) || 0)
-  const widgetHeight = Math.max(0, Number(bounds.widgetHeight) || 0)
-  const offsetLeft = Math.max(0, Number(bounds.offsetLeft) || 0)
-  const offsetTop = Math.max(0, Number(bounds.offsetTop) || 0)
-  const safeLeft = offsetLeft + 8
-  const safeTop = offsetTop + 72
-  const maxLeft = Math.max(safeLeft, offsetLeft + viewportWidth - widgetWidth - 8)
-  const maxTop = Math.max(safeTop, offsetTop + viewportHeight - widgetHeight - 92)
-
-  return {
-    x: Math.min(maxLeft, Math.max(safeLeft, Number(position.x) || safeLeft)),
-    y: Math.min(maxTop, Math.max(safeTop, Number(position.y) || safeTop)),
-  }
-}
-
 export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, inviteCode = '', onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, previewStage = 'execution', onPreviewStageChange, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
@@ -14718,8 +14708,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
   const [restRemaining, setRestRemaining] = useState(0)
   const [restPaused, setRestPaused] = useState(false)
-  const [restWidgetExpanded, setRestWidgetExpanded] = useState(false)
-  const [restWidgetPosition, setRestWidgetPosition] = useState(null)
+  const [showWorkoutOverview, setShowWorkoutOverview] = useState(false)
+  const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const [expandedSetKey, setExpandedSetKey] = useState('')
   const [seriesFeedback, setSeriesFeedback] = useState(null)
   const [entryFieldFocused, setEntryFieldFocused] = useState(false)
@@ -14733,8 +14723,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const previousExecutionKeyRef = useRef(executionStorageKey)
   const skipNextPersistRef = useRef(false)
   const submissionLockRef = useRef(false)
-  const restWidgetRef = useRef(null)
-  const restDragRef = useRef(null)
   const endDialogRef = useModalFocusTrap(endConfirmOpen, () => setEndConfirmOpen(false))
 
   useEffect(() => {
@@ -14835,37 +14823,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     return () => window.clearInterval(timer)
   }, [restPaused, restRemaining > 0])
 
-  useEffect(() => {
-    if (!restRemaining) return undefined
-    const viewport = window.visualViewport
-    const constrainPosition = () => {
-      const node = restWidgetRef.current
-      if (!node) return
-      const rect = node.getBoundingClientRect()
-      const bounds = {
-        viewportWidth: viewport?.width || window.innerWidth,
-        viewportHeight: viewport?.height || window.innerHeight,
-        offsetLeft: viewport?.offsetLeft || 0,
-        offsetTop: viewport?.offsetTop || 0,
-        widgetWidth: rect.width,
-        widgetHeight: rect.height,
-      }
-      setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition(current || {
-        x: bounds.offsetLeft + bounds.viewportWidth - bounds.widgetWidth - 12,
-        y: bounds.offsetTop + bounds.viewportHeight - bounds.widgetHeight - 104,
-      }, bounds))
-    }
-    const frame = window.requestAnimationFrame(constrainPosition)
-    window.addEventListener('resize', constrainPosition)
-    viewport?.addEventListener('resize', constrainPosition)
-    viewport?.addEventListener('scroll', constrainPosition)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', constrainPosition)
-      viewport?.removeEventListener('resize', constrainPosition)
-      viewport?.removeEventListener('scroll', constrainPosition)
-    }
-  }, [restRemaining > 0, restWidgetExpanded])
+
 
   useEffect(() => {
     if (!Object.values(cardioLogs).some((log) => log?.status === 'running')) return undefined
@@ -14891,7 +14849,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   ) : null
 
   const previewModeStage = preview ? resolveWorkoutPreviewStage(previewStage) : ''
-  const daySelected = preview ? previewModeStage !== 'overview' : (activeDayIndex >= 0 && activeDayIndex < days.length)
+  const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length) || days.length > 0
 
   const safeDayIndex = Math.min(Math.max(activeDayIndex, 0), Math.max(days.length - 1, 0))
   const activeDay = days[safeDayIndex]
@@ -14961,7 +14919,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       : 'Não iniciado'
 
   const sessionStarted = preview
-    ? previewModeStage === 'execution' || previewModeStage === 'summary'
+    ? ['execution', 'rest', 'exercise-complete', 'summary'].includes(previewModeStage)
     : Boolean(timerStartedAt) || Number(sessionDurationSeconds) > 0 || dayCompletedSets > 0 || Object.values(cardioLogs).some((log) => log?.status && log.status !== 'idle')
   const dayCanFinish = dayTotalSets > 0 && dayCompletedSets === dayTotalSets
   const dayRemainingSets = Math.max(0, dayTotalSets - dayCompletedSets)
@@ -14969,7 +14927,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     ? currentExerciseIsCardio
       ? (currentExerciseCompleted && hasNextExercise ? 'Concluir exercício' : '')
       : nextPendingSet
-        ? (isPendingSetExpanded ? `Concluir série ${nextPendingSet.number}` : `Registrar série ${nextPendingSet.number}`)
+        ? 'Registrar série e descansar'
         : currentExerciseCompleted && hasNextExercise ? 'Concluir exercício' : ''
     : ''
   const previousExerciseSession = exercise ? getPreviousExerciseSession(workoutLogs, workout?.id, exercise.name) : null
@@ -14981,6 +14939,15 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       const item = setLogs[safeDayIndex + '-' + currentExerciseIndex + '-' + setNumber]
       if (!item?.completed) continue
       sum += getWorkoutSetNumeric(item.load) * getWorkoutSetNumeric(item.reps)
+    }
+    return sum
+  }, 0)
+  const dayCompletedReps = exercises.reduce((sum, currentExercise, currentExerciseIndex) => {
+    if (isCardioExercise(currentExercise)) return sum
+    const setCount = Math.max(1, Number.parseInt(currentExercise?.sets, 10) || 1)
+    for (let setNumber = 1; setNumber <= setCount; setNumber += 1) {
+      const item = setLogs[safeDayIndex + '-' + currentExerciseIndex + '-' + setNumber]
+      if (item?.completed) sum += getWorkoutSetNumeric(item.reps)
     }
     return sum
   }, 0)
@@ -15017,9 +14984,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     if (nextCompleted) {
       const nextPendingAfterCompletion = currentSets.find((item) => item.key !== setItem.key && !item.completed)
       setSeriesFeedback({ exerciseKey: currentCardioKey, number: setItem.number, nextNumber: nextPendingAfterCompletion?.number || null })
-      setRestRemaining(Math.max(0, Number.parseInt(exercise?.rest, 10) || 0))
+      setRestRemaining(nextPendingAfterCompletion ? Math.max(0, Number.parseInt(exercise?.rest, 10) || 0) : 0)
       setRestPaused(false)
-      setRestWidgetExpanded(false)
       const nextSet = currentSets.find((item) => item.number === setItem.number + 1)
       setExpandedSetKey(nextSet?.key || '')
       const focusedField = document.activeElement
@@ -15029,79 +14995,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       setSeriesFeedback(null)
       setExpandedSetKey(setItem.key)
     }
-  }
-
-  function getRestWidgetViewportBounds() {
-    const viewport = window.visualViewport
-    const rect = restWidgetRef.current?.getBoundingClientRect()
-    return {
-      viewportWidth: viewport?.width || window.innerWidth,
-      viewportHeight: viewport?.height || window.innerHeight,
-      offsetLeft: viewport?.offsetLeft || 0,
-      offsetTop: viewport?.offsetTop || 0,
-      widgetWidth: rect?.width || 0,
-      widgetHeight: rect?.height || 0,
-    }
-  }
-
-  function beginRestWidgetDrag(event) {
-    if (event.button !== undefined && event.button !== 0) return
-    const node = restWidgetRef.current
-    if (!node) return
-    const rect = node.getBoundingClientRect()
-    restDragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: rect.left,
-      originY: rect.top,
-    }
-    setRestWidgetPosition({ x: rect.left, y: rect.top })
-    event.currentTarget.setPointerCapture?.(event.pointerId)
-    event.preventDefault()
-  }
-
-  function moveRestWidget(event) {
-    const drag = restDragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    setRestWidgetPosition(clampWorkoutRestWidgetPosition({
-      x: drag.originX + event.clientX - drag.startX,
-      y: drag.originY + event.clientY - drag.startY,
-    }, getRestWidgetViewportBounds()))
-  }
-
-  function endRestWidgetDrag(event) {
-    const drag = restDragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    const node = restWidgetRef.current
-    const bounds = getRestWidgetViewportBounds()
-    const rect = node?.getBoundingClientRect()
-    setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition(current || {
-      x: rect?.left ?? drag.originX,
-      y: rect?.top ?? drag.originY,
-    }, bounds))
-    restDragRef.current = null
-    event.currentTarget.releasePointerCapture?.(event.pointerId)
-  }
-
-  function moveRestWidgetByKeyboard(event) {
-    const direction = {
-      ArrowLeft: [-16, 0],
-      ArrowRight: [16, 0],
-      ArrowUp: [0, -16],
-      ArrowDown: [0, 16],
-    }[event.key]
-    if (!direction) return
-    event.preventDefault()
-    const rect = restWidgetRef.current?.getBoundingClientRect()
-    setRestWidgetPosition((current) => clampWorkoutRestWidgetPosition({
-      x: (current?.x ?? rect?.left ?? 8) + direction[0],
-      y: (current?.y ?? rect?.top ?? 72) + direction[1],
-    }, getRestWidgetViewportBounds()))
-  }
-
-  function stopRestWidgetTogglePointer(event) {
-    event.stopPropagation()
   }
 
   function getCardioElapsed(log = currentCardioLog) {
@@ -15144,6 +15037,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
     }
     setActiveDayIndex(nextDayIndex)
+    setShowWorkoutOverview(false)
+    setDayPickerOpen(false)
     setActiveExerciseIndex(0)
     setRestRemaining(0)
     setRestPaused(false)
@@ -15168,41 +15063,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setEndConfirmOpen(false)
   }
 
-  function scrollWorkoutTarget(id) {
-    if (typeof window === 'undefined') return
-    window.requestAnimationFrame(() => {
-      const target = document.getElementById(id)
-      if (!target) return
-      let scroller = target.parentElement
-      while (scroller && scroller !== document.body && scroller.scrollHeight <= scroller.clientHeight + 1) scroller = scroller.parentElement
-      if (scroller && scroller !== document.body && scroller.scrollHeight > scroller.clientHeight + 1) {
-        const targetTop = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-        scroller.scrollTo({ top: Math.max(0, scroller.scrollTop + targetTop - 16), behavior: 'smooth' })
-        return
-      }
-      window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - 16), behavior: 'smooth' })
-    })
-  }
-
-  function completeExerciseAndAdvance() {
-    if (!currentExerciseCompleted) {
-      setError(currentExerciseIsCardio ? 'Finalize esta atividade cardiovascular antes de avançar.' : 'Conclua todas as séries deste exercício antes de avançar.')
-      return
-    }
-    setError('')
-    if (hasNextExercise) {
-      moveExercise(1)
-      scrollWorkoutTarget('student-current-exercise')
-      return
-    }
-    scrollWorkoutTarget('student-workout-finish')
-  }
-
   function handleExecutionPrimaryAction() {
-    if (currentExerciseCompleted) {
-      completeExerciseAndAdvance()
-      return
-    }
+    if (currentExerciseCompleted) return
     if (currentExerciseIsCardio || !nextPendingSet) return
     if (nextPendingSet.key !== activeSetKey) {
       setError('')
@@ -15238,13 +15100,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     }
     if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
     if (preview) onPreviewStageChange?.('overview')
-    else onSelectDay?.(-1)
+    else onSelectDay?.(safeDayIndex)
     if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
-    setActiveDayIndex(-1)
-    setActiveExerciseIndex(0)
+    setShowWorkoutOverview(true)
+    setDayPickerOpen(false)
     setRestRemaining(0)
     setRestPaused(false)
-    setExpandedSetKey('')
+    setExpandedSetKey(nextPendingSetKey)
     setEntryFieldFocused(false)
     setEndConfirmOpen(false)
     setError('')
@@ -15363,6 +15225,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     if (preview) onPreviewStageChange?.('overview')
     else onSelectDay?.(-1, { reset: true })
     setActiveExerciseIndex(0)
+    setShowWorkoutOverview(false)
+    setDayPickerOpen(false)
     setSetLogs({})
     setCardioLogs({})
     setEffort('Moderado')
@@ -15383,43 +15247,97 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     return { ...saved, rating: saved.rating || rating }
   }
 
+  const endConfirmation = typeof document === 'undefined' ? null : createPortal((
+    <div className={`mobile-workout-end-overlay-v5 app-theme-${uiTheme}`} role="presentation">
+      <div ref={endDialogRef} className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
+        <strong id="workout-end-title">Deseja encerrar o treino agora?</strong>
+        <p id="workout-end-description">Seu progresso realizado até aqui será mantido.</p>
+        <div>
+          <button type="button" className="is-secondary" disabled={saving} onClick={() => setEndConfirmOpen(false)}>Continuar treino</button>
+          <button type="button" className="is-end" disabled={saving} onClick={endWorkoutEarly}>{saving ? 'Encerrando...' : 'Encerrar treino'}</button>
+        </div>
+      </div>
+    </div>
+  ), document.body)
+
   const showSummary = preview ? previewModeStage === 'summary' : Boolean(completedLog && daySelected)
   const summaryLog = completedLog || (preview ? { id: 'preview-summary', endedEarly: false, durationSeconds: null, xpAwarded: null } : null)
   const summaryIsIllustrative = preview && !completedLog
 
+  const previewRestStage = preview && previewModeStage === 'rest'
+  const displayedRestSeconds = previewRestStage && restRemaining === 0 ? 48 : restRemaining
+  const restTotalSeconds = Math.max(1, Number.parseInt(exercise?.rest, 10) || 75)
+
+  if (displayedRestSeconds > 0) {
+    return (
+      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-rest student-workout-build30-experience ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? 'rest' : undefined}>
+        {sessionSyncFeedback}
+        <header className="student-workout-figma-execution-topbar">
+          <button type="button" aria-label="Voltar ao treino" onClick={() => { if (preview) { setRestRemaining(0); onPreviewStageChange?.('execution') } else returnToDaySelection() }}>←</button>
+          <span><strong>{activeDay?.focus || workout.title} — {activeDay?.day || 'Treino'}</strong><small>DIA {activeDay?.day || safeDayIndex + 1} • MODO TREINO</small></span>
+          <button type="button" aria-label="Encerrar sessão" onClick={() => setEndConfirmOpen(true)}>•••</button>
+        </header>
+        <div className="student-workout-figma-progress-head"><span>Exercício {safeExerciseIndex + 1} de {exercises.length} • {formatWorkoutTimer(durationSeconds)} de treino</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
+        <div className="student-workout-figma-progress-track" role="progressbar" aria-label="Progresso do treino" aria-valuemin="0" aria-valuemax={dayTotalSets} aria-valuenow={dayCompletedSets}><span style={{ width: `${dayTotalSets ? dayCompletedSets / dayTotalSets * 100 : 0}%` }} /></div>
+        {seriesFeedback && !preview ? <p className="student-workout-figma-saved-chip">✓ Série {seriesFeedback.number} salva{currentSets[seriesFeedback.number - 1]?.load ? ` • ${currentSets[seriesFeedback.number - 1].load} kg × ${currentSets[seriesFeedback.number - 1].reps} reps` : ''}</p> : null}
+        <div className="student-workout-figma-rest-title"><h3>Recupere o fôlego.</h3><p>Seu próximo passo já está preparado.</p></div>
+        <div className="student-workout-figma-rest-clock" style={{ '--rest-progress': `${Math.max(0, Math.min(1, displayedRestSeconds / restTotalSeconds)) * 100}%` }} role="timer" aria-live="off" aria-label={'Descanso: ' + formatWorkoutTimer(displayedRestSeconds)}>
+          <span>DESCANSO</span><strong>{formatWorkoutTimer(displayedRestSeconds)}</strong><small>de {restTotalSeconds} segundos</small>
+        </div>
+        <div className="student-workout-figma-rest-controls">
+          <button type="button" onClick={() => setRestRemaining((value) => Math.max(0, value - 15))}>−15 s</button>
+          <button type="button" onClick={() => setRestPaused((value) => !value)}>{restPaused ? '▶ Retomar' : 'Ⅱ Pausar'}</button>
+          <button type="button" onClick={() => setRestRemaining((value) => value + 15)}>+15 s</button>
+        </div>
+        <div className="student-workout-figma-next-set">
+          <p>A SEGUIR • SÉRIE {nextPendingSet?.number || exerciseSetCount} DE {exerciseSetCount}</p>
+          <strong>{exercise?.name || 'Próximo exercício'}</strong>
+          <span>Meta: {nextPendingSet?.targetReps || exercise?.reps || '—'} reps{previousSetRecords.get(nextPendingSet?.number)?.load ? ` • Última carga: ${previousSetRecords.get(nextPendingSet?.number)?.load} kg` : ''}</span>
+        </div>
+        <p className="student-workout-figma-rest-hint">Avisaremos quando for hora de voltar.</p>
+        {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
+        <div className="student-workout-figma-bottom-actions"><button type="button" className="student-workout-figma-primary" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular descanso <span aria-hidden="true">→</span></button></div>
+        {endConfirmOpen ? endConfirmation : null}
+      </section>
+    )
+  }
+
   if (showSummary && daySelected) {
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-session-summary-v4 mobile-workout-design-v24 mobile-workout-summary-v24 student-workout-build30-experience student-workout-build30-summary ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-summary student-workout-build30-experience student-workout-build30-summary ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
         {sessionSyncFeedback}
-        <header className="mobile-workout-student-experience-head-v2 mobile-workout-summary-head-v24">
-          <div>
-            <p>{preview ? (completedLog?.endedEarly ? 'Encerramento simulado' : completedLog ? 'Conclusão simulada' : 'Resumo demonstrativo') : (completedLog?.endedEarly ? 'Treino encerrado' : 'Treino concluído')}</p>
-            <h3>{activeDay?.focus || activeDay?.day || workout.title || 'Sessão finalizada'}</h3>
-            <span>{preview ? (summaryIsIllustrative ? 'Os indicadores reais aparecem após o aluno concluir a sessão.' : 'Registros temporários desta simulação; o histórico real não foi alterado.') : (activeDay?.day || 'Treino do dia') + (completedLog?.endedEarly ? ' · progresso parcial salvo no histórico' : ' · desempenho salvo no histórico')}</span>
-          </div>
-          <strong>{preview ? 'Prévia' : completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded == null ? 'XP registrado' : completedLog.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'XP já registrado'}</strong>
+        <header className="student-workout-figma-topbar student-workout-figma-summary-topbar">
+          <span className="student-workout-figma-complete-icon" aria-hidden="true">✓</span>
+          <span><strong>{workout.title || 'Treino'} — {activeDay?.day || 'Sessão'}</strong><small>{completedLog?.endedEarly ? 'SESSÃO ENCERRADA' : 'SESSÃO CONCLUÍDA'}</small></span>
+          <strong>{preview ? 'Prévia' : completedLog?.endedEarly ? 'Progresso salvo' : completedLog?.xpAwarded > 0 ? `+${completedLog.xpAwarded} XP` : 'Salvo ✓'}</strong>
         </header>
-        <div className="mobile-workout-summary-grid-v4 mobile-workout-summary-grid-v24">
-          <div><span>Duração</span><strong>{summaryIsIllustrative ? '—' : formatWorkoutTimer(summaryLog?.durationSeconds ?? durationSeconds)}</strong></div>
-          <div><span>Exercícios concluídos</span><strong>{summaryIsIllustrative ? '—' : completedExercises + '/' + exercises.length}</strong></div>
-          <div><span>Séries concluídas</span><strong>{summaryIsIllustrative ? '—' : dayCompletedSets}</strong></div>
-          <div><span>Volume</span><strong>{summaryIsIllustrative ? '—' : Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong></div>
+        <div className="student-workout-figma-summary-title">
+          <h3>Treino concluído!</h3>
+          <p>{preview ? 'Você cuidou de você hoje.' : completedLog?.endedEarly ? 'Seu progresso desta sessão foi salvo.' : 'Você cuidou de você hoje.'}</p>
         </div>
-        {summaryIsIllustrative ? <p className="mobile-workout-summary-preview-note-v25">Plano previsto: <strong>{exercises.length} exercícios</strong> e <strong>{dayTotalSets} séries</strong>. A execução real preencherá os indicadores.</p> : null}
-        {!summaryIsIllustrative && (loadImprovements || repImprovements) ? (
-          <div className="mobile-workout-summary-evolution-v4">
-            <strong>Evolução nesta sessão</strong>
-            <div>
-              {loadImprovements ? <span>{'↑ carga em ' + formatCount(loadImprovements, 'série')}</span> : null}
-              {repImprovements ? <span>{'↑ repetições em ' + formatCount(repImprovements, 'série')}</span> : null}
-            </div>
+        <section className="student-workout-figma-summary-card" aria-label="Indicadores da sessão">
+          <p>{workout.title || 'Treino'} • {activeDay?.day || 'Treino do dia'}</p>
+          <div className="student-workout-figma-summary-metrics">
+            <div><strong>{summaryIsIllustrative ? '—' : formatWorkoutTimer(summaryLog?.durationSeconds ?? durationSeconds).replace(/^00:/, '')}</strong><span>de treino</span></div>
+            <div><strong>{summaryIsIllustrative ? '—' : dayCompletedReps}</strong><span>repetições</span></div>
+            <div><strong>{summaryIsIllustrative ? '—' : Math.round(dayVolume).toLocaleString('pt-BR') + ' kg'}</strong><span>volume total</span></div>
           </div>
-        ) : null}
+          <div className="student-workout-figma-summary-progress"><span>{summaryIsIllustrative ? 'Plano previsto' : `${completedExercises} de ${exercises.length} exercícios concluídos`}</span><strong>{summaryIsIllustrative ? `${dayTotalSets} séries` : `${dayCompletedSets}/${dayTotalSets} séries`}</strong><div role="progressbar" aria-label="Progresso da sessão" aria-valuemin="0" aria-valuemax={dayTotalSets} aria-valuenow={summaryIsIllustrative ? 0 : dayCompletedSets}><span style={{ width: `${summaryIsIllustrative ? 0 : dayTotalSets ? dayCompletedSets / dayTotalSets * 100 : 0}%` }} /></div></div>
+        </section>
+        <div className="student-workout-figma-records">
+          <strong>TUDO REGISTRADO</strong>
+          {exercises.map((item, index) => {
+            const count = exerciseStates[index]?.completedSets || 0
+            const detail = isCardioExercise(item) ? formatCardioPrescription(item) : `${count} séries`
+            return <div key={item.id || item.name + '-' + index}><span className="student-workout-figma-record-check">✓</span><span>{item.name}</span><small>{summaryIsIllustrative ? 'Plano previsto' : detail}</small></div>
+          })}
+        </div>
+        {summaryIsIllustrative ? <p className="student-workout-figma-preview-note">Resumo demonstrativo. Os valores reais aparecem após o aluno concluir a sessão.</p> : null}
         {!summaryLog?.endedEarly ? <WorkoutCompletionRating key={summaryLog.id} log={summaryLog} onSubmit={preview ? undefined : submitWorkoutRating} preview={preview} /> : null}
-        {message ? <div className="mobile-workout-student-success-v2"><strong>{preview ? 'Simulação' : completedLog?.endedEarly ? 'Sessão encerrada' : 'Registro concluído'}</strong><span>{message}</span></div> : null}
-        <div className="mobile-workout-summary-actions-v4 mobile-workout-summary-actions-v24">
-          {!preview && onOpenProgress ? <button type="button" className="is-secondary" onClick={onOpenProgress}>Minha evolução</button> : null}
-          <button type="button" onClick={startNewWorkoutSession}>Voltar aos treinos</button>
+        {message ? <p className="student-workout-figma-summary-message" role="status">{message}</p> : null}
+        <div className="student-workout-figma-bottom-actions">
+          <button type="button" className="student-workout-figma-primary" onClick={startNewWorkoutSession}>Concluir e voltar aos treinos <span aria-hidden="true">✓</span></button>
+          {!preview && onOpenProgress ? <button type="button" className="student-workout-figma-link" onClick={onOpenProgress}>Ver detalhes da sessão</button> : null}
         </div>
       </section>
     )
@@ -15469,36 +15387,50 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     )
   }
 
-  if (!sessionStarted) {
+  if (!sessionStarted || showWorkoutOverview) {
+    const plannedSetCount = exercises.reduce((total, item) => total + (isCardioExercise(item) ? 1 : Math.max(1, Number.parseInt(item.sets, 10) || 1)), 0)
+    const durationEstimate = exercises.reduce((minutes, item) => {
+      const restSeconds = Number.parseInt(item.rest, 10)
+      const averageRestMinutes = Number.isFinite(restSeconds) ? Math.max(0, restSeconds) / 60 : 0.75
+      const setCount = isCardioExercise(item) ? 1 : Math.max(1, Number.parseInt(item.sets, 10) || 1)
+      return minutes + setCount * (1.5 + averageRestMinutes) + 1.5
+    }, 0)
+    const estimatedMinutes = Math.max(15, Math.round(durationEstimate / 5) * 5)
     return (
-      <section className={'mobile-workout-student-experience-v2 mobile-workout-day-detail-v4 mobile-workout-design-v24 mobile-workout-plan-v24 student-workout-build30-experience student-workout-build30-plan ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-overview student-workout-build30-experience student-workout-build30-plan ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined} aria-busy={syncState === 'loading'}>
         {sessionSyncFeedback}
-        <div className="mobile-workout-day-detail-head-v4 mobile-workout-day-detail-head-v24">
-          <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
-          <div>
-            <p>{activeDay?.day || 'Treino do dia'}</p>
-            <h3>{activeDay?.focus || workout.title || 'Treino'}</h3>
+        <header className="student-workout-figma-topbar">
+          {showWorkoutOverview ? <button type="button" aria-label="Voltar ao treino em andamento" onClick={() => setShowWorkoutOverview(false)}>←</button> : <span className="student-workout-figma-avatar">{getFirstName(student?.name).slice(0, 1) || 'A'}</span>}
+          <span><strong>{showWorkoutOverview ? 'Treino em andamento' : getFirstName(student?.name) || 'Aluno'}</strong><small>{showWorkoutOverview ? 'RETOMAR SESSÃO' : 'TREINO'}</small></span>
+          <button type="button" aria-label="Escolher outro dia de treino" onClick={() => setDayPickerOpen((open) => !open)}>•••</button>
+        </header>
+        <div className="student-workout-figma-overview-title">
+          <p>SEU TREINO <span>•</span> {activeDay?.day || 'DIA ' + (safeDayIndex + 1)}</p>
+          <h3>{[workout.title || activeDay?.focus || 'Treino', activeDay?.day].filter(Boolean).join(' — ')}</h3>
+          <span>{activeDay?.focus || workout.focus || 'Treino personalizado'}{workout.level ? ' · ' + workout.level : ''}</span>
+        </div>
+        <div className="student-workout-figma-overview-stats" aria-label="Resumo do treino planejado">
+          <div><strong>{exercises.length}</strong><span>exercícios</span></div>
+          <div><strong>{plannedSetCount}</strong><span>séries</span></div>
+          <div><strong>{estimatedMinutes}–{estimatedMinutes + 5}</strong><span>minutos</span></div>
+          <div className="student-workout-figma-overview-progress">
+            <span>{dayCompletedSets ? `${dayCompletedSets}/${plannedSetCount} séries` : 'Tudo pronto para começar'}</span>
+            <strong>{dayCompletedSets}/{plannedSetCount} séries</strong>
+            <div role="progressbar" aria-label="Séries já concluídas" aria-valuemin="0" aria-valuemax={plannedSetCount} aria-valuenow={dayCompletedSets}><span style={{ width: `${plannedSetCount ? Math.min(100, dayCompletedSets / plannedSetCount * 100) : 0}%` }} /></div>
           </div>
-          <span>{formatCount(exercises.length, 'exercício')}</span>
         </div>
-        <div className="mobile-workout-preview-notice-v4 mobile-workout-preview-notice-v24">
-          <strong>Antes de começar</strong>
-          <p>Confira a sequência e as orientações do treinador. Ao iniciar, você poderá registrar sua sessão.</p>
-        </div>
-        {exercises.length ? <button type="button" className="mobile-workout-start-session-v4 mobile-workout-start-session-v24" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : onToggleTimer}>▶ Iniciar sessão</button> : null}
-        <div className="mobile-workout-day-exercise-list-v4 mobile-workout-day-exercise-list-v24">
+        <div className="student-workout-figma-sequence-head"><strong>NA SUA SEQUÊNCIA</strong><span>Séries × reps</span></div>
+        <div className="student-workout-figma-sequence">
           {exercises.map((currentExercise, index) => {
             const profile = getExerciseMuscleProfile(currentExercise)
             return (
-              <article key={currentExercise.id || currentExercise.name + '-' + index} className="mobile-workout-day-exercise-v24">
-                <span className="mobile-workout-day-exercise-muscle-v4"><MuscleMapMini exercise={currentExercise} className="h-12 w-12" /></span>
-                <div>
-                  <small>{'Exercício ' + (index + 1)}</small>
+              <article key={currentExercise.id || currentExercise.name + '-' + index} className="student-workout-figma-sequence-row">
+                <span className={index === 0 ? 'is-current' : ''}>{String(index + 1).padStart(2, '0')}</span>
+                <div className="student-workout-figma-sequence-copy">
                   <h4>{currentExercise.name}</h4>
-                  <p>{isCardioExercise(currentExercise) ? formatCardioPrescription(currentExercise) : (currentExercise.sets || '-') + ' séries · ' + (currentExercise.reps || '-') + ' reps · descanso ' + (currentExercise.rest || 'livre')}</p>
-                  <span>{'Músculo-alvo: ' + profile.primaryLabel}</span>
-                  {currentExercise.cues || currentExercise.instructions ? <em>{currentExercise.cues || currentExercise.instructions}</em> : null}
+                  <small>{currentExercise.equipment || profile.primaryLabel || 'Treino personalizado'}</small>
                 </div>
+                <div className="student-workout-figma-sequence-target"><strong>{isCardioExercise(currentExercise) ? 'Cardio' : `${currentExercise.sets || '—'} × ${currentExercise.reps || '—'}`}</strong><small>{isCardioExercise(currentExercise) ? formatCardioPrescription(currentExercise) : `${currentExercise.rest || 'Livre'} descanso`}</small></div>
               </article>
             )
           })}
@@ -15510,92 +15442,94 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </div>
           ) : null}
         </div>
+        <p className="student-workout-figma-warmup"><span aria-hidden="true">ⓘ</span> Faça um aquecimento leve antes de começar. Os descansos serão guiados pelo app.</p>
+        {dayPickerOpen ? <div className="student-workout-figma-day-picker" role="group" aria-label="Outros dias de treino">{days.map((day, index) => <button key={day.id || day.day + '-' + index} type="button" className={index === safeDayIndex ? 'is-selected' : ''} onClick={() => selectDay(index)}><span>Dia {String(index + 1).padStart(2, '0')}</span><strong>{day.day || 'Treino ' + (index + 1)}</strong><small>{day.focus || workout.focus || 'Treino personalizado'}</small></button>)}</div> : null}
+        {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
+        <div className="student-workout-figma-bottom-actions">
+          {exercises.length ? <button type="button" className="student-workout-figma-primary" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : showWorkoutOverview ? () => setShowWorkoutOverview(false) : onToggleTimer}>{showWorkoutOverview ? 'Continuar treino' : sessionStarted ? 'Retomar treino' : 'Iniciar treino'} <span aria-hidden="true">→</span></button> : null}
+          {!showWorkoutOverview ? <button type="button" className="student-workout-figma-link" onClick={() => setDayPickerOpen((open) => !open)}>{dayPickerOpen ? 'Fechar dias de treino' : 'Ver outros dias de treino'}</button> : null}
+        </div>
+        {endConfirmOpen ? endConfirmation : null}
       </section>
     )
   }
 
-  const restWidget = restRemaining ? (
-    <div
-      className={`${preview ? 'mobile-workout-rest-preview-v12' : 'mobile-workout-rest-portal-v12'} student-workout-build30-rest-legacy`}
-      data-workout-theme={uiTheme}
-    >
-      <div
-        ref={restWidgetRef}
-        className={`mobile-workout-rest-floating-v6 ${restWidgetExpanded ? 'is-expanded' : 'is-compact'} ${restWidgetPosition ? 'is-positioned' : ''}`}
-        role="timer"
-        aria-live="off"
-        aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}
-        style={restWidgetPosition ? { '--rest-widget-left': `${restWidgetPosition.x}px`, '--rest-widget-top': `${restWidgetPosition.y}px` } : undefined}
-      >
-        <div className="mobile-workout-rest-floating-card-v6">
-          <button
-            type="button"
-            className="mobile-workout-rest-drag-handle-v11"
-            aria-label="Mover timer de descanso"
-            onPointerDown={beginRestWidgetDrag}
-            onPointerMove={moveRestWidget}
-            onPointerUp={endRestWidgetDrag}
-            onPointerCancel={endRestWidgetDrag}
-            onKeyDown={moveRestWidgetByKeyboard}
-          >
-            <span aria-hidden="true">•••</span>
-          </button>
-          {!restWidgetExpanded ? <>
-            <div className="mobile-workout-rest-compact-v13">
-              <NavIcon name="clock" className="h-4 w-4" />
-              <span>{restPaused ? 'Pausado' : 'Descanso'}</span>
-              <strong>{formatWorkoutTimer(restRemaining)}</strong>
+  const showExerciseComplete = preview
+    ? previewModeStage === 'exercise-complete'
+    : currentExerciseCompleted && !restRemaining && !completedLog
+
+  if (showExerciseComplete) {
+    const reviewSets = currentSets.filter((setItem) => setItem.completed)
+    const visibleSets = reviewSets.length ? reviewSets : preview ? currentSets : []
+    const nextExercise = hasNextExercise ? exercises[safeExerciseIndex + 1] : null
+    const primaryLabel = nextExercise ? `Ir para ${nextExercise.name}` : dayCanFinish ? 'Concluir treino' : 'Revisar séries pendentes'
+    return (
+      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-exercise-complete student-workout-build30-experience ' + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? 'exercise-complete' : undefined}>
+        {sessionSyncFeedback}
+        <header className="student-workout-figma-execution-topbar">
+          <button type="button" aria-label="Voltar ao treino" onClick={() => { setExpandedSetKey(nextPendingSetKey); setActiveExerciseIndex(safeExerciseIndex); if (preview) onPreviewStageChange?.('execution') }}>←</button>
+          <span><strong>{workout.title || 'Treino'} — {activeDay?.day || 'Treino'}</strong><small>DIA {activeDay?.day || safeDayIndex + 1} • MODO TREINO</small></span>
+          <button type="button" aria-label="Encerrar sessão" onClick={() => setEndConfirmOpen(true)}>•••</button>
+        </header>
+        <div className="student-workout-figma-progress-head"><span>{completedExercises} de {exercises.length} exercícios concluídos • {formatWorkoutTimer(durationSeconds)}</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
+        <div className="student-workout-figma-progress-track" role="progressbar" aria-label="Progresso do treino" aria-valuemin="0" aria-valuemax={dayTotalSets} aria-valuenow={dayCompletedSets}><span style={{ width: `${dayTotalSets ? dayCompletedSets / dayTotalSets * 100 : 0}%` }} /></div>
+        <div className="student-workout-figma-complete-chip">✓ <span>Exercício concluído</span></div>
+        <div className="student-workout-figma-exercise-complete-title"><h3>{exercise?.name}, feito.</h3><p>{reviewSets.length || (preview ? exerciseSetCount : 0)} séries registradas. Bom trabalho até aqui!</p></div>
+        <section className="student-workout-figma-record-card" aria-label="Registros do exercício">
+          <header><strong>Seus registros</strong><span>Meta: {exercise?.reps || '—'} reps/série</span></header>
+          {visibleSets.map((setItem) => (
+            <div key={setItem.key} className="student-workout-figma-set-record">
+              <span className="student-workout-figma-record-check">✓</span>
+              <strong>Série {setItem.number}</strong>
+              {expandedSetKey === setItem.key ? (
+                <div className="student-workout-figma-record-edit">
+                  <label>Carga<input inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
+                  <label>Repetições<input inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
+                  <button type="button" onClick={() => setExpandedSetKey('')}>Concluir edição</button>
+                </div>
+              ) : <span>{setItem.completed ? `${setItem.load || '—'} kg × ${setItem.reps || '—'} reps` : 'Exemplo demonstrativo'}</span>}
+              <button type="button" className="student-workout-figma-edit-set" aria-label={`Editar série ${setItem.number}`} aria-expanded={expandedSetKey === setItem.key} onClick={() => setExpandedSetKey(expandedSetKey === setItem.key ? '' : setItem.key)}>✎</button>
             </div>
-            <button type="button" className="mobile-workout-rest-expand-v13" onPointerDown={stopRestWidgetTogglePointer} onClick={(event) => { event.stopPropagation(); setRestWidgetExpanded(true) }} aria-expanded={restWidgetExpanded} aria-label={`Expandir descanso, ${formatWorkoutTimer(restRemaining)} restantes`}>
-              <NavIcon name="chevronUp" className="h-4 w-4" />
-            </button>
-          </> : <>
-            <div className="mobile-workout-rest-floating-copy-v6">
-              <span>Descanso</span>
-              <strong>{formatWorkoutTimer(restRemaining)}</strong>
-              <small>{restPaused ? 'Pausado' : 'Tempo restante'}</small>
-            </div>
-            <button type="button" className="mobile-workout-rest-minimize-v11" onPointerDown={stopRestWidgetTogglePointer} onClick={(event) => { event.stopPropagation(); setRestWidgetExpanded(false) }} aria-expanded={restWidgetExpanded} aria-label="Minimizar timer de descanso">
-              <NavIcon name="chevronDown" className="h-4 w-4" />
-            </button>
-            <div className="mobile-workout-rest-actions-v5">
-              <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Continuar' : 'Pausar'}</button>
-              <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-              <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular descanso</button>
-            </div>
-          </>}
+          ))}
+          <small>{preview ? 'Prévia: estes registros não serão salvos.' : 'Toque no lápis para revisar um registro.'}</small>
+        </section>
+        {isLastExercise ? <details className="student-workout-figma-session-notes"><summary>Adicionar observação do treino</summary><label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label><label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label></details> : null}
+        {nextExercise ? <article className="student-workout-figma-next-exercise"><p>PRÓXIMO • EXERCÍCIO {safeExerciseIndex + 2} DE {exercises.length}</p><strong>{nextExercise.name}</strong><span>{nextExercise.equipment || getExerciseMuscleProfile(nextExercise).primaryLabel}</span><small>{nextExercise.sets || '—'} séries × {nextExercise.reps || '—'} reps • descanso de {nextExercise.rest || 'livre'}</small></article> : null}
+        <div className="student-workout-figma-complete-technique"><ExerciseMedia exercise={exercise} compact label={'Consultar execução de ' + (exercise?.name || 'este exercício')} /></div>
+        {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
+        <div className="student-workout-figma-bottom-actions">
+          <button type="button" className="student-workout-figma-primary" disabled={saving} onClick={() => {
+            setError('')
+            if (nextExercise) {
+              if (preview) setActiveExerciseIndex((index) => Math.min(index + 1, exercises.length - 1))
+              else moveExercise(1)
+              if (preview) onPreviewStageChange?.('execution')
+            } else if (preview) onPreviewStageChange?.('summary')
+            else if (dayCanFinish) void finishWorkout()
+            else {
+              const pendingIndex = exerciseStates.findIndex((item) => item.status !== 'completed')
+              setActiveExerciseIndex(Math.max(0, pendingIndex))
+            }
+          }}>{primaryLabel} <span aria-hidden="true">→</span></button>
+          {!preview ? <button type="button" className="student-workout-figma-link" onClick={() => setEndConfirmOpen(true)}>Encerrar sessão</button> : null}
         </div>
-      </div>
-    </div>
-  ) : null
+        {endConfirmOpen ? endConfirmation : null}
+      </section>
+    )
+  }
+
+
 
   return (
-    <section className={'mobile-workout-student-experience-v2 mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution ' + (executionActionLabel ? 'has-actionbar ' : '') + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+    <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-execution mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution ' + (executionActionLabel ? 'has-actionbar ' : '') + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
-      <div className="mobile-workout-command-v12 mobile-workout-command-v24">
-        <div className="mobile-workout-execution-head-v4 mobile-workout-execution-head-v24">
-          <button type="button" onClick={returnToDaySelection}>← Voltar aos dias</button>
-          <div><span>{activeDay?.day || 'Treino do dia'}</span><strong>{activeDay?.focus || workout.title || 'Treino'}</strong></div>
-          {sessionStarted ? <button type="button" className="mobile-workout-end-trigger-v5" onClick={() => setEndConfirmOpen(true)}>Encerrar sessão</button> : null}
-        </div>
-        <div className="mobile-workout-exercise-progress-v3 mobile-workout-exercise-progress-v24">
-          <div className="mobile-workout-exercise-progress-head-v3">
-            <div><span>Progresso do treino</span><strong>{'Exercício ' + (safeExerciseIndex + 1) + ' de ' + exercises.length}</strong></div>
-            <small>{completedExercises + ' exercícios concluídos · ' + dayCompletedSets + '/' + dayTotalSets + ' séries'}</small>
-          </div>
-          <div className="mobile-workout-exercise-dots-v3" role="progressbar" aria-label="Progresso dos exercícios" aria-valuemin="0" aria-valuemax={exercises.length} aria-valuenow={completedExercises}>
-            {exerciseStates.map((state, index) => <span key={index} className={(state.status === 'completed' ? 'is-complete ' : '') + (index === safeExerciseIndex ? 'is-current' : '')} />)}
-          </div>
-          <div className="mobile-workout-exercise-switcher-v4" aria-label="Exercícios deste treino">
-            {exercises.map((item, index) => (
-              <button key={item.id || item.name + '-' + index} type="button" aria-label={`Exercício ${index + 1}: ${item.name}`} aria-current={index === safeExerciseIndex ? 'step' : undefined} title={item.name} className={(index === safeExerciseIndex ? 'is-current ' : '') + (exerciseStates[index]?.status === 'completed' ? 'is-complete' : '')} onClick={() => { setActiveExerciseIndex(index); setRestRemaining(0); setRestPaused(false); scrollWorkoutTarget('student-current-exercise') }}>
-                <span className="mobile-workout-step-index-v24">{index + 1}</span>
-                <span className="mobile-workout-step-name-v24">{item.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <header className="student-workout-figma-execution-topbar">
+        <button type="button" aria-label="Voltar ao resumo do treino" onClick={returnToDaySelection}>←</button>
+        <span><strong>{workout.title || 'Treino'} — {activeDay?.day || 'Treino'}</strong><small>DIA {activeDay?.day || safeDayIndex + 1} • MODO TREINO</small></span>
+        <button type="button" aria-label="Encerrar sessão" onClick={() => setEndConfirmOpen(true)}>•••</button>
+      </header>
+      <div className="student-workout-figma-progress-head"><span>Exercício {safeExerciseIndex + 1} de {exercises.length} • {formatWorkoutTimer(durationSeconds)} de treino</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
+      <div className="student-workout-figma-progress-track" role="progressbar" aria-label="Progresso do treino" aria-valuemin="0" aria-valuemax={dayTotalSets} aria-valuenow={dayCompletedSets}><span style={{ width: `${dayTotalSets ? dayCompletedSets / dayTotalSets * 100 : 0}%` }} /></div>
 
       {exercise ? (
         <article id="student-current-exercise" className="mobile-workout-student-current-exercise-v2 mobile-workout-focus-v12 mobile-workout-focus-v24">
@@ -15603,28 +15537,12 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <div>
               <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
               <h4>{exercise.name}</h4>
-              {exercise.equipment ? <span>{exercise.equipment}</span> : null}
+              <span>{[exercise.equipment, currentExerciseIsCardio ? formatCardioPrescription(exercise) : `${exercise.sets || '—'} séries de ${exercise.reps || '—'} reps · Descanso ${exercise.rest || 'livre'}`].filter(Boolean).join(' • ')}</span>
             </div>
-            <strong className={'is-' + currentExerciseState.status}>{currentExerciseStatusLabel}</strong>
           </div>
 
-          <details className="student-workout-build30-disclosure student-workout-build30-media-disclosure">
-            <summary>Ver execução e mídia</summary>
-            <ExerciseMedia exercise={exercise} compact />
-          </details>
-
-          <details className="student-workout-build30-disclosure student-workout-build30-anatomy-disclosure">
-            <summary>Ver anatomia e músculos-alvo</summary>
-            <MuscleMap exercise={exercise} compact className="mobile-workout-muscle-target-anatomy-v6" />
-          </details>
-
-          {(exercise.cues || exercise.instructions || exercise.notes) ? (
-            <details className="mobile-workout-orientations-v4 mobile-workout-orientations-context-v13 student-workout-build30-disclosure student-workout-build30-orientations-disclosure">
-              <summary>Orientações do treinador</summary>
-              <p>{exercise.cues || exercise.instructions || 'Siga a execução orientada pelo seu treinador.'}</p>
-              {exercise.notes ? <small>{exercise.notes}</small> : null}
-            </details>
-          ) : null}
+          <div className="student-workout-figma-media"><ExerciseMedia exercise={exercise} compact label="Ver execução" /></div>
+          {exercise.cues || exercise.instructions || exercise.notes ? <p className="student-workout-figma-coach-cue">{exercise.cues || exercise.instructions}{exercise.notes ? ' ' + exercise.notes : ''}</p> : null}
 
           <div className="mobile-workout-timer-panel-v5">
             <div className="mobile-workout-session-timer-v5">
@@ -15674,15 +15592,11 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </>
           ) : (
             <>
-              <div className="mobile-workout-student-metrics-v2 mobile-workout-strength-metrics-v11">
-                <ExerciseMetric label="Séries" value={exercise.sets || '-'} />
-                <ExerciseMetric label="Meta de reps" value={exercise.reps || '-'} />
-                <ExerciseMetric label="Descanso" value={exercise.rest || '-'} />
-              </div>
+              <p className="student-workout-figma-prescription-line">{exercise.equipment || 'Treino de força'} • {exercise.sets || '—'} séries de {exercise.reps || '—'} reps • Descanso {exercise.rest || 'livre'}</p>
               <div className="mobile-workout-student-series-v2">
                 <div className="mobile-workout-student-series-head-v2">
-                  <strong>Registrar séries</strong>
-                  <span>{currentExerciseState.completedSets + '/' + exerciseSetCount + ' séries concluídas neste exercício'}</span>
+                  <strong>Série {nextPendingSet?.number || exerciseSetCount} de {exerciseSetCount}</strong>
+                  <span>{currentExerciseState.completedSets}/{exerciseSetCount} concluídas</span>
                 </div>
                 <div className="mobile-workout-series-progress-v29">
                   <div><strong>{currentExerciseState.completedSets} de {exerciseSetCount} séries</strong><small>{nextPendingSet ? 'Série ' + nextPendingSet.number + ' é a próxima' : 'Todas as séries deste exercício concluídas'}</small></div>
@@ -15727,54 +15641,19 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           )}
 
 
-          <div className="mobile-workout-student-navigation-v3 mobile-workout-navigation-premium-v13 mobile-workout-navigation-v24">
-            {currentExerciseCompleted ? <button type="button" className="is-primary mobile-workout-inline-advance-v29" onClick={completeExerciseAndAdvance}>Concluir exercício</button> : null}
-            {hasPreviousExercise ? <button type="button" className="is-secondary" aria-label="Exercício anterior" onClick={() => { moveExercise(-1); scrollWorkoutTarget('student-current-exercise') }}>← <span>Exercício anterior</span></button> : null}
-          </div>
-          {!currentExerciseCompleted ? <small className="mobile-workout-next-hint-v3">{currentExerciseIsCardio ? 'Finalize esta atividade cardiovascular para liberar o avanço rápido.' : 'Conclua todas as séries deste exercício para liberar o avanço rápido. Você também pode abrir outro exercício acima.'}</small> : null}
         </article>
       ) : null}
 
-      {executionActionLabel ? (
-        <div className="mobile-workout-execution-actionbar-v29 student-workout-build30-actionbar" role="region" aria-label="Próxima ação do treino">
-          {restRemaining ? (
-            <div className="student-workout-build30-rest-inline" role="timer" aria-live="off" aria-label={'Descanso: ' + formatWorkoutTimer(restRemaining)}>
-              <div><small>{restPaused ? 'Descanso pausado' : 'Descanso em andamento'}</small><strong>{formatWorkoutTimer(restRemaining)}</strong><span>{nextPendingSet ? 'Próximo: série ' + nextPendingSet.number : 'Próximo exercício quando estiver pronto'}</span></div>
-              <div>
-                <button type="button" onClick={() => setRestPaused((current) => !current)}>{restPaused ? 'Retomar' : 'Pausar'}</button>
-                <button type="button" onClick={() => setRestRemaining((current) => current + 30)}>+30s</button>
-                <button type="button" onClick={() => { setRestRemaining(0); setRestPaused(false) }}>Pular descanso</button>
-              </div>
-            </div>
-          ) : null}
-          <div className="student-workout-build30-next-action"><small>Próximo passo</small><strong>{nextPendingSet ? 'Série ' + nextPendingSet.number + ' de ' + exerciseSetCount + (isPendingSetExpanded ? ' · pronta para concluir' : ' · pronta para registrar') : 'Exercício concluído · avance quando estiver pronto'}</strong></div>
-          <button type="button" onClick={handleExecutionPrimaryAction} disabled={saving || Boolean(completedLog)}>{executionActionLabel}</button>
+      {executionActionLabel || !preview ? (
+        <div className="student-workout-figma-bottom-actions student-workout-figma-execution-actions" role="region" aria-label="Próxima ação do treino">
+          {executionActionLabel ? <button type="button" className="student-workout-figma-primary" onClick={handleExecutionPrimaryAction} disabled={saving || Boolean(completedLog)}>Registrar série e descansar <span aria-hidden="true">→</span></button> : null}
+          {!preview ? <button type="button" className="student-workout-figma-link" onClick={() => setEndConfirmOpen(true)}>Encerrar sessão</button> : null}
         </div>
       ) : null}
 
       {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
 
-      {isLastExercise ? (
-        <footer id="student-workout-finish" className="mobile-workout-student-finish-v2 mobile-workout-finish-v24">
-          <label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label>
-          <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
-          <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
-          {!dayCanFinish ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'etapa ainda não concluída' : 'etapas ainda não concluídas') + '. Você pode concluir as atividades ou encerrar a sessão atual.'}</small> : null}
-        </footer>
-      ) : null}
-      {!completedLog ? <button type="button" className="mobile-workout-end-secondary-v5 student-workout-end-available" disabled={saving} onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button> : null}
-      {endConfirmOpen ? createPortal((
-        <div className={`mobile-workout-end-overlay-v5 app-theme-${uiTheme}`} role="presentation">
-          <div ref={endDialogRef} className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
-            <strong id="workout-end-title">Deseja encerrar o treino agora?</strong>
-            <p id="workout-end-description">Seu progresso realizado até aqui será mantido.</p>
-            <div>
-              <button type="button" className="is-secondary" disabled={saving} onClick={() => setEndConfirmOpen(false)}>Continuar treino</button>
-              <button type="button" className="is-end" disabled={saving} onClick={endWorkoutEarly}>{saving ? 'Encerrando...' : 'Encerrar treino'}</button>
-            </div>
-          </div>
-        </div>
-      ), document.body) : null}
+      {endConfirmOpen ? endConfirmation : null}
     </section>
   )
 }
