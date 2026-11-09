@@ -13,6 +13,7 @@ import './StudentAnamnesisWorkspace.css'
 import './student-workout-figma-dark.css'
 import './student-workout-polish-build34.css'
 import './student-workout-xp-celebration-build35.css'
+import './student-workout-polish-build36.css'
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {

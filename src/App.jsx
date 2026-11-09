@@ -199,7 +199,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build35-20261109'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build36-20261109'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -14278,6 +14278,7 @@ function WorkoutLogList({ logs }) {
                 {formatDateTime(log.completedAt)} {log.effort ? `| Esforço: ${log.effort}` : ''}
               </p>
               {log.notes ? <p className="mt-2 text-sm leading-6 text-zinc-300">{log.notes}</p> : null}
+              {log.ratingFeedback ? <p className="student-workout-log-feedback"><strong>Feedback do aluno</strong><span>{log.ratingFeedback}</span></p> : null}
             </div>
             <span className={`rounded border px-2 py-1 text-xs font-black ${log.endedEarly ? 'border-amber-300/40 bg-amber-300/10 text-amber-200' : 'border-blue-300/40 bg-blue-300/10 text-blue-200'}`}>
               {log.endedEarly ? 'Encerrado' : log.offline ? 'Offline' : 'Feito'}
@@ -14925,7 +14926,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     }
     if (previousRestActiveRef.current) {
       previousRestActiveRef.current = false
-      scrollWorkoutToTop()
+      scrollWorkoutToActiveSet()
     }
   }, [preview, restRemaining])
 
@@ -15098,6 +15099,34 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         target = target.parentElement
       }
       window.scrollTo({ top: 0, behavior })
+    })
+  }
+
+  function scrollWorkoutToActiveSet() {
+    if (preview || typeof window === 'undefined' || window.innerWidth > 767) return
+    const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth'
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector('.student-workout-figma-execution:not(.is-compact) .mobile-workout-set-card-v29.is-current')
+      if (!target) return
+
+      let scroller = target.parentElement
+      while (scroller && scroller !== document.body) {
+        const style = window.getComputedStyle(scroller)
+        if (/(auto|scroll)/.test(style.overflowY) && scroller.scrollHeight > scroller.clientHeight + 2) {
+          const targetRect = target.getBoundingClientRect()
+          const scrollerRect = scroller.getBoundingClientRect()
+          const nextTop = scroller.scrollTop + targetRect.top - scrollerRect.top + targetRect.height / 2 - scroller.clientHeight / 2
+          scroller.scrollTo({ top: Math.max(0, nextTop), behavior })
+          return
+        }
+        scroller = scroller.parentElement
+      }
+
+      const targetRect = target.getBoundingClientRect()
+      const bottomNavHeight = document.querySelector('.student-bottom-nav')?.getBoundingClientRect().height || 0
+      const visibleCenter = Math.max(0, window.innerHeight - bottomNavHeight) / 2
+      const nextTop = window.scrollY + targetRect.top + targetRect.height / 2 - visibleCenter
+      window.scrollTo({ top: Math.max(0, nextTop), behavior })
     })
   }
 
@@ -15412,13 +15441,14 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     scrollWorkoutToTop()
   }
 
-  async function submitWorkoutRating(rating) {
+  async function submitWorkoutRating(rating, feedback = '') {
     if (preview) throw new Error('A prévia não salva avaliações do aluno.')
     if (!completedLog?.id || !onRateWorkout) throw new Error('Não foi possível salvar sua avaliação agora.')
     if (completedLog.endedEarly) throw new Error('Sessões encerradas antecipadamente não recebem avaliação de treino concluído.')
     const selectedRating = Number(rating)
     if (!Number.isInteger(selectedRating) || selectedRating < 1 || selectedRating > 5) throw new Error('Escolha uma avaliação de uma a cinco estrelas.')
-    const saved = await onRateWorkout(completedLog.id, selectedRating)
+    const feedbackToSave = String(feedback || '').trim().slice(0, 500)
+    const saved = await onRateWorkout(completedLog.id, selectedRating, feedbackToSave)
     if (!saved?.id) throw new Error('O servidor não confirmou a avaliação do treino.')
     const confirmedRating = Number(saved.rating) || selectedRating
     const xpAwarded = Math.max(0, Math.trunc(Number(completedLog.xpAwarded) || 0))
@@ -15428,7 +15458,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       onXpCelebrationStart?.()
       setXpCelebration({ xp: xpAwarded, rating: confirmedRating, workoutTitle: workoutScreenTitle })
     }
-    return { ...saved, rating: confirmedRating }
+    return { ...saved, rating: confirmedRating, ratingFeedback: String(saved.ratingFeedback ?? feedbackToSave).slice(0, 500) }
   }
 
   const endConfirmation = typeof document === 'undefined' ? null : createPortal((
@@ -15627,7 +15657,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         {sessionSyncFeedback}
         <header className="student-workout-figma-topbar">
           {showWorkoutOverview ? <button type="button" aria-label="Voltar ao treino em andamento" onClick={() => setShowWorkoutOverview(false)}><NavIcon name="arrowLeft" className="h-5 w-5" /></button> : <span className="student-workout-figma-avatar">{getFirstName(student?.name).slice(0, 1) || 'A'}</span>}
-          <span><strong>{showWorkoutOverview ? 'Treino em andamento' : getFirstName(student?.name) || 'Aluno'}</strong><small>{showWorkoutOverview ? 'RETOMAR SESSÃO' : 'TREINO'}</small></span>
+          <span><strong>{showWorkoutOverview ? 'Treino em andamento' : 'Seu treino'}</strong><small>{showWorkoutOverview ? 'RETOMAR SESSÃO' : 'TREINO DO DIA'}</small></span>
           <button type="button" aria-label="Escolher outro dia de treino" aria-expanded={dayPickerOpen} onClick={() => setDayPickerOpen((open) => !open)}><NavIcon name="calendar" className="h-5 w-5" /></button>
         </header>
         <div className="student-workout-figma-overview-title">
@@ -15645,6 +15675,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <WorkoutSeriesProgressSegments completed={dayCompletedSets} total={plannedSetCount} label="Séries já concluídas" className="student-workout-figma-overview-segments" />
           </div>
         </div>
+        {exercises.length ? <div className="student-workout-figma-overview-primary-action">
+          <button type="button" className="student-workout-figma-primary" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : showWorkoutOverview ? () => setShowWorkoutOverview(false) : onToggleTimer}>{showWorkoutOverview ? 'Continuar treino' : sessionStarted ? 'Retomar treino' : 'Iniciar treino'} <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button>
+        </div> : null}
         <div className="student-workout-figma-sequence-head"><strong>NA SUA SEQUÊNCIA</strong><span>Séries × reps</span></div>
         <div className="student-workout-figma-sequence">
           {exercises.map((currentExercise, index) => {
@@ -15672,7 +15705,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         {dayPickerOpen ? <div className="student-workout-figma-day-picker" role="group" aria-label="Outros dias de treino">{days.map((day, index) => <button key={day.id || day.day + '-' + index} type="button" className={index === safeDayIndex ? 'is-selected' : ''} onClick={() => selectDay(index)}><span>Dia {String(index + 1).padStart(2, '0')}</span><strong>{day.day || 'Treino ' + (index + 1)}</strong><small>{day.focus || workout.focus || 'Treino personalizado'}</small></button>)}</div> : null}
         {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
         <div className="student-workout-figma-bottom-actions">
-          {exercises.length ? <button type="button" className="student-workout-figma-primary" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : showWorkoutOverview ? () => setShowWorkoutOverview(false) : onToggleTimer}>{showWorkoutOverview ? 'Continuar treino' : sessionStarted ? 'Retomar treino' : 'Iniciar treino'} <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button> : null}
           {!showWorkoutOverview ? <button type="button" className="student-workout-figma-link" onClick={() => setDayPickerOpen((open) => !open)}>{dayPickerOpen ? 'Fechar dias de treino' : 'Ver outros dias de treino'}</button> : null}
         </div>
         {endConfirmOpen ? endConfirmation : null}
@@ -19480,8 +19512,8 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     ) : Promise.resolve(session)
   ), [inviteCode])
 
-  const rateStudentWorkout = useCallback((workoutLogId, rating) => (
-    saveRemoteWorkoutRating(inviteCode, workoutLogId, rating)
+  const rateStudentWorkout = useCallback((workoutLogId, rating, feedback = '') => (
+    saveRemoteWorkoutRating(inviteCode, workoutLogId, rating, feedback)
   ), [inviteCode])
   const loadStudentMealLogs = useCallback(() => (
     supabaseEnabled ? loadRemoteStudentMealLogs(inviteCode) : Promise.resolve([])
@@ -20068,7 +20100,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         )
       }
       return (
-        <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'}>
+        <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'} hideHeader className="student-workout-app-section">
           {studentWorkouts.length > 1 ? (
             <label className="student-workout-selector">
               <span>Treino disponível</span>
@@ -20082,13 +20114,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               </select>
             </label>
           ) : null}
-          <StudentReminderCard
-            title="Lembrete de treino"
-            body={`Hora de treinar, ${student.name}. Abra o Coach Fit Pro e siga o plano de hoje.`}
-            action="Ativar lembrete"
-            compact
-          />
-
           {studentWorkouts.length ? (
             <>
               <StudentWorkoutExecution
@@ -20146,6 +20171,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
           ) : (
             <Empty text="Seu treino ainda não foi liberado pelo coach." />
           )}
+          <StudentReminderCard
+            title="Lembrete de treino"
+            body={`Hora de treinar, ${student.name}. Abra o Coach Fit Pro e siga o plano de hoje.`}
+            action="Ativar lembrete"
+            compact
+          />
         </StudentAppSection>
       )
     }
@@ -20231,7 +20262,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   }
 
   return (
-    <div className={`app-shell student-mobile-shell ${activeTab === 'mensagens' ? 'student-chat-active' : ''} student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
+    <div className={`app-shell student-mobile-shell ${activeTab === 'mensagens' ? 'student-chat-active' : ''} ${activeTab === 'treino' ? 'student-workout-active' : ''} student-theme-sync-v1 fit-gradient-bg app-theme-${theme} min-h-screen w-full max-w-full text-zinc-100`} data-theme={theme} data-build={COACH_FIT_PRO_BUILD_MARKER} style={mergeThemeStyle(appAdminSettings, theme)}>
       {xpGain > 0 && activeTab !== 'treino' && <div className="student-xp-gain" role="status" aria-live="polite"><strong>+{xpGain} XP</strong><span>Progresso registrado</span></div>}
       <header className="student-header-nav sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-2.5 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
@@ -20399,7 +20430,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               Conexão instável. Exibindo os últimos dados sincronizados; uma nova tentativa será feita automaticamente.
             </p>
           ) : null}
-          {activeTab !== 'mensagens' && <>
+          {activeTab !== 'mensagens' && activeTab !== 'treino' && <>
             <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/94 shadow-2xl shadow-black/35 backdrop-blur-xl lg:sticky lg:top-5 lg:z-20">
               <div className="p-3.5 sm:p-4">
               <WelcomeHeader
@@ -26115,6 +26146,8 @@ function NotificationShortcut({ count = 0, notifications = [], smartAlerts = [],
 
 function ThemeToggle({ theme, onToggle, className = '' }) {
   const isDark = theme === 'dark'
+  const studentToggle = className.split(/\s+/).includes('student-theme-toggle')
+  const iconName = studentToggle ? (isDark ? 'sun' : 'moon') : 'lightbulb'
   return (
     <button
       type="button"
@@ -26125,7 +26158,7 @@ function ThemeToggle({ theme, onToggle, className = '' }) {
       className={`theme-toggle theme-toggle-icon-only ${isDark ? 'theme-toggle-dark' : 'theme-toggle-light'} ${className}`}
     >
       <span className="theme-toggle-symbol" aria-hidden="true">
-        <span className={`theme-toggle-lamp ${isDark ? 'is-off' : 'is-on'}`}><NavIcon name="lightbulb" className="h-5 w-5" /></span>
+        <span className={`theme-toggle-lamp ${isDark ? 'is-off' : 'is-on'} ${studentToggle ? 'theme-toggle-student-icon' : ''}`}><NavIcon key={iconName} name={iconName} className="h-5 w-5" /></span>
       </span>
     </button>
   )
@@ -28318,4 +28351,3 @@ function Badge({ tone, children }) {
 
   return <span className={`rounded border px-2 py-1 text-xs font-black ${className}`}>{formatUiText(children)}</span>
 }
-

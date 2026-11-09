@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 const normalizeNewlines = (value) => value.replace(/\r\n/g, '\n')
 const app = normalizeNewlines(readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8'))
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
+const studentWorkoutPolish = readFileSync(new URL('../src/student-workout-polish-build36.css', import.meta.url), 'utf8')
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const nutritionPlanAccess = readFileSync(new URL('../src/nutritionPlanAccess.js', import.meta.url), 'utf8')
@@ -45,7 +46,7 @@ const checks = [
   ['Theme toggle is icon-only', app.includes('theme-toggle-symbol') && !app.includes('theme-toggle-copy')],
   ['Authenticated app premium cleanup exists', css.includes('app-theme-light-premium-cleanup-v5')],
   ['Authenticated app uses requested neutral light base token', css.includes('--app-light-bg: #E0E0E0')],
-  ['Theme toggle uses natural outline lamp icon', app.includes('theme-toggle-lamp') && app.includes('NavIcon name="lightbulb"') && !app.includes('theme-toggle-bulb')],
+  ['Theme toggle communicates the next student theme with sun/moon icons', app.includes("const iconName = studentToggle ? (isDark ? 'sun' : 'moon') : 'lightbulb'") && app.includes('theme-toggle-student-icon') && studentWorkoutPolish.includes('animation: student-theme-icon-in 220ms')],
   ['Theme toggle lamp has natural CSS polish', css.includes('theme-toggle-lamp-natural-v2') && css.includes('.theme-toggle-lamp.is-on') && css.includes('.theme-toggle-lamp.is-off')],
   ['Only one authenticated theme shortcut per viewport', !app.includes('mt-3 hidden w-full lg:flex')],
   ['Logged app theme shortcut is desktop-only by CSS', /\.coach-page-theme-toggle\s*\{\s*display: none !important;[\s\S]*?@media \(min-width: 1024px\) \{[\s\S]*?\.coach-page-theme-toggle\s*\{\s*display: inline-flex !important;/.test(css)],

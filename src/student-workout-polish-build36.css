@@ -1,0 +1,377 @@
+/* BUILD36 — correções focadas do treino do aluno; sem mudanças no sistema global. */
+.student-mobile-shell.student-workout-active {
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+.student-mobile-shell.student-workout-active .student-app-layout {
+  padding-top: 8px !important;
+}
+
+.student-mobile-shell.student-workout-active .student-workout-app-section {
+  min-width: 0;
+  border-color: transparent !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-workout-figma-overview .student-workout-figma-overview-primary-action {
+  display: grid;
+  width: 100%;
+  margin: 2px 0 0;
+  justify-items: stretch;
+}
+
+.student-workout-figma-overview-primary-action .student-workout-figma-primary {
+  width: 100%;
+  min-height: 52px;
+  margin-inline: auto;
+  justify-content: center;
+}
+
+.student-workout-figma-overview .student-workout-figma-bottom-actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.student-workout-figma-sequence-row {
+  grid-template-columns: 38px minmax(0, 1fr) minmax(76px, 30%);
+  gap: 8px;
+}
+
+.student-workout-figma-sequence-copy,
+.student-workout-figma-sequence-target {
+  min-width: 0;
+}
+
+.student-workout-figma-sequence-copy h4,
+.student-workout-figma-sequence-copy small,
+.student-workout-figma-sequence-target strong,
+.student-workout-figma-sequence-target small {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.student-workout-figma-sequence-target {
+  justify-items: end;
+  text-align: right;
+}
+
+.student-workout-figma-sequence-target strong {
+  font-size: clamp(10px, 2.9vw, 12px);
+  font-variant-numeric: tabular-nums;
+}
+
+.student-workout-figma-execution .mobile-workout-set-fields-v12 {
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.student-workout-figma-execution .mobile-workout-set-fields-v12 label,
+.student-workout-figma-execution .mobile-workout-set-fields-v12 input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Uma única ação principal fica na barra fixa; a cópia dentro do card não aparece. */
+.student-workout-figma-execution .mobile-workout-set-inline-action-v29 {
+  display: none !important;
+}
+
+.student-workout-figma-execution-actions {
+  position: sticky;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  z-index: 27;
+  display: grid;
+  width: auto;
+  max-width: 600px;
+  margin: 0 auto !important;
+  justify-items: stretch;
+  gap: 4px;
+  border: 1px solid var(--sw-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--sw-bg) 94%, transparent) !important;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .12);
+  backdrop-filter: blur(18px);
+}
+
+.student-workout-figma-execution-actions .student-workout-figma-primary {
+  width: 100%;
+  min-height: 52px;
+  margin-inline: auto;
+  justify-content: center;
+  text-align: center;
+}
+
+.student-workout-figma-execution-actions .student-workout-figma-link {
+  justify-self: center;
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sw-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.student-workout-figma-execution-topbar > button:last-child {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--sw-muted) !important;
+  opacity: .72;
+}
+
+.student-workout-figma-execution-topbar > button:last-child:hover,
+.student-workout-figma-execution-topbar > button:last-child:focus-visible {
+  border-color: var(--sw-line) !important;
+  background: var(--sw-panel) !important;
+  color: var(--sw-muted) !important;
+  opacity: 1;
+}
+
+.student-workout-figma-set-record {
+  grid-template-columns: 18px minmax(54px, auto) minmax(0, 1fr) 36px;
+  gap: 6px;
+}
+
+.student-workout-figma-set-record > span:not(.student-workout-figma-record-check) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.student-workout-figma-summary .student-workout-rating-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.student-workout-rating-feedback {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.student-workout-rating-feedback > span {
+  color: var(--sw-text, #f4fffd);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.student-workout-rating-feedback textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 88px;
+  resize: vertical;
+  border: 1px solid var(--sw-line, rgba(181, 213, 205, .14));
+  border-radius: 12px;
+  background: var(--sw-bg, #0d1918);
+  padding: 11px 12px;
+  color: var(--sw-text, #eef7f4);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.student-workout-rating-feedback textarea::placeholder {
+  color: var(--sw-muted, #9db3ad);
+  opacity: .8;
+}
+
+.student-workout-rating-emblem > svg,
+.student-workout-rating-stars button > span svg {
+  display: block;
+}
+
+.student-workout-rating-emblem > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.student-workout-rating-stars button > span {
+  display: grid;
+  place-items: center;
+}
+
+.student-workout-rating-stars button > span svg {
+  width: 20px;
+  height: 20px;
+}
+
+.student-workout-rating-feedback small {
+  justify-self: end;
+  color: var(--sw-muted, #9db3ad);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* O ícone do toggle do aluno comunica a ação: sol para claro, lua para escuro. */
+.student-mobile-shell .student-theme-toggle .theme-toggle-student-icon {
+  width: 30px;
+  height: 30px;
+  background: rgba(78, 233, 208, .1);
+  color: #4ee9d0;
+  box-shadow: inset 0 0 0 1px rgba(78, 233, 208, .18);
+}
+
+.student-mobile-shell .student-theme-toggle .theme-toggle-student-icon svg {
+  width: 19px;
+  height: 19px;
+  animation: student-theme-icon-in 220ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.student-mobile-shell.app-theme-light .student-theme-toggle .theme-toggle-student-icon {
+  background: #eff7f5;
+  color: #087f72;
+  box-shadow: inset 0 0 0 1px #d8e9e4;
+}
+
+.student-mobile-shell.app-theme-light .student-theme-toggle:hover .theme-toggle-student-icon,
+.student-mobile-shell.app-theme-light .student-theme-toggle:focus-visible .theme-toggle-student-icon {
+  background: #e6f4f0;
+  color: #065f56;
+}
+
+@keyframes student-theme-icon-in {
+  from { opacity: .45; transform: rotate(-24deg) scale(.82); }
+  to { opacity: 1; transform: rotate(0) scale(1); }
+}
+
+/* Tema claro do treino: branco como superfície principal e apenas painéis neutros suaves. */
+.student-mobile-shell.app-theme-light.student-workout-active {
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0d2523 !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-header-nav,
+.student-mobile-shell.app-theme-light.student-workout-active .student-app-layout,
+.student-mobile-shell.app-theme-light.student-workout-active main,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-app-section {
+  border-color: #e4ece9 !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-header-nav {
+  color: #0d2523 !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-screen {
+  --sw-bg: #ffffff;
+  --sw-panel: #ffffff;
+  --sw-panel-strong: #f8faf9;
+  --sw-line: #dfe8e5;
+  --sw-text: #0d2523;
+  --sw-muted: #52635f;
+  --sw-accent: #087f72;
+  --sw-accent-strong: #087f72;
+  --sw-accent-soft: #edf6f3;
+  background: #ffffff !important;
+  color: #0d2523 !important;
+  box-shadow: none !important;
+  transition: background-color 220ms ease, color 220ms ease;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-overview-stats,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-execution .mobile-workout-student-series-v2,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-record-card,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary-card {
+  border-color: #e1e9e6;
+  background: #f8faf9;
+  box-shadow: none;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-day-picker,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-day-picker button {
+  border-color: #e1e9e6;
+  background: #ffffff;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-execution-actions {
+  border-color: #dfe8e5;
+  background: rgba(255, 255, 255, .96) !important;
+  box-shadow: 0 12px 28px rgba(15, 35, 31, .1);
+}
+
+/* Estados das estrelas explicitamente sólidos no modo claro. */
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button {
+  border-color: #aebfba !important;
+  background: #ffffff !important;
+  color: #52635f !important;
+  -webkit-text-fill-color: #52635f !important;
+}
+
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected {
+  border-color: #087f72 !important;
+  background: #087f72 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(8, 127, 114, .2);
+}
+
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-rating-feedback textarea {
+  border-color: #d4e2dd !important;
+  background: #ffffff !important;
+  color: #0d2523 !important;
+  -webkit-text-fill-color: #0d2523 !important;
+}
+
+.student-workout-rating-feedback textarea:focus-visible {
+  border-color: #087f72;
+  outline: 3px solid rgba(8, 127, 114, .22);
+  outline-offset: 2px;
+}
+
+.student-workout-log-feedback {
+  margin-top: 10px;
+  border-left: 2px solid var(--sw-accent, #4ee9d0);
+  padding-left: 10px;
+  color: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.student-workout-log-feedback strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--sw-accent, #4ee9d0);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.student-workout-log-feedback span {
+  color: var(--sw-muted, #9db3ad);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 360px) {
+  .student-workout-figma-screen:not(.is-compact) {
+    padding-inline: 16px !important;
+  }
+
+  .student-workout-figma-sequence-row {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(72px, 30%);
+    gap: 7px;
+  }
+
+  .student-workout-figma-set-record {
+    grid-template-columns: 18px minmax(46px, auto) minmax(0, 1fr) 36px;
+    gap: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-mobile-shell.student-workout-active,
+  .student-mobile-shell.student-workout-active .student-workout-figma-screen,
+  .student-mobile-shell .student-theme-toggle .theme-toggle-student-icon svg {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

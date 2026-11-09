@@ -10,7 +10,7 @@ const workout = { id: 'build28-preview-workout', title: 'Treino demonstrativo', 
   { day: 'Segunda-feira', focus: 'Peito', exercises: [{ name: 'Supino reto', sets: '3', reps: '10', rest: '60s' }, { name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
   { day: 'Quarta-feira', focus: 'Costas', exercises: [{ name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
 ] }
-let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, mainSource, xpCelebrationCss
+let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, mainSource, xpCelebrationCss
 
 before(async () => {
   server = await createServer({
@@ -23,6 +23,7 @@ before(async () => {
   appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   figmaCss = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
   polishCss = await readFile(new URL('../src/student-workout-polish-build34.css', import.meta.url), 'utf8')
+  polish36Css = await readFile(new URL('../src/student-workout-polish-build36.css', import.meta.url), 'utf8')
   mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
   xpCelebrationCss = await readFile(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
 })
@@ -43,6 +44,7 @@ test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
   assert.match(html.overview, /SEU TREINO/)
   assert.match(html.overview, /exercícios[\s\S]*séries[\s\S]*minutos/)
   assert.match(html.overview, /Iniciar treino/)
+  assert.equal((html.overview.match(/Iniciar treino/g) || []).length, 1, 'o overview deve apresentar uma única ação principal')
   assert.match(html.overview, /data-progress-segment/)
   assert.match(html.execution, /Técnica do exercício/)
   assert.match(html.execution, /Registrar série e descansar/)
@@ -131,7 +133,19 @@ test('BUILD34 melhora ícones, toque, alertas, feedback e largura sem quebrar a 
   assert.doesNotMatch(scrollHelper, /scrollIntoView/)
   assert.match(scrollHelper, /target\.scrollTo\(\{ top: 0, behavior \}\)/)
   assert.match(appSource, /previousRestActiveRef\.current = true/)
-  assert.match(appSource, /previousRestActiveRef\.current = false[\s\S]{0,80}scrollWorkoutToTop\(\)/)
+  assert.match(appSource, /previousRestActiveRef\.current = false[\s\S]{0,100}scrollWorkoutToActiveSet\(\)/)
+  const activeSetScroll = appSource.match(/function scrollWorkoutToActiveSet\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
+  assert.match(activeSetScroll, /mobile-workout-set-card-v29\.is-current/)
+  assert.match(activeSetScroll, /targetRect\.height \/ 2/)
+  assert.doesNotMatch(activeSetScroll, /scrollIntoView|\.focus\(/)
+  assert.match(polish36Css, /student-workout-figma-sequence-row\s*\{[\s\S]*?grid-template-columns:\s*38px minmax\(0, 1fr\) minmax\(76px, 30%\)/)
+  assert.match(polish36Css, /student-workout-figma-execution \.mobile-workout-set-inline-action-v29\s*\{\s*display:\s*none !important/)
+  assert.match(polish36Css, /bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom, 0px\)\)/)
+  assert.match(polish36Css, /\.student-mobile-shell\.app-theme-light\.student-workout-active\s*\{[\s\S]*?background:\s*#ffffff !important/)
+  assert.match(polish36Css, /@media \(prefers-reduced-motion:\s*reduce\)/)
+  assert.match(appSource, /activeTab !== 'mensagens' && activeTab !== 'treino'/)
+  assert.match(appSource, /hideHeader className="student-workout-app-section"/)
+  assert.match(mainSource, /import '\.\/student-workout-polish-build36\.css'/)
   const newSession = appSource.match(/function startNewWorkoutSession\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   assert.match(newSession, /setSeriesFeedback\(null\)/)
   assert.match(newSession, /setExpandedSetKey\(''\)/)
