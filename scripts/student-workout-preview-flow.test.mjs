@@ -10,7 +10,7 @@ const workout = { id: 'build28-preview-workout', title: 'Treino demonstrativo', 
   { day: 'Segunda-feira', focus: 'Peito', exercises: [{ name: 'Supino reto', sets: '3', reps: '10', rest: '60s' }, { name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
   { day: 'Quarta-feira', focus: 'Costas', exercises: [{ name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
 ] }
-let server, StudentWorkoutExecution, appSource, figmaCss
+let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, mainSource, xpCelebrationCss
 
 before(async () => {
   server = await createServer({
@@ -22,6 +22,9 @@ before(async () => {
   StudentWorkoutExecution = app.StudentWorkoutExecution
   appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   figmaCss = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
+  polishCss = await readFile(new URL('../src/student-workout-polish-build34.css', import.meta.url), 'utf8')
+  mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+  xpCelebrationCss = await readFile(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
 })
 
 test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
@@ -44,6 +47,7 @@ test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
   assert.match(html.execution, /Técnica do exercício/)
   assert.match(html.execution, /Registrar série e descansar/)
   assert.match(html.execution, /data-progress-segment/)
+  assert.doesNotMatch(html.execution, /Sem histórico anterior/)
   assert.match(html.rest, /Recupere o fôlego/)
   assert.match(html.rest, /00:48/)
   assert.match(html['exercise-complete'], /feito\./)
@@ -92,5 +96,47 @@ test('prévia da Área do aluno não recebe callbacks reais', () => {
   assert.match(portal, /workoutPreviewStage/)
   assert.match(portal, /previewStage=\{workoutPreviewStage\}/)
   assert.doesNotMatch(portal, /onCompleteWorkout\s*=|onEndWorkout\s*=|onRateWorkout\s*=|onSaveWorkoutSession\s*=/)
+})
+
+test('BUILD35 mantém a prévia sem celebração e respeita o tema e movimento reduzido', () => {
+  const previewSummary = renderToString(React.createElement(StudentWorkoutExecution, {
+    student,
+    workout,
+    preview: true,
+    previewStage: 'summary',
+    dayIndex: 0,
+    onRateWorkout: () => { throw new Error('a prévia não pode chamar o salvamento real') },
+  }))
+  assert.match(previewSummary, /data-preview-rating="true"/)
+  assert.match(previewSummary, /Enviar avaliação pelo app do aluno/)
+  assert.doesNotMatch(previewSummary, /student-workout-xp-celebration/)
+  assert.match(appSource, /if \(preview\) throw new Error\('A prévia não salva avaliações do aluno\.'\)/)
+  assert.match(appSource, /if \(xpAwarded > 0 && celebratedCompletionIdRef\.current !== completionId\)/)
+  assert.match(xpCelebrationCss, /\.student-workout-xp-celebration\.app-theme-light/)
+  assert.match(xpCelebrationCss, /position:\s*fixed/)
+  assert.match(xpCelebrationCss, /@media \(prefers-reduced-motion:\s*reduce\)/)
+  assert.ok(mainSource.indexOf("import './student-workout-xp-celebration-build35.css'") > mainSource.indexOf("import './student-workout-polish-build34.css'"))
+})
+
+test('BUILD34 melhora ícones, toque, alertas, feedback e largura sem quebrar a prévia', () => {
+  for (const icon of ['moreHorizontal:', 'edit:', 'pause:', 'info:']) assert.ok(appSource.includes(icon), `ícone ${icon} deve existir no sistema do app`)
+  assert.match(polishCss, /student-workout-figma-edit-set\s*\{[\s\S]*?width:\s*44px;[\s\S]*?height:\s*44px;/)
+  assert.match(polishCss, /student-workout-figma-rest-controls button\s*\{[\s\S]*?min-height:\s*48px;/)
+  assert.match(polishCss, /@media \(min-width:\s*768px\)/)
+  assert.match(polishCss, /width:\s*min\(100%,\s*760px\)/)
+  assert.match(polishCss, /@media \(prefers-reduced-motion:\s*reduce\)/)
+  assert.match(appSource, /function scrollWorkoutToTop\(\)\s*\{\s*if \(preview \|\| typeof window === 'undefined' \|\| window\.innerWidth > 767\) return/)
+  const scrollHelper = appSource.match(/function scrollWorkoutToTop\(\)\s*\{[\s\S]*?\n  \}/)?.[0] || ''
+  assert.ok(scrollHelper, 'helper de scroll do treino deve existir')
+  assert.doesNotMatch(scrollHelper, /scrollIntoView/)
+  assert.match(scrollHelper, /target\.scrollTo\(\{ top: 0, behavior \}\)/)
+  assert.match(appSource, /previousRestActiveRef\.current = true/)
+  assert.match(appSource, /previousRestActiveRef\.current = false[\s\S]{0,80}scrollWorkoutToTop\(\)/)
+  const newSession = appSource.match(/function startNewWorkoutSession\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
+  assert.match(newSession, /setSeriesFeedback\(null\)/)
+  assert.match(newSession, /setExpandedSetKey\(''\)/)
+  const actionBarIndex = appSource.indexOf('student-workout-figma-execution-actions')
+  const executionErrorIndex = appSource.lastIndexOf('mobile-workout-student-error-v2', actionBarIndex)
+  assert.ok(actionBarIndex > 0 && executionErrorIndex > 0 && executionErrorIndex < actionBarIndex, 'alerta de execução deve preceder a barra fixa')
 })
 after(async () => { await server?.close() })

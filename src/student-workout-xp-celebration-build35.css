@@ -1,0 +1,362 @@
+/* BUILD35 — celebração local pós-rating; sem alterar a concessão ou persistência de XP. */
+.student-workout-xp-celebration {
+  --xp-bg: #0B1516;
+  --xp-surface: #111E20;
+  --xp-line: rgba(167, 189, 186, .2);
+  --xp-text: #F4FFFD;
+  --xp-muted: #A7BDBA;
+  --xp-accent: #4EE9D0;
+  --xp-accent-ink: #0B1516;
+  position: fixed;
+  z-index: 12000;
+  inset: 0;
+  display: grid;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  padding: calc(24px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(ellipse at 50% 32%, color-mix(in srgb, var(--xp-accent) 15%, transparent), transparent 58%),
+    var(--xp-bg);
+  color: var(--xp-text);
+  font-family: inherit;
+  text-wrap: pretty;
+  isolation: isolate;
+  animation: student-xp-overlay-in 240ms ease-out both;
+}
+
+.student-workout-xp-celebration.app-theme-light {
+  --xp-bg: #FFFFFF;
+  --xp-surface: #F5FAF9;
+  --xp-line: rgba(66, 92, 88, .2);
+  --xp-text: #0D2523;
+  --xp-muted: #425C58;
+  --xp-accent: #087F72;
+  --xp-accent-ink: #FFFFFF;
+  background:
+    radial-gradient(ellipse at 50% 32%, color-mix(in srgb, var(--xp-accent) 11%, transparent), transparent 58%),
+    var(--xp-bg);
+}
+
+.student-workout-xp-celebration,
+.student-workout-xp-celebration * {
+  box-sizing: border-box;
+}
+
+.student-workout-xp-celebration__ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.student-workout-xp-celebration__spark {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: var(--xp-accent);
+  opacity: 0;
+  animation: student-xp-spark-pop 1050ms cubic-bezier(.2, .7, .2, 1) both;
+}
+
+.student-workout-xp-celebration__spark svg {
+  fill: currentColor;
+  stroke-width: 1.4;
+}
+
+.student-workout-xp-celebration__spark--one {
+  top: calc(50% - 208px);
+  left: calc(50% - 115px);
+  animation-delay: 90ms;
+}
+
+.student-workout-xp-celebration__spark--two {
+  top: calc(50% - 190px);
+  right: calc(50% - 117px);
+  animation-delay: 180ms;
+}
+
+.student-workout-xp-celebration__spark--three {
+  top: calc(50% - 154px);
+  left: calc(50% + 73px);
+  animation-delay: 260ms;
+}
+
+.student-workout-xp-celebration__dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(100%, 440px);
+  justify-items: center;
+  gap: 12px;
+  margin: auto;
+  border: 1px solid var(--xp-line);
+  border-radius: 30px;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--xp-surface) 88%, var(--xp-accent) 12%), var(--xp-surface) 62%);
+  padding: clamp(24px, 7vw, 40px) clamp(20px, 6vw, 34px);
+  color: var(--xp-text);
+  text-align: center;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .28), 0 0 48px color-mix(in srgb, var(--xp-accent) 10%, transparent);
+  animation: student-xp-dialog-in 520ms cubic-bezier(.18, .82, .22, 1) both;
+}
+
+.student-workout-xp-celebration__emblem {
+  position: relative;
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--xp-accent) 48%, var(--xp-line));
+  border-radius: 27px;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--xp-accent) 23%, var(--xp-surface)), var(--xp-surface) 72%);
+  color: var(--xp-accent);
+  box-shadow: 0 12px 38px color-mix(in srgb, var(--xp-accent) 20%, transparent), inset 0 1px 0 color-mix(in srgb, var(--xp-text) 10%, transparent);
+  animation: student-xp-emblem-pop 680ms cubic-bezier(.18, .82, .22, 1) 80ms both;
+}
+
+.student-workout-xp-celebration__emblem::after {
+  position: absolute;
+  inset: -9px;
+  border: 1px solid color-mix(in srgb, var(--xp-accent) 23%, transparent);
+  border-radius: 34px;
+  content: "";
+  animation: student-xp-halo 900ms ease-out 180ms both;
+}
+
+.student-workout-xp-celebration__emblem svg {
+  width: 34px;
+  height: 34px;
+  stroke-width: 1.7;
+}
+
+.student-workout-xp-celebration__eyebrow,
+.student-workout-xp-celebration__label {
+  margin: 0;
+  color: var(--xp-accent);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  line-height: 1.35;
+}
+
+.student-workout-xp-celebration__eyebrow {
+  margin-top: 6px;
+}
+
+.student-workout-xp-celebration__dialog h2 {
+  margin: 0;
+  color: var(--xp-text);
+  font-size: clamp(28px, 8vw, 36px);
+  font-weight: 750;
+  letter-spacing: -.045em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.student-workout-xp-celebration__workout {
+  max-width: 100%;
+  margin: -5px 0 2px;
+  color: var(--xp-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.student-workout-xp-celebration__stars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 1px 0 5px;
+}
+
+.student-workout-xp-celebration__stars span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--xp-line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--xp-surface) 78%, transparent);
+  color: var(--xp-muted);
+}
+
+.student-workout-xp-celebration__stars span.is-selected {
+  border-color: color-mix(in srgb, var(--xp-accent) 52%, var(--xp-line));
+  background: color-mix(in srgb, var(--xp-accent) 13%, var(--xp-surface));
+  color: var(--xp-accent);
+}
+
+.student-workout-xp-celebration__stars svg {
+  fill: currentColor;
+  stroke-width: 1.5;
+}
+
+.student-workout-xp-celebration__label {
+  margin-top: 5px;
+  color: var(--xp-muted);
+}
+
+.student-workout-xp-celebration__total {
+  display: flex;
+  max-width: 100%;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  color: var(--xp-accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  animation: student-xp-total-pop 440ms cubic-bezier(.18, .82, .22, 1) 120ms both;
+}
+
+.student-workout-xp-celebration__total > span {
+  font-size: clamp(30px, 9vw, 45px);
+  font-weight: 600;
+  letter-spacing: -.06em;
+}
+
+.student-workout-xp-celebration__total > strong {
+  max-width: 100%;
+  font-size: clamp(48px, 13vw, 72px);
+  font-weight: 800;
+  letter-spacing: -.075em;
+  line-height: .96;
+  overflow-wrap: anywhere;
+}
+
+.student-workout-xp-celebration__total > small {
+  margin-left: 3px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.student-workout-xp-celebration__description {
+  max-width: 32ch;
+  margin: 0;
+  color: var(--xp-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.student-workout-xp-celebration__continue {
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 8px;
+  border: 1px solid var(--xp-accent);
+  border-radius: 14px;
+  background: var(--xp-accent);
+  padding: 12px 18px;
+  color: var(--xp-accent-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: filter 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--xp-accent) 18%, transparent);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.student-workout-xp-celebration__continue:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.student-workout-xp-celebration__continue:active {
+  transform: scale(.985);
+}
+
+.student-workout-xp-celebration__continue:focus-visible {
+  outline: 3px solid var(--xp-text);
+  outline-offset: 4px;
+}
+
+.student-workout-xp-celebration__continue svg {
+  flex: 0 0 auto;
+}
+
+.student-workout-xp-celebration__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes student-xp-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes student-xp-dialog-in {
+  from { opacity: 0; transform: translateY(16px) scale(.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes student-xp-emblem-pop {
+  0% { opacity: 0; transform: scale(.72) rotate(-8deg); }
+  65% { opacity: 1; transform: scale(1.06) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes student-xp-halo {
+  0% { opacity: .7; transform: scale(.82); }
+  100% { opacity: 0; transform: scale(1.18); }
+}
+
+@keyframes student-xp-spark-pop {
+  0% { opacity: 0; transform: translateY(8px) scale(.45) rotate(-18deg); }
+  35% { opacity: .9; transform: translateY(-3px) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translateY(-12px) scale(.78) rotate(14deg); }
+}
+
+@keyframes student-xp-total-pop {
+  from { opacity: 0; transform: translateY(10px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 360px) {
+  .student-workout-xp-celebration { padding-inline: 14px; }
+  .student-workout-xp-celebration__dialog { gap: 10px; border-radius: 24px; padding: 23px 18px; }
+  .student-workout-xp-celebration__emblem { width: 70px; height: 70px; border-radius: 23px; }
+  .student-workout-xp-celebration__emblem::after { border-radius: 29px; }
+  .student-workout-xp-celebration__stars { gap: 5px; }
+  .student-workout-xp-celebration__stars span { width: 32px; height: 32px; }
+  .student-workout-xp-celebration__total { gap: 3px; }
+  .student-workout-xp-celebration__total > strong { font-size: clamp(46px, 14vw, 60px); }
+  .student-workout-xp-celebration__description { font-size: 12px; }
+}
+
+@media (max-height: 620px) {
+  .student-workout-xp-celebration { align-items: start; padding-block: calc(14px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-bottom)); }
+  .student-workout-xp-celebration__dialog { gap: 8px; padding-block: 18px; }
+  .student-workout-xp-celebration__emblem { width: 62px; height: 62px; border-radius: 20px; }
+  .student-workout-xp-celebration__emblem::after { inset: -6px; border-radius: 25px; }
+  .student-workout-xp-celebration__emblem svg { width: 28px; height: 28px; }
+  .student-workout-xp-celebration__eyebrow { margin-top: 0; }
+  .student-workout-xp-celebration__total > strong { font-size: 52px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-workout-xp-celebration,
+  .student-workout-xp-celebration *,
+  .student-workout-xp-celebration *::before,
+  .student-workout-xp-celebration *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition-duration: .01ms !important;
+  }
+}
