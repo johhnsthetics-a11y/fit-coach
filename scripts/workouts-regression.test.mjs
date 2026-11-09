@@ -596,10 +596,8 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
 
   assert.match(html, /mobile-workout-student-experience-v2/)
   assert.match(html, /Concluir série/)
-  assert.match(html, /Finalizar treino/)
-  assert.match(html, /Músculo principal/)
-  assert.match(html, /Peitoral/)
-  assert.match(html, /Meta de reps/)
+  assert.match(html, /Registrar série e descansar/)
+  assert.match(html, /Meta: 10 reps/)
   assert.match(html, /YouTube/)
   assert.doesNotMatch(html, /<iframe[^>]+youtube/i)
   assert.doesNotMatch(html, /muscle-map-region/)
@@ -625,8 +623,8 @@ test('interface de treino prioriza vídeo e não renderiza capas genéricas', as
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
   assert.doesNotMatch(appSource, /<img\s+src=\{getExerciseImageUrl\(exercise\)\}/)
-  assert.match(appSource, /Ver execução no YouTube/)
-  assert.match(appSource, /Buscar execução no YouTube/)
+  assert.match(appSource, /label = 'Ver execução'/)
+  assert.match(appSource, /\{label\} no YouTube/)
 })
 
 test('conclusão preserva séries, cargas e repetições no histórico do aluno', () => {
@@ -973,16 +971,13 @@ test('executor destaca timer, encerramento e músculo alvo textual no topo', () 
 
   assert.match(html, /Tempo do treino/)
   assert.match(html, /02:05/)
-  assert.match(html, /Encerrar treino/)
+  assert.match(html, /Encerrar sessão/)
   assert.match(html, /mobile-workout-timer-panel-v5/)
   const exerciseTitleIndex = html.indexOf('Supino reto com barra')
-  const muscleMapIndex = html.indexOf('mobile-workout-muscle-target-anatomy-v6')
   const timerIndex = html.indexOf('mobile-workout-timer-panel-v5')
-  assert.ok(exerciseTitleIndex >= 0 && muscleMapIndex > exerciseTitleIndex && timerIndex > muscleMapIndex)
+  assert.ok(exerciseTitleIndex >= 0 && timerIndex > exerciseTitleIndex)
   assert.doesNotMatch(html, /muscle-map-region/)
   assert.doesNotMatch(html, /mobile-workout-muscle-target-compact-v5/)
-  assert.match(html, /Músculo principal/)
-  assert.match(html, /Peitoral/)
 })
 
 test('encerramento antecipado usa RPC dedicado e mantém validação da conclusão normal', async () => {
@@ -1013,86 +1008,61 @@ test('tema claro e escuro têm estados acessíveis e timer tabular estável', as
 })
 
 
-test('descanso flutua acima da navegação e o tempo do treino permanece compacto', async () => {
+test('execução mantém tempo de sessão e o descanso em tela dedicada', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
 
-  assert.match(appSource, /mobile-workout-rest-floating-v6/)
   assert.match(appSource, /role="timer"/)
-  assert.match(appSource, /aria-label=\{'Descanso: ' \+ formatWorkoutTimer\(restRemaining\)\}/)
-  assert.match(cssSource, /workout-execution-polish-v6/)
-  assert.match(cssSource, /\.mobile-workout-rest-floating-v6\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*70/)
-  assert.match(cssSource, /\.mobile-workout-session-timer-v5 > strong\s*\{[\s\S]*font-size:\s*clamp\(1\.55rem,\s*4\.5vw,\s*1\.9rem\)/)
-  assert.match(cssSource, /bottom:\s*calc\(5\.35rem \+ env\(safe-area-inset-bottom, 0px\)\)/)
+  assert.match(appSource, /student-workout-figma-rest-clock/)
+  assert.match(cssSource, /\.student-workout-figma-rest-clock/)
 })
 
-test('treino mobile premium mantém série ativa compacta e descanso arrastável sem duplicar timer', async () => {
+test('fluxo Figma mantém a série ativa e usa tela dedicada de descanso', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
 
-  assert.match(appSource, /restWidgetExpanded/)
-  assert.match(appSource, /onPointerDown=\{beginRestWidgetDrag\}/)
-  assert.match(appSource, /setPointerCapture/)
-  assert.match(appSource, /visualViewport/)
-  assert.match(appSource, /mobile-workout-rest-compact-v13/)
-  assert.match(appSource, /mobile-workout-rest-expand-v13/)
+  assert.match(appSource, /student-workout-figma-rest/)
+  assert.match(appSource, /student-workout-figma-rest-controls/)
+  assert.doesNotMatch(appSource, /restWidgetExpanded|beginRestWidgetDrag/)
   assert.match(appSource, /mobile-workout-set-card-v11/)
   assert.match(appSource, /mobile-workout-set-open-v11/)
   assert.match(appSource, /<StudentReminderCard[\s\S]*compact/)
-  assert.match(cssSource, /workout-mobile-premium-v11/)
-  assert.match(cssSource, /\.mobile-workout-rest-drag-handle-v11\s*\{[^}]*touch-action:\s*none/s)
-  assert.match(cssSource, /\.mobile-workout-rest-floating-v6\.is-compact/)
-  assert.match(cssSource, /\.mobile-workout-set-card-v11\.is-collapsed/)
+  assert.match(cssSource, /\.student-workout-figma-rest-clock/)
+  assert.match(cssSource, /\.mobile-workout-set-card-v29:not\(\.is-current\)/)
   assert.match(cssSource, /safe-area-inset-bottom/)
 })
 
-test('treino mobile definitivo usa descanso em tela focada sem renderizar widget duplicado', async () => {
+test('fluxo Figma tem estados de execução, descanso, exercício concluído e resumo', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
 
-  assert.match(appSource, /mobile-workout-command-v12/)
-  assert.match(appSource, /mobile-workout-focus-v12/)
-  assert.match(appSource, /mobile-workout-rest-portal-v12/)
+  for (const state of ['overview', 'execution', 'rest', 'exercise-complete', 'summary']) {
+    assert.match(appSource, new RegExp(`student-workout-figma-${state}`))
+  }
   assert.doesNotMatch(appSource, /createPortal\(restWidget, document\.body\)/)
-  assert.match(appSource, /student-workout-build30-rest-inline/)
-  assert.match(appSource, /data-workout-theme=\{uiTheme\}/)
-  assert.doesNotMatch(appSource, /mobile-workout-rest-portal-v12 app-theme-\$\{uiTheme\}/)
-  assert.match(appSource, /mobile-workout-set-fields-v12/)
-  assert.match(appSource, /viewport\?\.addEventListener\('scroll', constrainPosition\)/)
-  assert.match(appSource, /viewport\?\.removeEventListener\('scroll', constrainPosition\)/)
-  assert.doesNotMatch(appSource, /const viewportCenter = bounds\.offsetLeft/)
-  assert.doesNotMatch(appSource, /const targetX = center < viewportCenter/)
-  assert.match(cssSource, /workout-mobile-definitive-v12/)
-  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\s*\{[\s\S]*position:\s*fixed[\s\S]*pointer-events:\s*none/)
-  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\s*\{[\s\S]*background:\s*transparent\s*!important/)
-  assert.match(cssSource, /\.mobile-workout-rest-portal-v12 \.mobile-workout-rest-floating-v6\s*\{[\s\S]*pointer-events:\s*auto/)
-  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\[data-workout-theme="light"\] \.mobile-workout-rest-floating-copy-v6 > strong\s*\{[\s\S]*color:\s*#14211f/)
-  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\[data-workout-theme="light"\] \.mobile-workout-rest-floating-card-v6\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.98\)/)
-  assert.match(cssSource, /\.mobile-workout-rest-portal-v12\[data-workout-theme="light"\] \.mobile-workout-rest-compact-v11/)
-  assert.match(cssSource, /\.mobile-workout-command-v12 \.mobile-workout-exercise-dots-v3 > span\.is-current:not\(\.is-complete\)[\s\S]*background:\s*var\(--workout-v12-accent-soft\)/)
-  assert.match(cssSource, /@media \(max-width:\s*767px\)[\s\S]*\.mobile-workout-command-v12/)
+  assert.match(appSource, /student-workout-figma-rest-controls/)
+  assert.match(cssSource, /\.student-workout-figma-rest-clock/)
+  assert.match(cssSource, /\.student-workout-figma-bottom-actions/)
 })
 
-test('treino mobile premium limita a finalizacao ao ultimo exercicio sem perder o formulario', async () => {
+test('fluxo Figma mantém finalização no último exercício e formulário de sessão', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
   assert.match(appSource, /const isLastExercise = exercises\.length > 0 && safeExerciseIndex === exercises\.length - 1/)
-  assert.match(appSource, /\{isLastExercise \? \(\s*<footer id="student-workout-finish"/)
+  assert.match(appSource, /\{isLastExercise \? <details className="student-workout-figma-session-notes"/)
   assert.match(appSource, /value=\{effort\}[\s\S]*value=\{sessionNotes\}/)
-  assert.match(appSource, /disabled=\{saving \|\| !dayCanFinish \|\| Boolean\(completedLog\)\}/)
-  assert.match(appSource, /student-workout-end-available/)
+  assert.match(appSource, /disabled=\{saving\}/)
+  assert.match(appSource, /finishWorkout\(\)/)
   assert.match(appSource, /inviteCode=\{inviteCode\}/)
 })
 
-test('timer flutuante separa toque de expandir do gesto de arraste', async () => {
+test('timer não flutua por cima do fluxo Figma', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
-  const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const cssSource = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
 
-  assert.match(appSource, /function stopRestWidgetTogglePointer\(event\)/)
-  assert.match(appSource, /onPointerDown=\{stopRestWidgetTogglePointer\}/)
-  assert.match(appSource, /aria-expanded=\{restWidgetExpanded\}/)
-  assert.match(cssSource, /\.mobile-workout-rest-compact-v11\s*\{[\s\S]*touch-action:\s*manipulation/s)
-  assert.match(cssSource, /\.mobile-workout-rest-minimize-v11\s*\{[\s\S]*min-height:\s*44px[\s\S]*touch-action:\s*manipulation/s)
+  assert.doesNotMatch(appSource, /restWidgetExpanded|beginRestWidgetDrag|stopRestWidgetTogglePointer/)
+  assert.match(appSource, /student-workout-figma-rest/)
+  assert.match(cssSource, /\.student-workout-figma-rest-clock/)
 })
 
 test('tema claro do treino usa superfícies neutras e teal do branding sem excesso de verde', async () => {
@@ -1172,8 +1142,8 @@ test('execução real do aluno mostra série atual, progresso do exercício e pr
     assert.match(html, /1 de 3 séries/)
     assert.match(html, /aria-valuenow="1"/)
     assert.match(html, /Série atual/)
-    assert.match(html, /Concluir série 2/)
-    assert.match(html, /mobile-workout-execution-actionbar-v29/)
+    assert.match(html, /Registrar série e descansar/)
+    assert.match(html, /student-workout-figma-execution-actions/)
 
     const completeSetSource = appSource.match(/function completeSet\(setItem\) \{[\s\S]*?\n  \}/)?.[0] || ''
     assert.match(completeSetSource, /focusedField\.blur\(\)/)
