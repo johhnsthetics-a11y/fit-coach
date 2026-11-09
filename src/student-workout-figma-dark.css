@@ -279,6 +279,23 @@
   }
 }
 
+/* The early-end action stays reachable throughout execution, not only on the last exercise. */
+.student-workout-build30-execution .student-workout-end-available {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  margin: 12px 0 4px;
+  border: 1px solid var(--sw30-dark-line);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--sw30-dark-muted);
+  font-weight: 750;
+}
+
+.student-workout-build30-execution .student-workout-end-available:disabled {
+  opacity: .55;
+}
+
 
 /* Rest is a focused full-screen state on mobile, like the Figma recovery step. */
 @container student-workout-surface (max-width: 500px) {

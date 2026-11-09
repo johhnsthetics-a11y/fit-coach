@@ -630,8 +630,9 @@ test('interface de treino prioriza vídeo e não renderiza capas genéricas', as
 })
 
 test('conclusão preserva séries, cargas e repetições no histórico do aluno', () => {
+  const studentWithInviteCode = { ...student, inviteCode: 'CFP-TEST-123' }
   const payload = buildWorkoutCompletionPayload({
-    student,
+    student: studentWithInviteCode,
     workout: { id: 'workout-a', coachId: 'coach-a', title: 'Treino A' },
     effort: 'Forte',
     durationSeconds: 1540,
@@ -642,6 +643,7 @@ test('conclusão preserva séries, cargas e repetições no histórico do aluno'
   })
 
   assert.equal(payload.studentId, student.id)
+  assert.equal(payload.inviteCode, 'CFP-TEST-123')
   assert.equal(payload.workoutId, 'workout-a')
   assert.equal(payload.effort, 'Forte')
   assert.equal(payload.durationSeconds, 1540)
@@ -1044,14 +1046,15 @@ test('treino mobile premium mantém série ativa compacta e descanso arrastável
   assert.match(cssSource, /safe-area-inset-bottom/)
 })
 
-test('treino mobile definitivo usa estrutura compacta e descanso livre em portal', async () => {
+test('treino mobile definitivo usa descanso em tela focada sem renderizar widget duplicado', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const cssSource = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
 
   assert.match(appSource, /mobile-workout-command-v12/)
   assert.match(appSource, /mobile-workout-focus-v12/)
   assert.match(appSource, /mobile-workout-rest-portal-v12/)
-  assert.match(appSource, /createPortal\(restWidget, document\.body\)/)
+  assert.doesNotMatch(appSource, /createPortal\(restWidget, document\.body\)/)
+  assert.match(appSource, /student-workout-build30-rest-inline/)
   assert.match(appSource, /data-workout-theme=\{uiTheme\}/)
   assert.doesNotMatch(appSource, /mobile-workout-rest-portal-v12 app-theme-\$\{uiTheme\}/)
   assert.match(appSource, /mobile-workout-set-fields-v12/)
@@ -1077,7 +1080,8 @@ test('treino mobile premium limita a finalizacao ao ultimo exercicio sem perder 
   assert.match(appSource, /\{isLastExercise \? \(\s*<footer id="student-workout-finish"/)
   assert.match(appSource, /value=\{effort\}[\s\S]*value=\{sessionNotes\}/)
   assert.match(appSource, /disabled=\{saving \|\| !dayCanFinish \|\| Boolean\(completedLog\)\}/)
-  assert.match(appSource, /mobile-workout-end-trigger-v5/)
+  assert.match(appSource, /student-workout-end-available/)
+  assert.match(appSource, /inviteCode=\{inviteCode\}/)
 })
 
 test('timer flutuante separa toque de expandir do gesto de arraste', async () => {

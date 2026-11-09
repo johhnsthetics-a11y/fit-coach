@@ -14414,6 +14414,7 @@ export function buildWorkoutCompletionPayload({ student, workout, effort = 'Mode
   return {
     coachId: workout?.coachId,
     studentId: student?.id,
+    inviteCode: student?.inviteCode || student?.invite_code || '',
     workoutId: workout?.id,
     title: workout?.title || 'Treino',
     effort,
@@ -14701,7 +14702,7 @@ export function clampWorkoutRestWidgetPosition(position = {}, bounds = {}) {
   }
 }
 
-export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, previewStage = 'execution', onPreviewStageChange, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
+export function StudentWorkoutExecution({ student, workout, workoutLogs = [], exerciseLibraryItems = exerciseLibrary, inviteCode = '', onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onSessionHydrated, onToggleTimer, onSelectDay, onOpenProgress, preview = false, previewStage = 'execution', onPreviewStageChange, dayIndex = 0, durationSeconds = 0, sessionDurationSeconds = 0, timerStartedAt = '', compact = false, uiTheme = DEFAULT_UI_THEME }) {
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
@@ -15263,7 +15264,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
     return {
       ...buildWorkoutCompletionPayload({
-        student,
+        student: { ...student, inviteCode: inviteCode || student?.inviteCode || student?.invite_code || '' },
         workout: { ...workout, title: [workout?.title || 'Treino', activeDay?.day || activeDay?.focus || 'Dia'].join(' · ') },
         effort,
         durationSeconds,
@@ -15751,8 +15752,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         </div>
       ) : null}
 
-      {restWidget ? (preview || typeof document === 'undefined' ? restWidget : createPortal(restWidget, document.body)) : null}
-
       {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
 
       {isLastExercise ? (
@@ -15761,9 +15760,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label>
           <button type="button" className="mobile-workout-finalize-primary-v5" disabled={saving || !dayCanFinish || Boolean(completedLog)} onClick={finishWorkout}>{saving ? 'Salvando...' : 'Finalizar treino'}</button>
           {!dayCanFinish ? <small>{dayRemainingSets + ' ' + (dayRemainingSets === 1 ? 'etapa ainda não concluída' : 'etapas ainda não concluídas') + '. Você pode concluir as atividades ou encerrar a sessão atual.'}</small> : null}
-          <button type="button" className="mobile-workout-end-secondary-v5" disabled={saving || Boolean(completedLog)} onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button>
         </footer>
       ) : null}
+      {!completedLog ? <button type="button" className="mobile-workout-end-secondary-v5 student-workout-end-available" disabled={saving} onClick={() => setEndConfirmOpen(true)}>Encerrar treino</button> : null}
       {endConfirmOpen ? createPortal((
         <div className={`mobile-workout-end-overlay-v5 app-theme-${uiTheme}`} role="presentation">
           <div ref={endDialogRef} className="mobile-workout-end-dialog-v5" role="alertdialog" aria-modal="true" aria-labelledby="workout-end-title" aria-describedby="workout-end-description">
@@ -19984,6 +19983,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               <StudentWorkoutExecution
                 student={student}
                 workout={selectedStudentWorkout}
+                inviteCode={inviteCode}
                 workoutLogs={studentWorkoutLogs}
                 exerciseLibraryItems={availableExerciseLibrary}
                 durationSeconds={workoutSeconds}
