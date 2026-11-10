@@ -199,7 +199,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build37-20261109'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build39-20261110'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -15724,7 +15724,6 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         </section>
         {isLastExercise ? <details className="student-workout-figma-session-notes"><summary>Adicionar observação do treino</summary><label>Como foi o esforço?<select value={effort} onChange={(event) => setEffort(event.target.value)}>{['Leve', 'Moderado', 'Forte', 'Muito forte'].map((option) => <option key={option}>{option}</option>)}</select></label><label>Observação para o treinador<textarea value={sessionNotes} onChange={(event) => setSessionNotes(event.target.value)} rows={2} placeholder="Dor, dificuldade ou evolução percebida (opcional)" /></label></details> : null}
         {nextExercise ? <article className="student-workout-figma-next-exercise"><p>PRÓXIMO • EXERCÍCIO {safeExerciseIndex + 2} DE {exercises.length}</p><strong>{nextExercise.name}</strong><span>{nextExercise.equipment || getExerciseMuscleProfile(nextExercise).primaryLabel}</span><small>{nextExercise.sets || '—'} séries × {nextExercise.reps || '—'} reps • descanso de {nextExercise.rest || 'livre'}</small></article> : null}
-        <div className="student-workout-figma-complete-technique"><ExerciseMedia exercise={exercise} compact label={'Consultar execução de ' + (exercise?.name || 'este exercício')} /></div>
         {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
         <div className="student-workout-figma-bottom-actions">
           <button type="button" className="student-workout-figma-primary" disabled={saving} onClick={() => {
@@ -15741,6 +15740,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             }
           }}>{primaryLabel} <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button>
         </div>
+        <div className="student-workout-figma-complete-technique"><ExerciseMedia exercise={exercise} compact label={'Consultar execução de ' + (exercise?.name || 'este exercício')} /></div>
         {endConfirmOpen ? endConfirmation : null}
       </section>
     )

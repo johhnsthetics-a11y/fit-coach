@@ -10,7 +10,7 @@ const workout = { id: 'build28-preview-workout', title: 'Treino demonstrativo', 
   { day: 'Segunda-feira', focus: 'Peito', exercises: [{ name: 'Supino reto', sets: '3', reps: '10', rest: '60s' }, { name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
   { day: 'Quarta-feira', focus: 'Costas', exercises: [{ name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
 ] }
-let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, polish37Css, mainSource, xpCelebrationCss
+let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, polish37Css, polish38Css, polish39Css, mainSource, xpCelebrationCss
 
 before(async () => {
   server = await createServer({
@@ -25,6 +25,8 @@ before(async () => {
   polishCss = await readFile(new URL('../src/student-workout-polish-build34.css', import.meta.url), 'utf8')
   polish36Css = await readFile(new URL('../src/student-workout-polish-build36.css', import.meta.url), 'utf8')
   polish37Css = await readFile(new URL('../src/student-workout-polish-build37.css', import.meta.url), 'utf8')
+  polish38Css = await readFile(new URL('../src/student-workout-polish-build38.css', import.meta.url), 'utf8')
+  polish39Css = await readFile(new URL('../src/student-workout-polish-build39.css', import.meta.url), 'utf8')
   mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
   xpCelebrationCss = await readFile(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
 })
@@ -70,6 +72,35 @@ test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
   assert.match(html.summary, /Resumo demonstrativo\. Os valores reais aparecem após o aluno concluir a sessão\./)
   assert.match(html.summary, /data-preview-rating="true"/)
   assert.match(html.summary, /<strong>—<\/strong>/)
+})
+
+test('BUILD38 prioriza a ação do exercício concluído e usa preto neutro somente no dark real', () => {
+  const completed = renderToString(React.createElement(StudentWorkoutExecution, { student, workout, preview: true, previewStage: 'exercise-complete', dayIndex: 0 }))
+  const actionIndex = completed.indexOf('student-workout-figma-bottom-actions')
+  const mediaIndex = completed.indexOf('student-workout-figma-complete-technique')
+  assert.ok(actionIndex >= 0 && mediaIndex > actionIndex, 'a ação para avançar/concluir deve vir antes da mídia opcional')
+  assert.match(polish38Css, /\.student-mobile-shell\.app-theme-dark\.student-workout-active\s*\{[\s\S]*?--sw-bg:\s*#050607;/)
+  assert.match(polish38Css, /\.student-mobile-shell\.app-theme-dark\.student-workout-active \.student-workout-figma-screen:not\(\.is-compact\)[\s\S]*?background: #050607 !important/)
+  assert.match(polish38Css, /@media \(max-width: 767px\)[\s\S]*?min-height: 0/)
+  assert.match(polish38Css, /student-workout-figma-exercise-complete \.student-workout-figma-bottom-actions/)
+  assert.match(polish38Css, /student-workout-rest-skip/)
+  assert.match(polish38Css, /@media \(prefers-reduced-motion: reduce\)/)
+  assert.match(polish38Css, /\.student-workout-xp-celebration\.app-theme-dark\s*\{[\s\S]*?--xp-bg:\s*#050607;/)
+  assert.match(polish38Css, /student-workout-xp-celebration\.app-theme-dark \.student-workout-xp-celebration__dialog[\s\S]*?background: linear-gradient\(155deg, #171C1E 0%, #0E1113 68%\)/)
+  assert.match(polish38Css, /student-workout-xp-celebration \.student-workout-xp-celebration__stars span\.is-selected[\s\S]*?#F1CE68/)
+  assert.match(polish38Css, /student-workout-xp-celebration\.app-theme-light[\s\S]*?#A66D00/)
+  assert.doesNotMatch(polish38Css, /\.student-mobile-shell\.app-theme-light[^\n]*#050607/)
+  assert.ok(mainSource.indexOf("import './student-workout-polish-build38.css'") > mainSource.indexOf("import './student-workout-polish-build37.css'"))
+})
+
+test('BUILD39 vence o override legado das estrelas do resumo light sem alterar o tema dark', () => {
+  const selector = 'html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected'
+  assert.match(polish36Css, /html body \.student-mobile-shell\.app-theme-light\.student-workout-active \.student-workout-figma-summary \.student-workout-rating-stars button\.is-selected[\s\S]*?background:\s*#087f72\s*!important/i)
+  assert.ok(polish39Css.includes(`${selector} {`), 'o novo seletor deve ter especificidade igual à regra legada')
+  assert.match(polish39Css, /background: #FFF5CB !important;[\s\S]*?color: #A66D00 !important;[\s\S]*?-webkit-text-fill-color: #A66D00 !important/)
+  assert.match(polish39Css, /student-workout-rating-stars button\.is-selected > span,[\s\S]*?color: #A66D00 !important;[\s\S]*?fill: #A66D00 !important/)
+  assert.ok(mainSource.indexOf("import './student-workout-polish-build39.css'") > mainSource.indexOf("import './student-workout-polish-build38.css'"), 'BUILD39 deve carregar depois da regra antiga')
+  assert.doesNotMatch(polish39Css, /\.student-mobile-shell\.app-theme-dark/)
 })
 
 test('cabeçalhos do aluno não repetem o mesmo nome de plano e dia', () => {

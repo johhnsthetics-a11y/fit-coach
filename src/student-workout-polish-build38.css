@@ -1,0 +1,273 @@
+/* BUILD38 — preto/grafite neutro e ações de treino mais próximas no iPhone. */
+
+/* Ergonomia comum: menos altura artificial e densidade mais previsível na tela pequena. */
+@media (max-width: 767px) {
+  .student-mobile-shell.student-workout-active .student-workout-figma-screen:not(.is-compact) {
+    min-height: 0;
+    gap: 12px !important;
+    padding-top: 10px !important;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-overview-title {
+    gap: 5px;
+    padding-top: 2px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-overview-stats {
+    padding: 13px 12px 10px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-overview-primary-action {
+    margin-top: 0;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-sequence-row {
+    padding-block: 9px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-execution .mobile-workout-student-series-v2 {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-execution .mobile-workout-set-fields-v12 {
+    gap: 8px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-exercise-complete .student-workout-figma-bottom-actions,
+  .student-mobile-shell.student-workout-active .student-workout-figma-summary .student-workout-figma-bottom-actions {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+  }
+}
+
+/* O treino dark passa a usar base neutra; turquesa destaca ações, dourado fica no XP/rating. */
+.student-mobile-shell.app-theme-dark.student-workout-active {
+  --sw-bg: #050607;
+  --sw-panel: #0E1113;
+  --sw-panel-strong: #151A1C;
+  --sw-line: rgba(190, 205, 203, .16);
+  --sw-text: #F3F7F6;
+  --sw-muted: #A3AEAC;
+  --sw-accent: #4EE9D0;
+  --sw-accent-strong: #4EE9D0;
+  --sw-accent-soft: rgba(78, 233, 208, .11);
+  background: #050607 !important;
+  background-image: none !important;
+  color: #F3F7F6 !important;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-header-nav {
+  border-color: rgba(190, 205, 203, .12) !important;
+  background: rgba(5, 6, 7, .97) !important;
+  color: #F3F7F6;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, .32) !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-bottom-nav {
+  border-color: rgba(190, 205, 203, .12) !important;
+  background: rgba(5, 6, 7, .97) !important;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, .24) !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-bottom-nav .student-mobile-nav-button {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #9BA8A6 !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-bottom-nav .student-mobile-nav-button svg {
+  color: #82908D !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-bottom-nav .student-mobile-nav-button.is-active {
+  border-color: rgba(78, 233, 208, .22) !important;
+  background: rgba(78, 233, 208, .09) !important;
+  color: #F3F7F6 !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-bottom-nav .student-mobile-nav-button.is-active svg {
+  color: #4EE9D0 !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-screen:not(.is-compact) {
+  --sw-bg: #050607;
+  --sw-panel: #0E1113;
+  --sw-panel-strong: #151A1C;
+  --sw-line: rgba(190, 205, 203, .16);
+  --sw-text: #F3F7F6;
+  --sw-muted: #A3AEAC;
+  --sw-accent: #4EE9D0;
+  --sw-accent-strong: #4EE9D0;
+  --sw-accent-soft: rgba(78, 233, 208, .11);
+  background: #050607 !important;
+  background-image: none !important;
+  color: #F3F7F6 !important;
+  box-shadow: none !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-screen :is(input, select, textarea) {
+  border-color: rgba(190, 205, 203, .2) !important;
+  background-color: #080A0B !important;
+  color: #F3F7F6 !important;
+  accent-color: #4EE9D0;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-screen :is(input, select, textarea)::placeholder {
+  color: #879491 !important;
+  opacity: 1;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-screen :is(button, summary, input, select, textarea):focus-visible {
+  outline-color: rgba(78, 233, 208, .78) !important;
+  outline-offset: 3px;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-primary,
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-rating-submit {
+  min-height: 52px;
+  border: 1px solid #4EE9D0 !important;
+  background: #4EE9D0 !important;
+  color: #061110 !important;
+  -webkit-text-fill-color: #061110 !important;
+  box-shadow: 0 5px 16px rgba(78, 233, 208, .12) !important;
+  transition: transform 130ms ease, filter 130ms ease, box-shadow 130ms ease;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-primary:active:not(:disabled),
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-rating-submit:active:not(:disabled) {
+  transform: scale(.99);
+  filter: brightness(.96);
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-primary:disabled,
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-rating-submit:disabled {
+  box-shadow: none !important;
+  opacity: .58;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-execution .mobile-workout-set-card-v29.is-current {
+  border-radius: 13px;
+  background: rgba(21, 26, 28, .72);
+  box-shadow: inset 0 0 0 1px rgba(78, 233, 208, .16);
+  padding: 10px;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-execution .mobile-workout-set-inline-action-v29 {
+  min-height: 52px !important;
+  margin-top: 1px;
+  border-color: #4EE9D0 !important;
+  background: #4EE9D0 !important;
+  color: #061110 !important;
+  -webkit-text-fill-color: #061110 !important;
+  box-shadow: 0 5px 16px rgba(78, 233, 208, .12) !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-rest-controls button {
+  min-height: 46px;
+  border-color: var(--sw-line);
+  background: var(--sw-panel);
+  color: var(--sw-text);
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-rest-skip {
+  min-height: 50px;
+  margin: 0 auto;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-end-subtle {
+  color: #A3AEAC !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-media {
+  border: 1px solid var(--sw-line);
+  background: #0B0E10;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-media .student-workout-figma-technique-preview {
+  border: 0;
+  background: linear-gradient(145deg, #171C1E 0%, #0C0F10 72%, #080A0B 100%) !important;
+  color: var(--sw-text) !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-media .student-workout-figma-technique-preview > :is(strong, small) {
+  color: var(--sw-text) !important;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-media .student-workout-figma-technique-play {
+  border-color: rgba(78, 233, 208, .44);
+  background: rgba(78, 233, 208, .13);
+  color: #4EE9D0;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-exercise-complete .student-workout-figma-bottom-actions,
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-summary .student-workout-figma-bottom-actions {
+  background: transparent;
+}
+
+.student-mobile-shell.app-theme-dark.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected {
+  border-color: #D6A519 !important;
+  background: rgba(241, 206, 104, .16) !important;
+  color: #F1CE68 !important;
+  -webkit-text-fill-color: #F1CE68 !important;
+}
+
+@media (max-width: 380px) {
+  .student-mobile-shell.student-workout-active .student-workout-figma-screen:not(.is-compact) {
+    padding-inline: 14px !important;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-overview-stats > div > strong {
+    font-size: 20px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-figma-execution-topbar.student-workout-has-end-action {
+    gap: 6px;
+  }
+
+  .student-mobile-shell.student-workout-active .student-workout-end-subtle {
+    min-width: 40px;
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-mobile-shell.student-workout-active .student-workout-figma-primary,
+  .student-mobile-shell.student-workout-active .student-workout-rating-submit,
+  .student-mobile-shell.app-theme-dark.student-workout-active {
+    transition: none !important;
+  }
+}
+
+/* A tela de XP é parte do treino: base preta, superfície grafite e estrela dourada. */
+.student-workout-xp-celebration.app-theme-dark {
+  --xp-bg: #050607;
+  --xp-surface: #0E1113;
+  --xp-line: rgba(190, 205, 203, .16);
+  --xp-text: #F3F7F6;
+  --xp-muted: #A3AEAC;
+  --xp-accent: #4EE9D0;
+  --xp-accent-ink: #061110;
+  background: #050607 !important;
+}
+
+.student-workout-xp-celebration.app-theme-dark .student-workout-xp-celebration__dialog {
+  background: linear-gradient(155deg, #171C1E 0%, #0E1113 68%);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .42), 0 0 40px rgba(78, 233, 208, .055);
+}
+
+.student-workout-xp-celebration .student-workout-xp-celebration__stars span.is-selected {
+  border-color: #D6A519;
+  background: rgba(241, 206, 104, .16);
+  color: #F1CE68;
+}
+
+.student-workout-xp-celebration.app-theme-light .student-workout-xp-celebration__stars span.is-selected {
+  border-color: #D6A519;
+  background: #FFF5CB;
+  color: #A66D00;
+}
