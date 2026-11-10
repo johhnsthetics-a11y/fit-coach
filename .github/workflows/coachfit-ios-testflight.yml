@@ -36,10 +36,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 39)"
+        description: "Build INEDITO para esta versao (ex.: 40)"
         type: string
         required: true
-        default: "39"
+        default: "40"
 
 permissions:
   contents: read
@@ -55,8 +55,9 @@ jobs:
     timeout-minutes: 60
     env:
       APP_ID: br.com.coachfitpro.ios
+      REST_EXTENSION_ID: br.com.coachfitpro.ios.restactivity
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ inputs.build_number || '39' }}
+      IOS_BUILD: ${{ inputs.build_number || '40' }}
 
     steps:
       - name: Checkout
@@ -126,7 +127,7 @@ jobs:
       - name: Validate source and StoreKit bridge
         run: |
           set -euo pipefail
-          node --test scripts/ios-storekit-package.test.mjs scripts/ios-product-pricing.test.mjs scripts/ios-purchase-verification.test.mjs scripts/subscription-presentation.test.mjs scripts/ios-intro-offer-regression.test.mjs scripts/chat-safety-contract.test.mjs scripts/chat-enhancements.test.mjs scripts/chat-push-notifications.test.mjs scripts/workout-completion-notifications.test.mjs scripts/student-workout-rating.test.mjs scripts/student-meal-photo.test.mjs scripts/nutrition-patient-preview.test.mjs
+          node --test scripts/ios-storekit-package.test.mjs scripts/ios-product-pricing.test.mjs scripts/ios-purchase-verification.test.mjs scripts/subscription-presentation.test.mjs scripts/ios-intro-offer-regression.test.mjs scripts/chat-safety-contract.test.mjs scripts/chat-enhancements.test.mjs scripts/chat-push-notifications.test.mjs scripts/workout-completion-notifications.test.mjs scripts/student-workout-rating.test.mjs scripts/workout-rest-background.test.mjs scripts/student-meal-photo.test.mjs scripts/nutrition-patient-preview.test.mjs
 
       - name: Build web assets
         run: pnpm run build
@@ -157,17 +158,19 @@ jobs:
           P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          REST_PROFILE_BASE64: ${{ secrets.IOS_REST_ACTIVITY_PROVISIONING_PROFILE_BASE64 }}
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
           API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           set -euo pipefail
-          for key in P12_BASE64 P12_PASSWORD PROFILE_BASE64 TEAM_ID API_KEY_P8 API_KEY_ID API_ISSUER_ID; do
+          for key in P12_BASE64 P12_PASSWORD PROFILE_BASE64 REST_PROFILE_BASE64 TEAM_ID API_KEY_P8 API_KEY_ID API_ISSUER_ID; do
             if [ -z "${!key:-}" ]; then echo "::error::Credencial ausente: $key"; exit 1; fi
           done
           printf '%s' "$P12_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.p12"
           printf '%s' "$PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/distribution.mobileprovision"
+          printf '%s' "$REST_PROFILE_BASE64" | base64 -D > "$RUNNER_TEMP/rest-activity.mobileprovision"
           printf '%s\n' "$API_KEY_P8" > "$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8"
           KEYCHAIN_PATH="$RUNNER_TEMP/coachfit-build.keychain-db"
           KEYCHAIN_PASS="$(openssl rand -hex 24)"
@@ -185,12 +188,24 @@ jobs:
             echo "::error::Perfil nao corresponde a equipe e ao Bundle Identifier do Coach Fit Pro"
             exit 1
           fi
+          security cms -D -i "$RUNNER_TEMP/rest-activity.mobileprovision" > "$RUNNER_TEMP/rest-activity-profile.plist"
+          REST_PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/rest-activity-profile.plist")
+          REST_PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/rest-activity-profile.plist")
+          REST_PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/rest-activity-profile.plist")
+          if [[ "$REST_PROFILE_APP_ID" != "$TEAM_ID.$REST_EXTENSION_ID" ]]; then
+            echo "::error::Perfil de provisioning nao corresponde ao bundle da extensao CoachFitRestActivityExtension"
+            exit 1
+          fi
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$RUNNER_TEMP/distribution.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          cp "$RUNNER_TEMP/rest-activity.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$REST_PROFILE_UUID.mobileprovision"
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           cp "$RUNNER_TEMP/AuthKey_$API_KEY_ID.p8" "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8"
           chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "REST_PROFILE_UUID=$REST_PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "REST_PROFILE_NAME=$REST_PROFILE_NAME" >> "$GITHUB_ENV"
           echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
           echo "API_KEY_ID=$API_KEY_ID" >> "$GITHUB_ENV"
           echo "API_ISSUER_ID=$API_ISSUER_ID" >> "$GITHUB_ENV"
@@ -206,7 +221,8 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            COACHFIT_APP_PROFILE_NAME="$PROFILE_NAME" \
+            COACHFIT_REST_PROFILE_NAME="$REST_PROFILE_NAME" \
             MARKETING_VERSION="$IOS_VERSION" \
             CURRENT_PROJECT_VERSION="$IOS_BUILD" \
             archive
@@ -224,7 +240,10 @@ jobs:
               signingStyle="manual",
               signingCertificate="Apple Distribution",
               teamID=os.environ["TEAM_ID"],
-              provisioningProfiles={os.environ["APP_ID"]: os.environ["PROFILE_NAME"]},
+              provisioningProfiles={
+                  os.environ["APP_ID"]: os.environ["PROFILE_NAME"],
+                  os.environ["REST_EXTENSION_ID"]: os.environ["REST_PROFILE_NAME"],
+              },
           )
           with open(os.path.join(os.environ["RUNNER_TEMP"], "ExportOptions.plist"), "wb") as f:
               plistlib.dump(options, f)
@@ -257,5 +276,7 @@ jobs:
             security delete-keychain "$RUNNER_TEMP/coachfit-build.keychain-db" || true
           fi
           rm -f "$RUNNER_TEMP/distribution.p12" "$RUNNER_TEMP/distribution.mobileprovision" \
-            "$RUNNER_TEMP/profile.plist" "$RUNNER_TEMP"/AuthKey_*.p8
+            "$RUNNER_TEMP/profile.plist" "$RUNNER_TEMP/rest-activity.mobileprovision" "$RUNNER_TEMP/rest-activity-profile.plist" "$RUNNER_TEMP"/AuthKey_*.p8
+          if [ -n "${PROFILE_UUID:-}" ]; then rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"; fi
+          if [ -n "${REST_PROFILE_UUID:-}" ]; then rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$REST_PROFILE_UUID.mobileprovision"; fi
           rm -rf "$HOME/.appstoreconnect/private_keys"
