@@ -17,6 +17,7 @@ import './student-workout-polish-build36.css'
 import './student-workout-polish-build37.css'
 import './student-workout-polish-build38.css'
 import './student-workout-polish-build39.css'
+import './student-workout-rest-background-build40.css'
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {

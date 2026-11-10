@@ -119,6 +119,8 @@ import {
 } from './chat/chatPushNotifications'
 import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
 import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
+import { clearRestTimerSnapshot, getRestTimerRemainingSeconds, getRestTimerStorageKey, normalizeRestSeconds, readRestTimerSnapshot, writeRestTimerSnapshot } from './workoutRestTimer'
+import { getNativeWorkoutRestCapabilities, isNativeWorkoutRestAvailable, openNativeWorkoutRestSettings, requestNativeWorkoutRestNotifications, syncNativeWorkoutRest } from './nativeWorkoutRest'
 import {
   CARDIO_EXERCISES,
   buildCardioHistoryLine,
@@ -199,7 +201,7 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build39-20261110'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build40-20261110'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -14721,7 +14723,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const days = useMemo(() => buildMobileWorkoutDays(workout || {}, availableExerciseLibrary), [availableExerciseLibrary, workout])
   const executionStorageKey = getStudentWorkoutExecutionStorageKey(student?.id, workout?.id)
+  const restTimerStorageKey = getRestTimerStorageKey(student?.id, workout?.id)
   const initialExecution = preview ? null : loadStudentWorkoutExecution(student?.id, workout?.id)
+  const initialRestSnapshot = useMemo(() => preview ? null : readRestTimerSnapshot(restTimerStorageKey), [preview, restTimerStorageKey])
   const [activeDayIndex, setActiveDayIndex] = useState(initialExecution?.activeDayIndex ?? (preview ? Math.max(0, Number(dayIndex) || 0) : -1))
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(initialExecution?.activeExerciseIndex ?? 0)
   const [setLogs, setSetLogs] = useState(initialExecution?.setLogs || {})
@@ -14731,8 +14735,17 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [sessionNotes, setSessionNotes] = useState(initialExecution?.sessionNotes || '')
   const [completionToken, setCompletionToken] = useState(initialExecution?.completionToken || createWorkoutCompletionToken)
   const [completedLog, setCompletedLog] = useState(initialExecution?.completedLog || null)
-  const [restRemaining, setRestRemaining] = useState(0)
-  const [restPaused, setRestPaused] = useState(false)
+  const [restRemaining, setRestRemaining] = useState(initialRestSnapshot?.remainingSeconds || 0)
+  const [restPaused, setRestPaused] = useState(Boolean(initialRestSnapshot?.paused))
+  const [restEndAtMs, setRestEndAtMs] = useState(initialRestSnapshot?.paused ? 0 : (initialRestSnapshot?.endAtMs || 0))
+  const [restActivityDetails, setRestActivityDetails] = useState(initialRestSnapshot?.activityDetails || null)
+  const [restNativePlatform, setRestNativePlatform] = useState(false)
+  const [restNativeCapabilities, setRestNativeCapabilities] = useState(null)
+  const [restNativeEffectNonce, setRestNativeEffectNonce] = useState(0)
+  const [restNotificationBusy, setRestNotificationBusy] = useState(false)
+  const [restNotificationScheduled, setRestNotificationScheduled] = useState(false)
+  const [restLiveActivityActive, setRestLiveActivityActive] = useState(false)
+  const [restBackgroundError, setRestBackgroundError] = useState(false)
   const [showWorkoutOverview, setShowWorkoutOverview] = useState(false)
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const [expandedSetKey, setExpandedSetKey] = useState('')
@@ -14747,6 +14760,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [message, setMessage] = useState(initialExecution?.completedLog ? (initialExecution.completedLog.endedEarly ? 'Treino encerrado. Seu progresso foi mantido.' : 'Treino já concluído. O XP foi registrado uma única vez.') : '')
   const [error, setError] = useState('')
   const previousExecutionKeyRef = useRef(executionStorageKey)
+  const previousRestTimerKeyRef = useRef(restTimerStorageKey)
+  const restRemainingRef = useRef(initialRestSnapshot?.remainingSeconds || 0)
+  const restPausedRef = useRef(Boolean(initialRestSnapshot?.paused))
+  const restEndAtMsRef = useRef(initialRestSnapshot?.paused ? 0 : (initialRestSnapshot?.endAtMs || 0))
+  const restActivityDetailsRef = useRef(initialRestSnapshot?.activityDetails || null)
+  const restNativeCleanupPolicyRef = useRef(initialRestSnapshot?.expired ? 'keep' : 'none')
+  const restNativeSyncSequenceRef = useRef(0)
   const skipNextPersistRef = useRef(false)
   const submissionLockRef = useRef(false)
   const endDialogRef = useModalFocusTrap(endConfirmOpen, () => setEndConfirmOpen(false))
@@ -14757,6 +14777,113 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const previewRestStartedRef = useRef(false)
   const previousRestActiveRef = useRef(false)
   const previewModeStage = preview ? resolveWorkoutPreviewStage(previewStage) : ''
+
+  function currentRestSeconds() {
+    if (restPausedRef.current) return restRemainingRef.current
+    return getRestTimerRemainingSeconds(restEndAtMsRef.current)
+  }
+
+  function applyRestTimerSnapshot(snapshot) {
+    const paused = Boolean(snapshot?.paused)
+    const endAtMs = paused ? 0 : (Number(snapshot?.endAtMs) || 0)
+    const remainingSeconds = snapshot?.expired
+      ? 0
+      : paused
+        ? normalizeRestSeconds(snapshot?.remainingSeconds)
+        : getRestTimerRemainingSeconds(endAtMs)
+    const active = remainingSeconds > 0
+    const details = active ? (snapshot?.activityDetails || null) : null
+    restRemainingRef.current = active ? remainingSeconds : 0
+    restPausedRef.current = active && paused
+    restEndAtMsRef.current = active && !paused ? endAtMs : 0
+    restActivityDetailsRef.current = details
+    setRestRemaining(restRemainingRef.current)
+    setRestPaused(restPausedRef.current)
+    setRestEndAtMs(restEndAtMsRef.current)
+    setRestActivityDetails(details)
+    if (snapshot?.expired && !preview) {
+      restNativeCleanupPolicyRef.current = 'keep'
+      setRestNativeEffectNonce((value) => value + 1)
+    }
+  }
+
+  function clearRestTimer(notificationPolicy = 'cancelAll') {
+    restRemainingRef.current = 0
+    restPausedRef.current = false
+    restEndAtMsRef.current = 0
+    restActivityDetailsRef.current = null
+    setRestRemaining(0)
+    setRestPaused(false)
+    setRestEndAtMs(0)
+    setRestActivityDetails(null)
+    if (!preview) {
+      clearRestTimerSnapshot(restTimerStorageKey)
+      restNativeCleanupPolicyRef.current = notificationPolicy
+      setRestNativeEffectNonce((value) => value + 1)
+    } else {
+      restNativeCleanupPolicyRef.current = 'none'
+    }
+  }
+
+  function updateRestTimer(secondsValue, { paused = restPausedRef.current, activityDetails = restActivityDetailsRef.current } = {}) {
+    const remainingSeconds = normalizeRestSeconds(secondsValue)
+    if (!remainingSeconds) {
+      clearRestTimer()
+      return
+    }
+    const nextPaused = Boolean(paused)
+    const endAtMs = nextPaused ? 0 : Date.now() + remainingSeconds * 1000
+    const details = activityDetails || null
+    restRemainingRef.current = remainingSeconds
+    restPausedRef.current = nextPaused
+    restEndAtMsRef.current = endAtMs
+    restActivityDetailsRef.current = details
+    setRestRemaining(remainingSeconds)
+    setRestPaused(nextPaused)
+    setRestEndAtMs(endAtMs)
+    setRestActivityDetails(details)
+    if (!preview) writeRestTimerSnapshot(restTimerStorageKey, { paused: nextPaused, remainingSeconds, endAtMs, activityDetails: details })
+    restNativeCleanupPolicyRef.current = 'none'
+  }
+
+  function startRestTimer(seconds, activityDetails = null) {
+    updateRestTimer(seconds, { paused: false, activityDetails })
+  }
+
+  function adjustRestTimer(deltaSeconds) {
+    updateRestTimer(currentRestSeconds() + Number(deltaSeconds || 0))
+  }
+
+  function toggleRestTimerPaused() {
+    const remainingSeconds = currentRestSeconds()
+    if (!remainingSeconds) {
+      clearRestTimer()
+      return
+    }
+    updateRestTimer(remainingSeconds, { paused: !restPausedRef.current })
+  }
+
+  async function requestRestNotificationPermission() {
+    setRestNotificationBusy(true)
+    setRestBackgroundError(false)
+    try {
+      const capabilities = await requestNativeWorkoutRestNotifications()
+      setRestNativeCapabilities((current) => ({ ...(current || {}), ...capabilities }))
+    } catch {
+      setRestBackgroundError(true)
+    } finally {
+      setRestNotificationBusy(false)
+    }
+  }
+
+  async function openRestNotificationSettings() {
+    setRestBackgroundError(false)
+    try {
+      await openNativeWorkoutRestSettings()
+    } catch {
+      setRestBackgroundError(true)
+    }
+  }
 
   useEffect(() => {
     if (!xpCelebration) {
@@ -14793,23 +14920,17 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     }
     if (previewModeStage !== 'rest') {
       previewRestStartedRef.current = false
-      if (restRemaining > 0) {
-        setRestRemaining(0)
-        setRestPaused(false)
-      }
+      if (restRemaining > 0) clearRestTimer('none')
       return
     }
     if (!previewRestStartedRef.current) {
       previewRestStartedRef.current = true
-      if (restRemaining === 0) {
-        setRestRemaining(48)
-        setRestPaused(false)
-      }
+      if (restRemaining === 0) startRestTimer(48, { exerciseName: '', nextSetNumber: 1, totalSets: 1 })
       return
     }
     if (restRemaining === 0) {
       previewRestStartedRef.current = false
-      setRestPaused(false)
+      clearRestTimer('none')
       onPreviewStageChange?.('execution')
     }
   }, [onPreviewStageChange, preview, previewModeStage, restRemaining, workout])
@@ -14826,6 +14947,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setSeriesFeedback(null)
     setExerciseCompleteDismissedKey('')
     previewRestStartedRef.current = false
+    if (executionChanged) {
+      if (!preview) clearRestTimerSnapshot(previousRestTimerKeyRef.current)
+      restNativeCleanupPolicyRef.current = 'cancelAll'
+      setRestNativeEffectNonce((value) => value + 1)
+    }
+    previousRestTimerKeyRef.current = restTimerStorageKey
+    applyRestTimerSnapshot(preview ? null : (executionChanged ? readRestTimerSnapshot(restTimerStorageKey) : initialRestSnapshot))
     setEntryFieldFocused(false)
     setActiveDayIndex(saved?.activeDayIndex ?? (preview ? Math.min(Math.max(Number(dayIndex) || 0, 0), Math.max(days.length - 1, 0)) : -1))
     setActiveExerciseIndex(saved?.activeExerciseIndex ?? 0)
@@ -14913,10 +15041,102 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }, [activeDayIndex, activeExerciseIndex, cardioLogs, completedLog, completionToken, effort, onSaveWorkoutSession, preview, remoteHydrated, sessionDurationSeconds, sessionNotes, setLogs, student?.id, timerStartedAt, workout?.id])
 
   useEffect(() => {
-    if (!restRemaining || restPaused) return undefined
-    const timer = window.setInterval(() => setRestRemaining((current) => Math.max(0, current - 1)), 1000)
-    return () => window.clearInterval(timer)
-  }, [restPaused, restRemaining > 0])
+    if (!restEndAtMs || restPaused) return undefined
+    const refreshRemaining = () => {
+      const remainingSeconds = getRestTimerRemainingSeconds(restEndAtMsRef.current)
+      if (!remainingSeconds) {
+        clearRestTimer('keep')
+        return
+      }
+      if (restRemainingRef.current !== remainingSeconds) {
+        restRemainingRef.current = remainingSeconds
+        setRestRemaining(remainingSeconds)
+      }
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshRemaining()
+    }
+    refreshRemaining()
+    const timer = window.setInterval(refreshRemaining, 1000)
+    window.addEventListener('focus', refreshRemaining)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshRemaining)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [preview, restEndAtMs, restPaused])
+
+  useEffect(() => {
+    const available = !preview && isNativeWorkoutRestAvailable()
+    setRestNativePlatform(available)
+    setRestNativeCapabilities(null)
+    setRestNotificationScheduled(false)
+    setRestLiveActivityActive(false)
+    setRestBackgroundError(false)
+    if (!available) return undefined
+    let active = true
+    const refreshCapabilities = () => {
+      getNativeWorkoutRestCapabilities()
+        .then((capabilities) => { if (active) setRestNativeCapabilities(capabilities) })
+        .catch(() => { if (active) setRestBackgroundError(true) })
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshCapabilities()
+    }
+    refreshCapabilities()
+    window.addEventListener('focus', refreshCapabilities)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refreshCapabilities)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [preview])
+
+  useEffect(() => {
+    if (preview || !isNativeWorkoutRestAvailable()) return
+    if (!restNativePlatform) return
+    let action
+    let notificationPolicy
+    if (restRemaining > 0) {
+      action = restPaused ? 'pause' : 'start'
+      if (restPaused) notificationPolicy = 'cancelAll'
+      else notificationPolicy = 'schedule'
+    } else {
+      notificationPolicy = restNativeCleanupPolicyRef.current
+      if (notificationPolicy === 'none') return
+      action = 'end'
+    }
+    const details = restActivityDetails || {}
+    const options = {
+      action,
+      notificationPolicy,
+      remainingSeconds: restRemaining,
+      endAtMs: restEndAtMs,
+      exerciseName: details.exerciseName || '',
+      nextSetNumber: details.nextSetNumber || 1,
+      totalSets: details.totalSets || 1,
+    }
+    if (action === 'end') restNativeCleanupPolicyRef.current = 'none'
+    const syncSequence = ++restNativeSyncSequenceRef.current
+    let active = true
+    Promise.resolve().then(() => syncNativeWorkoutRest(options))
+      .then((result) => {
+        if (!active || syncSequence !== restNativeSyncSequenceRef.current) return
+        setRestNotificationScheduled(Boolean(result?.notificationScheduled))
+        setRestLiveActivityActive(Boolean(result?.liveActivityEnabled))
+        if (action === 'start' && restNativeCapabilities?.notificationAllowed && !result?.notificationScheduled) setRestBackgroundError(true)
+        else setRestBackgroundError(false)
+      })
+      .catch(() => {
+        if (active && syncSequence === restNativeSyncSequenceRef.current) setRestBackgroundError(true)
+      })
+    return () => {
+      active = false
+      if (restNativeSyncSequenceRef.current === syncSequence) restNativeSyncSequenceRef.current += 1
+    }
+  }, [preview, restActivityDetails, restEndAtMs, restNativeCapabilities?.notificationAllowed, restNativePlatform, restNativeEffectNonce, restPaused, restRemaining > 0])
 
   useEffect(() => {
     if (preview) return
@@ -15136,8 +15356,15 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       const prescribedRestSeconds = Math.max(0, Number.parseInt(exercise?.rest, 10) || 0)
       setExerciseCompleteDismissedKey('')
       setSeriesFeedback({ exerciseKey: currentCardioKey, number: setItem.number, nextNumber: nextPendingAfterCompletion?.number || null })
-      setRestRemaining(nextPendingAfterCompletion ? prescribedRestSeconds : 0)
-      setRestPaused(false)
+      if (nextPendingAfterCompletion && prescribedRestSeconds > 0) {
+        startRestTimer(prescribedRestSeconds, {
+          exerciseName: exercise?.name || '',
+          nextSetNumber: nextPendingAfterCompletion.number,
+          totalSets: exerciseSetCount,
+        })
+      } else {
+        clearRestTimer()
+      }
       if (preview) onPreviewStageChange?.(nextPendingAfterCompletion ? prescribedRestSeconds > 0 ? 'rest' : 'execution' : 'exercise-complete')
       const nextSet = currentSets.find((item) => item.number === setItem.number + 1)
       setExpandedSetKey(nextSet?.key || '')
@@ -15146,6 +15373,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       setEntryFieldFocused(false)
       if (!preview && (nextPendingAfterCompletion ? prescribedRestSeconds > 0 : true)) scrollWorkoutToTop()
     } else {
+      clearRestTimer()
       setExerciseCompleteDismissedKey('')
       setSeriesFeedback(null)
       setExpandedSetKey(setItem.key)
@@ -15198,8 +15426,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setDayPickerOpen(false)
     setActiveExerciseIndex(0)
     setExerciseCompleteDismissedKey('')
-    setRestRemaining(0)
-    setRestPaused(false)
+    clearRestTimer()
     setExpandedSetKey('')
     setEntryFieldFocused(false)
     setEndConfirmOpen(false)
@@ -15214,8 +15441,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setActiveDayIndex(nextPosition.dayIndex)
     setActiveExerciseIndex(nextPosition.exerciseIndex)
     setExerciseCompleteDismissedKey('')
-    setRestRemaining(0)
-    setRestPaused(false)
+    clearRestTimer()
     setExpandedSetKey('')
     setSeriesFeedback(null)
     setEntryFieldFocused(false)
@@ -15224,8 +15450,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   }
 
   function returnFromRestToExecution() {
-    setRestRemaining(0)
-    setRestPaused(false)
+    clearRestTimer()
     setExpandedSetKey(nextPendingSetKey)
     setEntryFieldFocused(false)
     setEndConfirmOpen(false)
@@ -15262,8 +15487,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     if (typeof window !== 'undefined' && window.innerWidth <= 767) window.scrollTo({ top: 0, behavior: 'smooth' })
     setShowWorkoutOverview(true)
     setDayPickerOpen(false)
-    setRestRemaining(0)
-    setRestPaused(false)
+    clearRestTimer()
     setExpandedSetKey(nextPendingSetKey)
     setEntryFieldFocused(false)
     setEndConfirmOpen(false)
@@ -15331,6 +15555,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       const rewardInput = { studentId: student?.id, workoutLogs }
       const previousXp = buildStudentRewardStats(rewardInput).xp
       const xpAwarded = Math.max(0, buildStudentRewardStats({ ...rewardInput, workoutLogs: [...workoutLogs, savedLog] }).xp - previousXp)
+      clearRestTimer()
       setCompletedLog({ ...savedLog, durationSeconds: payload.durationSeconds, xpAwarded })
       if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
       if (preview) onPreviewStageChange?.('summary')
@@ -15365,6 +15590,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
       } else {
         savedLog = { id: completionToken, completedAt: new Date().toISOString(), endedEarly: true }
       }
+      clearRestTimer()
       setCompletedLog({ ...savedLog, endedEarly: true, durationSeconds: payload.durationSeconds })
       setEndConfirmOpen(false)
       if (!preview && timerStartedAt && onToggleTimer) onToggleTimer()
@@ -15395,8 +15621,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setSessionNotes('')
     setCompletionToken(createWorkoutCompletionToken())
     setCompletedLog(null)
-    setRestRemaining(0)
-    setRestPaused(false)
+    clearRestTimer()
     previewRestStartedRef.current = false
     setEndConfirmOpen(false)
     setMessage('Nova sessão iniciada. Registre novamente todas as séries.')
@@ -15485,6 +15710,26 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const previewRestStage = preview && previewModeStage === 'rest'
   const displayedRestSeconds = previewRestStage && restRemaining === 0 && !previewRestStartedRef.current ? 48 : restRemaining
   const restTotalSeconds = Math.max(1, Number.parseInt(exercise?.rest, 10) || 75)
+  const restNotificationAllowed = Boolean(restNativeCapabilities?.notificationAllowed)
+  const restNotificationStatus = restNativeCapabilities?.notificationAuthorizationStatus || 'unknown'
+  const showRestNotificationAction = restNativePlatform && Boolean(restNativeCapabilities) && !restNotificationAllowed
+  const restBackgroundHint = preview
+    ? 'Prévia: nenhum alerta ou atividade é criado no aparelho.'
+    : !restNativePlatform
+      ? 'No app web, o cronômetro só é acompanhado enquanto esta tela permanece aberta.'
+      : restBackgroundError
+        ? 'O cronômetro continua nesta tela, mas não foi possível confirmar o aviso em segundo plano.'
+        : restPaused
+          ? 'Descanso pausado. Retome para atualizar o cronômetro e o aviso.'
+          : restNotificationScheduled && restLiveActivityActive
+            ? 'Cronômetro ativo na Tela Bloqueada e aviso programado para o final.'
+            : restNotificationScheduled
+              ? 'Aviso local programado para o final do descanso.'
+              : restLiveActivityActive
+                ? 'Cronômetro ativo na Tela Bloqueada; não há alerta local autorizado.'
+                : restNotificationAllowed
+                  ? 'Permissão ativa. O aparelho está sincronizando o cronômetro do descanso.'
+                  : 'Ative os avisos para acompanhar o fim do descanso fora do app.'
 
   if (displayedRestSeconds > 0) {
     return (
@@ -15504,16 +15749,28 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         </div>
         <button type="button" className="student-workout-figma-primary student-workout-rest-skip" onClick={returnFromRestToExecution}>Pular descanso <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button>
         <div className="student-workout-figma-rest-controls">
-          <button type="button" onClick={() => setRestRemaining((value) => Math.max(0, value - 15))}>−15 s</button>
-          <button type="button" onClick={() => setRestPaused((value) => !value)}>{restPaused ? <><NavIcon name="play" className="h-4 w-4" /><span>Retomar</span></> : <><NavIcon name="pause" className="h-4 w-4" /><span>Pausar</span></>}</button>
-          <button type="button" onClick={() => setRestRemaining((value) => value + 15)}>+15 s</button>
+          <button type="button" onClick={() => adjustRestTimer(-15)}>−15 s</button>
+          <button type="button" onClick={toggleRestTimerPaused}>{restPaused ? <><NavIcon name="play" className="h-4 w-4" /><span>Retomar</span></> : <><NavIcon name="pause" className="h-4 w-4" /><span>Pausar</span></>}</button>
+          <button type="button" onClick={() => adjustRestTimer(15)}>+15 s</button>
         </div>
         <div className="student-workout-figma-next-set">
           <p>A SEGUIR • SÉRIE {nextPendingSet?.number || exerciseSetCount} DE {exerciseSetCount}</p>
           <strong>{exercise?.name || 'Próximo exercício'}</strong>
           <span>Meta: {nextPendingSet?.targetReps || exercise?.reps || '—'} reps{previousSetRecords.get(nextPendingSet?.number)?.load ? ` • Última carga: ${previousSetRecords.get(nextPendingSet?.number)?.load} kg` : ''}</span>
         </div>
-        <p className="student-workout-figma-rest-hint">Avisaremos quando for hora de voltar.</p>
+        <div className="student-workout-rest-background-status" aria-live="polite">
+          <div className="student-workout-rest-background-status__copy"><p>{restBackgroundHint}</p></div>
+          {showRestNotificationAction ? (
+            <button
+              type="button"
+              className="student-workout-rest-background-status__action"
+              disabled={restNotificationBusy}
+              onClick={restNotificationStatus === 'denied' ? openRestNotificationSettings : requestRestNotificationPermission}
+            >
+              {restNotificationBusy ? 'Solicitando…' : restNotificationStatus === 'denied' ? 'Abrir Ajustes' : 'Ativar aviso'}
+            </button>
+          ) : null}
+        </div>
         {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
         {endConfirmOpen ? endConfirmation : null}
       </section>

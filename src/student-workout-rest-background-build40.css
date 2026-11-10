@@ -1,0 +1,114 @@
+/* BUILD40: permission-aware status for the native rest timer. */
+.student-workout-rest-background-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  width: 100%;
+  margin: 14px auto 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(8, 127, 114, 0.2);
+  border-radius: 16px;
+  background: #f5faf9;
+  color: #425c58;
+}
+
+.student-workout-rest-background-status__copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  flex: 1 1 180px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.student-workout-rest-background-status__copy p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.student-workout-rest-background-status__copy svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-top: 1px;
+  color: #087f72;
+}
+
+.student-workout-rest-background-status__action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(8, 127, 114, 0.36);
+  border-radius: 12px;
+  padding: 0 13px;
+  background: #ffffff;
+  color: #075f56;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.student-workout-rest-background-status__action:hover {
+  border-color: #087f72;
+  background: #edf8f6;
+}
+
+.student-workout-rest-background-status__action:active {
+  transform: translateY(1px);
+}
+
+.student-workout-rest-background-status__action:focus-visible {
+  outline: 3px solid rgba(8, 127, 114, 0.34);
+  outline-offset: 2px;
+}
+
+.student-workout-rest-background-status__action:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.student-mobile-shell.app-theme-dark .student-workout-rest-background-status {
+  border-color: rgba(78, 233, 208, 0.2);
+  background: #111e20;
+  color: #a7bdba;
+}
+
+.student-mobile-shell.app-theme-dark .student-workout-rest-background-status__copy svg {
+  color: #4ee9d0;
+}
+
+.student-mobile-shell.app-theme-dark .student-workout-rest-background-status__action {
+  border-color: rgba(78, 233, 208, 0.3);
+  background: #18292b;
+  color: #d8fffa;
+}
+
+.student-mobile-shell.app-theme-dark .student-workout-rest-background-status__action:hover {
+  border-color: #4ee9d0;
+  background: #1c3334;
+}
+
+@media (max-width: 360px) {
+  .student-workout-rest-background-status {
+    align-items: stretch;
+    padding: 11px 12px;
+  }
+
+  .student-workout-rest-background-status__action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-workout-rest-background-status__action {
+    transition: none;
+  }
+}
