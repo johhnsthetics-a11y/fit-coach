@@ -1,0 +1,16 @@
+/* BUILD39: equal specificity to the legacy light-theme override, loaded last. */
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected {
+  border-color: #D6A519 !important;
+  background: #FFF5CB !important;
+  color: #A66D00 !important;
+  -webkit-text-fill-color: #A66D00 !important;
+  box-shadow: 0 4px 12px rgba(163, 126, 25, .18) !important;
+}
+
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected > span,
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected > span svg,
+html body .student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-summary .student-workout-rating-stars button.is-selected > span svg path {
+  color: #A66D00 !important;
+  fill: #A66D00 !important;
+  -webkit-text-fill-color: #A66D00 !important;
+}
