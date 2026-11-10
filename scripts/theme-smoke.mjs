@@ -4,6 +4,7 @@ const normalizeNewlines = (value) => value.replace(/\r\n/g, '\n')
 const app = normalizeNewlines(readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8'))
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
 const studentWorkoutPolish = readFileSync(new URL('../src/student-workout-polish-build36.css', import.meta.url), 'utf8')
+const studentWorkoutPolish37 = readFileSync(new URL('../src/student-workout-polish-build37.css', import.meta.url), 'utf8')
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const api = readFileSync(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const nutritionPlanAccess = readFileSync(new URL('../src/nutritionPlanAccess.js', import.meta.url), 'utf8')
@@ -47,6 +48,8 @@ const checks = [
   ['Authenticated app premium cleanup exists', css.includes('app-theme-light-premium-cleanup-v5')],
   ['Authenticated app uses requested neutral light base token', css.includes('--app-light-bg: #E0E0E0')],
   ['Theme toggle communicates the next student theme with sun/moon icons', app.includes("const iconName = studentToggle ? (isDark ? 'sun' : 'moon') : 'lightbulb'") && app.includes('theme-toggle-student-icon') && studentWorkoutPolish.includes('animation: student-theme-icon-in 220ms')],
+  ['Student header restores the theme control next to chat', /<ThemeToggle theme=\{theme\} onToggle=\{toggleUiTheme\} className="student-theme-toggle student-header-theme-toggle shrink-0" \/>[\s\S]{0,360}aria-label="Abrir conversa com o profissional"/.test(app) && studentWorkoutPolish37.includes('.student-header-theme-toggle')],
+  ['Workout rating stars use a gold state in both themes', studentWorkoutPolish37.includes('background: rgba(241, 206, 104, .16)') && studentWorkoutPolish37.includes('background: #fff5cb') && studentWorkoutPolish37.includes('color: #a66d00')],
   ['Theme toggle lamp has natural CSS polish', css.includes('theme-toggle-lamp-natural-v2') && css.includes('.theme-toggle-lamp.is-on') && css.includes('.theme-toggle-lamp.is-off')],
   ['Only one authenticated theme shortcut per viewport', !app.includes('mt-3 hidden w-full lg:flex')],
   ['Logged app theme shortcut is desktop-only by CSS', /\.coach-page-theme-toggle\s*\{\s*display: none !important;[\s\S]*?@media \(min-width: 1024px\) \{[\s\S]*?\.coach-page-theme-toggle\s*\{\s*display: inline-flex !important;/.test(css)],

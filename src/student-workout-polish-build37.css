@@ -1,0 +1,329 @@
+/* BUILD37 — controles do aluno refinados sem alterar o restante do portal. */
+
+.student-mobile-shell.student-workout-active .student-header-nav {
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-header-nav {
+  border-color: #e4ece9 !important;
+  background: rgba(255, 255, 255, .96) !important;
+  color: #0d2523;
+  box-shadow: 0 5px 18px rgba(14, 44, 40, .08) !important;
+}
+
+.student-header-theme-toggle {
+  display: grid !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 12px !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-header-theme-toggle {
+  border-color: #d9e6e2 !important;
+  background: #ffffff !important;
+  color: #087f72 !important;
+}
+
+.student-workout-day-accordion {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.student-workout-day-accordion__toggle {
+  display: flex;
+  min-width: 0;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--sw-line, rgba(167, 189, 186, .2));
+  border-radius: 15px;
+  background: var(--sw-panel, #111e20);
+  padding: 11px 13px;
+  color: var(--sw-text, #f4fffd);
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.student-workout-day-accordion__toggle:hover,
+.student-workout-day-accordion__toggle:focus-visible {
+  border-color: var(--sw-accent, #4ee9d0);
+}
+
+.student-workout-day-accordion__toggle > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.student-workout-day-accordion__toggle small {
+  color: var(--sw-muted, #a7bdba);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.student-workout-day-accordion__toggle strong {
+  overflow-wrap: anywhere;
+  color: var(--sw-text, #f4fffd);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.student-workout-day-accordion__toggle > span:first-child > span {
+  overflow: hidden;
+  color: var(--sw-muted, #a7bdba);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-workout-day-accordion__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 1px solid var(--sw-line, rgba(167, 189, 186, .2));
+  border-radius: 11px;
+  color: var(--sw-accent, #4ee9d0);
+}
+
+.student-workout-day-accordion__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  min-width: 0;
+  gap: 8px;
+  border: 1px solid var(--sw-line, rgba(167, 189, 186, .2));
+  border-radius: 15px;
+  background: var(--sw-panel, #111e20);
+  padding: 9px;
+  animation: student-workout-days-open 170ms ease-out both;
+}
+
+.student-workout-day-accordion__options > button {
+  display: grid;
+  min-width: 0;
+  min-height: 70px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 2px 9px;
+  border: 1px solid var(--sw-line, rgba(167, 189, 186, .2));
+  border-radius: 12px;
+  background: var(--sw-bg, #0b1516);
+  padding: 9px 10px;
+  color: var(--sw-text, #f4fffd);
+  text-align: left;
+}
+
+.student-workout-day-accordion__options > button.is-selected {
+  border-color: var(--sw-accent, #4ee9d0);
+  background: var(--sw-accent-soft, rgba(78, 233, 208, .1));
+}
+
+.student-workout-day-accordion__options > button > span {
+  grid-row: 1 / 3;
+  color: var(--sw-accent, #4ee9d0);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.student-workout-day-accordion__options > button > strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.student-workout-day-accordion__options > button > small {
+  overflow: hidden;
+  color: var(--sw-muted, #a7bdba);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sem ação suspensa: cada série mantém seu botão contextual no próprio formulário. */
+.student-workout-figma-execution .mobile-workout-set-inline-action-v29 {
+  display: flex !important;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px !important;
+  align-items: center;
+  justify-content: center;
+  margin-top: 3px;
+  border: 1px solid var(--sw-accent-strong, #087f72) !important;
+  border-radius: 14px !important;
+  background: var(--sw-accent-strong, #087f72) !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+  box-shadow: 0 6px 16px rgba(0, 91, 77, .14);
+}
+
+.student-mobile-shell.app-theme-dark .student-workout-figma-execution .mobile-workout-set-inline-action-v29 {
+  color: #08211e !important;
+}
+
+.student-workout-end-subtle {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0 !important;
+  border-radius: 10px;
+  background: transparent !important;
+  padding: 4px 3px;
+  color: var(--sw-muted, #a7bdba) !important;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.student-workout-figma-execution-topbar.student-workout-has-end-action {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.student-workout-figma-execution-topbar > .student-workout-end-subtle {
+  display: inline-flex !important;
+  width: auto !important;
+  height: 40px !important;
+}
+
+.student-workout-end-subtle:hover,
+.student-workout-end-subtle:focus-visible {
+  color: var(--sw-text, #f4fffd) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.student-workout-rest-skip {
+  width: min(100%, 480px);
+  min-height: 48px;
+  margin: -2px auto 2px;
+  justify-self: center;
+}
+
+.student-workout-figma-exercise-intro {
+  display: grid;
+  min-width: 0;
+  gap: 11px;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-exercise-intro {
+  border: 1px solid #e1ebe7;
+  border-radius: 18px;
+  background: #f8fbfa;
+  padding: clamp(12px, 3.6vw, 17px);
+  box-shadow: 0 7px 18px rgba(20, 59, 54, .055);
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-exercise-intro .mobile-workout-current-heading-v5 {
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-exercise-intro .mobile-workout-current-heading-v5 h4 {
+  color: #102b28 !important;
+  font-size: clamp(22px, 6.4vw, 30px) !important;
+  line-height: 1.08 !important;
+  overflow-wrap: anywhere;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-exercise-intro .mobile-workout-current-heading-v5 span,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-exercise-intro .student-workout-figma-coach-cue {
+  color: #49615c !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media {
+  border: 1px solid #dce8e4;
+  background: #edf5f2;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media .student-workout-figma-technique-preview {
+  min-height: clamp(132px, 42vw, 184px);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f3f8f6, #e8f2ef) !important;
+  color: #123b35 !important;
+  padding: 14px;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media .student-workout-figma-technique-preview > strong,
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media .student-workout-figma-technique-preview > small {
+  color: #294b45 !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media .student-workout-figma-technique-play {
+  width: 44px;
+  height: 44px;
+  border-color: #087f72;
+  background: #087f72;
+  color: #ffffff;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media .student-workout-figma-technique-preview a {
+  min-height: 44px;
+  color: #087f72 !important;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media details {
+  background: transparent !important;
+}
+
+.student-mobile-shell.app-theme-light.student-workout-active .student-workout-figma-media summary {
+  color: #0d675e !important;
+}
+
+/* Estrelas douradas nos dois temas, sem depender do preenchimento herdado do botão. */
+.student-mobile-shell .student-workout-figma-summary .student-workout-rating-stars button.is-selected {
+  border-color: #d6a519 !important;
+  background: rgba(241, 206, 104, .16) !important;
+  color: #f1ce68 !important;
+  -webkit-text-fill-color: #f1ce68 !important;
+}
+
+.student-mobile-shell.app-theme-light .student-workout-figma-summary .student-workout-rating-stars button.is-selected {
+  border-color: #d6a519 !important;
+  background: #fff5cb !important;
+  color: #a66d00 !important;
+  -webkit-text-fill-color: #a66d00 !important;
+}
+
+.student-mobile-shell .student-workout-figma-summary .student-workout-rating-stars button.is-selected > span svg {
+  fill: currentColor !important;
+}
+
+@keyframes student-workout-days-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 380px) {
+  .student-workout-day-accordion__toggle { min-height: 60px; padding-inline: 10px; }
+  .student-workout-day-accordion__options { grid-template-columns: minmax(0, 1fr); padding: 7px; }
+  .student-workout-end-subtle { min-width: 40px; gap: 2px; font-size: 8px; }
+  .student-workout-figma-exercise-intro { gap: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-mobile-shell.student-workout-active .student-header-nav,
+  .student-workout-day-accordion__toggle { transition: none; }
+  .student-workout-day-accordion__options { animation: none; }
+}

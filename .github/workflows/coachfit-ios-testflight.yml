@@ -36,10 +36,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 36)"
+        description: "Build INEDITO para esta versao (ex.: 37)"
         type: string
         required: true
-        default: "36"
+        default: "37"
 
 permissions:
   contents: read
@@ -56,7 +56,7 @@ jobs:
     env:
       APP_ID: br.com.coachfitpro.ios
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ inputs.build_number || '36' }}
+      IOS_BUILD: ${{ inputs.build_number || '37' }}
 
     steps:
       - name: Checkout
