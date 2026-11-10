@@ -10,7 +10,7 @@ const workout = { id: 'build28-preview-workout', title: 'Treino demonstrativo', 
   { day: 'Segunda-feira', focus: 'Peito', exercises: [{ name: 'Supino reto', sets: '3', reps: '10', rest: '60s' }, { name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
   { day: 'Quarta-feira', focus: 'Costas', exercises: [{ name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
 ] }
-let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, mainSource, xpCelebrationCss
+let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, polish37Css, mainSource, xpCelebrationCss
 
 before(async () => {
   server = await createServer({
@@ -24,6 +24,7 @@ before(async () => {
   figmaCss = await readFile(new URL('../src/student-workout-figma-dark.css', import.meta.url), 'utf8')
   polishCss = await readFile(new URL('../src/student-workout-polish-build34.css', import.meta.url), 'utf8')
   polish36Css = await readFile(new URL('../src/student-workout-polish-build36.css', import.meta.url), 'utf8')
+  polish37Css = await readFile(new URL('../src/student-workout-polish-build37.css', import.meta.url), 'utf8')
   mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
   xpCelebrationCss = await readFile(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
 })
@@ -46,12 +47,18 @@ test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
   assert.match(html.overview, /Iniciar treino/)
   assert.equal((html.overview.match(/Iniciar treino/g) || []).length, 1, 'o overview deve apresentar uma única ação principal')
   assert.match(html.overview, /data-progress-segment/)
+  assert.match(html.overview, /student-workout-day-accordion__toggle/)
+  assert.match(html.overview, /aria-controls="student-workout-day-options"/)
+  assert.doesNotMatch(html.overview, /aria-label="Escolher outro dia de treino"/)
+  assert.ok(html.overview.indexOf('student-workout-figma-topbar') < html.overview.indexOf('student-workout-day-accordion__toggle'))
   assert.match(html.execution, /Técnica do exercício/)
-  assert.match(html.execution, /Registrar série e descansar/)
+  assert.match(html.execution, /Concluir série/)
+  assert.doesNotMatch(html.execution, /Registrar série e descansar|student-workout-figma-execution-actions/)
   assert.match(html.execution, /data-progress-segment/)
   assert.doesNotMatch(html.execution, /Sem histórico anterior/)
   assert.match(html.rest, /Recupere o fôlego/)
   assert.match(html.rest, /00:48/)
+  assert.ok(html.rest.indexOf('Pular descanso') < html.rest.indexOf('student-workout-figma-rest-controls'))
   assert.match(html['exercise-complete'], /feito\./)
   assert.match(html['exercise-complete'], /Seus registros/)
   assert.match(html['exercise-complete'], /Conclua uma série nesta prévia para exibir seus registros reais/)
@@ -149,8 +156,19 @@ test('BUILD34 melhora ícones, toque, alertas, feedback e largura sem quebrar a 
   const newSession = appSource.match(/function startNewWorkoutSession\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   assert.match(newSession, /setSeriesFeedback\(null\)/)
   assert.match(newSession, /setExpandedSetKey\(''\)/)
-  const actionBarIndex = appSource.indexOf('student-workout-figma-execution-actions')
-  const executionErrorIndex = appSource.lastIndexOf('mobile-workout-student-error-v2', actionBarIndex)
-  assert.ok(actionBarIndex > 0 && executionErrorIndex > 0 && executionErrorIndex < actionBarIndex, 'alerta de execução deve preceder a barra fixa')
+  assert.doesNotMatch(appSource, /student-workout-figma-execution-actions|executionActionLabel|handleExecutionPrimaryAction/)
+  assert.match(polish37Css, /student-workout-figma-execution \.mobile-workout-set-inline-action-v29\s*\{\s*display:\s*flex !important/)
+  assert.match(polish37Css, /student-workout-end-subtle/)
+  assert.match(polish37Css, /student-workout-figma-execution-topbar\.student-workout-has-end-action\s*\{[\s\S]*?grid-template-columns:\s*40px minmax\(0, 1fr\) auto/)
+  assert.match(polish37Css, /student-workout-rest-skip/)
+  assert.match(polish37Css, /student-workout-day-accordion__options/)
+  assert.match(polish37Css, /app-theme-light[^\n]*student-workout-rating-stars button\.is-selected[\s\S]*?#a66d00/)
+  assert.match(polish37Css, /student-workout-figma-exercise-intro[\s\S]*?#f8fbfa/)
+  assert.match(mainSource, /import '\.\/student-workout-polish-build37\.css'/)
+  const trainSection = appSource.match(/if \(activeTab === 'treino'\) \{([\s\S]*?)(?=\n    if \(activeTab === 'dieta'\))/)?.[1] || ''
+  assert.ok(trainSection, 'seção Treino do aluno deve existir')
+  assert.doesNotMatch(trainSection, /StudentReminderCard/)
+  assert.match(appSource, /<ThemeToggle theme=\{theme\} onToggle=\{toggleUiTheme\} className="student-theme-toggle student-header-theme-toggle shrink-0" \/>/)
+  assert.match(appSource, /className="student-workout-day-accordion__toggle" aria-expanded=\{dayPickerOpen\}/)
 })
 after(async () => { await server?.close() })

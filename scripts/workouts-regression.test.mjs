@@ -596,7 +596,7 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
 
   assert.match(html, /mobile-workout-student-experience-v2/)
   assert.match(html, /Concluir série/)
-  assert.match(html, /Registrar série e descansar/)
+  assert.doesNotMatch(html, /Registrar série e descansar|student-workout-figma-execution-actions/)
   assert.match(html, /Meta: 10 reps/)
   assert.match(html, /YouTube/)
   assert.doesNotMatch(html, /<iframe[^>]+youtube/i)
@@ -971,7 +971,7 @@ test('executor destaca timer, encerramento e músculo alvo textual no topo', () 
 
   assert.match(html, /Tempo do treino/)
   assert.match(html, /02:05/)
-  assert.match(html, /Encerrar sessão/)
+  assert.match(html, /aria-label="Encerrar treino"/)
   assert.match(html, /mobile-workout-timer-panel-v5/)
   const exerciseTitleIndex = html.indexOf('Supino reto com barra')
   const timerIndex = html.indexOf('mobile-workout-timer-panel-v5')
@@ -1026,7 +1026,9 @@ test('fluxo Figma mantém a série ativa e usa tela dedicada de descanso', async
   assert.doesNotMatch(appSource, /restWidgetExpanded|beginRestWidgetDrag/)
   assert.match(appSource, /mobile-workout-set-card-v11/)
   assert.match(appSource, /mobile-workout-set-open-v11/)
-  assert.match(appSource, /<StudentReminderCard[\s\S]*compact/)
+  const studentWorkoutSection = appSource.match(/if \(activeTab === 'treino'\) \{([\s\S]*?)(?=\n    if \(activeTab === 'dieta'\))/)?.[1] || ''
+  assert.ok(studentWorkoutSection, 'seção Treino do aluno deve existir')
+  assert.doesNotMatch(studentWorkoutSection, /StudentReminderCard|Lembrete de treino/)
   assert.match(cssSource, /\.student-workout-figma-rest-clock/)
   assert.match(cssSource, /\.mobile-workout-set-card-v29:not\(\.is-current\)/)
   assert.match(cssSource, /safe-area-inset-bottom/)
@@ -1118,7 +1120,7 @@ test('controles do treino centralizam textos e preservam ação verde no tema cl
 })
 
 
-test('execução real do aluno mostra série atual, progresso do exercício e próxima ação contextual', async () => {
+test('execução real do aluno mostra série atual, progresso e ação Concluir Série no próprio card', async () => {
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
   const executionCss = await readFile(new URL('../src/student-workout-execution-build29.css', import.meta.url), 'utf8')
   const liveWorkout = {
@@ -1142,8 +1144,10 @@ test('execução real do aluno mostra série atual, progresso do exercício e pr
     assert.match(html, /1 de 3 séries/)
     assert.match(html, /aria-valuenow="1"/)
     assert.match(html, /Série atual/)
-    assert.match(html, /Registrar série e descansar/)
-    assert.match(html, /student-workout-figma-execution-actions/)
+    assert.match(html, /Concluir série/)
+    assert.match(html, /mobile-workout-set-inline-action-v29/)
+    assert.match(html, /aria-label="Encerrar treino"/)
+    assert.doesNotMatch(html, /Registrar série e descansar|student-workout-figma-execution-actions|Encerrar sessão/)
 
     const completeSetSource = appSource.match(/function completeSet\(setItem\) \{[\s\S]*?\n  \}/)?.[0] || ''
     assert.match(completeSetSource, /focusedField\.blur\(\)/)
