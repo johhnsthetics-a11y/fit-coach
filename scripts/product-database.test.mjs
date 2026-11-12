@@ -200,6 +200,10 @@ await assumeUser(coach)
 const teamA = (await db.query("select create_professional_team('Equipe Coach QA') as value")).rows[0].value
 const teamInvite = (await db.query('select create_professional_team_invite_scoped($1::uuid,$2,$3,$4::uuid[]) as value', [teamA.id,'nutritionist@example.com','nutritionist',`{${student}}`])).rows[0].value
 assert.equal(teamInvite.status, 'pending')
+assert.equal((await db.query('select validate_professional_team_invite_signup($1::uuid,$2,$3) as value', [teamInvite.id,'NUTRITIONIST@example.com','nutritionist'])).rows[0].value, true)
+assert.equal((await db.query('select validate_professional_team_invite_signup($1::uuid,$2,$3) as value', [teamInvite.id,'other@example.com','nutritionist'])).rows[0].value, false)
+assert.equal((await db.query('select validate_professional_team_invite_signup($1::uuid,$2,$3) as value', [teamInvite.id,'nutritionist@example.com','trainer'])).rows[0].value, false)
+assert.deepEqual(teamInvite.selectedStudentIds, [student])
 const noSubscriptionInvite = (await db.query('select create_professional_team_invite_scoped($1::uuid,$2,$3,$4::uuid[]) as value', [teamA.id,'no-access@example.com','trainer',`{${student}}`])).rows[0].value
 assert.deepEqual(noSubscriptionInvite.selectedStudentIds, [student])
 assert.equal(noSubscriptionInvite.inviteeHasAccount, true)
