@@ -76,6 +76,7 @@ function RefreshIcon() {
 
 function RequestCard({ request, busy, onRespond, onRequestRevoke }) {
   const isAccepted = request.consentStatus === 'accepted'
+  const ownerAuthorized = request.authorizationSource === 'team_owner'
   const area = getAreaDetails(request.area)
   const professionalName = request.professionalName || 'Profissional'
   const professionalRole = request.professionalRole || 'Profissional de saúde'
@@ -97,7 +98,7 @@ function RequestCard({ request, busy, onRespond, onRequestRevoke }) {
             <AreaIcon area={request.area} />
           </span>
           <div className="spcr-identity-copy">
-            <p className="spcr-card-eyebrow">{isAccepted ? 'Colaboração autorizada' : 'Solicitação de colaboração'}</p>
+          <p className="spcr-card-eyebrow">{isAccepted ? (ownerAuthorized ? 'Acesso habilitado pela equipe' : 'Colaboração autorizada') : 'Solicitação de colaboração'}</p>
             <h3>{professionalName}</h3>
             <p className="spcr-professional-meta">
               <span>{professionalRole}</span>
@@ -115,13 +116,13 @@ function RequestCard({ request, busy, onRespond, onRequestRevoke }) {
       <div className="spcr-card-facts" aria-label="Detalhes da colaboração">
         <span className="spcr-fact spcr-fact--area">Área: {area.label}</span>
         <span className="spcr-fact">Solicitada em {formatRequestedAt(request.requestedAt)}</span>
-        {request.consentVersion ? <span className="spcr-fact">Consentimento v{request.consentVersion}</span> : null}
+        {request.consentVersion && !ownerAuthorized ? <span className="spcr-fact">Registro v{request.consentVersion}</span> : null}
       </div>
 
       <div className="spcr-scope">
-        <p className="spcr-scope-title">{isAccepted ? 'O que este acesso permite' : 'Escopo deste consentimento'}</p>
+        <p className="spcr-scope-title">{isAccepted ? 'O que este acesso permite' : 'Escopo da solicitação'}</p>
         <p>
-          Você {isAccepted ? 'autorizou' : 'autoriza'} <strong>{professionalName}</strong>, da equipe <strong>{teamName}</strong>,
+          {isAccepted ? (ownerAuthorized ? <>O responsável da equipe incluiu </> : <>Você autorizou </>) : <>A solicitação permite que </>}<strong>{professionalName}</strong>, da equipe <strong>{teamName}</strong>,
           {' '}na área de <strong>{area.label}</strong>, a {area.action} e {area.data}.
         </p>
         <p className="spcr-scope-boundary">
@@ -203,10 +204,10 @@ export default function StudentProfessionalCollaborationRequests({
     <section className="spcr" data-theme={theme} aria-labelledby="spcr-title">
       <header className="spcr-header">
         <div className="spcr-heading-copy">
-          <p className="spcr-kicker">Privacidade e consentimento</p>
+          <p className="spcr-kicker">Privacidade e acessos</p>
           <h2 id="spcr-title">Colaboração profissional</h2>
           <p className="spcr-intro">
-            Revise quem pode colaborar com você e exatamente quais dados ficam disponíveis em cada área.
+            Consulte os profissionais com acesso ao seu plano. O responsável da equipe administra o acesso conforme o plano contratado; você pode pedir a remoção ao responsável.
           </p>
         </div>
         <button
@@ -242,7 +243,7 @@ export default function StudentProfessionalCollaborationRequests({
           <div className="spcr-empty" role="status">
             <span className="spcr-empty-mark" aria-hidden="true"><AreaIcon area="generic" /></span>
             <h3>Nenhuma colaboração por enquanto</h3>
-            <p>Quando um profissional solicitar acesso para nutrição ou treino, você poderá revisar o escopo aqui antes de decidir.</p>
+            <p>Quando um profissional receber acesso ao seu acompanhamento, a área e o profissional responsável aparecerão aqui.</p>
           </div>
         )
       ) : (

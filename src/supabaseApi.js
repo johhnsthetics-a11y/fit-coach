@@ -272,12 +272,28 @@ export async function createRemoteProfessionalTeam(teamName) {
   return rpcRequest('create_professional_team', { team_name: teamName })
 }
 
-export async function createRemoteProfessionalTeamInvite(teamId, email, professionalRole) {
-  return rpcRequest('create_professional_team_invite', {
+export async function createRemoteProfessionalTeamInvite(teamId, email, professionalRole, studentIds = []) {
+  return rpcRequest('create_professional_team_invite_scoped', {
     selected_team_id: teamId,
     invitee_email: email,
     expected_professional_role: professionalRole,
+    selected_student_ids: studentIds,
   })
+}
+
+export async function sendRemoteProfessionalTeamInviteEmail(inviteId) {
+  if (!isUuid(inviteId)) throw new Error('Convite inválido para envio por e-mail.')
+  return functionRequest('professional-team-invitation', { inviteId })
+}
+
+export async function validateRemoteProfessionalTeamInviteSignup(inviteId, email, professionalRole) {
+  if (!isUuid(inviteId)) return false
+  const result = await rpcRequest('validate_professional_team_invite_signup', {
+    selected_invite_id: inviteId,
+    signup_email: String(email || '').trim(),
+    signup_professional_role: professionalRole,
+  })
+  return result === true
 }
 
 export async function acceptRemoteProfessionalTeamInvite(inviteId) {
@@ -514,8 +530,9 @@ async function loadCoachAvatarState() {
   }
 }
 
-export async function signUpCoach({ name, email, password, role = 'Coach principal' }) {
-  const payload = await authRequest('signup', {
+export async function signUpCoach({ name, email, password, role = 'Coach principal', emailRedirectTo = '' }) {
+  const signupEndpoint = emailRedirectTo ? `signup?redirect_to=${encodeURIComponent(emailRedirectTo)}` : 'signup'
+  const payload = await authRequest(signupEndpoint, {
     email,
     password,
     data: { name, role },

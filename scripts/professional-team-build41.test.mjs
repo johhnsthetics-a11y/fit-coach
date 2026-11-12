@@ -6,7 +6,10 @@ const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const migration = await readFile(new URL('../supabase/migrations/20261112152900_professional_team_patient_collaboration_build41.sql', import.meta.url), 'utf8')
 const guestAccessMigration = await readFile(new URL('../supabase/migrations/20261112163114_allow_unsubscribed_team_invitees.sql', import.meta.url), 'utf8')
+const scopedInvitesMigration = await readFile(new URL('../supabase/migrations/20261112173136_scoped_professional_team_invites_build42.sql', import.meta.url), 'utf8')
 const studentConsent = await readFile(new URL('../src/StudentProfessionalCollaborationRequests.jsx', import.meta.url), 'utf8')
+const teamWorkspace = await readFile(new URL('../src/ProfessionalTeamWorkspace.jsx', import.meta.url), 'utf8')
+const inviteEmailFunction = await readFile(new URL('../supabase/functions/professional-team-invitation/index.ts', import.meta.url), 'utf8')
 const avatarFunction = await readFile(new URL('../supabase/functions/student-avatar/index.ts', import.meta.url), 'utf8')
 const delegatedWorkoutView = await readFile(new URL('../src/ProfessionalDelegatedWorkoutReadOnly.jsx', import.meta.url), 'utf8')
 const iosStoreKit = await readFile(new URL('../src/iosStoreKit.js', import.meta.url), 'utf8')
@@ -60,15 +63,18 @@ test('responsável acompanha dieta delegada aceita em modo somente leitura', () 
   assert.match(app, /A dieta do profissional colaborador permanece somente para leitura durante esta concessão ativa/)
 })
 
-test('consentimento exige conta autenticada no portal, aceita/revoga no servidor e permanece visível após aceite', () => {
+test('escopo escolhido pelo responsável fica ativo ao aceitar convite; aluno pode consultar e revogar acesso', () => {
   assert.match(app, /if \(activeTab === 'equipe' && accountEmail\)/)
   assert.match(app, /id !== 'equipe' \|\| Boolean\(accountEmail\)/)
   assert.match(app, /if \(!accountEmail \|\| !inviteCode \|\| !supabaseEnabled\) return false/)
-  assert.match(studentConsent, /respond\('accept'\)/)
-  assert.match(studentConsent, /respond\('decline'\)/)
   assert.match(studentConsent, /target\.delegationId, 'revoke'/)
-  assert.match(migration, /d\.consent_status in \('pending', 'accepted'\)/i)
-  assert.match(migration, /normalized_decision not in \('accept', 'decline', 'revoke'\)/i)
+  assert.match(scopedInvitesMigration, /selected_student_ids uuid\[\]/i)
+  assert.match(scopedInvitesMigration, /authorization_source = 'team_owner'/i)
+  assert.match(scopedInvitesMigration, /lower\(i\.invitee_email\) = actor_email/i)
+  assert.match(scopedInvitesMigration, /i\.expected_role = private\.coachfit_professional_role\(actor_id\)/i)
+  assert.match(teamWorkspace, /Acesso a Treinos|Acesso a Nutrição/)
+  assert.match(teamWorkspace, /Pacientes: \{patientNames\.join/)
+  assert.match(studentConsent, /Revogar acesso/)
 })
 
 test('autoria e foto do colaborador são vinculadas à delegação consentida', () => {
@@ -91,6 +97,18 @@ test('convidado sem assinatura recebe apenas a colaboração e não os dados pr�
   assert.match(guestAccessMigration, /accept_professional_team_invite/)
   assert.doesNotMatch(guestAccessMigration, /coachfit_require_professional_access/)
   assert.match(app.slice(app.indexOf('<ProfessionalTeamWorkspace'), app.indexOf('/>', app.indexOf('<ProfessionalTeamWorkspace'))), /canManageTeam/)
+})
+
+test('convite por e-mail direciona ao login existente ou cadastro com perfil e validação de escopo', () => {
+  assert.match(scopedInvitesMigration, /create_professional_team_invite_scoped\([\s\S]*?selected_student_ids uuid\[\]/i)
+  assert.match(scopedInvitesMigration, /validate_professional_team_invite_signup/)
+  assert.match(scopedInvitesMigration, /get_professional_team_invite_email_payload/)
+  assert.match(inviteEmailFunction, /RESEND_API_KEY/)
+  assert.match(inviteEmailFunction, /COACHFIT_TEAM_INVITE_FROM/)
+  assert.match(inviteEmailFunction, /mode: existingAccount \? "signin" : "signup"/)
+  assert.match(inviteEmailFunction, /Não é necessário contratar uma assinatura/)
+  assert.doesNotMatch(inviteEmailFunction, /password/i)
+  assert.match(supabaseConfig, /\[functions\.professional-team-invitation\]\s+verify_jwt = true/)
 })
 
 test('tabelas colaborativas não têm acesso direto por anon/authenticated e gates de assinatura permanecem presentes', () => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { filterProfessionalTeamInvites } from './professionalTeamInvites.js'
 import './professional-team-build41.css'
 
 const asList = (value) => (Array.isArray(value) ? value : [])
@@ -121,7 +122,7 @@ function inviteDirection(invite, teams, currentUser) {
   const senderEmail = asText(valueOf(invite, 'senderEmail', 'sender_email', 'inviterEmail', 'inviter_email')).toLocaleLowerCase('pt-BR')
   if ((userId && sameId(senderId, userId)) || (userEmail && senderEmail === userEmail)) return 'outgoing'
   const team = teams.find((item) => sameId(teamIdOf(item), teamIdOfInvite(invite)))
-  return team && isResponsible(team, currentUser) ? 'outgoing' : 'incoming'
+  return team && isResponsible(team, currentUser) ? 'outgoing' : 'unknown'
 }
 
 function delegationTeamId(item) {
@@ -180,10 +181,11 @@ function NativeDialog({ children, titleId, onClose, className = '' }) {
   )
 }
 
-function CreateOrInviteDialog({ dialog, teams, busy, onCreateTeam, onInviteMember, onClose }) {
+function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, onInviteMember, onClose }) {
   const [teamName, setTeamName] = useState('')
   const [email, setEmail] = useState('')
   const [professionalRole, setProfessionalRole] = useState('')
+  const [selectedStudentIds, setSelectedStudentIds] = useState([])
   const team = teams.find((item) => sameId(teamIdOf(item), dialog.teamId))
   const isCreate = dialog.kind === 'create'
   const titleId = isCreate ? 'ptw-create-title' : 'ptw-invite-title'
@@ -197,8 +199,8 @@ function CreateOrInviteDialog({ dialog, teams, busy, onCreateTeam, onInviteMembe
       onCreateTeam(cleanName)
     } else {
       const cleanEmail = email.trim()
-      if (!cleanEmail || !professionalRole || !onInviteMember || !teamIdOf(team)) return
-      onInviteMember(teamIdOf(team), cleanEmail, professionalRole)
+      if (!cleanEmail || !professionalRole || !selectedStudentIds.length || !onInviteMember || !teamIdOf(team)) return
+      onInviteMember(teamIdOf(team), cleanEmail, professionalRole, selectedStudentIds)
     }
     onClose()
   }
@@ -233,12 +235,24 @@ function CreateOrInviteDialog({ dialog, teams, busy, onCreateTeam, onInviteMembe
                 <option value="nutritionist">Nutricionista</option>
               </select>
             </label>
-            <p className="ptw-inline-note"><Icon name="info" /> O convite cria apenas um vínculo de equipe. Ele não compartilha pacientes nem concede acesso à carteira de outro profissional.</p>
+            {professionalRole ? (
+              <fieldset className="ptw-candidate-fieldset" disabled={busy}>
+                <legend>{professionalRole === 'trainer' ? 'Acesso a Treinos' : 'Acesso a Nutrição'} · selecione os pacientes</legend>
+                {candidates.length ? <ul className="ptw-candidate-list">{candidates.map((candidate, index) => {
+                  const id = asText(candidateId(candidate))
+                  if (!id) return null
+                  const name = personName(candidate) || 'Paciente sem nome informado'
+                  return <li key={id || `invite-candidate-${index}`}><label><input type="checkbox" value={id} checked={selectedStudentIds.includes(id)} onChange={() => setSelectedStudentIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} /><span>{name}</span></label></li>
+                })}</ul> : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum paciente disponível</strong><span>Cadastre pacientes antes de enviar um convite com acesso.</span></div>}
+                <p className="ptw-inline-note"><Icon name="info" /> O profissional só verá os {selectedStudentIds.length} pacientes selecionados nesta área. Quando aceitar, o acesso será liberado automaticamente. A assinatura e a carteira própria dele continuam independentes. Para quem ainda não tem conta, o e-mail explicará como criar uma usando este mesmo endereço e o perfil escolhido.</p>
+              </fieldset>
+            ) : <p className="ptw-inline-note"><Icon name="info" /> Primeiro escolha o perfil. Assim você poderá selecionar exatamente a área e os pacientes que o profissional verá.</p>}
+            
           </div>
         )}
         <div className="ptw-dialog-actions">
           <button type="button" className="ptw-button ptw-button-secondary" onClick={onClose}>Voltar</button>
-          <button type="submit" className="ptw-button ptw-button-primary" disabled={busy || (isCreate ? !onCreateTeam : !onInviteMember)}>
+          <button type="submit" className="ptw-button ptw-button-primary" disabled={busy || (isCreate ? !onCreateTeam : !onInviteMember || !professionalRole || !selectedStudentIds.length)}>
             {busy ? 'Processando…' : isCreate ? 'Criar equipe' : 'Enviar convite'}
           </button>
         </div>
@@ -282,6 +296,7 @@ export default function ProfessionalTeamWorkspace({
   onRefresh,
   onCreateTeam,
   onInviteMember,
+  onSendInviteEmail,
   onAcceptInvite,
   onDeclineInvite,
   onCancelInvite,
@@ -315,7 +330,7 @@ export default function ProfessionalTeamWorkspace({
   const userEmail = asText(valueOf(currentUser, 'email'))
   const userName = personName(currentUser) || 'Sua conta profissional'
   const pendingInvites = invites.filter((invite) => statusOf(invite) === 'pending')
-  const receivedInvites = pendingInvites.filter((invite) => inviteDirection(invite, teams, currentUser) === 'incoming')
+  const receivedInvites = filterProfessionalTeamInvites(pendingInvites, userEmail, valueOf(currentUser, 'professionalRole', 'professional_role', 'professionalType', 'professional_type', 'role'))
   const selectedOutgoingInvites = selectedTeam
     ? pendingInvites.filter((invite) => sameId(teamIdOfInvite(invite), selectedTeamIdValue) && inviteDirection(invite, teams, currentUser) === 'outgoing')
     : []
@@ -376,7 +391,7 @@ export default function ProfessionalTeamWorkspace({
     if (removed) {
       setConfirmation({
         title: 'Atualizar pacientes concedidos?',
-        description: 'Pacientes desmarcados deixarão de constar nesta concessão. A liberação de qualquer dado continua condicionada ao consentimento aceito pelo próprio paciente no app.',
+        description: 'Pacientes desmarcados deixarão de estar disponíveis para este profissional. Novas seleções futuras serão aplicadas automaticamente.',
         confirmLabel: 'Atualizar concessão',
         run: invoke,
       })
@@ -479,7 +494,7 @@ export default function ProfessionalTeamWorkspace({
         <span className="ptw-privacy-mark"><Icon name="shield" /></span>
         <div>
           <strong>Equipe não significa carteira compartilhada</strong>
-          <p>Cada profissional mantém sua própria carteira. O convite, sozinho, não compartilha pacientes. Para liberar qualquer dado, o paciente precisa aceitar o consentimento no app; um novo paciente exige concessão e consentimento próprios e não entra automaticamente. Profissionais convidados podem participar sem assinatura própria. O acesso continua limitado à área e aos pacientes concedidos, após o consentimento de cada pessoa.</p>
+          <p>O acesso é definido pelo responsável da equipe: apenas a área e os pacientes selecionados entram na colaboração. Após o profissional aceitar o convite, esses pacientes ficam disponíveis automaticamente. A assinatura e a carteira própria de cada profissional continuam independentes; o responsável pode alterar ou revogar a seleção a qualquer momento.</p>
         </div>
       </aside>
 
@@ -575,7 +590,7 @@ export default function ProfessionalTeamWorkspace({
                 {activeDelegationMember && selectedIsResponsible && canManageTeam ? (
                   <section className="ptw-delegation-editor" aria-labelledby="ptw-delegation-title">
                     <div className="ptw-section-head"><div><h4 id="ptw-delegation-title">Pacientes para {personName(activeDelegationMember) || 'este profissional'}</h4><p>Área correspondente ao perfil: <strong>{areaLabel(activeDelegationArea)}</strong>.</p></div></div>
-                    <p className="ptw-consent-note"><Icon name="shield" /> Esta seleção registra a concessão, mas não libera dados por si só. Cada paciente precisa aceitar o consentimento no app antes de qualquer dado ser disponibilizado. Novos pacientes exigem concessão e consentimento próprios; não são incluídos automaticamente.</p>
+                    <p className="ptw-consent-note"><Icon name="shield" /> O responsável define essa autorização. Somente os pacientes selecionados nesta área ficam disponíveis para o profissional. Alterações futuras são aplicadas automaticamente e podem ser revogadas pelo responsável.</p>
                     {candidates.length ? (
                       <fieldset className="ptw-candidate-fieldset" disabled={isBusy}>
                         <legend>Pacientes atuais elegíveis</legend>
@@ -616,7 +631,11 @@ export default function ProfessionalTeamWorkspace({
                       {selectedOutgoingInvites.map((invite, index) => {
                         const id = valueOf(invite, 'id', 'inviteId', 'invite_id', 'uuid')
                         const email = valueOf(invite, 'recipientEmail', 'recipient_email', 'email', 'inviteeEmail', 'invitee_email')
-                        return <li className="ptw-invite-row" key={asText(id) || `outgoing-${index}`}><span><strong>{email || 'E-mail do convidado não informado'}</strong><small>{roleText(valueOf(invite, 'professionalRole', 'professional_role', 'role'))} · {statusLabel(statusOf(invite))}</small></span>{id && onCancelInvite ? <button type="button" className="ptw-text-danger" onClick={() => askCancelInvite(invite)} disabled={isBusy}>Cancelar convite</button> : null}</li>
+                        const roleValue = valueOf(invite, 'professionalRole', 'professional_role', 'expectedRole', 'expected_role', 'role')
+                        const selectedIds = valueOf(invite, 'selectedStudentIds', 'selected_student_ids') || []
+                        const selectedPatients = valueOf(invite, 'selectedPatients', 'selected_patients') || []
+                        const patientNames = selectedPatients.map((patient) => personName(patient)).filter(Boolean)
+                        return <li className="ptw-invite-row" key={asText(id) || `outgoing-${index}`}><span><strong>{email || 'E-mail do convidado não informado'}</strong><small>{roleText(roleValue)} · {roleValue === 'trainer' ? 'Treinos' : 'Nutrição'} · {selectedIds.length} pacientes · {statusLabel(statusOf(invite))}</small>{patientNames.length ? <small>Pacientes: {patientNames.join(', ')}</small> : null}</span><div className="ptw-member-actions">{id && onSendInviteEmail ? <button type="button" className="ptw-button ptw-button-secondary ptw-button-small" onClick={() => onSendInviteEmail(id)} disabled={isBusy}>Reenviar e-mail</button> : null}{id && onCancelInvite ? <button type="button" className="ptw-text-danger" onClick={() => askCancelInvite(invite)} disabled={isBusy}>Cancelar convite</button> : null}</div></li>
                       })}
                     </ul>
                   </section>
@@ -642,12 +661,14 @@ export default function ProfessionalTeamWorkspace({
                   const teamName = valueOf(invite, 'teamName', 'team_name') || valueOf(invite?.team, 'name', 'title') || valueOf(team, 'name', 'title')
                   const sender = valueOf(invite, 'senderName', 'sender_name', 'inviterName', 'inviter_name', 'createdByName', 'created_by_name') || personName(invite?.sender || invite?.inviter)
                   const role = valueOf(invite, 'professionalRole', 'professional_role', 'role')
+                  const patientNames = (valueOf(invite, 'selectedPatients', 'selected_patients') || []).map((patient) => personName(patient)).filter(Boolean)
                   return (
                     <li className="ptw-invite-card" key={asText(id) || `received-${index}`}>
                       <div className="ptw-invite-heading"><span className="ptw-invite-mark"><Icon name="team" /></span><div><strong>{asText(teamName) || 'Nome da equipe não informado'}</strong><small>{sender ? `Convidado por ${sender}.` : 'Convite para participar de uma equipe.'}</small></div></div>
-                      <div className="ptw-invite-meta"><span>{roleText(role)}</span><span>{statusLabel(statusOf(invite))}</span></div>
+                      <div className="ptw-invite-meta"><span>{roleText(role)} · {valueOf(invite, 'selectedStudentCount', 'selected_student_count') || (valueOf(invite, 'selectedStudentIds', 'selected_student_ids') || []).length} pacientes selecionados</span><span>{statusLabel(statusOf(invite))}</span></div>
+                      {patientNames.length ? <p className="ptw-invite-safety">Acesso em {role === 'trainer' ? 'Treinos' : 'Nutrição'} para: {patientNames.join(', ')}.</p> : null}
                       {id ? <div className="ptw-invite-actions"><button type="button" className="ptw-button ptw-button-primary" onClick={() => onAcceptInvite?.(id)} disabled={isBusy || !onAcceptInvite}>Aceitar convite</button><button type="button" className="ptw-button ptw-button-secondary" onClick={() => askDeclineInvite(invite)} disabled={isBusy || !onDeclineInvite}>Recusar</button></div> : <p className="ptw-inline-note"><Icon name="info" /> Este convite não contém um identificador para ação.</p>}
-                      <p className="ptw-invite-safety">Aceitar o convite não compartilha pacientes. Qualquer concessão e consentimento são tratados separadamente.</p>
+                      <p className="ptw-invite-safety">Ao aceitar, você entra com acesso somente à área e aos pacientes listados no convite. Sua assinatura e seus próprios pacientes permanecem separados.</p>
                     </li>
                   )
                 })}
@@ -677,7 +698,7 @@ export default function ProfessionalTeamWorkspace({
         </aside>
       </div>
 
-      {dialog ? <CreateOrInviteDialog key={`${dialog.kind}-${asText(dialog.teamId)}`} dialog={dialog} teams={teams} busy={isBusy} onCreateTeam={onCreateTeam} onInviteMember={onInviteMember} onClose={() => setDialog(null)} /> : null}
+      {dialog ? <CreateOrInviteDialog key={`${dialog.kind}-${asText(dialog.teamId)}`} dialog={dialog} teams={teams} candidates={candidates} busy={isBusy} onCreateTeam={onCreateTeam} onInviteMember={onInviteMember} onClose={() => setDialog(null)} /> : null}
       {confirmation ? <ConfirmationDialog confirmation={confirmation} busy={isBusy} onConfirm={executeConfirmation} onClose={() => setConfirmation(null)} /> : null}
     </section>
   )

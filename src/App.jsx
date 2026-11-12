@@ -48,6 +48,8 @@ import {
   cancelRemoteProfessionalTeamInvite,
   createRemoteProfessionalTeam,
   createRemoteProfessionalTeamInvite,
+  sendRemoteProfessionalTeamInviteEmail,
+  validateRemoteProfessionalTeamInviteSignup,
   generateRemoteStudentCredentials,
   deleteRemoteCoachAccount,
   deleteRemoteStudentAccount,
@@ -224,7 +226,7 @@ const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediá
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
 const EMPTY_PROFESSIONAL_COLLABORATORS = Object.freeze([])
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-team-guests-no-subscription-build41-20261112'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-scoped-team-invites-build42-20261112'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -2113,7 +2115,7 @@ function AppContent() {
       setProfessionalCollaboration((current) => ({
         ...current,
         loading: false,
-        error: error?.message || 'Não foi possível carregar a área de colaboração. Confirme se a migration BUILD41 foi aplicada.',
+        error: error?.message || 'Não foi possível carregar a área de colaboração. Confirme se a atualização mais recente de equipes foi aplicada.',
       }))
       return false
     }
@@ -2132,9 +2134,9 @@ function AppContent() {
     setProfessionalCollaboration((current) => ({ ...current, busy: true, error: '', notice: '' }))
     try {
       if (professionalAccessActive) await syncAppleServerEntitlement()
-      await operation()
+      const result = await operation()
       await refreshProfessionalCollaboration({ silent: true })
-      setProfessionalCollaboration((current) => ({ ...current, notice: successMessage }))
+      setProfessionalCollaboration((current) => ({ ...current, notice: typeof successMessage === 'function' ? successMessage(result) : successMessage }))
       return true
     } catch (error) {
       setProfessionalCollaboration((current) => ({
@@ -2150,18 +2152,28 @@ function AppContent() {
   const professionalTeamHandlers = useMemo(() => ({
     onRefresh: () => refreshProfessionalCollaboration(),
     onCreateTeam: (name) => runProfessionalTeamAction(() => createRemoteProfessionalTeam(name), 'Equipe criada.'),
-    onInviteMember: (teamId, email, role) => runProfessionalTeamAction(
-      () => createRemoteProfessionalTeamInvite(teamId, email, role),
-      'Convite enviado. Nenhum dado de paciente foi compartilhado.',
-    ),
-    onAcceptInvite: (inviteId) => runProfessionalTeamAction(() => acceptRemoteProfessionalTeamInvite(inviteId), 'Convite aceito. Acesso a pacientes continua condicionado a autorização e consentimento.'),
+    onInviteMember: (teamId, email, role, studentIds) => runProfessionalTeamAction(async () => {
+      const invite = await createRemoteProfessionalTeamInvite(teamId, email, role, studentIds)
+      try {
+        await sendRemoteProfessionalTeamInviteEmail(invite.id)
+        return { emailSent: true }
+      } catch (error) {
+        return { emailSent: false, error: error?.message || '' }
+      }
+    }, (result) => result?.emailSent
+      ? 'Convite enviado por e-mail. O acesso selecionado será liberado quando a pessoa aceitar.'
+      : 'Convite criado e restrito ao e-mail informado, mas o envio externo do e-mail não foi confirmado. Verifique a configuração do serviço de e-mail ou use “Reenviar e-mail”.'),
+    onSendInviteEmail: (inviteId) => runProfessionalTeamAction(async () => {
+      try { await sendRemoteProfessionalTeamInviteEmail(inviteId); return true } catch { return false }
+    }, (sent) => sent ? 'E-mail do convite reenviado.' : 'Não foi possível enviar o e-mail. Confirme a configuração do serviço de e-mail e tente novamente.'),
+    onAcceptInvite: (inviteId) => runProfessionalTeamAction(() => acceptRemoteProfessionalTeamInvite(inviteId), 'Convite aceito. A área e os pacientes selecionados já estão disponíveis para você.'),
     onDeclineInvite: (inviteId) => runProfessionalTeamAction(() => declineRemoteProfessionalTeamInvite(inviteId), 'Convite recusado.'),
     onCancelInvite: (inviteId) => runProfessionalTeamAction(() => cancelRemoteProfessionalTeamInvite(inviteId), 'Convite cancelado.'),
     onRemoveMember: (teamId, memberId) => runProfessionalTeamAction(() => removeRemoteProfessionalTeamMember(teamId, memberId), 'Membro removido somente desta equipe.'),
     onLeaveTeam: (teamId) => runProfessionalTeamAction(() => leaveRemoteProfessionalTeam(teamId), 'Você saiu somente desta equipe.'),
     onSetDelegations: (teamId, memberId, area, studentIds) => runProfessionalTeamAction(
       () => setRemoteProfessionalPatientDelegations(teamId, memberId, area, studentIds),
-      'A seleção foi registrada. Cada paciente precisa consentir antes de liberar dados.',
+      'A seleção de acesso foi atualizada.',
     ),
     onRevokeDelegation: (delegationId) => runProfessionalTeamAction(() => revokeRemoteProfessionalPatientDelegation(delegationId), 'A concessão foi revogada para esta equipe.'),
   }), [refreshProfessionalCollaboration, runProfessionalTeamAction])
@@ -3071,6 +3083,9 @@ function AppContent() {
     const password = formData.get('password')?.toString() || ''
     const mode = formData.get('mode')?.toString() || 'signin'
     const role = mode === 'signup' ? (formData.get('role')?.toString() || 'Coach principal') : 'Coach principal'
+    const teamInviteId = formData.get('teamInviteId')?.toString() || ''
+    const invitedProfessionalRole = formData.get('teamInviteRole')?.toString()
+      || (role === 'Nutricionista' ? 'nutritionist' : 'trainer')
     const user = { name, email, role }
 
     if (mode === 'signup') {
@@ -3086,6 +3101,15 @@ function AppContent() {
       setRemoteStatus('Configuração pendente')
       setRemoteError('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Cloudflare antes de liberar o acesso.')
       return false
+    }
+
+    if (teamInviteId) {
+      const invitationMatches = await validateRemoteProfessionalTeamInviteSignup(teamInviteId, email, invitedProfessionalRole)
+      if (!invitationMatches) {
+        setRemoteStatus('Convite não validado')
+        setRemoteError('Este link não corresponde a um convite ativo para este e-mail e perfil. Confira o endereço recebido e tente novamente.')
+        return false
+      }
     }
 
     if (mode === 'forgot') {
@@ -3110,7 +3134,15 @@ function AppContent() {
     if (supabaseEnabled) {
       try {
         session = mode === 'signup'
-          ? await signUpCoach({ name, email, password, role })
+          ? await signUpCoach({
+            name,
+            email,
+            password,
+            role,
+            emailRedirectTo: teamInviteId
+              ? `${window.location.origin}/login?mode=signin&team_invite=${encodeURIComponent(teamInviteId)}`
+              : '',
+          })
           : await signInCoach({ email, password })
         const studentBootstrap = mode === 'signin' ? await loadRemoteCurrentStudentAccess() : null
         requireStudentBootstrapForSession(session, studentBootstrap)
@@ -3167,7 +3199,9 @@ function AppContent() {
         }))
         setRemoteStatus('Supabase conectado')
         setRemoteError('')
-        if (remoteData.professionalAffiliate) {
+        if (teamInviteId) {
+          setActiveViewSafely('equipe')
+        } else if (remoteData.professionalAffiliate) {
           setActiveViewSafely('visao')
         } else if (mode === 'signup' || !isCoachSubscriptionActive(remoteData.coachSubscription)) {
           setActiveViewSafely('assinatura')
@@ -5208,7 +5242,7 @@ function AppContent() {
             )}
             {activeView === 'equipe' && (
               <ProfessionalTeamWorkspace
-                currentUser={{ ...data.user, id: data.user?.id, email: data.user?.email, professionalRole: nutritionistUser ? 'nutritionist' : 'trainer' }}
+                currentUser={{ ...data.user, id: data.user?.id, email: data.session?.user?.email || data.user?.email, professionalRole: nutritionistUser ? 'nutritionist' : 'trainer' }}
                 uiTheme={uiTheme}
                 teams={professionalCollaboration.teams}
                 invites={professionalCollaboration.invites}
@@ -5622,7 +5656,11 @@ function StudentFirstPasswordScreen({ email, professionalType = 'trainer', onSav
 function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appAdminSettings = defaultAppAdminSettings, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
   const nativeIosApp = isNativeIosApp()
   const isLoginRoute = nativeIosApp || window.location.pathname.toLowerCase() === '/login'
-  const initialMode = new URLSearchParams(window.location.search).get('mode')
+  const accessParams = new URLSearchParams(window.location.search)
+  const inviteSignupId = accessParams.get('team_invite') || ''
+  const inviteSignupRoleKey = accessParams.get('role') === 'nutritionist' ? 'nutritionist' : 'trainer'
+  const inviteSignupRole = inviteSignupRoleKey === 'nutritionist' ? 'Nutricionista' : 'Coach principal'
+  const initialMode = accessParams.get('mode') || (inviteSignupId ? 'signup' : '')
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
@@ -5657,7 +5695,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   }, [salesPlans])
   const selectedOfferPlan = orderedSalesPlans.find((plan) => plan.id === selectedOfferPlanId) || orderedSalesPlans[1] || orderedSalesPlans[0]
   const signupPlan = orderedSalesPlans.find((plan) => plan.id === signupPlanId) || orderedSalesPlans[0]
-  const signupTitle = nativeIosApp && mode === 'signup'
+  const signupTitle = inviteSignupId && mode === 'signup'
+    ? 'Criar conta para a equipe'
+    : nativeIosApp && mode === 'signup'
     ? 'Criar conta'
     : mode === 'signup'
     ? signupPlan?.id === 'mensal'
@@ -5668,7 +5708,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
       : mode === 'forgot'
         ? 'Recuperar senha'
         : 'Entrar no painel'
-  const signupDescription = nativeIosApp && mode === 'signup'
+  const signupDescription = inviteSignupId && mode === 'signup'
+    ? `Crie sua conta como ${inviteSignupRole === 'Nutricionista' ? 'nutricionista' : 'treinador'} usando o e-mail que recebeu o convite. O convite continuará aguardando seu aceite depois da confirmação do cadastro.`
+    : nativeIosApp && mode === 'signup'
     ? 'Crie sua conta profissional e escolha a assinatura pela App Store após entrar no aplicativo.'
     : mode === 'signup'
     ? signupPlan?.id === 'mensal'
@@ -6126,6 +6168,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             </div>
             <div className="mt-6 space-y-4">
               <input type="hidden" name="mode" value={mode} />
+              {inviteSignupId ? <><input type="hidden" name="teamInviteId" value={inviteSignupId} /><input type="hidden" name="teamInviteRole" value={inviteSignupRoleKey} /></> : null}
               {mode === 'student' ? (
                 <Field label="Código de acesso" name="inviteCode" defaultValue="" />
               ) : mode === 'forgot' ? (
@@ -6138,7 +6181,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       <Select
                         label="Área de atuação"
                         name="role"
-                        defaultValue="Coach principal"
+                        defaultValue={inviteSignupId ? inviteSignupRole : 'Coach principal'}
                         options={[
                           { label: 'Personal trainer', value: 'Coach principal' },
                           { label: 'Nutricionista', value: 'Nutricionista' },
@@ -6146,7 +6189,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                       />
                     </>
                   ) : null}
-                  <Field label="E-mail" name="email" type="email" defaultValue="" />
+                  <Field label="E-mail" name="email" type="email" defaultValue="" autoComplete="email" />
                   <Field label="Senha" name="password" type="password" defaultValue="" />
                 </>
               )}
