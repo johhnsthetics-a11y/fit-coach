@@ -321,6 +321,9 @@ export default function ProfessionalTeamWorkspace({
   onLeaveTeam,
   onSetDelegations,
   onRevokeDelegation,
+  onOpenPatientWorkspace,
+  patientWorkspaceReady = false,
+  accessibleStudentIds = [],
 }) {
   const teams = useMemo(() => asList(teamsProp), [teamsProp])
   const invites = useMemo(() => asList(invitesProp), [invitesProp])
@@ -347,6 +350,20 @@ export default function ProfessionalTeamWorkspace({
   const userId = personId(currentUser)
   const userEmail = asText(valueOf(currentUser, 'email'))
   const userName = personName(currentUser) || 'Sua conta profissional'
+  const currentUserArea = areaForRole(valueOf(currentUser, 'professionalRole', 'professional_role', 'professionalType', 'professional_type', 'role'))
+  const assignedPatientRows = selectedTeam && !selectedIsResponsible && currentUserArea
+    ? Array.from(new Map(delegations
+        .filter((item) => sameId(delegationTeamId(item), selectedTeamIdValue)
+          && sameId(delegationMemberId(item), userId)
+          && delegationArea(item) === currentUserArea
+          && asText(valueOf(item, 'status')).toLowerCase() === 'active'
+          && asText(valueOf(item, 'consentStatus', 'consent_status')).toLowerCase() === 'accepted')
+        .map((item) => {
+          const id = valueOf(item, 'studentId', 'student_id', 'patientId', 'patient_id') || delegationStudentIds(item)[0]
+          return [asText(id), { id, name: valueOf(item, 'studentName', 'student_name', 'patientName', 'patient_name') || 'Aluno/paciente' }]
+        })
+        .filter(([id]) => Boolean(id))).values())
+    : []
   const pendingInvites = invites.filter((invite) => statusOf(invite) === 'pending')
   const receivedInvites = filterProfessionalTeamInvites(pendingInvites, userEmail)
   const selectedOutgoingInvites = selectedTeam
@@ -512,7 +529,7 @@ export default function ProfessionalTeamWorkspace({
         </div>
       </header>
 
-      <aside className="ptw-privacy" aria-label="Privacidade e consentimento">
+      <aside className="ptw-privacy" aria-label="Privacidade e acesso">
         <span className="ptw-privacy-mark"><Icon name="shield" /></span>
         <div>
           <strong>Equipe não significa carteira compartilhada</strong>
@@ -571,6 +588,32 @@ export default function ProfessionalTeamWorkspace({
                   {selectedIsResponsible && canManageTeam ? <button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'invite', teamId: selectedTeamIdValue })} disabled={isBusy || !onInviteMember}><Icon name="plus" />Convidar membro</button> : null}
                 </div>
               </header>
+
+              {!selectedIsResponsible ? (
+                <section className="ptw-team-workbench" aria-labelledby="ptw-workbench-title">
+                  <div className="ptw-workbench-head">
+                    <span className="ptw-workbench-mark"><Icon name="check" /></span>
+                    <div><p className="ptw-kicker">Seu espaço de trabalho</p><h4 id="ptw-workbench-title">{areaLabel(currentUserArea)} dos seus alunos/pacientes</h4><p>Abra um cadastro para continuar de onde precisa. Seu acesso fica limitado aos nomes atribuídos a você nesta equipe.</p></div>
+                    <span className="ptw-count">{assignedPatientRows.length}</span>
+                  </div>
+                  {assignedPatientRows.length ? (
+                    <ul className="ptw-workbench-list">
+                      {assignedPatientRows.map((patient) => (
+                        <li key={asText(patient.id)} className="ptw-workbench-patient">
+                          <span className="ptw-workbench-avatar"><Icon name="person" /></span>
+                          <span className="ptw-workbench-patient-copy"><strong>{patient.name}</strong><small>{areaLabel(currentUserArea)} · acesso desta equipe</small></span>
+                          <button type="button" className="ptw-button ptw-button-primary ptw-button-small" onClick={() => onOpenPatientWorkspace?.(selectedTeamIdValue, patient.id, currentUserArea)} disabled={isBusy || !patientWorkspaceReady || !accessibleStudentIds.some((id) => sameId(id, patient.id)) || !onOpenPatientWorkspace}>
+                            {!patientWorkspaceReady ? 'Carregando…' : !accessibleStudentIds.some((id) => sameId(id, patient.id)) ? 'Acesso indisponível' : currentUserArea === 'nutrition' ? 'Editar dieta' : 'Editar treino'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="ptw-empty ptw-empty-compact"><strong>Nenhum aluno/paciente atribuído a você nesta equipe</strong><span>A pessoa responsável pode selecionar os acessos na lista de participantes. Quando liberar, o cadastro aparecerá aqui.</span></div>
+                  )}
+                  <p className="ptw-workbench-note"><Icon name="shield" /> Ao salvar, o aluno/paciente verá a versão atualizada e o profissional colaborador responsável pela edição, com sua foto quando disponível.</p>
+                </section>
+              ) : null}
 
               <div className="ptw-member-section">
                 <div className="ptw-section-head ptw-member-heading"><div><h4>Participantes</h4><p>O papel de cada pessoa é independente em cada equipe.</p></div></div>

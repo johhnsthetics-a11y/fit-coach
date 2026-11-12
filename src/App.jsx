@@ -226,7 +226,7 @@ const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediá
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
 const EMPTY_PROFESSIONAL_COLLABORATORS = Object.freeze([])
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-scoped-team-invites-build42-20261112'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-team-workspace-build43-20261112'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1916,6 +1916,7 @@ function AppContent() {
   const [data, setData, remoteStatus, remoteError, setRemoteStatus, setRemoteError, chatSyncError, setChatSyncError, sessionRestoring, professionalWorkspaceLoading] = useStoredData()
   const [activeView, setActiveView] = useState(() => getInitialCoachView())
   const [selectedStudentId, setSelectedStudentId] = useState(() => getInitialCoachStudentId() || data.students[0]?.id || 1)
+  const [teamWorkspaceFocus, setTeamWorkspaceFocus] = useState(null)
   const [nutritionDraftDirty, setNutritionDraftDirty] = useState(false)
   const [studentAccess, setStudentAccess] = useState(null)
   const [studentFirstAccess, setStudentFirstAccess] = useState(null)
@@ -1966,6 +1967,9 @@ function AppContent() {
   const messageSnapshotRef = useRef(data.messages ?? [])
   const coachNavigationRef = useRef({ activeView, selectedStudentId })
   const coachAudienceRef = useRef({ students: data.students ?? [], professionalType: 'trainer' })
+  const professionalSessionUserIdRef = useRef(data.session?.user?.id || '')
+  professionalSessionUserIdRef.current = data.session?.user?.id || ''
+  const professionalCollaborationAccountRef = useRef(data.session?.user?.id || '')
   const professionalReferralClaimRef = useRef('')
   const professionalAvatarInputRef = useRef(null)
   const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
@@ -1980,8 +1984,10 @@ function AppContent() {
     candidates: [],
     delegations: [],
     delegatedWorkspace: [],
+    delegatedWorkspaceLoaded: false,
     ownerWorkoutWorkspace: [],
   })
+  const inviteAutoOpenUserRef = useRef('')
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
@@ -2071,14 +2077,37 @@ function AppContent() {
     }
 
     if (!silent) setProfessionalCollaboration((current) => ({ ...current, loading: true, error: '' }))
+    const requestUserId = data.session?.user?.id || ''
     try {
       if (professionalAccessActive) await syncAppleServerEntitlement()
       const delegatedArea = nutritionistUser ? 'nutrition' : 'workout'
-      const [workspace, delegatedWorkspace] = await Promise.all([
-        loadRemoteProfessionalTeamWorkspace(),
-        loadRemoteProfessionalDelegatedWorkspace(delegatedArea),
+      const [workspace, delegatedWorkspaceResult] = await Promise.all([
+        loadRemoteProfessionalTeamWorkspace({
+          onInbox: (inbox) => setProfessionalCollaboration((current) => {
+            if (professionalSessionUserIdRef.current !== requestUserId) return current
+            const existingTeamInvites = (current.teams ?? []).flatMap((team) => Array.isArray(team.invites) ? team.invites : [])
+            const uniqueInvites = new Map([...existingTeamInvites, ...inbox].map((invite) => [String(invite.id || invite.inviteId || invite.invite_id || ''), invite]))
+            return {
+              ...current,
+              loading: false,
+              error: '',
+              invites: [...uniqueInvites.values()],
+            }
+          }),
+        }),
+        loadRemoteProfessionalDelegatedWorkspace(delegatedArea)
+          .then((value) => ({ value, error: null }))
+          .catch((error) => ({ value: [], error })),
       ])
-      const candidates = professionalAccessActive ? await loadRemoteProfessionalTeamCandidates() : []
+      const delegatedWorkspace = Array.isArray(delegatedWorkspaceResult.value) ? delegatedWorkspaceResult.value : []
+      if (delegatedWorkspaceResult.error) console.warn('A área colaborativa não carregou; a consulta de convites continuará disponível.', delegatedWorkspaceResult.error?.message)
+      if (workspace.partialError) console.warn('Uma parte da área de equipes não carregou; os dados disponíveis continuam visíveis.', workspace.partialError?.message)
+      const candidates = professionalAccessActive
+        ? await loadRemoteProfessionalTeamCandidates().catch((error) => {
+            console.warn('A lista de pacientes elegíveis não carregou.', error?.message)
+            return []
+          })
+        : []
       const teams = Array.isArray(workspace.teams) ? workspace.teams : []
       const ownsAcceptedWorkoutDelegation = nutritionistUser && teams.some((team) => (
         team.isOwner === true && (team.delegations ?? []).some((delegation) => (
@@ -2087,8 +2116,12 @@ function AppContent() {
       ))
       const ownerWorkoutWorkspace = ownsAcceptedWorkoutDelegation
         && professionalAccessActive
-        ? await loadRemoteProfessionalDelegatedWorkspace('workout')
+        ? await loadRemoteProfessionalDelegatedWorkspace('workout').catch((error) => {
+            console.warn('A área de treinos colaborativa não carregou.', error?.message)
+            return []
+          })
         : []
+      if (professionalSessionUserIdRef.current !== requestUserId) return false
       const invites = [
         ...(Array.isArray(workspace.pendingInvites) ? workspace.pendingInvites : []),
         ...teams.flatMap((team) => Array.isArray(team.invites) ? team.invites : []),
@@ -2102,16 +2135,18 @@ function AppContent() {
       setProfessionalCollaboration((current) => ({
         ...current,
         loading: false,
-        error: '',
+        error: workspace.partialError ? 'Algumas informações da equipe não carregaram. Seus convites recebidos continuam disponíveis; toque em Atualizar para tentar novamente.' : '',
         teams,
         invites,
         candidates: Array.isArray(candidates) ? candidates : [],
         delegations,
         delegatedWorkspace,
+        delegatedWorkspaceLoaded: !delegatedWorkspaceResult.error,
         ownerWorkoutWorkspace,
       }))
       return true
     } catch (error) {
+      if (professionalSessionUserIdRef.current !== requestUserId) return false
       setProfessionalCollaboration((current) => ({
         ...current,
         loading: false,
@@ -2122,8 +2157,27 @@ function AppContent() {
   }, [data.session?.access_token, data.session?.user?.id, nutritionistUser, professionalAccessActive, studentAuthSession, syncAppleServerEntitlement])
 
   useEffect(() => {
+    const nextUserId = data.session?.user?.id || ''
+    if (professionalCollaborationAccountRef.current === nextUserId) return
+    professionalCollaborationAccountRef.current = nextUserId
+    setProfessionalCollaboration({
+      loading: Boolean(nextUserId && supabaseEnabled),
+      busy: false,
+      error: '',
+      notice: '',
+      teams: [],
+      invites: [],
+      candidates: [],
+      delegations: [],
+      delegatedWorkspace: [],
+      delegatedWorkspaceLoaded: false,
+      ownerWorkoutWorkspace: [],
+    })
+  }, [data.session?.user?.id])
+
+  useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token || studentAuthSession) {
-      setProfessionalCollaboration((current) => ({ ...current, loading: false }))
+      setProfessionalCollaboration((current) => ({ ...current, loading: false, delegatedWorkspaceLoaded: false }))
       return undefined
     }
     void refreshProfessionalCollaboration()
@@ -2155,17 +2209,23 @@ function AppContent() {
     onInviteMember: (teamId, email, role, studentIds) => runProfessionalTeamAction(async () => {
       const invite = await createRemoteProfessionalTeamInvite(teamId, email, role, studentIds)
       try {
-        await sendRemoteProfessionalTeamInviteEmail(invite.id)
-        return { emailSent: true }
+        const sent = await sendRemoteProfessionalTeamInviteEmail(invite.id)
+        return { emailSent: true, templateFallback: sent?.templateFallback === true }
       } catch (error) {
         return { emailSent: false, error: error?.message || '' }
       }
     }, (result) => result?.emailSent
-      ? 'Convite enviado por e-mail. O acesso selecionado será liberado quando a pessoa aceitar.'
-      : 'Convite criado e restrito ao e-mail informado, mas o envio externo do e-mail não foi confirmado. Verifique a configuração do serviço de e-mail ou use “Reenviar e-mail”.'),
+      ? result.templateFallback
+        ? 'Convite enviado pelo modelo padrão. O Resend recusou o template; revise o ID e as variáveis do template para aplicar seu design nos próximos envios.'
+        : 'Convite enviado por e-mail. O acesso selecionado será liberado quando a pessoa aceitar.'
+      : `Convite criado e restrito ao e-mail informado, mas o envio não foi confirmado. ${result?.error || 'Verifique a configuração do Resend ou use “Reenviar e-mail”.'}`),
     onSendInviteEmail: (inviteId) => runProfessionalTeamAction(async () => {
-      try { await sendRemoteProfessionalTeamInviteEmail(inviteId); return true } catch { return false }
-    }, (sent) => sent ? 'E-mail do convite reenviado.' : 'Não foi possível enviar o e-mail. Confirme a configuração do serviço de e-mail e tente novamente.'),
+      try { return await sendRemoteProfessionalTeamInviteEmail(inviteId) } catch (error) { return { sent: false, error: error?.message || '' } }
+    }, (result) => result?.sent
+      ? result.templateFallback
+        ? 'Convite reenviado pelo modelo padrão. O Resend recusou o template; revise o ID e as variáveis para usar seu design nos próximos envios.'
+        : 'E-mail do convite reenviado.'
+      : result?.error || 'Não foi possível enviar o e-mail. Confirme a configuração do serviço de e-mail e tente novamente.'),
     onAcceptInvite: (inviteId) => runProfessionalTeamAction(() => acceptRemoteProfessionalTeamInvite(inviteId), 'Convite aceito. A área e os pacientes selecionados já estão disponíveis para você.'),
     onDeclineInvite: (inviteId) => runProfessionalTeamAction(() => declineRemoteProfessionalTeamInvite(inviteId), 'Convite recusado.'),
     onCancelInvite: (inviteId) => runProfessionalTeamAction(() => cancelRemoteProfessionalTeamInvite(inviteId), 'Convite cancelado.'),
@@ -2187,7 +2247,25 @@ function AppContent() {
   const activeTeamMember = professionalCollaboration.teams.some((team) => (
     team.isOwner === false || (team.members ?? []).some((member) => sameId(member.id, activeCoachId))
   ))
-  const pendingTeamInvite = professionalCollaboration.invites.some((invite) => String(invite.status || '').toLowerCase() === 'pending')
+  const currentProfessionalEmail = String(data.session?.user?.email || data.user?.email || '').trim().toLocaleLowerCase('pt-BR')
+  const pendingTeamInvite = professionalCollaboration.invites.some((invite) => {
+    if (String(invite.status || '').toLowerCase() !== 'pending') return false
+    const recipientId = invite.recipientId || invite.recipient_id || invite.inviteeId || invite.invitee_id
+    const recipientEmail = String(invite.recipientEmail || invite.recipient_email || invite.inviteeEmail || invite.invitee_email || invite.email || '').trim().toLocaleLowerCase('pt-BR')
+    return (data.session?.user?.id && sameId(recipientId, data.session.user.id))
+      || (currentProfessionalEmail && recipientEmail === currentProfessionalEmail)
+  })
+  useEffect(() => {
+    const sessionUserId = data.session?.user?.id || ''
+    if (!sessionUserId) {
+      inviteAutoOpenUserRef.current = ''
+      return
+    }
+    if (pendingTeamInvite && inviteAutoOpenUserRef.current !== sessionUserId) {
+      inviteAutoOpenUserRef.current = sessionUserId
+      setActiveView('equipe')
+    }
+  }, [data.session?.user?.id, pendingTeamInvite])
   const delegatedNutritionEntries = nutritionistUser ? professionalCollaboration.delegatedWorkspace : []
   const delegatedWorkoutEntries = nutritionistUser ? [] : professionalCollaboration.delegatedWorkspace
   const collaborationOnlyMode = shouldLockCoachTools && activeTeamMember
@@ -2212,15 +2290,21 @@ function AppContent() {
       if (member.id && member.name) collaborationProfessionalNameById.set(String(member.id), member.name)
     }
   }
-  const professionalNutritionStudents = mergeRecords(
+  const professionalNutritionStudentsUnfiltered = mergeRecords(
     collaborationOnlyMode ? [] : data.students ?? [],
     delegatedNutritionEntries.map((entry) => entry.student).filter((student) => student?.id),
   )
+  const professionalNutritionStudents = teamWorkspaceFocus?.area === 'nutrition'
+    ? professionalNutritionStudentsUnfiltered.filter((student) => sameId(student.id, teamWorkspaceFocus.studentId))
+    : professionalNutritionStudentsUnfiltered
   const professionalQuestionnaireStudents = professionalNutritionStudents.filter((student) => !delegatedNutritionStudentIds.has(String(student.id)))
-  const professionalWorkoutStudents = mergeRecords(
+  const professionalWorkoutStudentsUnfiltered = mergeRecords(
     collaborationOnlyMode ? [] : data.students ?? [],
     delegatedWorkoutEntries.map((entry) => entry.student).filter((student) => student?.id),
   )
+  const professionalWorkoutStudents = teamWorkspaceFocus?.area === 'workout'
+    ? professionalWorkoutStudentsUnfiltered.filter((student) => sameId(student.id, teamWorkspaceFocus.studentId))
+    : professionalWorkoutStudentsUnfiltered
   const professionalNutritionPlans = mergeRecords(
     collaborationOnlyMode ? [] : data.nutritionPlans ?? [],
     delegatedNutritionEntries.flatMap((entry) => entry.nutritionPlans ?? []),
@@ -2405,12 +2489,44 @@ function AppContent() {
       && nutritionDraftDirty
       && !sameId(nextStudentId, selectedStudentId)
       && !window.confirm('Existem alterações não salvas. Deseja trocar de aluno e descartá-las?')
-    ) {
-      return
-    }
+    ) return false
     setNutritionDraftDirty(false)
     setSelectedStudentId(nextStudentId)
+    return true
   }, [activeView, nutritionDraftDirty, selectedStudentId])
+
+  const openTeamPatientWorkspace = useCallback((teamId, studentId, area) => {
+    const expectedArea = nutritionistUser ? 'nutrition' : 'workout'
+    if (area !== expectedArea) return false
+    const team = professionalCollaboration.teams.find((item) => sameId(item.id, teamId))
+    const activeGrant = (team?.delegations ?? []).some((grant) => (
+      sameId(grant.memberId, activeCoachId)
+      && sameId(grant.studentId, studentId)
+      && grant.area === area
+      && grant.status === 'active'
+      && grant.consentStatus === 'accepted'
+    ))
+    const accessibleEntries = area === 'nutrition' ? delegatedNutritionEntries : delegatedWorkoutEntries
+    const entry = accessibleEntries.find((item) => sameId(item.student?.id, studentId))
+    if (!activeGrant || !entry?.student?.id || !canOpenProfessionalView(area === 'nutrition' ? 'nutricao' : 'treinos')) return false
+    if (setSelectedStudentIdSafely(entry.student.id) === false) return false
+    setTeamWorkspaceFocus({ teamId, studentId: entry.student.id, area })
+    setActiveViewSafely(area === 'nutrition' ? 'nutricao' : 'treinos')
+    return true
+  }, [activeCoachId, canOpenProfessionalView, delegatedNutritionEntries, delegatedWorkoutEntries, nutritionistUser, professionalCollaboration.teams, setActiveViewSafely, setSelectedStudentIdSafely])
+  const focusedTeamName = teamWorkspaceFocus
+    ? professionalCollaboration.teams.find((team) => sameId(team.id, teamWorkspaceFocus.teamId))?.name || 'sua equipe'
+    : ''
+
+  useEffect(() => {
+    if (teamWorkspaceFocus && (
+      !data.session?.user?.id
+      || activeView !== (teamWorkspaceFocus.area === 'nutrition' ? 'nutricao' : 'treinos')
+      || !sameId(selectedStudentId, teamWorkspaceFocus.studentId)
+    )) {
+      setTeamWorkspaceFocus(null)
+    }
+  }, [activeView, data.session?.user?.id, selectedStudentId, teamWorkspaceFocus])
 
   const openStudentConversation = useCallback((studentId) => {
     if (!studentId) {
@@ -5253,6 +5369,9 @@ function AppContent() {
                 canManageTeam={professionalAccessActive}
                 error={professionalCollaboration.error}
                 notice={professionalCollaboration.notice}
+                onOpenPatientWorkspace={openTeamPatientWorkspace}
+                patientWorkspaceReady={professionalCollaboration.delegatedWorkspaceLoaded}
+                accessibleStudentIds={(nutritionistUser ? delegatedNutritionEntries : delegatedWorkoutEntries).map((entry) => entry.student?.id).filter(Boolean)}
                 {...professionalTeamHandlers}
               />
             )}
@@ -5265,10 +5384,16 @@ function AppContent() {
             )}
             {activeView === 'treinos' && !nutritionistUser && (
               <div className="space-y-4">
+                {teamWorkspaceFocus?.area === 'workout' ? (
+                  <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.07] p-4 text-sm text-zinc-200">
+                    <span><strong className="text-emerald-200">Edição pela equipe {focusedTeamName}</strong><br />Treino de {selectedProfessionalWorkoutStudent?.name || 'aluno selecionado'}. Este editor está limitado a este cadastro.</span>
+                    <button type="button" className="rounded-xl border border-emerald-200/30 px-3 py-2 font-bold text-emerald-100 hover:bg-emerald-200/10" onClick={() => setActiveViewSafely('equipe')}>Voltar para Equipe</button>
+                  </aside>
+                ) : null}
                 {delegatedWorkoutEntries.length ? (
                   <aside className="rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-zinc-300">
                     <strong className="text-emerald-200">Treinador colaborador: {data.coachSettings?.publicName || data.user?.name || 'sua conta'}.</strong>{' '}
-                    A lista inclui somente pacientes com concessão de Treinos ativa e consentimento aceito. Responsável(is) da carteira: {[...new Set(delegatedWorkoutEntries.map((entry) => entry.ownerName).filter(Boolean))].join(', ') || 'profissional(is) da equipe'}.
+                    A lista inclui somente pacientes com acesso de Treinos ativo nesta equipe. Responsável(is) da carteira: {[...new Set(delegatedWorkoutEntries.map((entry) => entry.ownerName).filter(Boolean))].join(', ') || 'profissional(is) da equipe'}.
                   </aside>
                 ) : null}
                 <Workouts
@@ -5323,6 +5448,13 @@ function AppContent() {
               </div>
             )}
             {activeView === 'nutricao' && (
+              <div className="space-y-4">
+              {teamWorkspaceFocus?.area === 'nutrition' ? (
+                <aside className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.07] p-4 text-sm text-zinc-200">
+                  <span><strong className="text-emerald-200">Edição pela equipe {focusedTeamName}</strong><br />Dieta de {selectedProfessionalNutritionStudent?.name || 'paciente selecionado'}. Este editor está limitado a este cadastro.</span>
+                  <button type="button" className="rounded-xl border border-emerald-200/30 px-3 py-2 font-bold text-emerald-100 hover:bg-emerald-200/10" onClick={() => setActiveViewSafely('equipe')}>Voltar para Equipe</button>
+                </aside>
+              ) : null}
               <Nutrition
                 selectedStudent={selectedProfessionalNutritionStudent}
                 students={professionalNutritionStudents}
@@ -5337,7 +5469,7 @@ function AppContent() {
                 appAdminSettings={appAdminSettings}
                 onSaveNutritionPlan={async (plan) => {
                   if (plan.id && readOnlyCollaborativeNutritionPlanIds.has(String(plan.id))) {
-                    throw new Error('Este plano está somente para leitura enquanto a colaboração de Nutrição e o consentimento do paciente estiverem ativos.')
+                    throw new Error('Este plano está somente para leitura enquanto a colaboração de Nutrição permanecer ativa.')
                   }
                   if (!delegatedNutritionStudentIds.has(String(plan.studentId))) return saveNutritionPlan(plan)
                   if (professionalAccessActive) await syncAppleServerEntitlement()
@@ -5368,6 +5500,7 @@ function AppContent() {
                 toggleUiTheme={toggleUiTheme}
                 collaborationMode={delegatedNutritionStudentIds.has(String(selectedProfessionalNutritionStudent?.id || ''))}
               />
+              </div>
             )}
             {activeView === 'checkins' && (
               <Checkins
@@ -16808,7 +16941,7 @@ function CollaborativeNutritionPlanReadOnly({ plan = {}, student = null, uiTheme
   return (
     <section className={`space-y-4 rounded-2xl border p-4 sm:p-5 ${surface}`} aria-label="Plano alimentar colaborativo somente leitura">
       <header className={`rounded-2xl border p-4 ${card}`}>
-        <p className={`text-xs font-black uppercase tracking-[0.12em] ${accent}`}>Somente leitura · consentimento ativo</p>
+        <p className={`text-xs font-black uppercase tracking-[0.12em] ${accent}`}>Somente leitura · acesso ativo</p>
         <h4 className="mt-2 break-words text-xl font-black">{plan.title || 'Plano alimentar'}</h4>
         <p className={`mt-2 text-sm ${muted}`}>Paciente: {student?.name || 'Paciente autorizado'}</p>
         <p className={`mt-1 text-sm ${muted}`}>

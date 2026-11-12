@@ -255,11 +255,32 @@ export async function syncRemoteAppleSubscriptionEntitlement(originalTransaction
   return functionRequest('apple-subscription-sync', { originalTransactionId })
 }
 
-export async function loadRemoteProfessionalTeamWorkspace() {
-  const result = await rpcRequest('get_professional_team_workspace', {})
+export async function loadRemoteProfessionalTeamWorkspace({ onInbox } = {}) {
+  // The invite inbox is an independent entry point. A slow workspace query
+  // must not discard a successfully loaded, email-scoped invitation.
+  const inboxPromise = rpcRequest('get_professional_team_invite_inbox', {}).then((inbox) => {
+    if (Array.isArray(inbox)) onInbox?.(inbox)
+    return inbox
+  })
+  const [workspaceResult, inboxResult] = await Promise.allSettled([
+    rpcRequest('get_professional_team_workspace', {}),
+    inboxPromise,
+  ])
+  const result = workspaceResult.status === 'fulfilled' ? workspaceResult.value : null
+  const inbox = inboxResult.status === 'fulfilled' ? inboxResult.value : null
+  if (workspaceResult.status === 'rejected' && inboxResult.status === 'rejected') {
+    throw workspaceResult.reason || inboxResult.reason || new Error('Não foi possível carregar equipes e convites.')
+  }
   return {
     teams: Array.isArray(result?.teams) ? result.teams : [],
-    pendingInvites: Array.isArray(result?.pendingInvites) ? result.pendingInvites : [],
+    pendingInvites: Array.isArray(inbox)
+      ? inbox
+      : (Array.isArray(result?.pendingInvites) ? result.pendingInvites : []),
+    partialError: workspaceResult.status === 'rejected'
+      ? workspaceResult.reason
+      : inboxResult.status === 'rejected'
+        ? inboxResult.reason
+        : null,
   }
 }
 
