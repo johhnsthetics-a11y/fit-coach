@@ -276,6 +276,7 @@ export default function ProfessionalTeamWorkspace({
   delegations: delegationsProp = [],
   busy = false,
   loading = false,
+  canManageTeam = true,
   error = '',
   notice = '',
   onRefresh,
@@ -468,9 +469,9 @@ export default function ProfessionalTeamWorkspace({
           <button type="button" className="ptw-button ptw-button-secondary" onClick={() => onRefresh?.()} disabled={isBusy || !onRefresh}>
             <Icon name="refresh" />{isBusy ? 'Atualizando…' : 'Atualizar'}
           </button>
-          <button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'create' })} disabled={isBusy || !onCreateTeam}>
+          {canManageTeam ? <button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'create' })} disabled={isBusy || !onCreateTeam}>
             <Icon name="plus" />Criar equipe
-          </button>
+          </button> : null}
         </div>
       </header>
 
@@ -478,7 +479,7 @@ export default function ProfessionalTeamWorkspace({
         <span className="ptw-privacy-mark"><Icon name="shield" /></span>
         <div>
           <strong>Equipe não significa carteira compartilhada</strong>
-          <p>Cada profissional mantém sua própria carteira. O convite, sozinho, não compartilha pacientes. Para liberar qualquer dado, o paciente precisa aceitar o consentimento no app; um novo paciente exige concessão e consentimento próprios e não entra automaticamente. A assinatura não é transferida.</p>
+          <p>Cada profissional mantém sua própria carteira. O convite, sozinho, não compartilha pacientes. Para liberar qualquer dado, o paciente precisa aceitar o consentimento no app; um novo paciente exige concessão e consentimento próprios e não entra automaticamente. Profissionais convidados podem participar sem assinatura própria. O acesso continua limitado à área e aos pacientes concedidos, após o consentimento de cada pessoa.</p>
         </div>
       </aside>
 
@@ -516,7 +517,7 @@ export default function ProfessionalTeamWorkspace({
             ) : isLoading ? (
               <div className="ptw-empty"><strong>Carregando equipes…</strong><span>As participações aparecerão aqui quando os dados estiverem disponíveis.</span></div>
             ) : (
-              <div className="ptw-empty"><strong>Nenhuma equipe encontrada</strong><span>Você ainda não tem equipes nesta conta. Crie uma ou aceite um convite recebido.</span><button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'create' })} disabled={!onCreateTeam}>Criar equipe</button></div>
+              <div className="ptw-empty"><strong>Nenhuma equipe encontrada</strong><span>Você ainda não tem equipes nesta conta. Aceite um convite recebido para participar de uma equipe.{canManageTeam ? ' Você também pode criar uma equipe.' : ''}</span>{canManageTeam ? <button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'create' })} disabled={!onCreateTeam}>Criar equipe</button> : null}</div>
             )}
           </section>
 
@@ -530,7 +531,7 @@ export default function ProfessionalTeamWorkspace({
                 </div>
                 <div className="ptw-detail-actions">
                   <span className={`ptw-role-pill${selectedIsResponsible ? ' is-owner' : ''}`}>{selectedIsResponsible ? 'Responsável' : 'Membro'}</span>
-                  {selectedIsResponsible ? <button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'invite', teamId: selectedTeamIdValue })} disabled={isBusy || !onInviteMember}><Icon name="plus" />Convidar membro</button> : null}
+                  {selectedIsResponsible && canManageTeam ? <button type="button" className="ptw-button ptw-button-primary" onClick={() => setDialog({ kind: 'invite', teamId: selectedTeamIdValue })} disabled={isBusy || !onInviteMember}><Icon name="plus" />Convidar membro</button> : null}
                 </div>
               </header>
 
@@ -549,7 +550,7 @@ export default function ProfessionalTeamWorkspace({
                       const memberId = memberIdOf(member)
                       const memberRole = memberProfessionalRole(member)
                       const area = areaForRole(memberRole)
-                      const canManageDelegation = selectedIsResponsible && Boolean(area) && Boolean(memberId)
+                      const canManageDelegation = selectedIsResponsible && canManageTeam && Boolean(area) && Boolean(memberId)
                       const rows = selectedTeam ? delegations.filter((item) => sameId(delegationTeamId(item), selectedTeamIdValue)
                         && sameId(delegationMemberId(item), memberId)) : []
                       return (
@@ -563,7 +564,7 @@ export default function ProfessionalTeamWorkspace({
                           </span>
                           <div className="ptw-member-actions">
                             {canManageDelegation ? <button type="button" className="ptw-button ptw-button-secondary ptw-button-small" aria-expanded={sameId(delegationMemberId, memberId) ? 'true' : 'false'} onClick={() => sameId(delegationMemberId, memberId) ? closeDelegationEditor() : startDelegation(member)} disabled={isBusy}>{sameId(delegationMemberId, memberId) ? 'Fechar concessão' : 'Gerenciar pacientes'}</button> : null}
-                            {selectedIsResponsible && memberId && onRemoveMember ? <button type="button" className="ptw-text-danger" onClick={() => askRemoveMember(member)} disabled={isBusy}>Remover</button> : null}
+                            {selectedIsResponsible && canManageTeam && memberId && onRemoveMember ? <button type="button" className="ptw-text-danger" onClick={() => askRemoveMember(member)} disabled={isBusy}>Remover</button> : null}
                           </div>
                         </li>
                       )
@@ -571,7 +572,7 @@ export default function ProfessionalTeamWorkspace({
                   </ul>
                 ) : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum outro participante informado</strong><span>Os participantes associados a esta equipe aparecerão aqui.</span></div>}
 
-                {activeDelegationMember && selectedIsResponsible ? (
+                {activeDelegationMember && selectedIsResponsible && canManageTeam ? (
                   <section className="ptw-delegation-editor" aria-labelledby="ptw-delegation-title">
                     <div className="ptw-section-head"><div><h4 id="ptw-delegation-title">Pacientes para {personName(activeDelegationMember) || 'este profissional'}</h4><p>Área correspondente ao perfil: <strong>{areaLabel(activeDelegationArea)}</strong>.</p></div></div>
                     <p className="ptw-consent-note"><Icon name="shield" /> Esta seleção registra a concessão, mas não libera dados por si só. Cada paciente precisa aceitar o consentimento no app antes de qualquer dado ser disponibilizado. Novos pacientes exigem concessão e consentimento próprios; não são incluídos automaticamente.</p>
@@ -608,7 +609,7 @@ export default function ProfessionalTeamWorkspace({
                   </section>
                 ) : null}
 
-                {selectedIsResponsible && selectedOutgoingInvites.length ? (
+                {selectedIsResponsible && canManageTeam && selectedOutgoingInvites.length ? (
                   <section className="ptw-outgoing-invites" aria-labelledby="ptw-outgoing-title">
                     <div className="ptw-section-head"><div><h4 id="ptw-outgoing-title">Convites enviados</h4><p>Pendências somente desta equipe.</p></div><span className="ptw-count">{selectedOutgoingInvites.length}</span></div>
                     <ul className="ptw-invite-list">

@@ -96,6 +96,7 @@ await assert.rejects(
 )
 await db.exec(await readFile(new URL('../supabase/migrations/20261020121500_notify_coach_on_student_checkin.sql',import.meta.url),'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20261112152900_professional_team_patient_collaboration_build41.sql',import.meta.url),'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20261112163114_allow_unsubscribed_team_invitees.sql',import.meta.url),'utf8'))
 await db.exec(`update students set auth_user_id='${studentUser}' where id='${student}';
 update students set auth_user_id='${studentUserB}' where id='${studentB}';
 update students set auth_user_id='${studentUserC}' where id='${studentC}';`)
@@ -183,7 +184,7 @@ await assert.rejects(
 )
 await db.query("update professional_apple_subscription_entitlements set last_verified_at=now()-interval '2 minutes' where original_transaction_id='100000000000000001'")
 await assumeUser(appleProfessional)
-await assert.rejects(db.query('select get_professional_team_workspace()'), /assinatura profissional não está ativa/i)
+await assert.rejects(db.query("select create_professional_team('Entitlement Apple expirado')"), /assinatura profissional não está ativa/i)
 await db.exec('reset role')
 await db.query("update professional_apple_subscription_entitlements set status_code=4,expires_at=now()-interval '1 day',grace_expires_at=now()+interval '30 minutes',last_verified_at=now() where original_transaction_id='100000000000000001'")
 await assumeUser(appleProfessional)
@@ -191,12 +192,18 @@ assert.equal((await db.query('select get_professional_team_workspace() as value'
 await db.exec('reset role')
 await db.query("update professional_apple_subscription_entitlements set grace_expires_at=now()-interval '1 minute',last_verified_at=now() where original_transaction_id='100000000000000001'")
 await assumeUser(appleProfessional)
-await assert.rejects(db.query('select get_professional_team_workspace()'), /assinatura profissional não está ativa/i)
+await assert.rejects(db.query("select create_professional_team('Grace Apple expirado')"), /assinatura profissional não está ativa/i)
 
 await assumeUser(coach)
 const teamA = (await db.query("select create_professional_team('Equipe Coach QA') as value")).rows[0].value
 const teamInvite = (await db.query('select create_professional_team_invite($1::uuid,$2,$3) as value', [teamA.id,'nutritionist@example.com','nutritionist'])).rows[0].value
 assert.equal(teamInvite.status, 'pending')
+const noSubscriptionInvite = (await db.query('select create_professional_team_invite($1::uuid,$2,$3) as value', [teamA.id,'no-access@example.com','trainer'])).rows[0].value
+await assumeUser(noEntitlement)
+await db.query('select accept_professional_team_invite($1::uuid)', [noSubscriptionInvite.id])
+assert.equal((await db.query('select get_professional_team_workspace() as value')).rows[0].value.teams[0].members.length, 1)
+await db.exec('reset role')
+await assumeUser(coach)
 await assert.rejects(
   db.query('select create_professional_team_invite($1::uuid,$2,$3)', [teamA.id,'trainer@example.com','nutritionist']),
   /papel selecionado/i,
@@ -224,6 +231,25 @@ await db.query("select respond_to_professional_collaboration($1::uuid,'accept')"
 const acceptedConsentRequests = (await db.query('select get_current_student_collaboration_requests() as value')).rows[0].value
 assert.equal(acceptedConsentRequests.length, 1)
 assert.equal(acceptedConsentRequests[0].consentStatus, 'accepted')
+
+await assumeUser(coach)
+await db.query('select replace_professional_patient_delegations($1::uuid,$2::uuid,$3,$4::uuid[])', [teamA.id,noEntitlement,'workout',`{${student}}`])
+await assumeUser(studentUser)
+const guestWorkoutRequest = (await db.query('select get_current_student_collaboration_requests() as value')).rows[0].value.find(request => request.area === 'workout')
+assert.ok(guestWorkoutRequest)
+await db.query("select respond_to_professional_collaboration($1::uuid,'accept')", [guestWorkoutRequest.delegationId])
+await assumeUser(noEntitlement)
+assert.equal((await db.query('select get_professional_team_workspace() as value')).rows[0].value.teams.length, 1)
+const guestWorkoutWorkspace = (await db.query("select get_professional_delegated_workspace('workout') as value")).rows[0].value
+assert.equal(guestWorkoutWorkspace.length, 1)
+assert.equal(guestWorkoutWorkspace[0].student.id, student)
+const guestWorkout = (await db.query('select save_collaborative_workout($1::jsonb) as value', [JSON.stringify({
+  student_id: student, title: 'Treino autorizado sem assinatura própria', publication_status: 'published', request_id: 'guest-no-subscription-001',
+  exercises: [{ name: 'Agachamento', sets: '3', reps: '8' }],
+})])).rows[0].value
+assert.equal(guestWorkout.coach_id, coach)
+assert.equal(guestWorkout.created_by, noEntitlement)
+await db.exec('reset role')
 
 await assumeUser(coach)
 const ownerNutritionWorkspace = (await db.query("select get_professional_delegated_workspace('nutrition') as value")).rows[0].value
@@ -267,8 +293,8 @@ const ownedDiet = (await db.query('select coach_id,created_by from nutrition_pla
 assert.deepEqual(ownedDiet, { coach_id: coach, created_by: nutritionist })
 await db.exec('set role anon')
 const studentProfessionals = (await db.query('select get_student_professional_collaborators($1) as value', ['qa-invite-a'])).rows[0].value
-assert.equal(studentProfessionals.length, 1)
-assert.equal(studentProfessionals[0].professionalName, 'Nutricionista parceira QA')
+assert.equal(studentProfessionals.length, 2)
+assert.deepEqual(studentProfessionals.map(professional => professional.professionalName).sort(), ['Nutricionista parceira QA', 'Treinador sem acesso QA'].sort())
 
 await assumeUser(studentUser)
 await db.query("select respond_to_professional_collaboration($1::uuid,'revoke')", [nutritionConsentId])

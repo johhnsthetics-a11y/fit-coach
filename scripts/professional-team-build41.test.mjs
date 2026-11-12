@@ -5,6 +5,7 @@ import test from 'node:test'
 const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const api = await readFile(new URL('../src/supabaseApi.js', import.meta.url), 'utf8')
 const migration = await readFile(new URL('../supabase/migrations/20261112152900_professional_team_patient_collaboration_build41.sql', import.meta.url), 'utf8')
+const guestAccessMigration = await readFile(new URL('../supabase/migrations/20261112163114_allow_unsubscribed_team_invitees.sql', import.meta.url), 'utf8')
 const studentConsent = await readFile(new URL('../src/StudentProfessionalCollaborationRequests.jsx', import.meta.url), 'utf8')
 const avatarFunction = await readFile(new URL('../supabase/functions/student-avatar/index.ts', import.meta.url), 'utf8')
 const delegatedWorkoutView = await readFile(new URL('../src/ProfessionalDelegatedWorkoutReadOnly.jsx', import.meta.url), 'utf8')
@@ -80,6 +81,18 @@ test('autoria e foto do colaborador são vinculadas à delegação consentida', 
   assert.match(migration, /d\.status = 'active' and d\.consent_status = 'accepted'/i)
 })
 
+test('convidado sem assinatura recebe apenas a colaboração e não os dados próprios pagos', () => {
+  assert.match(app, /canManageTeam=\{professionalAccessActive\}/)
+  assert.match(app, /collaborationOnlyMode \? \[\] : data\.students/)
+  assert.match(app, /collaborationOnlyMode \? \[\] : data\.nutritionQuestionnaires/)
+  assert.match(app, /collaborationOnlyMode \? \[\] : \(data\.anamneses/)
+  assert.match(app, /isProfessionalViewLocked\(item\.id\)/)
+  assert.match(app, /if \(professionalAccessActive\) await syncAppleServerEntitlement\(\)/)
+  assert.match(guestAccessMigration, /accept_professional_team_invite/)
+  assert.doesNotMatch(guestAccessMigration, /coachfit_require_professional_access/)
+  assert.match(app.slice(app.indexOf('<ProfessionalTeamWorkspace'), app.indexOf('/>', app.indexOf('<ProfessionalTeamWorkspace'))), /canManageTeam/)
+})
+
 test('tabelas colaborativas não têm acesso direto por anon/authenticated e gates de assinatura permanecem presentes', () => {
   for (const table of ['professional_teams', 'professional_team_members', 'professional_team_invites', 'professional_patient_delegations', 'professional_collaboration_audit']) {
     assert.match(migration, new RegExp(`revoke all on public\\.${table} from public, anon, authenticated`, 'i'))
@@ -89,13 +102,26 @@ test('tabelas colaborativas não têm acesso direto por anon/authenticated e gat
   assert.match(app, /getIosEntitlements/)
 })
 
-test('RPCs BUILD41 exigem entitlement servidor web/afiliado/Apple e StoreKit sincroniza prova Apple assinada', () => {
+test('BUILD41 exige entitlement do responsável, mas libera colaboração aceita ao membro sem assinatura própria', () => {
   assert.match(migration, /private\.coachfit_professional_access_active\(target_professional_id uuid\)/)
   assert.match(migration, /from public\.coach_subscriptions as subscription/i)
   assert.match(migration, /from public\.affiliate_professionals as affiliate/i)
   assert.match(migration, /from public\.professional_apple_subscription_entitlements as apple/i)
   assert.match(migration, /apple\.last_verified_at > now\(\) - interval '1 minute'/i)
-  assert.equal((migration.match(/perform private\.coachfit_require_professional_access\(\);/g) || []).length, 9)
+  for (const functionName of ['create_professional_team', 'create_professional_team_invite', 'list_professional_team_candidates', 'replace_professional_patient_delegations']) {
+    const start = migration.indexOf(`function public.${functionName}`)
+    assert.notEqual(start, -1)
+    const nextFunction = migration.indexOf('create or replace function public.', start + 1)
+    const body = migration.slice(start, nextFunction === -1 ? undefined : nextFunction)
+    assert.match(body, /coachfit_require_professional_access/)
+  }
+  for (const functionName of ['get_professional_team_workspace', 'accept_professional_team_invite', 'get_professional_delegated_workspace', 'save_collaborative_nutrition_plan', 'save_collaborative_workout']) {
+    const start = guestAccessMigration.indexOf(`function public.${functionName}`)
+    assert.notEqual(start, -1)
+    const nextFunction = guestAccessMigration.indexOf('create or replace function public.', start + 1)
+    const body = guestAccessMigration.slice(start, nextFunction === -1 ? undefined : nextFunction)
+    assert.doesNotMatch(body, /coachfit_require_professional_access/)
+  }
   assert.match(migration, /revoke all on public\.professional_apple_subscription_entitlements from public, anon, authenticated/i)
   assert.match(migration, /prevent_apple_entitlement_owner_reassignment/)
   assert.match(appleSubscriptionFunction, /getAllSubscriptionStatuses\(originalId\)/)

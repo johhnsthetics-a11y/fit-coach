@@ -11,6 +11,7 @@ import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
 import ProfessionalTeamWorkspace from './ProfessionalTeamWorkspace'
 import ProfessionalDelegatedWorkoutReadOnly from './ProfessionalDelegatedWorkoutReadOnly'
 import StudentProfessionalCollaborationRequests from './StudentProfessionalCollaborationRequests'
+import { canOpenProfessionalCollaborationView } from './professionalTeamAccess'
 import StudentImportDialog from './StudentImportDialog'
 import { filterStudents } from './studentDirectory'
 import { findStudentImportDuplicate } from './studentImport'
@@ -223,7 +224,7 @@ const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediá
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
 const EMPTY_PROFESSIONAL_COLLABORATORS = Object.freeze([])
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-professional-collaboration-build41-20261111'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-team-guests-no-subscription-build41-20261112'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -1968,7 +1969,7 @@ function AppContent() {
   const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
   const [professionalAvatarError, setProfessionalAvatarError] = useState('')
   const [professionalCollaboration, setProfessionalCollaboration] = useState({
-    loading: false,
+    loading: true,
     busy: false,
     error: '',
     notice: '',
@@ -2062,20 +2063,20 @@ function AppContent() {
   }, [data.session?.user?.id])
 
   const refreshProfessionalCollaboration = useCallback(async ({ silent = false } = {}) => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession || !professionalAccessActive) {
+    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession) {
       setProfessionalCollaboration((current) => ({ ...current, loading: false }))
       return false
     }
 
     if (!silent) setProfessionalCollaboration((current) => ({ ...current, loading: true, error: '' }))
     try {
-      await syncAppleServerEntitlement()
+      if (professionalAccessActive) await syncAppleServerEntitlement()
       const delegatedArea = nutritionistUser ? 'nutrition' : 'workout'
-      const [workspace, candidates, delegatedWorkspace] = await Promise.all([
+      const [workspace, delegatedWorkspace] = await Promise.all([
         loadRemoteProfessionalTeamWorkspace(),
-        loadRemoteProfessionalTeamCandidates(),
         loadRemoteProfessionalDelegatedWorkspace(delegatedArea),
       ])
+      const candidates = professionalAccessActive ? await loadRemoteProfessionalTeamCandidates() : []
       const teams = Array.isArray(workspace.teams) ? workspace.teams : []
       const ownsAcceptedWorkoutDelegation = nutritionistUser && teams.some((team) => (
         team.isOwner === true && (team.delegations ?? []).some((delegation) => (
@@ -2083,6 +2084,7 @@ function AppContent() {
         ))
       ))
       const ownerWorkoutWorkspace = ownsAcceptedWorkoutDelegation
+        && professionalAccessActive
         ? await loadRemoteProfessionalDelegatedWorkspace('workout')
         : []
       const invites = [
@@ -2118,7 +2120,7 @@ function AppContent() {
   }, [data.session?.access_token, data.session?.user?.id, nutritionistUser, professionalAccessActive, studentAuthSession, syncAppleServerEntitlement])
 
   useEffect(() => {
-    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession || !professionalAccessActive) {
+    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession) {
       setProfessionalCollaboration((current) => ({ ...current, loading: false }))
       return undefined
     }
@@ -2129,7 +2131,7 @@ function AppContent() {
   const runProfessionalTeamAction = useCallback(async (operation, successMessage) => {
     setProfessionalCollaboration((current) => ({ ...current, busy: true, error: '', notice: '' }))
     try {
-      await syncAppleServerEntitlement()
+      if (professionalAccessActive) await syncAppleServerEntitlement()
       await operation()
       await refreshProfessionalCollaboration({ silent: true })
       setProfessionalCollaboration((current) => ({ ...current, notice: successMessage }))
@@ -2143,7 +2145,7 @@ function AppContent() {
     } finally {
       setProfessionalCollaboration((current) => ({ ...current, busy: false }))
     }
-  }, [refreshProfessionalCollaboration, syncAppleServerEntitlement])
+  }, [professionalAccessActive, refreshProfessionalCollaboration, syncAppleServerEntitlement])
 
   const professionalTeamHandlers = useMemo(() => ({
     onRefresh: () => refreshProfessionalCollaboration(),
@@ -2170,8 +2172,24 @@ function AppContent() {
     return available
   }, [activeView, nutritionistOwnsAcceptedWorkoutDelegation, professionalCollaboration.loading])
 
+  const activeTeamMember = professionalCollaboration.teams.some((team) => (
+    team.isOwner === false || (team.members ?? []).some((member) => sameId(member.id, activeCoachId))
+  ))
+  const pendingTeamInvite = professionalCollaboration.invites.some((invite) => String(invite.status || '').toLowerCase() === 'pending')
   const delegatedNutritionEntries = nutritionistUser ? professionalCollaboration.delegatedWorkspace : []
   const delegatedWorkoutEntries = nutritionistUser ? [] : professionalCollaboration.delegatedWorkspace
+  const collaborationOnlyMode = shouldLockCoachTools && activeTeamMember
+  const canOpenProfessionalView = useCallback((view) => canOpenProfessionalCollaborationView({
+    view,
+    subscriptionActive: !shouldLockCoachTools,
+    professionalRole: nutritionistUser ? 'nutritionist' : 'trainer',
+    pendingInvite: pendingTeamInvite,
+    activeTeamMember,
+    delegatedEntries: nutritionistUser ? delegatedNutritionEntries : delegatedWorkoutEntries,
+  }), [activeTeamMember, delegatedNutritionEntries, delegatedWorkoutEntries, nutritionistUser, pendingTeamInvite, shouldLockCoachTools])
+  const isProfessionalViewLocked = useCallback((view) => (
+    !['assinatura', 'admin-master', 'configuracoes'].includes(view) && !canOpenProfessionalView(view)
+  ), [canOpenProfessionalView])
   const delegatedNutritionStudentIds = new Set(delegatedNutritionEntries.map((entry) => String(entry.student?.id || '')).filter(Boolean))
   const delegatedWorkoutStudentIds = new Set(delegatedWorkoutEntries.map((entry) => String(entry.student?.id || '')).filter(Boolean))
   const collaborationProfessionalNameById = new Map()
@@ -2183,16 +2201,16 @@ function AppContent() {
     }
   }
   const professionalNutritionStudents = mergeRecords(
-    data.students ?? [],
+    collaborationOnlyMode ? [] : data.students ?? [],
     delegatedNutritionEntries.map((entry) => entry.student).filter((student) => student?.id),
   )
   const professionalQuestionnaireStudents = professionalNutritionStudents.filter((student) => !delegatedNutritionStudentIds.has(String(student.id)))
   const professionalWorkoutStudents = mergeRecords(
-    data.students ?? [],
+    collaborationOnlyMode ? [] : data.students ?? [],
     delegatedWorkoutEntries.map((entry) => entry.student).filter((student) => student?.id),
   )
   const professionalNutritionPlans = mergeRecords(
-    data.nutritionPlans ?? [],
+    collaborationOnlyMode ? [] : data.nutritionPlans ?? [],
     delegatedNutritionEntries.flatMap((entry) => entry.nutritionPlans ?? []),
   ).map((plan) => ({
     ...plan,
@@ -2203,7 +2221,7 @@ function AppContent() {
     .filter((plan) => plan.id && plan.collaborationDelegationId)
     .map((plan) => String(plan.id)))
   const professionalWorkouts = mergeRecords(
-    data.workouts ?? [],
+    collaborationOnlyMode ? [] : data.workouts ?? [],
     delegatedWorkoutEntries.flatMap((entry) => entry.workouts ?? []),
   ).map((workout) => ({
     ...workout,
@@ -2211,7 +2229,7 @@ function AppContent() {
     updatedByName: collaborationProfessionalNameById.get(String(workout.updatedBy || workout.createdBy || workout.coachId || '')) || 'Profissional responsável',
   }))
   const professionalWorkoutLogs = mergeRecords(
-    data.workoutLogs ?? [],
+    collaborationOnlyMode ? [] : data.workoutLogs ?? [],
     delegatedWorkoutEntries.flatMap((entry) => entry.workoutLogs ?? []),
   )
   const professionalOwnerWorkoutEntries = professionalCollaboration.ownerWorkoutWorkspace.map((entry) => ({
@@ -2357,13 +2375,17 @@ function AppContent() {
 
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
+    if (isProfessionalViewLocked(resolvedView)) {
+      setActiveView(canOpenProfessionalView('equipe') ? 'equipe' : 'assinatura')
+      return
+    }
     if (activeView === 'nutricao' && resolvedView !== activeView && nutritionDraftDirty && !window.confirm('Existem alterações não salvas. Deseja sair e descartá-las?')) return
     if (nutritionistUser && !nutritionistAvailableViewIds.has(resolvedView) && resolvedView !== 'admin-master') {
       setActiveView('nutricao')
       return
     }
     setActiveView(resolvedView)
-  }, [activeView, nutritionistAvailableViewIds, nutritionistUser, nutritionDraftDirty])
+  }, [activeView, canOpenProfessionalView, isProfessionalViewLocked, nutritionistAvailableViewIds, nutritionistUser, nutritionDraftDirty])
 
   const setSelectedStudentIdSafely = useCallback((nextStudentId) => {
     if (
@@ -2451,6 +2473,7 @@ function AppContent() {
   }, [data.user, masterAdmin, activeView])
 
   useEffect(() => {
+    if (shouldLockCoachTools && professionalCollaboration.loading) return
     if (professionalAffiliate && activeView === 'assinatura') {
       setActiveView('visao')
       return
@@ -2459,10 +2482,10 @@ function AppContent() {
       setActiveView('visao')
       return
     }
-    if (shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(activeView)) {
-      setActiveView('assinatura')
+    if (shouldLockCoachTools && isProfessionalViewLocked(activeView)) {
+      setActiveView(canOpenProfessionalView('equipe') ? 'equipe' : 'assinatura')
     }
-  }, [professionalAffiliate, shouldLockCoachTools, activeView])
+  }, [activeView, canOpenProfessionalView, isProfessionalViewLocked, professionalAffiliate, professionalCollaboration.loading, shouldLockCoachTools])
 
   useEffect(() => {
     if (nutritionistUser && !nutritionistAvailableViewIds.has(activeView) && activeView !== 'admin-master') {
@@ -4945,7 +4968,7 @@ function AppContent() {
             {visibleNavItems.map((item) => {
               const tone = getNavToneClasses(item.tone)
               const isActive = activeView === item.id
-              const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(item.id)
+              const isLocked = isProfessionalViewLocked(item.id)
 
               return (
                 <button
@@ -5078,7 +5101,7 @@ function AppContent() {
           {activeView === 'visao' ? (
           <section className="coach-mobile-quick-actions mb-5 grid grid-cols-2 gap-2 lg:hidden" aria-label={nutritionistUser ? 'Ações rápidas do nutricionista' : 'Ações rápidas do treinador'}>
             {coachMobileQuickActions.map((action) => {
-              const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(action.id)
+              const isLocked = isProfessionalViewLocked(action.id)
               return (
                 <button
                   key={action.id}
@@ -5106,7 +5129,7 @@ function AppContent() {
           </section>
           ) : null}
 
-          {shouldLockCoachTools ? (
+          {shouldLockCoachTools && !collaborationOnlyMode ? (
             <div className="mb-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-amber-50">
               <p className="text-xs font-black uppercase text-amber-200">Assinatura pendente</p>
               <p className="mt-2 text-sm leading-6 text-amber-50">
@@ -5193,6 +5216,7 @@ function AppContent() {
                 delegations={professionalCollaboration.delegations}
                 busy={professionalCollaboration.busy || professionalCollaboration.loading}
                 loading={professionalCollaboration.loading}
+                canManageTeam={professionalAccessActive}
                 error={professionalCollaboration.error}
                 notice={professionalCollaboration.notice}
                 {...professionalTeamHandlers}
@@ -5219,12 +5243,12 @@ function AppContent() {
                   workouts={professionalWorkouts}
                   nutritionPlans={professionalNutritionPlans}
                   workoutLogs={professionalWorkoutLogs}
-                  progressionDecisions={data.workoutProgressionDecisions ?? []}
-                  exerciseLibraryItems={data.exerciseLibrary ?? []}
+                  progressionDecisions={collaborationOnlyMode ? [] : data.workoutProgressionDecisions ?? []}
+                  exerciseLibraryItems={collaborationOnlyMode ? [] : data.exerciseLibrary ?? []}
                   exerciseLibrarySync={data.exerciseLibrarySync}
                   onSaveWorkout={async (workout) => {
                     if (!delegatedWorkoutStudentIds.has(String(workout.studentId))) return saveWorkout(workout)
-                    await syncAppleServerEntitlement()
+                    if (professionalAccessActive) await syncAppleServerEntitlement()
                     const saved = await saveRemoteCollaborativeWorkout(workout)
                     await refreshProfessionalCollaboration({ silent: true })
                     return saved
@@ -5272,9 +5296,9 @@ function AppContent() {
                 collaborationStudentIds={delegatedNutritionStudentIds}
                 readOnlyPlanIds={readOnlyCollaborativeNutritionPlanIds}
                 nutritionPlans={professionalNutritionPlans}
-                anamneses={(data.anamneses ?? []).filter((item) => !delegatedNutritionStudentIds.has(String(item.studentId || item.student_id || '')))}
-                nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
-                questionnaireAssignments={(data.studentQuestionnaireAssignments ?? []).filter((item) => !delegatedNutritionStudentIds.has(String(item.studentId || item.student_id || '')))}
+                anamneses={collaborationOnlyMode ? [] : (data.anamneses ?? []).filter((item) => !delegatedNutritionStudentIds.has(String(item.studentId || item.student_id || '')))}
+                nutritionQuestionnaires={collaborationOnlyMode ? [] : data.nutritionQuestionnaires ?? []}
+                questionnaireAssignments={collaborationOnlyMode ? [] : (data.studentQuestionnaireAssignments ?? []).filter((item) => !delegatedNutritionStudentIds.has(String(item.studentId || item.student_id || '')))}
                 professional={data.user}
                 appAdminSettings={appAdminSettings}
                 onSaveNutritionPlan={async (plan) => {
@@ -5282,7 +5306,7 @@ function AppContent() {
                     throw new Error('Este plano está somente para leitura enquanto a colaboração de Nutrição e o consentimento do paciente estiverem ativos.')
                   }
                   if (!delegatedNutritionStudentIds.has(String(plan.studentId))) return saveNutritionPlan(plan)
-                  await syncAppleServerEntitlement()
+                  if (professionalAccessActive) await syncAppleServerEntitlement()
                   const saved = await saveRemoteCollaborativeNutritionPlan(plan)
                   await refreshProfessionalCollaboration({ silent: true })
                   return saved
@@ -5428,7 +5452,7 @@ function AppContent() {
       <nav className="coach-mobile-bottom-nav lg:hidden" aria-label={nutritionistUser ? 'Navegação rápida do nutricionista' : 'Navegação rápida do treinador'}>
         {coachMobileBottomItems.map((item) => {
           const isActive = activeView === item.id
-          const isLocked = shouldLockCoachTools && !['assinatura', 'admin-master', 'configuracoes'].includes(item.id)
+          const isLocked = isProfessionalViewLocked(item.id)
           return (
             <button
               key={item.id}
