@@ -8,6 +8,9 @@ import { swapShowcasePositions } from './showcaseCarousel'
 import AdminStudentFreeAccess from './AdminStudentFreeAccess'
 import OrganizationProtocols from './OrganizationProtocols'
 import StudentAnamnesisWorkspace from './StudentAnamnesisWorkspace'
+import ProfessionalTeamWorkspace from './ProfessionalTeamWorkspace'
+import ProfessionalDelegatedWorkoutReadOnly from './ProfessionalDelegatedWorkoutReadOnly'
+import StudentProfessionalCollaborationRequests from './StudentProfessionalCollaborationRequests'
 import StudentImportDialog from './StudentImportDialog'
 import { filterStudents } from './studentDirectory'
 import { findStudentImportDuplicate } from './studentImport'
@@ -32,6 +35,7 @@ import {
 } from './nutritionPlanAccess'
 import {
   acceptRemoteStudentConsent,
+  acceptRemoteProfessionalTeamInvite,
   archiveRemoteNutritionPlan,
   archiveRemoteWorkout,
   createRemoteStudentInvite,
@@ -40,10 +44,14 @@ import {
   claimRemoteProfessionalReferral,
   createRemoteProfessionalReferral,
   cancelRemoteProfessionalReferral,
+  cancelRemoteProfessionalTeamInvite,
+  createRemoteProfessionalTeam,
+  createRemoteProfessionalTeamInvite,
   generateRemoteStudentCredentials,
   deleteRemoteCoachAccount,
   deleteRemoteStudentAccount,
   deleteRemoteStudent,
+  declineRemoteProfessionalTeamInvite,
   fetchRemoteExerciseMedia,
   loadRemoteData,
   loadRemoteAppAdminSettings,
@@ -52,17 +60,25 @@ import {
   loadRemoteProfessionalCommissionReport,
   loadRemoteProfessionalReferrals,
   loadRemoteProfessionalProfileByEmail,
+  loadRemoteProfessionalDelegatedWorkspace,
+  loadRemoteProfessionalTeamCandidates,
+  loadRemoteProfessionalTeamWorkspace,
   loadRemoteCurrentProfessionalAffiliate,
   loadRemoteCurrentStudentAccess,
   loadRemoteLeadEvents,
   loadRemoteMessages,
   loadRemoteNotifications,
   loadRemoteStudentMessagesByInvite,
+  loadRemoteStudentCollaboratorAvatars,
+  loadRemoteStudentProfessionalCollaborators,
+  loadRemoteCurrentStudentCollaborationRequests,
   loadRemoteStudentMealLogs,
   loadRemoteStudentByInvite,
   loadRemoteWorkoutSession,
   markRemoteStudentMessagesRead,
   markRemoteNotificationsRead,
+  leaveRemoteProfessionalTeam,
+  removeRemoteProfessionalTeamMember,
   requestCoachPasswordReset,
   refreshCoachSession,
   saveRemoteAppointment,
@@ -75,6 +91,7 @@ import {
   saveRemoteInvoice,
   saveRemoteNutritionPlan,
   saveRemoteNutritionQuestionnaire,
+  saveRemoteCollaborativeNutritionPlan,
   assignRemoteNutritionQuestionnaire,
   assignRemoteStudentAnamnesis,
   submitRemoteNutritionQuestionnaire,
@@ -87,6 +104,7 @@ import {
   updateRemoteStudentMessage,
   deleteRemoteStudentMessage,
   saveRemoteWorkout,
+  saveRemoteCollaborativeWorkout,
   saveRemoteWorkoutProgressionDecision,
   saveRemoteWorkoutLog,
   saveRemoteWorkoutEarlyEnd,
@@ -96,6 +114,7 @@ import {
   sendRemoteChatMessagePush,
   sendRemoteWorkoutCompletionPush,
   setSupabaseSession,
+  setRemoteProfessionalPatientDelegations,
   signInCoach,
   signOutCoach,
   signUpCoach,
@@ -107,6 +126,8 @@ import {
   updateRemoteCheckinState,
   updateRemotePayment,
   updateRemoteStudentWorkoutFinishPreference,
+  respondRemoteStudentCollaboration,
+  revokeRemoteProfessionalPatientDelegation,
   updateRecoveredPassword,
   uploadRemoteProfessionalAvatar,
   uploadRemoteStudentAvatar,
@@ -201,7 +222,8 @@ const QUESTIONNAIRE_XP_REWARD = 60
 const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado']
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build40-20261110'
+const EMPTY_PROFESSIONAL_COLLABORATORS = Object.freeze([])
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-professional-collaboration-build41-20261111'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -651,15 +673,16 @@ const navItems = [
   { id: 'notificacoes', label: 'Notificações', icon: 'bell', tone: 'yellow' },
   { id: 'mensagens', label: 'Mensagens', icon: 'message', tone: 'blue' },
   { id: 'aluno-app', label: 'Área do aluno', icon: 'phone', tone: 'teal' },
+  { id: 'equipe', label: 'Equipe', icon: 'users', tone: 'teal' },
   { id: 'configuracoes', label: 'Gerenciamento', icon: 'settings', tone: 'slate' },
   { id: 'assinatura', label: 'Minha assinatura', icon: 'credit', tone: 'indigo' },
 ]
 
 const masterAdminViewIds = new Set(['admin-master', 'admin-affiliate-finance'])
 const coachViewIds = new Set([...navItems.map((item) => item.id), ...masterAdminViewIds])
-const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
-const patientPortalTabIds = new Set(['inicio', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta'])
-const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'checkins', 'pagamentos', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'configuracoes', 'assinatura'])
+const studentPortalTabIds = new Set(['inicio', 'treino', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta', 'equipe'])
+const patientPortalTabIds = new Set(['inicio', 'dieta', 'agua', 'checkin', 'mensagens', 'pagamentos', 'agenda', 'progresso', 'historico', 'conta', 'equipe'])
+const nutritionistViewIds = new Set(['visao', 'agenda', 'alunos', 'avaliacoes', 'nutricao', 'checkins', 'pagamentos', 'comissoes', 'notificacoes', 'mensagens', 'aluno-app', 'equipe', 'configuracoes', 'assinatura'])
 
 function resolveStudentPortalTab(professionalType, tab) {
   const allowedTabs = professionalType === 'nutritionist' ? patientPortalTabIds : studentPortalTabIds
@@ -1944,6 +1967,18 @@ function AppContent() {
   const professionalAvatarInputRef = useRef(null)
   const [professionalAvatarUploading, setProfessionalAvatarUploading] = useState(false)
   const [professionalAvatarError, setProfessionalAvatarError] = useState('')
+  const [professionalCollaboration, setProfessionalCollaboration] = useState({
+    loading: false,
+    busy: false,
+    error: '',
+    notice: '',
+    teams: [],
+    invites: [],
+    candidates: [],
+    delegations: [],
+    delegatedWorkspace: [],
+    ownerWorkoutWorkspace: [],
+  })
   const salesPreview = new URLSearchParams(window.location.search).get('preview') === 'vendas'
 
   const selectedStudent = useMemo(
@@ -2015,6 +2050,180 @@ function AppContent() {
   const shouldLockCoachTools = Boolean(data.user && supabaseEnabled && !professionalAccessActive && !masterAdmin)
   const coachPlans = useMemo(() => getCoachPlans(data.coachSettings), [data.coachSettings])
   const appAdminSettings = useMemo(() => normalizeAdminSettings(data.appAdminSettings), [data.appAdminSettings])
+  const syncAppleServerEntitlement = useCallback(async () => {
+    if (!isNativeIosApp() || !data.session?.user?.id) return false
+    try {
+      const result = await getIosEntitlements(data.session.user.id)
+      return result.active === true
+    } catch (error) {
+      console.warn('Não foi possível atualizar o entitlement Apple no servidor.', error?.message)
+      return false
+    }
+  }, [data.session?.user?.id])
+
+  const refreshProfessionalCollaboration = useCallback(async ({ silent = false } = {}) => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession || !professionalAccessActive) {
+      setProfessionalCollaboration((current) => ({ ...current, loading: false }))
+      return false
+    }
+
+    if (!silent) setProfessionalCollaboration((current) => ({ ...current, loading: true, error: '' }))
+    try {
+      await syncAppleServerEntitlement()
+      const delegatedArea = nutritionistUser ? 'nutrition' : 'workout'
+      const [workspace, candidates, delegatedWorkspace] = await Promise.all([
+        loadRemoteProfessionalTeamWorkspace(),
+        loadRemoteProfessionalTeamCandidates(),
+        loadRemoteProfessionalDelegatedWorkspace(delegatedArea),
+      ])
+      const teams = Array.isArray(workspace.teams) ? workspace.teams : []
+      const ownsAcceptedWorkoutDelegation = nutritionistUser && teams.some((team) => (
+        team.isOwner === true && (team.delegations ?? []).some((delegation) => (
+          delegation.area === 'workout' && delegation.status === 'active' && delegation.consentStatus === 'accepted'
+        ))
+      ))
+      const ownerWorkoutWorkspace = ownsAcceptedWorkoutDelegation
+        ? await loadRemoteProfessionalDelegatedWorkspace('workout')
+        : []
+      const invites = [
+        ...(Array.isArray(workspace.pendingInvites) ? workspace.pendingInvites : []),
+        ...teams.flatMap((team) => Array.isArray(team.invites) ? team.invites : []),
+      ]
+      const delegations = teams.flatMap((team) => (
+        (Array.isArray(team.delegations) ? team.delegations : []).map((delegation) => ({
+          ...delegation,
+          teamId: team.id,
+        }))
+      ))
+      setProfessionalCollaboration((current) => ({
+        ...current,
+        loading: false,
+        error: '',
+        teams,
+        invites,
+        candidates: Array.isArray(candidates) ? candidates : [],
+        delegations,
+        delegatedWorkspace,
+        ownerWorkoutWorkspace,
+      }))
+      return true
+    } catch (error) {
+      setProfessionalCollaboration((current) => ({
+        ...current,
+        loading: false,
+        error: error?.message || 'Não foi possível carregar a área de colaboração. Confirme se a migration BUILD41 foi aplicada.',
+      }))
+      return false
+    }
+  }, [data.session?.access_token, data.session?.user?.id, nutritionistUser, professionalAccessActive, studentAuthSession, syncAppleServerEntitlement])
+
+  useEffect(() => {
+    if (!supabaseEnabled || !data.session?.access_token || studentAuthSession || !professionalAccessActive) {
+      setProfessionalCollaboration((current) => ({ ...current, loading: false }))
+      return undefined
+    }
+    void refreshProfessionalCollaboration()
+    return undefined
+  }, [data.session?.access_token, professionalAccessActive, refreshProfessionalCollaboration, studentAuthSession])
+
+  const runProfessionalTeamAction = useCallback(async (operation, successMessage) => {
+    setProfessionalCollaboration((current) => ({ ...current, busy: true, error: '', notice: '' }))
+    try {
+      await syncAppleServerEntitlement()
+      await operation()
+      await refreshProfessionalCollaboration({ silent: true })
+      setProfessionalCollaboration((current) => ({ ...current, notice: successMessage }))
+      return true
+    } catch (error) {
+      setProfessionalCollaboration((current) => ({
+        ...current,
+        error: error?.message || 'A operação não foi confirmada pelo servidor.',
+      }))
+      return false
+    } finally {
+      setProfessionalCollaboration((current) => ({ ...current, busy: false }))
+    }
+  }, [refreshProfessionalCollaboration, syncAppleServerEntitlement])
+
+  const professionalTeamHandlers = useMemo(() => ({
+    onRefresh: () => refreshProfessionalCollaboration(),
+    onCreateTeam: (name) => runProfessionalTeamAction(() => createRemoteProfessionalTeam(name), 'Equipe criada.'),
+    onInviteMember: (teamId, email, role) => runProfessionalTeamAction(
+      () => createRemoteProfessionalTeamInvite(teamId, email, role),
+      'Convite enviado. Nenhum dado de paciente foi compartilhado.',
+    ),
+    onAcceptInvite: (inviteId) => runProfessionalTeamAction(() => acceptRemoteProfessionalTeamInvite(inviteId), 'Convite aceito. Acesso a pacientes continua condicionado a autorização e consentimento.'),
+    onDeclineInvite: (inviteId) => runProfessionalTeamAction(() => declineRemoteProfessionalTeamInvite(inviteId), 'Convite recusado.'),
+    onCancelInvite: (inviteId) => runProfessionalTeamAction(() => cancelRemoteProfessionalTeamInvite(inviteId), 'Convite cancelado.'),
+    onRemoveMember: (teamId, memberId) => runProfessionalTeamAction(() => removeRemoteProfessionalTeamMember(teamId, memberId), 'Membro removido somente desta equipe.'),
+    onLeaveTeam: (teamId) => runProfessionalTeamAction(() => leaveRemoteProfessionalTeam(teamId), 'Você saiu somente desta equipe.'),
+    onSetDelegations: (teamId, memberId, area, studentIds) => runProfessionalTeamAction(
+      () => setRemoteProfessionalPatientDelegations(teamId, memberId, area, studentIds),
+      'A seleção foi registrada. Cada paciente precisa consentir antes de liberar dados.',
+    ),
+    onRevokeDelegation: (delegationId) => runProfessionalTeamAction(() => revokeRemoteProfessionalPatientDelegation(delegationId), 'A concessão foi revogada para esta equipe.'),
+  }), [refreshProfessionalCollaboration, runProfessionalTeamAction])
+  const nutritionistOwnsAcceptedWorkoutDelegation = nutritionistUser && professionalCollaboration.ownerWorkoutWorkspace.length > 0
+  const nutritionistAvailableViewIds = useMemo(() => {
+    const available = new Set(nutritionistViewIds)
+    if (nutritionistOwnsAcceptedWorkoutDelegation || (professionalCollaboration.loading && activeView === 'treinos')) available.add('treinos')
+    return available
+  }, [activeView, nutritionistOwnsAcceptedWorkoutDelegation, professionalCollaboration.loading])
+
+  const delegatedNutritionEntries = nutritionistUser ? professionalCollaboration.delegatedWorkspace : []
+  const delegatedWorkoutEntries = nutritionistUser ? [] : professionalCollaboration.delegatedWorkspace
+  const delegatedNutritionStudentIds = new Set(delegatedNutritionEntries.map((entry) => String(entry.student?.id || '')).filter(Boolean))
+  const delegatedWorkoutStudentIds = new Set(delegatedWorkoutEntries.map((entry) => String(entry.student?.id || '')).filter(Boolean))
+  const collaborationProfessionalNameById = new Map()
+  if (data.user?.id) collaborationProfessionalNameById.set(String(data.user.id), data.coachSettings?.publicName || data.user.name || 'Você')
+  for (const team of professionalCollaboration.teams) {
+    if (team.ownerProfessionalId && team.ownerName) collaborationProfessionalNameById.set(String(team.ownerProfessionalId), team.ownerName)
+    for (const member of team.members ?? []) {
+      if (member.id && member.name) collaborationProfessionalNameById.set(String(member.id), member.name)
+    }
+  }
+  const professionalNutritionStudents = mergeRecords(
+    data.students ?? [],
+    delegatedNutritionEntries.map((entry) => entry.student).filter((student) => student?.id),
+  )
+  const professionalQuestionnaireStudents = professionalNutritionStudents.filter((student) => !delegatedNutritionStudentIds.has(String(student.id)))
+  const professionalWorkoutStudents = mergeRecords(
+    data.students ?? [],
+    delegatedWorkoutEntries.map((entry) => entry.student).filter((student) => student?.id),
+  )
+  const professionalNutritionPlans = mergeRecords(
+    data.nutritionPlans ?? [],
+    delegatedNutritionEntries.flatMap((entry) => entry.nutritionPlans ?? []),
+  ).map((plan) => ({
+    ...plan,
+    createdByName: collaborationProfessionalNameById.get(String(plan.createdBy || plan.coachId || '')) || 'Profissional responsável',
+    updatedByName: collaborationProfessionalNameById.get(String(plan.updatedBy || plan.createdBy || plan.coachId || '')) || 'Profissional responsável',
+  }))
+  const readOnlyCollaborativeNutritionPlanIds = new Set((data.nutritionPlans ?? [])
+    .filter((plan) => plan.id && plan.collaborationDelegationId)
+    .map((plan) => String(plan.id)))
+  const professionalWorkouts = mergeRecords(
+    data.workouts ?? [],
+    delegatedWorkoutEntries.flatMap((entry) => entry.workouts ?? []),
+  ).map((workout) => ({
+    ...workout,
+    createdByName: collaborationProfessionalNameById.get(String(workout.createdBy || workout.coachId || '')) || 'Profissional responsável',
+    updatedByName: collaborationProfessionalNameById.get(String(workout.updatedBy || workout.createdBy || workout.coachId || '')) || 'Profissional responsável',
+  }))
+  const professionalWorkoutLogs = mergeRecords(
+    data.workoutLogs ?? [],
+    delegatedWorkoutEntries.flatMap((entry) => entry.workoutLogs ?? []),
+  )
+  const professionalOwnerWorkoutEntries = professionalCollaboration.ownerWorkoutWorkspace.map((entry) => ({
+    ...entry,
+    workouts: (entry.workouts ?? []).map((workout) => ({
+      ...workout,
+      createdByName: collaborationProfessionalNameById.get(String(workout.createdBy || workout.coachId || '')) || 'Treinador colaborador',
+      updatedByName: collaborationProfessionalNameById.get(String(workout.updatedBy || workout.createdBy || workout.coachId || '')) || 'Treinador colaborador',
+    })),
+  }))
+  const selectedProfessionalNutritionStudent = professionalNutritionStudents.find((student) => sameId(student.id, selectedStudent?.id)) || professionalNutritionStudents[0] || null
+  const selectedProfessionalWorkoutStudent = professionalWorkoutStudents.find((student) => sameId(student.id, selectedStudent?.id)) || professionalWorkoutStudents[0] || null
 
   const refreshNativeIosEntitlement = useCallback(async () => {
     if (!isNativeIosApp() || !data.session?.access_token || !data.session?.user?.id) {
@@ -2070,7 +2279,7 @@ function AppContent() {
       professionalAffiliate ? item.id !== 'assinatura' : item.id !== 'comissoes'
     ))
     const scopedItems = nutritionistUser ? professionalItems
-      .filter((item) => nutritionistViewIds.has(item.id))
+      .filter((item) => nutritionistAvailableViewIds.has(item.id))
       .map((item) => ({ ...item, label: ({ alunos: 'Pacientes', 'aluno-app': 'Área do paciente' })[item.id] || item.label })) : professionalItems
     return masterAdmin
       ? [
@@ -2079,7 +2288,7 @@ function AppContent() {
           { id: 'admin-master', label: 'Admin Master', icon: 'settings', tone: 'emerald' },
         ]
       : scopedItems
-  }, [masterAdmin, nutritionistUser, professionalAffiliate])
+  }, [masterAdmin, nutritionistAvailableViewIds, nutritionistUser, professionalAffiliate])
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -2149,12 +2358,12 @@ function AppContent() {
   const setActiveViewSafely = useCallback((nextView) => {
     const resolvedView = typeof nextView === 'function' ? nextView(activeView) : nextView
     if (activeView === 'nutricao' && resolvedView !== activeView && nutritionDraftDirty && !window.confirm('Existem alterações não salvas. Deseja sair e descartá-las?')) return
-    if (nutritionistUser && !nutritionistViewIds.has(resolvedView) && resolvedView !== 'admin-master') {
+    if (nutritionistUser && !nutritionistAvailableViewIds.has(resolvedView) && resolvedView !== 'admin-master') {
       setActiveView('nutricao')
       return
     }
     setActiveView(resolvedView)
-  }, [activeView, nutritionistUser, nutritionDraftDirty])
+  }, [activeView, nutritionistAvailableViewIds, nutritionistUser, nutritionDraftDirty])
 
   const setSelectedStudentIdSafely = useCallback((nextStudentId) => {
     if (
@@ -2256,10 +2465,10 @@ function AppContent() {
   }, [professionalAffiliate, shouldLockCoachTools, activeView])
 
   useEffect(() => {
-    if (nutritionistUser && !nutritionistViewIds.has(activeView) && activeView !== 'admin-master') {
+    if (nutritionistUser && !nutritionistAvailableViewIds.has(activeView) && activeView !== 'admin-master') {
       setActiveView('nutricao')
     }
-  }, [activeView, nutritionistUser])
+  }, [activeView, nutritionistAvailableViewIds, nutritionistUser])
 
   useEffect(() => {
     if (!mobileMenuOpen) return undefined
@@ -4974,43 +5183,132 @@ function AppContent() {
                 onSaveAssessment={saveAssessment}
               />
             )}
-            {activeView === 'treinos' && !nutritionistUser && (
-              <Workouts
-                selectedStudent={selectedStudent}
-                students={data.students}
-                workouts={data.workouts ?? []}
-                nutritionPlans={data.nutritionPlans ?? []}
-                workoutLogs={data.workoutLogs ?? []}
-                progressionDecisions={data.workoutProgressionDecisions ?? []}
-                exerciseLibraryItems={data.exerciseLibrary ?? []}
-                exerciseLibrarySync={data.exerciseLibrarySync}
-                onSaveWorkout={saveWorkout}
-                onSaveNutritionPlan={saveNutritionPlan}
-                onArchiveWorkout={archiveWorkout}
-                onApproveProgression={approveWorkoutProgression}
-                onIgnoreProgression={ignoreWorkoutProgression}
-                onUndoProgression={undoWorkoutProgression}
-                onSaveStudent={saveStudent}
+            {activeView === 'equipe' && (
+              <ProfessionalTeamWorkspace
+                currentUser={{ ...data.user, id: data.user?.id, email: data.user?.email, professionalRole: nutritionistUser ? 'nutritionist' : 'trainer' }}
                 uiTheme={uiTheme}
+                teams={professionalCollaboration.teams}
+                invites={professionalCollaboration.invites}
+                candidates={professionalCollaboration.candidates}
+                delegations={professionalCollaboration.delegations}
+                busy={professionalCollaboration.busy || professionalCollaboration.loading}
+                loading={professionalCollaboration.loading}
+                error={professionalCollaboration.error}
+                notice={professionalCollaboration.notice}
+                {...professionalTeamHandlers}
               />
+            )}
+            {activeView === 'treinos' && nutritionistUser && (
+              <ProfessionalDelegatedWorkoutReadOnly
+                entries={professionalOwnerWorkoutEntries}
+                uiTheme={uiTheme}
+                loading={professionalCollaboration.loading}
+              />
+            )}
+            {activeView === 'treinos' && !nutritionistUser && (
+              <div className="space-y-4">
+                {delegatedWorkoutEntries.length ? (
+                  <aside className="rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-zinc-300">
+                    <strong className="text-emerald-200">Treinador colaborador: {data.coachSettings?.publicName || data.user?.name || 'sua conta'}.</strong>{' '}
+                    A lista inclui somente pacientes com concessão de Treinos ativa e consentimento aceito. Responsável(is) da carteira: {[...new Set(delegatedWorkoutEntries.map((entry) => entry.ownerName).filter(Boolean))].join(', ') || 'profissional(is) da equipe'}.
+                  </aside>
+                ) : null}
+                <Workouts
+                  selectedStudent={selectedProfessionalWorkoutStudent}
+                  students={professionalWorkoutStudents}
+                  workouts={professionalWorkouts}
+                  nutritionPlans={professionalNutritionPlans}
+                  workoutLogs={professionalWorkoutLogs}
+                  progressionDecisions={data.workoutProgressionDecisions ?? []}
+                  exerciseLibraryItems={data.exerciseLibrary ?? []}
+                  exerciseLibrarySync={data.exerciseLibrarySync}
+                  onSaveWorkout={async (workout) => {
+                    if (!delegatedWorkoutStudentIds.has(String(workout.studentId))) return saveWorkout(workout)
+                    await syncAppleServerEntitlement()
+                    const saved = await saveRemoteCollaborativeWorkout(workout)
+                    await refreshProfessionalCollaboration({ silent: true })
+                    return saved
+                  }}
+                  onSaveNutritionPlan={async (plan) => {
+                    if (delegatedWorkoutStudentIds.has(String(plan.studentId))) {
+                      const message = 'A delegação desta equipe libera somente Treinos. Nutrição continua com o profissional responsável.'
+                      setRemoteStatus('Área não liberada')
+                      setRemoteError(message)
+                      throw new Error(message)
+                    }
+                    return saveNutritionPlan(plan)
+                  }}
+                  onArchiveWorkout={async (workoutId) => {
+                    const target = professionalWorkouts.find((workout) => sameId(workout.id, workoutId))
+                    if (target && delegatedWorkoutStudentIds.has(String(target.studentId))) {
+                      const message = 'Arquivar treinos compartilhados permanece com o profissional responsável.'
+                      setRemoteStatus('Ação não liberada')
+                      setRemoteError(message)
+                      return false
+                    }
+                    return archiveWorkout(workoutId)
+                  }}
+                  onApproveProgression={(recommendation, target) => delegatedWorkoutStudentIds.has(String(recommendation.studentId))
+                    ? Promise.reject(new Error('A progressão deste treino deve ser confirmada pelo profissional responsável.'))
+                    : approveWorkoutProgression(recommendation, target)}
+                  onIgnoreProgression={(recommendation) => delegatedWorkoutStudentIds.has(String(recommendation.studentId))
+                    ? Promise.reject(new Error('A decisão desta progressão pertence ao profissional responsável.'))
+                    : ignoreWorkoutProgression(recommendation)}
+                  onUndoProgression={(decision) => delegatedWorkoutStudentIds.has(String(decision.studentId))
+                    ? Promise.reject(new Error('A reversão desta progressão pertence ao profissional responsável.'))
+                    : undoWorkoutProgression(decision)}
+                  onSaveStudent={(student) => delegatedWorkoutStudentIds.has(String(student.id))
+                    ? Promise.reject(new Error('Os dados cadastrais do paciente não são compartilhados nesta área.'))
+                    : saveStudent(student)}
+                  uiTheme={uiTheme}
+                />
+              </div>
             )}
             {activeView === 'nutricao' && (
               <Nutrition
-                selectedStudent={selectedStudent}
-                students={data.students}
-                nutritionPlans={data.nutritionPlans ?? []}
-                anamneses={data.anamneses ?? []}
+                selectedStudent={selectedProfessionalNutritionStudent}
+                students={professionalNutritionStudents}
+                questionnaireStudents={professionalQuestionnaireStudents}
+                collaborationStudentIds={delegatedNutritionStudentIds}
+                readOnlyPlanIds={readOnlyCollaborativeNutritionPlanIds}
+                nutritionPlans={professionalNutritionPlans}
+                anamneses={(data.anamneses ?? []).filter((item) => !delegatedNutritionStudentIds.has(String(item.studentId || item.student_id || '')))}
                 nutritionQuestionnaires={data.nutritionQuestionnaires ?? []}
-                questionnaireAssignments={data.studentQuestionnaireAssignments ?? []}
+                questionnaireAssignments={(data.studentQuestionnaireAssignments ?? []).filter((item) => !delegatedNutritionStudentIds.has(String(item.studentId || item.student_id || '')))}
                 professional={data.user}
                 appAdminSettings={appAdminSettings}
-                onSaveNutritionPlan={saveNutritionPlan}
-                onArchiveNutritionPlan={archiveNutritionPlan}
+                onSaveNutritionPlan={async (plan) => {
+                  if (plan.id && readOnlyCollaborativeNutritionPlanIds.has(String(plan.id))) {
+                    throw new Error('Este plano está somente para leitura enquanto a colaboração de Nutrição e o consentimento do paciente estiverem ativos.')
+                  }
+                  if (!delegatedNutritionStudentIds.has(String(plan.studentId))) return saveNutritionPlan(plan)
+                  await syncAppleServerEntitlement()
+                  const saved = await saveRemoteCollaborativeNutritionPlan(plan)
+                  await refreshProfessionalCollaboration({ silent: true })
+                  return saved
+                }}
+                onArchiveNutritionPlan={async (planId) => {
+                  const target = professionalNutritionPlans.find((plan) => sameId(plan.id, planId))
+                  if (readOnlyCollaborativeNutritionPlanIds.has(String(planId))) {
+                    const message = 'A dieta do profissional colaborador permanece somente para leitura durante esta concessão ativa.'
+                    setRemoteStatus('Ação não liberada')
+                    setRemoteError(message)
+                    return false
+                  }
+                  if (target && delegatedNutritionStudentIds.has(String(target.studentId))) {
+                    const message = 'Arquivar a dieta compartilhada permanece com o profissional responsável.'
+                    setRemoteStatus('Ação não liberada')
+                    setRemoteError(message)
+                    return false
+                  }
+                  return archiveNutritionPlan(planId)
+                }}
                 onSaveQuestionnaire={saveNutritionQuestionnaire}
                 onAssignQuestionnaire={assignNutritionQuestionnaire}
                 onDirtyChange={setNutritionDraftDirty}
                 uiTheme={uiTheme}
                 toggleUiTheme={toggleUiTheme}
+                collaborationMode={delegatedNutritionStudentIds.has(String(selectedProfessionalNutritionStudent?.id || ''))}
               />
             )}
             {activeView === 'checkins' && (
@@ -16280,14 +16578,14 @@ function cloneNutritionMeal(meal) {
   })
 }
 
-function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, appAdminSettings = defaultAppAdminSettings, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {} }) {
+function Nutrition({ selectedStudent, students, questionnaireStudents = students, collaborationStudentIds = [], readOnlyPlanIds = [], nutritionPlans, anamneses = [], nutritionQuestionnaires = [], questionnaireAssignments = [], professional = {}, appAdminSettings = defaultAppAdminSettings, onSaveNutritionPlan, onArchiveNutritionPlan, onSaveQuestionnaire, onAssignQuestionnaire, onDirtyChange, uiTheme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, collaborationMode = false }) {
   const [nutritionTab, setNutritionTab] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search)
       const tabFromUrl = params.get('nutricaoTab')
-      if (NUTRITION_TAB_IDS.includes(tabFromUrl)) return tabFromUrl
+      if (NUTRITION_TAB_IDS.includes(tabFromUrl) && !(collaborationMode && tabFromUrl === 'questionario')) return tabFromUrl
       const savedTab = window.localStorage.getItem('coachfitpro-nutrition-active-tab-20260909')
-      return NUTRITION_TAB_IDS.includes(savedTab) ? savedTab : 'dieta'
+      return NUTRITION_TAB_IDS.includes(savedTab) && !(collaborationMode && savedTab === 'questionario') ? savedTab : 'dieta'
     } catch {
       return 'dieta'
     }
@@ -16306,6 +16604,12 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
       ? activeNutritionPlans.find((plan) => sameId(plan.id, editingPlanId)) || null
       : activePlan || null
   const editorStudent = students.find((student) => sameId(student.id, editingPlan?.studentId || newPlanStudentId)) || selectedStudent
+  const readOnlyNutritionPlanIds = readOnlyPlanIds instanceof Set ? readOnlyPlanIds : new Set(readOnlyPlanIds)
+  const editingPlanIsReadOnly = Boolean(editingPlan?.id && readOnlyNutritionPlanIds.has(String(editingPlan.id)))
+  const sharedStudentIds = collaborationStudentIds instanceof Set ? collaborationStudentIds : new Set(collaborationStudentIds)
+  const editorStudentIsCollaborative = sharedStudentIds.has(String(editorStudent?.id || ''))
+  const safeQuestionnaireStudents = Array.isArray(questionnaireStudents) ? questionnaireStudents : students
+  const questionnaireStudent = safeQuestionnaireStudents.find((student) => sameId(student.id, selectedStudent?.id)) || safeQuestionnaireStudents[0] || null
   const activeMeals = editingPlan?.meals?.length || activePlan?.meals?.length || 0
 
   useEffect(() => {
@@ -16335,6 +16639,10 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
     }
   }, [nutritionTab])
 
+  useEffect(() => {
+    if (collaborationMode && nutritionTab === 'questionario') setNutritionTab('dieta')
+  }, [collaborationMode, nutritionTab])
+
   return (
     <div className="nutrition-layout-grid-v5 grid gap-4 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-start">
       <section className="nutrition-hero-card xl:col-span-2 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.22),transparent_34%),linear-gradient(135deg,rgba(9,20,18,0.96),rgba(5,8,10,0.96))] p-4 shadow-2xl shadow-emerald-950/20 sm:p-5">
@@ -16360,12 +16668,14 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
         </div>
       </section>
 
+      {collaborationMode || editorStudentIsCollaborative ? <aside className="xl:col-span-2 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-6 text-zinc-300"><strong className="text-emerald-200">Carteira compartilhada.</strong> Você vê e edita dietas somente dos pacientes que aceitaram esta colaboração. Questionários e demais áreas desses pacientes continuam com o profissional responsável.</aside> : null}
+
       <div className="nutrition-subnav-v1 xl:col-span-2 flex flex-col gap-2 rounded-2xl border border-emerald-300/15 bg-white/[0.035] p-2 sm:flex-row">
         {[
           ['dieta', 'Dieta'],
           ['questionario', 'Questionário'],
           ['prescritas', 'Dietas prescritas'],
-        ].map(([id, label]) => (
+        ].filter(([id]) => !collaborationMode || id !== 'questionario').map(([id, label]) => (
           <button key={id} type="button" onClick={() => setNutritionTab(id)} className={`min-h-11 flex-1 rounded-xl px-4 py-3 text-sm font-black transition ${nutritionTab === id ? 'bg-emerald-300 text-zinc-950 shadow-lg shadow-emerald-950/15' : 'text-zinc-300 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
             {label}
           </button>
@@ -16374,9 +16684,13 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
 
       {nutritionTab === 'dieta' ? (
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
-          <Panel title={`${editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${editorStudent?.name ?? 'Paciente'}`} action={editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
+          <Panel title={`${editingPlanIsReadOnly ? 'Dieta colaborativa · somente leitura' : editingPlan ? 'Editar dieta' : 'Prescrever dieta'} - ${editorStudent?.name ?? 'Paciente'}`} action={editingPlanIsReadOnly ? 'Colaboração ativa' : editingPlan ? 'Atualizando plano' : 'Plano alimentar'}>
             {students.length ? (
-              <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} themeSettings={appAdminSettings} />
+              editingPlanIsReadOnly ? (
+                <CollaborativeNutritionPlanReadOnly plan={editingPlan} student={editorStudent} uiTheme={uiTheme} />
+              ) : (
+                <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} themeSettings={appAdminSettings} />
+              )
             ) : (
               <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
             )}
@@ -16390,17 +16704,17 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
             <button type="button" onClick={() => startNewPlan(selectedStudent)} disabled={!selectedStudent} className="nutrition-new-plan-action mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950 disabled:opacity-50">
               <NavIcon name="plus" className="h-4 w-4" /> Nova dieta
             </button>
-            <NutritionPlanList plans={activeNutritionPlans} archivedPlans={archivedNutritionPlans} selectedStudent={selectedStudent} students={students} professional={professional} editingPlanId={editingPlan?.id} onEdit={(plan) => { setEditingPlanId(String(plan.id)); setNutritionTab('dieta') }} onArchive={onArchiveNutritionPlan} />
+            <NutritionPlanList plans={activeNutritionPlans} archivedPlans={archivedNutritionPlans} selectedStudent={selectedStudent} students={students} professional={professional} editingPlanId={editingPlan?.id} onEdit={(plan) => { if (readOnlyNutritionPlanIds.has(String(plan.id))) return; setEditingPlanId(String(plan.id)); setNutritionTab('dieta') }} onArchive={onArchiveNutritionPlan} readOnlyPlanIds={readOnlyNutritionPlanIds} />
           </Panel>
         </div>
       ) : null}
 
-      {nutritionTab === 'questionario' ? (
+      {nutritionTab === 'questionario' && !collaborationMode ? (
         <div className="nutrition-tab-panel-v1 xl:col-span-2">
           <Panel title="Questionário" action="Coach e aluno">
             <NutritionQuestionnaires
-              selectedStudent={selectedStudent}
-              students={students}
+              selectedStudent={questionnaireStudent}
+              students={safeQuestionnaireStudents}
               questionnaires={nutritionQuestionnaires}
               assignments={questionnaireAssignments}
               nutritionist={isNutritionistUser(professional)}
@@ -16413,6 +16727,59 @@ function Nutrition({ selectedStudent, students, nutritionPlans, anamneses = [], 
         </div>
       ) : null}
     </div>
+  )
+}
+
+function CollaborativeNutritionPlanReadOnly({ plan = {}, student = null, uiTheme = DEFAULT_UI_THEME }) {
+  const light = uiTheme === 'light'
+  const meals = Array.isArray(plan.meals) ? plan.meals : []
+  const surface = light ? 'border-zinc-200 bg-white text-zinc-900' : 'border-white/10 bg-zinc-950 text-zinc-100'
+  const card = light ? 'border-zinc-200 bg-zinc-50' : 'border-white/10 bg-white/[0.04]'
+  const muted = light ? 'text-zinc-600' : 'text-zinc-400'
+  const accent = light ? 'text-emerald-800' : 'text-emerald-200'
+
+  return (
+    <section className={`space-y-4 rounded-2xl border p-4 sm:p-5 ${surface}`} aria-label="Plano alimentar colaborativo somente leitura">
+      <header className={`rounded-2xl border p-4 ${card}`}>
+        <p className={`text-xs font-black uppercase tracking-[0.12em] ${accent}`}>Somente leitura · consentimento ativo</p>
+        <h4 className="mt-2 break-words text-xl font-black">{plan.title || 'Plano alimentar'}</h4>
+        <p className={`mt-2 text-sm ${muted}`}>Paciente: {student?.name || 'Paciente autorizado'}</p>
+        <p className={`mt-1 text-sm ${muted}`}>
+          Responsável técnico: {plan.createdByName || 'Nutricionista colaborador'}
+          {plan.updatedByName && plan.updatedByName !== plan.createdByName ? ` · última edição por ${plan.updatedByName}` : ''}
+        </p>
+      </header>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          ['Calorias', plan.calories || '—'],
+          ['Proteína', plan.protein || '—'],
+          ['Refeições', String(meals.length)],
+        ].map(([label, value]) => (
+          <div key={label} className={`rounded-xl border p-3 ${card}`}>
+            <p className={`text-xs font-bold uppercase ${muted}`}>{label}</p>
+            <p className="mt-1 break-words text-lg font-black">{value}</p>
+          </div>
+        ))}
+      </div>
+      {stripNutritionPlanMetadata(plan.notes) ? (
+        <div className={`rounded-xl border p-4 ${card}`}>
+          <p className={`text-xs font-black uppercase ${accent}`}>Orientação</p>
+          <p className={`mt-2 whitespace-pre-wrap text-sm leading-6 ${muted}`}>{stripNutritionPlanMetadata(plan.notes)}</p>
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        {meals.length ? meals.map((meal, index) => (
+          <article key={meal.id || `${meal.name}-${index}`} className={`rounded-xl border p-4 ${card}`}>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h5 className="font-black">{meal.name || `Refeição ${index + 1}`}</h5>
+              {(meal.time || meal.timeLabel) ? <span className={`text-sm font-bold ${accent}`}>{meal.time || meal.timeLabel}</span> : null}
+            </div>
+            <p className={`mt-2 break-words text-sm leading-6 ${muted}`}>{meal.foods || 'Alimentos não informados.'}</p>
+            {meal.macros ? <p className={`mt-2 text-xs font-bold ${accent}`}>{meal.macros}</p> : null}
+          </article>
+        )) : <p className={`text-sm ${muted}`}>Este plano não contém refeições registradas.</p>}
+      </div>
+    </section>
   )
 }
 
@@ -17348,7 +17715,7 @@ function NutritionFormLegacy({ students = [], selectedStudent, onSaveNutritionPl
   )
 }
 
-export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive, showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
+export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, students = [], professional = {}, editingPlanId, onEdit, onArchive, readOnlyPlanIds = [], showHeading = true, waterMl = 0, waterGoalMl = 2500, onAddWater, onOpenWater }) {
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
   const [search, setSearch] = useState('')
@@ -17357,6 +17724,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
   const visibilityPending = useRef(false)
   const nutritionist = isNutritionistUser(professional)
   const studentView = !onArchive && !onEdit
+  const readOnlyIds = readOnlyPlanIds instanceof Set ? readOnlyPlanIds : new Set(readOnlyPlanIds)
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const clientTitle = nutritionist ? 'Paciente' : 'Aluno'
 
@@ -17415,6 +17783,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
     const isExpanded = sameId(expandedPlanId, plan.id)
     const planStudent = students.find((student) => sameId(student.id, plan.studentId)) || (sameId(selectedStudent?.id, plan.studentId) ? selectedStudent : null)
     const canDownloadPdf = Boolean(onArchive) || canPatientDownloadNutritionPdf(plan)
+    const planIsReadOnly = readOnlyIds.has(String(plan.id))
 
     return (
       <article key={plan.id} className={`nutrition-plan-card-v6 ${studentView ? 'is-student-plan' : ''} ${archived ? 'is-archived' : ''} overflow-hidden rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(11,18,20,0.98),rgba(4,7,9,0.98))] shadow-2xl shadow-black/20`}>
@@ -17432,6 +17801,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
                   <div className="min-w-0">
                     <h4 className="nutrition-plan-summary-title-v3 break-words text-lg font-black text-white">{plan.title}</h4>
                     {!studentView ? <p className="mt-1 text-sm leading-6 text-zinc-300">{clientTitle}: {planStudent?.name || clientTitle}</p> : null}
+                    {!studentView && plan.collaborationDelegationId ? <p className="mt-1 text-xs font-bold text-emerald-200">Elaborada por {plan.createdByName || 'profissional colaborador'}{plan.updatedByName && plan.updatedByName !== plan.createdByName ? ` · última edição por ${plan.updatedByName}` : ''}{planIsReadOnly ? ' · somente leitura para o responsável' : ''}</p> : null}
                   </div>
                 </div>
                 <div className="nutrition-plan-summary-meta-v3 flex shrink-0 flex-wrap items-center gap-2">
@@ -17450,7 +17820,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
             <div className="border-b border-white/10 bg-emerald-300/[0.035] p-4">
               <div className={`nutrition-plan-actions-v2 ${studentView ? 'is-student-view' : ''} mb-4 flex flex-wrap items-center gap-2`}>
                 {!studentView ? <span className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">{clientTitle}: {planStudent?.name || clientTitle}</span> : null}
-                {onEdit && !archived ? (
+                {onEdit && !archived && !planIsReadOnly ? (
                   <button type="button" onClick={() => onEdit(plan)} className={`rounded-xl border px-3 py-2 text-xs font-black transition ${sameId(editingPlanId, plan.id) ? 'border-emerald-300/45 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-zinc-300 hover:border-emerald-300/35 hover:bg-emerald-300/10 hover:text-emerald-100'}`}>
                     {sameId(editingPlanId, plan.id) ? 'Editando' : 'Editar dieta'}
                   </button>
@@ -17460,7 +17830,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
                     {onArchive ? 'Baixar PDF' : 'Baixar PDF da dieta'}
                   </button>
                 ) : null}
-                {onArchive ? (
+                {onArchive && !planIsReadOnly ? (
                   <button disabled={Boolean(archivingId)} type="button" onClick={() => handleArchive(plan, archived)} className={`rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-zinc-300 transition disabled:opacity-50 ${archived ? 'hover:border-emerald-300/40 hover:bg-emerald-300/10 hover:text-emerald-100' : 'hover:border-rose-300/40 hover:bg-rose-300/10 hover:text-rose-100'}`}>
                     {archivingId === String(plan.id) ? 'Salvando...' : archived ? `Mostrar ao ${clientLabel}` : `Ocultar do ${clientLabel}`}
                   </button>
@@ -19775,6 +20145,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
         ...(coachSettings || {}),
         publicName: coachSettings?.publicName || access.professionalName || '',
       }}
+      professionalCollaborators={access.professionalCollaborators ?? EMPTY_PROFESSIONAL_COLLABORATORS}
       coachId={access.invite.coachId}
       financialAccessOpen={access.financialAccessOpen}
       freeAccessGranted={access.freeAccessGranted}
@@ -19807,7 +20178,7 @@ function StudentAccessApp({ access, paymentReturnPending = false, checkins, work
     />
   )
 }
-export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, coachId, inviteCode = '', financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onLoadMealLogs, onSaveMealLog, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
+export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, nutritionQuestionnaires = [], questionnaireAssignments = [], questionnaireError = '', workoutLogs, exerciseLibraryItems = [], messages, appointments, invoices, assessments, coachSettings, professionalCollaborators = EMPTY_PROFESSIONAL_COLLABORATORS, coachId, inviteCode = '', financialAccessOpen: serverFinancialAccessOpen, freeAccessGranted = false, paymentReturnPending = false, professionalType = 'trainer', appAdminSettings = defaultAppAdminSettings, theme = DEFAULT_UI_THEME, toggleUiTheme = () => {}, onCompleteWorkout, onEndWorkout, onRateWorkout, onLoadWorkoutSession, onSaveWorkoutSession, onLoadMealLogs, onSaveMealLog, onAddCheckin, onSendMessage, onEditMessage, onDeleteMessage, onSubmitQuestionnaire, onRefreshMessages, onUpdateAvatar, onActivateAccess, accountEmail = '', onDeleteAccount = null, chatSyncError = '', onExit }) {
   const patientMode = professionalType === 'nutritionist'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -19827,7 +20198,109 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const [studentMealLogsLoading, setStudentMealLogsLoading] = useState(false)
   const [studentMealLogsError, setStudentMealLogsError] = useState('')
   const [mealLogsReloadVersion, setMealLogsReloadVersion] = useState(0)
+  const [studentProfessionalCollaborators, setStudentProfessionalCollaborators] = useState(() => (Array.isArray(professionalCollaborators) ? professionalCollaborators : []))
+  const [collaborationRequests, setCollaborationRequests] = useState([])
+  const [collaborationRequestsState, setCollaborationRequestsState] = useState({ busy: false, error: '', notice: '' })
   const avatarInputRef = useRef(null)
+  useEffect(() => {
+    setStudentProfessionalCollaborators(Array.isArray(professionalCollaborators) ? professionalCollaborators : [])
+  }, [professionalCollaborators])
+  const refreshStudentCollaboration = useCallback(async () => {
+    if (!accountEmail || !inviteCode || !supabaseEnabled) return false
+    setCollaborationRequestsState((current) => ({ ...current, busy: true, error: '', notice: '' }))
+    try {
+      const requests = await loadRemoteCurrentStudentCollaborationRequests()
+      const [collaboratorsResult, avatarsResult] = await Promise.allSettled([
+        loadRemoteStudentProfessionalCollaborators(inviteCode),
+        loadRemoteStudentCollaboratorAvatars(inviteCode),
+      ])
+      const collaborators = collaboratorsResult.status === 'fulfilled' ? collaboratorsResult.value : []
+      const avatars = avatarsResult.status === 'fulfilled' ? avatarsResult.value : []
+      if (collaboratorsResult.status === 'rejected' || avatarsResult.status === 'rejected') {
+        console.warn('Não foi possível atualizar toda a identidade dos profissionais colaboradores.')
+      }
+      const avatarByDelegation = new Map((avatars ?? []).map((item) => [String(item.delegationId), item]))
+      setCollaborationRequests(Array.isArray(requests) ? requests : [])
+      setStudentProfessionalCollaborators((Array.isArray(collaborators) ? collaborators : []).map((collaborator) => ({
+        ...collaborator,
+        professionalAvatarUrl: avatarByDelegation.get(String(collaborator.delegationId))?.professionalAvatarUrl || '',
+      })))
+      return true
+    } catch (error) {
+      setCollaborationRequestsState((current) => ({ ...current, error: error?.message || 'Não foi possível carregar as solicitações de acesso.' }))
+      return false
+    } finally {
+      setCollaborationRequestsState((current) => ({ ...current, busy: false }))
+    }
+  }, [accountEmail, inviteCode])
+  useEffect(() => {
+    if (!accountEmail || !inviteCode) {
+      setCollaborationRequests([])
+      setStudentProfessionalCollaborators([])
+      return undefined
+    }
+    void refreshStudentCollaboration()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') void refreshStudentCollaboration()
+    }
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [accountEmail, inviteCode, refreshStudentCollaboration])
+  useEffect(() => {
+    if (!accountEmail && activeTab === 'equipe') setActiveTab('inicio')
+  }, [accountEmail, activeTab])
+  const respondToStudentCollaboration = useCallback(async (delegationId, decision) => {
+    if (!accountEmail || !inviteCode) return false
+    setCollaborationRequestsState((current) => ({ ...current, busy: true, error: '', notice: '' }))
+    let decisionSaved = false
+    try {
+      const response = await respondRemoteStudentCollaboration(delegationId, decision)
+      decisionSaved = true
+      const nextConsentStatus = response?.consentStatus || ({ accept: 'accepted', decline: 'declined', revoke: 'revoked' })[decision]
+      setCollaborationRequests((current) => current.map((request) => (
+        sameId(request.delegationId, delegationId) ? { ...request, consentStatus: nextConsentStatus } : request
+      )))
+      if (decision === 'revoke' || decision === 'decline') {
+        setStudentProfessionalCollaborators((current) => current.filter((item) => !sameId(item.delegationId, delegationId)))
+      }
+      const requests = await loadRemoteCurrentStudentCollaborationRequests()
+      const [collaboratorsResult, avatarsResult] = await Promise.allSettled([
+        loadRemoteStudentProfessionalCollaborators(inviteCode),
+        loadRemoteStudentCollaboratorAvatars(inviteCode),
+      ])
+      const collaborators = collaboratorsResult.status === 'fulfilled' ? collaboratorsResult.value : []
+      const avatars = avatarsResult.status === 'fulfilled' ? avatarsResult.value : []
+      if (collaboratorsResult.status === 'rejected' || avatarsResult.status === 'rejected') {
+        console.warn('O consentimento foi salvo, mas a identidade do colaborador não atualizou completamente.')
+      }
+      const avatarByDelegation = new Map((avatars ?? []).map((item) => [String(item.delegationId), item]))
+      setCollaborationRequests(Array.isArray(requests) ? requests : [])
+      setStudentProfessionalCollaborators((Array.isArray(collaborators) ? collaborators : []).map((collaborator) => ({
+        ...collaborator,
+        professionalAvatarUrl: avatarByDelegation.get(String(collaborator.delegationId))?.professionalAvatarUrl || '',
+      })))
+      setCollaborationRequestsState((current) => ({
+        ...current,
+        notice: decision === 'accept'
+          ? 'A autorização foi aceita. Somente a área indicada fica compartilhada.'
+          : decision === 'revoke'
+            ? 'O acesso dessa equipe foi revogado. Seus outros vínculos permanecem ativos.'
+            : 'Solicitação recusada. Seus dados continuam privados.',
+      }))
+      return true
+    } catch (error) {
+      setCollaborationRequestsState((current) => decisionSaved
+        ? { ...current, notice: 'Sua resposta foi registrada. A atualização dos dados ainda não foi concluída; toque em Atualizar.' }
+        : { ...current, error: error?.message || 'Não foi possível salvar sua resposta.' })
+      return decisionSaved
+    } finally {
+      setCollaborationRequestsState((current) => ({ ...current, busy: false }))
+    }
+  }, [accountEmail, inviteCode])
   const studentFirstName = getFirstName(student?.name)
   const professionalName = coachSettings?.publicName || coachSettings?.brandName || (professionalType === 'nutritionist' ? 'Sua nutricionista' : 'Seu treinador')
   const professionalPhoto = coachSettings?.profilePhotoUrl || ''
@@ -19914,6 +20387,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     { id: 'progresso', label: 'Progresso', icon: 'chart', tone: 'amber' },
     { id: 'historico', label: 'Histórico', icon: 'dashboard', tone: 'slate' },
     { id: 'conta', label: 'Conta e privacidade', icon: 'settings', tone: 'slate' },
+    { id: 'equipe', label: 'Equipe e permissões', icon: 'users', tone: 'teal' },
   ].filter((item) => !patientMode || item.id !== 'treino')
   const primaryStudentNavItems = [
     ...(patientMode
@@ -19921,12 +20395,14 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       : ['inicio', 'treino', 'dieta', 'agua', 'progresso']),
   ].map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const secondaryStudentNavIds = patientMode
-    ? ['mensagens', 'agenda', 'pagamentos', 'historico', 'conta']
-    : ['mensagens', 'checkin', 'agenda', 'pagamentos', 'historico', 'conta']
+    ? ['mensagens', 'agenda', 'pagamentos', 'historico', 'conta', 'equipe']
+    : ['mensagens', 'checkin', 'agenda', 'pagamentos', 'historico', 'conta', 'equipe']
   const bottomStudentNavIds = patientMode
     ? ['inicio', 'dieta', 'agua', 'progresso']
     : ['inicio', 'treino', 'agua', 'dieta']
-  const secondaryStudentNavItems = secondaryStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
+  const secondaryStudentNavItems = secondaryStudentNavIds
+    .filter((id) => id !== 'equipe' || Boolean(accountEmail))
+    .map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const bottomNavItems = bottomStudentNavIds.map((id) => navItems.find((item) => item.id === id)).filter(Boolean)
   const activeTitle = navItems.find((item) => item.id === activeTab)?.label || 'Início'
   const weekProgress = buildStudentWeekProgress(studentReward.history)
@@ -20299,6 +20775,20 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       )
     }
 
+    if (activeTab === 'equipe' && accountEmail) {
+      return (
+        <StudentProfessionalCollaborationRequests
+          requests={collaborationRequests}
+          busy={collaborationRequestsState.busy}
+          error={collaborationRequestsState.error}
+          notice={collaborationRequestsState.notice}
+          onRefresh={refreshStudentCollaboration}
+          onRespond={respondToStudentCollaboration}
+          uiTheme={theme}
+        />
+      )
+    }
+
     if (activeTab === 'treino') {
       if (workoutPage === 'progress') {
         return (
@@ -20316,6 +20806,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       }
       return (
         <StudentAppSection title="Treino de hoje" action={nextWorkout?.title || student.workout || 'Plano'} hideHeader className="student-workout-app-section">
+          {studentProfessionalCollaborators.filter((collaborator) => collaborator.area === 'workout').map((collaborator) => (
+            <div key={collaborator.delegationId || `${collaborator.professionalId}-workout`} className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-300/20 bg-white/[0.04] p-3">
+              {collaborator.professionalAvatarUrl ? <img src={collaborator.professionalAvatarUrl} alt={`Foto de ${collaborator.professionalName || 'treinador'}`} className="h-11 w-11 rounded-full object-cover" /> : <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-300/15 font-black text-emerald-100">{String(collaborator.professionalName || 'T').split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('pt-BR')}</span>}
+              <span className="min-w-0"><small className="block text-xs font-bold uppercase tracking-[.12em] text-emerald-300">Treinador colaborador</small><strong className="block truncate text-sm">{collaborator.professionalName}</strong><small className="block truncate text-xs text-zinc-400">{collaborator.teamName || 'Equipe profissional'}</small></span>
+            </div>
+          ))}
           {studentWorkouts.length > 1 ? (
             <label className="student-workout-selector">
               <span>Treino disponível</span>
@@ -20393,6 +20889,12 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
     if (activeTab === 'dieta') {
       return (
         <StudentAppSection className="student-diet-app-section" hideHeader title="Minha dieta" action={studentNutritionPlans.length > 1 ? `${studentNutritionPlans.length} planos` : 'Plano atual'}>
+          {studentProfessionalCollaborators.filter((collaborator) => collaborator.area === 'nutrition').map((collaborator) => (
+            <div key={collaborator.delegationId || `${collaborator.professionalId}-nutrition`} className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-300/20 bg-white/[0.04] p-3">
+              {collaborator.professionalAvatarUrl ? <img src={collaborator.professionalAvatarUrl} alt={`Foto de ${collaborator.professionalName || 'nutricionista'}`} className="h-11 w-11 rounded-full object-cover" /> : <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-300/15 font-black text-emerald-100">{String(collaborator.professionalName || 'N').split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase('pt-BR')}</span>}
+              <span className="min-w-0"><small className="block text-xs font-bold uppercase tracking-[.12em] text-emerald-300">Nutricionista responsável</small><strong className="block truncate text-sm">{collaborator.professionalName}</strong><small className="block truncate text-xs text-zinc-400">{collaborator.teamName || 'Equipe profissional'}</small></span>
+            </div>
+          ))}
           {questionnaireError ? <p role="alert" className="mb-4 rounded-md border border-amber-400/40 p-3 text-sm">{questionnaireError}</p> : null}
           <StudentQuestionnaireCenter
             student={student}
@@ -22150,7 +22652,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     setNativePurchasePending(true)
     setPaymentMessage('Abrindo pagamento seguro da App Store...')
     try {
-      const result = await purchaseIosPlan(selectedCheckoutPlanId)
+      const result = await purchaseIosPlan(selectedCheckoutPlanId, accountId, nativeProductsByPlan[selectedCheckoutPlanId])
       if (result.cancelled) {
         setPaymentMessage('Compra cancelada. Nenhuma cobrança foi realizada.')
       } else if (result.pending) {
@@ -22172,7 +22674,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     setNativePurchasePending(true)
     setPaymentMessage('Restaurando compras da App Store...')
     try {
-      const result = await restoreIosPurchases()
+      const result = await restoreIosPurchases(accountId)
       onNativeEntitlementChange?.(Boolean(result.active))
       setPaymentMessage(result.active
         ? 'Compra restaurada. Seu acesso está liberado.'

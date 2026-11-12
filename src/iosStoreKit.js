@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 import { normalizeIosStorefrontCountryCode } from './iosProductPresentation'
 import { isVerifiedIosSubscriptionPurchase } from './iosPurchaseVerification'
 import { getIosPurchaseTermsExpectation } from './iosIntroOffer'
+import { syncRemoteAppleSubscriptionEntitlement } from './supabaseApi'
 
 export const IOS_PRODUCT_IDS = Object.freeze({
   mensal: 'br.com.coachfitpro.ios.profissional.mensal',
@@ -14,6 +15,7 @@ const planByProductId = Object.fromEntries(
 )
 
 const CoachFitStoreKit = registerPlugin('CoachFitStoreKit')
+const appleEntitlementSyncsInFlight = new Map()
 
 export function isNativeIosApp() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
@@ -51,8 +53,32 @@ export async function getIosEntitlements(accountId) {
   const id = requireCoachAccountId(accountId)
   const result = await CoachFitStoreKit.getEntitlements({ productIds: Object.values(IOS_PRODUCT_IDS), accountId: id })
   const entitlements = result.entitlements ?? []
+  const activeEntitlements = entitlements.filter((item) => (
+    item.active
+    && String(item.accountId || '').toLowerCase() === id
+    && planByProductId[item.productId]
+  ))
+  const originalTransactionIds = [...new Set(activeEntitlements
+    .map((item) => String(item.originalId || item.originalTransactionId || '').trim())
+    .filter((transactionId) => /^[0-9]{1,32}$/.test(transactionId)))]
+
+  for (const originalTransactionId of originalTransactionIds) {
+    const syncKey = `${id}:${originalTransactionId}`
+    let pendingSync = appleEntitlementSyncsInFlight.get(syncKey)
+    if (!pendingSync) {
+      pendingSync = syncRemoteAppleSubscriptionEntitlement(originalTransactionId)
+        .finally(() => appleEntitlementSyncsInFlight.delete(syncKey))
+      appleEntitlementSyncsInFlight.set(syncKey, pendingSync)
+    }
+    try {
+      await pendingSync
+    } catch (error) {
+      console.warn('A verificação local da App Store foi mantida; a sincronização server-side será repetida.', error?.message)
+    }
+  }
+
   return {
-    active: entitlements.some((item) => item.active && String(item.accountId || '').toLowerCase() === id && planByProductId[item.productId]),
+    active: activeEntitlements.length > 0,
     entitlements,
   }
 }
@@ -74,6 +100,14 @@ export async function purchaseIosPlan(planId, accountId, displayedProduct) {
   const purchase = nativePurchase
   if (purchase.cancelled || purchase.pending) return purchase
   const verifiedPurchase = isVerifiedIosSubscriptionPurchase(purchase, id, productId)
+  const originalTransactionId = String(purchase.transaction?.originalId || purchase.transaction?.originalTransactionId || '').trim()
+  if (verifiedPurchase && /^[0-9]{1,32}$/.test(originalTransactionId)) {
+    try {
+      await syncRemoteAppleSubscriptionEntitlement(originalTransactionId)
+    } catch (error) {
+      console.warn('A compra foi verificada no dispositivo; a validação server-side será repetida.', error?.message)
+    }
+  }
 
   // Current entitlements may lag behind a just-verified StoreKit purchase,
   // particularly on TestFlight. Never lose an already verified transaction

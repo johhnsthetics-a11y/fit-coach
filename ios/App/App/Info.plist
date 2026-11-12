@@ -26,9 +26,11 @@
 		<true/>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>O Coach Fit Pro usa o microfone para gravar áudios enviados na conversa com seu treinador ou aluno.</string>
-	<key>UIApplicationSceneManifest</key>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>O Coach Fit Pro usa o microfone para gravar áudios enviados na conversa com seu treinador ou aluno.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>O Coach Fit Pro usa a câmera quando você escolhe tirar uma foto de perfil, refeição ou check-in no aplicativo.</string>
+		<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
     <false/>

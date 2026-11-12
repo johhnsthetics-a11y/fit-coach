@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.workout-completion-push]
 verify_jwt = false
+
+[functions.apple-subscription-sync]
+verify_jwt = true

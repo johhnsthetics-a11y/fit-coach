@@ -31,7 +31,9 @@
     "test:chat-safety": "node --test scripts/chat-safety-contract.test.mjs && node scripts/chat-safety-database.test.mjs",
     "test:student-wellness": "node --test scripts/student-workout-rating.test.mjs scripts/student-meal-photo.test.mjs && node scripts/student-wellness-database.test.mjs && node --test scripts/nutrition-patient-preview.test.mjs",
     "test:chat-push": "node --test scripts/chat-push-notifications.test.mjs",
-    "test:workout-notifications": "node --test scripts/workout-completion-notifications.test.mjs"
+    "test:workout-notifications": "node --test scripts/workout-completion-notifications.test.mjs",
+    "test:professional-collaboration": "node --test scripts/professional-team-build41.test.mjs && node scripts/product-database.test.mjs",
+    "test:ios-privacy": "node --test scripts/ios-privacy-regression.test.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.5.3",
