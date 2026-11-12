@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { filterProfessionalTeamInvites } from './professionalTeamInvites.js'
+import { filterProfessionalTeamCandidates } from './professionalTeamCandidateSearch.js'
 import './professional-team-build41.css'
 
 const asList = (value) => (Array.isArray(value) ? value : [])
@@ -186,6 +187,10 @@ function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, o
   const [email, setEmail] = useState('')
   const [professionalRole, setProfessionalRole] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
+  const [candidateSearch, setCandidateSearch] = useState('')
+  const visibleCandidates = filterProfessionalTeamCandidates(candidates, candidateSearch)
+  const visibleIds = visibleCandidates.map((candidate) => asText(candidateId(candidate))).filter(Boolean)
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedStudentIds.includes(id))
   const team = teams.find((item) => sameId(teamIdOf(item), dialog.teamId))
   const isCreate = dialog.kind === 'create'
   const titleId = isCreate ? 'ptw-create-title' : 'ptw-invite-title'
@@ -203,6 +208,12 @@ function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, o
       onInviteMember(teamIdOf(team), cleanEmail, professionalRole, selectedStudentIds)
     }
     onClose()
+  }
+
+  function toggleVisibleCandidates(checked) {
+    setSelectedStudentIds((current) => checked
+      ? [...new Set([...current, ...visibleIds])]
+      : current.filter((id) => !visibleIds.includes(id)))
   }
 
   return (
@@ -238,12 +249,18 @@ function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, o
             {professionalRole ? (
               <fieldset className="ptw-candidate-fieldset" disabled={busy}>
                 <legend>{professionalRole === 'trainer' ? 'Acesso a Treinos' : 'Acesso a Nutrição'} · selecione os pacientes</legend>
-                {candidates.length ? <ul className="ptw-candidate-list">{candidates.map((candidate, index) => {
+                {candidates.length ? <>
+                  <label className="ptw-candidate-search"><span>Pesquisar pacientes/alunos</span><input type="search" value={candidateSearch} onChange={(event) => setCandidateSearch(event.target.value)} placeholder="Nome, CPF ou e-mail" autoComplete="off" /></label>
+                  <label className="ptw-select-all"><input type="checkbox" checked={allVisibleSelected} onChange={(event) => toggleVisibleCandidates(event.target.checked)} disabled={!visibleIds.length} /><span>Selecionar todos os resultados ({visibleIds.length})</span></label>
+                  <p className="ptw-selection-count" aria-live="polite">{selectedStudentIds.length} selecionado(s)</p>
+                  {visibleCandidates.length ? <ul className="ptw-candidate-list">{visibleCandidates.map((candidate, index) => {
                   const id = asText(candidateId(candidate))
                   if (!id) return null
                   const name = personName(candidate) || 'Paciente sem nome informado'
-                  return <li key={id || `invite-candidate-${index}`}><label><input type="checkbox" value={id} checked={selectedStudentIds.includes(id)} onChange={() => setSelectedStudentIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} /><span>{name}</span></label></li>
-                })}</ul> : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum paciente disponível</strong><span>Cadastre pacientes antes de enviar um convite com acesso.</span></div>}
+                  const details = [candidate.email, candidate.cpf].filter(Boolean).join(' · ')
+                  return <li key={id || `invite-candidate-${index}`}><label><input type="checkbox" value={id} checked={selectedStudentIds.includes(id)} onChange={() => setSelectedStudentIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])} /><span className="ptw-candidate-copy"><strong>{name}</strong>{details ? <small>{details}</small> : null}</span></label></li>
+                })}</ul> : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum resultado encontrado</strong><span>Tente outro nome, CPF ou e-mail.</span></div>}
+                </> : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum paciente disponível</strong><span>Cadastre pacientes antes de enviar um convite com acesso.</span></div>}
                 <p className="ptw-inline-note"><Icon name="info" /> O profissional só verá os {selectedStudentIds.length} pacientes selecionados nesta área. Quando aceitar, o acesso será liberado automaticamente. A assinatura e a carteira própria dele continuam independentes. Para quem ainda não tem conta, o e-mail explicará como criar uma usando este mesmo endereço e o perfil escolhido.</p>
               </fieldset>
             ) : <p className="ptw-inline-note"><Icon name="info" /> Primeiro escolha o perfil. Assim você poderá selecionar exatamente a área e os pacientes que o profissional verá.</p>}
@@ -317,6 +334,7 @@ export default function ProfessionalTeamWorkspace({
   const [confirmation, setConfirmation] = useState(null)
   const [delegationMemberId, setDelegationMemberId] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
+  const [candidateSearch, setCandidateSearch] = useState('')
 
   useEffect(() => {
     if (!teams.some((team) => sameId(teamIdOf(team), selectedTeamId))) setSelectedTeamId(asText(teamIdOf(teams[0])))
@@ -330,7 +348,7 @@ export default function ProfessionalTeamWorkspace({
   const userEmail = asText(valueOf(currentUser, 'email'))
   const userName = personName(currentUser) || 'Sua conta profissional'
   const pendingInvites = invites.filter((invite) => statusOf(invite) === 'pending')
-  const receivedInvites = filterProfessionalTeamInvites(pendingInvites, userEmail, valueOf(currentUser, 'professionalRole', 'professional_role', 'professionalType', 'professional_type', 'role'))
+  const receivedInvites = filterProfessionalTeamInvites(pendingInvites, userEmail)
   const selectedOutgoingInvites = selectedTeam
     ? pendingInvites.filter((invite) => sameId(teamIdOfInvite(invite), selectedTeamIdValue) && inviteDirection(invite, teams, currentUser) === 'outgoing')
     : []
@@ -346,6 +364,8 @@ export default function ProfessionalTeamWorkspace({
   const initialSelectedIdsRef = useRef([])
   const candidateIndex = new Map(candidates.map((candidate) => [asText(candidateId(candidate)), candidate]))
   const storedIdValues = new Map(matchingDelegations.flatMap(delegationStudentIds).map((id) => [asText(id), id]))
+  const visibleCandidates = filterProfessionalTeamCandidates(candidates, candidateSearch)
+  const visibleCandidateIds = visibleCandidates.map((candidate) => asText(candidateId(candidate))).filter(Boolean)
 
   function startDelegation(member) {
     const area = areaForRole(memberProfessionalRole(member))
@@ -357,11 +377,13 @@ export default function ProfessionalTeamWorkspace({
     const ids = [...new Set(existing.flatMap(delegationStudentIds).map(asText).filter(Boolean))]
     initialSelectedIdsRef.current = ids
     setSelectedStudentIds(ids)
+    setCandidateSearch('')
   }
 
   function closeDelegationEditor() {
     setDelegationMemberId('')
     setSelectedStudentIds([])
+    setCandidateSearch('')
     initialSelectedIdsRef.current = []
   }
 
@@ -371,7 +393,7 @@ export default function ProfessionalTeamWorkspace({
   }
 
   function toggleAllCandidates(checked) {
-    const eligibleIds = candidates.map(candidateId).map(asText).filter(Boolean)
+    const eligibleIds = visibleCandidateIds
     setSelectedStudentIds((current) => {
       const fixed = current.filter((id) => !candidateIndex.has(id))
       return checked ? [...new Set([...fixed, ...eligibleIds])] : fixed
@@ -468,7 +490,7 @@ export default function ProfessionalTeamWorkspace({
   }
 
   const selectedTeamName = asText(valueOf(selectedTeam, 'name', 'title')) || 'Equipe sem nome informado'
-  const selectionAll = candidates.length > 0 && candidates.every((candidate) => selectedStudentIds.includes(asText(candidateId(candidate))))
+  const selectionAll = visibleCandidateIds.length > 0 && visibleCandidateIds.every((id) => selectedStudentIds.includes(id))
   const selectedNotice = messageText(notice)
   const selectedError = messageText(error)
 
@@ -594,15 +616,20 @@ export default function ProfessionalTeamWorkspace({
                     {candidates.length ? (
                       <fieldset className="ptw-candidate-fieldset" disabled={isBusy}>
                         <legend>Pacientes atuais elegíveis</legend>
-                        <label className="ptw-select-all"><input type="checkbox" checked={selectionAll} onChange={(event) => toggleAllCandidates(event.target.checked)} /><span>Selecionar todos os pacientes elegíveis</span></label>
+                        <label className="ptw-candidate-search"><span>Pesquisar pacientes/alunos</span><input type="search" value={candidateSearch} onChange={(event) => setCandidateSearch(event.target.value)} placeholder="Nome, CPF ou e-mail" autoComplete="off" /></label>
+                        <label className="ptw-select-all"><input type="checkbox" checked={selectionAll} onChange={(event) => toggleAllCandidates(event.target.checked)} disabled={!visibleCandidateIds.length} /><span>Selecionar todos os resultados ({visibleCandidateIds.length})</span></label>
+                        <p className="ptw-selection-count" aria-live="polite">{selectedStudentIds.length} selecionado(s)</p>
+                        {visibleCandidates.length ? (
                         <ul className="ptw-candidate-list">
-                          {candidates.map((candidate, index) => {
+                          {visibleCandidates.map((candidate, index) => {
                             const id = candidateId(candidate)
                             const key = asText(id)
                             const name = personName(candidate) || 'Paciente sem nome informado'
-                            return <li key={key || `candidate-${index}`}><label><input type="checkbox" value={key} checked={Boolean(key && selectedStudentIds.includes(key))} disabled={!key} onChange={() => toggleStudent(id)} /><span>{name}</span></label></li>
+                            const details = [candidate.email, candidate.cpf].filter(Boolean).join(' · ')
+                            return <li key={key || `candidate-${index}`}><label><input type="checkbox" value={key} checked={Boolean(key && selectedStudentIds.includes(key))} disabled={!key} onChange={() => toggleStudent(id)} /><span className="ptw-candidate-copy"><strong>{name}</strong>{details ? <small>{details}</small> : null}</span></label></li>
                           })}
                         </ul>
+                        ) : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum resultado encontrado</strong><span>Tente outro nome, CPF ou e-mail.</span></div>}
                       </fieldset>
                     ) : <div className="ptw-empty ptw-empty-compact"><strong>Nenhum paciente elegível disponível</strong><span>A concessão pode incluir somente pacientes atuais fornecidos como elegíveis.</span></div>}
                     {matchingDelegations.length ? (

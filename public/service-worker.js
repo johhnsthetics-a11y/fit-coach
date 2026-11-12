@@ -1,4 +1,4 @@
-const CACHE_NAME = 'coach-fit-pro-scoped-team-invites-build42-20261112'
+const CACHE_NAME = 'coach-fit-pro-team-candidate-search-20261112'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/fit-coach-icon.svg']
 // Older Coach Fit Pro cache names predating the coach-fit-pro- prefix.
 const LEGACY_APP_CACHES = new Set(['fit-coach-app-v2'])
