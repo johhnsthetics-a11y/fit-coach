@@ -1,6 +1,20 @@
 // Only signed Apple purchases or current-entitlement proofs acknowledged by
 // the native StoreKit bridge can unlock the professional iOS panel. Displayed
 // offer prices and a clicked button are never evidence of a purchase.
+export function canStartNativeSubscriptionPurchase(state = {}) {
+  return Boolean(
+    state.accountValid === true
+    && state.entitlementStatus === 'ready'
+    && state.purchaseAvailable === true
+    && state.productAvailable === true
+    && state.hasAccess !== true
+    && state.loadingProducts !== true
+    && state.processing !== true
+    && state.pendingPlan !== true
+    && state.operationInFlight !== true
+  )
+}
+
 export function isVerifiedIosSubscriptionPurchase(purchase, accountId, productId, now = Date.now()) {
   const transaction = purchase?.transaction
   const expiresAt = Date.parse(transaction?.expirationDate || '')

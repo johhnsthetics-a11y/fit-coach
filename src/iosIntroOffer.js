@@ -30,7 +30,9 @@ export function getIosIntroOffer(product, options = {}) {
   const totalPeriod = Number.isSafeInteger(count) && count > 0 ? describeApplePeriod(value * count, unit) : ''
   const complete = Boolean(price && period && totalPeriod && modes.has(paymentMode))
   const eligibilityNotice = eligibility === 'eligible' ? ''
-    : 'A oferta introdutória depende da elegibilidade da Apple ID; a App Store confirma o preço aplicável antes da compra.'
+    : eligibility === 'ineligible'
+      ? 'Esta Apple ID não é elegível ao preço introdutório. A App Store mostrará o preço mensal aplicável antes da compra.'
+      : 'A App Store ainda não confirmou a elegibilidade. O preço introdutório só será exibido depois dessa confirmação.'
   let terms = ''
   if (complete) {
     terms = paymentMode === 'freeTrial' ? `Teste gratuito por ${totalPeriod}`
@@ -40,7 +42,7 @@ export function getIosIntroOffer(product, options = {}) {
   }
   return { status, eligibility, available, complete, price, paymentMode, period, totalPeriod,
     amount: text(product?.introductoryPriceAmount), periodValue: value, periodUnit: unit, periodCount: count, terms,
-    eligibilityNotice, showIntro: available && complete }
+    eligibilityNotice, showIntro: available && complete && eligibility === 'eligible' }
 }
 
 // Snapshot of the exact structured Apple quote presented in the UI. The native

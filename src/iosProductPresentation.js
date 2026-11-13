@@ -56,12 +56,20 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
     const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount
       && (!brazilPricingExpected || (currencyCode === 'BRL' && !introductoryPriceMismatch)))
     const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
+    const offerNeedsConfirmation = monthlyPlan && offer.available
+      && (offer.eligibility === 'unknown'
+        || (offer.eligibility === 'eligible' && brazilPricingExpected && currencyCode === 'BRL' && !showIntro))
     const standardPrice = !product || !rawDisplayPrice ? 'Preço indisponível' : brazilPricingExpected
       ? IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId].recurringPrice
       : priceConfirmed ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice || 'Preço indisponível'
     const displayPrice = showIntro ? offer.price : standardPrice
-    const purchaseBlockReason = product && rawDisplayPrice ? ''
-      : 'Este ciclo não foi carregado pela App Store. Atualize os planos antes de assinar.'
+    const purchaseBlockReason = !(product && rawDisplayPrice)
+      ? 'Este ciclo não foi carregado pela App Store. Atualize os planos antes de assinar.'
+      : offerNeedsConfirmation
+        ? offer.eligibility === 'unknown'
+          ? 'A App Store ainda não confirmou a elegibilidade da oferta. Atualize os planos antes de assinar.'
+          : 'Os termos da oferta Apple não correspondem ao preço informado. Atualize os planos antes de assinar.'
+        : ''
     const priceDescription = monthlyPlan
       ? (showIntro ? offer.terms : detail.cycleLabel)
       : detail.cycleLabel
@@ -76,7 +84,7 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
       renewalText: showIntro ? `Depois, ${standardPrice}/mês` : '',
       introductoryDisplayPrice: showIntro ? offer.price : null,
       introductoryTerms: showIntro ? offer.terms : '',
-      introEligibilityNotice: showIntro ? offer.eligibilityNotice : '',
+      introEligibilityNotice: monthlyPlan && offer.available && !showIntro ? offer.eligibilityNotice : '',
       introductoryPeriod: showIntro ? offer.totalPeriod : '',
       introAppliedToDisplay: showIntro,
     }

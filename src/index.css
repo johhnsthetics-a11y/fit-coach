@@ -23189,3 +23189,167 @@ html[data-theme="dark"] body { background: #05070d; }
 @media (prefers-reduced-motion: reduce) {
   .student-diet-week-strip-v1 > button { transition: none !important; }
 }
+
+
+/* build47-light-mobile-menu-parity */
+@media (max-width: 1023px) {
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel {
+    --student-sidebar-bg: #0d1b24;
+    --student-sidebar-surface: #162a35;
+    --student-sidebar-hover: #1c3440;
+    --student-sidebar-active: #10483f;
+    --student-sidebar-border: rgba(154, 176, 189, 0.22);
+    --student-sidebar-text: #e6f1f5;
+    --student-sidebar-muted: #9ab0bd;
+    --student-sidebar-accent: #2dd4bf;
+    color-scheme: dark;
+    border-color: var(--student-sidebar-border) !important;
+    background: var(--student-sidebar-bg) !important;
+    color: var(--student-sidebar-text) !important;
+    box-shadow: 0 18px 44px rgba(2, 15, 20, 0.2) !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel > div:nth-of-type(2) {
+    border-color: rgba(45, 212, 191, 0.22) !important;
+    background: rgba(45, 212, 191, 0.1) !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel > div:nth-of-type(3) {
+    border-color: var(--student-sidebar-border) !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-zinc-100,
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-zinc-200 {
+    color: var(--student-sidebar-text) !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-zinc-300 {
+    color: #d0dde2 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-zinc-400,
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-zinc-500 {
+    color: var(--student-sidebar-muted) !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-emerald-200 {
+    color: #a7fff2 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .text-blue-200 {
+    color: #bfdbfe !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel [class*="bg-blue-400"] {
+    border-color: rgba(96, 165, 250, 0.2) !important;
+    background: rgba(59, 130, 246, 0.1) !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel button[aria-label="Fechar menu"],
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel button.flex-1 {
+    border-color: var(--student-sidebar-border) !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+    color: var(--student-sidebar-text) !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-mobile-menu-panel .student-theme-toggle {
+    border-color: var(--student-sidebar-border) !important;
+    background: var(--student-sidebar-surface) !important;
+    color: var(--student-sidebar-text) !important;
+  }
+}
+
+
+/* build47-mobile-navigation-dark-parity */
+@media (max-width: 1023px) {
+  .student-mobile-shell.app-theme-light .student-bottom-nav {
+    color-scheme: dark;
+    border-color: rgba(0, 210, 178, 0.2) !important;
+    background: rgba(4, 12, 10, 0.94) !important;
+    color: #d1d5db !important;
+    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-bottom-nav .student-mobile-nav-button {
+    border-color: transparent !important;
+    background: transparent !important;
+    color: rgb(var(--nav-tone, 0 210 178) / 0.78) !important;
+    box-shadow: none !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-bottom-nav .student-mobile-nav-button svg {
+    color: rgb(var(--nav-tone, 0 210 178)) !important;
+  }
+
+  .student-mobile-shell.app-theme-light .student-bottom-nav .student-mobile-nav-button.is-active {
+    border-color: rgb(var(--nav-tone, 0 210 178) / 0.4) !important;
+    background: rgb(var(--nav-tone, 0 210 178) / 0.14) !important;
+    color: rgb(var(--nav-tone, 0 210 178)) !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel {
+    color-scheme: dark;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(9, 9, 11, 0.95) !important;
+    color: #cbd8d5 !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel .coach-nav-item {
+    border-color: rgba(255, 255, 255, 0.09) !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+    color: #cbd8d5 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel .coach-nav-item:hover:not(:disabled) {
+    border-color: rgb(var(--nav-tone, 0 210 178) / 0.34) !important;
+    background: rgb(var(--nav-tone, 0 210 178) / 0.085) !important;
+    color: #f3fffc !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel .coach-nav-item:is(.is-active, [aria-current="page"]) {
+    border-color: rgb(var(--nav-tone, 0 210 178) / 0.5) !important;
+    background: rgb(var(--nav-tone, 0 210 178) / 0.13) !important;
+    color: #f7fffd !important;
+    box-shadow: inset 0 1px 0 rgb(var(--nav-tone, 0 210 178) / 0.09), 0 9px 24px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel .coach-nav-item .coach-menu-icon-shell {
+    border-color: rgb(var(--nav-tone, 0 210 178) / 0.28) !important;
+    background: rgb(var(--nav-tone, 0 210 178) / 0.1) !important;
+    color: rgb(var(--nav-tone, 0 210 178)) !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel .coach-nav-item:disabled {
+    border-color: rgba(255, 255, 255, 0.045) !important;
+    background: rgba(255, 255, 255, 0.018) !important;
+    color: #75817d !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel :is(.text-zinc-100, .text-zinc-200, .text-zinc-300) {
+    color: #cbd8d5 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel .text-zinc-500 {
+    color: #8b9793 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel button[aria-label="Fechar menu"],
+  .coach-auth-shell.app-theme-light .coach-mobile-menu-panel > button:not(.coach-nav-item) {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+    color: #cbd8d5 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+}

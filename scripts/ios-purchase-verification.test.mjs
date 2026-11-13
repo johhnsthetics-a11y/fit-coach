@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import fs from 'node:fs'
-import { isVerifiedIosSubscriptionPurchase } from '../src/iosPurchaseVerification.js'
+import { canStartNativeSubscriptionPurchase, isVerifiedIosSubscriptionPurchase } from '../src/iosPurchaseVerification.js'
 
 const id = 'ba7b4377-b2b4-4b4e-9182-67137a2bbcc0'
 const productId = 'br.com.coachfitpro.ios.profissional.mensal'
@@ -45,6 +45,19 @@ test('Expired or non-expiring proof cannot unlock professional tools', () => {
   }
 })
 
+test('Native purchase waits for a successful Apple entitlement check before enabling the CTA', () => {
+  const ready = {
+    accountValid: true, entitlementStatus: 'ready', purchaseAvailable: true, productAvailable: true,
+    hasAccess: false, loadingProducts: false, processing: false, pendingPlan: false, operationInFlight: false,
+  }
+  assert.equal(canStartNativeSubscriptionPurchase(ready), true)
+  assert.equal(canStartNativeSubscriptionPurchase({ ...ready, entitlementStatus: 'loading' }), false)
+  assert.equal(canStartNativeSubscriptionPurchase({ ...ready, entitlementStatus: 'error' }), false)
+  assert.equal(canStartNativeSubscriptionPurchase({ ...ready, hasAccess: true }), false)
+  assert.equal(canStartNativeSubscriptionPurchase({ ...ready, loadingProducts: true }), false)
+  assert.equal(canStartNativeSubscriptionPurchase({ ...ready, pendingPlan: true }), false)
+})
+
 test('Panel sends the selected available StoreKit product to native purchase and blocks missing products', () => {
   const panel = fs.readFileSync(new URL('../src/NativeIosSubscriptionPanel.jsx', import.meta.url), 'utf8')
   const clickStart = panel.indexOf('async function purchase(plan)')
@@ -53,7 +66,10 @@ test('Panel sends the selected available StoreKit product to native purchase and
   const click = panel.slice(clickStart, restoreStart)
   assert.match(click, /await purchaseIosPlan\(plan\.planId, accountId, currentDisplayedProduct\)/)
   assert.doesNotMatch(click, /await loadIosProducts\(\)/)
-  assert.match(panel, /const canPurchase = accountValid && Boolean\(selectedPlan\?\.purchaseAvailable\)/)
+  assert.match(panel, /const canPurchase = canStartNativeSubscriptionPurchase\(/)
+  assert.match(panel, /entitlementStatus: accountSnapshot\.status/)
+  assert.match(panel, /setMessage\(result\.alreadyActive/)
+  assert.match(panel, /Verificando assinatura…/)
   assert.match(panel, /disabled=\{Boolean\(processing\) \|\| Boolean\(pendingPlanId\) \|\| !plan\.purchaseAvailable\}/)
   assert.match(panel, /Este ciclo não foi carregado pela App Store/)
   assert.match(panel, /selectedPlan\.purchaseBlockReason/)

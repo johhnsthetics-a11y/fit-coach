@@ -3,6 +3,7 @@ import { IOS_PRODUCT_IDS, getIosEntitlements, loadIosProducts, purchaseIosPlan, 
 import { buildIosSubscriptionCards, resolveIosPricingLocale } from './iosProductPresentation'
 import { formatSubscriptionDate, getVerifiedIosSubscription, getWebSubscriptionSummary, SUBSCRIPTION_CYCLES } from './subscriptionPresentation'
 import './nativeIosSubscription.css'
+import { canStartNativeSubscriptionPurchase } from './iosPurchaseVerification'
 
 function readPendingPlan(accountId) {
   if (!accountId) return ''
@@ -122,8 +123,17 @@ export default function NativeIosSubscriptionPanel({
   const hasAccess = nativeConfirmed || externalSummary.active
   const checking = accountSnapshot.status === 'loading'
   const displayedProduct = products.find(product => product.planId === selectedPlan?.planId)
-  const canPurchase = accountValid && Boolean(selectedPlan?.purchaseAvailable) && Boolean(displayedProduct)
-    && !hasAccess && !loading && !processing && !pendingPlanId && !operationRef.current
+  const canPurchase = canStartNativeSubscriptionPurchase({
+    accountValid,
+    entitlementStatus: accountSnapshot.status,
+    purchaseAvailable: Boolean(selectedPlan?.purchaseAvailable),
+    productAvailable: Boolean(displayedProduct),
+    hasAccess,
+    loadingProducts: loading,
+    processing: Boolean(processing),
+    pendingPlan: Boolean(pendingPlanId),
+    operationInFlight: operationRef.current,
+  })
 
 
   async function purchase(plan) {
@@ -160,7 +170,9 @@ export default function NativeIosSubscriptionPanel({
         setClock(Date.now())
         rememberPendingPlan('')
         onNativeEntitlementChange?.(true)
-        setMessage('Assinatura confirmada pela Apple. Seu painel profissional foi liberado.')
+        setMessage(result.alreadyActive
+          ? 'A assinatura Apple já estava ativa para esta conta. O acesso foi sincronizado sem iniciar uma nova cobrança.'
+          : 'Assinatura confirmada pela Apple. Seu painel profissional foi liberado.')
       } else {
         setMessage('Não foi possível confirmar a assinatura desta conta. Não compre novamente; use Restaurar compras ou contate o suporte.')
       }
@@ -309,7 +321,7 @@ export default function NativeIosSubscriptionPanel({
             <button type="button" className="native-ios-purchase-button" onClick={() => purchase(selectedPlan)}
               disabled={!canPurchase}
               aria-label={`Assinar plano ${selectedPlan?.title} pela App Store`}>
-              {processing && processing !== 'restore' ? 'Conectando à App Store…' : !selectedPlan?.available ? 'Plano indisponível agora' : !selectedPlan?.purchaseAvailable ? 'Preço não confirmado' : priceReviewPlanId === selectedPlan?.planId ? 'Rever preço e continuar' : `Assinar ${selectedPlan?.title || 'plano'}`}
+              {checking ? 'Verificando assinatura…' : accountSnapshot.status === 'error' ? 'Atualize o status para continuar' : processing && processing !== 'restore' ? 'Conectando à App Store…' : !selectedPlan?.available ? 'Plano indisponível agora' : !selectedPlan?.purchaseAvailable ? 'Preço não confirmado' : priceReviewPlanId === selectedPlan?.planId ? 'Rever preço e continuar' : `Assinar ${selectedPlan?.title || 'plano'}`}
             </button>
           </div>
         </section>
