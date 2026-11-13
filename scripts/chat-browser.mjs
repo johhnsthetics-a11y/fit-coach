@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createServer, transformWithEsbuild } from 'vite'
+import { getChatDraftKey } from '../src/chat/chatDraft.js'
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
 const output = resolve('__qa-output/readiness-chat')
@@ -120,11 +121,16 @@ try {
         await composer.locator('button[type="submit"]').click()
         await page.getByText(body, { exact: true }).last().waitFor()
       }
-      await draft.fill('Rascunho preservado após recarregar')
+      const savedDraft = 'Rascunho preservado após recarregar'
+      const savedDraftKey = getChatDraftKey({ role: 'coach', studentId: 'student-b' })
+      await draft.fill(savedDraft)
+      await page.waitForFunction(([key, value]) => localStorage.getItem(key) === value, [savedDraftKey, savedDraft])
       await page.reload()
+      const storedDraftAfterReload = await page.evaluate((key) => localStorage.getItem(key), savedDraftKey)
       await page.locator('[data-conversation-id="student-b"]').click()
       await page.getByText('Mensagem QA de texto', { exact: true }).last().waitFor()
-      assert.equal(await draft.inputValue(), 'Rascunho preservado após recarregar')
+      await page.waitForFunction(([selector, value]) => document.querySelector(selector)?.value === value, ['[data-chat-role="coach"] .chat-compose textarea', savedDraft], { timeout: 5000 }).catch(() => undefined)
+      assert.equal(await draft.inputValue(), savedDraft, `Draft ${savedDraftKey}; localStorage após reload=${JSON.stringify(storedDraftAfterReload)}`)
       await draft.fill('')
       await composer.locator('input[type="file"]').setInputFiles({ name: 'pixel.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6lGQAAAAASUVORK5CYII=', 'base64') })
       await composer.getByAltText('Prévia da imagem selecionada').waitFor()

@@ -17,6 +17,7 @@ import { filterStudents } from './studentDirectory'
 import { findStudentImportDuplicate } from './studentImport'
 import { getCheckinScheduleStatus, normalizeCheckinScheduleDate, shouldNotifyCheckinSchedule } from './checkinSchedule'
 import { loadStudentPortalWithRetry, requireStudentBootstrapForSession } from './studentFirstPassword'
+import { findWorkoutDayIndexForDate } from './workoutDaySelection'
 import {
   QUESTIONNAIRE_TYPES,
   buildAnamnesisCustomAnswers,
@@ -66,6 +67,7 @@ import {
   loadRemoteProfessionalDelegatedWorkspace,
   loadRemoteProfessionalTeamCandidates,
   loadRemoteProfessionalTeamWorkspace,
+  loadRemoteProfessionalTeamInviteSignupContext,
   loadRemoteCurrentProfessionalAffiliate,
   loadRemoteCurrentStudentAccess,
   loadRemoteLeadEvents,
@@ -226,7 +228,7 @@ const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediá
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
 const EMPTY_PROFESSIONAL_COLLABORATORS = Object.freeze([])
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-team-workspace-build43-20261112'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build45-20261112'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -806,6 +808,24 @@ const exerciseLibrary = [
   { name: 'Tríceps corda na polia', group: 'Tríceps', primaryMuscle: 'triceps', equipment: 'Polia com corda', cues: 'Mantenha os cotovelos junto ao tronco e afaste as pontas da corda ao estender os braços.', aliases: ['tríceps com corda', 'pushdown com corda'] },
   { name: 'Prancha lateral', group: 'Core', primaryMuscle: 'obliquos', equipment: 'Peso corporal', cues: 'Alinhe ombro, quadril e tornozelos e mantenha o quadril elevado sem girar o tronco.', aliases: ['side plank'] },
   { name: 'Abdominal infra', group: 'Core', primaryMuscle: 'abdomen', equipment: 'Peso corporal', cues: 'Mantenha a lombar apoiada e eleve a pelve com controle, sem embalar as pernas.', aliases: ['elevação de pernas deitado'] },
+  { name: 'Supino declinado com halteres', group: 'Peitoral', primaryMuscle: 'peitoral', secondaryMuscles: ['deltoide-anterior', 'triceps'], equipment: 'Halteres e banco declinado', movementType: 'Empurrar horizontal', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['supino declinado com halter'] },
+  { name: 'Mergulho nas paralelas', group: 'Peitoral e tríceps', primaryMuscle: 'triceps', secondaryMuscles: ['peitoral', 'deltoide-anterior'], equipment: 'Barras paralelas', movementType: 'Empurrar vertical', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['paralelas', 'dips'] },
+  { name: 'Pullover com halter', group: 'Peitoral e dorsais', primaryMuscle: 'peitoral', secondaryMuscles: ['dorsal', 'triceps'], equipment: 'Halter e banco', movementType: 'Extensão de ombro', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['pullover', 'dumbbell pullover'] },
+  { name: 'Good morning com barra', group: 'Posteriores de coxa', primaryMuscle: 'posterior-coxa', secondaryMuscles: ['gluteos', 'lombar'], equipment: 'Barra', movementType: 'Hinge de quadril', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['good morning', 'bom dia'] },
+  { name: 'Flexão nórdica', group: 'Posteriores de coxa', primaryMuscle: 'posterior-coxa', secondaryMuscles: ['gluteos'], equipment: 'Apoio para tornozelos', movementType: 'Flexão de joelho', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['nordic curl', 'nordic hamstring curl'] },
+  { name: 'Remada invertida', group: 'Costas', primaryMuscle: 'costas', secondaryMuscles: ['dorsal', 'biceps'], equipment: 'Barra baixa ou TRX', movementType: 'Puxar horizontal', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['inverted row', 'australian pull up'] },
+  { name: 'Crucifixo inverso com halteres', group: 'Ombros e costas', primaryMuscle: 'deltoide-posterior', secondaryMuscles: ['trapezio', 'costas'], equipment: 'Halteres', movementType: 'Abdução horizontal', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['crucifixo inverso', 'reverse fly'] },
+  { name: 'Mergulho no banco', group: 'Tríceps', primaryMuscle: 'triceps', secondaryMuscles: ['deltoide-anterior', 'peitoral'], equipment: 'Banco', movementType: 'Extensão de cotovelo', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['bench dip', 'triceps bench dip'] },
+  { name: 'Dead bug', group: 'Core', primaryMuscle: 'abdomen', secondaryMuscles: ['obliquos'], equipment: 'Peso corporal', movementType: 'Anti-extensão de tronco', objective: 'Estabilidade de core', category: 'Estabilidade de core' },
+  { name: 'Mountain climber', group: 'Core e condicionamento', primaryMuscle: 'abdomen', secondaryMuscles: ['quadriceps', 'ombros'], equipment: 'Peso corporal', movementType: 'Condicionamento', objective: 'Condicionamento', category: 'Condicionamento', aliases: ['escalador'] },
+  { name: 'Burpee', group: 'Corpo inteiro', primaryMuscle: 'quadriceps', secondaryMuscles: ['peitoral', 'ombros', 'abdomen'], equipment: 'Peso corporal', movementType: 'Condicionamento', objective: 'Condicionamento', category: 'Condicionamento' },
+  { name: 'Polichinelo', group: 'Condicionamento', primaryMuscle: 'panturrilhas', secondaryMuscles: ['ombros', 'quadriceps'], equipment: 'Peso corporal', movementType: 'Condicionamento', objective: 'Condicionamento', category: 'Condicionamento', aliases: ['jumping jack'] },
+  { name: 'Kettlebell swing', group: 'Glúteos e posteriores', primaryMuscle: 'gluteos', secondaryMuscles: ['posterior-coxa', 'lombar'], equipment: 'Kettlebell', movementType: 'Hinge de quadril', objective: 'Condicionamento e potência', category: 'Condicionamento', aliases: ['swing com kettlebell'] },
+  { name: 'Caminhada do fazendeiro', group: 'Core e antebraços', primaryMuscle: 'antebraco', secondaryMuscles: ['trapezio', 'core'], equipment: 'Halteres ou kettlebells', movementType: 'Locomoção carregada', objective: 'Força e condicionamento', category: 'Condicionamento', aliases: ['farmer walk', "farmer's walk"] },
+  { name: 'Passada estacionária com halteres', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos', 'posterior-coxa'], equipment: 'Halteres', movementType: 'Avanço unilateral', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['afundo estacionário', 'passada no lugar'] },
+  { name: 'Agachamento frontal com halteres', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos', 'adutores'], equipment: 'Halteres', movementType: 'Agachar', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['front squat com halteres'] },
+  { name: 'Agachamento sumô com kettlebell', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos', 'adutores'], equipment: 'Kettlebell', movementType: 'Agachar', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['agachamento sumo kettlebell'] },
+  { name: 'Elevação frontal com barra', group: 'Ombros', primaryMuscle: 'deltoide-anterior', secondaryMuscles: ['deltoide-lateral'], equipment: 'Barra', movementType: 'Flexão de ombro', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['front raise com barra'] },
 ]
 
 const exerciseCatalogBlueprints = [
@@ -1154,9 +1174,6 @@ function buildExpandedExerciseCatalog() {
         commonMistakes: blueprint.mistake,
         source: 'coachfit_catalog',
         aliases: [
-          blueprint.base,
-          variant,
-          equipment,
           `${blueprint.base} ${variant}`,
           ...blueprint.english,
           ...blueprint.english.map((item) => `${item} ${variant}`),
@@ -1169,6 +1186,19 @@ function buildExpandedExerciseCatalog() {
 }
 
 exerciseLibrary.push(...buildExpandedExerciseCatalog())
+const curatedExerciseAliases = [
+  ['Supino fechado', 'supino com pegada fechada'],
+  ['Puxada pegada neutra com polia alta', 'puxada com pegada neutra'],
+  ['Stiff romeno com barra', 'levantamento terra romeno'],
+  ['Agachamento frontal com barra', 'agachamento frontal'],
+  ['Agachamento sumô com halteres', 'agachamento sumô'],
+  ['Elevação frontal com halteres', 'elevação frontal'],
+]
+curatedExerciseAliases.forEach(([exerciseName, alias]) => {
+  const exercise = exerciseLibrary.find((item) => normalizeText(item.name) === normalizeText(exerciseName))
+  if (exercise) exercise.aliases = [...new Set([...(exercise.aliases || []), alias])]
+})
+exerciseLibrary.splice(0, exerciseLibrary.length, ...removeAmbiguousExerciseAliases(exerciseLibrary))
 
 const mealPlan = [
   { meal: 'Café da manhã', foods: 'Ovos, aveia, banana, café', macros: '42P / 74C / 18G' },
@@ -1924,10 +1954,15 @@ function AppContent() {
   const [studentPaymentReturnPending, setStudentPaymentReturnPending] = useState(false)
   const [recoveryAccessToken, setRecoveryAccessToken] = useState(() => getRecoveryAccessToken())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const mobileMenuFocusTrapRef = useModalFocusTrap(mobileMenuOpen, () => setMobileMenuOpen(false))
   const [notificationPopoverOpen, setNotificationPopoverOpen] = useState(false)
   const [incomingMessageAlert, setIncomingMessageAlert] = useState(null)
   const [billingClock, setBillingClock] = useState(Date.now())
   const [nativeIosAccess, setNativeIosAccess] = useState({ accountId: '', active: false })
+  const [professionalActivationLoading, setProfessionalActivationLoading] = useState(false)
+  const [professionalActivationError, setProfessionalActivationError] = useState('')
+  const [professionalActivationSource, setProfessionalActivationSource] = useState('web')
+  const professionalActivationInFlightRef = useRef(false)
   const recentVerifiedIosPurchaseUntil = useRef(0)
   const nativeIosEntitlement = Boolean(
     data.session?.user?.id && nativeIosAccess.accountId === data.session.user.id && nativeIosAccess.active
@@ -1935,16 +1970,6 @@ function AppContent() {
   const setNativeIosEntitlement = useCallback((active) => {
     setNativeIosAccess({ accountId: data.session?.user?.id || '', active: Boolean(active) })
   }, [data.session?.user?.id])
-  // Only called after native StoreKit has verified an active subscription.
-  // Navigate away from the paywall instead of leaving the buyer in "Assinatura".
-  const handleVerifiedIosSubscription = useCallback((active) => {
-    setNativeIosEntitlement(active)
-    if (active) {
-      recentVerifiedIosPurchaseUntil.current = Date.now() + 25_000
-      setActiveView('visao')
-      setMobileMenuOpen(false)
-    }
-  }, [setNativeIosEntitlement])
   const [uiTheme, setUiTheme] = useState(() => getStoredUiTheme())
   useEffect(() => {
     document.documentElement.dataset.theme = uiTheme
@@ -2070,16 +2095,17 @@ function AppContent() {
     }
   }, [data.session?.user?.id])
 
-  const refreshProfessionalCollaboration = useCallback(async ({ silent = false } = {}) => {
+  const refreshProfessionalCollaboration = useCallback(async ({ silent = false, forceProfessionalAccess = false } = {}) => {
     if (!supabaseEnabled || !data.session?.access_token || studentAuthSession) {
       setProfessionalCollaboration((current) => ({ ...current, loading: false }))
       return false
     }
 
+    const hasProfessionalAccess = professionalAccessActive || forceProfessionalAccess
     if (!silent) setProfessionalCollaboration((current) => ({ ...current, loading: true, error: '' }))
     const requestUserId = data.session?.user?.id || ''
     try {
-      if (professionalAccessActive) await syncAppleServerEntitlement()
+      if (hasProfessionalAccess) await syncAppleServerEntitlement()
       const delegatedArea = nutritionistUser ? 'nutrition' : 'workout'
       const [workspace, delegatedWorkspaceResult] = await Promise.all([
         loadRemoteProfessionalTeamWorkspace({
@@ -2102,7 +2128,7 @@ function AppContent() {
       const delegatedWorkspace = Array.isArray(delegatedWorkspaceResult.value) ? delegatedWorkspaceResult.value : []
       if (delegatedWorkspaceResult.error) console.warn('A área colaborativa não carregou; a consulta de convites continuará disponível.', delegatedWorkspaceResult.error?.message)
       if (workspace.partialError) console.warn('Uma parte da área de equipes não carregou; os dados disponíveis continuam visíveis.', workspace.partialError?.message)
-      const candidates = professionalAccessActive
+      const candidates = hasProfessionalAccess
         ? await loadRemoteProfessionalTeamCandidates().catch((error) => {
             console.warn('A lista de pacientes elegíveis não carregou.', error?.message)
             return []
@@ -2115,7 +2141,7 @@ function AppContent() {
         ))
       ))
       const ownerWorkoutWorkspace = ownsAcceptedWorkoutDelegation
-        && professionalAccessActive
+        && hasProfessionalAccess
         ? await loadRemoteProfessionalDelegatedWorkspace('workout').catch((error) => {
             console.warn('A área de treinos colaborativa não carregou.', error?.message)
             return []
@@ -2650,6 +2676,65 @@ function AppContent() {
     return () => window.clearTimeout(timer)
   }, [data.session?.refresh_token, data.session?.expires_at, sessionRestoring])
 
+  const runProfessionalActivation = useCallback(async ({ remoteData: preloadedRemoteData = null, source = 'web' } = {}) => {
+    if (professionalActivationInFlightRef.current) return { active: true, refreshed: false, busy: true }
+    const requestUserId = data.session?.user?.id || ''
+    if (!supabaseEnabled || !data.session?.access_token || !requestUserId) {
+      return { active: false, refreshed: false }
+    }
+
+    professionalActivationInFlightRef.current = true
+    setProfessionalActivationSource(source)
+    setProfessionalActivationLoading(true)
+    setProfessionalActivationError('')
+    setRemoteStatus('Ativando seu espaço profissional')
+    setRemoteError('')
+    try {
+      if (source === 'apple' && !await syncAppleServerEntitlement()) {
+        throw new Error('A verificação da assinatura Apple ainda não foi confirmada no servidor.')
+      }
+      const activatedData = preloadedRemoteData || await loadRemoteData(requestUserId)
+      if (professionalSessionUserIdRef.current !== requestUserId) return { active: false, refreshed: false }
+
+      const shouldAddActivationNotice = !professionalAccessActive && !nativeIosEntitlement
+      setData((current) => ({
+        ...current,
+        ...activatedData,
+        session: current.session,
+        appAdminSettings: current.appAdminSettings,
+        user: activatedData.user ?? current.user,
+        notifications: shouldAddActivationNotice
+          ? [{
+            id: `professional-activation-${Date.now()}`,
+            title: source === 'affiliate' ? 'Conta profissional liberada' : 'Assinatura liberada',
+            body: 'Seu acesso foi confirmado. As ferramentas próprias do seu perfil foram sincronizadas; os vínculos de equipe permanecem ativos.',
+            read: false,
+          }, ...(Array.isArray(activatedData.notifications) ? activatedData.notifications : current.notifications ?? [])]
+          : Array.isArray(activatedData.notifications) ? activatedData.notifications : current.notifications,
+      }))
+
+      const collaborationReady = await refreshProfessionalCollaboration({ silent: true, forceProfessionalAccess: true })
+      if (professionalSessionUserIdRef.current !== requestUserId) return { active: false, refreshed: false }
+      if (!collaborationReady) throw new Error('Não foi possível sincronizar a Equipe neste momento.')
+
+      setActiveView('visao')
+      setMobileMenuOpen(false)
+      setRemoteStatus('Assinatura liberada')
+      setRemoteError('')
+      return { active: true, refreshed: true, remoteData: activatedData }
+    } catch (error) {
+      if (professionalSessionUserIdRef.current === requestUserId) {
+        console.warn('Não foi possível concluir a ativação do espaço profissional.', error?.message)
+        setProfessionalActivationError('Sua confirmação foi recebida, mas ainda não conseguimos sincronizar todas as ferramentas e equipes. Tente novamente; seus vínculos não foram alterados.')
+        setRemoteStatus('Ativação aguardando sincronização')
+      }
+      return { active: false, refreshed: false, error }
+    } finally {
+      professionalActivationInFlightRef.current = false
+      setProfessionalActivationLoading(false)
+    }
+  }, [data.session?.access_token, data.session?.user?.id, nativeIosEntitlement, professionalAccessActive, refreshProfessionalCollaboration, syncAppleServerEntitlement])
+
   const syncCoachWorkspace = useCallback(async ({ status = 'Atualizando painel', silent = false, goToOverviewOnActive = false } = {}) => {
     if (!supabaseEnabled || !data.session?.access_token) {
       return { active: false, refreshed: false }
@@ -2674,6 +2759,9 @@ function AppContent() {
     const activeSubscription = isCoachSubscriptionActive(remoteData.coachSubscription)
     const affiliateAccess = remoteData.professionalAffiliate === true
     const activeProfessionalAccess = activeSubscription || affiliateAccess
+    if (activeProfessionalAccess && !professionalAccessActive) {
+      return runProfessionalActivation({ remoteData, source: affiliateAccess ? 'affiliate' : 'web' })
+    }
     setData((current) => {
       const wasActive = isCoachSubscriptionActive(current.coachSubscription) || current.professionalAffiliate === true
       const unlockedNow = !wasActive && activeProfessionalAccess
@@ -2721,7 +2809,22 @@ function AppContent() {
     }
 
     return { active: activeProfessionalAccess, refreshed: true, remoteData }
-  }, [data.session?.access_token, data.session?.refresh_token, data.session?.user?.id])
+  }, [data.session?.access_token, data.session?.refresh_token, data.session?.user?.id, professionalAccessActive, runProfessionalActivation])
+
+  // Only called after native StoreKit has verified an active subscription.
+  // A newly unlocked professional workspace waits for account and team sync.
+  const handleVerifiedIosSubscription = useCallback(async (active) => {
+    const wasAlreadyActive = professionalAccessActive || nativeIosEntitlement
+    setNativeIosEntitlement(active)
+    if (!active) return { active: false, refreshed: false }
+    recentVerifiedIosPurchaseUntil.current = Date.now() + 25_000
+    if (wasAlreadyActive) {
+      setActiveView('visao')
+      setMobileMenuOpen(false)
+      return { active: true, refreshed: true }
+    }
+    return runProfessionalActivation({ source: 'apple' })
+  }, [nativeIosEntitlement, professionalAccessActive, runProfessionalActivation, setNativeIosEntitlement])
 
   useEffect(() => {
     if (!supabaseEnabled || !data.session?.access_token || studentAccess || studentAuthSession || professionalAccessActive || masterAdmin) return undefined
@@ -3198,10 +3301,13 @@ function AppContent() {
     const email = formData.get('email')?.toString().trim() || ''
     const password = formData.get('password')?.toString() || ''
     const mode = formData.get('mode')?.toString() || 'signin'
-    const role = mode === 'signup' ? (formData.get('role')?.toString() || 'Coach principal') : 'Coach principal'
     const teamInviteId = formData.get('teamInviteId')?.toString() || ''
     const invitedProfessionalRole = formData.get('teamInviteRole')?.toString()
-      || (role === 'Nutricionista' ? 'nutritionist' : 'trainer')
+      || (formData.get('role')?.toString() === 'Nutricionista' ? 'nutritionist' : 'trainer')
+    const selectedRole = mode === 'signup' ? (formData.get('role')?.toString() || 'Coach principal') : 'Coach principal'
+    const role = mode === 'signup' && teamInviteId
+      ? invitedProfessionalRole === 'nutritionist' ? 'Nutricionista' : 'Coach principal'
+      : selectedRole
     const user = { name, email, role }
 
     if (mode === 'signup') {
@@ -3249,18 +3355,25 @@ function AppContent() {
     let session = null
     if (supabaseEnabled) {
       try {
+        const emailRedirectTo = teamInviteId
+          ? (() => {
+            const redirectUrl = new URL('/login', window.location.origin)
+            redirectUrl.searchParams.set('mode', 'signin')
+            redirectUrl.searchParams.set('team_invite', teamInviteId)
+            redirectUrl.searchParams.set('role', invitedProfessionalRole)
+            return redirectUrl.toString()
+          })()
+          : ''
         session = mode === 'signup'
           ? await signUpCoach({
             name,
             email,
             password,
             role,
-            emailRedirectTo: teamInviteId
-              ? `${window.location.origin}/login?mode=signin&team_invite=${encodeURIComponent(teamInviteId)}`
-              : '',
+            emailRedirectTo,
           })
           : await signInCoach({ email, password })
-        const studentBootstrap = mode === 'signin' ? await loadRemoteCurrentStudentAccess() : null
+        const studentBootstrap = mode === 'signin' && !teamInviteId ? await loadRemoteCurrentStudentAccess() : null
         requireStudentBootstrapForSession(session, studentBootstrap)
         if (studentBootstrap) {
           const studentSession = {
@@ -3325,6 +3438,11 @@ function AppContent() {
         return true
       } catch (error) {
         setSupabaseSession('')
+        if (error?.code === 'email_confirmation_required') {
+          setRemoteStatus('Confirmação de e-mail pendente')
+          setRemoteError(error.message)
+          return false
+        }
         setRemoteStatus('Erro no login')
         setRemoteError(error.message)
         return false
@@ -4869,6 +4987,28 @@ function AppContent() {
     return <PasswordRecovery onSave={finishPasswordRecovery} />
   }
 
+  if (professionalActivationLoading) {
+    return <AppLoading
+      title="Ativando seu espaço profissional..."
+      caption="Sua confirmação foi recebida. Estamos sincronizando suas ferramentas e equipes; aguarde alguns instantes."
+    />
+  }
+  if (professionalActivationError) {
+    return (
+      <main className={`app-loading-shell app-shell fit-gradient-bg app-theme-${uiTheme} grid min-h-screen place-items-center p-4 text-zinc-100`} data-theme={uiTheme}>
+        <section className="app-loading-card w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950/90 p-6 text-center shadow-2xl shadow-black/30" role="alert">
+          <div className="flex justify-center"><BrandLockup large subtitle="Coach Fit Pro" /></div>
+          <h1 className="mt-6 text-xl font-black text-white">Estamos finalizando sua ativação</h1>
+          <p className="mt-3 text-sm leading-6 text-zinc-300">{professionalActivationError}</p>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <button type="button" onClick={() => { void runProfessionalActivation({ source: professionalActivationSource }) }} className="min-h-11 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950">Tentar novamente</button>
+            <button type="button" onClick={() => { setProfessionalActivationError(''); setActiveView('equipe') }} className="min-h-11 rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-zinc-200">Abrir Equipe</button>
+            <button type="button" onClick={() => { setProfessionalActivationError(''); void logout() }} className="min-h-11 rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-zinc-400">Sair da conta</button>
+          </div>
+        </section>
+      </main>
+    )
+  }
   if (sessionRestoring) return <AppLoading />
   if (professionalWorkspaceLoading && data.session?.access_token && data.session?.user?.accountType !== 'student') return <AppLoading />
 
@@ -5076,6 +5216,8 @@ function AppContent() {
           type="button"
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Abrir menu"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="coach-mobile-menu-panel"
           className="grid h-11 w-11 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-[0px] text-white"
         >
           <NavIcon name="menu" className="h-5 w-5" />
@@ -5092,7 +5234,7 @@ function AppContent() {
         />
       ) : null}
 
-      <aside className={`coach-mobile-menu-panel fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
+      <aside id="coach-mobile-menu-panel" ref={mobileMenuFocusTrapRef} role={mobileMenuOpen ? 'dialog' : undefined} aria-modal={mobileMenuOpen ? 'true' : undefined} aria-label={mobileMenuOpen ? 'Menu principal' : undefined} className={`coach-mobile-menu-panel fixed inset-y-0 left-0 z-50 flex h-screen w-[286px] max-w-[86vw] min-w-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-200 lg:w-[292px] lg:max-w-none lg:translate-x-0 lg:p-3 xl:w-[304px] ${
         mobileMenuOpen ? 'is-open translate-x-0' : 'is-closed -translate-x-full'
       }`}>
           <div className="flex items-center justify-between gap-3 lg:block">
@@ -5357,6 +5499,17 @@ function AppContent() {
               />
             )}
             {activeView === 'equipe' && (
+              <>
+              {activeTeamMember && shouldLockCoachTools ? (
+                <section className="mb-4 flex flex-col gap-4 rounded-2xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/[0.09] to-cyan-300/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200">Sua equipe continua vinculada</p>
+                    <h3 className="mt-1 text-lg font-black text-white">Quer liberar suas ferramentas profissionais?</h3>
+                    <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-300">A assinatura libera sua carteira e as ferramentas próprias do seu perfil. Sua participação nas equipes e os acessos já autorizados permanecem independentes.</p>
+                  </div>
+                  <button type="button" onClick={() => setActiveViewSafely('assinatura')} className="min-h-11 shrink-0 rounded-xl bg-emerald-300 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-emerald-200">Ver planos profissionais</button>
+                </section>
+              ) : null}
               <ProfessionalTeamWorkspace
                 currentUser={{ ...data.user, id: data.user?.id, email: data.session?.user?.email || data.user?.email, professionalRole: nutritionistUser ? 'nutritionist' : 'trainer' }}
                 uiTheme={uiTheme}
@@ -5374,6 +5527,7 @@ function AppContent() {
                 accessibleStudentIds={(nutritionistUser ? delegatedNutritionEntries : delegatedWorkoutEntries).map((entry) => entry.student?.id).filter(Boolean)}
                 {...professionalTeamHandlers}
               />
+              </>
             )}
             {activeView === 'treinos' && nutritionistUser && (
               <ProfessionalDelegatedWorkoutReadOnly
@@ -5477,7 +5631,7 @@ function AppContent() {
                   await refreshProfessionalCollaboration({ silent: true })
                   return saved
                 }}
-                onArchiveNutritionPlan={async (planId) => {
+                onArchiveNutritionPlan={async (planId, active = false) => {
                   const target = professionalNutritionPlans.find((plan) => sameId(plan.id, planId))
                   if (readOnlyCollaborativeNutritionPlanIds.has(String(planId))) {
                     const message = 'A dieta do profissional colaborador permanece somente para leitura durante esta concessão ativa.'
@@ -5491,7 +5645,7 @@ function AppContent() {
                     setRemoteError(message)
                     return false
                   }
-                  return archiveNutritionPlan(planId)
+                  return archiveNutritionPlan(planId, active)
                 }}
                 onSaveQuestionnaire={saveNutritionQuestionnaire}
                 onAssignQuestionnaire={assignNutritionQuestionnaire}
@@ -5640,6 +5794,8 @@ function AppContent() {
         })}
         <button
           type="button"
+          aria-expanded={mobileMenuOpen}
+          aria-controls="coach-mobile-menu-panel"
           onClick={() => setMobileMenuOpen(true)}
           className="coach-mobile-bottom-button tone-emerald"
         >
@@ -5651,7 +5807,7 @@ function AppContent() {
   )
 }
 
-function AppLoading() {
+function AppLoading({ title = 'Preparando seu espaço...', caption = 'Sincronizando alunos, treinos e evolução.' } = {}) {
   const loadingTheme = getStoredUiTheme()
 
   return (
@@ -5664,8 +5820,8 @@ function AppLoading() {
         <div className="app-loading-progress mx-auto mt-6 h-1.5 w-32 overflow-hidden rounded bg-white/10">
           <span className="block h-full w-1/2 rounded bg-emerald-400" />
         </div>
-        <p className="app-loading-title mt-4 text-sm font-bold text-emerald-100">Preparando seu espaço...</p>
-        <p className="app-loading-caption mt-2 text-xs leading-5 text-zinc-500">Sincronizando alunos, treinos e evolução.</p>
+        <p className="app-loading-title mt-4 text-sm font-bold text-emerald-100">{title}</p>
+        <p className="app-loading-caption mt-2 text-xs leading-5 text-zinc-500">{caption}</p>
       </section>
     </main>
   )
@@ -5791,10 +5947,15 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
   const isLoginRoute = nativeIosApp || window.location.pathname.toLowerCase() === '/login'
   const accessParams = new URLSearchParams(window.location.search)
   const inviteSignupId = accessParams.get('team_invite') || ''
-  const inviteSignupRoleKey = accessParams.get('role') === 'nutritionist' ? 'nutritionist' : 'trainer'
-  const inviteSignupRole = inviteSignupRoleKey === 'nutritionist' ? 'Nutricionista' : 'Coach principal'
-  const initialMode = accessParams.get('mode') || (inviteSignupId ? 'signup' : '')
+  const routeInviteRoleKey = accessParams.get('role') === 'nutritionist' ? 'nutritionist' : 'trainer'
+  const requestedInitialMode = accessParams.get('mode') || (inviteSignupId ? 'signup' : '')
+  const initialMode = inviteSignupId && requestedInitialMode === 'student' ? 'signup' : requestedInitialMode
   const [mode, setMode] = useState(['signin', 'signup', 'student', 'forgot'].includes(initialMode) ? initialMode : 'signin')
+  const [inviteSignupContext, setInviteSignupContext] = useState(null)
+  const [inviteSignupContextLoading, setInviteSignupContextLoading] = useState(Boolean(inviteSignupId))
+  const [inviteSignupContextError, setInviteSignupContextError] = useState('')
+  const inviteSignupRoleKey = inviteSignupContext?.professionalRole || routeInviteRoleKey
+  const inviteSignupRole = inviteSignupRoleKey === 'nutritionist' ? 'Nutricionista' : 'Coach principal'
   const [loading, setLoading] = useState(false)
   const [selectedOfferPlanId, setSelectedOfferPlanId] = useState('semestral')
   const salesTheme = uiTheme
@@ -5816,6 +5977,30 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
     additionalStudents: 6,
     priceIncrease: 30,
   })
+  useEffect(() => {
+    if (!inviteSignupId) {
+      setInviteSignupContext(null)
+      setInviteSignupContextLoading(false)
+      setInviteSignupContextError('')
+      return undefined
+    }
+    let active = true
+    setInviteSignupContextLoading(true)
+    setInviteSignupContextError('')
+    loadRemoteProfessionalTeamInviteSignupContext(inviteSignupId)
+      .then((context) => {
+        if (!active) return
+        setInviteSignupContext(context)
+        if (!context) setInviteSignupContextError('Este convite pode ter expirado ou sido cancelado. Se ainda estiver válido, confirme o e-mail recebido; o servidor verificará o convite antes de criar a conta.')
+      })
+      .catch(() => {
+        if (!active) return
+        setInviteSignupContext(null)
+        setInviteSignupContextError('Não foi possível pré-carregar os dados do convite agora. Informe exatamente o e-mail e o perfil recebidos; o servidor continuará validando ambos antes do cadastro.')
+      })
+      .finally(() => { if (active) setInviteSignupContextLoading(false) })
+    return () => { active = false }
+  }, [inviteSignupId])
   const salesSettings = normalizeAdminSettings(appAdminSettings)
   const salesPlans = salesSettings.checkoutPlans
   const orderedSalesPlans = useMemo(() => {
@@ -5842,7 +6027,9 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
         ? 'Recuperar senha'
         : 'Entrar no painel'
   const signupDescription = inviteSignupId && mode === 'signup'
-    ? `Crie sua conta como ${inviteSignupRole === 'Nutricionista' ? 'nutricionista' : 'treinador'} usando o e-mail que recebeu o convite. O convite continuará aguardando seu aceite depois da confirmação do cadastro.`
+    ? inviteSignupContext
+      ? `Convite para ${inviteSignupContext.teamName || 'uma equipe profissional'}. Crie sua conta como ${inviteSignupRole === 'Nutricionista' ? 'nutricionista' : 'treinador'} com ${inviteSignupContext.inviteeEmail}. O convite continuará aguardando seu aceite após a confirmação do cadastro.`
+      : `Crie sua conta como ${inviteSignupRole === 'Nutricionista' ? 'nutricionista' : 'treinador'} usando exatamente o e-mail que recebeu o convite. O convite continuará aguardando seu aceite depois da confirmação do cadastro.`
     : nativeIosApp && mode === 'signup'
     ? 'Crie sua conta profissional e escolha a assinatura pela App Store após entrar no aplicativo.'
     : mode === 'signup'
@@ -6275,6 +6462,13 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 <p className="mt-2 break-words text-sm leading-6 text-amber-50">{remoteError}</p>
               </div>
             ) : null}
+            {inviteSignupId ? (
+              <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-3 text-sm leading-6 text-zinc-300" role="status" aria-live="polite">
+                {inviteSignupContextLoading ? 'Conferindo o convite e preparando os dados de cadastro…' : inviteSignupContext ? (
+                  <>Convite para <strong className="text-emerald-100">{inviteSignupContext.teamName || 'equipe profissional'}</strong>. Perfil: <strong className="text-white">{inviteSignupRole === 'Nutricionista' ? 'Nutricionista' : 'Treinador'}</strong>. Use o e-mail <strong className="break-all text-white">{inviteSignupContext.inviteeEmail}</strong>.</>
+                ) : inviteSignupContextError}
+              </div>
+            ) : null}
             {mode === 'forgot' ? (
               <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-sm font-black text-emerald-100">Recuperação automática</p>
@@ -6283,12 +6477,8 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 </p>
               </div>
             ) : null}
-            <div className="mt-5 grid grid-cols-3 gap-2">
-              {[
-                ['signin', 'Login'],
-                ['signup', 'Criar conta'],
-                ['student', 'Aluno'],
-              ].map(([id, label]) => (
+            <div className={`mt-5 grid ${inviteSignupId ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+              {(inviteSignupId ? [['signin', 'Entrar'], ['signup', 'Criar conta']] : [['signin', 'Login'], ['signup', 'Criar conta'], ['student', 'Aluno']]).map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
@@ -6311,24 +6501,42 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                   {mode === 'signup' ? (
                     <>
                       <Field label="Nome profissional" name="name" defaultValue="" />
-                      <Select
-                        label="Área de atuação"
-                        name="role"
-                        defaultValue={inviteSignupId ? inviteSignupRole : 'Coach principal'}
-                        options={[
-                          { label: 'Personal trainer', value: 'Coach principal' },
-                          { label: 'Nutricionista', value: 'Nutricionista' },
-                        ]}
-                      />
+                      {inviteSignupId ? (
+                        <>
+                          <input type="hidden" name="role" value={inviteSignupRole} />
+                          <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.06] p-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-emerald-200">Perfil profissional definido pelo convite</p>
+                            <p className="mt-1 text-sm font-black text-white">{inviteSignupRole === 'Nutricionista' ? 'Nutricionista' : 'Treinador'}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <Select
+                          label="Área de atuação"
+                          name="role"
+                          defaultValue="Coach principal"
+                          options={[
+                            { label: 'Personal trainer', value: 'Coach principal' },
+                            { label: 'Nutricionista', value: 'Nutricionista' },
+                          ]}
+                        />
+                      )}
                     </>
                   ) : null}
-                  <Field label="E-mail" name="email" type="email" defaultValue="" autoComplete="email" />
+                  <Field
+                    key={`invite-email-${inviteSignupContext?.inviteeEmail || (inviteSignupId ? 'pending' : 'manual')}`}
+                    label={inviteSignupContext ? 'E-mail do convite' : 'E-mail'}
+                    name="email"
+                    type="email"
+                    defaultValue={inviteSignupContext?.inviteeEmail || ''}
+                    autoComplete="email"
+                    readOnly={Boolean(inviteSignupContext)}
+                  />
                   <Field label="Senha" name="password" type="password" defaultValue="" />
                 </>
               )}
             </div>
-            <button disabled={loading} className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
-              {loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
+            <button disabled={loading || Boolean(inviteSignupId && inviteSignupContextLoading)} className="mt-6 w-full rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+              {inviteSignupId && inviteSignupContextLoading ? 'Verificando convite...' : loading ? 'Processando...' : mode === 'student' ? 'Acessar meu acompanhamento' : mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link de recuperação' : 'Entrar'}
             </button>
             {mode === 'signin' ? (
               <button type="button" onClick={() => setMode('forgot')} className="mt-3 w-full px-3 py-2 text-xs font-bold text-emerald-200">
@@ -6340,6 +6548,11 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
                 Voltar para o login
               </button>
             ) : null}
+            {inviteSignupId && mode === 'signup' && remoteStatus?.toLowerCase().includes('confirmação de e-mail') ? (
+              <button type="button" onClick={() => setMode('signin')} className="mt-3 w-full rounded-xl border border-emerald-300/25 px-3 py-3 text-xs font-black text-emerald-100">
+                Já confirmei meu e-mail — entrar e continuar o convite
+              </button>
+            ) : null}
             {mode === 'forgot' && remoteStatus?.toLowerCase().includes('recuper') ? (
               <p className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-xs font-bold leading-5 text-emerald-100">
                 Link enviado. Verifique a caixa de entrada e a pasta de spam do e-mail informado.
@@ -6347,7 +6560,7 @@ function LoginScreen({ onLogin, onStudentAccess, remoteStatus, remoteError, appA
             ) : null}
             {mode === 'signup' ? (
               <p className="mt-4 text-xs leading-5 text-zinc-500">
-                Se a confirmação por e-mail estiver ativa, confirme sua conta antes do primeiro acesso.
+                {inviteSignupId ? 'Se a confirmação por e-mail estiver ativa, confirme o link recebido. Ele mantém o convite e o perfil; depois, entre com o mesmo endereço para aceitá-lo.' : 'Se a confirmação por e-mail estiver ativa, confirme sua conta antes do primeiro acesso.'}
               </p>
             ) : null}
           </form>
@@ -8189,6 +8402,8 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
   const [generatedCredentials, setGeneratedCredentials] = useState(null)
   const [credentialsSaving, setCredentialsSaving] = useState(false)
   const [credentialsMessage, setCredentialsMessage] = useState('')
+  const anamnesisDialogRef = useModalFocusTrap(anamnesisEditorOpen && Boolean(selectedStudent), () => setAnamnesisEditorOpen(false))
+  const credentialsDialogRef = useModalFocusTrap(Boolean(generatedCredentials), () => setGeneratedCredentials(null))
   const clientLabel = nutritionist ? 'paciente' : 'aluno'
   const appLoginUrl = OFFICIAL_APP_LOGIN_URL
   const selectedAnamnesis = anamneses.find((item) => String(item.studentId) === String(selectedStudent?.id))
@@ -8649,6 +8864,8 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
       />
       {anamnesisEditorOpen && selectedStudent ? createPortal(
         <div
+          ref={anamnesisDialogRef}
+          tabIndex={-1}
           className="fixed inset-0 z-[130] grid place-items-center bg-black/75 p-3 backdrop-blur-sm sm:p-6"
           role="dialog"
           aria-modal="true"
@@ -8675,7 +8892,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
         document.body,
       ) : null}
       {generatedCredentials ? createPortal(
-        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
+        <div ref={credentialsDialogRef} tabIndex={-1} className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={`Dados de acesso do ${clientLabel}`}>
           <div className="credential-access-modal w-full max-w-md rounded-xl border border-emerald-300/25 bg-zinc-950 p-5 text-zinc-100 shadow-2xl">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-300">Acesso gerado</p>
             <h3 className="mt-2 text-xl font-black text-white">Envie estes dados uma única vez</h3>
@@ -12291,7 +12508,7 @@ function MobileWorkoutEditableDay({
                   <>
                     <div>
                       <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
-                      <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" />
+                      <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Meta de reps" />
                       <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
                       <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
                     </div>
@@ -13799,6 +14016,34 @@ function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exer
   )
 }
 
+function removeAmbiguousExerciseAliases(exercises) {
+  const canonicalNames = new Set(exercises.map((exercise) => normalizeText(exercise.name)).filter(Boolean))
+  const ownersByAlias = new Map()
+  exercises.forEach((exercise) => {
+    const owner = normalizeText(exercise.name)
+    const localAliases = new Set()
+    ;(Array.isArray(exercise.aliases) ? exercise.aliases : []).forEach((alias) => {
+      const key = normalizeText(alias)
+      if (!key || key === owner || localAliases.has(key)) return
+      localAliases.add(key)
+      if (!ownersByAlias.has(key)) ownersByAlias.set(key, new Set())
+      ownersByAlias.get(key).add(owner)
+    })
+  })
+
+  return exercises.map((exercise) => {
+    const owner = normalizeText(exercise.name)
+    const seen = new Set()
+    const aliases = (Array.isArray(exercise.aliases) ? exercise.aliases : []).filter((alias) => {
+      const key = normalizeText(alias)
+      if (!key || key === owner || seen.has(key) || canonicalNames.has(key)) return false
+      seen.add(key)
+      return ownersByAlias.get(key)?.size === 1
+    })
+    return { ...exercise, aliases }
+  })
+}
+
 export function getExerciseLibrary(remoteItems = []) {
   const records = new Map()
   const localByName = new Map(exerciseLibrary.map((exercise) => [normalizeText(exercise.name), exercise]))
@@ -13852,7 +14097,7 @@ export function getExerciseLibrary(remoteItems = []) {
     if (!records.has(key)) records.set(key, exercise)
   })
 
-  return [...records.values()]
+  return removeAmbiguousExerciseAliases([...records.values()])
 }
 
 function findExerciseProfile(value, library = exerciseLibrary) {
@@ -14021,7 +14266,7 @@ function createExerciseDraft(name = '', overrides = {}, library = exerciseLibrar
     exerciseType,
     cardioMode: overrides.cardioMode || profile?.cardioMode || '',
     sets: '3',
-    reps: '10',
+    reps: '',
     load: '',
     rest: '60s',
     muscleGroup: profile?.group ?? '',
@@ -15673,9 +15918,25 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     </div>
   ) : null
 
-  const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length) || days.length > 0
-
-  const safeDayIndex = Math.min(Math.max(activeDayIndex, 0), Math.max(days.length - 1, 0))
+  const hasPersistedSessionProgress = !preview && (
+    Boolean(timerStartedAt)
+    || Number(sessionDurationSeconds) > 0
+    || Boolean(completedLog)
+    || Object.keys(setLogs || {}).length > 0
+    || Object.values(cardioLogs || {}).some((log) => log?.status && log.status !== 'idle')
+    || Number(restRemaining) > 0
+    || Number(restEndAtMs) > Date.now()
+  )
+  const todayWorkoutDayIndex = !preview && remoteHydrated ? findWorkoutDayIndexForDate(days) : -1
+  const suggestedDayIndex = !preview && activeDayIndex < 0 && !hasPersistedSessionProgress
+    ? todayWorkoutDayIndex
+    : -1
+  const daySelected = preview || (activeDayIndex >= 0 && activeDayIndex < days.length) || suggestedDayIndex >= 0
+  const safeDayIndex = Math.min(
+    Math.max(activeDayIndex >= 0 && activeDayIndex < days.length ? activeDayIndex : suggestedDayIndex >= 0 ? suggestedDayIndex : 0, 0),
+    Math.max(days.length - 1, 0)
+  )
+  const isTodayWorkoutDay = todayWorkoutDayIndex >= 0 && safeDayIndex === todayWorkoutDayIndex
   const activeDay = days[safeDayIndex]
   const exercises = getWorkoutExercisesArray(activeDay?.exercises).map((exercise) => enrichExercise(exercise, availableExerciseLibrary))
   const workoutPlanTitle = String(workout.title || activeDay?.focus || 'Treino').trim()
@@ -15912,6 +16173,14 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
     setError('')
     updateCardioLog({ status: 'completed', completed: true, elapsedSeconds, startedAt: '' })
     if (preview) onPreviewStageChange?.('exercise-complete')
+  }
+
+  function startWorkoutFromOverview() {
+    if (activeDayIndex < 0 || activeDayIndex >= days.length) {
+      setActiveDayIndex(safeDayIndex)
+      if (!preview) onSelectDay?.(safeDayIndex)
+    }
+    onToggleTimer?.()
   }
 
   function selectDay(nextDayIndex) {
@@ -16235,7 +16504,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         {sessionSyncFeedback}
         <header className="student-workout-figma-execution-topbar student-workout-has-end-action">
           <button type="button" aria-label="Voltar ao exercício" onClick={returnFromRestToExecution}><NavIcon name="arrowLeft" className="h-5 w-5" /></button>
-          <span><strong>{workoutScreenTitle}</strong><small>DIA {activeDay?.day || safeDayIndex + 1} • MODO TREINO</small></span>
+          <span><strong>{workoutPlanTitle}</strong><small>DIA {activeDay?.day || safeDayIndex + 1}{isTodayWorkoutDay ? ' · HOJE' : ''} • MODO TREINO</small></span>
           <button type="button" className="student-workout-end-subtle" aria-label="Encerrar treino" title="Encerrar treino" onClick={() => setEndConfirmOpen(true)}><NavIcon name="close" className="h-3.5 w-3.5" /><span>Encerrar treino</span></button>
         </header>
         <div className="student-workout-figma-progress-head"><span>Exercício {safeExerciseIndex + 1} de {exercises.length} • {formatWorkoutTimer(durationSeconds)} de treino</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
@@ -16254,7 +16523,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         <div className="student-workout-figma-next-set">
           <p>A SEGUIR • SÉRIE {nextPendingSet?.number || exerciseSetCount} DE {exerciseSetCount}</p>
           <strong>{exercise?.name || 'Próximo exercício'}</strong>
-          <span>Meta: {nextPendingSet?.targetReps || exercise?.reps || '—'} reps{previousSetRecords.get(nextPendingSet?.number)?.load ? ` • Última carga: ${previousSetRecords.get(nextPendingSet?.number)?.load} kg` : ''}</span>
+          <span>{nextPendingSet?.targetReps || exercise?.reps ? `Meta prescrita: ${nextPendingSet?.targetReps || exercise?.reps} reps` : 'Sem meta de reps'}{previousSetRecords.get(nextPendingSet?.number)?.load ? ` • Última carga: ${previousSetRecords.get(nextPendingSet?.number)?.load} kg` : ''}</span>
         </div>
         <div className="student-workout-rest-background-status" aria-live="polite">
           <div className="student-workout-rest-background-status__copy"><p>{restBackgroundHint}</p></div>
@@ -16379,14 +16648,14 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         </header>
         <section className="student-workout-day-accordion" aria-label="Dias disponíveis neste plano">
           <button type="button" className="student-workout-day-accordion__toggle" aria-expanded={dayPickerOpen} aria-controls="student-workout-day-options" onClick={() => setDayPickerOpen((open) => !open)}>
-            <span><small>DIAS DE TREINO · {days.length}</small><strong>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</strong><span>{activeDay?.focus || workout.focus || 'Foco do treino'}</span></span>
+            <span><small>DIAS DE TREINO · {days.length}{isTodayWorkoutDay ? ' · HOJE' : ''}</small><strong>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</strong><span>{activeDay?.focus || workout.focus || 'Foco do treino'}</span></span>
             <span className="student-workout-day-accordion__icon" aria-hidden="true"><NavIcon name={dayPickerOpen ? 'chevronUp' : 'chevronDown'} className="h-4 w-4" /></span>
           </button>
-          {dayPickerOpen ? <div id="student-workout-day-options" className="student-workout-day-accordion__options" role="group" aria-label="Selecionar dia do treino">{days.map((day, index) => <button key={day.id || day.day + '-' + index} type="button" className={index === safeDayIndex ? 'is-selected' : ''} aria-current={index === safeDayIndex ? 'true' : undefined} onClick={() => selectDay(index)}><span>Dia {String(index + 1).padStart(2, '0')}</span><strong>{day.day || 'Treino ' + (index + 1)}</strong><small>{day.focus || workout.focus || 'Treino personalizado'}</small></button>)}</div> : null}
+          {dayPickerOpen ? <div id="student-workout-day-options" className="student-workout-day-accordion__options" role="group" aria-label="Selecionar dia do treino">{days.map((day, index) => <button key={day.id || day.day + '-' + index} type="button" className={index === safeDayIndex ? 'is-selected' : ''} aria-current={index === safeDayIndex ? 'true' : undefined} onClick={() => selectDay(index)}><span>Dia {String(index + 1).padStart(2, '0')}</span><strong>{day.day || 'Treino ' + (index + 1)}</strong><small>{index === todayWorkoutDayIndex ? 'HOJE · ' : ''}{day.focus || workout.focus || 'Treino personalizado'}</small></button>)}</div> : null}
         </section>
         <div className="student-workout-figma-overview-title">
-          <p>SEU TREINO <span>•</span> {activeDay?.day || 'DIA ' + (safeDayIndex + 1)}</p>
-          <h3>{workoutScreenTitle}</h3>
+          <p>{isTodayWorkoutDay ? 'TREINO DE HOJE' : 'SEU TREINO'} <span>•</span> {activeDay?.day || 'DIA ' + (safeDayIndex + 1)}</p>
+          <h3>{workoutPlanTitle}</h3>
           <span>{activeDay?.focus || workout.focus || 'Treino personalizado'}{workout.level ? ' · ' + workout.level : ''}</span>
         </div>
         <div className="student-workout-figma-overview-stats" aria-label="Resumo do treino planejado">
@@ -16399,8 +16668,9 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             <WorkoutSeriesProgressSegments completed={dayCompletedSets} total={plannedSetCount} label="Séries já concluídas" className="student-workout-figma-overview-segments" />
           </div>
         </div>
+        {!preview && onOpenProgress ? <button type="button" className="student-workout-open-progress-v13" aria-label="Minha evolução" onClick={onOpenProgress}><NavIcon name="chart" className="h-5 w-5" /><span><strong>Minha evolução</strong><small>Cargas, repetições e recordes dos exercícios</small></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
         {exercises.length ? <div className="student-workout-figma-overview-primary-action">
-          <button type="button" className="student-workout-figma-primary" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : showWorkoutOverview ? () => setShowWorkoutOverview(false) : onToggleTimer}>{showWorkoutOverview ? 'Continuar treino' : sessionStarted ? 'Retomar treino' : 'Iniciar treino'} <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button>
+          <button type="button" className="student-workout-figma-primary" disabled={syncState === 'loading'} onClick={preview ? () => onPreviewStageChange?.('execution') : showWorkoutOverview ? () => setShowWorkoutOverview(false) : startWorkoutFromOverview}>{showWorkoutOverview ? 'Continuar treino' : sessionStarted ? 'Retomar treino' : 'Iniciar treino'} <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button>
         </div> : null}
         <div className="student-workout-figma-sequence-head"><strong>NA SUA SEQUÊNCIA</strong><span>Séries × reps</span></div>
         <div className="student-workout-figma-sequence">
@@ -16413,7 +16683,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                   <h4>{currentExercise.name}</h4>
                   <small>{currentExercise.equipment || profile.primaryLabel || 'Treino personalizado'}</small>
                 </div>
-                <div className="student-workout-figma-sequence-target"><strong>{isCardioExercise(currentExercise) ? 'Cardio' : `${currentExercise.sets || '—'} × ${currentExercise.reps || '—'}`}</strong><small>{isCardioExercise(currentExercise) ? formatCardioPrescription(currentExercise) : `${currentExercise.rest || 'Livre'} descanso`}</small></div>
+                <div className="student-workout-figma-sequence-target"><strong>{isCardioExercise(currentExercise) ? 'Cardio' : `${currentExercise.sets || '—'} × ${currentExercise.reps || 'livre'}`}</strong><small>{isCardioExercise(currentExercise) ? formatCardioPrescription(currentExercise) : `${currentExercise.rest || 'Livre'} descanso`}</small></div>
               </article>
             )
           })}
@@ -16451,7 +16721,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         {sessionSyncFeedback}
         <header className="student-workout-figma-execution-topbar student-workout-has-end-action">
           <button type="button" aria-label="Voltar ao exercício" onClick={() => { setExpandedSetKey(nextPendingSetKey); setActiveExerciseIndex(safeExerciseIndex); if (preview) onPreviewStageChange?.('execution'); else setExerciseCompleteDismissedKey(currentCardioKey) }}><NavIcon name="arrowLeft" className="h-5 w-5" /></button>
-          <span><strong>{workoutScreenTitle}</strong><small>DIA {activeDay?.day || safeDayIndex + 1} • MODO TREINO</small></span>
+          <span><strong>{workoutPlanTitle}</strong><small>DIA {activeDay?.day || safeDayIndex + 1}{isTodayWorkoutDay ? ' · HOJE' : ''} • MODO TREINO</small></span>
           <button type="button" className="student-workout-end-subtle" aria-label="Encerrar treino" title="Encerrar treino" onClick={() => setEndConfirmOpen(true)}><NavIcon name="close" className="h-3.5 w-3.5" /><span>Encerrar treino</span></button>
         </header>
         <div className="student-workout-figma-progress-head"><span>{completedExercises} de {exercises.length} exercícios concluídos • {formatWorkoutTimer(durationSeconds)}</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
@@ -16504,11 +16774,11 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
 
   return (
-    <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-execution mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution ' + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-execution mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution ' + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
       <header className="student-workout-figma-execution-topbar student-workout-has-end-action">
         <button type="button" aria-label="Voltar ao resumo do treino" onClick={returnToDaySelection}><NavIcon name="arrowLeft" className="h-5 w-5" /></button>
-        <span><strong>{workoutScreenTitle}</strong><small>DIA {activeDay?.day || safeDayIndex + 1} • MODO TREINO</small></span>
+        <span><strong>{workoutPlanTitle}</strong><small>DIA {activeDay?.day || safeDayIndex + 1}{isTodayWorkoutDay ? ' · HOJE' : ''} • MODO TREINO</small></span>
         <button type="button" className="student-workout-end-subtle" aria-label="Encerrar treino" title="Encerrar treino" onClick={() => setEndConfirmOpen(true)}><NavIcon name="close" className="h-3.5 w-3.5" /><span>Encerrar treino</span></button>
       </header>
       <div className="student-workout-figma-progress-head"><span>Exercício {safeExerciseIndex + 1} de {exercises.length} • {formatWorkoutTimer(durationSeconds)} de treino</span><strong>{dayCompletedSets}/{dayTotalSets} séries</strong></div>
@@ -16576,7 +16846,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             </>
           ) : (
             <>
-              <p className="student-workout-figma-prescription-line">{exercise.equipment || 'Treino de força'} • {exercise.sets || '—'} séries de {exercise.reps || '—'} reps • Descanso {exercise.rest || 'livre'}</p>
+              <p className="student-workout-figma-prescription-line">{exercise.equipment || 'Treino de força'} • {exercise.sets || '—'} séries · {exercise.reps ? `${exercise.reps} reps prescritas` : 'repetições livres'} • Descanso {exercise.rest || 'livre'}</p>
               <div className="mobile-workout-student-series-v2">
                 <div className="mobile-workout-student-series-head-v2">
                   <strong>Série {nextPendingSet?.number || exerciseSetCount} de {exerciseSetCount}</strong>
@@ -16604,12 +16874,12 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                       <div className="mobile-workout-set-label-v4">
                         <strong>{'Série ' + setItem.number}</strong>
                         <span className={'mobile-workout-set-state-v29 ' + (setItem.completed ? 'is-complete' : isCurrent ? 'is-current' : 'is-pending')}>{setItem.completed ? 'Concluída' : isCurrent ? 'Série atual' : 'Pendente'}</span>
-                        <small>{'Meta: ' + (setItem.targetReps || 'livre') + ' reps'}</small>
+                        <small id={'workout-set-target-' + setItem.key}>{setItem.targetReps ? 'Meta prescrita: ' + setItem.targetReps + ' reps' : 'Sem meta prescrita'}</small>
                         {previous ? <em>{'Último registro: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : null}
                       </div>
                       {isExpanded ? <div className="mobile-workout-set-fields-v12">
                         <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" enterKeyHint="next" value={setItem.load} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder={exercise?.load || 'kg'} /></label>
-                        <label>Repetições<input id={'workout-set-reps-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder={setItem.targetReps || 'reps'} /></label>
+                        <label>Repetições realizadas<input id={'workout-set-reps-' + setItem.key} aria-describedby={'workout-set-target-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder={setItem.targetReps ? 'Meta ' + setItem.targetReps : 'Digite o realizado'} /></label>
                         <button type="button" className="mobile-workout-set-inline-action-v29" onClick={() => completeSet(setItem)}>{setItem.completed ? 'Reabrir série' : 'Concluir série'}</button>
                       </div> : (
                         <button type="button" className="mobile-workout-set-open-v11" onClick={() => setExpandedSetKey(setItem.key)}>
@@ -17919,6 +18189,7 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
   const [archivingId, setArchivingId] = useState('')
   const [expandedPlanId, setExpandedPlanId] = useState('')
   const [search, setSearch] = useState('')
+  const [studentViewPlanId, setStudentViewPlanId] = useState(() => String(plans?.[0]?.id || ''))
   const [visibilityMessage, setVisibilityMessage] = useState('')
   const [visibilityError, setVisibilityError] = useState('')
   const visibilityPending = useRef(false)
@@ -17974,8 +18245,28 @@ export function NutritionPlanList({ plans, archivedPlans = [], selectedStudent, 
   }
 
   if (studentView) {
-    const studentPlan = visiblePlans[0] || plans[0]
-    return <StudentDietExperience plan={studentPlan} student={selectedStudent} professional={professional} showHeading={showHeading} waterMl={waterMl} waterGoalMl={waterGoalMl} onAddWater={onAddWater} onOpenWater={onOpenWater} />
+    const availableStudentPlans = plans.filter((plan) => plan && plan.active !== false)
+    const studentPlan = availableStudentPlans.find((plan) => sameId(plan.id, studentViewPlanId)) || availableStudentPlans[0]
+    if (!studentPlan) return <Empty text={`Nenhuma dieta ativa para este ${clientLabel}.`} />
+    return (
+      <div className="student-diet-plan-picker-v1">
+        {availableStudentPlans.length > 1 ? (
+          <div className="student-diet-plan-selector-v1" role="group" aria-label="Planos alimentares ativos">
+            <div className="student-diet-plan-selector-head-v1"><span>PLANOS ATIVOS</span><small>{availableStudentPlans.length} opções disponíveis</small></div>
+            <div className="student-diet-plan-selector-options-v1">
+              {availableStudentPlans.map((plan, index) => (
+                <button key={plan.id || `${plan.title || 'plan'}-${index}`} type="button" className="student-diet-plan-choice-v1" aria-pressed={sameId(plan.id, studentPlan.id)} aria-label={`Selecionar ${plan.title || `Plano ${index + 1}`}`} onClick={() => setStudentViewPlanId(String(plan.id || ''))}>
+                  <small>PLANO {String(index + 1).padStart(2, '0')}</small>
+                  <strong>{plan.title || `Plano ${index + 1}`}</strong>
+                  <span>{[plan.calories, plan.protein].filter(Boolean).join(' · ') || 'Plano alimentar ativo'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <StudentDietExperience key={`${selectedStudent?.id || 'student'}-${studentPlan.id || studentPlan.title || 'plan'}`} plan={studentPlan} student={selectedStudent} professional={professional} showHeading={showHeading} waterMl={waterMl} waterGoalMl={waterGoalMl} onAddWater={onAddWater} onOpenWater={onOpenWater} />
+      </div>
+    )
   }
 
   function renderPlan(plan, archived = false) {
@@ -18225,7 +18516,7 @@ function StudentDietExperience({ plan, student, professional = {}, showHeading =
       <div className="student-diet-plan-row-v1"><div><span><NavIcon name="calendar" className="h-3.5 w-3.5" /> {selectedDay.dateLabel} · PLANO ALIMENTAR</span><strong>{selectedDay.fullLabel}</strong><small>{meals.length} {meals.length === 1 ? 'refeição programada' : 'refeições programadas'}{plan?.calories ? ` · ${plan.calories}` : ''}</small></div></div>
 
       <div className="student-diet-week-strip-v1" aria-label="Semana atual">
-        {weekDays.map((day, dayIndex) => <span key={`${day.label}-${day.number}`} role="button" tabIndex={0} className={dayIndex === selectedWeekDayIndex ? 'is-active' : ''} onClick={() => setSelectedWeekDayIndex(dayIndex)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedWeekDayIndex(dayIndex) }} aria-pressed={dayIndex === selectedWeekDayIndex}><small>{day.label}</small><strong>{day.number}</strong></span>)}
+        {weekDays.map((day, dayIndex) => <button type="button" key={`${day.label}-${day.number}`} aria-label={`Selecionar ${day.label}, dia ${day.number}`} className={dayIndex === selectedWeekDayIndex ? 'is-active' : ''} onClick={() => setSelectedWeekDayIndex(dayIndex)} aria-pressed={dayIndex === selectedWeekDayIndex}><small>{day.label}</small><strong>{day.number}</strong></button>)}
       </div>
 
       <div key={`day-content-${selectedWeekDayIndex}`} className="student-diet-day-content-v1">
@@ -20382,6 +20673,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
   const patientMode = professionalType === 'nutritionist'
   const availableExerciseLibrary = useMemo(() => getExerciseLibrary(exerciseLibraryItems), [exerciseLibraryItems])
   const [menuOpen, setMenuOpen] = useState(false)
+  const studentMenuFocusTrapRef = useModalFocusTrap(menuOpen, () => setMenuOpen(false))
   const [activeTab, setActiveTab] = useState(() => resolveStudentPortalTab(professionalType, getInitialStudentTab(student?.id)))
   const [workoutPage, setWorkoutPage] = useState('main')
   const previousStudentTabRef = useRef('inicio')
@@ -21177,7 +21469,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       {xpGain > 0 && activeTab !== 'treino' && <div className="student-xp-gain" role="status" aria-live="polite"><strong>+{xpGain} XP</strong><span>Progresso registrado</span></div>}
       <header className="student-header-nav sticky top-0 z-30 border-b border-white/10 bg-zinc-950/94 px-3 py-2.5 shadow-2xl shadow-black/25 backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
-          <button type="button" aria-label={patientMode ? 'Abrir menu do paciente' : 'Abrir menu do aluno'} onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
+          <button type="button" aria-label={patientMode ? 'Abrir menu do paciente' : 'Abrir menu do aluno'} aria-expanded={menuOpen} aria-controls="student-mobile-menu-dialog" onClick={() => setMenuOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-white/10 text-zinc-100">
             <NavIcon name="menu" className="h-5 w-5 text-emerald-300" />
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
@@ -21195,9 +21487,9 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
       </header>
 
       {menuOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <nav className="student-mobile-menu-panel relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black">
+        <div id="student-mobile-menu-dialog" ref={studentMenuFocusTrapRef} role="dialog" aria-modal="true" aria-label={patientMode ? 'Menu do paciente' : 'Menu do aluno'} className="fixed inset-0 z-50 lg:hidden">
+          <button type="button" tabIndex={-1} aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <nav className="student-mobile-menu-panel relative h-full w-[82vw] max-w-80 overflow-y-auto border-r border-white/10 bg-zinc-950 p-4 shadow-2xl shadow-black" aria-label="Navegação do aluno">
             <div className="mb-5 flex items-center justify-between gap-3">
               <BrandLockup compact subtitle="Coach Fit Pro" />
               <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar menu" className="grid h-10 w-10 place-items-center rounded-md border border-white/10 text-zinc-200">
@@ -21388,7 +21680,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
             const active = activeTab === item.id
 
             return (
-              <button key={item.id} type="button" onClick={() => openTab(item.id)} className={`student-mobile-nav-button tone-${item.tone} ${active ? 'is-active' : ''} grid min-h-14 place-items-center gap-0.5 rounded-2xl border px-1 py-1 text-center text-[10px] font-black transition ${
+              <button key={item.id} type="button" aria-current={active ? 'page' : undefined} onClick={() => openTab(item.id)} className={`student-mobile-nav-button tone-${item.tone} ${active ? 'is-active' : ''} grid min-h-14 place-items-center gap-0.5 rounded-2xl border px-1 py-1 text-center text-[10px] font-black transition ${
                 active
                   ? 'border-[#00c7a8]/45 bg-[#00c7a8]/15 text-[#9fffe8]'
                   : 'border-transparent text-zinc-400'
@@ -21398,7 +21690,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               </button>
             )
           })}
-          <button type="button" onClick={() => setMenuOpen(true)} className="student-mobile-nav-button tone-emerald grid min-h-14 place-items-center gap-0.5 rounded-2xl border border-transparent px-1 py-1 text-center text-[10px] font-black text-zinc-400 transition">
+          <button type="button" aria-expanded={menuOpen} aria-controls="student-mobile-menu-dialog" onClick={() => setMenuOpen(true)} className="student-mobile-nav-button tone-emerald grid min-h-14 place-items-center gap-0.5 rounded-2xl border border-transparent px-1 py-1 text-center text-[10px] font-black text-zinc-400 transition">
             <NavIcon name="menu" className="h-4 w-4 text-[#00c7a8]" />
             <span className="leading-tight">MENU</span>
           </button>
@@ -22858,7 +23150,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
       } else if (result.pending) {
         setPaymentMessage('Compra pendente de aprovação. O acesso será liberado automaticamente após a confirmação da Apple.')
       } else if (result.active) {
-        onNativeEntitlementChange?.(true)
+        await onNativeEntitlementChange?.(true)
         setPaymentMessage('Assinatura confirmada pela App Store. Seu acesso está liberado.')
       } else {
         setPaymentMessage('A compra foi processada, mas a assinatura ainda está sendo validada pela Apple.')
@@ -22875,7 +23167,7 @@ function CoachSubscription({ students = [], invoices = [], subscription, userCre
     setPaymentMessage('Restaurando compras da App Store...')
     try {
       const result = await restoreIosPurchases(accountId)
-      onNativeEntitlementChange?.(Boolean(result.active))
+      await onNativeEntitlementChange?.(Boolean(result.active))
       setPaymentMessage(result.active
         ? 'Compra restaurada. Seu acesso está liberado.'
         : 'Nenhuma assinatura ativa foi encontrada para este Apple ID.')

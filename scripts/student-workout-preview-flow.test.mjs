@@ -111,7 +111,9 @@ test('cabeçalhos do aluno não repetem o mesmo nome de plano e dia', () => {
   }
   const distinctTitles = { ...workout, title: 'Plano principal', days: [{ ...workout.days[0], day: 'Treino A' }] }
   const distinctHtml = renderToString(React.createElement(StudentWorkoutExecution, { student, workout: distinctTitles, preview: true, previewStage: 'overview', dayIndex: 0 }))
-  assert.match(distinctHtml, /Plano principal — Treino A/)
+  assert.match(distinctHtml, /<h3>Plano principal<\/h3>/)
+  assert.match(distinctHtml, /SEU TREINO[\s\S]*?Treino A/)
+  assert.doesNotMatch(distinctHtml, /Plano principal\s*[—•]\s*Treino A/)
 })
 
 test('a prévia usa os tokens oficiais escuros e o fluxo permanece somente local', () => {

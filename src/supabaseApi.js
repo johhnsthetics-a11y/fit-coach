@@ -307,6 +307,24 @@ export async function sendRemoteProfessionalTeamInviteEmail(inviteId) {
   return functionRequest('professional-team-invitation', { inviteId })
 }
 
+export async function loadRemoteProfessionalTeamInviteSignupContext(inviteId) {
+  if (!isUuid(inviteId)) return null
+  const result = await rpcRequest('get_professional_team_invite_signup_context', {
+    selected_invite_id: inviteId,
+  })
+  if (!result || typeof result !== 'object') return null
+  const professionalRole = String(result.professionalRole || '').trim().toLowerCase()
+  const inviteeEmail = String(result.inviteeEmail || '').trim().toLowerCase()
+  if (!['trainer', 'nutritionist'].includes(professionalRole) || !inviteeEmail) return null
+  return {
+    inviteId: String(result.inviteId || inviteId),
+    inviteeEmail,
+    professionalRole,
+    teamName: String(result.teamName || ''),
+    expiresAt: String(result.expiresAt || ''),
+  }
+}
+
 export async function validateRemoteProfessionalTeamInviteSignup(inviteId, email, professionalRole) {
   if (!isUuid(inviteId)) return false
   const result = await rpcRequest('validate_professional_team_invite_signup', {
@@ -560,7 +578,9 @@ export async function signUpCoach({ name, email, password, role = 'Coach princip
   })
 
   if (!payload.access_token) {
-    throw new Error('Conta criada. Confirme o e-mail na sua caixa de entrada e depois entre com e-mail e senha.')
+    const error = new Error('Conta criada. Confirme o link enviado ao seu e-mail; depois, volte ao Coach Fit Pro e entre com o mesmo endereço para continuar o convite.')
+    error.code = 'email_confirmation_required'
+    throw error
   }
 
   setSupabaseSession(payload.access_token)

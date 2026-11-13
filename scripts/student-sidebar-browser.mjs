@@ -108,7 +108,7 @@ try {
       const idleIconColors = await sidebar.locator('.app-nav-toned-button:not(.is-active) .app-nav-tone-icon').evaluateAll((icons) => (
         [...new Set(icons.map((icon) => getComputedStyle(icon).color))]
       ))
-      assert.equal(idleIconColors.length, 1, 'Ícones inativos devem usar uma cor visual uniforme')
+      assert.ok(idleIconColors.length >= 3, `Ícones inativos devem preservar as cores próprias de cada módulo: ${idleIconColors.join(', ')}`)
 
       if (width >= 1024) {
         await sidebar.getByText('Mais opções', { exact: true }).click()
@@ -136,4 +136,3 @@ try {
   await browser.close()
   await server.close()
 }
-

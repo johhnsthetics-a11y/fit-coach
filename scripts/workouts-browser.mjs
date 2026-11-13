@@ -81,13 +81,43 @@ try {
             return buttonRect.left < containerRect.left - 1 || buttonRect.right > containerRect.right + 1
           }).length)
           assert.equal(clippedFilters, 0, `Todos os filtros devem ficar visíveis em ${viewport.width}px`)
-          if (scenario.students.length) assert.equal(await page.locator('select[name="studentId"]').last().inputValue(), student.id)
+          if (scenario.students.length) {
+            const manager = page.locator('.mobile-workout-manager')
+            await manager.getByRole('tab', { name: /Alunos/ }).click()
+            const studentCard = manager.locator('.mobile-workout-student-card').filter({ hasText: student.name })
+            await studentCard.waitFor()
+            await studentCard.getByRole('button', { name: 'Criar treino', exact: true }).click()
+            const recoveryDialog = page.getByRole('dialog').filter({ hasText: 'Já existe uma edição salva' })
+            if (await recoveryDialog.count()) {
+              await recoveryDialog.getByRole('button', { name: 'Descartar e começar outro', exact: true }).click()
+            }
+            const creator = manager.locator('.mobile-workout-creator')
+            await creator.waitFor({ state: 'visible', timeout: 5000 }).catch(async () => {
+              const context = {
+                managerText: (await manager.innerText()).slice(0, 1400),
+                dialogs: await page.locator('[role="dialog"]').allTextContents(),
+                errors,
+              }
+              throw new Error(`O rascunho direcionado ao aluno não abriu o criador: ${JSON.stringify(context)}`)
+            })
+            await creator.locator('.mobile-workout-stepper').getByRole('button', { name: /Aluno/ }).click()
+            const studentSelect = creator.locator('select[name="studentId"]')
+            await studentSelect.waitFor()
+            assert.equal(await studentSelect.inputValue(), student.id, 'O criador deve manter o aluno QA selecionado')
+            await creator.locator('.mobile-workout-creator-head').getByRole('button', { name: 'Fechar', exact: true }).click()
+          }
           if (scenario.workouts.length) assert.ok(await page.getByText('Rotina Regressão', { exact: true }).count())
           if (scenario.name === 'rascunho-salvo') assert.ok(await page.getByRole('button', { name: 'Continuar rascunho', exact: true }).count())
           results.push(`${viewport.width} / ${scenario.name} / ${action}: PASS`)
         }
         if (scenario.name === 'com-treinos') {
+          const workoutManager = page.locator('.mobile-workout-manager')
+          await workoutManager.getByRole('tab', { name: /Planos/ }).click()
+          const publishedPlanRow = page.locator('.trainer-workout-plan-row').filter({ hasText: 'Rotina Regressão' }).first()
+          await publishedPlanRow.waitFor()
+          await publishedPlanRow.locator('.trainer-workout-plan-row-main').click()
           const publishedActions = page.locator('.mobile-workout-action-bar')
+          await publishedActions.waitFor()
           assert.deepEqual(await publishedActions.locator('.is-secondary').evaluate((button) => {
             const style = getComputedStyle(button)
             return { background: style.backgroundColor, color: style.color }
@@ -114,6 +144,11 @@ try {
           await page.screenshot({ path: resolve(output, `after-dark-${viewport.width}.png`) })
           await page.getByRole('button', { name: 'Ativar modo claro', exact: true }).first().click()
           await page.getByRole('button', { name: 'Criar treino', exact: true }).click()
+          const newDraftRecovery = page.getByRole('dialog').filter({ hasText: 'Já existe uma edição salva' })
+          if (await newDraftRecovery.count()) {
+            await newDraftRecovery.getByRole('button', { name: 'Descartar e começar outro', exact: true }).click()
+          }
+          await page.locator('.mobile-workout-creator').waitFor({ state: 'visible' })
           await page.getByText('Criar novo treino', { exact: true }).waitFor()
           assert.ok(await page.locator('.mobile-workout-student-picker').count(), 'O aluno deve aparecer em um seletor contextual')
           await page.getByLabel('Nome da rotina', { exact: true }).fill(`Rotina QA ${viewport.width}`)
@@ -122,9 +157,14 @@ try {
             assert.ok(await page.getByRole('button', { name: new RegExp(step) }).count(), `Etapa ${step} deve estar visível`)
           }
           await page.getByRole('button', { name: 'Continuar', exact: true }).click()
-          await page.getByRole('button', { name: 'Adicionar primeiro dia', exact: true }).first().click()
-          await page.getByRole('dialog', { name: 'Editar dia do treino', exact: true }).getByRole('button', { name: 'Salvar dia', exact: true }).click()
-          await page.getByRole('button', { name: 'Continuar para exercícios', exact: true }).click()
+          const addFirstDayButton = page.getByRole('button', { name: 'Adicionar primeiro dia', exact: true }).first()
+          if (await addFirstDayButton.count()) {
+            await addFirstDayButton.click()
+            await page.getByRole('dialog', { name: 'Editar dia do treino', exact: true }).getByRole('button', { name: 'Salvar dia', exact: true }).click()
+            await page.getByRole('button', { name: 'Continuar para exercícios', exact: true }).click()
+          } else {
+            await page.getByRole('button', { name: 'Continuar para exercícios', exact: true }).click()
+          }
           await page.getByRole('button', { name: /Adicionar (primeiro )?exercício/ }).first().click()
           const picker = page.getByRole('dialog', { name: 'Adicionar exercício', exact: true })
           await picker.waitFor({ state: 'visible' })
@@ -149,10 +189,9 @@ try {
           await exerciseCards.first().getByRole('button', { name: 'Ver', exact: true }).click()
           const detail = page.getByRole('dialog', { name: 'Prévia do exercício', exact: true })
           await detail.waitFor()
-          assert.equal(await detail.getByText('Músculo alvo', { exact: true }).count(), 1)
-          const backFilter = detail.locator('button').filter({ hasText: /^Costas$/ })
-          await backFilter.click()
-          assert.equal(await backFilter.getAttribute('aria-pressed'), 'true')
+          assert.equal(await detail.locator('.mobile-workout-creator-head h4').count(), 1, 'A prévia deve identificar o exercício aberto')
+          assert.equal(await detail.getByText('Dica técnica', { exact: true }).count(), 1, 'A prévia deve mostrar a orientação técnica real')
+          assert.equal(await detail.getByText('Erro comum', { exact: true }).count(), 1, 'A prévia deve mostrar um erro comum a evitar')
           await detail.screenshot({ path: resolve(output, `exercise-preview-${viewport.width}.png`) })
           await detail.getByRole('button', { name: 'Fechar', exact: true }).click()
           await exerciseCards.first().getByRole('button', { name: 'Remover dos favoritos', exact: true }).click()
@@ -175,10 +214,12 @@ try {
           await page.getByRole('button', { name: 'Prévia completa do aluno', exact: true }).click()
           const preview = page.getByRole('dialog', { name: 'Prévia completa da jornada do aluno', exact: true })
           await preview.waitFor({ state: 'visible' })
+          const expectedExerciseCount = await preview.locator('.student-workout-figma-sequence-row').count()
+          assert.ok(expectedExerciseCount >= 3, `A prévia deve conservar os exercícios reais do dia ativo; encontrado(s): ${expectedExerciseCount}`)
           await preview.getByRole('tab', { name: 'Execução', exact: true }).click()
           assert.ok(await preview.getByRole('button', { name: 'Concluir série', exact: true }).count())
           assert.ok(await preview.getByLabel('Carga (kg)', { exact: true }).count())
-          assert.ok(await preview.getByLabel('Repetições', { exact: true }).count())
+          assert.ok(await preview.getByLabel('Repetições realizadas', { exact: true }).count())
           assert.equal(await preview.locator('.mobile-workout-day-preview-student-shell.student-mobile-shell').count(), 1, 'A prévia deve usar o mesmo shell visual do aluno')
           assert.equal(await preview.locator('.mobile-workout-day-preview-head-v2').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(244, 251, 249)', 'O cabeçalho da prévia clara não pode permanecer preto')
           assert.equal(await preview.locator('.is-compact').count(), 0, 'A prévia não deve usar uma versão compacta diferente da tela real')
@@ -187,47 +228,58 @@ try {
             const styles = getComputedStyle(heading)
             return rect.width >= 160 && styles.wordBreak !== 'break-all'
           }), true, 'O nome do exercício deve permanecer legível sem empilhar letras')
-          const muscleMap = preview.locator('.mobile-workout-muscle-target-anatomy-v6')
-          assert.equal(await muscleMap.count(), 1, 'A prévia deve exibir um único mapa muscular anatômico')
-          assert.ok(await muscleMap.locator('.muscle-map-region.is-primary').count() > 0, 'O músculo principal deve estar destacado')
-          assert.equal(await preview.locator('.mobile-workout-muscle-target-compact-v5').count(), 0, 'O boneco simplificado não deve permanecer na execução')
+          const exerciseHeading = preview.locator('.mobile-workout-current-heading-v5 h4')
+          const progressHead = preview.locator('.student-workout-figma-progress-head')
+          assert.equal(await exerciseHeading.count(), 1, 'A prévia deve manter o título do exercício da execução real')
+          assert.equal(await progressHead.count(), 1, 'A execução deve manter o timer compacto e o progresso de séries')
           assert.equal(await preview.evaluate((root) => {
             const heading = root.querySelector('.mobile-workout-current-heading-v5')
-            const map = root.querySelector('.mobile-workout-muscle-target-anatomy-v6')
-            const timer = root.querySelector('.mobile-workout-timer-panel-v5')
-            return Boolean(heading && map && timer && heading.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING && map.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING)
-          }), true, 'O mapa muscular deve ficar entre o nome do exercício e o timer')
-          assert.equal(await preview.locator('.mobile-workout-timer-panel-v5').evaluate((timer) => {
-            const value = timer.querySelector('.mobile-workout-session-timer-v5 > strong')
-            return timer.scrollWidth <= timer.clientWidth + 1 && value && value.getBoundingClientRect().right <= timer.getBoundingClientRect().right + 1
-          }), true, 'O cronômetro deve permanecer contido no card')
-          assert.equal(await preview.locator('.mobile-workout-orientations-v4').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(234, 245, 242)', 'Orientações do coach deve receber destaque teal suave')
+            const progress = root.querySelector('.student-workout-figma-progress-head')
+            return Boolean(progress && heading && progress.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING)
+          }), true, 'O tempo e o progresso devem preceder o título do exercício no layout atual')
+          assert.equal(await progressHead.evaluate((element) => {
+            const text = element.querySelector('span')
+            const bounds = element.getBoundingClientRect()
+            return Boolean(text && /\d{2}:\d{2}:\d{2} de treino/.test(text.innerText) && element.scrollWidth <= element.clientWidth + 1 && text.getBoundingClientRect().right <= bounds.right + 1)
+          }), true, 'O cronômetro compacto deve permanecer visível e contido no progresso')
+          assert.equal(await preview.locator('.student-workout-figma-media').count(), 1, 'A prévia deve mostrar a ficha real de execução do exercício')
+          assert.ok(await preview.locator('.student-workout-figma-media').locator('details, a, .student-workout-figma-technique-preview').count() > 0, 'A mídia ou técnica deve permanecer acessível ao aluno')
           assert.equal(await preview.getByRole('button', { name: 'Concluir série', exact: true }).first().evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(8, 125, 108)', 'Ação principal deve usar o verde do branding')
-          assert.equal(await preview.locator('.mobile-workout-end-trigger-v5').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(243, 207, 124)', 'Encerrar treino deve usar o âmbar de atenção')
-          assert.equal(await preview.locator('.mobile-workout-finalize-primary-v5').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(169, 199, 192)', 'Finalizar treino desabilitado deve manter fundo visível')
-          assert.deepEqual(await preview.locator('.mobile-workout-execution-head-v4 > button:first-child').evaluate((element) => {
+          const endAction = preview.locator('.student-workout-end-subtle')
+          assert.equal(await endAction.count(), 1, 'Encerrar treino deve continuar disponível como ação secundária')
+          assert.equal(await endAction.evaluate((element) => element.getBoundingClientRect().height >= 40 && getComputedStyle(element).backgroundColor !== 'rgb(8, 125, 108)'), true, 'Encerrar treino deve permanecer tocável e visualmente secundário')
+          assert.deepEqual(await preview.locator('.student-workout-figma-execution-topbar > button:first-child').evaluate((element) => {
             const styles = getComputedStyle(element)
             return {
-              background: styles.backgroundColor,
               rounded: Number.parseFloat(styles.borderRadius) >= 20,
               touchHeight: element.getBoundingClientRect().height >= 44,
             }
-          }), { background: 'rgb(234, 245, 242)', rounded: true, touchHeight: true }, 'Voltar deve ser arredondado, confortável e integrado ao tema claro')
+          }), { rounded: true, touchHeight: true }, 'Voltar deve ser arredondado e confortável para toque')
           const clipping = await preview.evaluate(root => [root, ...root.querySelectorAll('*')].filter(el => /^(hidden|clip)$/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 2).map(el => el.className))
           assert.deepEqual(clipping, [], 'A prévia não pode esconder séries ou conclusão')
-          assert.equal(
-            await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).isDisabled(),
-            true,
-            'Finalizar treino deve permanecer indisponível antes de concluir as séries',
-          )
-          for (let exerciseIndex = 0; exerciseIndex < 3; exerciseIndex++) {
-            const reps = preview.getByLabel('Repetições', { exact: true })
-            for (let setIndex = 0; setIndex < await reps.count(); setIndex++) await reps.nth(setIndex).fill('10')
-            const sets = preview.getByRole('button', { name: 'Concluir série', exact: true })
-            while (await sets.count()) await sets.first().click()
-            if (exerciseIndex < 2) await preview.getByRole('button', { name: 'Concluir exercício e ir para o próximo →', exact: true }).click()
+          assert.equal(await preview.getByRole('button', { name: 'Concluir treino', exact: true }).count(), 0, 'A conclusão do treino não deve aparecer antes das séries')
+          for (let exerciseIndex = 0; exerciseIndex < expectedExerciseCount; exerciseIndex++) {
+            let setSteps = 0
+            while (!(await preview.locator('.student-workout-figma-exercise-complete').count())) {
+              assert.ok(setSteps < 20, `O exercício ${exerciseIndex + 1} deve chegar à tela de conclusão após registrar as séries`)
+              setSteps += 1
+              await preview.getByLabel('Carga (kg)', { exact: true }).fill('20')
+              await preview.getByLabel('Repetições realizadas', { exact: true }).fill('10')
+              await preview.getByRole('button', { name: 'Concluir série', exact: true }).click()
+              if (await preview.locator('.student-workout-figma-rest').count()) {
+                await preview.getByRole('button', { name: 'Pular descanso', exact: true }).click()
+              }
+            }
+            const exerciseAction = preview.locator('.student-workout-figma-bottom-actions button')
+            if (exerciseIndex < expectedExerciseCount - 1) {
+              assert.match(await exerciseAction.innerText(), /^Ir para /, 'A conclusão do exercício deve apontar para o próximo movimento real do plano')
+              await exerciseAction.click()
+              await preview.locator('[data-preview-screen="execution"]').waitFor()
+            } else {
+              assert.equal(await preview.getByRole('button', { name: 'Concluir treino', exact: true }).count(), 1, `A conclusão final só aparece após todas as séries; ação atual: ${(await exerciseAction.innerText()).trim()}; tela: ${(await preview.locator('.student-workout-figma-exercise-complete').innerText()).slice(0, 500)}`)
+              await preview.getByRole('button', { name: 'Concluir treino', exact: true }).click()
+            }
           }
-          await preview.getByRole('button', { name: 'Finalizar treino', exact: true }).click()
           await preview.getByText(/Simulação concluída/).waitFor()
           assert.equal(await preview.locator('.student-workout-rating-panel[data-preview-rating="true"]').count(), 1, 'O resumo deve mostrar a avaliação apenas como prévia')
           assert.equal(await preview.locator('.student-workout-rating-submit').isDisabled(), true, 'A prévia não deve enviar a avaliação')
@@ -245,21 +297,27 @@ try {
           await page.reload()
           const saved = await page.evaluate(title => JSON.parse(localStorage.getItem('fitcoach-ai-pro-v2')).workouts.find(item => item.title === title), `Rotina QA ${viewport.width}`)
           assert.equal(saved.studentId, student.id)
-          assert.equal(saved.exercises.length, 3)
-          await page.getByRole('button', { name: 'Visão do aluno', exact: true }).click()
+          assert.ok(saved.exercises.length >= expectedExerciseCount, `O treino publicado deve preservar os exercícios mostrados na prévia; salvo=${saved.exercises.length}, prévia do dia=${expectedExerciseCount}`)
+          const publishedRow = page.locator('.trainer-workout-plan-row').filter({ hasText: `Rotina QA ${viewport.width}` }).first()
+          await publishedRow.waitFor()
+          await publishedRow.locator('.trainer-workout-plan-row-main').click()
+          const planActions = page.locator('.mobile-workout-action-bar.trainer-workout-detail-actions')
+          await planActions.getByRole('button', { name: 'Visão do aluno', exact: true }).click()
           const modal = page.getByRole('dialog', { name: 'Visão do aluno', exact: true })
           await modal.getByRole('tab', { name: 'Execução', exact: true }).click()
           assert.equal(
-            await modal.getByRole('button', { name: 'Finalizar treino', exact: true }).isDisabled(),
-            true,
-            'A visão do aluno não deve finalizar um treino sem séries concluídas',
+            await modal.getByRole('button', { name: 'Concluir treino', exact: true }).count(),
+            0,
+            'A visão do aluno não deve oferecer conclusão antes de registrar as séries',
           )
-          assert.equal(await modal.evaluate(el => el.scrollWidth > el.clientWidth + 1), false, 'Modal deve caber sem corte horizontal')
+          assert.ok(await modal.getByRole('button', { name: 'Concluir série', exact: true }).count() > 0, 'A visão do aluno deve manter a ação real de concluir série')
+          const modalOverflow = await modal.evaluate((element) => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth }))
+          assert.ok(modalOverflow.scrollWidth <= modalOverflow.clientWidth + 1, `Modal deve caber sem corte horizontal: ${JSON.stringify(modalOverflow)}`)
           await page.screenshot({ path: resolve(output, `expanded-${viewport.width}.png`) })
-          await modal.locator('.mobile-workout-timer-panel-v5').scrollIntoViewIfNeeded()
+          await modal.locator('.student-workout-figma-progress-head').scrollIntoViewIfNeeded()
           await page.screenshot({ path: resolve(output, `timer-${viewport.width}.png`) })
-          await modal.locator('.mobile-workout-orientations-v4').scrollIntoViewIfNeeded()
-          await page.screenshot({ path: resolve(output, `orientations-${viewport.width}.png`) })
+          await modal.locator('.student-workout-figma-media').scrollIntoViewIfNeeded()
+          await page.screenshot({ path: resolve(output, `exercise-technique-${viewport.width}.png`) })
           await modal.getByRole('button', { name: /Voltar para edição/ }).click()
         }
         if (viewport.width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()

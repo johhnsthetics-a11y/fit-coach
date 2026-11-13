@@ -15,7 +15,7 @@ await db.exec(`create role anon; create role authenticated; create role service_
   create table public.users(id uuid primary key, name text not null, email text unique not null, role text not null);
   create table public.coach_subscriptions(coach_id uuid primary key, status text, current_period_ends_at timestamptz);
   create table public.affiliate_professionals(email text primary key, active boolean not null default false);
-  create table students(id uuid primary key, coach_id uuid references auth.users(id), name text default '', goal text, phase text, weight text, body_fat text, calories text, protein text);
+  create table students(id uuid primary key, coach_id uuid references auth.users(id), name text default '', email text, cpf text, goal text, phase text, weight text, body_fat text, calories text, protein text);
 create table workouts(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid references students(id),title text,focus text,notes text,active boolean,created_at timestamptz default now());
 create table workout_exercises(id uuid primary key default gen_random_uuid(),workout_id uuid references workouts(id),name text,sets text,reps text,load text,rest text,muscle_group text,equipment text,instructions text,video_url text,image_url text,external_id text,order_index integer);
 create table workout_logs(id uuid primary key default gen_random_uuid(),coach_id uuid,student_id uuid,workout_id uuid,title text,effort text,notes text,completed_at timestamptz default now());
@@ -38,7 +38,10 @@ insert into coach_subscriptions(coach_id,status,current_period_ends_at) values
   ('${other}','paid',now()+interval '1 day'),
   ('${nutritionist}','trialing',now()+interval '1 day');
 insert into affiliate_professionals(email,active) values('trainer@example.com',true);
-insert into students(id,coach_id,name) values('${student}','${coach}','Aluno QA'),('${studentB}','${other}','Aluno externo'),('${studentC}','${nutritionist}','Paciente da nutri');
+insert into students(id,coach_id,name,email,cpf) values
+  ('${student}','${coach}','Aluno QA','aluno.qa@example.com','123.456.789-00'),
+  ('${studentB}','${other}','Aluno externo','externo@example.com','987.654.321-00'),
+  ('${studentC}','${nutritionist}','Paciente da nutri','paciente.qa@example.com','111.222.333-44');
 insert into student_invites(coach_id,student_id,code,status) values('${coach}','${student}','qa-invite-a','active'),('${other}','${studentB}','qa-invite-b','active');
 insert into workouts(id,coach_id,student_id,title,active) values
   ('${foreignWorkout}','${other}','${studentB}','Treino externo',true),
@@ -99,6 +102,8 @@ await db.exec(await readFile(new URL('../supabase/migrations/20261020121500_noti
 await db.exec(await readFile(new URL('../supabase/migrations/20261112152900_professional_team_patient_collaboration_build41.sql',import.meta.url),'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20261112163114_allow_unsubscribed_team_invitees.sql',import.meta.url),'utf8'))
 await db.exec(await readFile(new URL('../supabase/migrations/20261112173136_scoped_professional_team_invites_build42.sql',import.meta.url),'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20261112185705_team_invite_discovery_candidate_search.sql',import.meta.url),'utf8'))
+await db.exec(await readFile(new URL('../supabase/migrations/20261112213600_team_invite_signup_context_build44.sql',import.meta.url),'utf8'))
 await db.exec(`update students set auth_user_id='${studentUser}' where id='${student}';
 update students set auth_user_id='${studentUserB}' where id='${studentB}';
 update students set auth_user_id='${studentUserC}' where id='${studentC}';`)
@@ -198,8 +203,26 @@ await assert.rejects(db.query("select create_professional_team('Grace Apple expi
 
 await assumeUser(coach)
 const teamA = (await db.query("select create_professional_team('Equipe Coach QA') as value")).rows[0].value
+const candidatesForSearch = (await db.query('select list_professional_team_candidates() as value')).rows[0].value
+assert.equal(candidatesForSearch.find((candidate) => candidate.id === student).email, 'aluno.qa@example.com')
+assert.equal(candidatesForSearch.find((candidate) => candidate.id === student).cpf, '123.456.789-00')
 const teamInvite = (await db.query('select create_professional_team_invite_scoped($1::uuid,$2,$3,$4::uuid[]) as value', [teamA.id,'nutritionist@example.com','nutritionist',`{${student}}`])).rows[0].value
 assert.equal(teamInvite.status, 'pending')
+await db.exec('reset role')
+await db.exec('set role anon')
+const signupContext = (await db.query('select get_professional_team_invite_signup_context($1::uuid) as value', [teamInvite.id])).rows[0].value
+assert.deepEqual(Object.keys(signupContext).sort(), ['expiresAt', 'inviteId', 'inviteeEmail', 'professionalRole', 'teamName'])
+assert.equal(signupContext.inviteeEmail, 'nutritionist@example.com')
+assert.equal(signupContext.professionalRole, 'nutritionist')
+assert.equal(signupContext.teamName, 'Equipe Coach QA')
+assert.equal(Object.hasOwn(signupContext, 'selectedPatientIds'), false)
+await db.exec('reset role')
+await db.query("update professional_team_invites set expires_at=now()-interval '1 minute' where id=$1", [teamInvite.id])
+await db.exec('set role anon')
+assert.equal((await db.query('select get_professional_team_invite_signup_context($1::uuid) as value', [teamInvite.id])).rows[0].value, null)
+await db.exec('reset role')
+await db.query("update professional_team_invites set expires_at=now()+interval '7 days' where id=$1", [teamInvite.id])
+await assumeUser(coach)
 assert.equal((await db.query('select validate_professional_team_invite_signup($1::uuid,$2,$3) as value', [teamInvite.id,'NUTRITIONIST@example.com','nutritionist'])).rows[0].value, true)
 assert.equal((await db.query('select validate_professional_team_invite_signup($1::uuid,$2,$3) as value', [teamInvite.id,'other@example.com','nutritionist'])).rows[0].value, false)
 assert.equal((await db.query('select validate_professional_team_invite_signup($1::uuid,$2,$3) as value', [teamInvite.id,'nutritionist@example.com','trainer'])).rows[0].value, false)
@@ -208,6 +231,11 @@ const noSubscriptionInvite = (await db.query('select create_professional_team_in
 assert.deepEqual(noSubscriptionInvite.selectedStudentIds, [student])
 assert.equal(noSubscriptionInvite.inviteeHasAccount, true)
 await assumeUser(noEntitlement)
+const noSubscriptionInbox = (await db.query('select get_professional_team_invite_inbox() as value')).rows[0].value
+assert.equal(noSubscriptionInbox.length, 1)
+assert.equal(noSubscriptionInbox[0].inviteeEmail, 'no-access@example.com')
+assert.equal(noSubscriptionInbox[0].selectedPatients[0].name, 'Aluno QA')
+assert.equal((await db.query('select get_professional_team_workspace() as value')).rows[0].value.pendingInvites.length, 1)
 await db.query('select accept_professional_team_invite($1::uuid)', [noSubscriptionInvite.id])
 assert.equal((await db.query('select get_professional_team_workspace() as value')).rows[0].value.teams[0].members.length, 1)
 await db.exec('reset role')
@@ -219,11 +247,13 @@ await assert.rejects(
 
 await assumeUser(noEntitlement)
 assert.equal((await db.query('select get_professional_team_workspace() as value')).rows[0].value.pendingInvites.length, 0)
+assert.equal((await db.query('select get_professional_team_invite_inbox() as value')).rows[0].value.length, 0)
 
 await assumeUser(nutritionist)
 assert.equal((await db.query('select get_professional_team_workspace() as value')).rows[0].value.pendingInvites.length, 1)
 await db.query('select accept_professional_team_invite($1::uuid)', [teamInvite.id])
 assert.equal((await db.query("select get_professional_delegated_workspace('nutrition') as value")).rows[0].value.length, 1)
+assert.equal((await db.query('select get_professional_team_invite_signup_context($1::uuid) as value', [teamInvite.id])).rows[0].value, null)
 const nutritionistTeamView = (await db.query('select get_professional_team_workspace() as value')).rows[0].value
 assert.equal(nutritionistTeamView.teams.length, 1)
 assert.equal(nutritionistTeamView.teams[0].isOwner, false)
@@ -263,6 +293,18 @@ const guestWorkout = (await db.query('select save_collaborative_workout($1::json
 })])).rows[0].value
 assert.equal(guestWorkout.coach_id, coach)
 assert.equal(guestWorkout.created_by, noEntitlement)
+await db.exec('reset role')
+await db.query('insert into coach_subscriptions(coach_id,status,current_period_ends_at) values($1,\'active\',now()+interval \'30 days\')', [noEntitlement])
+await assumeUser(noEntitlement)
+const memberWorkspaceAfterSubscription = (await db.query('select get_professional_team_workspace() as value')).rows[0].value
+assert.equal(memberWorkspaceAfterSubscription.teams.length, 1)
+assert.equal(memberWorkspaceAfterSubscription.teams[0].id, teamA.id)
+assert.equal(memberWorkspaceAfterSubscription.teams[0].isOwner, false)
+const personalTeamAfterSubscription = (await db.query("select create_professional_team('Equipe própria pós-assinatura') as value")).rows[0].value
+const multiTeamAfterSubscription = (await db.query('select get_professional_team_workspace() as value')).rows[0].value
+assert.equal(multiTeamAfterSubscription.teams.length, 2)
+assert.equal(multiTeamAfterSubscription.teams.find((teamView) => teamView.id === teamA.id).isOwner, false)
+assert.equal(multiTeamAfterSubscription.teams.find((teamView) => teamView.id === personalTeamAfterSubscription.id).isOwner, true)
 await db.exec('reset role')
 
 await assumeUser(coach)

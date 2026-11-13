@@ -39,22 +39,52 @@ export default function StudentImportDialog({
   const [result, setResult] = useState(null)
   const [importing, setImporting] = useState(false)
   const fileInputRef = useRef(null)
+  const dialogRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  const importingRef = useRef(importing)
   const clientLabel = nutritionist ? 'pacientes' : 'alunos'
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+  useEffect(() => { importingRef.current = importing }, [importing])
   const singularLabel = nutritionist ? 'paciente' : 'aluno'
 
   useEffect(() => {
-    if (!open) return undefined
+    if (!open || typeof document === 'undefined') return undefined
+    const previousFocus = document.activeElement
     const previousOverflow = document.body.style.overflow
+    const dialog = dialogRef.current
+    const selector = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'
+    const getFocusable = () => Array.from(dialog?.querySelectorAll(selector) || []).filter((element) => element.getClientRects().length)
     document.body.style.overflow = 'hidden'
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !importing) onClose()
+    const focusFrame = window.requestAnimationFrame?.(() => (getFocusable()[0] || dialog)?.focus())
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (!importingRef.current) onCloseRef.current?.()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = getFocusable()
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
-    window.addEventListener('keydown', handleKeyDown)
+
+    document.addEventListener('keydown', handleKeyDown)
     return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      if (focusFrame !== undefined) window.cancelAnimationFrame?.(focusFrame)
       document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', handleKeyDown)
+      if (previousFocus?.isConnected) previousFocus.focus()
     }
-  }, [open, importing, onClose])
+  }, [open])
 
   useEffect(() => {
     if (plans.some((plan) => plan.name === defaultPlanName)) return
@@ -125,6 +155,8 @@ export default function StudentImportDialog({
 
   return createPortal(
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className="fixed inset-0 z-[150] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-5"
       role="dialog"
       aria-modal="true"

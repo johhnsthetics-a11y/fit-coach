@@ -10,7 +10,7 @@ const student = { id: 'qa-student-a', name: 'Aluno de teste A', goal: 'Hipertrof
 const secondStudent = { ...student, id: 'qa-student-b', name: 'Aluno de teste B' }
 const workout = { id: 'qa-workout', studentId: student.id, title: 'Treino de teste', active: true, exercises: [{ name: 'Supino reto com barra', sets: '2', reps: '10', load: '20', rest: '0s' }, { name: 'Remada baixa', sets: '1', reps: '12', load: '15', rest: '0s' }] }
 const assignments = [1, 2].map(n => ({ id: 'qa-assignment-' + n, studentId: student.id, status: 'Pendente', questionSnapshot: { title: 'Questionário QA ' + n, questions: [{ id: 'q1', label: 'Restrições alimentares?', type: 'single', required: true, options: ['Não', 'Outra'] }] } }))
-const studentFixture = `import React from 'react'; import {createRoot} from 'react-dom/client'; import {StudentMobileApp} from '/src/App.jsx'; import '/src/index.css';
+const studentFixture = `import React from 'react'; import {createRoot} from 'react-dom/client'; import {StudentMobileApp} from '/src/App.jsx'; import '/src/index.css'; import '/src/trainer-workout-workspace.css'; import '/src/student-workout-execution-build29.css'; import '/src/chat/chat.css'; import '/chat-wallpaper.css'; import '/chat-wallpaper-theme.css'; import '/src/StudentAnamnesisWorkspace.css'; import '/src/student-workout-figma-dark.css'; import '/src/student-workout-polish-build34.css'; import '/src/student-workout-xp-celebration-build35.css'; import '/src/student-workout-polish-build36.css'; import '/src/student-workout-polish-build37.css'; import '/src/student-workout-polish-build38.css'; import '/src/student-workout-polish-build39.css'; import '/src/student-workout-rest-background-build40.css';
 const student=${JSON.stringify(student)};
 function Harness(){
  const [logs,setLogs]=React.useState(()=>JSON.parse(localStorage.getItem('qa-logs')||'[]'));
@@ -24,7 +24,8 @@ function Harness(){
   const saved={...forms.find(f=>f.id===id),answers,status:'Respondido',completedAt:new Date().toISOString(),xpAwarded:true};
   const next=forms.map(f=>f.id===id?saved:f);localStorage.setItem('qa-forms',JSON.stringify(next));setForms(next);return saved;
  }}
- onCompleteWorkout={async log=>{const saved={...log,id:log.completionToken,completedAt:new Date().toISOString()}; setLogs(prev=>{const next=[saved,...prev.filter(i=>i.id!==saved.id)];localStorage.setItem('qa-logs',JSON.stringify(next));return next});return saved}}/>
+ onCompleteWorkout={async log=>{const saved={...log,id:log.completionToken,completedAt:new Date().toISOString(),xpAwarded:80};const current=JSON.parse(localStorage.getItem('qa-logs')||'[]');const next=[saved,...current.filter(i=>i.id!==saved.id)];localStorage.setItem('qa-logs',JSON.stringify(next));setLogs(next);return saved}}
+ onRateWorkout={async(logId,rating,ratingFeedback)=>{const current=JSON.parse(localStorage.getItem('qa-logs')||'[]');const existing=current.find(item=>item.id===logId);if(!existing)throw new Error('Sessão de QA não encontrada');const saved={...existing,rating,ratingFeedback,updatedAt:new Date().toISOString()};const next=current.map(item=>item.id===logId?saved:item);localStorage.setItem('qa-logs',JSON.stringify(next));setLogs(next);return saved}}/>
 }
 createRoot(document.getElementById('root')).render(<Harness/>);`
 const server = await createServer({
@@ -153,12 +154,15 @@ try {
       })
       assert.equal(headerLayer.matches, true, `Cabeçalho mobile deve continuar visível e acima do conteúdo durante a rolagem: ${JSON.stringify(headerLayer)}`)
       await page.evaluate(() => window.scrollTo(0, 0))
+      await page.getByRole('button', { name: 'Abrir menu do aluno', exact: true }).click()
+      await page.locator('.student-mobile-menu-panel').getByRole('button', { name: /Água/ }).click()
+      await page.getByRole('button', { name: '+250 ml', exact: true }).waitFor()
       const waterActionColors = await Promise.all([
         page.getByRole('button', { name: '+250 ml', exact: true }),
+        page.getByRole('button', { name: '+350 ml', exact: true }),
         page.getByRole('button', { name: '+500 ml', exact: true }),
-        page.getByRole('button', { name: 'Zerar', exact: true }),
       ].map((button) => button.evaluate((element) => getComputedStyle(element).backgroundColor)))
-      assert.equal(new Set(waterActionColors).size, 3, 'Ações de hidratação devem ter fundos distintos no tema claro')
+      assert.equal(new Set(waterActionColors).size, 3, 'As três opções reais de hidratação devem manter cores de ação distintas no tema claro')
       await page.getByRole('button', { name: 'Abrir menu do aluno', exact: true }).click()
       const studentMenu = page.locator('.student-mobile-menu-panel')
       await studentMenu.waitFor()
@@ -175,10 +179,12 @@ try {
       await studentMenu.getByRole('button', { name: 'Fechar menu', exact: true }).click()
       const studentBottomNavBox = await page.locator('.student-bottom-nav').boundingBox()
       assert.ok(shortMobileHeight - (studentBottomNavBox.y + studentBottomNavBox.height) <= 4, 'Menu inferior do aluno deve permanecer próximo da borda segura')
-      await page.goto(base + 'qa-student?alunoTab=checkin')
+      await page.getByRole('button', { name: 'Abrir menu do aluno', exact: true }).click()
+      await page.locator('.student-mobile-menu-panel').getByRole('button', { name: /Check-in/ }).click()
+      await page.getByLabel('Peso informado', { exact: true }).waitFor()
       assert.equal(await page.getByLabel('Peso informado', { exact: true }).inputValue(), '')
       assert.equal(await page.getByLabel('Observações', { exact: true }).inputValue(), '')
-      await page.getByRole('button', { name: 'Salvar check-in', exact: true }).click()
+      await page.getByRole('button', { name: 'Enviar check-in', exact: true }).click()
       await page.getByText('Informe o peso, uma observação ou uma foto antes de salvar.', { exact: true }).waitFor()
       await page.setViewportSize({ width, height: 900 })
       results.push('student 390 menu: rounded panel, module tones and no overflow')
@@ -234,34 +240,57 @@ try {
       assert.equal(saved.answers.q1.otherText,'Alergia QA')
       assert.equal(saved.answers.q1.observation,'Observação preservada')
       await page.locator('.student-xp-gain').getByText('+60 XP', { exact: true }).waitFor()
-      await page.goto(base+'qa-student?alunoTab=treino')
-      await page.getByRole('button',{name:'Ver treino',exact:true}).first().click()
-      await page.getByText('Modo de visualização',{exact:true}).waitFor()
-      await page.getByRole('button',{name:/Iniciar treino$/}).click()
-      assert.equal(await page.getByRole('button',{name:'Finalizar treino',exact:true}).isDisabled(), true)
+      await page.goto(base+'qa-student')
+      const studentNavigation = width >= 1024 ? page.locator('.student-sidebar-nav-list').first() : page.locator('.student-bottom-nav')
+      await studentNavigation.getByRole('button',{name:/Treino/}).click()
+      const workoutToday = page.getByText(/TREINO DE HOJE/)
+      if (await workoutToday.count()) {
+        await page.getByRole('button',{name:'Iniciar treino',exact:true}).click()
+      } else {
+        await page.getByRole('button',{name:'Abrir treino',exact:true}).first().click()
+        await page.getByRole('button',{name:'Iniciar treino',exact:true}).click()
+      }
+      const activeWorkout = page.locator('.student-app-layout main .mobile-workout-definitive-v12')
+      await activeWorkout.waitFor()
+      assert.equal(await activeWorkout.getByRole('button',{name:'Encerrar treino',exact:true}).count(),1)
+      assert.equal(await activeWorkout.getByRole('button',{name:'Concluir treino',exact:true}).count(),0)
       await page.getByLabel('Carga (kg)',{exact:true}).first().fill('25')
-      await page.getByLabel('Repetições',{exact:true}).first().fill('10')
+      await page.getByLabel('Repetições realizadas',{exact:true}).first().fill('10')
       await page.getByRole('button',{name:'Concluir série',exact:true}).first().click()
+      const workoutRest = page.locator('.mobile-workout-rest-portal-v12 .mobile-workout-rest-floating-v6')
+      if (await workoutRest.count()) await workoutRest.getByRole('button',{name:'Pular descanso',exact:true}).click()
       await page.reload()
-      assert.equal(await page.getByRole('button',{name:'✓ Série concluída',exact:true}).count(),1)
-      await page.getByLabel('Repetições',{exact:true}).nth(1).fill('9')
+      assert.equal(await page.locator('.student-app-layout main .mobile-workout-set-card-v29.is-complete').count(),1)
+      await page.getByLabel('Repetições realizadas',{exact:true}).first().fill('9')
       await page.getByRole('button',{name:'Concluir série',exact:true}).first().click()
-      await page.getByRole('button',{name:'Concluir exercício e ir para o próximo →',exact:true}).click()
-      await page.getByLabel('Repetições',{exact:true}).fill('12')
+      await page.locator('.student-app-layout main .student-workout-figma-exercise-complete').waitFor()
+      await page.getByRole('button',{name:/Ir para Remada baixa/}).click()
+      await page.getByLabel('Repetições realizadas',{exact:true}).first().fill('12')
       await page.getByRole('button',{name:'Concluir série',exact:true}).click()
-      await page.getByRole('button',{name:'Finalizar treino',exact:true}).click()
-      await page.getByText('Treino concluído',{exact:true}).first().waitFor()
-      await page.locator('.student-xp-gain').getByText('+80 XP', { exact: true }).waitFor()
+      await page.locator('.student-app-layout main .student-workout-figma-exercise-complete').waitFor()
+      await page.getByRole('button',{name:'Concluir treino',exact:true}).click()
+      await page.getByText('Treino concluído!',{exact:true}).first().waitFor()
+      const workoutRating = page.locator('.student-workout-rating-panel')
+      await workoutRating.getByRole('button',{name:'5 estrelas',exact:true}).click()
+      await workoutRating.getByRole('button',{name:'Enviar avaliação',exact:true}).click()
+      await workoutRating.getByText('Avaliação salva. Obrigado por compartilhar sua experiência.',{exact:true}).waitFor()
+      const xpDialog = page.getByRole('dialog', { name: 'Treino concluído!' })
+      const xpTotal = xpDialog.locator('.student-workout-xp-celebration__total')
+      await xpTotal.waitFor()
+      await page.waitForFunction(() => document.querySelector('.student-workout-xp-celebration__total strong')?.textContent?.trim() === '80')
+      assert.match(await xpTotal.innerText(), /80\s*XP/)
+      await xpDialog.getByRole('button', { name: 'Continuar' }).click()
       await page.reload()
-      await page.getByText('Treino concluído',{exact:true}).first().waitFor()
+      await page.getByText('Treino concluído!',{exact:true}).first().waitFor()
       assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('qa-logs')).length),1)
-      await page.goto(base+'qa-student?alunoTab=inicio')
+      await page.goto(base+'qa-student')
+      await studentNavigation.getByRole('button',{name:/Início/}).click()
       await page.getByText(/140 XP acumulados/).waitFor()
       assert.equal(await page.locator('.student-xp-gain').count(), 0, 'Refresh não deve anunciar nova recompensa')
       await page.getByText('Histórico de XP', { exact: true }).click()
       await page.locator('.student-reward-ranking-card details').getByText(/Questionário QA 1/).first().waitFor()
-      await page.goto(base+'qa-student?alunoTab=treino')
-      await page.getByRole('button',{name:'Ativar modo escuro',exact:true}).click()
+      await page.goto(base+'qa-student')
+      await page.getByRole('button',{name:'Ativar modo escuro',exact:true}).first().click()
       assert.equal(await page.locator('.student-mobile-shell').getAttribute('data-theme'),'dark')
       await page.screenshot({path:resolve(output,'student-completed-dark-'+width+'.png'),fullPage:true})
       await page.goto(base+'qa-student?alunoTab=historico')

@@ -4,6 +4,9 @@ import test from 'node:test'
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const cssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
+const importDialogSource = readFileSync(new URL('../src/StudentImportDialog.jsx', import.meta.url), 'utf8')
+const chatCssSource = readFileSync(new URL('../src/chat/chat.css', import.meta.url), 'utf8')
+const xpCssSource = readFileSync(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
 
 test('mobile navigation exposes module tones and rounded menu hooks', () => {
   assert.match(appSource, /coach-mobile-menu-panel/)
@@ -54,4 +57,30 @@ test('hidratacao possui controles semanticos para o tema claro', () => {
   assert.match(cssSource, /\.app-theme-light \.student-water-action--250/)
   assert.match(cssSource, /\.app-theme-light \.student-water-action--500/)
   assert.match(cssSource, /\.app-theme-light \.student-water-action--reset/)
+})
+
+test('menus móveis e importação CSV anunciam estado e mantêm o foco dentro do diálogo', () => {
+  assert.match(appSource, /aria-expanded=\{mobileMenuOpen\}/)
+  assert.match(appSource, /aria-controls="coach-mobile-menu-panel"/)
+  assert.match(appSource, /studentMenuFocusTrapRef/)
+  assert.match(appSource, /anamnesisDialogRef = useModalFocusTrap/)
+  assert.match(appSource, /credentialsDialogRef = useModalFocusTrap/)
+  assert.match(appSource, /if \(event\.key !== 'Tab'\) return/)
+  assert.match(importDialogSource, /aria-modal="true"/)
+  assert.match(importDialogSource, /event\.key === 'Escape'/)
+  assert.match(importDialogSource, /event\.key !== 'Tab'/)
+  assert.match(importDialogSource, /previousFocus\?\.isConnected/)
+})
+
+test('celebração XP respeita a preferência por movimento reduzido', () => {
+  assert.match(xpCssSource, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.student-workout-xp-celebration[\s\S]*?animation:\s*none\s*!important;[\s\S]*?transition-duration:\s*\.01ms\s*!important;/)
+})
+
+test('seletor da semana usa botões nativos e áudio possui foco visível nos temas', () => {
+  assert.match(appSource, /weekDays\.map\(\(day, dayIndex\) => <button type="button"/)
+  assert.doesNotMatch(appSource, /weekDays\.map\(\(day, dayIndex\) => <span[^\n]*role="button"/)
+  assert.match(cssSource, /\.student-diet-week-strip-v1 > button:focus-visible/)
+  assert.match(cssSource, /font-family: "Plus Jakarta Sans"/)
+  assert.match(chatCssSource, /\.chat-audio-play:focus-visible/)
+  assert.match(chatCssSource, /\.chat-audio-wave-range:focus-visible/)
 })

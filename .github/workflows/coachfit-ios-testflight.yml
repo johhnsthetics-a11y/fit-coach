@@ -36,10 +36,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 41)"
+        description: "Build INEDITO para esta versao (ex.: 45)"
         type: string
         required: true
-        default: "41"
+        default: "45"
 
 permissions:
   contents: read
@@ -57,7 +57,7 @@ jobs:
       APP_ID: br.com.coachfitpro.ios
       REST_EXTENSION_ID: br.com.coachfitpro.ios.restactivity
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ inputs.build_number || '41' }}
+      IOS_BUILD: ${{ inputs.build_number || '45' }}
 
     steps:
       - name: Checkout

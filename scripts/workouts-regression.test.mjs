@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { createServer } from 'vite'
+import { findWorkoutDayIndexForDate, getLocalWeekdayIndex } from '../src/workoutDaySelection.js'
 
 // Render the actual route and all its children. A source-string check/build
 // cannot detect undeclared identifiers evaluated only when students exist.
@@ -597,7 +598,7 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
   assert.match(html, /mobile-workout-student-experience-v2/)
   assert.match(html, /Concluir série/)
   assert.doesNotMatch(html, /Registrar série e descansar|student-workout-figma-execution-actions/)
-  assert.match(html, /Meta: 10 reps/)
+  assert.match(html, /Meta prescrita: 10 reps/)
   assert.match(html, /YouTube/)
   assert.doesNotMatch(html, /<iframe[^>]+youtube/i)
   assert.doesNotMatch(html, /muscle-map-region/)
@@ -1158,4 +1159,76 @@ test('execução real do aluno mostra série atual, progresso e ação Concluir 
   } finally {
     globalThis.window = previousWindow
   }
+})
+
+
+test('sugestão de treino hoje exige dia da semana explícito e correspondência única', () => {
+  const sampleDate = new Date(2026, 0, 1, 12, 0, 0)
+  const localIndex = getLocalWeekdayIndex(sampleDate)
+  const weekdayLabels = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
+  const todayLabel = weekdayLabels[localIndex]
+  assert.equal(localIndex, sampleDate.getDay())
+  assert.equal(findWorkoutDayIndexForDate([{ day: 'Treino A' }, { day: todayLabel }], sampleDate), 1)
+  assert.equal(findWorkoutDayIndexForDate([{ day: 'Dia 1' }, { day: 'Dia 2' }], sampleDate), -1)
+  assert.equal(findWorkoutDayIndexForDate([{ day: todayLabel }, { day: todayLabel.toLocaleLowerCase('pt-BR') }], sampleDate), -1)
+  assert.equal(findWorkoutDayIndexForDate([{ day: todayLabel }], new Date(Number.NaN)), -1)
+})
+
+test('dia genérico continua exigindo escolha manual e dia explícito abre o overview de hoje sem iniciar a sessão', () => {
+  const todayLabel = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][new Date().getDay()]
+  const selectionCalls = []
+  const renderWorkout = (day) => renderToString(React.createElement(StudentWorkoutExecution, {
+    student,
+    workout: { id: 'today-selection', title: 'Plano atual', days: [{ day, focus: 'Treino do dia', exercises: [{ name: 'Agachamento', sets: '2', reps: '8' }] }] },
+    onSelectDay: (index) => selectionCalls.push(index),
+  }))
+  const generic = renderWorkout('Dia 1')
+  const scheduled = renderWorkout(todayLabel)
+  assert.match(generic, /Abrir treino/)
+  assert.doesNotMatch(generic, /TREINO DE HOJE/)
+  assert.match(scheduled, /student-workout-figma-overview-title/)
+  assert.match(scheduled, /TREINO DE HOJE/)
+  assert.match(scheduled, new RegExp(todayLabel))
+  assert.match(scheduled, /Iniciar treino/)
+  assert.doesNotMatch(scheduled, /student-workout-figma-execution-topbar/)
+  assert.deepEqual(selectionCalls, [], 'a sugestão não grava nem seleciona o dia por conta própria')
+})
+
+test('biblioteca BUILD45 cresce sem nomes duplicados e remove aliases ambíguos', () => {
+  const library = getExerciseLibrary()
+  const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g, ' ').trim()
+  const names = library.map((item) => normalize(item.name))
+  assert.equal(new Set(names).size, names.length, 'nomes canônicos da biblioteca precisam ser únicos')
+
+  const expected = [
+    'Supino declinado com halteres', 'Mergulho nas paralelas', 'Pullover com halter',
+    'Good morning com barra', 'Flexão nórdica', 'Remada invertida',
+    'Crucifixo inverso com halteres', 'Mergulho no banco', 'Dead bug',
+    'Mountain climber', 'Burpee', 'Polichinelo', 'Kettlebell swing',
+    'Caminhada do fazendeiro', 'Passada estacionária com halteres',
+    'Agachamento frontal com halteres', 'Agachamento sumô com kettlebell',
+    'Elevação frontal com barra',
+  ]
+  for (const name of expected) assert.ok(names.includes(normalize(name)), `exercício ausente: ${name}`)
+
+  const aliasOwners = new Map()
+  library.forEach((item) => (item.aliases || []).forEach((alias) => {
+    const key = normalize(alias)
+    if (!key) return
+    if (!aliasOwners.has(key)) aliasOwners.set(key, new Set())
+    aliasOwners.get(key).add(normalize(item.name))
+  }))
+  for (const [alias, owners] of aliasOwners) assert.equal(owners.size, 1, `alias ambíguo: ${alias}`)
+  assert.ok(library.some((item) => normalize(item.name) === normalize('Pullover com halter') && (item.aliases || []).some((alias) => normalize(alias) === 'pullover')))
+})
+
+test('draft novo não predefine repetições e execução separa meta de reps realizadas', async () => {
+  const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const draftSource = appSource.match(/function createExerciseDraft\([\s\S]*?\n\}/)?.[0] || ''
+  assert.match(draftSource, /sets: '3',[\s\S]*?reps: '',[\s\S]*?load: ''/)
+  assert.doesNotMatch(draftSource, /reps: '10'/)
+  assert.match(appSource, /Repetições realizadas/)
+  assert.match(appSource, /Meta prescrita: /)
+  assert.match(appSource, /findWorkoutDayIndexForDate\(days\)/)
+  assert.match(appSource, /if \(!preview\) onSelectDay\?\.\(safeDayIndex\)/)
 })
