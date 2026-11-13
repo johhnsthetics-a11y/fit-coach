@@ -30,6 +30,7 @@ try {
       const errors = []
       page.on('pageerror', (error) => errors.push(error.message))
       await page.addInitScript(({ role }) => {
+        localStorage.setItem('coachfitpro-ui-theme-20260831', 'light')
         localStorage.setItem('fitcoach-ai-pro-v2', JSON.stringify({
           user: { id: 'qa-professional', name: 'Profissional QA', email: 'qa@example.test', role },
           students: [{
@@ -52,6 +53,8 @@ try {
       await page.getByRole('button', { name: 'Importar planilha', exact: true }).click()
       const dialog = page.getByRole('dialog', { name: `Importar ${profile.audience}` })
       await dialog.waitFor()
+      assert.equal(await dialog.getAttribute('data-theme'), 'light')
+      assert.equal(await dialog.locator(':scope > section').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(245, 250, 249)')
       await dialog.getByLabel('Colar dados da planilha').fill([
         'nome,email,telefone,cpf,objetivo,plano',
         'Cadastro Existente,existing@example.com,11999999999,,Manutenção,Acompanhamento mensal',

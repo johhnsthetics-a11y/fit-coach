@@ -26,22 +26,22 @@ test('Brazil StoreKit decimal/currency formats a raw dollar displayPrice as R$ w
   assert.equal(priceText(plan.introductoryTerms), 'R$ 9,90 pelo período inicial de 1 mês')
 })
 
-test('An ineligible Apple Account sees the configured introductory quote with a clear eligibility note', () => {
+test('An ineligible Apple Account sees the recurring price, not the introductory quote', () => {
   const plan = card({ introductoryOfferEligible: false })
-  assert.equal(priceText(plan.displayPrice), 'R$ 9,90')
+  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
   assert.equal(plan.introEligibility, 'ineligible')
   assert.equal(plan.purchaseAvailable, true)
-  assert.equal(priceText(plan.renewalText), 'Depois, R$ 49,90/mês')
-  assert.match(plan.introEligibilityNotice, /elegibilidade da Apple ID/)
+  assert.equal(plan.introAppliedToDisplay, false)
+  assert.match(plan.introEligibilityNotice, /não é elegível/)
 })
 
-test('Unknown eligibility shows the configured offer conditionally and lets Apple confirm the terms', () => {
+test('Unknown eligibility neither advertises nor opens a purchase until StoreKit confirms it', () => {
   const plan = card({ introductoryOfferEligible: undefined })
-  assert.equal(priceText(plan.displayPrice), 'R$ 9,90')
+  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
   assert.equal(plan.introStatus, 'unknown')
-  assert.equal(plan.purchaseAvailable, true)
-  assert.equal(plan.purchaseBlockReason, '')
-  assert.match(plan.introEligibilityNotice, /elegibilidade da Apple ID/)
+  assert.equal(plan.purchaseAvailable, false)
+  assert.match(plan.purchaseBlockReason, /elegibilidade da oferta/)
+  assert.match(plan.introEligibilityNotice, /ainda não confirmou/)
 })
 
 test('If no introductory offer exists, the current Apple price remains purchasable', () => {
@@ -72,8 +72,8 @@ test('Brazil catalog only displays the original intro when Apple confirms matchi
   assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
   assert.equal(plan.introAppliedToDisplay, false)
   assert.equal(plan.introductoryPriceMismatch, true)
-  assert.equal(plan.purchaseAvailable, true)
-  assert.equal(plan.purchaseBlockReason, '')
+  assert.equal(plan.purchaseAvailable, false)
+  assert.match(plan.purchaseBlockReason, /termos da oferta Apple não correspondem/)
 })
 
 test('Brazil catalog preserves reais prices with missing currency metadata', () => {
@@ -82,12 +82,13 @@ test('Brazil catalog preserves reais prices with missing currency metadata', () 
   assert.equal(plan.purchaseAvailable, true)
 })
 
-test('Incomplete offer terms do not block Apple purchase confirmation', () => {
+test('Incomplete eligible offer terms are not shown or purchasable until refreshed', () => {
   for (const override of [{ introductoryPeriodValue: undefined }, { introductoryPeriodUnit: '' }, { introductoryPeriodCount: 0 }, { introductoryPaymentMode: 'unknown' }]) {
     const plan = card({ introductoryOfferEligible: true, ...override })
     assert.equal(plan.introAppliedToDisplay, false)
     assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
-    assert.equal(plan.purchaseAvailable, true)
+    assert.equal(plan.purchaseAvailable, false)
+    assert.match(plan.purchaseBlockReason, /termos da oferta Apple/)
   }
 })
 

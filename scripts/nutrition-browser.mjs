@@ -16,6 +16,7 @@ const plans = [
   { id: 'diet-b', studentId: secondStudent.id, title: 'Plano Maria', active: true, meals: [meal] },
 ]
 const fixture = `import React from 'react'; import {createRoot} from 'react-dom/client'; import {StudentMobileApp} from '/src/App.jsx'; import '/src/index.css';
+import '/src/build46-type-v0.css'; import '/src/build46-ux-polish.css';
 const data=JSON.parse(localStorage.getItem('fitcoach-ai-pro-v2'));
 function Harness(){const [theme,setTheme]=React.useState('light');return <StudentMobileApp student={data.students[0]} nutritionPlans={data.nutritionPlans} checkins={[]} workouts={[]} workoutLogs={[]} messages={[]} appointments={[]} invoices={[]} assessments={[]} questionnaireAssignments={[]} coachId="qa-coach" theme={theme} toggleUiTheme={()=>setTheme(v=>v==='light'?'dark':'light')} onExit={()=>{}}/>}
 createRoot(document.getElementById('root')).render(<Harness/>);`

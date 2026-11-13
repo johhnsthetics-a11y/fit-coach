@@ -7,6 +7,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import * as AppModule from '/src/App.jsx';
 import '/src/index.css';
+import '/src/build46-type-v0.css';
+import '/src/build46-ux-polish.css';
 const Missing = () => <p>Componente indisponível</p>;
 const Checkins = AppModule.Checkins || Missing;
 const IncomingMessageToast = AppModule.IncomingMessageToast || Missing;

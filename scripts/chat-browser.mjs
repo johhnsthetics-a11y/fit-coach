@@ -16,7 +16,7 @@ const longContactName = 'Pessoa com nome profissional muito extenso para validar
 const studentFixture = `import React from 'react'; import {createRoot} from 'react-dom/client';
 import {StudentMobileApp} from '/src/App.jsx'; import '/src/index.css'; import '/src/chat/chat.css';
 import {installChatWallpaperEnhancements} from '/chatWallpaperEnhancements.js';
-import '/chat-wallpaper.css'; import '/chat-wallpaper-theme.css';
+import '/chat-wallpaper.css'; import '/chat-wallpaper-theme.css'; import '/src/build46-type-v0.css'; import '/src/build46-ux-polish.css';
 function Harness(){
  const [messages,setMessages]=React.useState(()=>{
   const history=Array.from({length:120},(_,index)=>({

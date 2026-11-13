@@ -52,6 +52,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { StudentMobileApp, ProfessionalCommissionsPage, AffiliateFinancePage } from '/src/App.jsx';
 import '/src/index.css';
+import '/src/build46-type-v0.css';
+import '/src/build46-ux-polish.css';
 const student=${JSON.stringify(student)};
 const invoices=${JSON.stringify(invoices)};
 const report=${JSON.stringify(report)};

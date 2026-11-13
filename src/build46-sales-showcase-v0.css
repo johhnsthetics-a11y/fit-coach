@@ -1,0 +1,114 @@
+/* BUILD46 v0: preserve the existing phone composition and show real app captures edge-to-edge. */
+.sales-page .sales-showcase-interactive {
+  min-height: clamp(48rem, 54vw, 50rem) !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-screen {
+  position: relative !important;
+  display: block !important;
+  width: 100%;
+  min-height: 0 !important;
+  height: auto !important;
+  aspect-ratio: 390 / 884;
+  overflow: hidden !important;
+  padding: 0 !important;
+  background: #050807 !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-screen > :not(.sales-phone-screenshot-v0):not(.sales-phone-safe-area-v0):not(.sales-phone-statusbar):not(.sales-phone-notch) {
+  display: none !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-screen::before,
+.sales-page .sales-showcase-interactive .sales-phone-screen::after {
+  content: none !important;
+  display: none !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-safe-area-v0 {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  display: block !important;
+  height: 20px;
+  background: #050807;
+  pointer-events: none;
+}
+
+.sales-theme-light .sales-showcase-interactive .sales-phone-safe-area-v0 {
+  background: #fff;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-screenshot-v0 {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  object-fit: contain;
+  object-position: center;
+  background: #050807;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-screenshot-light-v0 {
+  display: none !important;
+}
+
+.sales-theme-light .sales-showcase-interactive .sales-phone-screenshot-dark-v0 {
+  display: none !important;
+}
+
+.sales-theme-light .sales-showcase-interactive .sales-phone-screenshot-light-v0 {
+  display: block !important;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-statusbar {
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  font-size: 6px;
+  line-height: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-notch {
+  top: 2px;
+  width: 56px;
+  height: 16px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-notch::after {
+  top: 5px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+}
+
+.sales-page .sales-showcase-interactive .sales-phone-mockup {
+  animation: none !important;
+  transition:
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    box-shadow 240ms ease,
+    border-color 180ms ease !important;
+  will-change: auto;
+}
+
+@media (max-width: 767px) {
+  .sales-page .sales-showcase-interactive {
+    min-height: clamp(32rem, 134vw, 35rem) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-page .sales-showcase-interactive .sales-phone-mockup {
+    animation: none !important;
+    transition: none !important;
+  }
+}

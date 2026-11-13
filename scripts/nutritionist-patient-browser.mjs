@@ -11,6 +11,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { StudentMobileApp } from '/src/App.jsx';
 import '/src/index.css';
+import '/src/build46-type-v0.css';
+import '/src/build46-ux-polish.css';
 const student = { id: 'patient-qa', name: 'Marina Costa', goal: 'Reeducação alimentar', payment: 'Pago', email: 'marina@example.test', accessOverrideUntil: '2099-01-01' };
 const plan = { id: 'plan-qa', studentId: student.id, title: 'Plano alimentar principal', active: true, meals: [] };
 function Harness() {

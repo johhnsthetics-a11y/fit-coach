@@ -238,20 +238,21 @@ test('navegacao de Treinos expande no desktop e preserva scroll em contêiner es
   assert.match(cssSource, /trainer-workout-area-nav button strong\s*\{[\s\S]*?font-size:\s*clamp\(/)
 })
 
-test('tipografia esportiva usa fonte Barlow local apenas no display de Treinos', async () => {
-  const cssSource = await readFile(new URL('../src/trainer-workout-build30.css', import.meta.url), 'utf8')
-  const license = await readFile(new URL('../public/assets/fonts/OFL-Barlow.txt', import.meta.url), 'utf8')
+test('tipografia global usa Plus Jakarta Sans local em todas as telas, inclusive Treinos', async () => {
+  const globalCss = await readFile(new URL('../src/build46-type-v0.css', import.meta.url), 'utf8')
+  const trainerCss = await readFile(new URL('../src/trainer-workout-build30.css', import.meta.url), 'utf8')
+  const indexCss = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
+  const mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
+  const license = await readFile(new URL('../public/assets/fonts/OFL-Plus-Jakarta-Sans.txt', import.meta.url), 'utf8')
+  const font = await readFile(new URL('../public/assets/fonts/PlusJakartaSans-VF.ttf', import.meta.url))
 
-  assert.match(cssSource, /@font-face\s*\{[^}]*font-family:\s*"Barlow Condensed"[^}]*font-weight:\s*600[^}]*barlow-condensed-latin-600\.woff2/s)
-  assert.match(cssSource, /@font-face\s*\{[^}]*font-family:\s*"Barlow Condensed"[^}]*font-weight:\s*700[^}]*barlow-condensed-latin-700\.woff2/s)
-  assert.match(cssSource, /@font-face\s*\{[^}]*font-family:\s*"Barlow Condensed"[^}]*font-weight:\s*800[^}]*barlow-condensed-latin-800\.woff2/s)
-  assert.match(cssSource, /trainer-workout-shell-head h3[\s\S]*?font-family:\s*"Barlow Condensed"/)
-  assert.doesNotMatch(cssSource, /fonts\.googleapis\.com|fonts\.gstatic\.com/)
+  assert.match(globalCss, /@font-face\s*\{[^}]*font-family:\s*"Plus Jakarta Sans"[^}]*PlusJakartaSans-VF\.ttf[^}]*font-weight:\s*200 800/s)
+  assert.match(globalCss, /body,\s*body \*\s*\{\s*font-family:\s*var\(--coachfit-font-family\) !important/s)
+  assert.match(mainSource, /import '\.\/build46-type-v0\.css'/)
+  assert.doesNotMatch(trainerCss, /Barlow Condensed|barlow-condensed/)
+  assert.doesNotMatch(indexCss, /font-family:\s*ui-monospace/)
   assert.match(license, /SIL OPEN FONT LICENSE/i)
-  for (const weight of [600, 700, 800]) {
-    const font = await readFile(new URL(`../public/assets/fonts/barlow-condensed-latin-${weight}.woff2`, import.meta.url))
-    assert.equal(font.subarray(0, 4).toString(), 'wOF2')
-  }
+  assert.ok(font.byteLength > 100_000)
 })
 
 test('Treinos mostra filtros com capitalização profissional sem alterar os valores internos', () => {

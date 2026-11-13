@@ -228,7 +228,7 @@ const WORKOUT_TRAINING_LEVEL_OPTIONS = ['Adaptação', 'Iniciante', 'Intermediá
 const WORKOUT_OBJECTIVE_OPTIONS = ['Hipertrofia', 'Redução de gordura + hipertrofia', 'Definição muscular', 'Condicionamento físico', 'Qualidade de vida']
 const NUTRITION_TAB_IDS = ['dieta', 'questionario', 'prescritas']
 const EMPTY_PROFESSIONAL_COLLABORATORS = Object.freeze([])
-const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build45-20261112'
+const COACH_FIT_PRO_BUILD_MARKER = 'coach-fit-pro-workout-experience-build47-20261113'
 const DEFAULT_UI_THEME = 'dark'
 const OFFICIAL_BRAND_LOGO = fitCoachLogo
 const productionWithoutSupabase = import.meta.env.PROD && !supabaseEnabled
@@ -5764,6 +5764,7 @@ function AppContent() {
                 onExport={exportAccountData}
                 onDeleteAccount={requestAccountDeletion}
                 masterAdmin={masterAdmin}
+                nutritionist={nutritionistUser}
                 onOpenAdminMaster={() => setActiveView('admin-master')}
               />
             )}
@@ -7743,24 +7744,30 @@ function SalesPhoneShowcase() {
       title: 'Bom dia, Marina',
       subtitle: 'Visão geral do acompanhamento',
       type: 'home',
+      imageDark: '/assets/sales-screens/overview-dark.png',
+      imageLight: '/assets/sales-screens/overview-light.png',
     },
     {
       kicker: 'Prescrição de treinos',
       title: 'Treinos dos alunos',
       subtitle: 'Organize e acompanhe as rotinas',
       type: 'workout',
+      imageDark: '/assets/sales-screens/workouts-dark.png',
+      imageLight: '/assets/sales-screens/workouts-light.png',
     },
     {
       kicker: 'Acompanhamento nutricional',
       title: 'Pacientes',
       subtitle: 'Dietas e evolução organizadas',
       type: 'nutrition',
+      imageDark: '/assets/sales-screens/nutrition-dark.png',
+      imageLight: '/assets/sales-screens/nutrition-light.png',
     },
   ]
   return (
     <div className="sales-hero-phone-wrap sales-app-modern-showcase-v1 sales-showcase-static-v2 sales-showcase-professional-v3 sales-showcase-interactive" role="group" aria-label="Prévia mobile das áreas profissionais de visão geral, treinos e nutrição do Coach Fit Pro">
       <div className="sales-hero-phone-glow" aria-hidden="true" />
-      {screens.map(({ kicker, title, subtitle, type }, index) => {
+      {screens.map(({ kicker, title, subtitle, type, imageDark, imageLight }, index) => {
         const position = screenPositions[index]
         const isActive = position === 'center'
         const selectScreen = () => setScreenPositions((current) => swapShowcasePositions(current, index))
@@ -7781,6 +7788,25 @@ function SalesPhoneShowcase() {
           }}
         >
           <div className="sales-phone-screen">
+            <img
+              className="sales-phone-screenshot-v0 sales-phone-screenshot-dark-v0"
+              src={imageDark}
+              alt={`Captura real do Coach Fit Pro — ${title}, tema escuro, dados demonstrativos.`}
+              width="390"
+              height="844"
+              loading={isActive ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+            <img
+              className="sales-phone-screenshot-v0 sales-phone-screenshot-light-v0"
+              src={imageLight}
+              alt={`Captura real do Coach Fit Pro — ${title}, tema claro, dados demonstrativos.`}
+              width="390"
+              height="844"
+              loading={isActive ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+            <div className="sales-phone-safe-area-v0" aria-hidden="true" />
             <div className="sales-phone-statusbar" aria-hidden="true">
               <span>09:30</span>
               <span className="sales-phone-status-icons">
@@ -8861,6 +8887,7 @@ function Students({ nutritionist = false, students = [], workoutLogs = [], quest
         students={students}
         plans={coachPlans}
         nutritionist={nutritionist}
+        uiTheme={uiTheme}
       />
       {anamnesisEditorOpen && selectedStudent ? createPortal(
         <div
@@ -11545,11 +11572,11 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], nutrit
                 </div>
               ) : (
                 <div className="trainer-workout-list-area">
-                  <div className="trainer-workout-section-heading">
+                  <div className="trainer-workout-section-heading trainer-workout-plan-list-intro-v2">
                     <div>
                       <p className="trainer-workout-eyebrow">PLANOS ATIVOS</p>
-                      <h4>Escolha um plano para abrir o detalhe</h4>
-                      <span>A lista permanece limpa até você pedir um plano específico.</span>
+                      <h4>Seus planos</h4>
+                      <span>{filteredWorkouts.length ? 'Selecione um plano para ver detalhes e opções de gerenciamento.' : 'Seus planos publicados aparecerão aqui.'}</span>
                     </div>
                     <strong>{formatCount(filteredWorkouts.length, 'plano')}</strong>
                   </div>
@@ -17126,7 +17153,7 @@ function Nutrition({ selectedStudent, students, questionnaireStudents = students
               Monte dietas claras, com macros automáticos e opções de substituição.
             </h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-300">
-              {isNutritionistUser(professional) ? 'A nutricionista' : 'O treinador'} escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O {isNutritionistUser(professional) ? 'paciente' : 'aluno'} vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
+              Quem prescreve escolhe alimentos, ajusta gramas e entrega um plano fácil de seguir. O {isNutritionistUser(professional) ? 'paciente' : 'aluno'} vê refeições organizadas, horários, macros e alternativas sem se perder no celular.
             </p>
           </div>
 
@@ -17162,7 +17189,7 @@ function Nutrition({ selectedStudent, students, questionnaireStudents = students
                 <NutritionForm key={`${editorStudent?.id || 'student'}-${editingPlan?.id || 'new'}`} students={students} selectedStudent={editorStudent} anamneses={anamneses} questionnaireAssignments={questionnaireAssignments} editingPlan={editingPlan} professional={professional} onStartNewPlan={() => startNewPlan()} onSaveNutritionPlan={onSaveNutritionPlan} onSaved={(savedPlan) => { setEditingPlanId(String(savedPlan?.id || '')); onDirtyChange?.(false) }} onDirtyChange={onDirtyChange} uiTheme={uiTheme} themeSettings={appAdminSettings} />
               )
             ) : (
-              <Empty text="Cadastre um aluno antes de montar o primeiro plano alimentar." />
+              <Empty text={isNutritionistUser(professional) ? 'Cadastre um paciente antes de montar o primeiro plano alimentar.' : 'Cadastre um aluno antes de montar o primeiro plano alimentar.'} />
             )}
           </Panel>
         </div>
@@ -21649,7 +21676,6 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
                 onAvatarClick={() => avatarInputRef.current?.click()}
                 avatarBusy={avatarUploading}
                 avatarLabel="Alterar minha foto de perfil"
-                actions={<ThemeToggle theme={theme} onToggle={toggleUiTheme} className="student-theme-toggle shrink-0 lg:hidden" />}
               />
               <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} className="sr-only" aria-label="Selecionar foto de perfil" />
               <div className="mt-4 flex min-w-0 items-center gap-2 border-t border-white/10 pt-3">
@@ -21674,7 +21700,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
         </main>
       </div>
 
-      <nav className="student-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-emerald-300/15 bg-black/95 px-2 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl lg:hidden">
+      <nav aria-label={patientMode ? 'Navegação do paciente' : 'Navegação do aluno'} className="student-bottom-nav fixed inset-x-0 bottom-0 z-30 border-t border-emerald-300/15 bg-black/95 px-2 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
           {bottomNavItems.map((item) => {
             const active = activeTab === item.id
@@ -26535,7 +26561,7 @@ function AdminTextArea({ label, value, onChange, hint = '' }) {
   )
 }
 
-function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, masterAdmin = false, onOpenAdminMaster }) {
+function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, masterAdmin = false, nutritionist = false, onOpenAdminMaster }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -26740,13 +26766,13 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
 
   const readiness = [
     { label: 'Nome profissional', ready: Boolean(settings?.publicName) },
-    { label: 'Marca do treinador', ready: Boolean(settings?.brandName) },
+    { label: 'Marca profissional', ready: Boolean(settings?.brandName) },
     { label: 'WhatsApp de suporte', ready: Boolean(settings?.whatsapp) },
     { label: 'Chave Pix para cobranças', ready: Boolean(settings?.pixKey) },
     { label: 'Planos próprios', ready: getCoachPlans(settings).length > 0 },
     { label: 'Marca da cobrança', ready: Boolean(settings?.billingMessage || settings?.billingLogoUrl) },
     { label: 'Registro profissional', ready: Boolean(settings?.cref) },
-    { label: 'Mensagem para alunos', ready: Boolean(settings?.welcomeMessage) },
+    { label: 'Mensagem de boas-vindas', ready: Boolean(settings?.welcomeMessage) },
   ]
 
   return (
@@ -26767,7 +26793,7 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
           </div>
         </section>
       ) : null}
-      <Panel title="Identidade profissional" action="Conta do treinador">
+      <Panel title="Identidade profissional" action="Conta profissional">
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome da marca" name="brandName" defaultValue={current.brandName} />
@@ -26777,13 +26803,13 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
             <Field label="E-mail de suporte" name="supportEmail" type="email" defaultValue={current.supportEmail} />
             <Field label="Chave Pix para cobranças" name="pixKey" defaultValue={current.pixKey} required={false} />
           </div>
-          <TextArea label="Mensagem de boas-vindas para alunos" name="welcomeMessage" defaultValue={current.welcomeMessage} />
+          <TextArea label={`Mensagem de boas-vindas para ${nutritionist ? 'pacientes' : 'alunos'}`} name="welcomeMessage" defaultValue={current.welcomeMessage} />
           <div className="rounded-md border border-emerald-300/20 bg-emerald-400/[0.06] p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-black text-emerald-100">Marca da cobrança do aluno</p>
+                <p className="text-sm font-black text-emerald-100">Marca da cobrança {nutritionist ? 'do paciente' : 'do aluno'}</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-400">
-                  Personalize a tela que o aluno inadimplente vê: logo, cor e mensagem com a linguagem do seu atendimento.
+                  Personalize a tela que {nutritionist ? 'o paciente' : 'o aluno'} inadimplente vê: logo, cor e mensagem com a linguagem do seu atendimento.
                 </p>
               </div>
               {billingLogoUrl ? (
@@ -26802,15 +26828,15 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
             <p className="mt-3 text-xs leading-5 text-zinc-500">
               Variáveis disponíveis: {'{aluno}'}, {'{valor}'}, {'{vencimento}'}, {'{pix}'}, {'{whatsapp}'}, {'{email}'}.
             </p>
-            <TextArea label="Mensagem de cobrança para o aluno" name="billingMessage" defaultValue={current.billingMessage} />
+            <TextArea label={`Mensagem de cobrança para ${nutritionist ? 'o paciente' : 'o aluno'}`} name="billingMessage" defaultValue={current.billingMessage} />
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-sm font-black text-zinc-100">Planos e valores do treinador</p>
+            <p className="text-sm font-black text-zinc-100">Planos e valores profissionais</p>
             <p className="hidden">
               Cadastre um plano por linha no formato: Nome do plano | Valor | Ciclo | Descrição. Ciclos aceitos: semanal, mensal, semestral ou anual.
             </p>
             <p className="mt-1 text-xs leading-5 text-zinc-400">
-              Cadastre seus planos uma vez. Depois, ao cadastrar um aluno, escolha o plano e o app puxa valor, ciclo e cobrança automaticamente.
+              Cadastre seus planos uma vez. Ao cadastrar {nutritionist ? 'um paciente' : 'um aluno'}, o app usa automaticamente valor, ciclo e cobrança do plano escolhido.
             </p>
             <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4">
               <div className="grid gap-3 lg:grid-cols-[1fr_0.72fr_0.7fr]">
@@ -26866,8 +26892,8 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
               {planEditorPlans.map((plan, index) => (
                 <div key={plan.name} className="rounded-2xl border border-white/10 bg-zinc-950/70 p-4">
                   <p className="text-sm font-black text-white">{plan.name}</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-500">{plan.features || 'Plano do treinador'}</p>
-                  <p className="mt-2 text-xs font-bold text-cyan-100">
+                  <p className="mt-2 text-xs leading-5 text-zinc-500">{plan.features || 'Plano profissional'}</p>
+                  <p className="mt-2 text-xs font-bold text-emerald-100">
                     {plan.billingMessage ? 'Mensagem de cobrança personalizada' : 'Usa a mensagem padrão de cobrança'}
                   </p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
@@ -26890,8 +26916,8 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
                 className="mt-1 h-4 w-4 accent-emerald-400"
               />
               <span>
-                <strong className="block text-emerald-100">Cobrança automática dos alunos</strong>
-                <span className="block">Quando um aluno ficar pendente, o app cria a cobrança usando o valor do plano dele.</span>
+                <strong className="block text-emerald-100">Cobrança automática de {nutritionist ? 'pacientes' : 'alunos'}</strong>
+                <span className="block">Quando um {nutritionist ? 'paciente' : 'aluno'} ficar pendente, o app cria a cobrança usando o valor do plano dele.</span>
                 <span className="hidden">
                 <strong className="block text-emerald-100">Gerar cobranças automaticamente</strong>
                 O sistema cria cobranças para alunos pendentes sem cobrança em aberto, usando o valor e o ciclo do plano cadastrado.
@@ -26899,21 +26925,21 @@ function CoachSettings({ user, settings, onSave, onExport, onDeleteAccount, mast
               </span>
             </label>
           </div>
-          <button disabled={saving} className="rounded-md bg-blue-500 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
+          <button disabled={saving} className="rounded-md bg-emerald-400 px-4 py-3 text-sm font-black text-zinc-950 disabled:cursor-wait disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar gerenciamento'}
           </button>
-          {message ? <p className="text-sm font-bold text-blue-200">{message}</p> : null}
+          {message ? <p className="text-sm font-bold text-emerald-200">{message}</p> : null}
           {error ? <p className="text-sm font-bold text-rose-200">{error}</p> : null}
         </form>
       </Panel>
 
       <div className="grid gap-4 lg:gap-6">
-        <Panel title="Como o aluno vê" action="Prévia">
-          <p className="text-xs font-bold uppercase tracking-normal text-blue-300">Acompanhamento online</p>
+        <Panel title={nutritionist ? 'Como o paciente vê' : 'Como o aluno vê'} action="Prévia">
+          <p className="text-xs font-bold uppercase tracking-normal text-emerald-300">Acompanhamento online</p>
           <h3 className="mt-2 text-3xl font-black">{current.brandName}</h3>
           <p className="mt-2 text-sm text-zinc-400">{current.publicName}{current.cref ? ` - ${current.cref}` : ''}</p>
-          <div className="mt-5 rounded-md border border-blue-300/25 bg-blue-300/10 p-4">
-            <p className="text-sm font-black text-blue-200">Mensagem do treinador</p>
+          <div className="mt-5 rounded-md border border-emerald-300/25 bg-emerald-300/10 p-4">
+            <p className="text-sm font-black text-emerald-200">Mensagem {nutritionist ? 'da nutrição' : 'do treinador'}</p>
             <p className="mt-2 text-sm leading-6 text-zinc-200">{current.welcomeMessage}</p>
           </div>
           <div className="mt-4 grid gap-2 text-sm text-zinc-400">
