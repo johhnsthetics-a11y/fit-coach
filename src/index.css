@@ -14566,9 +14566,11 @@ html[data-theme="dark"] body { background: #05070d; }
 .mobile-workout-timer-v3 > div { display: grid; gap: .16rem; min-width: 0; }
 .mobile-workout-timer-v3 > div > strong {
   color: #fff;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: inherit;
   font-size: clamp(2rem, 8vw, 3rem);
-  font-weight: 950;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
   letter-spacing: -.05em;
   line-height: 1;
 }
@@ -15050,7 +15052,7 @@ html[data-theme="dark"] body { background: #05070d; }
   width: 5.7ch;
   margin-top: 0.22rem;
   color: var(--workout-timer-text);
-  font-family: ui-monospace, "SFMono-Regular", "Roboto Mono", Consolas, monospace;
+  font-family: inherit;
   font-size: clamp(2.55rem, 8vw, 4.2rem);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -15481,7 +15483,7 @@ html[data-theme="dark"] body { background: #05070d; }
   width: 5.25ch;
   margin: 0;
   color: var(--workout-timer-text);
-  font-family: ui-monospace, "SFMono-Regular", "Roboto Mono", Consolas, monospace;
+  font-family: inherit;
   font-size: clamp(1.55rem, 4.5vw, 1.9rem);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -15544,7 +15546,7 @@ html[data-theme="dark"] body { background: #05070d; }
   width: 5.2ch;
   margin-top: 0.12rem;
   color: #f5fffc;
-  font-family: ui-monospace, "SFMono-Regular", "Roboto Mono", Consolas, monospace;
+  font-family: inherit;
   font-size: 2rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;

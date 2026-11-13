@@ -1,0 +1,257 @@
+/* BUILD46 — refinamentos visuais preservando o comportamento dos módulos. */
+
+:root {
+  --build46-control-transition: 180ms cubic-bezier(.22, 1, .36, 1);
+  --build46-surface-transition: 220ms cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Navegação do profissional: os dois temas compartilham uma superfície legível. */
+.coach-nav-item {
+  min-height: 44px;
+}
+
+@media (max-width: 1023px) {
+  .coach-auth-shell.app-theme-light .coach-mobile-bottom-nav {
+    border-color: rgba(8, 127, 114, .19) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(245, 250, 249, .97)) !important;
+    box-shadow: 0 18px 44px rgba(13, 37, 35, .13), inset 0 1px 0 rgba(255, 255, 255, .9) !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-bottom-button {
+    color: #425c58 !important;
+  }
+
+  .coach-auth-shell.app-theme-light .coach-mobile-bottom-button.is-active {
+    border-color: rgba(8, 127, 114, .28) !important;
+    background: rgba(8, 127, 114, .1) !important;
+    color: #0d2523 !important;
+  }
+}
+
+.coach-auth-shell .coach-dashboard-metrics > .floating-card {
+  animation: none !important;
+  will-change: auto !important;
+  transition: transform var(--build46-control-transition), border-color var(--build46-control-transition), box-shadow var(--build46-control-transition);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .coach-auth-shell .coach-dashboard-metrics > .floating-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Carteira do aluno: microtexto financeiro passa a ser confortável em 320 px. */
+.student-wallet-plan-summary__item > span { font-size: .75rem; }
+.student-wallet-plan-summary__item > small { font-size: .75rem; line-height: 1.45; }
+.student-wallet-detail-section dt,
+.student-wallet-detail-section dd { font-size: .78rem; line-height: 1.5; }
+
+/* Player do aluno: preservar a ação discreta, mas torná-la tocável também em 320 px. */
+.student-mobile-shell.student-workout-active .student-workout-figma-execution-topbar .student-workout-end-subtle {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  gap: .3rem;
+  font-size: .7rem !important;
+}
+
+/* Biblioteca de exercícios: controles pequenos deixam de ficar abaixo do alvo tátil. */
+.trainer-library-shortcuts button,
+.trainer-library-clear,
+.trainer-library-item-actions button,
+.trainer-library-selection li button,
+.trainer-library-custom-heading > button,
+.trainer-library-empty button {
+  min-height: 44px;
+  transition: filter var(--build46-control-transition), transform var(--build46-control-transition), border-color var(--build46-control-transition), background-color var(--build46-control-transition);
+}
+
+.trainer-library-selection li button { min-width: 44px; font-size: .75rem; }
+.trainer-library-create-button { min-height: 48px; transition-duration: 180ms; }
+
+/* Nutrição: estados prontos/pendentes têm contraste próprio no tema claro. */
+.coach-auth-shell.app-theme-light .nutrition-draft-quality-status {
+  border-color: rgba(8, 127, 114, .28) !important;
+  background: #def5ee !important;
+  color: #075344 !important;
+  -webkit-text-fill-color: #075344 !important;
+}
+
+.coach-auth-shell.app-theme-light .nutrition-draft-quality-v1.is-review .nutrition-draft-quality-status {
+  border-color: rgba(139, 100, 18, .3) !important;
+  background: #fff2c9 !important;
+  color: #694700 !important;
+  -webkit-text-fill-color: #694700 !important;
+}
+
+.coach-auth-shell.app-theme-light .nutrition-draft-quality-check small {
+  color: #536b64 !important;
+  font-size: .75rem;
+  line-height: 1.45;
+}
+
+.coach-auth-shell .nutrition-layout-grid-v5 > * { animation-duration: 240ms; }
+
+/* Chat: tokens alinhados ao sistema de superfícies Coach Fit Pro. */
+:root {
+  --chat-surface: #ffffff;
+  --chat-surface-soft: #f5faf9;
+  --chat-surface-raised: #f0f7f5;
+  --chat-text: #0d2523;
+  --chat-muted: #425c58;
+  --chat-border: rgba(13, 37, 35, .14);
+  --chat-accent: #087f72;
+  --chat-accent-strong: #00695e;
+  --chat-own: #dcf5ee;
+  --chat-received: #ffffff;
+  --chat-danger: #b42318;
+  --chat-shadow: 0 10px 30px rgba(13, 37, 35, .1);
+}
+
+html[data-theme="dark"],
+.app-theme-dark {
+  --chat-surface: #0b1516;
+  --chat-surface-soft: #111e20;
+  --chat-surface-raised: #172327;
+  --chat-text: #f4fffd;
+  --chat-muted: #a7bdb8;
+  --chat-border: rgba(167, 189, 186, .18);
+  --chat-accent: #4ee9d0;
+  --chat-accent-strong: #31d9bd;
+  --chat-own: #123d37;
+  --chat-received: #111e20;
+  --chat-danger: #f1a49b;
+  --chat-shadow: 0 12px 36px rgba(0, 0, 0, .28);
+}
+
+.chat-message-meta { font-size: .75rem; line-height: 1.4; }
+.chat-report-message { min-height: 44px; padding: .35rem .5rem; font-size: .72rem; }
+
+/* Equipes: ordem visual segue a ordem de leitura; informação e ações ficam maiores. */
+@media (max-width: 980px) {
+  .professional-team-workspace .ptw-side-column { order: 0; }
+}
+
+.professional-team-workspace :is(.ptw-button-small, .ptw-workbench-patient .ptw-button, .ptw-history summary) {
+  min-height: 44px;
+}
+
+.professional-team-workspace .ptw-member-actions .ptw-button-small,
+.professional-team-workspace .ptw-member-actions .ptw-text-danger { min-height: 44px; }
+.professional-team-workspace .ptw-invite-meta span { font-size: .72rem; line-height: 1.35; }
+.professional-team-workspace .ptw-invite-safety { font-size: .75rem; line-height: 1.5; }
+.professional-team-workspace .ptw-member-copy small,
+.professional-team-workspace .ptw-member-delegation-summary { font-size: .72rem; line-height: 1.45; }
+.professional-team-workspace .ptw-workbench-note { font-size: .75rem; }
+
+.professional-team-workspace .ptw-team-workbench {
+  border-color: color-mix(in srgb, var(--ptw-accent) 22%, var(--ptw-line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ptw-accent) 9%, var(--ptw-surface)), color-mix(in srgb, var(--ptw-accent) 3%, var(--ptw-surface)));
+}
+
+.professional-team-workspace .ptw-workbench-mark,
+.professional-team-workspace .ptw-workbench-avatar {
+  color: var(--ptw-accent);
+  background: color-mix(in srgb, var(--ptw-accent) 12%, var(--ptw-surface));
+}
+
+.professional-team-workspace .ptw-workbench-patient .ptw-button { min-height: 44px; }
+
+/* Portal do aluno: safe area respeitada e controles de tema sem duplicidade visual. */
+@media (max-width: 1023px) {
+  .student-mobile-shell:not(.student-chat-active):not(.student-workout-active) > .student-app-layout {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Dieta: favoritos confortáveis ao toque; a onda de hidratação é calma, não chamativa. */
+.student-hydration-water::before { animation-duration: 6s !important; }
+
+@media (max-width: 560px) {
+  .student-diet-section-heading-actions-v1 .student-diet-favorite-day-v1 {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .student-diet-meal-head-v1 .student-diet-favorite-meal-v1 {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* Assinatura: manter a mesma seleção e valores, apenas aumentar legibilidade em telas estreitas. */
+.subscription-workspace .subscription-small-print { font-size: .74rem; line-height: 1.5; }
+
+@media (max-width: 350px) {
+  .native-ios-subscription-screen .subscription-cycle-option .subscription-cycle-title { font-size: .68rem; line-height: 1.25; }
+  .native-ios-subscription-screen .subscription-cycle-option strong { font-size: .74rem; }
+  .native-ios-subscription-screen .subscription-cycle-option small { font-size: .65rem; line-height: 1.25; }
+  .native-ios-subscription-screen .subscription-cycle-option.is-unavailable > strong { font-size: .7rem; white-space: normal; }
+}
+
+/* Importação: portal recebe o tema escolhido pelo usuário; fluxo CSV permanece intocado. */
+.student-import-dialog[data-theme="light"] {
+  background: rgba(13, 37, 35, .34) !important;
+}
+
+.student-import-dialog[data-theme="light"] > section {
+  border-color: rgba(13, 37, 35, .15) !important;
+  background: #ffffff !important;
+  color: #0d2523 !important;
+}
+
+.student-import-dialog[data-theme="light"] header,
+.student-import-dialog[data-theme="light"] footer {
+  border-color: rgba(13, 37, 35, .12) !important;
+  background: #f5faf9 !important;
+}
+
+.student-import-dialog[data-theme="light"] :is(h2, p, label, strong, span) { color: #0d2523; }
+.student-import-dialog[data-theme="light"] [class*="text-zinc-"] { color: #425c58 !important; }
+.student-import-dialog[data-theme="light"] [class*="text-white"] { color: #0d2523 !important; }
+.student-import-dialog[data-theme="light"] [class*="border-white/"] { border-color: rgba(13, 37, 35, .14) !important; }
+.student-import-dialog[data-theme="light"] [class*="bg-zinc-950"],
+.student-import-dialog[data-theme="light"] [class*="bg-zinc-900"],
+.student-import-dialog[data-theme="light"] [class*="bg-black/"] {
+  background-color: #f5faf9 !important;
+}
+.student-import-dialog[data-theme="light"] :is(input, select, textarea) {
+  border-color: rgba(13, 37, 35, .18) !important;
+  background: #ffffff !important;
+  color: #0d2523 !important;
+}
+.student-import-dialog[data-theme="light"] .text-cyan-300 { color: #087f72 !important; }
+.student-import-dialog[data-theme="light"] .bg-cyan-300 { background: #4ee9d0 !important; color: #061110 !important; }
+
+/* Movimento funcional: estados continuam mudando, sem animação ornamental/transform sob redução. */
+@media (prefers-reduced-motion: reduce) {
+  .coach-mobile-menu-panel,
+  .coach-nav-item,
+  .coach-menu-icon-shell,
+  .coach-mobile-bottom-button,
+  .trainer-library-shortcuts button,
+  .trainer-library-clear,
+  .trainer-library-item-actions button,
+  .trainer-library-create-button,
+  .chat-report-message,
+  .chat-recording-dot,
+  .chat-recording-wave i,
+  .professional-team-workspace :is(button, summary),
+  .nutrition-subnav-v1 button,
+  .student-diet-favorite-day-v1,
+  .student-diet-favorite-meal-v1 {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .coach-auth-shell .coach-dashboard-metrics > .floating-card { transform: none !important; }
+  .coach-auth-shell .nutrition-layout-grid-v5 > * { animation: none !important; transform: none !important; }
+  .coach-auth-shell .nutrition-subnav-v1 button:hover { transform: none !important; }
+  .student-hydration-water::before { animation: none !important; }
+  .student-mobile-shell :is(button, a):active { transform: none !important; }
+}

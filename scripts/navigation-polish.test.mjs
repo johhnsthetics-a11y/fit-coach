@@ -7,6 +7,8 @@ const cssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'ut
 const importDialogSource = readFileSync(new URL('../src/StudentImportDialog.jsx', import.meta.url), 'utf8')
 const chatCssSource = readFileSync(new URL('../src/chat/chat.css', import.meta.url), 'utf8')
 const xpCssSource = readFileSync(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
+const build46CssSource = readFileSync(new URL('../src/build46-ux-polish.css', import.meta.url), 'utf8')
+const mainSource = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8')
 
 test('mobile navigation exposes module tones and rounded menu hooks', () => {
   assert.match(appSource, /coach-mobile-menu-panel/)
@@ -83,4 +85,14 @@ test('seletor da semana usa botões nativos e áudio possui foco visível nos te
   assert.match(cssSource, /font-family: "Plus Jakarta Sans"/)
   assert.match(chatCssSource, /\.chat-audio-play:focus-visible/)
   assert.match(chatCssSource, /\.chat-audio-wave-range:focus-visible/)
+})
+
+test('polimento BUILD46 mantém tema, alvos táteis e movimento reduzido', () => {
+  assert.ok(mainSource.indexOf("import './build46-ux-polish.css'") > mainSource.indexOf("import './build46-sales-showcase-v0.css'"))
+  assert.match(importDialogSource, /data-theme=\{uiTheme\}/)
+  assert.match(appSource, /aria-label=\{patientMode \? 'Navegação do paciente' : 'Navegação do aluno'\}/)
+  assert.doesNotMatch(appSource, /student-theme-toggle shrink-0 lg:hidden/)
+  assert.match(build46CssSource, /\.student-workout-end-subtle[\s\S]*?min-height: 44px/)
+  assert.match(build46CssSource, /\.chat-report-message \{ min-height: 44px/)
+  assert.match(build46CssSource, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.chat-recording-dot[\s\S]*?\.student-hydration-water::before \{ animation: none !important; \}/)
 })

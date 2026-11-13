@@ -113,8 +113,25 @@ try {
         if (scenario.name === 'com-treinos') {
           const workoutManager = page.locator('.mobile-workout-manager')
           await workoutManager.getByRole('tab', { name: /Planos/ }).click()
+          const planIntro = workoutManager.locator('.trainer-workout-plan-list-intro-v2')
+          await planIntro.waitFor({ state: 'visible' })
+          assert.equal((await planIntro.locator('h4').innerText()).trim(), 'Seus planos')
+          assert.match(await planIntro.locator('div > span').innerText(), /Selecione um plano para ver detalhes/)
+          const introGeometry = await planIntro.evaluate((panel) => {
+            const panelRect = panel.getBoundingClientRect()
+            const countRect = panel.querySelector(':scope > strong')?.getBoundingClientRect()
+            return { panelWidth: panel.clientWidth, panelScrollWidth: panel.scrollWidth, panelRight: panelRect.right, countRight: countRect?.right ?? null }
+          })
+          assert.ok(introGeometry.panelScrollWidth <= introGeometry.panelWidth + 1, `O cabeçalho não deve criar overflow em ${viewport.width}px: ${JSON.stringify(introGeometry)}`)
+          assert.ok(introGeometry.countRight !== null && introGeometry.countRight <= introGeometry.panelRight + 1, `A contagem deve permanecer dentro do painel em ${viewport.width}px: ${JSON.stringify(introGeometry)}`)
           const publishedPlanRow = page.locator('.trainer-workout-plan-row').filter({ hasText: 'Rotina Regressão' }).first()
           await publishedPlanRow.waitFor()
+          const archiveGeometry = await publishedPlanRow.evaluate((row) => {
+            const rowRect = row.getBoundingClientRect()
+            const archiveRect = row.querySelector('.trainer-workout-plan-row-actions button:last-child')?.getBoundingClientRect()
+            return { cardBottom: rowRect.bottom, archiveBottom: archiveRect?.bottom ?? null }
+          })
+          assert.ok(archiveGeometry.archiveBottom !== null && archiveGeometry.archiveBottom <= archiveGeometry.cardBottom + 1, `Arquivar deve ficar contido no cartão em ${viewport.width}px: ${JSON.stringify(archiveGeometry)}`)
           await publishedPlanRow.locator('.trainer-workout-plan-row-main').click()
           const publishedActions = page.locator('.mobile-workout-action-bar')
           await publishedActions.waitFor()

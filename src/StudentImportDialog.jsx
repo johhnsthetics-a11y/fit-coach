@@ -31,6 +31,7 @@ export default function StudentImportDialog({
   students = [],
   plans = [],
   nutritionist = false,
+  uiTheme = 'dark',
 }) {
   const [sourceText, setSourceText] = useState('')
   const [defaultPlanName, setDefaultPlanName] = useState(plans[0]?.name || 'Acompanhamento mensal')
@@ -157,7 +158,8 @@ export default function StudentImportDialog({
     <div
       ref={dialogRef}
       tabIndex={-1}
-      className="fixed inset-0 z-[150] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      data-theme={uiTheme}
+      className="student-import-dialog fixed inset-0 z-[150] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="student-import-title"
