@@ -102,15 +102,12 @@ test('Verified purchases navigate to workspace and protect short entitlement pro
   assert.match(ios, /isVerifiedIosSubscriptionPurchase\(purchase, id, productId\)/)
 })
 
-test('Native test-session reuse requires Apple sandbox environment and explicit purchase or restore', () => {
+test('Sandbox entitlements cannot be transferred to a newly created Coach Fit account', () => {
   const swift = fs.readFileSync(new URL('../plugins/coachfit-storekit/ios/Sources/CoachFitStoreKit/CoachFitStoreKitPlugin.swift', import.meta.url), 'utf8')
   const bridge = fs.readFileSync(new URL('../src/iosStoreKit.js', import.meta.url), 'utf8')
-  assert.match(swift, /return transaction.environment == .sandbox/)
-  assert.match(swift, /if #available\(iOS 16.0, \*\)/)
-  assert.match(swift, /!isSandboxTransaction\(transaction\)/)
-  assert.match(swift, /transactionAccountToken == accountToken \|\| isSandboxTransaction\(transaction\)/)
-  assert.match(swift, /await sandboxSession.allow\(accountToken\)/)
-  assert.match(swift, /isSandboxTransaction\(transaction\) && sandboxAllowed/)
-  assert.match(swift, /value\["originalAccountId"\]/)
+  assert.match(swift, /guard transactionAccountToken == accountToken else/)
+  assert.match(swift, /guard transaction.appAccountToken == accountToken else \{ continue \}/)
+  assert.doesNotMatch(swift, /sandboxSession|testSessionAccess|testAccount/)
+  assert.doesNotMatch(swift, /\|\| isSandboxTransaction\(transaction\)/)
   assert.match(bridge, /restorePurchases\(\{ accountId: id \}\)/)
 })

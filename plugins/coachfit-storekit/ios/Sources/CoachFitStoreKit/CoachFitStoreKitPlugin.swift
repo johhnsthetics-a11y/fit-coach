@@ -2,16 +2,8 @@ import Foundation
 import Capacitor
 import StoreKit
 
-// Test access is local to this running app session, never a production transfer.
-private actor SandboxSessionAccess {
-    private var accounts: Set<UUID> = []
-    func allow(_ account: UUID) { accounts.insert(account) }
-    func contains(_ account: UUID) -> Bool { accounts.contains(account) }
-}
-
 @objc(CoachFitStoreKitPlugin)
 public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
-    private let sandboxSession = SandboxSessionAccess()
 
     public let identifier = "CoachFitStoreKitPlugin"
     public let jsName = "CoachFitStoreKit"
@@ -91,7 +83,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                         "cancelled": false,
                         "pending": false,
                         "alreadyActive": true,
-                        "transaction": transactionDictionary(entitlement, testAccount: accountToken, currentEntitlement: true)
+                        "transaction": transactionDictionary(entitlement, currentEntitlement: true)
                     ])
                     return
                 }
@@ -106,11 +98,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     switch verification {
                     case .verified(let transaction):
                         let transactionAccountToken = transaction.appAccountToken
-                        guard transactionAccountToken != nil || isSandboxTransaction(transaction) else {
+                        guard transactionAccountToken != nil else {
                             call.reject("A App Store não vinculou esta transação à conta Coach Fit Pro conectada. O acesso não foi liberado; não tente comprar novamente e fale com o suporte.", "apple_account_token_missing")
                             return
                         }
-                        guard transactionAccountToken == accountToken || isSandboxTransaction(transaction) else {
+                        guard transactionAccountToken == accountToken else {
                             call.reject("A assinatura retornada pela Apple está vinculada a outra conta Coach Fit Pro. O acesso não foi liberado; entre na conta usada originalmente ou fale com o suporte antes de outra tentativa.", "apple_account_token_mismatch")
                             return
                         }
@@ -118,7 +110,6 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                             call.reject("A compra da Apple não corresponde ao plano selecionado ou foi revogada.")
                             return
                         }
-                        if isSandboxTransaction(transaction) { await sandboxSession.allow(accountToken) }
 
                         // StoreKit currentEntitlements is authoritative when a
                         // subscription is in grace period or the purchase result
@@ -137,7 +128,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                                 "cancelled": false,
                                 "pending": false,
                                 "alreadyActive": true,
-                                "transaction": transactionDictionary(entitlement, testAccount: accountToken, currentEntitlement: true)
+                                "transaction": transactionDictionary(entitlement, currentEntitlement: true)
                             ])
                             return
                         }
@@ -148,7 +139,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                             "purchased": true,
                             "cancelled": false,
                             "pending": false,
-                            "transaction": transactionDictionary(transaction, testAccount: accountToken)
+                            "transaction": transactionDictionary(transaction)
                         ])
                     case .unverified(_, let error):
                         call.reject("A compra não pôde ser verificada.", nil, error)
@@ -167,14 +158,13 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func restorePurchases(_ call: CAPPluginCall) {
-        guard let rawAccountId = call.getString("accountId"), let accountToken = UUID(uuidString: rawAccountId) else {
+        guard let rawAccountId = call.getString("accountId"), UUID(uuidString: rawAccountId) != nil else {
             call.reject("Entre na sua conta Coach Fit Pro antes de restaurar compras.")
             return
         }
         Task {
             do {
                 try await AppStore.sync()
-                await sandboxSession.allow(accountToken)
                 call.resolve(["restored": true])
             } catch {
                 call.reject("Não foi possível restaurar as compras.", nil, error)
@@ -189,27 +179,23 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         Task {
-            let sandboxAllowed = await sandboxSession.contains(accountToken)
             var entitlements: [[String: Any]] = []
             for await result in Transaction.currentEntitlements {
                 guard case .verified(let transaction) = result else { continue }
                 guard acceptedProductIds.isEmpty || acceptedProductIds.contains(transaction.productID) else { continue }
-                guard transaction.appAccountToken == accountToken
-                    || (isSandboxTransaction(transaction) && sandboxAllowed) else { continue }
-                entitlements.append(entitlementDictionary(transaction, testAccount: accountToken))
+                guard transaction.appAccountToken == accountToken else { continue }
+                entitlements.append(entitlementDictionary(transaction))
             }
             call.resolve(["entitlements": entitlements])
         }
     }
 
     private func currentEntitlement(for productId: String, accountToken: UUID) async -> Transaction? {
-        let sandboxAllowed = await sandboxSession.contains(accountToken)
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result,
                   transaction.productID == productId,
                   transaction.revocationDate == nil else { continue }
-            guard transaction.appAccountToken == accountToken
-                || (isSandboxTransaction(transaction) && sandboxAllowed) else { continue }
+            guard transaction.appAccountToken == accountToken else { continue }
             return transaction
         }
         return nil
@@ -290,7 +276,6 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         let now = Date()
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result,
-                  !isSandboxTransaction(transaction),
                   transaction.productID.hasPrefix("br.com.coachfitpro.ios.profissional."),
                   transaction.appAccountToken != accountToken,
                   transaction.revocationDate == nil,
@@ -301,15 +286,7 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         return false
     }
 
-    private func isSandboxTransaction(_ transaction: Transaction) -> Bool {
-        guard transaction.productID.hasPrefix("br.com.coachfitpro.ios.profissional.") else { return false }
-        if #available(iOS 16.0, *) {
-            return transaction.environment == .sandbox
-        }
-        return false
-    }
-
-    private func transactionDictionary(_ transaction: Transaction, testAccount: UUID? = nil, currentEntitlement: Bool = false) -> [String: Any] {
+    private func transactionDictionary(_ transaction: Transaction, currentEntitlement: Bool = false) -> [String: Any] {
         var value: [String: Any] = [
             "id": String(transaction.id),
             "originalId": String(transaction.originalID),
@@ -317,12 +294,6 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
             "productId": transaction.productID,
             "purchaseDate": ISO8601DateFormatter().string(from: transaction.purchaseDate)
         ]
-        if let testAccount, isSandboxTransaction(transaction) {
-            value["originalAccountId"] = transaction.appAccountToken?.uuidString.lowercased() ?? ""
-            value["accountId"] = testAccount.uuidString.lowercased()
-            value["testSessionAccess"] = true
-            value["environment"] = "Sandbox"
-        }
         if currentEntitlement {
             value["currentEntitlement"] = true
         }
@@ -346,11 +317,11 @@ public class CoachFitStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         return value
     }
 
-    private func entitlementDictionary(_ transaction: Transaction, testAccount: UUID? = nil) -> [String: Any] {
+    private func entitlementDictionary(_ transaction: Transaction) -> [String: Any] {
         // Entries come from Apple's currentEntitlements sequence, which includes
         // subscriptions that are subscribed or in grace period.
         let active = transaction.revocationDate == nil
-        var value = transactionDictionary(transaction, testAccount: testAccount, currentEntitlement: active)
+        var value = transactionDictionary(transaction, currentEntitlement: active)
         value["active"] = active
         value["revoked"] = transaction.revocationDate != nil
         return value
