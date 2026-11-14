@@ -21661,7 +21661,7 @@ export function StudentMobileApp({ student, checkins, workouts, nutritionPlans, 
               Conexão instável. Exibindo os últimos dados sincronizados; uma nova tentativa será feita automaticamente.
             </p>
           ) : null}
-          {activeTab !== 'mensagens' && activeTab !== 'treino' && <>
+          {activeTab !== 'mensagens' && activeTab !== 'treino' && activeTab !== 'inicio' && <>
             <section className="mb-4 overflow-hidden rounded-md border border-emerald-300/20 bg-zinc-950/94 shadow-2xl shadow-black/35 backdrop-blur-xl lg:sticky lg:top-5 lg:z-20">
               <div className="p-3.5 sm:p-4">
               <WelcomeHeader
@@ -21768,7 +21768,7 @@ function StudentProgressCharts({ assessments = [], nutritionPlan = null }) {
   )
 }
 
-function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress, completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, assessments = [], waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onOpenTab, onDismissQuestionnaire }) {
+function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], weekProgress = [], completedThisWeek, weeklyTarget, completedThisMonth, monthlyTarget, nextWorkout, nextNutritionPlan, nextAppointment, assessments = [], waterMl, waterGoalMl, questionnaireAssignments = [], dismissedQuestionnairePriorityIds = [], onOpenTab, onDismissQuestionnaire }) {
   const firstName = String(student?.name || (patientMode ? 'paciente' : 'aluno')).split(' ')[0]
   const waterPercent = Math.min(100, Math.round((Number(waterMl || 0) / Math.max(1, Number(waterGoalMl || 2500))) * 100))
   const weeklyPercent = Math.min(100, Math.round((completedThisWeek / Math.max(1, weeklyTarget)) * 100))
@@ -21778,166 +21778,74 @@ function StudentHomeDashboard({ student, patientMode = false, workoutLogs = [], 
   const priorityIsAnamnesis = isAnamnesisAssignment(priorityQuestionnaire)
   const priorityIsRequired = Boolean(priorityQuestionnaire && priorityQuestionnaire.priorityRequired)
   const nextAction = !patientMode && nextWorkout
-    ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell' }
+    ? { title: 'Iniciar treino de hoje', body: nextWorkout.title || student.workout || 'Seu plano está pronto.', tab: 'treino', icon: 'dumbbell', tone: 'emerald' }
     : nextNutritionPlan
-      ? { title: 'Consultar plano alimentar', body: nextNutritionPlan.title || 'Confira suas refeições e orientações.', tab: 'dieta', icon: 'nutrition' }
-    : nextAppointment
-      ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar' }
-      : { title: 'Falar com seu profissional', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message' }
+      ? { title: 'Consultar plano alimentar', body: nextNutritionPlan.title || 'Confira suas refeições e orientações.', tab: 'dieta', icon: 'nutrition', tone: 'lime' }
+      : nextAppointment
+        ? { title: 'Ver próximo compromisso', body: formatFullDateTime(nextAppointment.startsAt), tab: 'agenda', icon: 'calendar', tone: 'blue' }
+        : { title: 'Falar com seu profissional', body: 'Envie uma dúvida ou retorno rápido.', tab: 'mensagens', icon: 'message', tone: 'violet' }
 
   return (
-    <StudentAppSection title={`Olá, ${firstName}`} action={patientMode ? 'Seu acompanhamento' : 'Seu plano'}>
-      <div className="grid gap-4">
+    <StudentAppSection title={'Olá, ' + firstName} action={patientMode ? 'Acompanhamento' : 'Seu plano'} className="student-home-app-section">
+      <div className="student-home-dashboard-v2">
         {priorityQuestionnaire ? (
-          <div className={`student-questionnaire-priority-v1 ${priorityIsAnamnesis && priorityIsRequired ? 'student-anamnesis-priority-card' : ''} rounded-xl border border-emerald-300/30 bg-emerald-300/12 p-4`}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase text-emerald-200">{priorityIsAnamnesis ? (priorityIsRequired ? 'Anamnese prioritária' : 'Anamnese solicitada') : 'Você possui um questionário pendente'}</p>
-                <h3 className="mt-1 break-words text-lg font-black text-white">{priorityQuestionnaire.questionSnapshot?.title || (priorityIsAnamnesis ? 'Atualização da anamnese' : 'Questionário nutricional')}</h3>
-                <p className="mt-1 text-sm leading-6 text-zinc-400">
-                  {priorityIsAnamnesis
-                    ? 'Seu profissional solicitou estas informações. Responda assim que puder; isso não bloqueia nenhuma ferramenta do aplicativo.'
-                    : 'Suas respostas ajudam o profissional a ajustar dieta, rotina e preferências com mais precisão.'}
-                </p>
-              </div>
-              <div className="grid gap-2 sm:min-w-40">
-                <button type="button" onClick={() => onOpenTab('dieta')} className="rounded-xl bg-emerald-300 px-4 py-3 text-sm font-black text-zinc-950">
-                  Responder agora
-                </button>
-                <button type="button" onClick={() => onDismissQuestionnaire?.(priorityQuestionnaire.id)} className="rounded-xl border border-white/10 px-4 py-3 text-sm font-black text-zinc-200">
-                  Responder depois
-                </button>
-              </div>
+          <section className={'student-home-priority-v2 ' + (priorityIsAnamnesis && priorityIsRequired ? 'student-anamnesis-priority-card' : '')} aria-label="Questionário pendente">
+            <div className="student-home-priority-copy-v2">
+              <p className="student-home-eyebrow-v2">{priorityIsAnamnesis ? (priorityIsRequired ? 'Anamnese prioritária' : 'Anamnese solicitada') : 'Questionário pendente'}</p>
+              <h3>{priorityQuestionnaire.questionSnapshot?.title || (priorityIsAnamnesis ? 'Atualização da anamnese' : 'Questionário nutricional')}</h3>
+              <p>{priorityIsAnamnesis ? 'Seu profissional solicitou estas informações. Responda quando puder; isso não bloqueia as ferramentas do app.' : 'Suas respostas ajudam o profissional a ajustar seu plano.'}</p>
             </div>
-          </div>
+            <div className="student-home-priority-actions-v2">
+              <button type="button" onClick={() => onOpenTab('dieta')} className="student-home-priority-primary-v2">Responder</button>
+              <button type="button" onClick={() => onDismissQuestionnaire?.(priorityQuestionnaire.id)} className="student-home-priority-secondary-v2">Depois</button>
+            </div>
+          </section>
         ) : null}
 
-        <button type="button" onClick={() => onOpenTab(nextAction.tab)} className="flex items-center gap-3 rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4 text-left transition hover:border-emerald-200/45">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-emerald-300/25 bg-emerald-300/10 text-emerald-100">
-            <NavIcon name={nextAction.icon} className="h-5 w-5" />
+        <button type="button" onClick={() => onOpenTab(nextAction.tab)} className={'student-home-next-action-v2 tone-' + nextAction.tone}>
+          <span className="student-home-next-action-icon-v2"><NavIcon name={nextAction.icon} className="h-5 w-5" /></span>
+          <span className="student-home-next-action-copy-v2">
+            <span className="student-home-eyebrow-v2">{patientMode ? 'PRÓXIMO PASSO' : 'PARA HOJE'}</span>
+            <strong>{nextAction.title}</strong>
+            <span>{nextAction.body}</span>
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-black text-white">{nextAction.title}</span>
-            <span className="mt-1 block text-xs leading-5 text-zinc-400">{nextAction.body}</span>
-          </span>
-          <NavIcon name="chevronRight" className="h-5 w-5 text-emerald-200" />
+          <NavIcon name="chevronRight" className="student-home-next-action-chevron-v2 h-5 w-5" />
         </button>
 
-        <div className="student-reward-ranking-card overflow-hidden rounded-xl border border-emerald-300/25 bg-gradient-to-br from-emerald-300/12 via-zinc-950 to-blue-500/10 p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase text-emerald-200">Ranking de evolução</p>
-              <div className="mb-3">
-                <RankMedal icon={reward.levelIcon} label={reward.levelName} />
-              </div>
-              <h3 className="mt-2 text-2xl font-black text-white">{reward.levelName}</h3>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">{reward.xp} XP acumulados. {patientMode ? 'Questionários e retornos concluídos aproximam você do próximo selo.' : 'Treinos concluídos e questionários respondidos aproximam você do próximo selo.'}</p>
-            </div>
-            <div className="student-reward-next-card rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left sm:min-w-44">
-              <p className="text-xs font-black uppercase text-zinc-500">Próximo selo</p>
-              <p className="mt-1 text-lg font-black text-emerald-100">{reward.nextLevelName}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-500">{reward.remainingXp > 0 ? `faltam ${reward.remainingXp} XP` : 'ranking máximo'}</p>
-            </div>
-          </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-blue-400 transition-all duration-700" style={{ width: `${reward.progress}%` }} />
-          </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-4">
-            {reward.badges.map((badge) => (
-              <div key={badge.label} className={`student-reward-badge-card rounded-lg border p-3 ${badge.done ? 'border-emerald-300/35 bg-emerald-300/12' : 'border-white/10 bg-white/[0.03]'}`}>
-                <p className={`text-xs font-black uppercase ${badge.done ? 'text-emerald-100' : 'text-zinc-500'}`}>{badge.label}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-400">{badge.detail}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            {reward.sources.map((source) => (
-              <div key={source.label} className="student-reward-source-card rounded-lg border border-white/10 bg-black/20 p-3">
-                <p className="text-xs font-black uppercase text-zinc-500">{source.label}</p>
-                <p className="mt-1 text-lg font-black text-white">{source.value}</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">{source.detail}</p>
-              </div>
-            ))}
-          </div>
-          <details className="mt-4 min-w-0 border-t border-white/10 pt-3">
-            <summary className="cursor-pointer py-2 text-sm font-bold">Histórico de XP</summary>
-            {reward.history.length ? <ul className="max-h-64 space-y-2 overflow-y-auto py-2">
-              {reward.history.map((event) => <li key={event.id} className="flex min-w-0 items-start justify-between gap-3 text-sm">
-                <span className="min-w-0 break-words">{event.label}<small className="block text-zinc-500">{formatFullDateTime(event.at)}</small></span>
-                <strong className="shrink-0">+{event.xp} XP</strong>
-              </li>)}
-            </ul> : <p className="py-2 text-sm text-zinc-500">Nenhuma conclusão registrada ainda.</p>}
-          </details>
-        </div>
-
-        <StudentProgressCharts assessments={assessments} nutritionPlan={nextNutritionPlan} />
-        <StudentWaterQuickCard
-          goalMl={waterGoalMl}
-          currentMl={waterMl}
-          onOpen={() => onOpenTab('agua')}
-        />
-
-        {!patientMode ? <div className="rounded-lg border border-white/10 bg-zinc-950/72 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase text-emerald-300">Calendário semanal</p>
-              <p className="mt-1 text-sm text-zinc-400">{completedThisWeek} de {weeklyTarget} treinos do desafio da semana</p>
-            </div>
-            <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-black text-emerald-100">{weeklyPercent}%</span>
-          </div>
-          <div className="mt-4 grid grid-cols-7 gap-1.5">
-            {weekProgress.map((day) => (
-              <div key={day.key} className={`grid min-h-16 place-items-center rounded-lg border p-2 text-center ${
-                day.completed
-                  ? 'border-emerald-300/40 bg-emerald-300/15 text-emerald-50'
-                  : day.isToday
-                    ? 'border-sky-300/35 bg-sky-300/10 text-sky-100'
-                    : 'border-white/10 bg-white/[0.03] text-zinc-400'
-              }`}>
-                <span className="text-[10px] font-black uppercase">{day.label}</span>
-                <span className="mt-1 text-base font-black">{day.dayNumber}</span>
-                <span className="mt-1 grid h-5 min-w-5 place-items-center rounded-full text-[10px] font-bold">
-                  {day.completed ? <NavIcon name="check" className="h-4 w-4" /> : day.isToday ? 'hoje' : '-'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div> : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <button type="button" onClick={() => onOpenTab('dieta')} className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4 text-left">
-              <p className="text-xs font-black uppercase text-emerald-200">Plano alimentar</p>
-              <p className="mt-2 text-lg font-black text-white">{nextNutritionPlan ? 'Disponível' : 'Aguardando'}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">Consulte refeições, orientações e questionários.</p>
+        {!patientMode ? (
+          <div className="student-home-overview-v2">
+            <button type="button" onClick={() => onOpenTab('treino')} className="student-home-week-card-v2">
+              <span className="student-home-week-heading-v2"><span><small>SEMANA</small><strong>{completedThisWeek} de {weeklyTarget} treinos</strong></span><b>{weeklyPercent}%</b></span>
+              <span className="student-home-progress-track-v2" aria-hidden="true"><span style={{ width: weeklyPercent + '%' }} /></span>
+              <span className="student-home-week-days-v2">
+                {weekProgress.map((day) => <span key={day.key} className={(day.completed ? 'is-complete ' : '') + (day.isToday ? 'is-today' : '')}><small>{day.label}</small><b>{day.completed ? <NavIcon name="check" className="h-3 w-3" /> : day.dayNumber}</b></span>)}
+              </span>
+              <span className="student-home-card-link-v2">Ver treinos <NavIcon name="chevronRight" className="h-4 w-4" /></span>
             </button>
-            <button type="button" onClick={() => onOpenTab('checkin')} className="rounded-lg border border-sky-300/25 bg-sky-300/10 p-4 text-left">
-              <p className="text-xs font-black uppercase text-sky-200">Acompanhamento</p>
-              <p className="mt-2 text-lg font-black text-white">Enviar check-in</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">Registre peso, sintomas e observações.</p>
-            </button>
-            <button type="button" onClick={() => onOpenTab('agenda')} className="rounded-lg border border-cyan-300/25 bg-cyan-300/10 p-4 text-left">
-              <p className="text-xs font-black uppercase text-cyan-200">Próximo compromisso</p>
-              <p className="mt-2 text-sm font-black text-white">{nextAppointment ? formatFullDateTime(nextAppointment.startsAt) : 'Nenhum agendamento'}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">Acompanhe consultas e retornos.</p>
-            </button>
+            <StudentWaterQuickCard goalMl={waterGoalMl} currentMl={waterMl} onOpen={() => onOpenTab('agua')} />
+          </div>
+        ) : (
+          <div className="student-home-patient-shortcuts-v2">
+            <button type="button" onClick={() => onOpenTab('dieta')} className="student-home-shortcut-v2 tone-lime"><span className="student-home-shortcut-icon-v2"><NavIcon name="nutrition" className="h-5 w-5" /></span><span><small>PLANO ALIMENTAR</small><strong>{nextNutritionPlan ? 'Disponível' : 'Aguardando'}</strong></span><NavIcon name="chevronRight" className="h-4 w-4" /></button>
+            <button type="button" onClick={() => onOpenTab('checkin')} className="student-home-shortcut-v2 tone-blue"><span className="student-home-shortcut-icon-v2"><NavIcon name="chart" className="h-5 w-5" /></span><span><small>ACOMPANHAMENTO</small><strong>Enviar check-in</strong></span><NavIcon name="chevronRight" className="h-4 w-4" /></button>
+            {nextAppointment ? <button type="button" onClick={() => onOpenTab('agenda')} className="student-home-shortcut-v2 tone-violet"><span className="student-home-shortcut-icon-v2"><NavIcon name="calendar" className="h-5 w-5" /></span><span><small>PRÓXIMO COMPROMISSO</small><strong>{formatFullDateTime(nextAppointment.startsAt)}</strong></span><NavIcon name="chevronRight" className="h-4 w-4" /></button> : null}
           </div>
         )}
 
-        {!patientMode ? <div className="grid gap-3 sm:grid-cols-3">
-          <StudentChallengeCard title="Desafio semanal" value={`${completedThisWeek}/${weeklyTarget}`} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta e ganhe bônus de XP.'} tone="emerald" />
-          <StudentChallengeCard title="Desafio mensal" value={`${completedThisMonth}/${monthlyTarget}`} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" />
-          <StudentChallengeCard title="Hidratação" value={`${waterPercent}%`} percent={waterPercent} detail={waterPercent >= 100 ? 'Meta de hoje alcançada neste dispositivo.' : 'Meta de água definida pelo profissional.'} tone="cyan" />
-        </div> : null}
-
-        <div className="grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => onOpenTab(patientMode ? 'dieta' : (nextWorkout ? 'treino' : 'dieta'))} className="rounded-lg border border-lime-300/25 bg-lime-300/10 p-4 text-left">
-            <NavIcon name={patientMode || !nextWorkout ? 'nutrition' : 'dumbbell'} className="h-5 w-5 text-lime-200" />
-            <span className="mt-3 block text-sm font-black text-white">{patientMode || !nextWorkout ? 'Planos alimentares' : 'Treinar agora'}</span>
-          </button>
-          <button type="button" onClick={() => onOpenTab('mensagens')} className="rounded-lg border border-blue-300/25 bg-blue-300/10 p-4 text-left">
-            <NavIcon name="message" className="h-5 w-5 text-blue-200" />
-            <span className="mt-3 block text-sm font-black text-white">Falar com profissional</span>
-          </button>
-        </div>
+        <details className="student-home-details-v2">
+          <summary><span><strong>Ver evolução e ranking</strong><small>XP, desafios, avaliações e histórico</small></span><NavIcon name="chevronDown" className="h-5 w-5" /></summary>
+          <div className="student-home-details-content-v2">
+            <div className="student-reward-ranking-card student-home-ranking-v2">
+              <div className="student-home-ranking-heading-v2"><div><span className="student-home-eyebrow-v2">RANKING DE EVOLUÇÃO</span><h3>{reward.levelName}</h3><p>{reward.xp} XP acumulados</p></div><div className="student-home-rank-next-v2"><small>Próximo selo</small><strong>{reward.nextLevelName}</strong><span>{reward.remainingXp > 0 ? 'faltam ' + reward.remainingXp + ' XP' : 'ranking máximo'}</span></div></div>
+              <div className="student-home-progress-track-v2" role="progressbar" aria-label="Progresso até o próximo selo" aria-valuemin="0" aria-valuemax="100" aria-valuenow={reward.progress}><span style={{ width: reward.progress + '%' }} /></div>
+              <div className="student-home-badges-v2">{reward.badges.map((badge) => <div key={badge.label} className={'student-reward-badge-card ' + (badge.done ? 'is-done' : '')}><strong>{badge.label}</strong><span>{badge.detail}</span></div>)}</div>
+              <div className="student-home-sources-v2">{reward.sources.map((source) => <div key={source.label} className="student-reward-source-card"><small>{source.label}</small><strong>{source.value}</strong><span>{source.detail}</span></div>)}</div>
+              <details className="student-home-xp-history-v2"><summary>Histórico de XP</summary>{reward.history.length ? <ul>{reward.history.map((event) => <li key={event.id}><span>{event.label}<small>{formatFullDateTime(event.at)}</small></span><strong>+{event.xp} XP</strong></li>)}</ul> : <p>Nenhuma conclusão registrada ainda.</p>}</details>
+            </div>
+            <StudentProgressCharts assessments={assessments} nutritionPlan={nextNutritionPlan} />
+            {!patientMode ? <div className="student-home-challenges-v2"><StudentChallengeCard title="Desafio semanal" value={completedThisWeek + '/' + weeklyTarget} percent={weeklyPercent} detail={weeklyPercent >= 100 ? '+120 XP de bônus liberado.' : 'Complete a meta semanal e ganhe bônus de XP.'} tone="emerald" /><StudentChallengeCard title="Desafio mensal" value={completedThisMonth + '/' + monthlyTarget} percent={monthlyPercent} detail={monthlyPercent >= 100 ? '+300 XP de bônus liberado.' : 'Consistência acumulada no mês gera selo especial.'} tone="sky" /><StudentChallengeCard title="Hidratação" value={waterPercent + '%'} percent={waterPercent} detail={waterPercent >= 100 ? 'Meta de hoje alcançada neste dispositivo.' : 'Meta de água definida pelo profissional.'} tone="cyan" /></div> : null}
+          </div>
+        </details>
       </div>
     </StudentAppSection>
   )
