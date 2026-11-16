@@ -10,7 +10,7 @@ const workout = { id: 'build28-preview-workout', title: 'Treino demonstrativo', 
   { day: 'Segunda-feira', focus: 'Peito', exercises: [{ name: 'Supino reto', sets: '3', reps: '10', rest: '60s' }, { name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
   { day: 'Quarta-feira', focus: 'Costas', exercises: [{ name: 'Remada baixa', sets: '3', reps: '12', rest: '60s' }] },
 ] }
-let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, polish37Css, polish38Css, polish39Css, mainSource, xpCelebrationCss
+let server, StudentWorkoutExecution, appSource, figmaCss, polishCss, polish36Css, polish37Css, polish38Css, polish39Css, mainSource, xpCelebrationCss, videoCtaCss
 
 before(async () => {
   server = await createServer({
@@ -29,6 +29,7 @@ before(async () => {
   polish39Css = await readFile(new URL('../src/student-workout-polish-build39.css', import.meta.url), 'utf8')
   mainSource = await readFile(new URL('../src/main.jsx', import.meta.url), 'utf8')
   xpCelebrationCss = await readFile(new URL('../src/student-workout-xp-celebration-build35.css', import.meta.url), 'utf8')
+  videoCtaCss = await readFile(new URL('../src/student-workout-video-cta.css', import.meta.url), 'utf8')
 })
 
 test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
@@ -53,7 +54,9 @@ test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
   assert.match(html.overview, /aria-controls="student-workout-day-options"/)
   assert.doesNotMatch(html.overview, /aria-label="Escolher outro dia de treino"/)
   assert.ok(html.overview.indexOf('student-workout-figma-topbar') < html.overview.indexOf('student-workout-day-accordion__toggle'))
-  assert.match(html.execution, /Técnica do exercício/)
+  assert.match(html.execution, /Assistir vídeo do exercício/)
+  assert.equal((html.execution.match(/Assistir vídeo do exercício/g) || []).length, 1, 'a execução do aluno deve exibir apenas um CTA de vídeo')
+  assert.doesNotMatch(html.execution, /student-workout-figma-technique-preview|student-workout-figma-technique-play|Técnica do exercício/)
   assert.match(html.execution, /Concluir série/)
   assert.doesNotMatch(html.execution, /Registrar série e descansar|student-workout-figma-execution-actions/)
   assert.match(html.execution, /data-progress-segment/)
@@ -72,6 +75,42 @@ test('prévia percorre as cinco telas do Figma sem salvar dados reais', () => {
   assert.match(html.summary, /Resumo demonstrativo\. Os valores reais aparecem após o aluno concluir a sessão\./)
   assert.match(html.summary, /data-preview-rating="true"/)
   assert.match(html.summary, /<strong>—<\/strong>/)
+})
+
+test('vídeo do coach e YouTube abrem sob o CTA compartilhado com a visão do aluno', () => {
+  const uploadedWorkout = {
+    ...workout,
+    days: workout.days.map((day, index) => index === 0
+      ? { ...day, exercises: [{ ...day.exercises[0], videoPreviewUrl: 'https://cdn.example.test/supino.mp4' }] }
+      : day),
+  }
+  const uploadedHtml = renderToString(React.createElement(StudentWorkoutExecution, {
+    student, workout: uploadedWorkout, preview: true, previewStage: 'execution', dayIndex: 0,
+  }))
+  assert.match(uploadedHtml, /data-exercise-media-kind="coach-upload"/)
+  assert.match(uploadedHtml, /aria-expanded="false"/)
+  assert.match(uploadedHtml, /Assistir vídeo do exercício/)
+  assert.doesNotMatch(uploadedHtml, /<video\b/)
+
+  const youtubeWorkout = {
+    ...workout,
+    days: workout.days.map((day, index) => index === 0
+      ? { ...day, exercises: [{ ...day.exercises[0], videoUrl: 'https:\/\/www.youtube.com\/watch?v=dQw4w9WgXcQ' }] }
+      : day),
+  }
+  const youtubeHtml = renderToString(React.createElement(StudentWorkoutExecution, {
+    student, workout: youtubeWorkout, preview: true, previewStage: 'execution', dayIndex: 0,
+  }))
+  assert.match(youtubeHtml, /data-exercise-media-kind="embedded-video"/)
+  assert.match(youtubeHtml, /aria-expanded="false"/)
+  assert.doesNotMatch(youtubeHtml, /<iframe\b/)
+
+  const coachPreview = appSource.match(/function MobileWorkoutStudentPreview\([\s\S]*?(?=\nfunction [A-Z][A-Za-z0-9_]*)/)?.[0] || ''
+  assert.match(coachPreview, /<StudentWorkoutExecution/)
+  assert.match(coachPreview, /previewStage=\{previewStage\}/)
+  assert.match(videoCtaCss, /\.app-theme-light \.student-workout-video-cta/)
+  assert.match(videoCtaCss, /prefers-reduced-motion: reduce/)
+  assert.ok(mainSource.indexOf("import './student-workout-video-cta.css'") > mainSource.indexOf("import './build46-ux-polish.css'"))
 })
 
 test('BUILD38 prioriza a ação do exercício concluído e usa preto neutro somente no dark real', () => {

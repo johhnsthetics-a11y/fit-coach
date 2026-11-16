@@ -600,7 +600,9 @@ test('treinador e aluno compartilham a experiência completa de execução', () 
   assert.match(html, /Concluir série/)
   assert.doesNotMatch(html, /Registrar série e descansar|student-workout-figma-execution-actions/)
   assert.match(html, /Meta prescrita: 10 reps/)
-  assert.match(html, /YouTube/)
+  assert.match(html, /class="student-workout-video-cta is-compact"/)
+  assert.match(html, /Assistir vídeo do exercício/)
+  assert.match(html, /youtube\.com\/results\?search_query=/i)
   assert.doesNotMatch(html, /<iframe[^>]+youtube/i)
   assert.doesNotMatch(html, /muscle-map-region/)
   assert.doesNotMatch(html, /<img[^>]+Execução de Supino reto com barra/)
@@ -625,8 +627,10 @@ test('interface de treino prioriza vídeo e não renderiza capas genéricas', as
   const appSource = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
 
   assert.doesNotMatch(appSource, /<img\s+src=\{getExerciseImageUrl\(exercise\)\}/)
-  assert.match(appSource, /label = 'Ver execução'/)
-  assert.match(appSource, /\{label\} no YouTube/)
+  assert.match(appSource, /label = 'Assistir vídeo do exercício'/)
+  assert.match(appSource, /const youtubeSearchUrl = getExerciseVideoUrl\(exercise\)/)
+  assert.match(appSource, /data-exercise-media-kind=\{uploadedVideoUrl \? 'coach-upload' : 'embedded-video'\}/)
+  assert.doesNotMatch(appSource, /student-workout-figma-technique-preview|student-workout-figma-technique-play/)
 })
 
 test('conclusão preserva séries, cargas e repetições no histórico do aluno', () => {

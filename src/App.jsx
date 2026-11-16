@@ -12446,7 +12446,6 @@ function MobileWorkoutDayScreen({ day, dayIndex, expandedExerciseKey, setExpande
                     </div>
                   )}
                   <p>{exercise.instructions || exercise.notes || 'Oriente execução, amplitude e controle de carga antes de publicar alterações.'}</p>
-                  <ExerciseYouTubeLink exercise={exercise} compact />
                 </div>
               ) : null}
             </article>
@@ -13942,9 +13941,6 @@ function WorkoutForm({ students, selectedStudent, exerciseLibraryItems = exercis
                 </div>
                 <ExerciseMuscleSummary exercise={exercise} compact />
                 <ExerciseMedia exercise={exercise} compact />
-                <div className="mt-2">
-                  <ExerciseYouTubeLink exercise={exercise} compact />
-                </div>
               </div>
             </details>
           </div>
@@ -14054,9 +14050,6 @@ function WorkoutList({ workouts = [], fallbackTitle, exerciseLibraryItems = exer
                     {enriched.instructions ? <p className="mt-3 rounded bg-white/[0.035] p-3 text-sm leading-6 text-zinc-300">{enriched.instructions}</p> : null}
                     <div className="mt-3">
                       <ExerciseMedia exercise={enriched} />
-                      <div className="mt-2">
-                        <ExerciseYouTubeLink exercise={enriched} />
-                      </div>
                     </div>
                   </div>
                 )
@@ -14477,19 +14470,6 @@ function getVideoEmbedUrl(value) {
 function getExerciseVideoUrl(exercise) {
   const query = `${exercise.name || 'exercício de musculação'} execução correta técnica`
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
-}
-
-function ExerciseYouTubeLink({ exercise, compact = false }) {
-  return (
-    <a
-      href={getExerciseVideoUrl(exercise)}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-10 items-center justify-center rounded-md border border-red-300/25 bg-red-400/10 px-3 py-2 text-center text-xs font-black text-red-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
-    >
-      Ver execução no YouTube
-    </a>
-  )
 }
 
 function isDirectVideoUrl(value) {
@@ -14973,94 +14953,70 @@ function getExerciseCommonMistake(exercise = {}) {
   return mistakes[profile.primaryMuscle] || 'Aumentar carga antes de dominar a execução prescrita.'
 }
 
-function ExerciseMedia({ exercise, compact = false, autoOpen = false, label = 'Ver execução' }) {
-  if (exercise.videoPreviewUrl) {
-    return (
-        <details className="student-workout-figma-media-details overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open={autoOpen || undefined}>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">{label} • Vídeo do coach</summary>
-        <div className="aspect-video border-t border-white/10 bg-black">
-          <video
-            src={exercise.videoPreviewUrl}
-            controls
-            preload="metadata"
-            playsInline
-            className="h-full w-full bg-black object-contain"
-          />
-        </div>
-      </details>
-    )
-  }
+function ExerciseMedia({ exercise = {}, compact = false, autoOpen = false, label = 'Assistir vídeo do exercício' }) {
+  const videoPreviewUrl = typeof exercise.videoPreviewUrl === 'string' ? exercise.videoPreviewUrl.trim() : ''
   const videoUrl = safeExternalUrl(exercise.videoUrl)
-  const embedUrl = getVideoEmbedUrl(exercise.videoUrl)
-  const hasCustomVideo = Boolean(videoUrl)
+  const directVideoUrl = videoUrl && isDirectVideoUrl(videoUrl) ? videoUrl : ''
+  const uploadedVideoUrl = videoPreviewUrl || directVideoUrl
+  const embedUrl = uploadedVideoUrl ? '' : getVideoEmbedUrl(videoUrl)
+  const externalVideoUrl = videoUrl && !uploadedVideoUrl && !embedUrl ? videoUrl : ''
+  const youtubeSearchUrl = getExerciseVideoUrl(exercise)
+  const mediaSource = uploadedVideoUrl || embedUrl || externalVideoUrl || youtubeSearchUrl
+  const mediaKey = `${exercise.id || exercise.name || 'exercise'}|${mediaSource}`
+  const playerId = `student-workout-video-${useId()}`
+  const [openState, setOpenState] = useState(null)
+  const isOpen = openState?.key === mediaKey ? openState.open : Boolean(autoOpen)
+  const ctaLabel = isOpen ? 'Ocultar vídeo do exercício' : (label || 'Assistir vídeo do exercício')
+  const ctaClassName = `student-workout-video-cta${compact ? ' is-compact' : ''}`
 
-  if (videoUrl && isDirectVideoUrl(videoUrl)) {
+  if (uploadedVideoUrl || embedUrl) {
     return (
-      <details className="student-workout-figma-media-details overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open={autoOpen || undefined}>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">{label} • Vídeo do coach</summary>
-        <div className="aspect-video border-t border-white/10 bg-black">
-          <video
-            src={videoUrl}
-            controls
-            preload="metadata"
-            playsInline
-            className="h-full w-full bg-black object-contain"
-          />
-        </div>
-      </details>
-    )
-  }
-
-  if (embedUrl) {
-    return (
-      <details className="student-workout-figma-media-details overflow-hidden rounded-md border border-emerald-300/20 bg-emerald-400/[0.06]" open={autoOpen || undefined}>
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black text-emerald-200">{label} • Vídeo do coach</summary>
-        <div className="aspect-video border-t border-white/10 bg-black">
-          <iframe
-            src={embedUrl}
-            title={`Execução de ${exercise.name}`}
-            loading="lazy"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="h-full w-full"
-          />
-        </div>
-      </details>
-    )
-  }
-
-  if (hasCustomVideo) {
-    return (
-      <a
-        href={videoUrl}
-        target="_blank"
-        rel="noreferrer"
-        className={`student-workout-figma-media-link inline-flex min-h-10 items-center justify-center rounded-md border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center text-xs font-black text-emerald-100 ${compact ? 'w-full sm:w-fit' : 'w-full sm:w-auto'}`}
-      >
-        Abrir vídeo indicado pelo coach
-      </a>
+      <div className="student-workout-media-action" data-exercise-media-kind={uploadedVideoUrl ? 'coach-upload' : 'embedded-video'}>
+        <button
+          type="button"
+          className={ctaClassName}
+          aria-expanded={isOpen}
+          aria-controls={playerId}
+          onClick={() => setOpenState({ key: mediaKey, open: !isOpen })}
+        >
+          <span className="student-workout-video-cta__icon" aria-hidden="true"><NavIcon name="play" className="h-4 w-4" /></span>
+          <span className="student-workout-video-cta__text">{ctaLabel}</span>
+        </button>
+        {isOpen ? (
+          <div id={playerId} className="student-workout-video-player">
+            {uploadedVideoUrl ? (
+              <video
+                src={uploadedVideoUrl}
+                controls
+                preload="metadata"
+                playsInline
+                aria-label={`Vídeo de execução de ${exercise.name || 'exercício'}`}
+              />
+            ) : (
+              <iframe
+                src={embedUrl}
+                title={`Execução de ${exercise.name || 'exercício'}`}
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            )}
+          </div>
+        ) : null}
+      </div>
     )
   }
 
   return (
-    <div className="student-workout-figma-technique-preview">
-      <span className="student-workout-figma-technique-play" aria-hidden="true"><NavIcon name="play" className="h-5 w-5" /></span>
-      <strong>{exercise.name || 'Execução do exercício'}</strong>
-      <small>{exercise.instructions || 'Confira a técnica indicada pelo treinador.'}</small>
-      <ExerciseTechniqueCard exercise={exercise} compact={compact} label={label} />
-    </div>
-  )
-}
-
-function ExerciseTechniqueCard({ exercise, compact = false, label = 'Ver execução' }) {
-  return (
-    <div className={`grid gap-2 rounded-md border border-white/10 bg-white/[0.035] ${compact ? 'p-3' : 'p-4'}`}>
-      <p className="student-workout-figma-technique-copy text-xs font-black uppercase text-emerald-200">Técnica do exercício</p>
-      <p className="student-workout-figma-technique-copy text-sm leading-6 text-zinc-300">{exercise.instructions || 'Confira a técnica indicada pelo treinador antes de aumentar a carga.'}</p>
-      <a href={getExerciseVideoUrl(exercise)} target="_blank" rel="noreferrer" className="student-workout-figma-technique-link w-fit text-xs font-black text-emerald-200 underline underline-offset-4">
-        {label} no YouTube
-      </a>
-    </div>
+    <a
+      href={externalVideoUrl || youtubeSearchUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={ctaClassName}
+    >
+      <span className="student-workout-video-cta__icon" aria-hidden="true"><NavIcon name="play" className="h-4 w-4" /></span>
+      <span className="student-workout-video-cta__text">{label || 'Assistir vídeo do exercício'}</span>
+    </a>
   )
 }
 
@@ -16822,7 +16778,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
             }
           }}>{primaryLabel} <span aria-hidden="true"><NavIcon name="chevronRight" className="h-5 w-5" /></span></button>
         </div>
-        <div className="student-workout-figma-complete-technique"><ExerciseMedia exercise={exercise} compact label={'Consultar execução de ' + (exercise?.name || 'este exercício')} /></div>
+        <div className="student-workout-figma-complete-technique"><ExerciseMedia exercise={exercise} compact label="Assistir vídeo do exercício" /></div>
         {endConfirmOpen ? endConfirmation : null}
       </section>
     )
@@ -16851,7 +16807,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                 <span>{[exercise.equipment, currentExerciseIsCardio ? formatCardioPrescription(exercise) : `${exercise.sets || '—'} séries de ${exercise.reps || '—'} reps · Descanso ${exercise.rest || 'livre'}`].filter(Boolean).join(' • ')}</span>
               </div>
             </div>
-            <div className="student-workout-figma-media"><ExerciseMedia exercise={exercise} compact label="Ver execução" /></div>
+            <div className="student-workout-figma-media"><ExerciseMedia exercise={exercise} compact label="Assistir vídeo do exercício" /></div>
             {exercise.cues || exercise.instructions || exercise.notes ? <p className="student-workout-figma-coach-cue">{exercise.cues || exercise.instructions}{exercise.notes ? ' ' + exercise.notes : ''}</p> : null}
           </div>
 
