@@ -24,3 +24,11 @@ export function filterProfessionalTeamCandidates(candidates, query) {
       || (queryDigits.length > 0 && cpf.includes(queryDigits))
   })
 }
+
+export function selectVisibleTeamCandidates(selectedIds, visibleIds, checked) {
+  const selected = Array.isArray(selectedIds) ? selectedIds : []
+  const visible = new Set(Array.isArray(visibleIds) ? visibleIds : [])
+  return checked
+    ? [...new Set([...selected, ...visible])]
+    : selected.filter((id) => !visible.has(id))
+}

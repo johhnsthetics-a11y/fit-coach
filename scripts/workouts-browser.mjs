@@ -59,7 +59,8 @@ try {
       if (expectFailure) {
         await page.getByText('Algo saiu do lugar, mas seus dados continuam seguros.', { exact: true }).waitFor()
         const diagnostic = await page.evaluate(() => JSON.parse(localStorage.getItem('coachfitpro-last-error')))
-        assert.equal(diagnostic.message, 'editingPlan is not defined')
+        assert.equal(diagnostic.message, 'Erro inesperado')
+        assert.equal(diagnostic.stack, undefined)
         writeFileSync(resolve(output, `browser-before-${viewport.width}.json`), JSON.stringify(diagnostic, null, 2))
         await page.screenshot({ path: resolve(output, `before-${viewport.width}.png`) })
         console.log(`Original ${viewport.width}: ${diagnostic.message}\n${diagnostic.stack}`)

@@ -21,6 +21,7 @@ export const NUTRITION_RLS_MIGRATION_FILE = '20260909_fix_nutrition_rls_policies
 
 let sessionToken = ''
 let sessionRevision = 0
+let cachedSessionRefresh = null
 const avatarUrlCache = new Map()
 const messageAttachmentUrlCache = new Map()
 const REQUEST_TIMEOUT_MS = 25000
@@ -37,7 +38,9 @@ export function setSupabaseSession(token) {
   if (sessionToken !== (token || '')) {
     sessionRevision += 1
     messageAttachmentUrlCache.clear()
+    if (cachedSessionRefresh?.accessToken !== token) cachedSessionRefresh = null
   }
+  if (!token) cachedSessionRefresh = null
   sessionToken = token || ''
 }
 
@@ -238,7 +241,9 @@ async function authRequest(path, body) {
   assertCurrentSession(revision)
 
   if (!response.ok) {
-    throw serviceError(response.status, JSON.stringify(payload))
+    const error = serviceError(response.status, JSON.stringify(payload))
+    error.status = response.status
+    throw error
   }
 
   return payload
@@ -743,13 +748,21 @@ export async function refreshCoachSession(refreshToken) {
   if (!refreshToken) {
     throw new Error('Sessão sem token de renovação')
   }
+  if (cachedSessionRefresh?.token === refreshToken) return cachedSessionRefresh.promise
 
-  const payload = await authRequest('token?grant_type=refresh_token', {
-    refresh_token: refreshToken,
+  const promise = (async () => {
+    const payload = await authRequest('token?grant_type=refresh_token', {
+      refresh_token: refreshToken,
+    })
+    if (cachedSessionRefresh?.token === refreshToken) cachedSessionRefresh.accessToken = payload.access_token
+    setSupabaseSession(payload.access_token)
+    return toSession(payload)
+  })()
+  cachedSessionRefresh = { token: refreshToken, promise }
+  promise.catch(() => {
+    if (cachedSessionRefresh?.promise === promise) cachedSessionRefresh = null
   })
-
-  setSupabaseSession(payload.access_token)
-  return toSession(payload)
+  return promise
 }
 
 export async function loadRemoteData(currentUserId = '') {
@@ -1530,7 +1543,7 @@ export async function loadRemoteStudentByInvite(code) {
 
   const hydratedCheckins = await Promise.all((payload.checkins ?? []).map(hydrateCheckinRow))
   const studentWorkoutRows = Array.isArray(studentWorkoutsPayload) ? studentWorkoutsPayload : []
-  const hydratedWorkouts = await Promise.all(studentWorkoutRows.map(hydrateWorkoutRow))
+  const hydratedWorkouts = await Promise.all(studentWorkoutRows.map((row) => hydrateWorkoutRow(row, { inviteCode: code })))
   const hydratedMessages = await Promise.all((payload.messages ?? []).map((row) => hydrateMessageRow(row, { inviteCode: code })))
   const avatarIdentity = await loadStudentAvatarIdentityByInvite(code).catch(() => ({
     studentAvatarUrl: '',
@@ -2621,17 +2634,19 @@ async function hydrateMessageRow(row, { inviteCode = '' } = {}) {
   }
 }
 
-async function hydrateWorkoutRow(row) {
+async function hydrateWorkoutRow(row, { inviteCode = '' } = {}) {
   const workout = fromWorkoutRow(row)
   const exercises = await Promise.all(workout.exercises.map(async (exercise) => {
     const path = extractStoragePath(exercise.videoUrl, WORKOUT_VIDEO_BUCKET)
     if (!path || /^https?:\/\//i.test(path)) return exercise
 
-    const signedUrl = await signStorageObject(WORKOUT_VIDEO_BUCKET, path, 60 * 60).catch(() => '')
+    const signedUrl = await (inviteCode
+      ? functionRequest('workout-video', { inviteCode, workoutId: workout.id, videoPath: path }).then((result) => result?.signedUrl || '')
+      : signStorageObject(WORKOUT_VIDEO_BUCKET, path, 60 * 60)).catch(() => '')
     return {
       ...exercise,
       videoPath: path,
-      videoUrl: signedUrl || exercise.videoUrl,
+      videoUrl: signedUrl || '',
     }
   }))
 

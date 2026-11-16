@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { filterProfessionalTeamInvites } from './professionalTeamInvites.js'
-import { filterProfessionalTeamCandidates } from './professionalTeamCandidateSearch.js'
+import { filterProfessionalTeamCandidates, selectVisibleTeamCandidates } from './professionalTeamCandidateSearch.js'
 import './professional-team-build41.css'
 
 const asList = (value) => (Array.isArray(value) ? value : [])
@@ -182,12 +182,13 @@ function NativeDialog({ children, titleId, onClose, className = '' }) {
   )
 }
 
-function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, onInviteMember, onClose }) {
+function CreateOrInviteDialog({ dialog, teams, candidates, busy, error, onCreateTeam, onInviteMember, onClose }) {
   const [teamName, setTeamName] = useState('')
   const [email, setEmail] = useState('')
   const [professionalRole, setProfessionalRole] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState([])
   const [candidateSearch, setCandidateSearch] = useState('')
+  const [submitError, setSubmitError] = useState('')
   const visibleCandidates = filterProfessionalTeamCandidates(candidates, candidateSearch)
   const visibleIds = visibleCandidates.map((candidate) => asText(candidateId(candidate))).filter(Boolean)
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedStudentIds.includes(id))
@@ -195,25 +196,29 @@ function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, o
   const isCreate = dialog.kind === 'create'
   const titleId = isCreate ? 'ptw-create-title' : 'ptw-invite-title'
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault()
     if (busy) return
-    if (isCreate) {
-      const cleanName = teamName.trim()
-      if (!cleanName || !onCreateTeam) return
-      onCreateTeam(cleanName)
-    } else {
-      const cleanEmail = email.trim()
-      if (!cleanEmail || !professionalRole || !selectedStudentIds.length || !onInviteMember || !teamIdOf(team)) return
-      onInviteMember(teamIdOf(team), cleanEmail, professionalRole, selectedStudentIds)
+    setSubmitError('')
+    try {
+      let succeeded
+      if (isCreate) {
+        const cleanName = teamName.trim()
+        if (!cleanName || !onCreateTeam) return
+        succeeded = await onCreateTeam(cleanName)
+      } else {
+        const cleanEmail = email.trim()
+        if (!cleanEmail || !professionalRole || !selectedStudentIds.length || !onInviteMember || !teamIdOf(team)) return
+        succeeded = await onInviteMember(teamIdOf(team), cleanEmail, professionalRole, selectedStudentIds)
+      }
+      if (succeeded !== false) onClose()
+    } catch (submitFailure) {
+      setSubmitError(submitFailure?.message || 'Não foi possível concluir esta ação. Tente novamente.')
     }
-    onClose()
   }
 
   function toggleVisibleCandidates(checked) {
-    setSelectedStudentIds((current) => checked
-      ? [...new Set([...current, ...visibleIds])]
-      : current.filter((id) => !visibleIds.includes(id)))
+    setSelectedStudentIds((current) => selectVisibleTeamCandidates(current, visibleIds, checked))
   }
 
   return (
@@ -267,6 +272,7 @@ function CreateOrInviteDialog({ dialog, teams, candidates, busy, onCreateTeam, o
             
           </div>
         )}
+        {submitError || error ? <p className="ptw-state ptw-state-error" role="alert">{submitError || error}</p> : null}
         <div className="ptw-dialog-actions">
           <button type="button" className="ptw-button ptw-button-secondary" onClick={onClose}>Voltar</button>
           <button type="submit" className="ptw-button ptw-button-primary" disabled={busy || (isCreate ? !onCreateTeam : !onInviteMember || !professionalRole || !selectedStudentIds.length)}>
@@ -365,7 +371,8 @@ export default function ProfessionalTeamWorkspace({
         .filter(([id]) => Boolean(id))).values())
     : []
   const pendingInvites = invites.filter((invite) => statusOf(invite) === 'pending')
-  const receivedInvites = filterProfessionalTeamInvites(pendingInvites, userEmail)
+  const receivedInvites = filterProfessionalTeamInvites(pendingInvites, userEmail,
+    currentUserArea === 'nutrition' ? 'nutritionist' : currentUserArea === 'workout' ? 'trainer' : '')
   const selectedOutgoingInvites = selectedTeam
     ? pendingInvites.filter((invite) => sameId(teamIdOfInvite(invite), selectedTeamIdValue) && inviteDirection(invite, teams, currentUser) === 'outgoing')
     : []
@@ -410,23 +417,22 @@ export default function ProfessionalTeamWorkspace({
   }
 
   function toggleAllCandidates(checked) {
-    const eligibleIds = visibleCandidateIds
-    setSelectedStudentIds((current) => {
-      const fixed = current.filter((id) => !candidateIndex.has(id))
-      return checked ? [...new Set([...fixed, ...eligibleIds])] : fixed
-    })
+    setSelectedStudentIds((current) => selectVisibleTeamCandidates(current, visibleCandidateIds, checked))
   }
 
   function saveDelegation() {
     if (!selectedTeamIdValue || !activeDelegationMember || !activeDelegationArea || !onSetDelegations) return
     const next = [...new Set(selectedStudentIds)]
     const removed = initialSelectedIdsRef.current.some((id) => !next.includes(id))
-    const invoke = () => onSetDelegations(
-      selectedTeamIdValue,
-      memberIdOf(activeDelegationMember),
-      activeDelegationArea,
-      next.map((id) => candidateId(candidateIndex.get(id)) || storedIdValues.get(id) || id),
-    )
+    const invoke = async () => {
+      const saved = await onSetDelegations(
+        selectedTeamIdValue,
+        memberIdOf(activeDelegationMember),
+        activeDelegationArea,
+        next.map((id) => candidateId(candidateIndex.get(id)) || storedIdValues.get(id) || id),
+      )
+      if (saved !== false) initialSelectedIdsRef.current = next
+    }
     if (removed) {
       setConfirmation({
         title: 'Atualizar pacientes concedidos?',
@@ -768,7 +774,7 @@ export default function ProfessionalTeamWorkspace({
         </aside>
       </div>
 
-      {dialog ? <CreateOrInviteDialog key={`${dialog.kind}-${asText(dialog.teamId)}`} dialog={dialog} teams={teams} candidates={candidates} busy={isBusy} onCreateTeam={onCreateTeam} onInviteMember={onInviteMember} onClose={() => setDialog(null)} /> : null}
+      {dialog ? <CreateOrInviteDialog key={`${dialog.kind}-${asText(dialog.teamId)}`} dialog={dialog} teams={teams} candidates={candidates} busy={isBusy} error={selectedError} onCreateTeam={onCreateTeam} onInviteMember={onInviteMember} onClose={() => setDialog(null)} /> : null}
       {confirmation ? <ConfirmationDialog confirmation={confirmation} busy={isBusy} onConfirm={executeConfirmation} onClose={() => setConfirmation(null)} /> : null}
     </section>
   )

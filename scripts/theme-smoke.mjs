@@ -175,7 +175,7 @@ const checks = [
   ['Login tab copy uses Login instead of Coach', app.includes("['signin', 'Login']") && !app.includes("['signin', 'Coach']")],
   ['Questionnaire renderer persists selectable observations', app.includes('getQuestionnaireAnswerValue') && app.includes('updateQuestionnaireAnswerMeta') && app.includes('Observação opcional')],
   ['Questionnaire other option captures typed text', app.includes('optionRequiresOtherText') && app.includes('Especifique') && app.includes('otherText')],
-  ['Student questionnaire can be postponed without completing', app.includes('dismissedQuestionnairePriorityIds') && app.includes('Responder depois') && app.includes('Você possui um questionário pendente')],
+  ['Student questionnaire can be postponed without completing', app.includes('dismissedQuestionnairePriorityIds') && app.includes('aria-label="Questionário pendente"') && app.includes('onDismissQuestionnaire?.(priorityQuestionnaire.id)') && app.includes('>Depois</button>')],
   ['Questionnaire received area separates pending and completed submissions', app.includes('questionnaire-received-list-v1') && app.includes('Recebidos') && app.includes('Aguardando resposta')],
   ['Questionnaire patient preview uses header theme toggle instead of static theme badge', app.includes('questionnaire-student-head-toggle-v1') && !app.includes("<span>{theme === 'light' ? 'Claro' : 'Escuro'}</span>")],
   ['Questionnaire patient preview prevents mobile frame overflow', css.includes('questionnaire-preview-mobile-v1 .student-questionnaire-simulator-v1') && css.includes('width: min(100%, 390px)') && css.includes('.student-questionnaire-center') && css.includes('min-width: 0') && css.includes('max-width: 100%')],

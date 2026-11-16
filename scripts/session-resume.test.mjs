@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { shouldRefreshPersistedSession } from '../src/authSession.js'
+import { isPermanentRefreshError, shouldRefreshPersistedSession } from '../src/authSession.js'
 
 const appSource = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
 const cssSource = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8')
@@ -31,6 +31,12 @@ test('nao tenta renovar sem refresh token e recupera sessoes legadas incompletas
   assert.equal(shouldRefreshPersistedSession({ access_token: 'access' }), false)
   assert.equal(shouldRefreshPersistedSession({ access_token: 'access', refresh_token: 'refresh' }), true)
   assert.equal(shouldRefreshPersistedSession(null), false)
+})
+
+test('falha temporária de renovação preserva a sessão e agenda nova tentativa', () => {
+  assert.equal(isPermanentRefreshError({ status: 503 }), false)
+  assert.match(appSource, /if \(!isPermanentRefreshError\(error\)\)/)
+  assert.match(appSource, /window\.setTimeout\(attemptRefresh, 30_000\)/)
 })
 
 test('bootstrap aguarda a restauracao antes de carregar os portais', () => {

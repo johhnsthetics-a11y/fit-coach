@@ -144,7 +144,7 @@ import {
   storePendingChatPushAction,
 } from './chat/chatPushNotifications'
 import { buildProfessionalReferralUrl, PROFESSIONAL_REFERRAL_STORAGE_KEY, normalizeProfessionalReferralToken } from './professionalReferral'
-import { mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
+import { isValidWorkoutSetRepetitions, mergeWorkoutSession, normalizeWorkoutSession, serializeWorkoutSession } from './workoutSession'
 import { clearRestTimerSnapshot, getRestTimerRemainingSeconds, getRestTimerStorageKey, normalizeRestSeconds, readRestTimerSnapshot, writeRestTimerSnapshot } from './workoutRestTimer'
 import { getNativeWorkoutRestCapabilities, isNativeWorkoutRestAvailable, openNativeWorkoutRestSettings, requestNativeWorkoutRestNotifications, syncNativeWorkoutRest } from './nativeWorkoutRest'
 import {
@@ -184,7 +184,7 @@ import {
   findLatestIncomingStudentMessage,
 } from './chat/chatModel'
 import { createChatMessageId } from './chat/chatMessageIdentity'
-import { shouldRefreshPersistedSession } from './authSession'
+import { isPermanentRefreshError, shouldRefreshPersistedSession } from './authSession'
 import { PASSWORD_POLICY_HINT, getNewPasswordError, validateNewPasswordConfirmation } from './passwordPolicy'
 import {
   getIosEntitlements,
@@ -1732,8 +1732,13 @@ function useStoredData() {
           setRemoteStatus('Sessão restaurada')
           setRemoteError('')
         })
-        .catch(() => {
+        .catch((error) => {
           if (!active) return
+          if (!isPermanentRefreshError(error)) {
+            setRemoteStatus('Conexão indisponível')
+            setRemoteError('Não foi possível renovar sua sessão agora. Seus dados foram preservados; tentaremos novamente.')
+            return
+          }
           setSupabaseSession('')
           setData(createInitialData())
           setRemoteStatus('Sessão expirada')
@@ -1796,8 +1801,13 @@ function useStoredData() {
                 setRemoteStatus('Sessão renovada')
                 setRemoteError('')
               })
-              .catch(() => {
+              .catch((error) => {
                 if (!active) return
+                if (!isPermanentRefreshError(error)) {
+                  setRemoteStatus('Conexão indisponível')
+                  setRemoteError('Não foi possível renovar sua sessão agora. Seus dados foram preservados; tentaremos novamente.')
+                  return
+                }
                 setSupabaseSession('')
                 setData(createInitialData())
                 setRemoteStatus('Sessão expirada')
@@ -1862,12 +1872,10 @@ class AppErrorBoundary extends Component {
     return { error }
   }
 
-  componentDidCatch(error, info) {
+  componentDidCatch() {
     try {
       window.localStorage.setItem('coachfitpro-last-error', JSON.stringify({
-        message: error?.message || 'Erro inesperado',
-        stack: error?.stack || '',
-        componentStack: info?.componentStack || '',
+        message: 'Erro inesperado',
         createdAt: new Date().toISOString(),
       }))
     } catch {
@@ -2669,11 +2677,28 @@ function AppContent() {
       ? Number(data.session.expires_at) * 1000
       : Date.now() + 45 * 60 * 1000
     const refreshDelay = Math.max(expiresAt - Date.now() - 60 * 1000, 30 * 1000)
-    const timer = window.setTimeout(() => {
-      refreshStoredSession('Sessão renovada automaticamente')
-    }, refreshDelay)
+    let active = true
+    let timer
+    async function attemptRefresh() {
+      try {
+        await refreshStoredSession('Sessão renovada automaticamente')
+      } catch (error) {
+        if (!active) return
+        if (isPermanentRefreshError(error)) {
+          setSupabaseSession('')
+          setData(createInitialData())
+          setRemoteStatus('Sessão expirada')
+          setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
+        } else {
+          setRemoteStatus('Conexão indisponível')
+          setRemoteError('Não foi possível renovar sua sessão agora. Seus dados foram preservados; tentaremos novamente.')
+          timer = window.setTimeout(attemptRefresh, 30_000)
+        }
+      }
+    }
+    timer = window.setTimeout(attemptRefresh, refreshDelay)
 
-    return () => window.clearTimeout(timer)
+    return () => { active = false; window.clearTimeout(timer) }
   }, [data.session?.refresh_token, data.session?.expires_at, sessionRestoring])
 
   const runProfessionalActivation = useCallback(async ({ remoteData: preloadedRemoteData = null, source = 'web' } = {}) => {
@@ -3530,11 +3555,16 @@ function AppContent() {
           .then(() => {
             setRemoteError('Sessão renovada. Tente a ação novamente.')
           })
-          .catch(() => {
+          .catch((error) => {
+            if (!isPermanentRefreshError(error)) {
+              setRemoteStatus('Conexão indisponível')
+              setRemoteError('A sessão não pôde ser renovada agora. Seus dados foram preservados; tentaremos novamente.')
+              return
+            }
             setSupabaseSession('')
             setRemoteStatus('Sessão expirada')
             setRemoteError('Sua sessão expirou. Entre novamente para continuar.')
-                setData(createInitialData())
+            setData(createInitialData())
           })
         return
       }
@@ -16127,8 +16157,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
   function completeSet(setItem) {
     const nextCompleted = !setItem.completed
-    if (nextCompleted && !String(setItem.reps || '').trim()) {
-      setError('Informe as repetições realizadas antes de concluir a série.')
+    if (nextCompleted && !isValidWorkoutSetRepetitions(setItem.reps)) {
+      setError('Informe um número inteiro de repetições maior que zero antes de concluir a série.')
       window.requestAnimationFrame(() => document.getElementById('workout-set-reps-' + setItem.key)?.focus())
       return
     }

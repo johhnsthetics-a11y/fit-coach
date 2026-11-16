@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { filterProfessionalTeamInvites } from '../src/professionalTeamInvites.js'
+import { selectVisibleTeamCandidates } from '../src/professionalTeamCandidateSearch.js'
 
 const invites = [
   { id: 'mine', inviteeEmail: 'trainer@example.com', expectedRole: 'trainer', status: 'pending' },
@@ -14,5 +15,10 @@ test('only the pending invite for the exact signed-in email and professional rol
   assert.deepEqual(filterProfessionalTeamInvites(invites, 'other@example.com', 'trainer').map((invite) => invite.id), ['other-email'])
   assert.deepEqual(filterProfessionalTeamInvites(invites, 'trainer@example.com', 'nutritionist').map((invite) => invite.id), ['other-role'])
   assert.deepEqual(filterProfessionalTeamInvites(invites, '', 'trainer'), [])
+})
+
+test('selecting filtered patients preserves selections outside the current search', () => {
+  assert.deepEqual(selectVisibleTeamCandidates(['hidden', 'visible'], ['visible'], false), ['hidden'])
+  assert.deepEqual(selectVisibleTeamCandidates(['hidden'], ['visible'], true), ['hidden', 'visible'])
 })
 

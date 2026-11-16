@@ -1,5 +1,9 @@
 const DEFAULT_REFRESH_LEEWAY_MS = 60 * 1000
 
+export function isPermanentRefreshError(error) {
+  return [400, 401, 403].includes(Number(error?.status))
+}
+
 export function shouldRefreshPersistedSession(session, now = Date.now(), leewayMs = DEFAULT_REFRESH_LEEWAY_MS) {
   if (!session?.refresh_token) return false
   if (!session.access_token) return true

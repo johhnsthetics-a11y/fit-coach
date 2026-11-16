@@ -4,6 +4,7 @@ import {
   mergeWorkoutSession,
   normalizeWorkoutSession,
   serializeWorkoutSession,
+  isValidWorkoutSetRepetitions,
 } from '../src/workoutSession.js'
 
 const base = {
@@ -72,4 +73,9 @@ test('serialização envia somente o contrato persistível', () => {
     timerStartedAt: '',
     updatedAt: '2026-09-15T12:00:00.000Z',
   })
+})
+
+test('série aceita apenas repetições realizadas como inteiro positivo', () => {
+  for (const value of ['1', '12', ' 08 ']) assert.equal(isValidWorkoutSetRepetitions(value), true)
+  for (const value of ['', '0', '-2', '1.5', 'abc', '1e3']) assert.equal(isValidWorkoutSetRepetitions(value), false)
 })

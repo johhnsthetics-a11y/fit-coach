@@ -45,6 +45,11 @@ test('service worker não intercepta APIs, convites ou respostas autenticadas', 
   assert.equal(intercepted,false)
 })
 
+test('links de convites e tokens não são enviados como Referer para terceiros', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+  assert.match(html, /<meta name="referrer" content="no-referrer"\s*\/>/)
+})
+
 test('service worker preserva caches de outros aplicativos na mesma origem', async () => {
   const listeners = {}, removed = []
   let finished

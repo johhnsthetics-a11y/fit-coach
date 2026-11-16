@@ -1,5 +1,10 @@
 const COMPLETION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{12,120}$/
 
+export function isValidWorkoutSetRepetitions(value) {
+  const text = String(value ?? '').trim()
+  return /^\d+$/.test(text) && Number.isSafeInteger(Number(text)) && Number(text) > 0
+}
+
 function safeIndex(value) {
   const parsed = Number.parseInt(value, 10)
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
