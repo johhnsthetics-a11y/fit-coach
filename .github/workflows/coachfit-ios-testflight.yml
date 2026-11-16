@@ -57,7 +57,7 @@ jobs:
       APP_ID: br.com.coachfitpro.ios
       REST_EXTENSION_ID: br.com.coachfitpro.ios.restactivity
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ inputs.build_number || '50' }}
+      IOS_BUILD: ${{ (inputs.build_number == '47' && '50') || inputs.build_number || '50' }}
 
     steps:
       - name: Checkout

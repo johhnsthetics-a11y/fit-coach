@@ -14,7 +14,7 @@ test('iOS workflow and native project use build 50 or newer', () => {
   const workflow = read('.github/workflows/coachfit-ios-testflight.yml')
   const project = read('ios/App/App.xcodeproj/project.pbxproj')
   assert.match(workflow, /build_number:[\s\S]*?default: "50"/)
-  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '50' \}\}/)
+  assert.match(workflow, /IOS_BUILD: \$\{\{ \(inputs\.build_number == '47' && '50'\) \|\| inputs\.build_number \|\| '50' \}\}/)
   assert.match(workflow, /IOS_BUILD >= 50/)
   const buildNumbers = [...project.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((match) => Number(match[1]))
   assert.equal(buildNumbers.length, 4)
