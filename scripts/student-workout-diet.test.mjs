@@ -57,6 +57,13 @@ try {
     { amount: '0 g', amountMissing: false },
   ])
 
+  const structuredZero = app.getNutritionMealDisplayItems({ items: [{ foodName: 'Ovos', grams: 0, quantity: 0, measureUnit: 'g' }] })
+  assert.equal(structuredZero[0].amount, '0 g', 'A leitura do aluno deve preservar a porção zero salva pelo profissional')
+  const decimalItems = app.getNutritionMealDisplayItems({ foods: 'Aveia (25,5g), Banana (90g)' })
+  assert.equal(decimalItems.length, 2, 'Vírgula decimal não deve separar alimentos')
+  assert.equal(decimalItems[0].name, 'Aveia')
+  assert.equal(decimalItems[0].amount, '26 g')
+
   assert.equal(typeof app.getNutritionMealMacroSegments, 'function')
   assert.deepEqual(app.getNutritionMealMacroSegments('P 32 g | C 58 g | G 18 g'), [
     { label: 'P', value: '32 g' },
@@ -128,6 +135,15 @@ try {
   assert.match(planMarkup, /Minha dieta/)
   assert.doesNotMatch(planMarkup, /Dietas disponíveis/)
   assert.doesNotMatch(planMarkup, /Aluno: Aluno Demonstração/)
+
+  storage.set('coachfitpro-student-diet-completed-student-1-plan-1', 'null')
+  const invalidStorageMarkup = renderToStaticMarkup(React.createElement(app.NutritionPlanList, {
+    plans: [{ id: 'plan-1', title: 'Plano', meals: [{ id: 'meal-1', name: 'Almoço', foods: 'Arroz' }] }],
+    selectedStudent: { id: 'student-1', name: 'Aluno' },
+  }))
+  assert.match(invalidStorageMarkup, /0\/1 refeições/)
+  assert.match(invalidStorageMarkup, /role="progressbar"/)
+  assert.doesNotMatch(invalidStorageMarkup, /width:3%|width:4%/)
 
   const css = await readFile(new URL('../src/index.css', import.meta.url), 'utf8')
   assert.match(css, /nutrition-student-plan-list-v2/)

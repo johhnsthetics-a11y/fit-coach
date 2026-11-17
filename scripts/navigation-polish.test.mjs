@@ -79,8 +79,9 @@ test('celebração XP respeita a preferência por movimento reduzido', () => {
 })
 
 test('seletor da semana usa botões nativos e áudio possui foco visível nos temas', () => {
-  assert.match(appSource, /weekDays\.map\(\(day, dayIndex\) => <button type="button"/)
-  assert.doesNotMatch(appSource, /weekDays\.map\(\(day, dayIndex\) => <span[^\n]*role="button"/)
+  assert.match(appSource, /weekDays\.map\(day => <button type="button" key=\{day\.dateKey\}/)
+  assert.match(appSource, /aria-pressed=\{day\.dateKey === selectedDay\.dateKey\}/)
+  assert.doesNotMatch(appSource, /weekDays\.map\(day => <span[^\n]*role="button"/)
   assert.match(cssSource, /\.student-diet-week-strip-v1 > button:focus-visible/)
   assert.match(cssSource, /font-family: "Plus Jakarta Sans"/)
   assert.match(chatCssSource, /\.chat-audio-play:focus-visible/)

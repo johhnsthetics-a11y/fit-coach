@@ -17,7 +17,7 @@ function contrastRatio(foreground, background) {
     if (!channels || channels.length !== 3) return null
     const [red, green, blue] = channels.map((channel) => {
       const linear = channel / 255
-      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+      return linear <= 0.04045 ? linear / 12.92 : ((linear + 0.055) / 1.055) ** 2.4
     })
     return 0.2126 * red + 0.7152 * green + 0.0722 * blue
   }
@@ -206,7 +206,7 @@ const server = await createServer({
       vite.middlewares.use(async (request, response, next) => {
         if (new URL(request.url, 'http://localhost').pathname !== '/qa-student-workout-diet') return next()
         response.setHeader('Content-Type', 'text/html')
-        response.end(await vite.transformIndexHtml('/qa-student-workout-diet', '<meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="/qa-student-workout-diet.jsx"></script>'))
+        response.end(await vite.transformIndexHtml('/qa-student-workout-diet', '<link rel="icon" href="data:,"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script type="module" src="/qa-student-workout-diet.jsx"></script>'))
       })
     },
   }],
@@ -236,10 +236,19 @@ try {
   for (const width of widths) {
     const context = await browser.newContext({ viewport: { width, height: 960 }, hasTouch: width < 1024, isMobile: width < 1024 })
     const page = await context.newPage()
+    await page.addInitScript(() => {
+      window.workoutStorageReads = 0
+      const getItem = Storage.prototype.getItem
+      Storage.prototype.getItem = function (key) {
+        if (String(key).includes('workout-execution')) window.workoutStorageReads += 1
+        return getItem.call(this, key)
+      }
+    })
     const pageErrors = []
     page.on('pageerror', (error) => pageErrors.push(error.message))
-    page.on('console', (message) => { if (message.type() === 'error') pageErrors.push(message.text()) })
+    page.on('console', (message) => { if (message.type() === 'error') pageErrors.push(`${message.text()} ${message.location().url || ''}`) })
     page.on('requestfailed', (request) => pageErrors.push(`${request.url()}: ${request.failure()?.errorText || 'request failed'}`))
+    page.on('response', response => { if (response.status() >= 400) pageErrors.push(`${response.status()} ${response.url()}`) })
     await page.goto(`${base}qa-student-workout-diet?theme=${theme}`)
     try {
       await page.locator('.student-mobile-shell').waitFor()
@@ -321,7 +330,9 @@ try {
     await restScreen.getByRole('button', { name: 'Pausar', exact: true }).click()
     await restScreen.getByRole('button', { name: 'Retomar', exact: true }).waitFor()
     const pausedValue = parseTimerSeconds(await restClock.locator('strong').innerText())
+    const storageReads = await page.evaluate(() => window.workoutStorageReads)
     await page.waitForTimeout(1100)
+    assert.equal(await page.evaluate(() => window.workoutStorageReads), storageReads, 'O cronômetro não deve reler o JSON da sessão a cada renderização')
     assert.equal(parseTimerSeconds(await restClock.locator('strong').innerText()), pausedValue, 'Pausar deve congelar o contador')
     await restScreen.getByRole('button', { name: '+15 s', exact: true }).click()
     const adjustedValue = parseTimerSeconds(await restClock.locator('strong').innerText())
@@ -398,6 +409,31 @@ try {
 
     await openTab(page, width, 'Dieta')
     await page.getByText('Plano alimentar detalhado', { exact: true }).waitFor()
+    const diet = page.locator('.student-diet-experience-v1')
+    assert.ok((await diet.getByRole('button', { name: 'Marcar como concluída', exact: true }).first().boundingBox()).height >= 44, 'A ação de refeição precisa de área de toque de 44px')
+    const dayButtons = diet.locator('.student-diet-week-strip-v1 button')
+    const todayIndex = await dayButtons.evaluateAll(buttons => buttons.findIndex(button => button.getAttribute('aria-pressed') === 'true'))
+    await diet.getByRole('button', { name: 'Marcar como concluída', exact: true }).first().click()
+    await diet.locator('.student-diet-status-v1').filter({ hasText: '1/3 refeições' }).waitFor()
+    await dayButtons.nth((todayIndex + 1) % 7).click()
+    assert.equal(await diet.locator('.student-diet-status-v1').innerText(), '0/3 refeições', 'Conclusões devem ser independentes por dia')
+    await dayButtons.nth(todayIndex).click()
+    assert.equal(await diet.locator('.student-diet-status-v1').innerText(), '1/3 refeições', 'Voltar ao dia deve recuperar o progresso')
+    await page.reload()
+    await openTab(page, width, 'Dieta')
+    assert.equal(await diet.locator('.student-diet-status-v1').innerText(), '1/3 refeições', 'Progresso diário deve sobreviver à reabertura')
+    await page.evaluate(() => {
+      for (const key of Object.keys(localStorage).filter(key => key.startsWith('coachfitpro-student-diet-completed-'))) localStorage.setItem(key, 'null')
+    })
+    await page.reload()
+    await openTab(page, width, 'Dieta')
+    assert.equal(await diet.locator('.student-diet-status-v1').innerText(), '0/3 refeições', 'Armazenamento inválido não pode derrubar a dieta')
+    await diet.getByRole('button', { name: 'Marcar como concluída', exact: true }).first().click()
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    await page.clock.setFixedTime(tomorrow)
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await diet.locator('.student-diet-status-v1').filter({ hasText: '0/3 refeições' }).waitFor()
     await page.getByRole('heading', { name: 'Registre sua refeição', exact: true }).waitFor()
     await page.getByRole('button', { name: 'Registrar refeição com foto', exact: true }).click()
     const photoInput = page.getByLabel('Foto da refeição', { exact: true })
@@ -414,6 +450,7 @@ try {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 1, `A página não pode ter overflow horizontal em ${width}px`)
     await page.screenshot({ path: `.superpowers/diet-qa/diet-${theme}-${width}.png`, fullPage: true })
+    assert.deepEqual(pageErrors, [], 'Treino e dieta não devem produzir exceções, erros de console ou de carregamento')
     await context.close()
   }
   }

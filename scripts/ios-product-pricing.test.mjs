@@ -51,35 +51,35 @@ test('If no introductory offer exists, the current Apple price remains purchasab
   assert.equal(plan.purchaseAvailable, true)
 })
 
-test('Brazil catalog keeps its original recurring amount without blocking checkout', () => {
+test('Current Apple amount overrides the reference catalog in the purchase summary', () => {
   const plan = card({ displayPrice: 'R$ 12,90', priceAmount: '12.90', introductoryOfferAvailable: false })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
+  assert.equal(priceText(plan.displayPrice), 'R$ 12,90')
   assert.equal(plan.recurringPriceMismatch, true)
   assert.equal(plan.purchaseAvailable, true)
   assert.equal(plan.purchaseBlockReason, '')
 })
 
-test('Brazil catalog displays reais when StoreKit returns a foreign currency', () => {
+test('Portuguese interface never relabels a USD Apple charge as BRL', () => {
   const plan = card({ displayPrice: 'US$ 49.90', priceAmount: '49.90', introductoryDisplayPrice: 'US$ 9.90', currencyCode: 'USD', storefrontCountryCode: 'USA' })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
+  assert.equal(priceText(plan.displayPrice), 'US$ 9,90')
   assert.equal(plan.currencyMismatch, true)
   assert.equal(plan.purchaseAvailable, true)
-  assert.doesNotMatch(plan.displayPrice, /US\$/)
+  assert.equal(priceText(plan.standardPrice), 'US$ 49,90')
 })
 
-test('Brazil catalog only displays the original intro when Apple confirms matching reais terms', () => {
+test('A confirmed introductory offer uses the actual Apple amount', () => {
   const plan = card({ introductoryPriceAmount: '1.99', introductoryDisplayPrice: '$1.99' })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
-  assert.equal(plan.introAppliedToDisplay, false)
+  assert.equal(priceText(plan.displayPrice), 'R$ 1,99')
+  assert.equal(plan.introAppliedToDisplay, true)
   assert.equal(plan.introductoryPriceMismatch, true)
-  assert.equal(plan.purchaseAvailable, false)
-  assert.match(plan.purchaseBlockReason, /termos da oferta Apple não correspondem/)
+  assert.equal(plan.purchaseAvailable, true)
+  assert.equal(plan.purchaseBlockReason, '')
 })
 
-test('Brazil catalog preserves reais prices with missing currency metadata', () => {
+test('Missing currency metadata blocks checkout instead of inventing reais', () => {
   const plan = card({ displayPrice: '49.90', currencyCode: '', storefrontCountryCode: '' })
-  assert.equal(priceText(plan.displayPrice), 'R$ 49,90')
-  assert.equal(plan.purchaseAvailable, true)
+  assert.equal(priceText(plan.displayPrice), 'Preço indisponível')
+  assert.equal(plan.purchaseAvailable, false)
 })
 
 test('Incomplete eligible offer terms are not shown or purchasable until refreshed', () => {
@@ -149,13 +149,20 @@ test('Periods and storefront normalization reject malformed values', () => {
   assert.equal(resolveIosPricingLocale('pt_BR'), 'pt-BR')
 })
 
- test('All original Brazil plan amounts survive USD StoreKit metadata without blocking checkout', () => {
+test('All cycles display the currency and amount that Apple will actually charge', () => {
   const products = ['mensal', 'semestral', 'anual'].map(planId => ({
     id: planId, planId, displayPrice: '$99.99', priceAmount: '99.99', currencyCode: 'USD', storefrontCountryCode: 'USA',
   }))
   const cards = buildIosSubscriptionCards(products, locale)
-  assert.deepEqual(cards.map(p => priceText(p.displayPrice)), ['R$ 49,90', 'R$ 239,90', 'R$ 359,00'])
+  assert.deepEqual(cards.map(p => priceText(p.displayPrice)), ['US$ 99,99', 'US$ 99,99', 'US$ 99,99'])
   assert.ok(cards.every(p => p.purchaseAvailable))
   assert.equal(products[0].currencyCode, 'USD')
   assert.equal(products[0].priceAmount, '99.99')
+})
+
+test('Annual introductory offers show both introductory and recurring Apple terms', () => {
+  const annual = buildIosSubscriptionCards([{ ...monthly, planId: 'anual', priceAmount: '359.00', introductoryPriceAmount: '199.00', introductoryPeriodUnit: 'year' }], locale)[2]
+  assert.equal(priceText(annual.displayPrice), 'R$ 199,00')
+  assert.match(priceText(annual.renewalText), /359,00\/ano/)
+  assert.equal(annual.purchaseAvailable, true)
 })

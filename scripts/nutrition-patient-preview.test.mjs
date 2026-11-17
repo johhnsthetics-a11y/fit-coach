@@ -27,9 +27,10 @@ test('professional preview reuses the actual patient diet and current unsaved dr
 
 test('preview never reads or writes the patient actual saved meal and favorites state', () => {
   const diet = section(app, 'function StudentDietExperience(', 'function createNutritionQuestionnaireDraft')
-  assert.match(diet, /if \(previewMode\) return \[\]/)
+  assert.equal((diet.match(/previewMode \? \[\] : readDietCompletedMeals\(storageKey\)/g) || []).length, 2)
   assert.match(diet, /if \(previewMode\) return \{ meals: \[\], days: \[\] \}/)
-  assert.equal((diet.match(/if \(previewMode\) return/g) || []).length >= 4, true)
+  assert.match(diet, /if \(!previewMode\) \{\s*try \{ window\.localStorage\.setItem\(storageKey/)
+  assert.match(diet, /if \(previewMode\) return\s*try \{ window\.localStorage\.setItem\(favoriteStorageKey/)
   assert.match(diet, /const displayedWaterMl = previewMode \? previewWaterMl : waterMl/)
   assert.match(diet, /showPdfAction \? <button/)
 })

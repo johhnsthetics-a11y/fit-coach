@@ -240,7 +240,7 @@ try {
           assert.ok(await preview.getByLabel('Repetições realizadas', { exact: true }).count())
           assert.equal(await preview.locator('.mobile-workout-day-preview-student-shell.student-mobile-shell').count(), 1, 'A prévia deve usar o mesmo shell visual do aluno')
           assert.equal(await preview.locator('.mobile-workout-day-preview-head-v2').evaluate((element) => getComputedStyle(element).backgroundColor), 'rgb(244, 251, 249)', 'O cabeçalho da prévia clara não pode permanecer preto')
-          assert.equal(await preview.locator('.is-compact').count(), 0, 'A prévia não deve usar uma versão compacta diferente da tela real')
+          assert.equal(await preview.locator('.student-workout-figma-screen.is-compact').count(), 0, 'A prévia não deve usar uma versão compacta diferente da tela real')
           assert.equal(await preview.locator('.mobile-workout-current-heading-v5 h4').evaluate((heading) => {
             const rect = heading.getBoundingClientRect()
             const styles = getComputedStyle(heading)

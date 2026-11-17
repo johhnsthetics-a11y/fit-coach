@@ -1,5 +1,5 @@
-// The Brazilian catalog uses the original reais amounts. StoreKit metadata
-// stays unchanged; Apple controls the final purchase sheet and charge.
+// Reference catalog values are diagnostic only. StoreKit supplies every
+// displayed purchase amount and currency, including introductory offers.
 import { IOS_BRAZIL_PLAN_PRICE_REFERENCE } from './iosBrazilPlanPriceReference.js'
 import { getIosIntroOffer } from './iosIntroOffer.js'
 import { formatStoreKitPrice, normalizeStoreKitAmount } from './iosStoreKitPrice.js'
@@ -54,37 +54,33 @@ export function buildIosSubscriptionCards(products = [], options = {}) {
       && offer.paymentMode !== 'freeTrial'
       && currencyCode === 'BRL' && introAmount !== expectedIntroAmount
     const validAppleIntro = Boolean(priceConfirmed && offer.price && introAmount
-      && (!brazilPricingExpected || (currencyCode === 'BRL' && !introductoryPriceMismatch)))
-    const showIntro = monthlyPlan && offer.showIntro && validAppleIntro
-    const offerNeedsConfirmation = monthlyPlan && offer.available
+      && (offer.paymentMode === 'freeTrial' ? Number(introAmount) === 0 : Number(introAmount) > 0))
+    const showIntro = offer.showIntro && validAppleIntro
+    const offerNeedsConfirmation = offer.available
       && (offer.eligibility === 'unknown'
-        || (offer.eligibility === 'eligible' && brazilPricingExpected && currencyCode === 'BRL' && !showIntro))
-    const standardPrice = !product || !rawDisplayPrice ? 'Preço indisponível' : brazilPricingExpected
-      ? IOS_BRAZIL_PLAN_PRICE_REFERENCE[detail.planId].recurringPrice
-      : priceConfirmed ? formatStoreKitPrice(amount, currencyCode, locale) : rawDisplayPrice || 'Preço indisponível'
+        || (offer.eligibility === 'eligible' && !showIntro))
+    const standardPrice = priceConfirmed ? formatStoreKitPrice(amount, currencyCode, locale) : 'Preço indisponível'
     const displayPrice = showIntro ? offer.price : standardPrice
-    const purchaseBlockReason = !(product && rawDisplayPrice)
+    const purchaseBlockReason = !priceConfirmed
       ? 'Este ciclo não foi carregado pela App Store. Atualize os planos antes de assinar.'
       : offerNeedsConfirmation
         ? offer.eligibility === 'unknown'
           ? 'A App Store ainda não confirmou a elegibilidade da oferta. Atualize os planos antes de assinar.'
           : 'Os termos da oferta Apple não correspondem ao preço informado. Atualize os planos antes de assinar.'
         : ''
-    const priceDescription = monthlyPlan
-      ? (showIntro ? offer.terms : detail.cycleLabel)
-      : detail.cycleLabel
+    const priceDescription = showIntro ? offer.terms : detail.cycleLabel
     return {
-      ...detail, available: Boolean(product && rawDisplayPrice), purchaseAvailable: !purchaseBlockReason,
+      ...detail, available: priceConfirmed, purchaseAvailable: !purchaseBlockReason,
       purchaseBlockReason, currencyCode, storefrontCountryCode, currencyMismatch: regionCurrencyMismatch,
       recurringPriceMismatch, introductoryPriceMismatch,
-      introEligibility: monthlyPlan ? offer.eligibility : 'unknown',
-      introStatus: monthlyPlan ? offer.status : 'unavailable',
+      introEligibility: offer.eligibility,
+      introStatus: offer.status,
       introductoryOfferAvailable: offer.available,
       displayPrice, standardPrice, pricePeriod: '', priceDescription,
-      renewalText: showIntro ? `Depois, ${standardPrice}/mês` : '',
+      renewalText: showIntro ? `Depois, ${standardPrice}/${({ mensal: 'mês', semestral: '6 meses', anual: 'ano' })[detail.planId]}` : '',
       introductoryDisplayPrice: showIntro ? offer.price : null,
       introductoryTerms: showIntro ? offer.terms : '',
-      introEligibilityNotice: monthlyPlan && offer.available && !showIntro ? offer.eligibilityNotice : '',
+      introEligibilityNotice: offer.available && !showIntro ? offer.eligibilityNotice : '',
       introductoryPeriod: showIntro ? offer.totalPeriod : '',
       introAppliedToDisplay: showIntro,
     }
