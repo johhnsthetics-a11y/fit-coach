@@ -99,7 +99,7 @@ test('polimento BUILD46 mantém tema, alvos táteis e movimento reduzido', () =>
 })
 
 
-test('menus mobile conservam suas paletas escuras no tema claro sem alterar sidebars desktop', () => {
+test('menu inferior adapta o tema claro e menus laterais preservam sua paleta', () => {
   const parityStart = cssSource.indexOf('/* build47-light-mobile-menu-parity */')
   assert.notEqual(parityStart, -1, 'O bloco BUILD47 de paridade do menu deve existir')
   const parityStyles = cssSource.slice(parityStart)
@@ -112,7 +112,10 @@ test('menus mobile conservam suas paletas escuras no tema claro sem alterar side
   const mobileParityStart = cssSource.indexOf('/* build47-mobile-navigation-dark-parity */')
   assert.notEqual(mobileParityStart, -1, 'A paleta BUILD47 deve cobrir as demais superfícies mobile')
   const mobileParity = cssSource.slice(mobileParityStart)
-  assert.match(mobileParity, /@media\s*\(max-width:\s*1023px\)[\s\S]*?\.student-mobile-shell\.app-theme-light \.student-bottom-nav\s*\{[^}]*background:\s*rgba\(4, 12, 10, 0\.94\) !important/s)
+  const bottomNavigation = readFileSync(new URL('../src/build46-ux-polish.css', import.meta.url), 'utf8')
+  assert.match(bottomNavigation, /\.student-mobile-shell\.app-theme-light \.student-bottom-nav\s*\{[^}]*color-scheme: light;[^}]*background: #fff !important/s)
+  assert.match(bottomNavigation, /--nav-light-tone: 77 124 15/)
+  assert.match(bottomNavigation, /--nav-light-tone: 14 116 144/)
   assert.match(mobileParity, /\.coach-auth-shell\.app-theme-light \.coach-mobile-menu-panel \.coach-nav-item\s*\{[^}]*background:\s*rgba\(255, 255, 255, 0\.035\) !important/s)
   assert.match(mobileParity, /\.coach-auth-shell\.app-theme-light \.coach-mobile-menu-panel \.coach-nav-item:is\(\.is-active, \[aria-current="page"\]\)/)
   assert.doesNotMatch(mobileParity, /\.coach-desktop-sidebar|\.student-desktop-sidebar/)

@@ -125,10 +125,10 @@ test('Offline HTML and assets read only the current build cache, never global le
 })
 
 
-test('workflow manual mantém upload explícito e usa build iOS 51 como default', () => {
+test('workflow manual mantém upload explícito e usa build iOS 52 como default', () => {
   const workflow = read('.github/workflows/coachfit-ios-testflight.yml')
   assert.match(workflow, /operation:[\s\S]*?default: verify[\s\S]*?options:[\s\S]*?- verify[\s\S]*?- testflight/)
-  assert.match(workflow, /build_number:[\s\S]*?default: "51"/)
-  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '51' \}\}/)
-  assert.match(workflow, /IOS_BUILD >= 51/)
+  assert.match(workflow, /build_number:[\s\S]*?default: "52"/)
+  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '52' \}\}/)
+  assert.match(workflow, /IOS_BUILD >= 52/)
 })

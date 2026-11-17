@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { assertLightMobileNavigation } from './mobile-navigation-assertions.mjs'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createServer } from 'vite'
@@ -56,6 +57,7 @@ try {
       await page.goto(base + '?area=visao')
       if (viewport.width < 1024) await page.getByRole('button', { name: 'Abrir menu', exact: true }).click()
       await page.locator('.coach-nav-item').filter({ hasText: /^Treinos$/ }).click()
+      await assertLightMobileNavigation(page, '.coach-mobile-bottom-nav')
       if (expectFailure) {
         await page.getByText('Algo saiu do lugar, mas seus dados continuam seguros.', { exact: true }).waitFor()
         const diagnostic = await page.evaluate(() => JSON.parse(localStorage.getItem('coachfitpro-last-error')))

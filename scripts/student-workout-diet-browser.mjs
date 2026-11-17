@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { assertLightMobileNavigation } from './mobile-navigation-assertions.mjs'
 import { mkdir } from 'node:fs/promises'
 import { createServer, transformWithEsbuild } from 'vite'
 
@@ -259,6 +260,7 @@ try {
       throw new Error(`A aplicação não montou em ${theme}/${width}px: ${pageErrors.join(' | ') || body || error.message}`)
     }
     await page.locator(`.student-mobile-shell.app-theme-${theme}`).waitFor()
+    if (theme === 'light') await assertLightMobileNavigation(page, '.student-bottom-nav')
 
     await openTab(page, width, 'Treino')
     const workoutArea = page.locator('.student-app-layout main')

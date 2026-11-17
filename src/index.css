@@ -11888,7 +11888,7 @@ html[data-theme="dark"] body { background: #05070d; }
   border-color: rgba(0, 156, 134, 0.18) !important;
 }
 
-.student-mobile-shell.app-theme-light button:not(.theme-toggle):not(.student-water-action):not([class*="bg-emerald"]):not([class*="bg-blue"]),
+.student-mobile-shell.app-theme-light button:not(:where(.student-mobile-nav-button)):not(.theme-toggle):not(.student-water-action):not([class*="bg-emerald"]):not([class*="bg-blue"]),
 .student-access-shell.app-theme-light button:not(.theme-toggle):not([class*="bg-emerald"]):not([class*="bg-blue"]) {
   background-color: rgba(255, 255, 255, 0.88) !important;
   color: var(--student-title) !important;
@@ -23495,32 +23495,6 @@ html[data-theme="dark"] body { background: #05070d; }
 
 /* build47-mobile-navigation-dark-parity */
 @media (max-width: 1023px) {
-  .student-mobile-shell.app-theme-light .student-bottom-nav {
-    color-scheme: dark;
-    border-color: rgba(0, 210, 178, 0.2) !important;
-    background: rgba(4, 12, 10, 0.94) !important;
-    color: #d1d5db !important;
-    box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
-  }
-
-  .student-mobile-shell.app-theme-light .student-bottom-nav .student-mobile-nav-button {
-    border-color: transparent !important;
-    background: transparent !important;
-    color: rgb(var(--nav-tone, 0 210 178) / 0.78) !important;
-    box-shadow: none !important;
-    -webkit-text-fill-color: currentColor !important;
-  }
-
-  .student-mobile-shell.app-theme-light .student-bottom-nav .student-mobile-nav-button svg {
-    color: rgb(var(--nav-tone, 0 210 178)) !important;
-  }
-
-  .student-mobile-shell.app-theme-light .student-bottom-nav .student-mobile-nav-button.is-active {
-    border-color: rgb(var(--nav-tone, 0 210 178) / 0.4) !important;
-    background: rgb(var(--nav-tone, 0 210 178) / 0.14) !important;
-    color: rgb(var(--nav-tone, 0 210 178)) !important;
-  }
-
   .coach-auth-shell.app-theme-light .coach-mobile-menu-panel {
     color-scheme: dark;
     border-color: rgba(255, 255, 255, 0.1) !important;

@@ -10,15 +10,15 @@ const productIds = [
   'br.com.coachfitpro.ios.profissional.anual',
 ]
 
-test('iOS workflow and native project use build 51 or newer', () => {
+test('iOS workflow and native project use build 52 or newer', () => {
   const workflow = read('.github/workflows/coachfit-ios-testflight.yml')
   const project = read('ios/App/App.xcodeproj/project.pbxproj')
-  assert.match(workflow, /build_number:[\s\S]*?default: "51"/)
-  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '51' \}\}/)
-  assert.match(workflow, /IOS_BUILD >= 51/)
+  assert.match(workflow, /build_number:[\s\S]*?default: "52"/)
+  assert.match(workflow, /IOS_BUILD: \$\{\{ inputs\.build_number \|\| '52' \}\}/)
+  assert.match(workflow, /IOS_BUILD >= 52/)
   const buildNumbers = [...project.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((match) => Number(match[1]))
   assert.equal(buildNumbers.length, 4)
-  assert.ok(buildNumbers.every((number) => number === 51))
+  assert.ok(buildNumbers.every((number) => number === 52))
 })
 
 test('Capacitor uses the App Store bundle identifier and local StoreKit plugin', () => {

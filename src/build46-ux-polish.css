@@ -11,20 +11,43 @@
 }
 
 @media (max-width: 1023px) {
-  .coach-auth-shell.app-theme-light .coach-mobile-bottom-nav {
+  .coach-auth-shell.app-theme-light .coach-mobile-bottom-nav,
+  .student-mobile-shell.app-theme-light .student-bottom-nav {
+    color-scheme: light;
     border-color: rgba(8, 127, 114, .19) !important;
-    background: linear-gradient(180deg, rgba(255, 255, 255, .97), rgba(245, 250, 249, .97)) !important;
-    box-shadow: 0 18px 44px rgba(13, 37, 35, .13), inset 0 1px 0 rgba(255, 255, 255, .9) !important;
+    background: #fff !important;
+    box-shadow: 0 4px 20px rgba(13, 37, 35, .12) !important;
   }
 
-  .coach-auth-shell.app-theme-light .coach-mobile-bottom-button {
-    color: #425c58 !important;
+  .app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) .tone-emerald { --nav-light-tone: 8 125 108; }
+  .app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) .tone-lime { --nav-light-tone: 77 124 15; }
+  .app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) .tone-orange { --nav-light-tone: 194 65 12; }
+  .app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) .tone-sky { --nav-light-tone: 3 105 161; }
+  .app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) .tone-cyan { --nav-light-tone: 14 116 144; }
+
+  :is(.coach-auth-shell, .student-mobile-shell).app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) button:is(.coach-mobile-bottom-button, .student-mobile-nav-button) {
+    min-height: 44px;
+    background: transparent !important;
+    border-color: transparent !important;
+    color: rgb(var(--nav-light-tone, 8 125 108)) !important;
+    -webkit-text-fill-color: currentColor !important;
+    box-shadow: none !important;
   }
 
-  .coach-auth-shell.app-theme-light .coach-mobile-bottom-button.is-active {
-    border-color: rgba(8, 127, 114, .28) !important;
-    background: rgba(8, 127, 114, .1) !important;
-    color: #0d2523 !important;
+  :is(.coach-auth-shell, .student-mobile-shell).app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) button:is(.coach-mobile-bottom-button, .student-mobile-nav-button) :is(svg, span) {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  :is(.coach-auth-shell, .student-mobile-shell).app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) button:is(.coach-mobile-bottom-button, .student-mobile-nav-button):is(.is-active, [aria-expanded="true"]) {
+    border-color: rgb(var(--nav-light-tone, 8 125 108) / .3) !important;
+    background: rgb(var(--nav-light-tone, 8 125 108) / .1) !important;
+    color: rgb(var(--nav-light-tone, 8 125 108)) !important;
+  }
+
+  :is(.coach-auth-shell, .student-mobile-shell).app-theme-light :is(.coach-mobile-bottom-nav, .student-bottom-nav) button:focus-visible {
+    outline: 2px solid rgb(var(--nav-light-tone, 8 125 108)) !important;
+    outline-offset: 2px;
   }
 }
 
