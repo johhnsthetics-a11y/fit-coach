@@ -36,10 +36,10 @@ on:
         required: true
         default: "1.0"
       build_number:
-        description: "Build INEDITO para esta versao (ex.: 50)"
+        description: "Build INEDITO para esta versao (ex.: 51)"
         type: string
         required: true
-        default: "50"
+        default: "51"
 
 permissions:
   contents: read
@@ -57,7 +57,7 @@ jobs:
       APP_ID: br.com.coachfitpro.ios
       REST_EXTENSION_ID: br.com.coachfitpro.ios.restactivity
       IOS_VERSION: ${{ inputs.version || '1.0' }}
-      IOS_BUILD: ${{ (inputs.build_number == '47' && '50') || inputs.build_number || '50' }}
+      IOS_BUILD: ${{ inputs.build_number || '51' }}
 
     steps:
       - name: Checkout
@@ -106,7 +106,7 @@ jobs:
           }
           [[ "$IOS_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "::error::Versao iOS invalida"; exit 1; }
           [[ "$IOS_BUILD" =~ ^[1-9][0-9]*$ ]] || { echo "::error::Numero do build invalido"; exit 1; }
-          (( IOS_BUILD >= 50 )) || { echo "::error::Use um numero de build inedito (50 ou maior)."; exit 1; }
+          (( IOS_BUILD >= 51 )) || { echo "::error::Use um numero de build inedito (51 ou maior)."; exit 1; }
           echo "macOS runner: $(sw_vers -productVersion)"
           xcodebuild -version
 

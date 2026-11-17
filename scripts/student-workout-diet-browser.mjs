@@ -133,6 +133,8 @@ import '/src/student-workout-polish-build39.css'
 import '/src/student-workout-rest-background-build40.css'
 import '/src/build46-type-v0.css'
 import '/src/build46-ux-polish.css'
+import '/src/student-workout-video-cta.css'
+import '/src/workout-experience.css'
 
 const student = ${JSON.stringify(student)}
 const workout = ${JSON.stringify(workout)}
@@ -299,6 +301,15 @@ try {
     const firstRepsInput = workoutArea.getByLabel('Repetições realizadas', { exact: true }).first()
     assert.equal(await firstRepsInput.inputValue(), '', 'O campo de repetições realizadas não deve pré-preencher a meta')
     await firstRepsInput.fill('12')
+    const collapsedRow = await workoutArea.locator('.workout-focus-session .is-collapsed').first().evaluate(row => {
+      const label = row.querySelector('.mobile-workout-set-label-v4').getBoundingClientRect()
+      const button = row.querySelector('button').getBoundingClientRect()
+      return { labelRight: label.right, buttonLeft: button.left, height: row.getBoundingClientRect().height, columns: getComputedStyle(row).gridTemplateColumns, children: [...row.children].map(el => ({ column: getComputedStyle(el).gridColumn, row: getComputedStyle(el).gridRow })) }
+    })
+    assert.ok(collapsedRow.labelRight <= collapsedRow.buttonLeft && collapsedRow.height <= 88, `Séries recolhidas devem ficar em uma única linha compacta: ${JSON.stringify(collapsedRow)}`)
+    const segment = await workoutArea.locator('.student-workout-figma-progress-track [data-progress-segment]').first().evaluate(el => ({ width: el.getBoundingClientRect().width, display: getComputedStyle(el).display, parentWidth: el.parentElement.getBoundingClientRect().width, columns: getComputedStyle(el.parentElement).gridTemplateColumns }))
+    assert.ok(segment.width > 0, `Os segmentos de progresso precisam permanecer visíveis: ${JSON.stringify(segment)}`)
+    await page.screenshot({ path: `.superpowers/diet-qa/workout-entry-${theme}-${width}.png`, fullPage: false })
     const completeSetButton = workoutArea.getByRole('button', { name: 'Concluir série', exact: true })
     const completeSetStyle = await completeSetButton.evaluate((element) => ({
       background: getComputedStyle(element).backgroundColor,
@@ -306,6 +317,7 @@ try {
       justifyContent: getComputedStyle(element).justifyContent,
     }))
     assert.equal(completeSetStyle.justifyContent, 'center', 'Concluir série deve ficar centralizado')
+    assert.ok(contrastRatio(completeSetStyle.color, completeSetStyle.background) >= 4.5, 'Concluir série deve ter contraste AA em ambos os temas')
     if (theme === 'light') {
       assert.equal(completeSetStyle.background, 'rgb(8, 125, 108)', 'Concluir série não pode permanecer branco no tema claro')
       assert.equal(completeSetStyle.color, 'rgb(255, 255, 255)', 'Concluir série deve manter contraste no tema claro')
@@ -358,6 +370,18 @@ try {
 
     await workoutArea.getByText('3/5 séries', { exact: true }).waitFor()
     await workoutArea.locator('.student-workout-figma-exercise-complete').waitFor()
+    const record = workoutArea.locator('.student-workout-figma-set-record').first()
+    await record.getByRole('button', { name: 'Editar série 1', exact: true }).click()
+    await record.getByLabel('Repetições', { exact: true }).fill('0')
+    await record.getByRole('button', { name: 'Concluir edição', exact: true }).click()
+    assert.equal(await record.locator('.student-workout-figma-record-edit').count(), 1, 'Uma edição inválida deve permanecer aberta, sem alterar a série concluída')
+    assert.ok(await workoutArea.getByRole('alert').getByText(/inteiro.*maior que zero/).count(), 'Revisar registro deve validar repetições assim como Concluir série')
+    await record.getByRole('button', { name: 'Cancelar edição da série 1', exact: true }).click()
+    assert.ok(await record.getByText('20 kg × 12 reps', { exact: true }).count(), 'Cancelar uma revisão deve preservar o último registro válido')
+    await record.getByRole('button', { name: 'Editar série 1', exact: true }).click()
+    await record.getByLabel('Carga', { exact: true }).fill('20,5')
+    await record.getByRole('button', { name: 'Concluir edição', exact: true }).click()
+    assert.ok(await record.getByText('20,5 kg × 12 reps', { exact: true }).count(), 'Uma revisão válida deve ser salva sem reabrir a série')
     await workoutArea.getByRole('button', { name: 'Ir para Remada baixa com triângulo', exact: true }).click()
     await workoutArea.getByRole('heading', { name: 'Remada baixa com triângulo', exact: true }).waitFor()
 

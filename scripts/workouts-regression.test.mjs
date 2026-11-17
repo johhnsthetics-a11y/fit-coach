@@ -1237,3 +1237,19 @@ test('draft novo não predefine repetições e execução separa meta de reps re
   assert.match(appSource, /findWorkoutDayIndexForDate\(days\)/)
   assert.match(appSource, /if \(!preview\) onSelectDay\?\.\(safeDayIndex\)/)
 })
+
+test('biblioteca ampliada encontra movimentos distintos pelos aliases sem duplicar nomes', () => {
+  const library = getExerciseLibrary()
+  const additions = [
+    ['Pallof press na polia', 'pallof press'], ['Bird dog', 'perdigueiro'],
+    ['Abdominal com roda', 'ab wheel'], ['Caminhada lateral com miniband', 'lateral band walk'],
+    ['Adução de quadril na polia', 'cable hip adduction'], ['Subida no banco com halteres', 'step up'],
+    ['Desenvolvimento landmine unilateral', 'landmine press'], ['Afundo reverso com halteres', 'reverse lunge'],
+    ['Flexão de punho com halteres', 'wrist curl'], ['Rotação externa de ombro na polia', 'cable external rotation'],
+  ]
+  for (const [name, search] of additions) {
+    assert.equal(library.filter(item => item.name === name).length, 1, name)
+    const results = getExercisePickerResults({ library, search })
+    assert.ok(results.some(item => item.name === name), `Alias não encontrado: ${search}`)
+  }
+})

@@ -826,6 +826,16 @@ const exerciseLibrary = [
   { name: 'Agachamento frontal com halteres', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos', 'adutores'], equipment: 'Halteres', movementType: 'Agachar', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['front squat com halteres'] },
   { name: 'Agachamento sumô com kettlebell', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos', 'adutores'], equipment: 'Kettlebell', movementType: 'Agachar', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['agachamento sumo kettlebell'] },
   { name: 'Elevação frontal com barra', group: 'Ombros', primaryMuscle: 'deltoide-anterior', secondaryMuscles: ['deltoide-lateral'], equipment: 'Barra', movementType: 'Flexão de ombro', objective: 'Força e hipertrofia', category: 'Força e hipertrofia', aliases: ['front raise com barra'] },
+  { name: 'Pallof press na polia', group: 'Core', primaryMuscle: 'obliquos', equipment: 'Polia', movementType: 'Anti-rotação de tronco', aliases: ['pallof press', 'press anti-rotacao'], cues: 'Mantenha o tronco estável enquanto afasta as mãos do peito, sem girar em direção à polia.' },
+  { name: 'Bird dog', group: 'Core', primaryMuscle: 'abdomen', secondaryMuscles: ['gluteos'], equipment: 'Peso corporal', movementType: 'Estabilização de tronco', aliases: ['perdigueiro', 'extensao alternada em quatro apoios'], cues: 'Em quatro apoios, estenda braço e perna opostos sem girar a pelve.' },
+  { name: 'Abdominal com roda', group: 'Core', primaryMuscle: 'abdomen', equipment: 'Roda abdominal', movementType: 'Anti-extensão de tronco', aliases: ['ab wheel', 'ab rollout', 'roda abdominal'], cues: 'Avance somente até onde consegue manter o tronco estável e retorne com controle.' },
+  { name: 'Caminhada lateral com miniband', group: 'Abdutores', primaryMuscle: 'abdutores', secondaryMuscles: ['gluteos'], equipment: 'Miniband', movementType: 'Abdução de quadril', aliases: ['lateral band walk', 'passada lateral com elastico'], cues: 'Dê passos laterais curtos, mantendo a tensão do elástico e a pelve estável.' },
+  { name: 'Adução de quadril na polia', group: 'Adutores', primaryMuscle: 'adutores', equipment: 'Polia baixa e tornozeleira', movementType: 'Adução de quadril', aliases: ['cable hip adduction', 'aducao em pe na polia'], cues: 'Com apoio e tronco estável, aproxime a perna da linha média sem usar impulso.' },
+  { name: 'Subida no banco com halteres', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos'], equipment: 'Banco e halteres', movementType: 'Subida unilateral', aliases: ['step up', 'step-up com halteres'], cues: 'Apoie todo o pé na plataforma e suba com controle, mantendo o joelho alinhado.' },
+  { name: 'Desenvolvimento landmine unilateral', group: 'Ombros', primaryMuscle: 'deltoide-anterior', secondaryMuscles: ['triceps'], equipment: 'Barra e suporte landmine', movementType: 'Empurrar diagonal', aliases: ['landmine press', 'press unilateral landmine'], cues: 'Mantenha a barra ancorada e empurre em diagonal sem compensar com a lombar.' },
+  { name: 'Afundo reverso com halteres', group: 'Quadríceps e glúteos', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteos'], equipment: 'Halteres', movementType: 'Avanço unilateral', aliases: ['reverse lunge', 'passada para tras', 'afundo para tras'], cues: 'Dê um passo para trás, mantenha o pé da frente apoiado e retorne com controle.' },
+  { name: 'Flexão de punho com halteres', group: 'Antebraços', primaryMuscle: 'antebraco', equipment: 'Halteres', movementType: 'Flexão de punho', aliases: ['wrist curl', 'rosca de punho'], cues: 'Apoie o antebraço e movimente o punho sem levantar o cotovelo.' },
+  { name: 'Rotação externa de ombro na polia', group: 'Ombros', primaryMuscle: 'manguito-rotador', equipment: 'Polia', movementType: 'Rotação externa de ombro', aliases: ['cable external rotation', 'rotacao externa no cabo'], cues: 'Mantenha o cotovelo junto ao corpo e rode o antebraço para fora sem girar o tronco.' },
 ]
 
 const exerciseCatalogBlueprints = [
@@ -10824,14 +10834,14 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], nutrit
             if (currentExerciseIndex !== exerciseIndex) return exercise
             if (field === 'name') {
               const profile = findExerciseProfile(value, availableExerciseLibrary)
-              return enrichExercise({
+              return { ...enrichExercise({
                 ...normalizeWorkoutExerciseInput(exercise),
                 name: value,
                 exerciseType: profile?.exerciseType || 'strength',
                 cardioMode: profile?.cardioMode || '',
                 primaryMuscle: profile?.primaryMuscle || '',
                 secondaryMuscles: profile?.secondaryMuscles || [],
-              }, availableExerciseLibrary)
+              }, availableExerciseLibrary), name: value }
             }
             if (field === 'exerciseType') {
               return value === 'cardio'
@@ -11819,7 +11829,7 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], nutrit
       ) : null}
 
       {showCreator ? (
-        <div className="mobile-workout-creator mobile-workout-creator-full">
+        <div className="mobile-workout-creator mobile-workout-creator-full workout-builder-focused">
           <div className="mobile-workout-creator-head">
             <div>
               <p>Montagem guiada</p>
@@ -11836,7 +11846,12 @@ function MobileWorkoutManager({ selectedStudent, students, workouts = [], nutrit
             ))}
           </div>
 
-          <div className="mobile-workout-creator-workspace">
+          <div className={'mobile-workout-creator-workspace' + (creatorStep === 'exercises' && draft.days.length ? ' workout-builder-with-days' : '')}>
+          {creatorStep === 'exercises' && draft.days.length ? <aside className="workout-builder-days" aria-label="Dias do programa">
+            <div className="workout-builder-person"><small>Prescrição para</small><strong>{selectedDraftStudent?.name || 'Aluno'}</strong><span>{draft.title}</span></div>
+            <div className="workout-builder-days-heading"><strong>Dias de treino</strong><button type="button" aria-label="Adicionar dia" title="Adicionar dia" onClick={addDraftDay}><NavIcon name="plus" className="h-4 w-4" /></button></div>
+            {draft.days.map((day, index) => <button key={day.id || index} type="button" className={index === activeDayIndex ? 'is-selected' : ''} aria-pressed={index === activeDayIndex} onClick={() => { setActiveDayIndex(index); setExpandedDay(index); setExpandedExerciseKey('') }}><span>{String(index + 1).padStart(2, '0')}</span><span><strong>{day.day}</strong><small>{day.focus || 'Foco do treino'} · {getWorkoutDayExerciseCount(day)} exercícios</small></span></button>)}
+          </aside> : null}
           <div className="mobile-workout-creator-main">
 
           {creatorStep === 'info' ? (
@@ -12482,7 +12497,7 @@ function MobileWorkoutEditableDay({
 
   return (
     <>
-    <section className="mobile-workout-day-screen mobile-workout-day-editor-screen">
+    <section className="mobile-workout-day-screen mobile-workout-day-editor-screen workout-editor-compact">
       <div className="mobile-workout-day-editor-hero">
         <button type="button" className="mobile-workout-back-link" onClick={onBack}>Voltar</button>
         <div>
@@ -12510,12 +12525,15 @@ function MobileWorkoutEditableDay({
       ) : null}
       <div className="mobile-workout-exercises">
         {dayExercises.map((exercise, exerciseIndex) => (
-          <div key={`${exercise.name}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
+          <div key={`${dayIndex}-${exerciseIndex}`} className={`mobile-workout-exercise-editor ${expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'is-open' : ''}`}>
             <button
               type="button"
               className="mobile-workout-exercise-accordion"
+              aria-expanded={expandedExerciseKey === `${dayIndex}-${exerciseIndex}`}
+              aria-label={`Ajustes de ${exercise.name || 'exercício ' + (exerciseIndex + 1)}`}
               onClick={() => setExpandedExerciseKey(expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? '' : `${dayIndex}-${exerciseIndex}`)}
             >
+              <span className="workout-exercise-order" aria-hidden="true">{String(exerciseIndex + 1).padStart(2, '0')}</span>
               <span>
                 <strong>{exercise.name || 'Novo exercício'}</strong>
                 <small>{isCardioExercise(exercise) ? formatCardioPrescription(exercise) : `${exercise.sets || '-'} × ${exercise.reps || '-'} · ${exercise.rest || 'descanso livre'}`}</small>
@@ -12523,11 +12541,15 @@ function MobileWorkoutEditableDay({
               </span>
               <NavIcon name={expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? 'chevronDown' : 'chevronRight'} className="h-4 w-4" />
             </button>
+            {!isCardioExercise(exercise) ? <div className="workout-exercise-core">
+              <label>Séries<input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" /></label>
+              <label>Repetições<input value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Reps" /></label>
+              <label>Descanso<input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" /></label>
+            </div> : null}
             {expandedExerciseKey === `${dayIndex}-${exerciseIndex}` ? (
               <div className="mobile-workout-exercise-fields">
                 <ExerciseMedia exercise={exercise} compact />
-                <ExerciseMuscleSummary exercise={exercise} compact />
-                <input list="mobile-exercise-library" value={exercise.name || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" />
+                <label className="workout-exercise-name">Nome do exercício<input list="mobile-exercise-library" value={day.exercises[exerciseIndex]?.name ?? exercise.name ?? ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'name', event.target.value)} aria-label="Nome do exercício" /></label>
                 <label className="mobile-workout-field-label">
                   <span>Tipo de exercício</span>
                   <select value={isCardioExercise(exercise) ? 'cardio' : 'strength'} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'exerciseType', event.target.value)}>
@@ -12562,18 +12584,13 @@ function MobileWorkoutEditableDay({
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <input inputMode="numeric" value={exercise.sets || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'sets', event.target.value)} placeholder="Séries" />
-                      <input inputMode="numeric" value={exercise.reps || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'reps', event.target.value)} placeholder="Meta de reps" />
-                      <input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Carga" />
-                      <input value={exercise.rest || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rest', event.target.value)} placeholder="Descanso" />
+                    <div className="workout-exercise-adjustments">
+                      <label>Carga<input value={exercise.load || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'load', event.target.value)} placeholder="Opcional" /></label>
+                      <label>Cadência<input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Opcional" /></label>
+                      <label>RPE<input inputMode="decimal" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="Opcional" /></label>
+                      <label>RIR<input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="Opcional" /></label>
                     </div>
-                    <div>
-                      <input value={exercise.cadence || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'cadence', event.target.value)} placeholder="Cadência" />
-                      <input inputMode="numeric" value={exercise.rpe || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rpe', event.target.value)} placeholder="RPE" />
-                      <input inputMode="numeric" value={exercise.rir || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'rir', event.target.value)} placeholder="RIR" />
-                      <input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" />
-                    </div>
+                    <label>Equipamento<input value={exercise.equipment || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'equipment', event.target.value)} placeholder="Equipamento" /></label>
                     <div className="mobile-workout-preset-row">
                       {[
                         ['padrao', '3 × 12'],
@@ -12592,10 +12609,11 @@ function MobileWorkoutEditableDay({
                   <input type="file" accept="video/mp4,video/webm,video/quicktime,video/*" capture="environment" onChange={(event) => updateDraftExerciseVideoFile(dayIndex, exerciseIndex, event.target.files?.[0] || null)} />
                   <span>{exercise.videoFileName || 'Grave pela câmera ou escolha da galeria.'}</span>
                 </label>
-                <input value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} placeholder="Observação técnica" />
+                <label>Observação técnica<textarea value={exercise.notes || ''} onChange={(event) => updateDraftExercise(dayIndex, exerciseIndex, 'notes', event.target.value)} rows={2} placeholder="Observação técnica" /></label>
+                <details className="workout-exercise-reference"><summary>Referência técnica e músculos</summary><ExerciseMuscleSummary exercise={exercise} compact /></details>
                 <div className="mobile-workout-day-actions">
-                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}>Subir</button>
-                  <button type="button" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === dayExercises.length - 1}>Descer</button>
+                  <button type="button" aria-label="Subir" title="Subir exercício" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, -1)} disabled={exerciseIndex === 0}><NavIcon name="chevronUp" className="h-4 w-4" /></button>
+                  <button type="button" aria-label="Descer" title="Descer exercício" onClick={() => moveDraftExercise(dayIndex, exerciseIndex, 1)} disabled={exerciseIndex === dayExercises.length - 1}><NavIcon name="chevronDown" className="h-4 w-4" /></button>
                   <button type="button" onClick={() => duplicateDraftExercise(dayIndex, exerciseIndex)}>Duplicar</button>
                   <button type="button" onClick={() => removeDraftExercise(dayIndex, exerciseIndex)}>Remover</button>
                   <button type="button" className="mobile-workout-exercise-save-action" onClick={() => setExpandedExerciseKey('')}>Salvar</button>
@@ -14537,6 +14555,7 @@ const muscleConfig = {
   'deltoide-anterior': { label: 'Deltoide anterior', view: 'front', aliases: ['ombro anterior', 'front delt', 'anterior deltoid'], description: 'Atua em empurradas e elevação frontal.' },
   'deltoide-lateral': { label: 'Deltoide lateral', view: 'front', aliases: ['ombro lateral', 'side delt', 'lateral deltoid', 'ombros'], description: 'Dá suporte às elevações laterais e abdução do ombro.' },
   'deltoide-posterior': { label: 'Deltoide posterior', view: 'back', aliases: ['ombro posterior', 'rear delt', 'posterior deltoid'], description: 'Ajuda em remadas, puxadas e postura escapular.' },
+  'manguito-rotador': { label: 'Manguito rotador', view: 'back', aliases: ['manguito rotador', 'rotator cuff'], description: 'Estabilização do ombro e rotação do braço.' },
   biceps: { label: 'Bíceps', view: 'front', aliases: ['bíceps', 'biceps', 'bicep'], description: 'Flexão de cotovelo e apoio nas puxadas.' },
   triceps: { label: 'Tríceps', view: 'back', aliases: ['tríceps', 'triceps', 'tricep'], description: 'Extensão de cotovelo e finalização das empurradas.' },
   antebraco: { label: 'Antebraço', view: 'front', aliases: ['antebraço', 'forearm', 'forearms', 'grip'], description: 'Pegada, punho e estabilidade de carga.' },
@@ -15505,6 +15524,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
   const [showWorkoutOverview, setShowWorkoutOverview] = useState(false)
   const [dayPickerOpen, setDayPickerOpen] = useState(false)
   const [expandedSetKey, setExpandedSetKey] = useState('')
+  const [setRecordDraft, setSetRecordDraft] = useState(null)
   const [seriesFeedback, setSeriesFeedback] = useState(null)
   const [exerciseCompleteDismissedKey, setExerciseCompleteDismissedKey] = useState('')
   const [entryFieldFocused, setEntryFieldFocused] = useState(false)
@@ -16059,10 +16079,33 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
 
   function updateSet(setItem, field, value) {
+    if (setItem.completed) return
     setSetLogs((current) => ({
       ...current,
       [setItem.key]: { ...setItem, ...current[setItem.key], [field]: value },
     }))
+  }
+
+  function editSetRecord(setItem) {
+    const isClosing = expandedSetKey === setItem.key
+    setError('')
+    setSetRecordDraft(isClosing ? null : { ...setItem })
+    setExpandedSetKey(isClosing ? '' : setItem.key)
+  }
+
+  function saveSetRecord() {
+    if (!setRecordDraft) return
+    if (!isValidWorkoutSetRepetitions(setRecordDraft.reps)) {
+      setError('Informe um número inteiro de repetições maior que zero antes de salvar a série.')
+      return
+    }
+    setSetLogs((current) => ({
+      ...current,
+      [setRecordDraft.key]: { ...current[setRecordDraft.key], load: setRecordDraft.load, reps: setRecordDraft.reps },
+    }))
+    setError('')
+    setSetRecordDraft(null)
+    setExpandedSetKey('')
   }
 
   function scrollWorkoutToTop() {
@@ -16750,12 +16793,12 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
               <strong>Série {setItem.number}</strong>
               {expandedSetKey === setItem.key ? (
                 <div className="student-workout-figma-record-edit">
-                  <label>Carga<input inputMode="decimal" value={setItem.load} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder="kg" /></label>
-                  <label>Repetições<input inputMode="numeric" value={setItem.reps} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder="reps" /></label>
-                  <button type="button" onClick={() => setExpandedSetKey('')}>Concluir edição</button>
+                  <label>Carga<input inputMode="decimal" value={setRecordDraft?.load ?? setItem.load} onChange={(event) => setSetRecordDraft({ ...setRecordDraft, load: event.target.value })} placeholder="kg" /></label>
+                  <label>Repetições<input inputMode="numeric" value={setRecordDraft?.reps ?? setItem.reps} onChange={(event) => setSetRecordDraft({ ...setRecordDraft, reps: event.target.value })} placeholder="reps" /></label>
+                  <button type="button" onClick={saveSetRecord}>Concluir edição</button>
                 </div>
               ) : <span>{`${setItem.load || '—'} kg × ${setItem.reps || '—'} reps`}</span>}
-              <button type="button" className="student-workout-figma-edit-set" aria-label={`Editar série ${setItem.number}`} aria-expanded={expandedSetKey === setItem.key} onClick={() => setExpandedSetKey(expandedSetKey === setItem.key ? '' : setItem.key)}><NavIcon name="edit" className="h-4 w-4" /></button>
+              <button type="button" className="student-workout-figma-edit-set" aria-label={expandedSetKey === setItem.key ? `Cancelar edição da série ${setItem.number}` : `Editar série ${setItem.number}`} aria-expanded={expandedSetKey === setItem.key} onClick={() => editSetRecord(setItem)}><NavIcon name={expandedSetKey === setItem.key ? 'close' : 'edit'} className="h-4 w-4" /></button>
             </div>
           ))}
           <small>{preview ? 'Prévia: estes registros não serão salvos.' : 'Toque no lápis para revisar um registro.'}</small>
@@ -16764,7 +16807,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
         {nextExercise ? <article className="student-workout-figma-next-exercise"><p>PRÓXIMO • EXERCÍCIO {safeExerciseIndex + 2} DE {exercises.length}</p><strong>{nextExercise.name}</strong><span>{nextExercise.equipment || getExerciseMuscleProfile(nextExercise).primaryLabel}</span><small>{nextExercise.sets || '—'} séries × {nextExercise.reps || '—'} reps • descanso de {nextExercise.rest || 'livre'}</small></article> : null}
         {error ? <p className="mobile-workout-student-error-v2" role="alert">{error}</p> : null}
         <div className="student-workout-figma-bottom-actions">
-          <button type="button" className="student-workout-figma-primary" disabled={saving} onClick={() => {
+          <button type="button" className="student-workout-figma-primary" disabled={saving || (setRecordDraft?.key === expandedSetKey)} onClick={() => {
             setError('')
             if (nextExercise) {
               if (preview) setActiveExerciseIndex((index) => Math.min(index + 1, exercises.length - 1))
@@ -16787,7 +16830,7 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
 
 
   return (
-      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-execution mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution ' + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
+      <section className={'mobile-workout-student-experience-v2 student-workout-figma-screen student-workout-figma-execution mobile-workout-definitive-v12 mobile-workout-design-v24 mobile-workout-execution-v24 mobile-workout-execution-v29 student-workout-build30-experience student-workout-build30-execution workout-focus-session ' + (entryFieldFocused ? 'is-entry-focused ' : '') + (compact ? 'is-compact' : '')} data-preview={preview ? 'true' : 'false'} data-preview-screen={preview ? previewModeStage : undefined}>
       {sessionSyncFeedback}
       <header className="student-workout-figma-execution-topbar student-workout-has-end-action">
         <button type="button" aria-label="Voltar ao resumo do treino" onClick={returnToDaySelection}><NavIcon name="arrowLeft" className="h-5 w-5" /></button>
@@ -16802,13 +16845,13 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
           <div className="student-workout-figma-exercise-intro">
             <div className="mobile-workout-current-heading-v5">
               <div>
-                <p>{activeDay?.day || 'Dia ' + (safeDayIndex + 1)}</p>
+                <p>{getExerciseMuscleProfile(exercise).primaryLabel || exercise.muscleGroup || 'Exercício atual'}</p>
                 <h4>{exercise.name}</h4>
                 <span>{[exercise.equipment, currentExerciseIsCardio ? formatCardioPrescription(exercise) : `${exercise.sets || '—'} séries de ${exercise.reps || '—'} reps · Descanso ${exercise.rest || 'livre'}`].filter(Boolean).join(' • ')}</span>
               </div>
             </div>
             <div className="student-workout-figma-media"><ExerciseMedia exercise={exercise} compact label="Assistir vídeo do exercício" /></div>
-            {exercise.cues || exercise.instructions || exercise.notes ? <p className="student-workout-figma-coach-cue">{exercise.cues || exercise.instructions}{exercise.notes ? ' ' + exercise.notes : ''}</p> : null}
+            {exercise.cues || exercise.instructions || exercise.notes ? <details className="workout-focus-guidance"><summary><NavIcon name="info" className="h-4 w-4" />Orientações do treinador<NavIcon name="chevronDown" className="h-4 w-4" /></summary><p className="student-workout-figma-coach-cue">{exercise.cues || exercise.instructions}{exercise.notes ? ' ' + exercise.notes : ''}</p></details> : null}
           </div>
 
           <div className="mobile-workout-timer-panel-v5">
@@ -16891,8 +16934,8 @@ export function StudentWorkoutExecution({ student, workout, workoutLogs = [], ex
                         {previous ? <em>{'Último registro: ' + (previous.load || '0') + ' kg × ' + (previous.reps || '-') + ' reps'}</em> : null}
                       </div>
                       {isExpanded ? <div className="mobile-workout-set-fields-v12">
-                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} inputMode="decimal" enterKeyHint="next" value={setItem.load} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder={exercise?.load || 'kg'} /></label>
-                        <label>Repetições realizadas<input id={'workout-set-reps-' + setItem.key} aria-describedby={'workout-set-target-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder={setItem.targetReps ? 'Meta ' + setItem.targetReps : 'Digite o realizado'} /></label>
+                        <label>Carga (kg)<input id={'workout-set-load-' + setItem.key} readOnly={setItem.completed} inputMode="decimal" enterKeyHint="next" value={setItem.load} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'load', event.target.value)} placeholder={exercise?.load || 'kg'} /></label>
+                        <label>Repetições realizadas<input id={'workout-set-reps-' + setItem.key} readOnly={setItem.completed} aria-describedby={'workout-set-target-' + setItem.key} inputMode="numeric" enterKeyHint="done" value={setItem.reps} onFocus={() => setEntryFieldFocused(true)} onBlur={() => setEntryFieldFocused(false)} onChange={(event) => updateSet(setItem, 'reps', event.target.value)} placeholder={setItem.targetReps ? 'Meta ' + setItem.targetReps : 'Digite o realizado'} /></label>
                         <button type="button" className="mobile-workout-set-inline-action-v29" onClick={() => completeSet(setItem)}>{setItem.completed ? 'Reabrir série' : 'Concluir série'}</button>
                       </div> : (
                         <button type="button" className="mobile-workout-set-open-v11" onClick={() => setExpandedSetKey(setItem.key)}>
